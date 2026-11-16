@@ -1,0 +1,38 @@
+{
+  "name": "mockup-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Editor de design em canvas voltado para IA, com servidor MCP completo.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/server",
+    "packages/cli",
+    "packages/editor",
+    "packages/desktop"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run build && vitest run",
+    "test:watch": "vitest",
+    "dev": "concurrently -k -n daemon,editor -c blue,magenta \"npm run dev -w @mockup/server\" \"npm run dev -w @mockup/editor\"",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "node -e \"for (const p of ['core','server','cli','editor']) require('fs').rmSync('packages/'+p+'/dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.0.0",
+    "concurrently": "^10.0.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^5.1.0"
+  }
+}
