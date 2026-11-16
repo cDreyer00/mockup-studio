@@ -1,0 +1,40 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`exportSvg (fallback sem layout) > snapshot: foreignObject com o HTML inline do Mobile 390 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <foreignObject x="0" y="0" width="390" height="844">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="--color-bg: #0f1115; --color-surface: #181b22; --color-primary: #6c5ce7; --color-text: #e8e8ee; --color-muted: #9aa0ad; --radius: 12px; --font: Inter, system-ui, sans-serif">
+      <style>*{box-sizing:border-box;margin:0}</style>
+      <div style="width: 390px; height: 844px; display: flex; flex-direction: column; background-color: var(--color-bg); font-family: var(--font); color: var(--color-text)">
+        <header style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background-color: var(--color-surface)">
+          <div style="font-size: 20px; font-weight: 700">Mockup</div>
+          <button style="background: var(--color-primary); color: #ffffff; padding: 8px 16px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600">Entrar</button>
+        </header>
+        <section style="display: flex; flex-direction: column; gap: 16px; padding: 40px 20px; text-align: center">
+          <h1 style="font-size: 32px; font-weight: 800; line-height: 1.15">Desenhe interfaces com a ajuda da IA</h1>
+          <p style="font-size: 16px; color: var(--color-muted)">Crie, edite e exporte telas em HTML e CSS reais.</p>
+          <button style="background: var(--color-primary); color: #ffffff; padding: 14px 24px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Começar agora</button>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 40px">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+            <div style="font-size: 28px">🎨</div>
+            <h3 style="font-size: 18px; font-weight: 700">Design livre</h3>
+            <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+            <div style="font-size: 28px">⚡</div>
+            <h3 style="font-size: 18px; font-weight: 700">Rápido</h3>
+            <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Alterações aparecem na hora, sem etapa de compilação.</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+            <div style="font-size: 28px">📦</div>
+            <h3 style="font-size: 18px; font-weight: 700">Exportável</h3>
+            <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Leve o resultado como HTML standalone para qualquer projeto.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </foreignObject>
+</svg>
+"
+`;
