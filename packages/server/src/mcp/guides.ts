@@ -1,4 +1,11 @@
-export const GUIDE_TOPICS = ['getting-started', 'layout', 'responsive', 'tokens'] as const;
+export const GUIDE_TOPICS = [
+  'getting-started',
+  'layout',
+  'responsive',
+  'tokens',
+  'screenshot-loop',
+  'export',
+] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
 export const GUIDES: Record<GuideTopic, string> = {
@@ -13,15 +20,18 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 2. \`get_basic_info\` — veja páginas, frames, documentos abertos e a seleção atual.
 3. \`create_frame(name, width, height)\` — cria um frame raiz (ex.: "Desktop", 1440x900).
 4. \`write_html(html, css?, parentId?)\` — crie conteúdo inteiro de uma vez com HTML + CSS.
-5. \`get_tree_summary(nodeId?, depth?)\` — confira a estrutura; use \`get_html\` para ver o código.
-6. Refine com \`update_styles\`, \`set_text\`, \`move_nodes\`, \`duplicate_nodes\`; use \`undo\` se errar.
+5. \`get_screenshot(nodeId?)\` — VEJA o resultado e corrija o que estiver errado (veja \`get_guide('screenshot-loop')\`).
+6. \`get_tree_summary(nodeId?, depth?)\` — confira a estrutura; use \`get_html\` para ver o código.
+7. Refine com \`update_styles\`, \`set_text\`, \`move_nodes\`, \`duplicate_nodes\`; use \`undo\` se errar.
+8. Ao terminar, chame \`finish_working\` para limpar o indicador "IA" no editor.
 
 ## Dicas
 
 - Prefira \`write_html\` a muitas chamadas \`create_node\`: é mais rápido e mais legível.
 - Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
-- Veja também: \`get_guide('layout')\`, \`get_guide('responsive')\`, \`get_guide('tokens')\`.
+- Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`), \`add_font\` (\`list_fonts\`).
+- Veja também: \`get_guide('layout')\`, \`get_guide('responsive')\`, \`get_guide('tokens')\`, \`get_guide('screenshot-loop')\`, \`get_guide('export')\`.
 `,
   layout: `# Layout
 
@@ -90,5 +100,66 @@ Tokens são variáveis CSS do documento, guardadas em \`tokens\` (ex.: \`--color
 - Nomes com prefixo \`--\`: \`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`.
 - Alterar o valor de um token atualiza todos os nós que o usam.
 - \`get_styles\` devolve os valores resolvidos (com os tokens substituídos).
+`,
+  'screenshot-loop': `# Ciclo de screenshot
+
+Não confie só na estrutura: depois de cada conjunto de mudanças, olhe o resultado.
+
+## Ciclo
+
+1. Crie ou edite (\`write_html\`, \`update_styles\`, \`insert_image\`...).
+2. \`get_screenshot(nodeId)\` — confira a imagem.
+3. Corrija o que estiver errado e repita o 2.
+4. Ao terminar, \`finish_working\` para limpar o indicador "IA" no editor.
+
+## Checklist visual
+
+- Alinhamento e espaçamento consistentes (gap, padding, margens).
+- Nada cortado nem vazando do frame (overflow); imagens com proporção correta.
+- Contraste suficiente entre texto e fundo.
+- Textos quebrando em lugares ruins (títulos em muitas linhas, botões com texto em duas linhas).
+- Hierarquia: tamanhos e pesos de fonte coerentes; elementos repetidos idênticos.
+
+## Economize contexto
+
+- Prefira \`scale: 1\` e use \`maxWidth\` (ex.: 800) em frames grandes; \`scale: 2\` só para detalhes.
+- Capture o nó que mudou (uma seção), não o frame inteiro, quando possível.
+- \`format: "jpg"\` gera imagens menores.
+
+## Medidas exatas
+
+\`get_layout(nodeId, depth?)\` lista \`id "nome" tag x,y wxh\` (px, relativos ao frame) e o texto das linhas.
+Use para verificar alinhamento, espaçamento e overflow com números.
+
+## Disponibilidade
+
+Screenshot e \`get_layout\` exigem o motor de render (app desktop ou Electron headless). Num daemon Node puro,
+as ferramentas avisam; use \`get_tree_summary\` e \`get_html\` para conferir a estrutura.
+`,
+  export: `# Exportação
+
+## get_code x export
+
+- \`get_code(nodeId, format)\` — devolve o código na resposta, sem gravar arquivos. Bom para ler/colar.
+- \`export(nodeIds, format, outputDir?)\` — grava arquivos, um por nó, e copia os assets usados.
+
+## Formatos
+
+- \`png\` / \`jpg\` (\`scale\` 1-3): imagem do nó; exige render.
+- \`svg\`: vetor do nó (com render usa as medidas reais; sem render, um fallback com foreignObject).
+- \`html\`: documento HTML com CSS em classes.
+- \`tailwind\`: HTML com classes Tailwind v4 (\`<nome>.tailwind.html\`).
+- \`react\`: componente \`<Nome>.tsx\` (\`styles\`: "tailwind" ou "inline"); se houver CSS, \`theme.css\` ou \`<Nome>.css\`.
+
+## Pasta de saída
+
+- Padrão: \`<pasta do documento>/exports/\`. Documento sem caminho exige \`outputDir\` (absoluto).
+- Os arquivos usam o nome do nó em slug (\`Desktop 1440\` vira \`desktop-1440.png\`).
+- Para html/tailwind/react, imagens e fontes usadas são copiadas para \`<outputDir>/assets/\`.
+
+## Dicas
+
+- Dê nomes claros às camadas (\`rename_nodes\`): viram nomes de arquivo e de componente.
+- Exporte um nó por componente; use \`get_screenshot\` antes para conferir o visual.
 `,
 };

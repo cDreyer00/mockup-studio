@@ -14,17 +14,26 @@ import {
   type Node,
   type Op,
 } from '@mockup/core';
-import type { RenderProvider } from '../render.js';
 import type { DocumentStore } from '../store.js';
+import {
+  DESTRUCTIVE,
+  type Annotations,
+  READ,
+  ToolError,
+  WRITE,
+  docIdField,
+  type McpServerOptions,
+  type RichResult,
+  type ToolContext,
+} from './context.js';
 import { GUIDES, GUIDE_TOPICS, type GuideTopic } from './guides.js';
+import { registerExportTools } from './tools/export.js';
+import { registerFontTools } from './tools/fonts.js';
+import { registerImageTools } from './tools/images.js';
+import { registerRenderTools } from './tools/render.js';
 
-type Annotations = { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean };
+export type { McpServerOptions } from './context.js';
 
-const READ: Annotations = { readOnlyHint: true };
-const WRITE: Annotations = { readOnlyHint: false, destructiveHint: false };
-const DESTRUCTIVE: Annotations = { readOnlyHint: false, destructiveHint: true };
-
-const docIdField = z.string().optional().describe('Id do documento (padrão: documento ativo).');
 const nodeIdsField = z
   .array(z.string())
   .min(1)
@@ -33,20 +42,12 @@ const stylesField = z
   .record(z.string(), z.string())
   .describe('Propriedades CSS, ex.: { "display": "flex", "gap": "16px", "background": "#fff" }.');
 
-class ToolError extends Error {}
-
 function pxOf(v: string | undefined): number {
   const n = v ? parseFloat(v) : NaN;
   return Number.isFinite(n) ? n : 0;
 }
 
-export interface McpServerOptions {
-  /** Motor de render (Electron). Ausente: ferramentas de screenshot informam que não há render. */
-  render?: RenderProvider;
-  dataDir?: string;
-}
-
-export function createMcpServer(store: DocumentStore, _opts: McpServerOptions = {}): McpServer {
+export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {}): McpServer {
   const server = new McpServer({ name: 'mockup-studio', version: '0.1.0' });
 
   /* ---------- helpers ---------- */
@@ -54,12 +55,22 @@ export function createMcpServer(store: DocumentStore, _opts: McpServerOptions = 
   function tool<S extends z.ZodRawShape>(
     name: string,
     cfg: { title: string; description: string; inputSchema: S; annotations?: Annotations },
-    handler: (args: z.infer<z.ZodObject<S>>) => Promise<string> | string,
+    handler: (args: z.infer<z.ZodObject<S>>) => Promise<string | RichResult> | string | RichResult,
   ): void {
     const cb = async (args: unknown) => {
       try {
-        const text = await handler(args as z.infer<z.ZodObject<S>>);
-        return { content: [{ type: 'text' as const, text }] };
+        const r = await handler(args as z.infer<z.ZodObject<S>>);
+        if (typeof r === 'string') return { content: [{ type: 'text' as const, text: r }] };
+        return {
+          content: [
+            ...(r.images ?? []).map((i) => ({
+              type: 'image' as const,
+              data: i.data,
+              mimeType: i.mimeType,
+            })),
+            { type: 'text' as const, text: r.text },
+          ],
+        };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return { isError: true, content: [{ type: 'text' as const, text: `Erro: ${msg}` }] };
@@ -437,7 +448,7 @@ export function createMcpServer(store: DocumentStore, _opts: McpServerOptions = 
     'get_guide',
     {
       title: 'Guia de uso',
-      description: 'Guia curto em markdown. Tópicos: getting-started, layout, responsive, tokens.',
+      description: `Guia curto em markdown. Tópicos: ${GUIDE_TOPICS.join(', ')}.`,
       inputSchema: {
         topic: z.enum(GUIDE_TOPICS).describe('Tópico do guia, ex.: "getting-started".'),
       },
@@ -994,9 +1005,13 @@ ${summaryOf(r.doc, nodeIds)}`;
     {
       title: 'Definir tokens',
       description:
-        'Define/remove variáveis CSS. Ex.: tokens { "--color-primary": "#6c5ce7" }, unset ["--old"].',
+        'Define/remove variáveis CSS. Nomes sem "--" ganham o prefixo automaticamente. Ex.: tokens { "--color-primary": "#6c5ce7" }, unset ["--old"].',
       inputSchema: {
-        tokens: z.record(z.string(), z.string()).describe('Tokens a definir, com prefixo "--".'),
+        tokens: z
+          .record(z.string(), z.string())
+          .describe(
+            'Tokens a definir; o prefixo "--" é acrescentado se faltar ("primary" vira "--primary").',
+          ),
         unset: z.array(z.string()).optional().describe('Tokens a remover.'),
         docId: docIdField,
       },
@@ -1004,12 +1019,10 @@ ${summaryOf(r.doc, nodeIds)}`;
     },
     ({ tokens, unset, docId }) => {
       const id = store.resolveDocId(docId);
-      const bad = Object.keys(tokens).filter((k) => !k.startsWith('--'));
-      if (bad.length)
-        throw new ToolError(
-          `Nomes de token devem começar com "--": ${bad.join(', ')}. Ex.: "--color-primary".`,
-        );
-      const r = apply(id, [{ type: 'setTokens', set: tokens, unset }], 'set_tokens');
+      const prefix = (k: string): string => (k.startsWith('--') ? k : `--${k}`);
+      const norm = Object.fromEntries(Object.entries(tokens).map(([k, v]) => [prefix(k), v]));
+      const normUnset = unset?.map(prefix);
+      const r = apply(id, [{ type: 'setTokens', set: norm, unset: normUnset }], 'set_tokens');
       const entries = Object.entries(r.doc.tokens);
       return `Tokens atualizados (${entries.length} no total).\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}`;
     },
@@ -1033,6 +1046,44 @@ ${summaryOf(r.doc, nodeIds)}`;
       },
     );
   }
+
+  tool(
+    'finish_working',
+    {
+      title: 'Terminei de editar',
+      description:
+        'Chame ao terminar um conjunto de edições (depois de conferir com get_screenshot) para limpar o indicador "IA" dos nós no editor. Sem nodeIds, vale para o documento inteiro.',
+      inputSchema: {
+        nodeIds: z.array(z.string()).optional().describe('Ids dos nós concluídos (padrão: todos).'),
+        docId: docIdField,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    ({ nodeIds, docId }) => {
+      const id = store.resolveDocId(docId);
+      store.finishWorking(id, nodeIds ?? []);
+      return nodeIds?.length
+        ? `Edição concluída em ${nodeIds.length} nó(s).`
+        : 'Edição concluída no documento.';
+    },
+  );
+
+  /* ---------- render, exportação, imagens, ícones e fontes ---------- */
+
+  const ctx: ToolContext = {
+    server,
+    store,
+    opts,
+    tool,
+    requireNode,
+    summaryOf,
+    apply,
+    selectedOrFirstFrame,
+  };
+  registerRenderTools(ctx);
+  registerExportTools(ctx);
+  registerImageTools(ctx);
+  registerFontTools(ctx);
 
   /* ---------- resources ---------- */
 
