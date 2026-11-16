@@ -1,0 +1,465 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`exportHtml > snapshot do exemplo (classes) 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Landing exemplo</title>
+  <style>
+  :root {
+    --color-bg: #0f1115;
+    --color-surface: #181b22;
+    --color-primary: #6c5ce7;
+    --color-text: #e8e8ee;
+    --color-muted: #9aa0ad;
+    --radius: 12px;
+    --font: Inter, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  .desktop-1440 {
+    width: 1440px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    font-family: var(--font);
+    color: var(--color-text);
+    min-height: 900px;
+  }
+  .navbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 64px;
+    background-color: var(--color-surface);
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .links {
+    display: flex;
+    gap: 32px;
+  }
+  .produto {
+    color: var(--color-muted);
+    font-size: 16px;
+    text-decoration: none;
+  }
+  .precos {
+    color: var(--color-muted);
+    font-size: 16px;
+    text-decoration: none;
+  }
+  .contato {
+    color: var(--color-muted);
+    font-size: 16px;
+    text-decoration: none;
+  }
+  .botao-entrar {
+    background: var(--color-primary);
+    color: #ffffff;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 96px 64px;
+    text-align: center;
+  }
+  .titulo {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--color-text);
+    max-width: 800px;
+  }
+  .subtitulo {
+    font-size: 20px;
+    color: var(--color-muted);
+    max-width: 640px;
+  }
+  .acoes {
+    display: flex;
+    gap: 16px;
+  }
+  .botao-primario {
+    background: var(--color-primary);
+    color: #ffffff;
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .botao-secundario {
+    background: transparent;
+    color: var(--color-text);
+    padding: 14px 28px;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-muted);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .cards {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    padding: 32px 64px 96px;
+  }
+  .card-design-livre {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 32px;
+    flex: 1;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone {
+    font-size: 32px;
+  }
+  .titulo-do-card {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .texto-do-card {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .card-rapido {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 32px;
+    flex: 1;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone-2 {
+    font-size: 32px;
+  }
+  .titulo-do-card-2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .texto-do-card-2 {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .card-exportavel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 32px;
+    flex: 1;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone-3 {
+    font-size: 32px;
+  }
+  .titulo-do-card-3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .texto-do-card-3 {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .mobile-390 {
+    width: 390px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-bg);
+    font-family: var(--font);
+    color: var(--color-text);
+    min-height: 844px;
+  }
+  .navbar-2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background-color: var(--color-surface);
+  }
+  .logo-2 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .botao-entrar-2 {
+    background: var(--color-primary);
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .hero-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 40px 20px;
+    text-align: center;
+  }
+  .titulo-2 {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .subtitulo-2 {
+    font-size: 16px;
+    color: var(--color-muted);
+  }
+  .botao-primario-2 {
+    background: var(--color-primary);
+    color: #ffffff;
+    padding: 14px 24px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .cards-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 20px 40px;
+  }
+  .card-design-livre-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone-4 {
+    font-size: 28px;
+  }
+  .titulo-do-card-4 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .texto-do-card-4 {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .card-rapido-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone-5 {
+    font-size: 28px;
+  }
+  .titulo-do-card-5 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .texto-do-card-5 {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .card-exportavel-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+    background-color: var(--color-surface);
+    border-radius: var(--radius);
+  }
+  .icone-6 {
+    font-size: 28px;
+  }
+  .titulo-do-card-6 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .texto-do-card-6 {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  </style>
+</head>
+<body>
+  <div class="desktop-1440">
+    <header class="navbar">
+      <div class="logo">Mockup</div>
+      <nav class="links">
+        <a class="produto" href="#">Produto</a>
+        <a class="precos" href="#">Preços</a>
+        <a class="contato" href="#">Contato</a>
+      </nav>
+      <button class="botao-entrar">Entrar</button>
+    </header>
+    <section class="hero">
+      <h1 class="titulo">Desenhe interfaces com a ajuda da IA</h1>
+      <p class="subtitulo">Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.</p>
+      <div class="acoes">
+        <button class="botao-primario">Começar agora</button>
+        <button class="botao-secundario">Ver exemplos</button>
+      </div>
+    </section>
+    <section class="cards">
+      <div class="card-design-livre">
+        <div class="icone">🎨</div>
+        <h3 class="titulo-do-card">Design livre</h3>
+        <p class="texto-do-card">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      </div>
+      <div class="card-rapido">
+        <div class="icone-2">⚡</div>
+        <h3 class="titulo-do-card-2">Rápido</h3>
+        <p class="texto-do-card-2">Alterações aparecem na hora, sem etapa de compilação.</p>
+      </div>
+      <div class="card-exportavel">
+        <div class="icone-3">📦</div>
+        <h3 class="titulo-do-card-3">Exportável</h3>
+        <p class="texto-do-card-3">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      </div>
+    </section>
+  </div>
+  <div class="mobile-390">
+    <header class="navbar-2">
+      <div class="logo-2">Mockup</div>
+      <button class="botao-entrar-2">Entrar</button>
+    </header>
+    <section class="hero-2">
+      <h1 class="titulo-2">Desenhe interfaces com a ajuda da IA</h1>
+      <p class="subtitulo-2">Crie, edite e exporte telas em HTML e CSS reais.</p>
+      <button class="botao-primario-2">Começar agora</button>
+    </section>
+    <section class="cards-2">
+      <div class="card-design-livre-2">
+        <div class="icone-4">🎨</div>
+        <h3 class="titulo-do-card-4">Design livre</h3>
+        <p class="texto-do-card-4">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      </div>
+      <div class="card-rapido-2">
+        <div class="icone-5">⚡</div>
+        <h3 class="titulo-do-card-5">Rápido</h3>
+        <p class="texto-do-card-5">Alterações aparecem na hora, sem etapa de compilação.</p>
+      </div>
+      <div class="card-exportavel-2">
+        <div class="icone-6">📦</div>
+        <h3 class="titulo-do-card-6">Exportável</h3>
+        <p class="texto-do-card-6">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
+"
+`;
+
+exports[`exportHtml > snapshot do exemplo (inline) 1`] = `
+"<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Landing exemplo</title>
+  <style>
+  :root {
+    --color-bg: #0f1115;
+    --color-surface: #181b22;
+    --color-primary: #6c5ce7;
+    --color-text: #e8e8ee;
+    --color-muted: #9aa0ad;
+    --radius: 12px;
+    --font: Inter, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  </style>
+</head>
+<body>
+  <div style="width: 1440px; display: flex; flex-direction: column; background-color: var(--color-bg); font-family: var(--font); color: var(--color-text); min-height: 900px">
+    <header style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 20px 64px; background-color: var(--color-surface)">
+      <div style="font-size: 22px; font-weight: 700; color: var(--color-text)">Mockup</div>
+      <nav style="display: flex; gap: 32px">
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Produto</a>
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Preços</a>
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Contato</a>
+      </nav>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 15px; font-weight: 600">Entrar</button>
+    </header>
+    <section style="display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 96px 64px; text-align: center">
+      <h1 style="font-size: 56px; font-weight: 800; line-height: 1.1; color: var(--color-text); max-width: 800px">Desenhe interfaces com a ajuda da IA</h1>
+      <p style="font-size: 20px; color: var(--color-muted); max-width: 640px">Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.</p>
+      <div style="display: flex; gap: 16px">
+        <button style="background: var(--color-primary); color: #ffffff; padding: 14px 28px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Começar agora</button>
+        <button style="background: transparent; color: var(--color-text); padding: 14px 28px; border-radius: var(--radius); border: 1px solid var(--color-muted); font-size: 16px; font-weight: 600">Ver exemplos</button>
+      </div>
+    </section>
+    <section style="display: flex; flex-direction: row; gap: 24px; padding: 32px 64px 96px">
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 32px">🎨</div>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Design livre</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 32px">⚡</div>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Rápido</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Alterações aparecem na hora, sem etapa de compilação.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 32px">📦</div>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Exportável</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      </div>
+    </section>
+  </div>
+  <div style="width: 390px; display: flex; flex-direction: column; background-color: var(--color-bg); font-family: var(--font); color: var(--color-text); min-height: 844px">
+    <header style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background-color: var(--color-surface)">
+      <div style="font-size: 20px; font-weight: 700">Mockup</div>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 8px 16px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600">Entrar</button>
+    </header>
+    <section style="display: flex; flex-direction: column; gap: 16px; padding: 40px 20px; text-align: center">
+      <h1 style="font-size: 32px; font-weight: 800; line-height: 1.15">Desenhe interfaces com a ajuda da IA</h1>
+      <p style="font-size: 16px; color: var(--color-muted)">Crie, edite e exporte telas em HTML e CSS reais.</p>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 14px 24px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Começar agora</button>
+    </section>
+    <section style="display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 40px">
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 28px">🎨</div>
+        <h3 style="font-size: 18px; font-weight: 700">Design livre</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 28px">⚡</div>
+        <h3 style="font-size: 18px; font-weight: 700">Rápido</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Alterações aparecem na hora, sem etapa de compilação.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
+        <div style="font-size: 28px">📦</div>
+        <h3 style="font-size: 18px; font-weight: 700">Exportável</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
+"
+`;
