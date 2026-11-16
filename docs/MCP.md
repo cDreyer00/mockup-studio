@@ -47,7 +47,8 @@ O transporte é Streamable HTTP; as sessões usam o header `mcp-session-id`.
 3. `get_tokens` / `set_tokens`: definir cores, fontes e espaçamentos.
 4. `create_frame` (artboard) e `write_html` para montar o conteúdo.
 5. `get_tree_summary`, `get_styles`, `update_styles`, `set_text`, `set_tag`, `move_nodes`, `set_node_flags`: inspecionar e ajustar. `create_page`, `rename_page` e `delete_page` organizam as páginas.
-6. `save_document` (o autosave também salva após 800 ms sem edições). Screenshot para conferir visualmente chega na tarefa 3.
+6. `save_document` (o autosave também salva após 800 ms sem edições).
+7. `get_screenshot` depois de cada conjunto de mudanças, corrigir e repetir (ver [Ver o resultado](#ver-o-resultado)); ao terminar, `finish_working`.
 
 ## Formato do resumo da árvore
 
@@ -66,22 +67,22 @@ Abreviações: `flex-col`/`flex-row` (direção), `gap:`, `p:` (padding), `bg:` 
 
 ### Leitura
 
-| Ferramenta         | Parâmetros                                                                                            | Descrição                                                                                                  |
-| ------------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `get_basic_info`   | nenhum                                                                                                | Arquivo, id, alterado, revisão, páginas/frames (id, nome, tamanho, posição), documentos abertos e seleção. |
-| `list_documents`   | nenhum                                                                                                | Documentos abertos (`docId`, nome, caminho, `dirty`).                                                      |
-| `open_document`    | `path` (string, obrigatório)                                                                          | Abre um `*.mockup.json` e o torna ativo.                                                                   |
-| `create_document`  | `path` (string, obrigatório), `name` (string, obrigatório)                                            | Cria um documento novo no caminho dado e o torna ativo.                                                    |
-| `save_document`    | `docId` (string)                                                                                      | Salva em disco.                                                                                            |
-| `close_document`   | `docId` (string, obrigatório)                                                                         | Fecha o documento.                                                                                         |
-| `get_selection`    | `docId` (string)                                                                                      | Ids selecionados no editor.                                                                                |
-| `get_node_info`    | `nodeId` (string, obrigatório), `docId` (string)                                                      | Tipo, tag, nome, atributos, estilos, texto, flags e posição.                                               |
-| `get_children`     | `nodeId` (string, obrigatório), `docId` (string)                                                      | Filhos diretos (resumo).                                                                                   |
-| `get_tree_summary` | `nodeId` (string), `depth` (number, padrão 2), `docId` (string)                                       | Resumo da árvore a partir do nó. Sem `nodeId`, resume o documento inteiro (todas as páginas).              |
-| `get_styles`       | `nodeIds` (string[], obrigatório), `docId` (string)                                                   | Estilos efetivos de cada nó (herdados, com `var()` resolvido).                                             |
-| `get_html`         | `nodeId` (string, obrigatório), `mode` (`'inline'` \| `'classes'`, padrão `inline`), `docId` (string) | HTML do nó; `classes` separa o CSS em classes.                                                             |
-| `get_tokens`       | `docId` (string)                                                                                      | Tokens (variáveis CSS) do documento.                                                                       |
-| `get_guide`        | `topic` (`getting-started` \| `layout` \| `responsive` \| `tokens`, obrigatório)                      | Texto de orientação para o agente.                                                                         |
+| Ferramenta         | Parâmetros                                                                                                        | Descrição                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `get_basic_info`   | nenhum                                                                                                            | Arquivo, id, alterado, revisão, páginas/frames (id, nome, tamanho, posição), documentos abertos e seleção. |
+| `list_documents`   | nenhum                                                                                                            | Documentos abertos (`docId`, nome, caminho, `dirty`).                                                      |
+| `open_document`    | `path` (string, obrigatório)                                                                                      | Abre um `*.mockup.json` e o torna ativo.                                                                   |
+| `create_document`  | `path` (string, obrigatório), `name` (string, obrigatório)                                                        | Cria um documento novo no caminho dado e o torna ativo.                                                    |
+| `save_document`    | `docId` (string)                                                                                                  | Salva em disco.                                                                                            |
+| `close_document`   | `docId` (string, obrigatório)                                                                                     | Fecha o documento.                                                                                         |
+| `get_selection`    | `docId` (string)                                                                                                  | Ids selecionados no editor.                                                                                |
+| `get_node_info`    | `nodeId` (string, obrigatório), `docId` (string)                                                                  | Tipo, tag, nome, atributos, estilos, texto, flags e posição.                                               |
+| `get_children`     | `nodeId` (string, obrigatório), `docId` (string)                                                                  | Filhos diretos (resumo).                                                                                   |
+| `get_tree_summary` | `nodeId` (string), `depth` (number, padrão 2), `docId` (string)                                                   | Resumo da árvore a partir do nó. Sem `nodeId`, resume o documento inteiro (todas as páginas).              |
+| `get_styles`       | `nodeIds` (string[], obrigatório), `docId` (string)                                                               | Estilos efetivos de cada nó (herdados, com `var()` resolvido).                                             |
+| `get_html`         | `nodeId` (string, obrigatório), `mode` (`'inline'` \| `'classes'`, padrão `inline`), `docId` (string)             | HTML do nó; `classes` separa o CSS em classes.                                                             |
+| `get_tokens`       | `docId` (string)                                                                                                  | Tokens (variáveis CSS) do documento.                                                                       |
+| `get_guide`        | `topic` (`getting-started` \| `layout` \| `responsive` \| `tokens` \| `screenshot-loop` \| `export`, obrigatório) | Texto de orientação para o agente.                                                                         |
 
 ### Escrita
 
@@ -103,7 +104,7 @@ Abreviações: `flex-col`/`flex-row` (direção), `gap:`, `p:` (padding), `bg:` 
 | `rename_page`     | `pageId` (string, obrig.), `name` (string, obrig.), `docId`                                                                                                 | Renomeia uma página.                                                                                                                                                                                                                                                                                                                           |
 | `delete_page`     | `pageId` (string, obrig.), `docId`                                                                                                                          | Remove a página e seus frames (undo reverte). Não exclui a última página.                                                                                                                                                                                                                                                                      |
 | `set_node_flags`  | `nodeIds` (string[], obrig.), `hidden` (boolean), `locked` (boolean), `docId`                                                                               | Oculta/exibe e bloqueia/desbloqueia nós. Informe ao menos um dos dois.                                                                                                                                                                                                                                                                         |
-| `set_tokens`      | `tokens` (objeto `--nome: valor`, obrig.), `unset` (lista de nomes), `docId`                                                                                | Define ou atualiza tokens.                                                                                                                                                                                                                                                                                                                     |
+| `set_tokens`      | `tokens` (objeto `--nome: valor`, obrig.), `unset` (lista de nomes), `docId`                                                                                | Define ou atualiza tokens. Nomes sem `--` ganham o prefixo (`primary` vira `--primary`).                                                                                                                                                                                                                                                       |
 | `set_selection`   | `nodeIds` (string[], obrig.), `docId`                                                                                                                       | Seleciona nós no editor.                                                                                                                                                                                                                                                                                                                       |
 | `undo`            | `docId`                                                                                                                                                     | Desfaz a última operação.                                                                                                                                                                                                                                                                                                                      |
 | `redo`            | `docId`                                                                                                                                                     | Refaz.                                                                                                                                                                                                                                                                                                                                         |
@@ -167,21 +168,58 @@ fr_ab12 "Hero" div 1440x800 flex-col gap:24 p:64 bg:#111
 }
 ```
 
+## Ver o resultado
+
+O agente precisa **ver** o que criou. O ciclo recomendado (`get_guide('screenshot-loop')`):
+
+1. Criar ou editar (`write_html`, `update_styles`, `insert_image`...).
+2. `get_screenshot(nodeId)` e conferir: alinhamento, cortes, overflow, contraste, textos quebrando.
+3. Corrigir e repetir o passo 2.
+4. `finish_working` ao terminar, para apagar o indicador "IA" no editor.
+
+Prefira `scale` 1 e `maxWidth` (ex.: 800) para gastar menos contexto; `get_layout` dá as medidas exatas em números.
+
+**Quando o render está disponível:** `get_screenshot`, `get_layout`, `export` png/jpg e o SVG medido dependem do motor de render (Electron): no app desktop ou no Electron headless que o `mockup mcp` sobe quando o Electron está instalado. Num daemon Node puro essas ferramentas devolvem `isError` explicando como habilitar (`export` svg/html/tailwind/react e `get_code` continuam funcionando; o SVG usa um fallback sem medidas).
+
+### Render e finalização
+
+| Ferramenta       | Parâmetros                                                                                                                                                                                          | Descrição                                                                                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_screenshot` | `nodeId` (string; padrão: primeiro nó selecionado ou primeiro frame), `scale` (1, 2 ou 3; padrão 1), `format` (`png` \| `jpg`, padrão `png`), `maxWidth` (number), `transparent` (boolean), `docId` | Devolve a imagem (conteúdo `image` em base64) e um texto: `fr_x "Desktop 1440": 1440x900 px (imagem 1440x900 png, 182 KB)`.                                                             |
+| `get_layout`     | `nodeId` (string, obrig.), `depth` (number, padrão 3), `docId`                                                                                                                                      | Medidas reais, uma linha por nó indentada: `id "nome" tag x,y wxh` (px inteiros, relativos ao frame) e o texto das linhas nos nós de texto; filhos além da profundidade viram contagem. |
+| `finish_working` | `nodeIds` (string[]; padrão: documento inteiro), `docId`                                                                                                                                            | Emite `agent:finished`: o editor apaga o badge "IA". Chame ao terminar um conjunto de edições.                                                                                          |
+
+## Exportação e código
+
+| Ferramenta | Parâmetros                                                                                                                                                                                                      | Descrição                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `export`   | `nodeIds` (string[], obrig.), `format` (`png` \| `jpg` \| `svg` \| `html` \| `tailwind` \| `react`, obrig.), `scale` (1 a 3), `outputDir` (caminho absoluto), `styles` (`tailwind` \| `inline`, react), `docId` | Grava um arquivo por nó, com o slug do nome (`desktop-1440.png`, `.svg`, `.html`, `.tailwind.html`; react: `<Componente>.tsx` e `theme.css` ou `<Componente>.css`). Padrão de `outputDir`: `<pasta do documento>/exports/`; documento sem caminho exige `outputDir`. Em html/tailwind/react copia imagens e fontes usadas para `<outputDir>/assets/`. Devolve os caminhos e, para código, o conteúdo (até ~20 KB por arquivo). |
+| `get_code` | `nodeId` (string, obrig.), `format` (`html` \| `tailwind` \| `react`, obrig.), `styles` (`tailwind` \| `inline`, react), `docId`                                                                                | Devolve o código sem gravar: fragmento + CSS necessário (html/tailwind) ou o `.tsx` e o CSS do componente (react).                                                                                                                                                                                                                                                                                                             |
+
+Use `get_code` para ler ou colar um trecho; use `export` para entregar arquivos (com assets). Detalhes em `get_guide('export')`.
+
+## Imagens, ícones e fontes
+
+| Ferramenta      | Parâmetros                                                                                                     | Descrição                                                                                                                                                                                                                                                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `insert_image`  | `parentId` (obrig.), `source` (obrig.), `alt`, `styles`, `name`, `index`, `docId`                              | `source`: caminho local absoluto, URL http(s) (timeout 20 s, até 20 MB, content-type de imagem) ou data URL. Valida pelos bytes (PNG, JPEG, GIF, WebP, SVG, AVIF), copia para `assets/` (sem sobrescrever: `-1`, `-2`) e cria o nó `img`. Sem `width` usa o tamanho intrínseco. Documento sem caminho: embute como data URL (até 2 MB).      |
+| `insert_icon`   | `parentId` (obrig.), `name` (obrig.), `size` (padrão 24), `color`, `stroke_width` (padrão 2), `index`, `docId` | Ícone [Lucide](https://lucide.dev) como nó `svg` (kebab-case ou PascalCase). Sem `color` usa a cor de texto efetiva do pai (fallback `#111111`), pois o canvas desenha SVG isolado e `currentColor` não herda. Nome inexistente: erro com até 5 sugestões.                                                                                   |
+| `search_icons`  | `query` (obrig.), `limit` (padrão 20)                                                                          | Busca por nome e tags; devolve nomes kebab-case.                                                                                                                                                                                                                                                                                             |
+| `list_fonts`    | `query`, `limit` (padrão 50), `docId`                                                                          | Fontes do documento (embutidas/locais) e do sistema (Windows: registro; macOS: `system_profiler`; Linux: `fc-list`), com cache em memória.                                                                                                                                                                                                   |
+| `get_font_info` | `family` (obrig.), `docId`                                                                                     | Instalada no sistema (estilos e arquivos)? Embutida no documento (arquivos e pesos)? Como usar em `font-family`, com fallback.                                                                                                                                                                                                               |
+| `add_font`      | `family` (obrig.), `source` (obrig.), `weights`, `docId`                                                       | `source`: `google` (baixa agora da API CSS2 o subconjunto latin; pesos padrão 400 e 700), `local` (fonte instalada; só registra), caminho de arquivo ou pasta (`.woff2`, `.woff`, `.ttf`, `.otf`) ou URL http(s) de um arquivo. Arquivos vão para `assets/fonts/` e a fonte é registrada em `doc.fonts` (undo funciona). Sem CDN em runtime. |
+
 ## Resources
 
 Os guias também são publicados como resources:
 
-| URI                       | Conteúdo                   |
-| ------------------------- | -------------------------- |
-| `guide://getting-started` | Como começar.              |
-| `guide://layout`          | Layout com flex e frames.  |
-| `guide://responsive`      | Frames como breakpoints.   |
-| `guide://tokens`          | Tokens como variáveis CSS. |
-
-## Em breve (tarefa 3)
-
-- `get_screenshot`: imagem de um nó ou frame para o agente conferir o resultado visualmente.
-- `export`: exportação de nós em PNG, JPG, SVG e código.
-- `get_code`: código HTML, Tailwind ou React de um nó.
+| URI                       | Conteúdo                                         |
+| ------------------------- | ------------------------------------------------ |
+| `guide://getting-started` | Como começar.                                    |
+| `guide://layout`          | Layout com flex e frames.                        |
+| `guide://responsive`      | Frames como breakpoints.                         |
+| `guide://tokens`          | Tokens como variáveis CSS.                       |
+| `guide://screenshot-loop` | Ciclo criar, conferir com screenshot, corrigir.  |
+| `guide://export`          | Formatos de exportação, pasta de saída e assets. |
 
 Veja o plano completo em [PLANO.md](PLANO.md).
