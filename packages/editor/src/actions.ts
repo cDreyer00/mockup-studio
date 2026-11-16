@@ -188,6 +188,8 @@ export function buildReorderOps(doc: Document, ids: readonly string[], kind: Reo
 /* comandos (leem os stores e aplicam)                                */
 /* ------------------------------------------------------------------ */
 
+let nudgeQueue: Promise<void> = Promise.resolve();
+
 export const actions = {
   async deleteSelection(): Promise<void> {
     const { doc, selection } = state();
@@ -229,10 +231,14 @@ export const actions = {
     await daemon.applySafe(buildReorderOps(doc, selection, kind));
   },
 
-  async nudge(dx: number, dy: number): Promise<void> {
-    const { doc, selection } = state();
-    if (!doc) return;
-    await daemon.applySafe(buildNudgeOps(doc, selection, dx, dy));
+  /** Serializado: cada seta lê o documento depois do ack da anterior (senão perde movimentos). */
+  nudge(dx: number, dy: number): Promise<void> {
+    nudgeQueue = nudgeQueue.then(async () => {
+      const { doc, selection } = state();
+      if (!doc) return;
+      await daemon.applySafe(buildNudgeOps(doc, selection, dx, dy));
+    });
+    return nudgeQueue;
   },
 
   async setHidden(ids: string[], hidden: boolean): Promise<void> {
