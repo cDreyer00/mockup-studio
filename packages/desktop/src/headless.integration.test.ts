@@ -60,7 +60,7 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     fs.copyFileSync(path.join(repo, 'examples/landing.mockup.json'), file);
     const port = await freePort();
     url = `http://127.0.0.1:${port}`;
-    const env = { ...process.env, MOCKUP_DATA_DIR: dataDir };
+    const env: NodeJS.ProcessEnv = { ...process.env, MOCKUP_DATA_DIR: dataDir };
     delete env.ELECTRON_RUN_AS_NODE;
     child = spawn(
       electronExe,

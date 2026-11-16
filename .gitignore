@@ -14,3 +14,4 @@ tmp/
 # artefatos do Playwright
 test-results/
 playwright-report/
+out/
