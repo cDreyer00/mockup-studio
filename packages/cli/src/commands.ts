@@ -1,8 +1,15 @@
 import path from 'node:path';
-import { startDaemon, resolvePort, normalizeDocumentPath, DOCUMENT_EXT } from '@mockup/server';
+import {
+  startDaemon,
+  resolvePort,
+  normalizeDocumentPath,
+  requestShutdown,
+  waitForShutdown,
+  DOCUMENT_EXT,
+} from '@mockup/server';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { ensureDaemon, log } from './discover.js';
+import { ensureDaemon, findDaemon, log } from './discover.js';
 import { locateElectron, runElectronForeground } from './electron.js';
 
 async function post(url: string, body: unknown): Promise<unknown> {
@@ -53,8 +60,11 @@ export async function serve(opts: {
   const handle = await startDaemon({
     port: resolvePort(opts.port),
     headless: true,
+    mode: 'serve',
     openFiles: files,
     editorDir,
+    // `mockup stop` (POST /api/shutdown) fecha o daemon salvando os documentos e sai do processo
+    onShutdown: () => process.exit(0),
   });
   log(`daemon em ${handle.url} (MCP: ${handle.mcpUrl}, WS: ${handle.wsUrl}). Ctrl+C para sair.`);
   if (editorDir) log(`editor no navegador: ${handle.url}/`);
@@ -102,4 +112,30 @@ export async function create(file: string, name?: string): Promise<void> {
     docId?: string;
   };
   log(`criado: ${target}${info.docId ? ` (${info.docId})` : ''}`);
+}
+
+/**
+ * `mockup stop`: pede o encerramento do daemon descoberto (`POST /api/shutdown`). Serve para o
+ * daemon Node (headless ou `serve`) e para o Electron headless (que sai com `app.quit()`); o app
+ * desktop com janela recusa (409) e deve ser fechado pela própria janela. Os documentos são salvos.
+ */
+export async function stop(): Promise<void> {
+  const daemon = await findDaemon();
+  if (!daemon) {
+    log('nenhum daemon do Mockup Studio em execução.');
+    return;
+  }
+  const r = await requestShutdown(daemon.url);
+  if (!r.accepted) {
+    throw new Error(
+      r.status === 409
+        ? `o daemon em ${daemon.url} (pid ${daemon.pid ?? '?'}) é o app desktop com janela e não é encerrado por HTTP: feche-o pela janela.`
+        : `não foi possível encerrar o daemon em ${daemon.url}: ${r.error ?? 'erro desconhecido'}`,
+    );
+  }
+  if (!(await waitForShutdown(daemon.url)))
+    throw new Error(
+      `o daemon em ${daemon.url} aceitou o pedido mas ainda responde; finalize o pid ${daemon.pid ?? '?'}.`,
+    );
+  log(`daemon encerrado (pid ${daemon.pid ?? '?'}, porta ${daemon.port}).`);
 }

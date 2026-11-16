@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { create, open, parsePort, serve } from './commands.js';
+import { create, open, parsePort, serve, stop } from './commands.js';
 import { runStdioProxy } from './proxy.js';
 
 // parsePort vive em commands.ts (importar este arquivo executa o CLI); reexportado por conveniência.
@@ -14,9 +14,11 @@ Uso:
   mockup serve --render [arq...]   Electron headless em primeiro plano (com screenshot)
   mockup open <arquivo>            Abre um .mockup.json no daemon
   mockup new <arquivo> [--name N]  Cria um .mockup.json e abre
+  mockup stop                      Encerra o daemon descoberto (daemon Node ou Electron headless),
+                                   salvando os documentos; o app desktop com janela recusa
   mockup help
 
-Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados),
+Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados; repassada ao app só se definida),
            MOCKUP_DESKTOP_EXE (executável do app desktop), MOCKUP_NO_ELECTRON=1 (força o daemon Node).`;
 
 interface Parsed {
@@ -55,6 +57,9 @@ async function main(): Promise<void> {
       return;
     case 'serve':
       await serve({ port, files: positional, render: flags.render === true });
+      return;
+    case 'stop':
+      await stop();
       return;
     case 'open':
       if (!positional[0]) throw new Error('Uso: mockup open <arquivo>');
