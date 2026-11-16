@@ -346,6 +346,9 @@ export function createApp(
           res.status(500).json({ error: 'Falha ao exportar o SVG' });
           return;
         }
+        // Mesmo isolamento dos assets: aberto direto numa aba, o SVG não roda script nem carrega nada.
+        res.setHeader('Content-Security-Policy', ASSET_CSP);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.type('image/svg+xml; charset=utf-8').send(svg);
         return;
       }

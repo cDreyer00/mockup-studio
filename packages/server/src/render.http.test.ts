@@ -6,6 +6,7 @@ import {
   type DaemonHandle,
 } from './index.js';
 import type { RenderProvider } from './render.js';
+import { ASSET_CSP } from './http.js';
 import { makeWorkspace } from './test-utils.js';
 
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
@@ -99,10 +100,21 @@ describe('rotas /render', () => {
     expect(((await r.json()) as { error: string }).error).toBe(RENDER_UNAVAILABLE);
   });
 
-  it('SVG: erro do exportador ou do layout vira 500 (não derruba o daemon)', async () => {
+  it('SVG com layout medido; falha do measure vira 500 (não derruba o daemon)', async () => {
     await start(fakeRender(calls));
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.svg`);
-    expect([200, 500]).toContain(r.status);
+    expect(r.status).toBe(500);
     expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
+  });
+
+  it('SVG sem motor de render cai no foreignObject, com CSP restritiva', async () => {
+    await start();
+    const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.svg`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toContain('image/svg+xml');
+    expect(r.headers.get('content-security-policy')).toBe(ASSET_CSP);
+    const svg = await r.text();
+    expect(svg.startsWith('<svg')).toBe(true);
+    expect(svg).toContain('<foreignObject');
   });
 });
