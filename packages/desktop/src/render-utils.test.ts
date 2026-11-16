@@ -1,0 +1,81 @@
+import { createDocument, createNodeFromTag } from '@mockup/core';
+import { describe, expect, it } from 'vitest';
+import {
+  LruCache,
+  MAX_SIDE_PX,
+  assertSize,
+  cacheKey,
+  declaredSize,
+  pngSize,
+  withTimeout,
+} from './main/render-utils.js';
+
+function sampleDoc() {
+  const doc = createDocument('T');
+  const frame = createNodeFromTag('div', {
+    isRoot: true,
+    name: 'F',
+    styles: { width: '1440px', height: '900px' },
+    position: { x: 0, y: 0 },
+  });
+  doc.pages[0]!.frames.push(frame);
+  return { doc, frame };
+}
+
+describe('render-utils', () => {
+  it('pngSize lê o IHDR', () => {
+    const b = Buffer.alloc(24);
+    b.writeUInt32BE(0x89504e47, 0);
+    b.writeUInt32BE(1440, 16);
+    b.writeUInt32BE(900, 20);
+    expect(pngSize(b)).toEqual({ width: 1440, height: 900 });
+    expect(() => pngSize(Buffer.from('nada'))).toThrow();
+  });
+
+  it('assertSize limita o lado final após a escala', () => {
+    expect(() => assertSize(1440, 900, 3)).not.toThrow();
+    expect(() => assertSize(MAX_SIDE_PX, 10, 2)).toThrow(/grande demais/);
+    expect(() => assertSize(0, 10, 1)).toThrow(/vazio/);
+  });
+
+  it('declaredSize lê px do estilo', () => {
+    const { frame } = sampleDoc();
+    expect(declaredSize(frame)).toEqual({ width: 1440, height: 900 });
+    expect(declaredSize(undefined)).toEqual({});
+  });
+
+  it('cacheKey é estável e muda com escala, tokens e o frame', () => {
+    const { doc, frame } = sampleDoc();
+    const base = { doc, docId: 'd', nodeId: frame.id, scale: 1, format: 'png', transparent: false };
+    const k = cacheKey(base);
+    expect(cacheKey({ ...base })).toBe(k);
+    expect(cacheKey({ ...base, scale: 2 })).not.toBe(k);
+    expect(cacheKey({ ...base, transparent: true })).not.toBe(k);
+    const doc2 = structuredClone(doc);
+    doc2.tokens['--x'] = '1';
+    expect(cacheKey({ ...base, doc: doc2 })).not.toBe(k);
+    const doc3 = structuredClone(doc);
+    doc3.pages[0]!.frames[0]!.style.width = '800px';
+    expect(cacheKey({ ...base, doc: doc3 })).not.toBe(k);
+  });
+
+  it('LruCache descarta o menos usado', () => {
+    const c = new LruCache<number>(2);
+    c.set('a', 1);
+    c.set('b', 2);
+    c.get('a');
+    c.set('c', 3);
+    expect(c.get('b')).toBeUndefined();
+    expect(c.get('a')).toBe(1);
+    expect(c.size).toBe(2);
+  });
+
+  it('withTimeout rejeita e chama onTimeout', async () => {
+    let called = false;
+    await expect(
+      withTimeout(new Promise(() => undefined), 20, 'teste', () => (called = true)),
+    ).rejects.toThrow(/Tempo esgotado/);
+    expect(called).toBe(true);
+    await expect(withTimeout(Promise.resolve(7), 1000, 'ok')).resolves.toBe(7);
+  });
+});

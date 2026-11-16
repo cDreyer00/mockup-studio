@@ -2,8 +2,24 @@
   "name": "@mockup/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Shell desktop (Electron) do Mockup Studio. Implementação na tarefa 3 do MVP.",
+  "description": "App desktop (Electron) do Mockup Studio: janela do editor, daemon embutido, render/screenshot e modo headless.",
+  "author": "Mockup Studio",
   "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "build": "electron-vite build",
+    "dev": "electron-vite dev",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dist": "electron-builder --win nsis portable --config electron-builder.yml",
+    "icons": "electron scripts/icons.mjs",
+    "test": "vitest run",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@mockup/core": "0.1.0",
+    "@mockup/server": "0.1.0"
+  },
   "devDependencies": {
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0",
