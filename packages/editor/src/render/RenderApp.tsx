@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Document, Node } from '@mockup/core';
 import { DocIdContext, NodeView } from '../canvas/NodeView';
-import { FontFaces } from '../canvas/FontFaces';
+import { DocumentBase, FontFaces } from '../canvas/FontFaces';
 import '../canvas/canvas.css';
 
 export interface RenderAppProps {
@@ -32,6 +32,7 @@ export function RenderApp({ doc, docId, frame }: RenderAppProps) {
       data-testid="render-world"
       style={doc.tokens as CSSProperties | undefined}
     >
+      <DocumentBase />
       <FontFaces fonts={doc.fonts} docId={docId} />
       <DocIdContext.Provider value={docId}>
         <NodeView node={frame} root />

@@ -65,7 +65,7 @@ describe('exportHtml', () => {
     ];
     const html = exportHtml(doc);
     expect(html).toContain(':root {\n    --color-primary: #6c5ce7;\n  }');
-    expect(html).toContain('*{box-sizing:border-box;margin:0}');
+    expect(html).toContain('*,*::before,*::after{box-sizing:border-box;margin:0}');
     expect(html).toContain('url("assets/fonts/inter-400.woff2")');
     expect(html).not.toContain('Arial');
   });

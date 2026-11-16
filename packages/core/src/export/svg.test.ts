@@ -85,7 +85,7 @@ describe('exportSvg (fallback sem layout)', () => {
     expect(svg).toContain('xmlns="http://www.w3.org/1999/xhtml"');
     expect(svg).toContain('<img src="data:image/png;base64,QQ==" />');
     expect(svg).toContain('<br />');
-    expect(svg).toContain('*{box-sizing:border-box;margin:0}');
+    expect(svg).toContain('*,*::before,*::after{box-sizing:border-box;margin:0}');
     expect(svg).not.toContain('onload');
     expect(svg).not.toContain('<script');
   });

@@ -194,7 +194,7 @@ describe('exportHtml', () => {
     expect(html).toContain('<meta charset="utf-8">');
     expect(html).toContain('<title>A &amp; B</title>');
     expect(html).toContain('--c: #abc;');
-    expect(html).toContain('*{box-sizing:border-box;margin:0}');
+    expect(html).toContain('*,*::before,*::after{box-sizing:border-box;margin:0}');
     expect(html).toContain('<h1 class=');
     const inline = exportHtml(doc, {
       mode: 'inline',

@@ -4,7 +4,9 @@ exports[`exportSvg (fallback sem layout) > snapshot: foreignObject com o HTML in
 "<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
   <foreignObject x="0" y="0" width="390" height="844">
     <div xmlns="http://www.w3.org/1999/xhtml" style="--color-bg: #0f1115; --color-surface: #181b22; --color-primary: #6c5ce7; --color-text: #e8e8ee; --color-muted: #9aa0ad; --radius: 12px; --font: Inter, system-ui, sans-serif">
-      <style>*{box-sizing:border-box;margin:0}</style>
+      <style>*,*::before,*::after{box-sizing:border-box;margin:0}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}</style>
       <div style="width: 390px; height: 844px; display: flex; flex-direction: column; background-color: var(--color-bg); font-family: var(--font); color: var(--color-text)">
         <header style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background-color: var(--color-surface)">
           <div style="font-size: 20px; font-weight: 700">Mockup</div>

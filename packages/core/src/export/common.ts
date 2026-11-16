@@ -6,8 +6,15 @@ import { cssValueProblem, dropUnsafeStyles, isValidCssPropertyName } from '../st
 import { sanitizeSvg } from '../svg.js';
 import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
+import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss } from '../base.js';
 
-export const BASE_CSS = '*{box-sizing:border-box;margin:0}';
+/** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
+export const BASE_CSS = documentBaseCss();
+
+/** Tipografia da raiz do documento para o Tailwind (o preflight já cobre box-sizing, margin e controles). */
+export const TAILWIND_BASE_CSS = `@layer base {
+  body { ${DOCUMENT_ROOT_DECLARATIONS.split(';').join('; ')}; }
+}`;
 
 /** Seleção de nós a exportar: `nodeIds` ou os frames da página (`pageId` ou a primeira). */
 export interface RootSelection {

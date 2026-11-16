@@ -19,3 +19,4 @@ export * from './export/react.js';
 export * from './export/svg.js';
 export * from './layout.js';
 export * from './fonts.js';
+export * from './base.js';

@@ -6,7 +6,7 @@ import { useActivePage } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
 import { canvasApi, registerCanvasApi } from './canvasApi';
 import type { CanvasApi } from './canvasApi';
-import { FontFaces } from './FontFaces';
+import { DocumentBase, FontFaces } from './FontFaces';
 import { FrameView } from './FrameView';
 import { fitRect, rectInside, rectToScreen, unionRects, zoomAtPoint } from './geometry';
 import type { Rect, Viewport } from './geometry';
@@ -211,6 +211,7 @@ export function Canvas() {
           ))}
         </DocIdContext.Provider>
       </div>
+      <DocumentBase />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
       <Overlay rootRef={rootRef} />
     </div>

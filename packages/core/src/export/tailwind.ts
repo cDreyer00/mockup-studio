@@ -8,6 +8,7 @@ import {
   indentLines,
   renderHtmlTree,
   resolveRoots,
+  TAILWIND_BASE_CSS,
   type RootSelection,
 } from './common.js';
 
@@ -1084,6 +1085,7 @@ export function tailwindThemeCss(doc: Document, opts: { import?: boolean } = {})
   if (opts.import !== false) blocks.push('@import "tailwindcss";');
   if (theme.length > 0) blocks.push(`@theme {\n${theme.join('\n')}\n}`);
   if (root.length > 0) blocks.push(`:root {\n${root.join('\n')}\n}`);
+  blocks.push(TAILWIND_BASE_CSS);
   const faces = fontFaceCss(doc, (f) => `assets/${f}`);
   if (faces) blocks.push(faces);
   return escapeCssText(blocks.join('\n\n')) + '\n';

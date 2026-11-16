@@ -17,7 +17,9 @@ exports[`exportHtml > snapshot do exemplo (classes) 1`] = `
     --radius: 12px;
     --font: Inter, system-ui, sans-serif;
   }
-  *{box-sizing:border-box;margin:0}
+  *,*::before,*::after{box-sizing:border-box;margin:0}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}
   .desktop-1440 {
     width: 1440px;
     display: flex;
@@ -391,7 +393,9 @@ exports[`exportHtml > snapshot do exemplo (inline) 1`] = `
     --radius: 12px;
     --font: Inter, system-ui, sans-serif;
   }
-  *{box-sizing:border-box;margin:0}
+  *,*::before,*::after{box-sizing:border-box;margin:0}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}
   </style>
 </head>
 <body>
