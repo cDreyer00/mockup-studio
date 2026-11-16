@@ -3,6 +3,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkHealth, isAllowedHost, startDaemon, type DaemonHandle } from './index.js';
+import { sanitizeAssetName } from './http.js';
 import { makeWorkspace } from './test-utils.js';
 
 describe('HTTP', () => {
@@ -283,6 +284,25 @@ describe('HTTP', () => {
       expect(pngRes.headers.get('content-security-policy')).toContain("default-src 'none'");
       expect(pngRes.headers.get('x-content-type-options')).toBe('nosniff');
       expect(pngRes.headers.get('content-disposition')).toBeNull();
+    });
+
+    it('nomes reservados do Windows ganham sufixo', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      const cases: Array<[string, string]> = [
+        ['CON.png', 'CON-arquivo.png'],
+        ['nul.jpg', 'nul-arquivo.jpg'],
+        ['COM1.png', 'COM1-arquivo.png'],
+        ['lpt9.gif', 'lpt9-arquivo.gif'],
+        ['aux.tar.png', 'aux-arquivo.tar.png'],
+        ['console.png', 'console.png'],
+        ['com10.png', 'com10.png'],
+      ];
+      for (const [name, expected] of cases) {
+        const r = await post(id, name, png);
+        expect(((await r.json()) as { src: string }).src, name).toBe(expected);
+      }
+      expect(sanitizeAssetName('PRN.svg')).toEqual({ base: 'PRN-arquivo', ext: '.svg' });
+      expect(sanitizeAssetName('a...png')).toEqual({ base: 'a', ext: '.png' });
     });
 
     it('erros: 404, 400 e 413', async () => {

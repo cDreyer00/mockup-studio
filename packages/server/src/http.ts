@@ -52,7 +52,13 @@ export function isAllowedHost(hostHeader: string | undefined, extra: string[] = 
 export const MAX_ASSET_BYTES = 20 * 1024 * 1024;
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
 
-/** Nome seguro para um asset: basename, só [a-zA-Z0-9._-], sem ponto inicial, máx. 80 chars. */
+/** Nomes de dispositivo do Windows: `CON.png` ou `nul.tar.gz` abrem o dispositivo, não um arquivo. */
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
+
+/**
+ * Nome seguro para um asset: basename, só [a-zA-Z0-9._-], sem ponto inicial, máx. 80 chars;
+ * sem ponto final; nomes reservados do Windows (`CON`, `NUL`, `COM1`, `LPT1`…) ganham `-arquivo`.
+ */
 export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   const last = raw.split(/[\\/]/).pop() ?? '';
   const ext = path.extname(last).toLowerCase();
@@ -63,8 +69,9 @@ export function sanitizeAssetName(raw: string): { base: string; ext: string } {
     .slice(0, last.length - ext.length)
     .replace(/[^a-zA-Z0-9._-]/g, '-')
     .replace(/^\.+/, '');
-  base = base.slice(0, 80 - ext.length);
+  base = base.slice(0, 80 - ext.length).replace(/[. ]+$/, '');
   if (!base) base = 'imagem';
+  if (WINDOWS_RESERVED.test(base)) base = base.replace(/^[^.]+/, (m) => `${m}-arquivo`);
   return { base, ext };
 }
 
