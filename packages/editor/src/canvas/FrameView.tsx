@@ -1,5 +1,5 @@
 import type { Node } from '@mockup/core';
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { NodeView } from './NodeView';
 
 /** Frame raiz: rótulo (escala inversa ao zoom) + nó posicionado no canvas. */

@@ -3,6 +3,9 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import type { Document, Node, Page } from '@mockup/core';
 import { FrameView } from './FrameView';
 import { RenderCtx } from './NodeView';
+import { useActivePage } from '../state/hooks';
+import { useDoc } from '../state/docStore';
+import { ui, useUi } from '../state/uiStore';
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 8;
@@ -31,7 +34,7 @@ function frameSize(f: Node): { w: number; h: number } {
 }
 
 /** Canvas infinito com zoom/pan; renderiza os frames da página como HTML real. */
-export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasProps) {
+function CanvasInner({ doc, page, selection, onSelect, onZoomChange }: CanvasProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, z: 1 });
   const [spaceDown, setSpaceDown] = useState(false);
@@ -214,5 +217,22 @@ export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasP
         </div>
       </RenderCtx.Provider>
     </div>
+  );
+}
+
+/** Canvas (versão provisória da base, ligada aos stores). */
+export function Canvas() {
+  const doc = useDoc((s) => s.doc);
+  const page = useActivePage();
+  const selection = useUi((s) => s.selection);
+  if (!doc || !page) return null;
+  return (
+    <CanvasInner
+      doc={doc}
+      page={page}
+      selection={selection}
+      onSelect={ui.select}
+      onZoomChange={(z) => ui.setViewport((v) => ({ ...v, z }))}
+    />
   );
 }

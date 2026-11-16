@@ -1,92 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Canvas } from './Canvas';
-import { useDaemon } from './ws';
+import { useEffect } from 'react';
+import { Canvas } from './canvas/Canvas';
+import { LayersPanel } from './layers/LayersPanel';
+import { PropertiesPanel } from './properties/PropertiesPanel';
+import { useShortcuts } from './shortcuts/useShortcuts';
+import { selectActiveInfo, useDoc } from './state/docStore';
+import { Toolbar } from './toolbar/Toolbar';
+import { OverlayHost } from './ui/overlays';
 
-const STATUS_LABEL = {
-  connecting: 'Conectando…',
-  online: 'Conectado',
-  offline: 'Offline',
-} as const;
+/** Nome do arquivo (sem pasta) para o título da janela. */
+function fileName(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return path.split(/[/\\]/).pop() ?? path;
+}
 
 export function App() {
-  const { status, documents, activeDocId, doc, selection, send } = useDaemon();
-  const [pageId, setPageId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const status = useDoc((s) => s.status);
+  const hasDoc = useDoc((s) => !!s.doc);
+  const info = useDoc(selectActiveInfo);
+  useShortcuts();
 
-  // Página exibida: a escolhida, se ainda existir; senão a primeira.
-  const page = doc?.pages.find((p) => p.id === pageId) ?? doc?.pages[0] ?? null;
-  const active = documents.find((d) => d.docId === activeDocId);
-
-  // Ao trocar de documento, volta para a primeira página.
-  useEffect(() => setPageId(null), [activeDocId]);
-
-  const onSelect = useCallback(
-    (nodeIds: string[]) => {
-      if (activeDocId) send({ type: 'selection:set', docId: activeDocId, nodeIds });
-    },
-    [activeDocId, send],
-  );
+  useEffect(() => {
+    const name = fileName(info?.path) ?? info?.name;
+    document.title = name ? `${info?.dirty ? '● ' : ''}${name} — Mockup Studio` : 'Mockup Studio';
+  }, [info?.path, info?.name, info?.dirty]);
 
   return (
     <div className="app">
-      <header className="topbar">
-        <span className="brand">Mockup Studio</span>
-        <span className="doc">
-          {doc?.name ?? '—'}
-          {active?.dirty && (
-            <span className="dirty" title="Alterações não salvas">
-              ●
-            </span>
-          )}
-        </span>
-        <span className="status">
-          <span className={`dot ${status}`} />
-          {STATUS_LABEL[status]}
-        </span>
-        <span className="zoom">{Math.round(zoom * 100)}%</span>
-      </header>
+      <Toolbar />
       <div className="main">
-        <aside className="sidebar">
-          <h3>Documentos</h3>
-          {documents.map((d) => (
-            <button
-              key={d.docId}
-              className={d.docId === activeDocId ? 'active' : ''}
-              onClick={() => send({ type: 'active:set', docId: d.docId })}
-            >
-              {d.name}
-              {d.dirty ? ' ●' : ''}
-            </button>
-          ))}
-          <h3>Páginas</h3>
-          {doc?.pages.map((p) => (
-            <button
-              key={p.id}
-              className={p.id === page?.id ? 'active' : ''}
-              onClick={() => setPageId(p.id)}
-            >
-              {p.name}
-            </button>
-          ))}
-        </aside>
-        {doc && page ? (
-          <Canvas
-            doc={doc}
-            page={page}
-            selection={selection}
-            onSelect={onSelect}
-            onZoomChange={setZoom}
-          />
+        <LayersPanel />
+        {hasDoc ? (
+          <Canvas />
         ) : (
           <div className="canvas-empty">
             {status === 'offline'
-              ? 'Daemon não encontrado em 127.0.0.1:4747 — rode `npm run dev`'
+              ? 'Daemon não encontrado — rode `npm run dev`'
               : status === 'connecting'
                 ? 'Conectando ao daemon…'
-                : 'Nenhum documento aberto. Use `mockup open <arquivo>` ou o MCP (`open_document`)'}
+                : 'Nenhum documento aberto. Use Arquivo › Abrir ou Novo, `mockup open <arquivo>` ou o MCP.'}
           </div>
         )}
+        <PropertiesPanel />
       </div>
+      <OverlayHost />
     </div>
   );
 }
