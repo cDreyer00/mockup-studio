@@ -65,8 +65,9 @@ export function Canvas() {
     return root ? attachInteractions(root) : undefined;
   }, []);
 
-  // API imperativa para as outras áreas.
-  useEffect(() => {
+  // API imperativa para as outras áreas. Layout effect (declarado antes do enquadramento inicial)
+  // para já estar registrada quando o primeiro `fitAll` rodar.
+  useLayoutEffect(() => {
     const size = (): { w: number; h: number } => {
       const r = rootRef.current;
       return { w: r?.clientWidth ?? 0, h: r?.clientHeight ?? 0 };

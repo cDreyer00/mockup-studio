@@ -273,7 +273,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
         dropZone ? ` drop-${dropZone}` : ''
       }`}
       data-testid={`layer-row-${id}`}
-      data-node-id={id}
+      data-layer-id={id}
       role="treeitem"
       aria-selected={selected}
       aria-expanded={hasChildren ? expanded : undefined}
@@ -383,7 +383,7 @@ function LayerTree() {
     layers.expand(ancestors);
     const first = selection[0]!;
     const t = setTimeout(() => {
-      const el = treeRef.current?.querySelector(`[data-node-id="${CSS.escape(first)}"]`);
+      const el = treeRef.current?.querySelector(`[data-layer-id="${CSS.escape(first)}"]`);
       el?.scrollIntoView?.({ block: 'nearest' });
     }, 0);
     return () => clearTimeout(t);

@@ -434,6 +434,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     const size = rect ? { w: Math.max(1, rect.w), h: Math.max(1, rect.h) } : null;
 
     if (tool === 'image') {
+      if (st().tool === tool) ui.setTool('select');
       const file = await pickImageFile();
       if (file) await insertImageFile(file, at, size ?? undefined);
       return;
@@ -463,10 +464,11 @@ export function attachInteractions(root: HTMLElement): () => void {
       }
       ops = buildCreateOps(pageId, plan, node);
     }
+    // Volta para seleção já (antes do ack), para não sobrescrever uma ferramenta escolhida no meio.
+    if (st().tool === tool) ui.setTool('select');
     const ack = await daemon.applySafe(ops);
     if (!ack) return;
     ui.select([node.id]);
-    ui.setTool('select');
     if (tool === 'text') ui.editText(node.id);
   }
 

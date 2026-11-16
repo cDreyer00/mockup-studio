@@ -4,7 +4,7 @@ import { daemon } from '../client/daemon';
 import { makeFrame, makeImage } from '../model/factory';
 import { currentPageId } from '../state/hooks';
 import { useDoc } from '../state/docStore';
-import { ui } from '../state/uiStore';
+import { ui, useUi } from '../state/uiStore';
 import { canvasApi } from './canvasApi';
 import { buildCreateOps, planPlacement } from './placement';
 
@@ -96,7 +96,7 @@ export async function insertImageFile(
     const ack = await daemon.applySafe(ops);
     if (!ack) return null;
     ui.select([image.id]);
-    ui.setTool('select');
+    if (useUi.getState().tool === 'image') ui.setTool('select');
     return image.id;
   } catch (e) {
     ui.toast(e instanceof Error ? e.message : String(e), 'error');
