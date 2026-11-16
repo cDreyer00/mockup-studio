@@ -226,12 +226,25 @@ function elementStyle(el: Element, ctx: Ctx): Record<string, string> {
   return safeNormalize(decls);
 }
 
+/** Atributos que carregam URL e podem executar código (`javascript:`, `data:text/html`). */
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcdoc']);
+
+/** `javascript:` ou `data:` que não seja imagem, ignorando espaços e controles. */
+export function isUnsafeUrl(value: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  const v = value.replace(/[\s\u0000-\u001f]+/g, '').toLowerCase();
+  return v.startsWith('javascript:') || (v.startsWith('data:') && !v.startsWith('data:image/'));
+}
+
 function elementAttrs(el: Element, omit: string[] = []): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const [k, v] of Object.entries(el.attribs)) {
     if (k === 'class' || k === 'style' || k === 'id' || k === 'data-name') continue;
     if (/^on/i.test(k) || !ATTR_NAME_RE.test(k)) continue;
     if (omit.includes(k)) continue;
+    const lower = k.toLowerCase();
+    if (lower === 'srcdoc') continue;
+    if (URL_ATTRS.has(lower) && isUnsafeUrl(v)) continue;
     attrs[k] = v;
   }
   return attrs;
@@ -272,7 +285,7 @@ function convertElement(el: Element, ctx: Ctx): Node {
     return createNodeFromTag('img', {
       name: elementName(el),
       styles,
-      src: el.attribs.src ?? '',
+      src: isUnsafeUrl(el.attribs.src ?? '') ? '' : (el.attribs.src ?? ''),
       attrs: elementAttrs(el, ['src']),
     });
   }

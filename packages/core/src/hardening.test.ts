@@ -54,6 +54,20 @@ describe('tags (item 1)', () => {
   });
 });
 
+describe('URLs perigosas em atributos (htmlToNodes)', () => {
+  it('descarta href/src/action/formaction com javascript: ou data: não-imagem e srcdoc', () => {
+    const [root] = htmlToNodes(
+      '<div><a href=" JavaScript:alert(1)" title="t">x</a><form action="javascript:1"><button formaction="data:text/html,1">b</button></form>' +
+        '<img src="data:text/html,x" alt="a"/><img src="data:image/png;base64,AA" alt="b"/><a href="https://ok.dev">ok</a></div>',
+    );
+    const flat = JSON.stringify(root);
+    expect(flat).not.toMatch(/javascript|text\/html/i);
+    expect(flat).toContain('"title":"t"');
+    expect(flat).toContain('https://ok.dev');
+    expect(flat).toContain('data:image/png;base64,AA');
+  });
+});
+
 describe('sanitizeSvg (item 2)', () => {
   it('remove script, on* e foreignObject', () => {
     const [svg] = htmlToNodes(
@@ -75,6 +89,31 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).toContain('viewBox="0 0 1 1"');
     expect(out).not.toMatch(/javascript|text\/html/i);
     expect(out).toContain('href="data:image/png;base64,AAAA"');
+  });
+
+  it('remove elementos fora da lista de permissão (escape do contexto SVG no HTML exportado)', () => {
+    const out = sanitizeSvg(
+      '<svg><p/><iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>' +
+        '<embed src="data:text/html,x"/><style>body{display:none}</style><svg:script>1</svg:script>' +
+        '<animate attributeName="href" to="javascript:alert(1)"/><set attributeName="href" to="x"/>' +
+        '<g><rect width="1" height="1"/><text><tspan>ok</tspan></text></g>' +
+        '<defs><linearGradient id="g"><stop offset="0"/></linearGradient><filter id="f"><feGaussianBlur stdDeviation="2"/></filter></defs></svg>',
+    );
+    expect(out).not.toMatch(/<p|iframe|embed|<style|script|animate|<set|srcdoc|javascript/i);
+    expect(out).toContain('<rect width="1" height="1"/>');
+    expect(out).toContain('<tspan>ok</tspan>');
+    expect(out).toContain('<linearGradient id="g"><stop offset="0"/></linearGradient>');
+    expect(out).toContain('<feGaussianBlur stdDeviation="2"/>');
+  });
+
+  it('href com prefixo de namespace arbitrário é tratado como href', () => {
+    const out = sanitizeSvg(
+      '<svg xmlns:x="http://www.w3.org/1999/xlink"><a x:href="javascript:alert(1)">a</a>' +
+        '<use x:href="#ok"/></svg>',
+    );
+    expect(out).not.toMatch(/javascript/i);
+    expect(out).toContain('x:href="#ok"');
+    expect(out).toContain('xmlns:x=');
   });
 
   it('NodeSchema sanitiza o campo svg', () => {
