@@ -3,7 +3,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseDocument } from '@mockup/core';
 import { DocumentStore } from './store.js';
-import { readDaemonInfo, removeDaemonInfo, writeDaemonInfo } from './paths.js';
+import { readDaemonInfo, readRecent, removeDaemonInfo, writeDaemonInfo } from './paths.js';
 import { makeWorkspace } from './test-utils.js';
 
 describe('DocumentStore', () => {
@@ -131,5 +131,22 @@ describe('DocumentStore', () => {
     writeDaemonInfo(info, ws.dataDir);
     removeDaemonInfo(ws.dataDir);
     expect(readDaemonInfo(ws.dataDir)).toBeNull();
+  });
+
+  it('eventos doc:opened e doc:changed incluem history; save registra recente', async () => {
+    const events: Array<{ canUndo: boolean; canRedo: boolean }> = [];
+    store.on('doc:opened', (e) => events.push(e.history));
+    store.on('doc:changed', (e) => events.push(e.history));
+    const { docId } = await store.open(ws.file);
+    bg(docId, '#111111');
+    store.undo(docId, 'editor');
+    expect(events).toEqual([
+      { canUndo: false, canRedo: false },
+      { canUndo: true, canRedo: false },
+      { canUndo: false, canRedo: true },
+    ]);
+    fs.rmSync(path.join(ws.dataDir, 'recent.json'), { force: true });
+    await store.save(docId);
+    expect(readRecent(ws.dataDir)).toEqual([ws.file]);
   });
 });

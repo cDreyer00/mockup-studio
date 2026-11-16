@@ -35,6 +35,7 @@ function buildHello(store: DocumentStore): HelloEvent {
     doc: active ? active.history.doc : null,
     selection: active ? store.getSelection(active.id) : [],
     revision: active ? active.history.revision : 0,
+    history: active ? store.historyState(active) : { canUndo: false, canRedo: false },
   };
 }
 
@@ -54,6 +55,20 @@ async function handleMessage(store: DocumentStore, msg: ClientMessage): Promise<
     case 'doc:open': {
       const { doc: _doc, ...info } = await store.open(msg.path);
       return info;
+    }
+    case 'doc:new': {
+      if (typeof msg.path !== 'string' || !msg.path)
+        throw new Error('doc:new exige "path" (string).');
+      if (typeof msg.name !== 'string' || !msg.name)
+        throw new Error('doc:new exige "name" (string).');
+      const { doc: _doc, ...info } = await store.create(msg.path, msg.name);
+      return info;
+    }
+    case 'doc:close': {
+      if (typeof msg.docId !== 'string' || !msg.docId)
+        throw new Error('doc:close exige "docId" (string).');
+      await store.close(msg.docId);
+      return {};
     }
     case 'doc:save':
       return { path: await store.save(msg.docId) };

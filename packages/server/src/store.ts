@@ -9,6 +9,7 @@ import {
   type Document,
   type Op,
   type OpSource,
+  type HistoryState,
   type OpenDocumentInfo,
 } from '@mockup/core';
 import { addRecent, normalizeDocumentPath } from './paths.js';
@@ -29,7 +30,9 @@ export interface OpenDoc {
 }
 
 export interface StoreEvents {
-  'doc:opened': [{ type: 'doc:opened'; info: OpenDocumentInfo; doc: Document }];
+  'doc:opened': [
+    { type: 'doc:opened'; info: OpenDocumentInfo; doc: Document; history: HistoryState },
+  ];
   'doc:changed': [
     {
       type: 'doc:changed';
@@ -38,6 +41,7 @@ export interface StoreEvents {
       source: OpSource;
       revision: number;
       doc: Document;
+      history: HistoryState;
     },
   ];
   'doc:saved': [{ type: 'doc:saved'; docId: string; path: string }];
@@ -100,6 +104,10 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     };
   }
 
+  historyState(d: OpenDoc): HistoryState {
+    return { canUndo: d.history.canUndo, canRedo: d.history.canRedo };
+  }
+
   private entry(docId: string): OpenDoc {
     const d = this.docs.get(docId);
     if (!d)
@@ -129,7 +137,12 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     this.docs.set(d.id, d);
     this.selection.set(d.id, []);
     const info = this.info(d);
-    this.emit('doc:opened', { type: 'doc:opened', info, doc });
+    this.emit('doc:opened', {
+      type: 'doc:opened',
+      info,
+      doc,
+      history: this.historyState(d),
+    });
     this.setActive(d.id);
     if (filePath) addRecent(filePath, this.opts.dataDir);
     return { ...info, doc };
@@ -237,6 +250,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       await this.writeFile(file, serializeDocument(d.history.doc));
       if (d.history.revision === revision) d.dirty = false;
       this.emit('doc:saved', { type: 'doc:saved', docId: d.id, path: file });
+      addRecent(file, this.opts.dataDir);
     };
     const next = d.saveChain.then(run, run);
     d.saveChain = next.catch(() => undefined);
@@ -289,6 +303,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       source,
       revision: d.history.revision,
       doc: d.history.doc,
+      history: this.historyState(d),
     });
   }
 

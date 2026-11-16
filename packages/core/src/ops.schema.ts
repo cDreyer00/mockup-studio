@@ -85,6 +85,10 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
       }),
     ),
   }),
+  z.object({
+    type: z.literal('setTag'),
+    changes: z.array(z.object({ nodeId: id, tag: z.string() })),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -104,6 +108,7 @@ const OP_TYPES = [
   'renamePage',
   'setTokens',
   'setNodeFlags',
+  'setTag',
 ];
 
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */

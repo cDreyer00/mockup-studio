@@ -1,7 +1,7 @@
 import { deepClone } from './clone.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
-import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
+import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, normalizeTag } from './tags.js';
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import type { Document, Node, NodePath, Page } from './types.js';
@@ -319,6 +319,26 @@ function doSetFlags(d: Document, op: Extract<Op, { type: 'setNodeFlags' }>): App
   return { inverse: [{ type: 'setNodeFlags', changes: inv.reverse() }] };
 }
 
+function doSetTag(d: Document, op: Extract<Op, { type: 'setTag' }>): Applied {
+  const inv: { nodeId: string; tag: string }[] = [];
+  for (const ch of op.changes) {
+    const node = requireNode(d, ch.nodeId).node;
+    const tag = normalizeTag(ch.tag);
+    if (node.type === 'image' && tag !== 'img') {
+      fail(`O nó de imagem "${node.id}" só aceita a tag "img"`);
+    }
+    if (node.type === 'svg' && tag !== 'svg') {
+      fail(`O nó SVG "${node.id}" só aceita a tag "svg"`);
+    }
+    if (VOID_TAGS.has(tag) && node.children.length > 0) {
+      fail(`A tag "${tag}" não pode ter filhos, mas o nó "${node.id}" tem ${node.children.length}`);
+    }
+    inv.push({ nodeId: ch.nodeId, tag: node.tag });
+    node.tag = tag;
+  }
+  return { inverse: [{ type: 'setTag', changes: inv.reverse() }] };
+}
+
 /* ---------------- duplicateNodes ---------------- */
 
 function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
@@ -467,6 +487,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setNodeFlags':
       applied = doSetFlags(d, op);
+      break;
+    case 'setTag':
+      applied = doSetTag(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

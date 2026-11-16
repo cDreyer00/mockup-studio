@@ -48,6 +48,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     getPort: () => actualPort,
     startedAt,
     allowedHosts: [host],
+    dataDir,
   });
   const server = http.createServer(app);
   const ws = attachWebSocket(server, store);

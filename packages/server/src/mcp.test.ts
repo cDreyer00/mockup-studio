@@ -235,4 +235,18 @@ describe('MCP', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('set_tag troca a tag e recusa tags bloqueadas', async () => {
+    await call('open_document', { path: ws.file });
+    const created = await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Caixa' });
+    const id = idOf(/(el_[0-9a-z]+)/, textOf(created));
+    const r = await call('set_tag', { nodeIds: [id], tag: 'section' });
+    expect(r.isError).toBeFalsy();
+    expect(textOf(r)).toContain('section');
+    const doc = daemon.store.get(daemon.store.list()[0]!.docId);
+    expect(doc.pages[0]!.frames[0]!.children[0]!.tag).toBe('section');
+    const bad = await call('set_tag', { nodeIds: [id], tag: 'script' });
+    expect(bad.isError).toBe(true);
+    expect(textOf(bad)).toContain('bloqueada');
+  });
 });

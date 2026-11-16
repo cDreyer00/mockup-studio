@@ -16,6 +16,12 @@ export interface OpenDocumentInfo {
   revision: number;
 }
 
+/** Estado das pilhas de undo/redo de um documento (para habilitar os botões do editor). */
+export interface HistoryState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
 /* ---------- servidor → cliente ---------- */
 
 export interface HelloEvent {
@@ -26,11 +32,14 @@ export interface HelloEvent {
   doc: Document | null;
   selection: string[];
   revision: number;
+  /** Histórico do documento ativo (`{ canUndo: false, canRedo: false }` sem documento). */
+  history: HistoryState;
 }
 export interface DocOpenedEvent {
   type: 'doc:opened';
   info: OpenDocumentInfo;
   doc: Document;
+  history: HistoryState;
 }
 export interface DocChangedEvent {
   type: 'doc:changed';
@@ -40,6 +49,7 @@ export interface DocChangedEvent {
   revision: number;
   /** Documento completo após as ops (incluído no MVP para simplificar os clientes). */
   doc: Document;
+  history: HistoryState;
 }
 export interface DocSavedEvent {
   type: 'doc:saved';
@@ -122,6 +132,19 @@ export interface ActiveSetRequest {
   docId: string;
 }
 
+export interface DocNewRequest {
+  type: 'doc:new';
+  reqId: string;
+  /** Caminho do arquivo (normalizado para `.mockup.json`; nunca sobrescreve). */
+  path: string;
+  name: string;
+}
+export interface DocCloseRequest {
+  type: 'doc:close';
+  reqId: string;
+  docId: string;
+}
+
 export type ClientMessage =
   | OpApplyRequest
   | SelectionSetRequest
@@ -129,4 +152,6 @@ export type ClientMessage =
   | DocSaveRequest
   | UndoRequest
   | RedoRequest
-  | ActiveSetRequest;
+  | ActiveSetRequest
+  | DocNewRequest
+  | DocCloseRequest;

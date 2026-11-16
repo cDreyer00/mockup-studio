@@ -1,8 +1,10 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
+import { readRecent } from './paths.js';
 
 export const SERVER_NAME = 'mockup-studio';
 export const SERVER_VERSION = '0.1.0';
@@ -46,12 +48,37 @@ export function isAllowedHost(hostHeader: string | undefined, extra: string[] = 
   });
 }
 
+export const MAX_ASSET_BYTES = 20 * 1024 * 1024;
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
+
+/** Nome seguro para um asset: basename, só [a-zA-Z0-9._-], sem ponto inicial, máx. 80 chars. */
+export function sanitizeAssetName(raw: string): { base: string; ext: string } {
+  const last = raw.split(/[\\/]/).pop() ?? '';
+  const ext = path.extname(last).toLowerCase();
+  if (!IMAGE_EXTS.has(ext)) {
+    throw new HttpError(400, `Extensão não permitida; use: ${[...IMAGE_EXTS].join(', ')}`);
+  }
+  let base = last
+    .slice(0, last.length - ext.length)
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/^\.+/, '');
+  base = base.slice(0, 80 - ext.length);
+  if (!base) base = 'imagem';
+  return { base, ext };
+}
+
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 export function createApp(
   store: DocumentStore,
   mcp: McpHandler,
-  ctx: { getPort?: () => number; startedAt?: string; allowedHosts?: string[] } = {},
+  ctx: {
+    getPort?: () => number;
+    startedAt?: string;
+    allowedHosts?: string[];
+    dataDir?: string;
+    maxAssetBytes?: number;
+  } = {},
 ): Express {
   const app = express();
   const startedAt = ctx.startedAt ?? new Date().toISOString();
@@ -69,7 +96,6 @@ export function createApp(
       exposedHeaders: ['mcp-session-id'],
     }),
   );
-  app.use(express.json({ limit: '20mb' }));
 
   const wrap =
     (fn: (req: Request, res: Response) => unknown | Promise<unknown>) =>
@@ -84,6 +110,48 @@ export function createApp(
       throw new HttpError(400, `Campo obrigatório ausente: ${field}`);
     return v;
   };
+
+  // Upload de imagem: corpo binário cru, montado antes do express.json para qualquer Content-Type.
+  const maxAsset = ctx.maxAssetBytes ?? MAX_ASSET_BYTES;
+  app.post(
+    '/api/assets/:docId',
+    (req, _res, next) => {
+      // falha cedo (sem ler o corpo) para documento inexistente ou sem caminho
+      try {
+        const docId = String(req.params.docId);
+        if (!store.list().some((d) => d.docId === docId))
+          throw new HttpError(404, `Documento não encontrado: ${docId}`);
+        if (!store.assetsDir(docId))
+          throw new HttpError(409, 'Salve o documento antes de enviar imagens');
+        next();
+      } catch (e) {
+        next(e);
+      }
+    },
+    express.raw({ type: () => true, limit: maxAsset }),
+    wrap(async (req, res) => {
+      const docId = String(req.params.docId);
+      const dir = store.assetsDir(docId)!;
+      const name = typeof req.query.name === 'string' ? req.query.name : '';
+      const { base, ext } = sanitizeAssetName(name);
+      const body: unknown = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0)
+        throw new HttpError(400, 'Corpo vazio: envie os bytes da imagem');
+      await fs.promises.mkdir(dir, { recursive: true });
+      for (let i = 0; i < 1000; i++) {
+        const finalName = i === 0 ? `${base}${ext}` : `${base}-${i}${ext}`;
+        try {
+          await fs.promises.writeFile(path.join(dir, finalName), body, { flag: 'wx' });
+          res.json({ src: finalName });
+          return;
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+        }
+      }
+      throw new HttpError(409, 'Não foi possível gerar um nome único para o arquivo');
+    }),
+  );
+  app.use(express.json({ limit: '20mb' }));
 
   app.get(
     '/api/health',
@@ -116,6 +184,13 @@ export function createApp(
       if (!store.list().some((d) => d.docId === id))
         throw new HttpError(404, `Documento não encontrado: ${id}`);
       res.json({ info: store.getInfo(id), doc: store.get(id), selection: store.getSelection(id) });
+    }),
+  );
+
+  app.get(
+    '/api/recent',
+    wrap((_req, res) => {
+      res.json({ recent: readRecent(ctx.dataDir).filter((p) => fs.existsSync(p)) });
     }),
   );
 

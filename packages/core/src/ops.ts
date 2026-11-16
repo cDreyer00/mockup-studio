@@ -111,6 +111,12 @@ export interface SetNodeFlagsOp {
   changes: { nodeId: string; locked?: boolean; hidden?: boolean }[];
 }
 
+/** Troca a tag HTML de nós (ex.: `div` → `section`). Tags bloqueadas/inválidas são recusadas. */
+export interface SetTagOp {
+  type: 'setTag';
+  changes: { nodeId: string; tag: string }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -125,7 +131,8 @@ export type Op =
   | DeletePageOp
   | RenamePageOp
   | SetTokensOp
-  | SetNodeFlagsOp;
+  | SetNodeFlagsOp
+  | SetTagOp;
 
 export type OpType = Op['type'];
 

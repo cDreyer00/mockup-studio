@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { isAllowedOrigin, startDaemon, type DaemonHandle } from './index.js';
@@ -131,6 +133,48 @@ describe('WebSocket', () => {
     sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad3', ops: [] }));
     expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad3')).toBeTruthy();
     expect(daemon.store.getRevision(docId)).toBe(rev);
+    sock.close();
+  });
+
+  it('hello e eventos trazem history; doc:new e doc:close', async () => {
+    const { sock, waitFor } = connect();
+    const hello = await waitFor((m) => m.type === 'hello');
+    const docId = hello.activeDocId as string;
+    expect(hello.history).toEqual({ canUndo: false, canRedo: false });
+
+    sock.send(
+      JSON.stringify({
+        type: 'op:apply',
+        reqId: 'h1',
+        docId,
+        ops: [{ type: 'updateStyles', nodeIds: [ws.frameId], styles: { color: 'red' } }],
+      }),
+    );
+    const changed = await waitFor((m) => m.type === 'doc:changed');
+    expect(changed.history).toEqual({ canUndo: true, canRedo: false });
+
+    const file = path.join(ws.dir, 'criado.mockup.json');
+    sock.send(JSON.stringify({ type: 'doc:new', reqId: 'n1', path: file, name: 'Criado' }));
+    const ack = await waitFor((m) => m.type === 'ack' && m.reqId === 'n1');
+    const info = ack.result as { docId: string; path: string; doc?: unknown };
+    expect(info.path).toBe(file);
+    expect(info.doc).toBeUndefined();
+    const opened = await waitFor((m) => m.type === 'doc:opened');
+    expect(opened.history).toEqual({ canUndo: false, canRedo: false });
+    expect(fs.existsSync(file)).toBe(true);
+
+    sock.send(JSON.stringify({ type: 'doc:new', reqId: 'n2', path: 5, name: 'x' }));
+    const bad = await waitFor((m) => m.type === 'error' && m.reqId === 'n2');
+    expect(String(bad.message)).toContain('path');
+    sock.send(JSON.stringify({ type: 'doc:close', reqId: 'c0' }));
+    const bad2 = await waitFor((m) => m.type === 'error' && m.reqId === 'c0');
+    expect(String(bad2.message)).toContain('docId');
+
+    sock.send(JSON.stringify({ type: 'doc:close', reqId: 'c1', docId: info.docId }));
+    const closeAck = await waitFor((m) => m.type === 'ack' && m.reqId === 'c1');
+    expect(closeAck.result).toEqual({});
+    await waitFor((m) => m.type === 'doc:closed' && m.docId === info.docId);
+    expect(daemon.store.list().map((d) => d.docId)).not.toContain(info.docId);
     sock.close();
   });
 });

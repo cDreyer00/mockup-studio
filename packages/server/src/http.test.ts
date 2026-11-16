@@ -185,4 +185,57 @@ describe('HTTP', () => {
     });
     expect(bad.status).toBe(400);
   });
+
+  it('GET /api/recent lista recentes existentes e ignora os removidos', async () => {
+    const gone = path.join(ws.dir, 'sumiu.mockup.json');
+    fs.writeFileSync(path.join(ws.dataDir, 'recent.json'), JSON.stringify([gone, ws.file]));
+    const r = await fetch(`${daemon.url}/api/recent`);
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { recent: string[] }).recent).toEqual([ws.file]);
+  });
+
+  describe('POST /api/assets/:docId', () => {
+    const post = (docId: string, name: string, body: Buffer, type = 'image/png') =>
+      fetch(`${daemon.url}/api/assets/${docId}?name=${encodeURIComponent(name)}`, {
+        method: 'POST',
+        headers: { 'content-type': type },
+        body: new Uint8Array(body),
+      });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+
+    it('grava, serve por GET e evita colisão com sufixo', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      const r = await post(id, 'foto.png', png);
+      expect(r.status).toBe(200);
+      expect(await r.json()).toEqual({ src: 'foto.png' });
+      expect(fs.readFileSync(path.join(ws.dir, 'assets', 'foto.png'))).toEqual(png);
+      const got = await fetch(`${daemon.url}/assets/${id}/foto.png`);
+      expect(Buffer.from(await got.arrayBuffer())).toEqual(png);
+      expect(await (await post(id, 'foto.png', png)).json()).toEqual({ src: 'foto-1.png' });
+      expect(await (await post(id, 'foto.png', png)).json()).toEqual({ src: 'foto-2.png' });
+    });
+
+    it('sanitiza o nome e impede path traversal', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      const r = await post(id, '../../x.png', png);
+      expect(((await r.json()) as { src: string }).src).toBe('x.png');
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'x.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, '..', 'x.png'))).toBe(false);
+      const win = await post(id, String.raw`C:\dir\w.png`, png);
+      expect(((await win.json()) as { src: string }).src).toBe('w.png');
+      const odd = await post(id, '.meu arquivo!.JPG', png);
+      expect(((await odd.json()) as { src: string }).src).toBe('meu-arquivo-.jpg');
+    });
+
+    it('erros: 404, 400 e 413', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      expect((await post('doc_inexistente', 'a.png', png)).status).toBe(404);
+      expect((await post(id, 'a.exe', png)).status).toBe(400);
+      expect((await post(id, 'a', png)).status).toBe(400);
+      expect((await post(id, 'a.png', Buffer.alloc(0))).status).toBe(400);
+      const big = await post(id, 'grande.png', Buffer.alloc(21 * 1024 * 1024, 1));
+      expect(big.status).toBe(413);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'grande.png'))).toBe(false);
+    });
+  });
 });

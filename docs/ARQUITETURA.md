@@ -134,6 +134,7 @@ Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `
 | `renamePage`     | `pageId`, `name`                                                         | `renamePage` com o nome anterior                                   |
 | `setTokens`      | `set?`, `unset?`                                                         | `setTokens` restaurando valores e removendo os criados             |
 | `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                  | `setNodeFlags` com os valores anteriores                           |
+| `setTag`         | `changes[{ nodeId, tag }]`                                               | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
 
 Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
 
@@ -147,9 +148,9 @@ O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (cliente
 
 | `type`              | Campos                                                                                                     | Descrição                                             |
 | ------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (documento ativo ou null), `selection[]`, `revision` | Estado inicial.                                       |
-| `doc:opened`        | `info`, `doc`                                                                                              | Documento aberto ou criado.                           |
-| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`                                                              | Mudança aplicada. No MVP inclui o documento completo. |
+| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (documento ativo ou null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Estado inicial.                                       |
+| `doc:opened`        | `info`, `doc`, `history`                                                                                            | Documento aberto ou criado.                           |
+| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                              | Mudança aplicada. No MVP inclui o documento completo. |
 | `doc:saved`         | `docId`, `path`                                                                                            | Documento salvo em disco.                             |
 | `doc:closed`        | `docId`                                                                                                    | Documento fechado.                                    |
 | `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                             | Seleção alterada.                                     |
@@ -168,6 +169,8 @@ Toda requisição tem `reqId` (string) e é respondida com `ack` ou `error`.
 | `op:apply`      | `docId`, `ops[]`     | Aplica ops.                      |
 | `selection:set` | `docId`, `nodeIds[]` | Define a seleção.                |
 | `doc:open`      | `path`               | Abre um arquivo.                 |
+| `doc:new`       | `path`, `name`       | Cria um documento (ack com o info, sem `doc`). |
+| `doc:close`     | `docId`              | Fecha o documento (salva se pendente); ack `{}`. |
 | `doc:save`      | `docId?`             | Salva (padrão: documento ativo). |
 | `undo`          | `docId?`             | Desfaz.                          |
 | `redo`          | `docId?`             | Refaz.                           |
@@ -188,6 +191,8 @@ O header `Host` é validado antes de qualquer rota (`isAllowedHost`, proteção 
 | `POST /api/new`        | Corpo `{ path, name }`. Cria um documento.                       |
 | `POST /api/save`       | Corpo `{ docId? }`. Salva.                                       |
 | `POST /api/active`     | Corpo `{ docId }`. Define o documento ativo.                     |
+| `GET /api/recent`      | `{ recent: string[] }`: documentos recentes que ainda existem em disco. |
+| `POST /api/assets/:docId?name=` | Corpo binário cru (até 20 MB; extensões png, jpg, jpeg, gif, webp, svg, avif). Grava em `assets/` com nome sanitizado e sufixo `-1`, `-2` se já existir; responde `{ src }` relativo a `assets/`. 404 documento inexistente, 409 sem caminho (salvar antes), 400 nome/extensão/corpo inválido, 413 grande demais. |
 | `GET /assets/:docId/*` | Serve arquivos de `assets/` do documento.                        |
 | `/ws`                  | WebSocket (upgrade).                                             |
 | `/mcp`                 | MCP Streamable HTTP.                                             |

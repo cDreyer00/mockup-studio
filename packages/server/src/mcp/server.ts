@@ -709,6 +709,32 @@ export function createMcpServer(store: DocumentStore): McpServer {
   );
 
   tool(
+    'set_tag',
+    {
+      title: 'Trocar tag HTML',
+      description:
+        'Troca a tag HTML dos nós (ex.: div para section, h1 para p). Tags bloqueadas (script, style, iframe...) são recusadas. Ex.: nodeIds ["el_x"], tag "section".',
+      inputSchema: {
+        nodeIds: nodeIdsField,
+        tag: z.string().describe('Nova tag HTML, ex. "section", "h2", "button".'),
+        docId: docIdField,
+      },
+      annotations: WRITE,
+    },
+    ({ nodeIds, tag, docId }) => {
+      const id = store.resolveDocId(docId);
+      requireNodes(store.get(id), nodeIds);
+      const r = apply(
+        id,
+        [{ type: 'setTag', changes: nodeIds.map((nodeId) => ({ nodeId, tag })) }],
+        'set_tag',
+      );
+      return `Tag alterada em ${nodeIds.length} nó(s).
+${summaryOf(r.doc, nodeIds)}`;
+    },
+  );
+
+  tool(
     'rename_nodes',
     {
       title: 'Renomear nós',

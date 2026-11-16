@@ -257,6 +257,65 @@ describe('applyOp', () => {
   });
 });
 
+describe('setTag', () => {
+  it('troca a tag (element e text) e o inverso restaura exatamente', () => {
+    const doc = fixture();
+    const { after, inverse } = roundTrip(doc, {
+      type: 'setTag',
+      changes: [
+        { nodeId: 'el_aaaaaaa1', tag: ' Section ' },
+        { nodeId: 'tx_bbbbbbb2', tag: 'h2' },
+      ],
+    });
+    expect(findNode(after, 'el_aaaaaaa1')!.node.tag).toBe('section');
+    expect(findNode(after, 'tx_bbbbbbb2')!.node.tag).toBe('h2');
+    expect(inverse).toEqual([
+      {
+        type: 'setTag',
+        changes: [
+          { nodeId: 'tx_bbbbbbb2', tag: 'p' },
+          { nodeId: 'el_aaaaaaa1', tag: 'div' },
+        ],
+      },
+    ]);
+  });
+
+  it('recusa tag bloqueada ou inválida', () => {
+    const doc = fixture();
+    for (const tag of ['script', 'IFRAME', '1x', 'a b']) {
+      expect(() =>
+        applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag }] }),
+      ).toThrow(/Tag inválida/);
+    }
+  });
+
+  it('recusa tag void em nó com filhos e aceita sem filhos', () => {
+    const doc = fixture();
+    expect(() =>
+      applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_ccccccc3', tag: 'br' }] }),
+    ).toThrow(/não pode ter filhos/);
+    const ok = applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag: 'hr' }] });
+    expect(findNode(ok.doc, 'el_aaaaaaa1')!.node.tag).toBe('hr');
+  });
+
+  it('imagem só aceita img e svg só aceita svg', () => {
+    const doc = fixture();
+    const img = createNodeFromTag('img');
+    img.id = 'im_aaaaaaa1';
+    const svg = createNodeFromTag('svg');
+    svg.id = 'sv_aaaaaaa1';
+    doc.pages[0].frames[0].children.push(img, svg);
+    expect([img.type, svg.type]).toEqual(['image', 'svg']);
+    expect(() =>
+      applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'im_aaaaaaa1', tag: 'div' }] }),
+    ).toThrow(/img/);
+    expect(() =>
+      applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'sv_aaaaaaa1', tag: 'div' }] }),
+    ).toThrow(/svg/);
+    applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'im_aaaaaaa1', tag: 'img' }] });
+  });
+});
+
 describe('applyOps', () => {
   it('aplica em sequência e o inverso desfaz tudo', () => {
     const doc = fixture();
