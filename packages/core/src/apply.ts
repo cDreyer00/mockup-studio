@@ -345,7 +345,11 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
     const arr = containerArray(path);
     arr.splice(arr.indexOf(path.node) + 1, 0, clone);
   }
-  const full: DuplicateNodesOp = { type: 'duplicateNodes', nodeIds: top.map((p) => p.node.id), idMap };
+  const full: DuplicateNodesOp = {
+    type: 'duplicateNodes',
+    nodeIds: top.map((p) => p.node.id),
+    idMap,
+  };
   return {
     inverse: [{ type: 'deleteNodes', nodeIds: newRootIds }],
     result: { idMap, nodeIds: newRootIds, op: full },

@@ -44,7 +44,7 @@ Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o qu
 - **Clipboard** interno e colar HTML externo.
 - **Seleção sincronizada** com o MCP; badge "agente trabalhando".
 - **Arquivo**: abrir, novo, salvar, recentes, indicador de não salvo.
-- **Desempenho** com 300 nós.
+- **Desempenho** com 300 nós. Pendências herdadas da tarefa 1: `applyOp` faz cópia profunda do documento via JSON a cada op, e `doc:changed` envia o documento completo pelo WebSocket a cada mudança. Medir com 300 nós e, se preciso, trocar por clonagem estrutural (`structuredClone`/cópia por caminho) e por deltas de ops no WS.
 - **Qualidade**: testes Vitest, 5 testes e2e com Playwright, `docs/EDITOR.md`, screenshot no README.
 
 ### Tarefa 3 — Electron, screenshot e exportação
