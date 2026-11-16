@@ -79,7 +79,13 @@ describe.skipIf(!dev || !editorReady())('spawnElectronHeadless (Electron real)',
     }
     if (prev === undefined) delete process.env.MOCKUP_DATA_DIR;
     else process.env.MOCKUP_DATA_DIR = prev;
-    fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    try {
+      fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch (e) {
+      // Com outros Electron rodando em paralelo (teste do desktop), o Windows às vezes mantém a
+      // pasta presa por mais alguns segundos; é só a pasta temporária, não reprova o teste.
+      console.warn('[teste] não foi possível remover', dataDir, (e as Error).message);
+    }
   });
 
   it('sobe o headless e o health informa render: true', async () => {
