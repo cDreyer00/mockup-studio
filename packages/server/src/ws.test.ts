@@ -65,6 +65,22 @@ describe('WebSocket', () => {
     sock.close();
   });
 
+  it('doc:saveAs grava no novo caminho e responde com o info', async () => {
+    const { sock, waitFor } = connect();
+    const hello = await waitFor((m) => m.type === 'hello');
+    const docId = hello.activeDocId as string;
+    const dest = path.join(ws.dir, 'copia');
+    sock.send(JSON.stringify({ type: 'doc:saveAs', reqId: 's1', docId, path: dest }));
+    const ack = await waitFor((m) => m.type === 'ack' && m.reqId === 's1');
+    const target = path.join(ws.dir, 'copia.mockup.json');
+    expect((ack.result as { path: string }).path).toBe(target);
+    expect((await waitFor((m) => m.type === 'doc:saved')).path).toBe(target);
+    expect(fs.existsSync(target)).toBe(true);
+    sock.send(JSON.stringify({ type: 'doc:saveAs', reqId: 's2', docId }));
+    expect(await waitFor((m) => m.type === 'error' && m.reqId === 's2')).toBeTruthy();
+    sock.close();
+  });
+
   it('JSON inválido e erro com reqId', async () => {
     const { sock, waitFor } = connect();
     await waitFor((m) => m.type === 'hello');
@@ -79,7 +95,6 @@ describe('WebSocket', () => {
   it('isAllowedOrigin', () => {
     for (const o of [
       undefined,
-      'file:///C:/app/index.html',
       'http://localhost:5173',
       'https://127.0.0.1:9',
       'http://[::1]:3000',
@@ -87,6 +102,7 @@ describe('WebSocket', () => {
       expect(isAllowedOrigin(o), String(o)).toBe(true);
     for (const o of [
       'null',
+      'file:///C:/app/index.html',
       'http://evil.com',
       'http://localhost.evil.com',
       'http://127.0.0.1.nip.io',

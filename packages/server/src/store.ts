@@ -260,6 +260,53 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     return file;
   }
 
+  /**
+   * "Salvar como": grava em outro caminho (sobrescreve; o diálogo nativo já confirmou), copia o
+   * conteúdo de `assets/` para ao lado do novo arquivo (sem apagar o antigo nem sobrescrever
+   * arquivos existentes no destino) e passa a apontar o documento para o novo caminho.
+   */
+  async saveAs(docId: string | undefined, newPath: string): Promise<OpenDocumentInfo> {
+    const d = this.entry(this.resolveDocId(docId));
+    const abs = normalizeDocumentPath(newPath);
+    const same = (a: string, b: string): boolean =>
+      process.platform === 'win32'
+        ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+        : path.resolve(a) === path.resolve(b);
+    for (const other of this.docs.values()) {
+      if (other.id !== d.id && other.path && same(other.path, abs)) {
+        throw new StoreError(
+          409,
+          `Já há outro documento aberto neste caminho: ${abs}. Feche-o antes de salvar por cima.`,
+        );
+      }
+    }
+    if (d.saveTimer) {
+      clearTimeout(d.saveTimer);
+      d.saveTimer = null;
+    }
+    const oldAssets = d.path ? path.join(path.dirname(d.path), 'assets') : null;
+    const newAssets = path.join(path.dirname(abs), 'assets');
+    const run = async (): Promise<void> => {
+      const revision = d.history.revision;
+      await this.writeFile(abs, serializeDocument(d.history.doc));
+      if (oldAssets && !same(oldAssets, newAssets) && fs.existsSync(oldAssets)) {
+        await fs.promises.cp(oldAssets, newAssets, {
+          recursive: true,
+          force: false,
+          errorOnExist: false,
+        });
+      }
+      d.path = abs;
+      if (d.history.revision === revision) d.dirty = false;
+      this.emit('doc:saved', { type: 'doc:saved', docId: d.id, path: abs });
+      addRecent(abs, this.opts.dataDir);
+    };
+    const next = d.saveChain.then(run, run);
+    d.saveChain = next.catch(() => undefined);
+    await next;
+    return this.info(d);
+  }
+
   list(): OpenDocumentInfo[] {
     return [...this.docs.values()].map((d) => this.info(d));
   }

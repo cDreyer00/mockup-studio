@@ -152,7 +152,7 @@ Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os i
 
 Endpoint `ws://127.0.0.1:4747/ws`. Mensagens JSON, uma por frame. Tipos em `packages/core/src/protocol.ts`. Ao conectar, o servidor envia `hello`.
 
-O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (clientes não-navegador), `file://` e `http(s)` em `localhost`, `127.0.0.1` ou `[::1]` (qualquer porta). `Origin: null` é recusado, porque iframes `sandbox` e páginas `data:` de qualquer site mandam esse valor. O resto recebe 403. Em `op:apply`, `docId` (string) e `ops` (array) são exigidos; cada op é validada pelo core e qualquer exceção vira `error` com o `reqId`.
+O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (clientes não-navegador) e `http(s)` em `localhost`, `127.0.0.1` ou `[::1]` (qualquer porta). `Origin: null` e `file://` são recusados (o app desktop carrega o editor de `http://127.0.0.1:<porta>`), porque iframes `sandbox` e páginas `data:` de qualquer site mandam esse valor. O resto recebe 403. Em `op:apply`, `docId` (string) e `ops` (array) são exigidos; cada op é validada pelo core e qualquer exceção vira `error` com o `reqId`.
 
 ### Servidor para cliente
 

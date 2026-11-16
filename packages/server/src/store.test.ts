@@ -149,4 +149,39 @@ describe('DocumentStore', () => {
     await store.save(docId);
     expect(readRecent(ws.dataDir)).toEqual([ws.file]);
   });
+
+  it('saveAs grava no novo caminho, copia assets sem sobrescrever e atualiza o estado', async () => {
+    const { docId } = await store.open(ws.file);
+    const assets = path.join(ws.dir, 'assets');
+    fs.mkdirSync(path.join(assets, 'fonts'), { recursive: true });
+    fs.writeFileSync(path.join(assets, 'a.png'), 'novo');
+    fs.writeFileSync(path.join(assets, 'fonts', 'f.woff2'), 'f');
+    const destDir = path.join(ws.dir, 'outro');
+    fs.mkdirSync(path.join(destDir, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'existente');
+    bg(docId, '#222222');
+    const saved: string[] = [];
+    store.on('doc:saved', (e) => saved.push(e.path));
+    const info = await store.saveAs(docId, path.join(destDir, 'copia'));
+    const dest = path.join(destDir, 'copia.mockup.json');
+    expect(info.path).toBe(dest);
+    expect(info.dirty).toBe(false);
+    expect(saved).toEqual([dest]);
+    expect(
+      parseDocument(fs.readFileSync(dest, 'utf8')).pages[0]!.frames[0]!.style['background'],
+    ).toBe('#222222');
+    expect(fs.readFileSync(path.join(destDir, 'assets', 'a.png'), 'utf8')).toBe('existente');
+    expect(fs.existsSync(path.join(destDir, 'assets', 'fonts', 'f.woff2'))).toBe(true);
+    expect(fs.existsSync(path.join(assets, 'a.png'))).toBe(true);
+    expect(store.getInfo(docId).path).toBe(dest);
+    expect(readRecent(ws.dataDir)[0]).toBe(dest);
+    expect(store.assetsDir(docId)).toBe(path.join(destDir, 'assets'));
+  });
+
+  it('saveAs recusa o caminho de outro documento aberto', async () => {
+    const a = await store.open(ws.file);
+    const b = await store.create(path.join(ws.dir, 'b'), 'B');
+    await expect(store.saveAs(b.docId, ws.file)).rejects.toThrow(/outro documento aberto/);
+    await expect(store.saveAs(a.docId, ws.file)).resolves.toMatchObject({ path: ws.file });
+  });
 });

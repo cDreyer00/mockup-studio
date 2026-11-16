@@ -6,13 +6,12 @@ import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
- * Aceita Origin ausente (clientes não-navegador), `file://` e http(s) em host local (qualquer porta).
+ * Aceita Origin ausente (clientes não-navegador) e http(s) em host local (qualquer porta).
  * `Origin: null` é recusado: iframes `sandbox` e páginas `data:` de qualquer site mandam esse valor.
  */
 export function isAllowedOrigin(origin: string | undefined): boolean {
   if (origin === undefined || origin === '') return true;
   if (origin === 'null') return false;
-  if (origin.toLowerCase().startsWith('file://')) return true;
   try {
     const u = new URL(origin);
     return (u.protocol === 'http:' || u.protocol === 'https:') && LOCAL_HOSTS.has(u.hostname);
@@ -72,6 +71,11 @@ async function handleMessage(store: DocumentStore, msg: ClientMessage): Promise<
     }
     case 'doc:save':
       return { path: await store.save(msg.docId) };
+    case 'doc:saveAs': {
+      if (typeof msg.path !== 'string' || !msg.path)
+        throw new Error('doc:saveAs exige "path" (string).');
+      return await store.saveAs(msg.docId, msg.path);
+    }
     case 'undo': {
       const r = store.undo(msg.docId, 'editor');
       return { applied: r !== null, revision: r?.revision ?? null };
