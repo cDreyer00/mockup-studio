@@ -31,7 +31,12 @@ function parseArgs(argv: string[]) {
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.dataDir) process.env.MOCKUP_DATA_DIR = opts.dataDir;
-  const d = await startDaemon({ ...opts, writeInfo: true });
+  const d = await startDaemon({
+    ...opts,
+    writeInfo: true,
+    mode: opts.headless ? 'headless' : 'serve',
+    onShutdown: () => process.exit(0),
+  });
   console.error(`[mockup-daemon] url:    ${d.url}`);
   console.error(`[mockup-daemon] mcp:    ${d.mcpUrl}`);
   console.error(`[mockup-daemon] ws:     ${d.wsUrl}`);

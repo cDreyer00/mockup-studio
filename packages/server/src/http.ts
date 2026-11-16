@@ -25,7 +25,16 @@ export interface HealthInfo {
   activeDocId: string | null;
   /** `true` quando o daemon tem motor de render (app desktop / Electron headless). */
   render: boolean;
+  /**
+   * Quem iniciou o daemon: `desktop` (app Electron, janela ou headless), `headless` (daemon Node
+   * destacado pelo CLI) ou `serve` (`mockup serve` do usuário). Ausente em daemons antigos.
+   */
+  mode?: DaemonMode;
+  /** `true` quando `POST /api/shutdown` é aceito (senão responde 409). */
+  canShutdown?: boolean;
 }
+
+export type DaemonMode = 'desktop' | 'headless' | 'serve';
 
 class HttpError extends Error {
   constructor(
@@ -101,6 +110,10 @@ export function createApp(
     render?: RenderProvider;
     /** Build do editor servido em `/` (SPA). */
     editorDir?: string;
+    /** Quem iniciou o daemon (informado no health). */
+    mode?: DaemonMode;
+    /** Encerra o daemon (salvando os documentos); sem ele `POST /api/shutdown` responde 409. */
+    shutdown?: () => void;
   } = {},
 ): Express {
   const app = express();
@@ -203,8 +216,26 @@ export function createApp(
         docs: store.list().length,
         activeDocId: store.activeDocId,
         render: !!ctx.render,
+        mode: ctx.mode ?? (ctx.render ? 'desktop' : 'serve'),
+        canShutdown: !!ctx.shutdown,
       };
       res.json(body);
+    }),
+  );
+
+  // Pede o encerramento do daemon (usado por `mockup stop` e na troca por um daemon com render).
+  // Protegida como as demais escritas (Host local e Origin ausente/local, nos middlewares acima).
+  app.post(
+    '/api/shutdown',
+    wrap((_req, res) => {
+      if (!ctx.shutdown)
+        throw new HttpError(
+          409,
+          'Este daemon não pode ser encerrado por HTTP (é o app desktop: feche-o pela janela ou pelo menu).',
+        );
+      res.status(202).json({ ok: true, pid: process.pid });
+      const stop = ctx.shutdown;
+      setImmediate(stop);
     }),
   );
 

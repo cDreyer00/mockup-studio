@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from './http.js';
 import { createMcpHandler } from './mcp/session.js';
 import { getDataDir, removeDaemonInfo, resolvePort, writeDaemonInfo } from './paths.js';
+import type { DaemonMode } from './http.js';
 import type { RenderProvider } from './render.js';
 import { DocumentStore } from './store.js';
 import { attachWebSocket } from './ws.js';
@@ -20,6 +21,13 @@ export interface DaemonOptions {
   render?: RenderProvider;
   /** Pasta com o build do editor (`packages/editor/dist`), servida em `/` pelo daemon. */
   editorDir?: string;
+  /** Quem iniciou o daemon (health). Padrão: `desktop` com render, `headless` com `headless`, senão `serve`. */
+  mode?: DaemonMode;
+  /**
+   * Habilita `POST /api/shutdown`: o daemon responde 202, fecha (salvando os documentos) e então
+   * chama este callback (ex.: `process.exit` ou `app.quit`). Sem ele a rota responde 409.
+   */
+  onShutdown?: () => void;
 }
 
 export interface DaemonHandle {
@@ -60,6 +68,13 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     dataDir,
     render: opts.render,
     editorDir: opts.editorDir,
+    mode: opts.mode ?? (opts.render ? 'desktop' : opts.headless ? 'headless' : 'serve'),
+    shutdown: opts.onShutdown
+      ? () => {
+          log('encerramento pedido por HTTP');
+          void handle.close().finally(() => opts.onShutdown?.());
+        }
+      : undefined,
   });
   const server = http.createServer(app);
   const ws = attachWebSocket(server, store);

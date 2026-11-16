@@ -14,7 +14,10 @@ export {
   writeDaemonInfo,
 } from './paths.js';
 export type { DaemonInfo } from './paths.js';
-export type { HealthInfo } from './http.js';
+export type { DaemonMode, HealthInfo } from './http.js';
+export { checkHealth } from './health.js';
+export { listOpenDocuments, requestShutdown, takeOverDaemon, waitForShutdown } from './control.js';
+export type { TakeoverResult } from './control.js';
 export { isAllowedHost } from './http.js';
 export { isAllowedOrigin } from './ws.js';
 export { RENDER_UNAVAILABLE, renderUnavailableMessage } from './render.js';
@@ -26,18 +29,3 @@ export type {
   RenderScale,
   RenderTarget,
 } from './render.js';
-
-import type { HealthInfo } from './http.js';
-
-/** Consulta `GET <url>/api/health`; devolve `null` se o daemon não responder. */
-export async function checkHealth(url: string, timeoutMs = 1500): Promise<HealthInfo | null> {
-  try {
-    const res = await fetch(`${url.replace(/\/+$/, '')}/api/health`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as HealthInfo;
-  } catch {
-    return null;
-  }
-}
