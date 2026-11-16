@@ -65,10 +65,20 @@ function clean(node: Element): void {
       delete node.attribs[key];
     }
   }
+  if (localName(node.name) === 'use') {
+    // `use` só pode apontar para um fragmento do próprio SVG (sem URLs externas ou data:)
+    for (const key of Object.keys(node.attribs)) {
+      if (HREF_RE.test(key) && !node.attribs[key]!.trim().startsWith('#')) delete node.attribs[key];
+    }
+  }
   for (const child of [...node.children] as AnyNode[]) {
     if (DomUtils.isTag(child)) {
       if (!isAllowedElement(child.name)) DomUtils.removeElement(child);
       else clean(child);
+    } else if (!DomUtils.isText(child)) {
+      // comentários, CDATA e diretivas: o parser HTML fecha comentário também em `--!>`,
+      // o que permitiria sair do contexto SVG no HTML exportado
+      DomUtils.removeElement(child);
     }
   }
 }
@@ -77,6 +87,7 @@ function clean(node: Element): void {
  * Sanitiza markup SVG: devolve só o primeiro `<svg>`, mantendo apenas elementos da lista de
  * permissão (formas, texto, gradientes, máscaras, filtros, `use`, `image`...), sem atributos
  * `on*` e sem `href` (com qualquer prefixo) apontando para `javascript:` ou `data:` não-imagem.
+ * Comentários, CDATA e diretivas são removidos; `use` só aceita `href="#fragmento"`.
  * Devolve string vazia se não houver `<svg>`.
  */
 export function sanitizeSvg(svg: string): string {

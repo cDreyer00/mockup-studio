@@ -106,6 +106,25 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).toContain('<feGaussianBlur stdDeviation="2"/>');
   });
 
+  it('remove comentários, CDATA e diretivas (comentário fechado em --!> pelo parser HTML)', () => {
+    const out = sanitizeSvg('<svg><!-- --!><img src=x onerror=alert(1)> --><rect/></svg>');
+    expect(out).not.toMatch(/onerror|<!--|<img/i);
+    expect(out).toBe('<svg><rect/></svg>');
+    const cdata = sanitizeSvg(
+      '<svg><![CDATA[<img onerror=1>]]><?x <img onerror=2>?><text>ok</text></svg>',
+    );
+    expect(cdata).not.toMatch(/onerror|CDATA|<\?x/i);
+    expect(cdata).toContain('<text>ok</text>');
+  });
+
+  it('use só aceita href para fragmento', () => {
+    const out = sanitizeSvg(
+      '<svg><use href="#ok"/><use href="data:image/svg+xml,x"/><use xlink:href="https://a.dev/x.svg#y"/></svg>',
+    );
+    expect(out).toContain('<use href="#ok"/>');
+    expect(out).not.toMatch(/data:|https:/);
+  });
+
   it('href com prefixo de namespace arbitrário é tratado como href', () => {
     const out = sanitizeSvg(
       '<svg xmlns:x="http://www.w3.org/1999/xlink"><a x:href="javascript:alert(1)">a</a>' +
