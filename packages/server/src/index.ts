@@ -7,6 +7,8 @@ export {
   normalizeDocumentPath,
   getDataDir,
   readDaemonInfo,
+  readRecent,
+  addRecent,
   removeDaemonInfo,
   resolvePort,
   writeDaemonInfo,

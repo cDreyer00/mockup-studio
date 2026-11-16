@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { exportSvg, findNode } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
-import type { RenderProvider } from './render.js';
+import { RENDER_UNAVAILABLE, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
@@ -77,6 +78,16 @@ export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   if (WINDOWS_RESERVED.test(base)) base = base.replace(/^[^.]+/, (m) => `${m}-arquivo`);
   return { base, ext };
 }
+
+const IMAGE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.avif': 'image/avif',
+};
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -291,6 +302,83 @@ export function createApp(
           resolve();
         });
       });
+    }),
+  );
+
+  // Render do nó: PNG/JPG pelo motor de render (Electron) e SVG exportado pelo core.
+  app.get(
+    '/render/:docId/:file',
+    wrap(async (req, res) => {
+      const docId = String(req.params.docId);
+      const m = /^(.+)\.(png|jpg|svg)$/i.exec(String(req.params.file));
+      if (!m) throw new HttpError(404, 'Formato inválido: use .png, .jpg ou .svg');
+      const nodeId = m[1]!;
+      const ext = m[2]!.toLowerCase();
+      if (!store.list().some((d) => d.docId === docId))
+        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+      const doc = store.get(docId);
+      if (!findNode(doc, nodeId)) throw new HttpError(404, `Nó não encontrado: ${nodeId}`);
+      res.setHeader('Cache-Control', 'no-store');
+
+      if (ext === 'svg') {
+        const layout = ctx.render ? await ctx.render.measure({ doc, docId, nodeId }) : undefined;
+        const assets = store.assetsDir(docId);
+        const resolveImage = (src: string): string | undefined => {
+          if (src.startsWith('data:')) return src;
+          if (!assets || !src || src.includes('\0') || src.split(/[\\/]/).includes('..'))
+            return undefined;
+          const root = path.resolve(assets);
+          const target = path.resolve(root, src);
+          if (!target.startsWith(root + path.sep)) return undefined;
+          const mime = IMAGE_MIME[path.extname(target).toLowerCase()];
+          if (!mime) return undefined;
+          try {
+            return `data:${mime};base64,${fs.readFileSync(target).toString('base64')}`;
+          } catch {
+            return undefined;
+          }
+        };
+        let svg: string;
+        try {
+          svg = exportSvg(doc, { nodeId, layout, resolveImage });
+        } catch (e) {
+          console.error('[mockup-daemon] erro no exportSvg:', e instanceof Error ? e.message : e);
+          res.status(500).json({ error: 'Falha ao exportar o SVG' });
+          return;
+        }
+        res.type('image/svg+xml; charset=utf-8').send(svg);
+        return;
+      }
+
+      if (!ctx.render) {
+        res.status(503).json({ error: RENDER_UNAVAILABLE });
+        return;
+      }
+      const scale = Number(req.query.scale ?? 1);
+      if (![1, 2, 3].includes(scale)) throw new HttpError(400, 'scale deve ser 1, 2 ou 3');
+      const quality = req.query.quality === undefined ? undefined : Number(req.query.quality);
+      if (quality !== undefined && !(quality >= 0 && quality <= 100))
+        throw new HttpError(400, 'quality deve estar entre 0 e 100');
+      const maxWidth = req.query.maxWidth === undefined ? undefined : Number(req.query.maxWidth);
+      if (maxWidth !== undefined && !(Number.isFinite(maxWidth) && maxWidth > 0))
+        throw new HttpError(400, 'maxWidth inválido');
+      const t = String(req.query.transparent ?? '');
+      let result;
+      try {
+        result = await ctx.render.capture({
+          doc,
+          docId,
+          nodeId,
+          scale: scale as RenderScale,
+          format: ext === 'jpg' ? 'jpg' : 'png',
+          quality,
+          maxWidth,
+          transparent: t === '1' || t === 'true',
+        });
+      } catch (e) {
+        throw new HttpError(500, e instanceof Error ? e.message : 'Falha no render');
+      }
+      res.type(result.mime).send(result.data);
     }),
   );
 
