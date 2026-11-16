@@ -26,9 +26,13 @@ export function svgToDataUri(svg: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-/** Tag válida (minúscula) ou `div` quando inválida/bloqueada. */
+/**
+ * Tag válida (minúscula) ou `div` quando inválida/bloqueada. `svg` também vira `div`: o nó SVG é
+ * renderizado num `<img>` e nunca passa por aqui com a própria tag.
+ */
 export function resolveTag(tag: string): string {
-  return isValidTag(tag) ? tag.trim().toLowerCase() : 'div';
+  const t = typeof tag === 'string' ? tag.trim().toLowerCase() : '';
+  return isValidTag(t) && t !== 'svg' ? t : 'div';
 }
 
 const FORBIDDEN_ATTRS = new Set([

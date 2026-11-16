@@ -314,6 +314,51 @@ describe('setTag', () => {
     ).toThrow(/svg/);
     applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'im_aaaaaaa1', tag: 'img' }] });
   });
+
+  it('img e svg só em nós do tipo correspondente', () => {
+    const doc = fixture();
+    for (const [nodeId, tag] of [
+      ['el_aaaaaaa1', 'img'],
+      ['el_aaaaaaa1', 'SVG'],
+      ['tx_bbbbbbb2', 'svg'],
+      [doc.pages[0].frames[0].id, 'img'],
+    ] as const) {
+      expect(() => applyOp(doc, { type: 'setTag', changes: [{ nodeId, tag }] }), tag).toThrow(
+        /exclusiva/,
+      );
+    }
+  });
+
+  it('tag void é recusada em nó de texto', () => {
+    const doc = fixture();
+    for (const tag of ['br', 'hr', 'input', 'wbr', 'source', 'track', 'col', 'area']) {
+      expect(
+        () => applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'tx_bbbbbbb2', tag }] }),
+        tag,
+      ).toThrow(/nó de texto/);
+    }
+  });
+
+  it('recusa tags que mudam o namespace ou guardam conteúdo inerte', () => {
+    const doc = fixture();
+    for (const tag of [
+      'math',
+      'animate',
+      'set',
+      'foreignObject',
+      'template',
+      'noscript',
+      'frame',
+      'frameset',
+      'applet',
+      'portal',
+    ]) {
+      expect(
+        () => applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag }] }),
+        tag,
+      ).toThrow(/bloqueada/);
+    }
+  });
 });
 
 describe('applyOps', () => {

@@ -71,6 +71,17 @@ describe('htmlToNodes', () => {
     expect(nodes[1].svg).toContain('<path');
   });
 
+  it('descarta tags bloqueadas (math, template, frameset...) sem lançar', () => {
+    const nodes = htmlToNodes(
+      `<math><mi>x</mi></math><template><p>t</p></template><frameset></frameset>
+       <portal></portal><div>ok</div><svg viewBox="0 0 1 1"></svg>`,
+    );
+    expect(nodes.map((n) => [n.type, n.tag])).toEqual([
+      ['text', 'div'],
+      ['svg', 'svg'],
+    ]);
+  });
+
   it('decodifica entidades', () => {
     const [n] = htmlToNodes('<p>a &amp; b &lt;c&gt;</p>');
     expect(n.text).toBe('a & b <c>');

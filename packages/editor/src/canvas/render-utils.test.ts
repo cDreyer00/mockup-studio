@@ -7,7 +7,8 @@ const node = (tag: string, attrs: Record<string, string>): Node =>
 
 describe('resolveTag', () => {
   it('bloqueia tags perigosas e inválidas', () => {
-    for (const t of ['SCRIPT', 'iframe', 'x y']) expect(resolveTag(t)).toBe('div');
+    for (const t of ['SCRIPT', 'iframe', 'x y', 'svg', 'math', 'template'])
+      expect(resolveTag(t)).toBe('div');
   });
   it('normaliza caixa', () => expect(resolveTag('H1')).toBe('h1'));
 });

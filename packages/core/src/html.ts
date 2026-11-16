@@ -3,7 +3,7 @@ import type { AnyNode, Element } from 'domhandler';
 import { createNodeFromTag } from './document.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { sanitizeSvg } from './svg.js';
-import { ATTR_NAME_RE, TAG_RE, VOID_TAGS } from './tags.js';
+import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
 import type { Node } from './types.js';
 
 /* ====================================================================== */
@@ -264,7 +264,7 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
   for (const c of children) {
     if (DomUtils.isTag(c)) {
       const name = c.name.toLowerCase();
-      if (SKIP_TAGS.has(name) || !TAG_RE.test(name)) continue;
+      if (SKIP_TAGS.has(name) || BLOCKED_TAGS.has(name) || !TAG_RE.test(name)) continue;
       if (UNWRAP_TAGS.has(name)) out.push(...convertChildren(c.children, ctx));
       else out.push(convertElement(c, ctx));
     } else if (DomUtils.isText(c)) {
