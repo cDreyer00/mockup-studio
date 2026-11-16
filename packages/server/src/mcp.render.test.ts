@@ -262,6 +262,30 @@ describe('MCP render, export e guias', () => {
       expect(fs.readFileSync(path.join(out, 'desktop.svg'), 'utf8')).toContain('<svg');
     });
 
+    it('export svg embute as fontes registradas em doc.fonts como data URL', async () => {
+      await prepare();
+      fs.mkdirSync(path.join(ws.dir, 'assets', 'fonts'), { recursive: true });
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'fonts', 'x.woff2'), 'bytes-falsos');
+      daemon.store.applyOps(
+        daemon.store.resolveDocId(undefined),
+        [
+          {
+            type: 'setFonts',
+            fonts: [{ family: 'Xis', source: 'file', files: ['fonts/x.woff2'], weights: [400] }],
+          },
+        ],
+        { source: 'mcp' },
+      );
+      const out = path.join(ws.dir, 'svg-fonte');
+      const r = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
+      expect(r.isError, textOf(r)).toBeFalsy();
+      const svg = fs.readFileSync(path.join(out, 'desktop.svg'), 'utf8');
+      expect(svg).toContain('@font-face');
+      expect(svg).toContain(
+        'data:font/woff2;base64,' + Buffer.from('bytes-falsos').toString('base64'),
+      );
+    });
+
     it('export html e tailwind gravam arquivos e copiam assets usados', async () => {
       await prepare();
       fs.writeFileSync(path.join(ws.dir, 'foto.png'), fakePng(4, 4));
