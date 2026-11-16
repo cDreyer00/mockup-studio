@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,4 +21,5 @@ export default defineConfig({
     },
   },
   build: { outDir: 'dist' },
+  test: { name: 'editor', environment: 'node', include: ['src/**/*.test.ts'] },
 });

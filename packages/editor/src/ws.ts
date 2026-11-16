@@ -41,7 +41,7 @@ function patchInfo(
   return docs.map((d) => (d.docId === docId ? { ...d, ...patch } : d));
 }
 
-function reducer(state: DaemonState, action: Action): DaemonState {
+export function reducer(state: DaemonState, action: Action): DaemonState {
   if (action.kind === 'status') {
     return { ...state, status: action.status };
   }
@@ -55,7 +55,8 @@ function reducer(state: DaemonState, action: Action): DaemonState {
         doc: msg.doc,
         selection: msg.selection,
         revision: msg.revision,
-        docs: msg.doc ? { ...state.docs, [msg.doc.id]: msg.doc } : state.docs,
+        // Reconexão: o cache pode estar defasado; só o documento ativo recebido é confiável.
+        docs: msg.doc ? { [msg.doc.id]: msg.doc } : {},
       };
     case 'doc:opened': {
       const documents = [...state.documents.filter((d) => d.docId !== msg.info.docId), msg.info];

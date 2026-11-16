@@ -37,6 +37,8 @@ export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasP
   const [spaceDown, setSpaceDown] = useState(false);
   const [panning, setPanning] = useState(false);
   const drag = useRef<{ px: number; py: number; moved: boolean } | null>(null);
+  /** O último pointerdown virou arrasto (pan): o click seguinte não deve selecionar. */
+  const lastDragMoved = useRef(false);
   const viewRef = useRef(view);
   viewRef.current = view;
   const framesRef = useRef(page.frames);
@@ -136,6 +138,7 @@ export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasP
   }, []);
 
   const onPointerDown = (e: ReactPointerEvent) => {
+    lastDragMoved.current = false;
     if (e.button === 1 || (e.button === 0 && spaceDown)) {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -154,15 +157,22 @@ export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasP
     setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
   };
   const onPointerUp = () => {
+    lastDragMoved.current = drag.current?.moved ?? false;
     drag.current = null;
     setPanning(false);
   };
 
+  // Refs evitam recriar o contexto: ignora seleção com Espaço pressionado ou logo após um pan.
+  const spaceRef = useRef(spaceDown);
+  spaceRef.current = spaceDown;
   const ctx = useMemo(
     () => ({
       docId: doc.id,
       selection: new Set(selection),
-      onSelect: (id: string) => onSelect([id]),
+      onSelect: (id: string) => {
+        if (spaceRef.current || lastDragMoved.current) return;
+        onSelect([id]);
+      },
     }),
     [doc.id, selection, onSelect],
   );
@@ -188,7 +198,7 @@ export function Canvas({ doc, page, selection, onSelect, onZoomChange }: CanvasP
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onAuxClick={(e) => e.preventDefault()}
-      onClick={() => !spaceDown && onSelect([])}
+      onClick={() => !spaceDown && !lastDragMoved.current && onSelect([])}
     >
       <RenderCtx.Provider value={ctx}>
         <div

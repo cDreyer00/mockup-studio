@@ -1,6 +1,8 @@
 import { createContext, createElement, useContext } from 'react';
-import type { CSSProperties, MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from 'react';
+import { VOID_TAGS } from '@mockup/core';
 import type { Node } from '@mockup/core';
+import { convertStyle, resolveSrc, resolveTag, safeAttrs, svgToDataUri } from './render-utils';
 
 /** Contexto de renderização compartilhado pela árvore (evita prop drilling). */
 export interface RenderContext {
@@ -15,53 +17,6 @@ export const RenderCtx = createContext<RenderContext>({
   onSelect: () => undefined,
 });
 
-const VOID_TAGS = new Set(['img', 'input', 'br', 'hr', 'source', 'area', 'col', 'wbr']);
-const BLOCKED_TAGS = new Set([
-  'script',
-  'iframe',
-  'object',
-  'embed',
-  'link',
-  'meta',
-  'base',
-  'style',
-]);
-
-/** `background-color` → `backgroundColor`; custom properties (`--x`) ficam intactas. */
-export function kebabToCamel(prop: string): string {
-  if (prop.startsWith('--')) return prop;
-  const p = prop.startsWith('-ms-') ? prop.slice(1) : prop;
-  return p.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-export function convertStyle(style: Record<string, string>): CSSProperties {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(style)) out[kebabToCamel(k)] = v;
-  return out as CSSProperties;
-}
-
-/** Resolve o `src` de imagens: data:/http(s) passam; relativo vira `/assets/<docId>/<src>`. */
-export function resolveSrc(docId: string, src: string): string {
-  if (/^(data:|https?:)/i.test(src)) return src;
-  return `/assets/${docId}/${src.replace(/^\/+/, '')}`;
-}
-
-/** Repassa atributos seguros (sem `on*`; `href` vira `data-href`; `src` só em img). */
-function safeAttrs(node: Node, docId: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(node.attrs ?? {})) {
-    const key = k.toLowerCase();
-    if (key.startsWith('on') || key === 'style' || key === 'srcdoc') continue;
-    if (key === 'href') out['data-href'] = v;
-    else if (key === 'src') {
-      if (node.tag === 'img') out.src = resolveSrc(docId, v);
-    } else if (key === 'class') out.className = v;
-    else if (key === 'for') out.htmlFor = v;
-    else out[k] = v;
-  }
-  return out;
-}
-
 interface NodeViewProps {
   node: Node;
   /** Estilo extra aplicado por último (usado pelo frame raiz para posicionamento). */
@@ -73,7 +28,7 @@ export function NodeView({ node, extraStyle }: NodeViewProps) {
   const { docId, selection, onSelect } = useContext(RenderCtx);
   if (node.hidden) return null;
 
-  const tag = BLOCKED_TAGS.has(node.tag) ? 'div' : node.tag || 'div';
+  const tag = resolveTag(node.tag);
   const style = convertStyle(node.style ?? {});
   // Filhos absolutos usam `position` como left/top quando não definidos no CSS.
   if (node.position && node.style?.position === 'absolute') {
@@ -86,23 +41,37 @@ export function NodeView({ node, extraStyle }: NodeViewProps) {
     style.outlineOffset = '-1px';
   }
 
+  const onClick = (e: MouseEvent) => {
+    // Links, botões e submits não devem navegar/agir dentro do canvas.
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(node.id);
+  };
+
+  if (node.type === 'svg') {
+    // Nunca injeta HTML: o SVG é isolado em um <img> (sem scripts; `currentColor` não herda).
+    if (!node.svg) return createElement('div', { style, 'data-node-id': node.id, onClick });
+    return createElement('img', {
+      src: svgToDataUri(node.svg),
+      alt: '',
+      draggable: false,
+      style,
+      'data-node-id': node.id,
+      onClick,
+    });
+  }
+
   const props: Record<string, unknown> = {
     ...safeAttrs(node, docId),
     style,
     'data-node-id': node.id,
-    onClick: (e: MouseEvent) => {
-      e.stopPropagation();
-      onSelect(node.id);
-    },
+    onClick,
   };
+  if (tag === 'form') props.onSubmit = (e: FormEvent) => e.preventDefault();
 
   if (node.type === 'image') {
     props.src = node.src ? resolveSrc(docId, node.src) : undefined;
     props.draggable = false;
-    return createElement(tag, props);
-  }
-  if (node.type === 'svg') {
-    props.dangerouslySetInnerHTML = { __html: node.svg ?? '' };
     return createElement(tag, props);
   }
   if (VOID_TAGS.has(tag)) return createElement(tag, props);
