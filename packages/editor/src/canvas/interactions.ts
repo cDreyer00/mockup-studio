@@ -554,9 +554,8 @@ export function attachInteractions(root: HTMLElement): () => void {
     const { id, label } = nodeIdOf(target);
     if (!id || !getEntry(doc, id)) return ui.hover(null);
     if (label) return ui.hover(getNode(doc, id)!.locked ? null : id);
-    ui.hover(
-      resolveClickTarget(doc, id, st().selection, { deep: e.ctrlKey || e.metaKey || e.altKey }),
-    );
+    // Mesma regra do clique: Ctrl/Cmd = seleção profunda (Alt só liga a régua de distâncias).
+    ui.hover(resolveClickTarget(doc, id, st().selection, { deep: e.ctrlKey || e.metaKey }));
   }
 
   function onPointerLeave(): void {
