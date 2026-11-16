@@ -6,7 +6,9 @@ Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via 
 
 ## Status
 
-MVP — tarefa 1/4 concluída: monorepo, core, daemon, MCP básico, visualizador.
+MVP — tarefa 2/4 concluída: monorepo, core, daemon, MCP e editor visual completo (canvas, seleção, camadas, propriedades, undo/redo, clipboard, páginas).
+
+![Editor do Mockup Studio](docs/img/editor.png)
 
 ## Requisitos
 
@@ -22,13 +24,23 @@ npm test
 npm run dev
 ```
 
-`npm run dev` sobe o daemon em `http://127.0.0.1:4747` e o editor (visualizador) em http://localhost:5173. Nenhum documento é aberto automaticamente. Para ver o exemplo, em outro terminal:
+`npm run dev` sobe o daemon em `http://127.0.0.1:4747` e o editor em http://localhost:5173. Nenhum documento é aberto automaticamente: use **Arquivo › Abrir…** ou **Novo…** no editor, ou, em outro terminal:
 
 ```bash
 node packages/cli/dist/bin.js open examples/landing.mockup.json
 ```
 
-Ou peça ao agente para chamar a ferramenta MCP `open_document`.
+Ou peça ao agente para chamar a ferramenta MCP `open_document`. Guia do editor, atalhos e medições de desempenho em [docs/EDITOR.md](docs/EDITOR.md).
+
+## Testes
+
+```bash
+npm test                     # unitários (Vitest) de todos os pacotes
+npx playwright install chromium   # uma vez
+npm run test:e2e             # e2e do editor (Playwright): sobe daemon e editor em portas de teste
+npm run screenshot           # regenera docs/img/editor.png
+npm run lint
+```
 
 ## Registrar o MCP no Claude Code
 
@@ -59,9 +71,9 @@ packages/
   core/      @mockup/core    modelo, ops, History, HTML <-> nós, schema zod
   server/    @mockup/server  daemon: documentos, HTTP, WebSocket, MCP
   cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new)
-  editor/    @mockup/editor  Vite + React 19 (visualizador nesta etapa)
+  editor/    @mockup/editor  Vite + React 19 + zustand: editor visual (e2e em editor/e2e)
   desktop/   shell Electron e motor de render (tarefa 3)
-docs/        PLANO.md, ARQUITETURA.md, MCP.md
+docs/        PLANO.md, ARQUITETURA.md, MCP.md, EDITOR.md
 examples/    documentos de exemplo
 ```
 
@@ -70,3 +82,4 @@ examples/    documentos de exemplo
 - [docs/PLANO.md](docs/PLANO.md): escopo do MVP e fases seguintes
 - [docs/ARQUITETURA.md](docs/ARQUITETURA.md): pacotes, formato de arquivo, ops, protocolo WS, HTTP
 - [docs/MCP.md](docs/MCP.md): conexão, convenções e ferramentas
+- [docs/EDITOR.md](docs/EDITOR.md): uso do editor, atalhos, painéis, arquitetura interna e desempenho

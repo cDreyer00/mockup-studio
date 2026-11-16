@@ -29,7 +29,7 @@ Todas as mutações passam pelo daemon, que é a única fonte da verdade em temp
 | `packages/core`    | `@mockup/core`                         | Modelo de documento, ops puras com inverso, `History` (undo/redo), `htmlToNodes`/`nodesToHtml`, `getTreeSummary`, `getComputedLike`, schema zod (`parseDocument`/`serializeDocument`), exportador HTML standalone. Sem DOM e sem APIs do Node. |
 | `packages/server`  | `@mockup/server` (bin `mockup-daemon`) | Daemon Node em 127.0.0.1. `DocumentStore` (documentos abertos, undo por documento, seleção, autosave com debounce de 800 ms), HTTP, WebSocket e MCP. Express 5 e ws.                                                                           |
 | `packages/cli`     | `@mockup/cli` (bin `mockup`)           | `mockup mcp`, `mockup serve [--port]`, `mockup open <arquivo>`, `mockup new <arquivo> [--name]`.                                                                                                                                               |
-| `packages/editor`  | `@mockup/editor`                       | Vite + React 19. Nesta etapa, visualizador somente leitura (páginas, frames e nós como HTML real, zoom e pan), atualizado em tempo real via WS.                                                                                                |
+| `packages/editor`  | `@mockup/editor`                       | Vite + React 19 + zustand. Editor visual completo (canvas, seleção, camadas, propriedades, páginas, clipboard, undo/redo via daemon); toda mutação vira `Op` enviada por WS. Ver [EDITOR.md](EDITOR.md).                                       |
 | `packages/desktop` | `@mockup/desktop`                      | Somente README nesta etapa. Electron e motor de render na tarefa 3.                                                                                                                                                                            |
 
 ## Fluxo de uma edição
@@ -39,10 +39,20 @@ Todas as mutações passam pelo daemon, que é a única fonte da verdade em temp
 3. A `revision` do documento é incrementada, o documento é marcado como `dirty` e o autosave é reagendado (debounce de 800 ms).
 4. O store emite o evento de mudança com `source` (`editor`, `mcp` ou `system`).
 5. O servidor WS envia `doc:changed` (com `ops`, `source`, `revision` e o `doc` completo) a todos os clientes conectados.
-6. O editor substitui o documento recebido e renderiza novamente. Quem originou a edição recebe também um `ack` com o `reqId`.
+6. O editor integra o documento recebido com compartilhamento estrutural (nós que não mudaram mantêm a identidade) e renderiza só o que mudou. Quem originou a edição recebe também um `ack` com o `reqId`, depois do `doc:changed`.
 7. Toda escrita via MCP devolve, na resposta, o resumo da árvore com profundidade 2.
 
 Undo e redo executam as ops inversas guardadas no `History` e seguem o mesmo caminho (evento, WS, editor).
+
+## Editor
+
+- **Estado**: `docStore` (espelho do daemon: documentos, documento ativo, histórico, atividade do agente) e `uiStore` (seleção, hover, ferramenta, página ativa, viewport, prévias de arrasto), ambos zustand. Só o cliente WS escreve no `docStore`.
+- **Cliente** (`client/daemon.ts`): uma requisição por `reqId`, resolvida pelo `ack` ou rejeitada pelo `error`; `apply(ops)` = uma entrada no histórico. A seleção local é publicada com `selection:set`; `selection:changed` com `source: 'mcp'` seleciona e enquadra os nós no editor.
+- **Render**: frames e nós como HTML/CSS real (`React.memo` por nó); seleção, alças e réguas numa camada de overlay; pan/zoom direto no `transform`.
+- **Prévias**: arrastar e redimensionar mostram uma prévia local transitória; ao soltar, as ops vão numa única chamada.
+- **Badge do agente**: frames tocados por ops com `source: 'mcp'` nos últimos 4 s.
+
+Detalhes, atalhos e medições em [EDITOR.md](EDITOR.md).
 
 ## Formato de arquivo
 
@@ -118,22 +128,22 @@ Funções em `ids.ts`: `newId`, `newNodeId(type)`, `newPageId`, `newDocumentId`,
 
 Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `applyOp` devolve `{ doc, inverse, result? }`; `inverse` é a lista de ops que desfaz exatamente a aplicação.
 
-| Op (`type`)      | Campos                                                                   | Inverso                                                            |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `createNode`     | `node`, `parentId?` (null = frame raiz), `pageId?`, `index?`             | `deleteNodes` do nó criado                                         |
-| `deleteNodes`    | `nodeIds[]`                                                              | `createNode` de cada nó removido, na posição original              |
-| `moveNodes`      | `nodeIds[]`, `parentId?` (null = frame raiz), `pageId?`, `index?`        | `moveNodes` de volta ao pai e índice anteriores                    |
-| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` ou `nodeIds[]` + `styles` + `unset?` | `updateStyles` restaurando valores e chaves anteriores             |
-| `setText`        | `changes[{ nodeId, text }]`                                              | `setText` com o texto anterior                                     |
-| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                      | `setAttrs` restaurando atributos anteriores                        |
-| `renameNodes`    | `changes[{ nodeId, name }]`                                              | `renameNodes` com os nomes anteriores                              |
-| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId para newId, inclui descendentes)            | `deleteNodes` dos clones; o `idMap` é devolvido em `result.idMap`  |
-| `setPosition`    | `changes[{ nodeId, position }]`                                          | `setPosition` com as posições anteriores                           |
-| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                     | `deletePage`                                                       |
-| `deletePage`     | `pageId`                                                                 | `createPage` com nome, índice, fundo e `frames` da página removida |
-| `renamePage`     | `pageId`, `name`                                                         | `renamePage` com o nome anterior                                   |
-| `setTokens`      | `set?`, `unset?`                                                         | `setTokens` restaurando valores e removendo os criados             |
-| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                  | `setNodeFlags` com os valores anteriores                           |
+| Op (`type`)      | Campos                                                                   | Inverso                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `createNode`     | `node`, `parentId?` (null = frame raiz), `pageId?`, `index?`             | `deleteNodes` do nó criado                                                                                          |
+| `deleteNodes`    | `nodeIds[]`                                                              | `createNode` de cada nó removido, na posição original                                                               |
+| `moveNodes`      | `nodeIds[]`, `parentId?` (null = frame raiz), `pageId?`, `index?`        | `moveNodes` de volta ao pai e índice anteriores                                                                     |
+| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` ou `nodeIds[]` + `styles` + `unset?` | `updateStyles` restaurando valores e chaves anteriores                                                              |
+| `setText`        | `changes[{ nodeId, text }]`                                              | `setText` com o texto anterior                                                                                      |
+| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                      | `setAttrs` restaurando atributos anteriores                                                                         |
+| `renameNodes`    | `changes[{ nodeId, name }]`                                              | `renameNodes` com os nomes anteriores                                                                               |
+| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId para newId, inclui descendentes)            | `deleteNodes` dos clones; o `idMap` é devolvido em `result.idMap`                                                   |
+| `setPosition`    | `changes[{ nodeId, position }]`                                          | `setPosition` com as posições anteriores                                                                            |
+| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                     | `deletePage`                                                                                                        |
+| `deletePage`     | `pageId`                                                                 | `createPage` com nome, índice, fundo e `frames` da página removida                                                  |
+| `renamePage`     | `pageId`, `name`                                                         | `renamePage` com o nome anterior                                                                                    |
+| `setTokens`      | `set?`, `unset?`                                                         | `setTokens` restaurando valores e removendo os criados                                                              |
+| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                  | `setNodeFlags` com os valores anteriores                                                                            |
 | `setTag`         | `changes[{ nodeId, tag }]`                                               | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
 
 Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
@@ -146,17 +156,17 @@ O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (cliente
 
 ### Servidor para cliente
 
-| `type`              | Campos                                                                                                     | Descrição                                             |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `type`              | Campos                                                                                                                                      | Descrição                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (documento ativo ou null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Estado inicial.                                       |
-| `doc:opened`        | `info`, `doc`, `history`                                                                                            | Documento aberto ou criado.                           |
-| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                              | Mudança aplicada. No MVP inclui o documento completo. |
-| `doc:saved`         | `docId`, `path`                                                                                            | Documento salvo em disco.                             |
-| `doc:closed`        | `docId`                                                                                                    | Documento fechado.                                    |
-| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                             | Seleção alterada.                                     |
-| `active:changed`    | `docId` (ou null)                                                                                          | Documento ativo alterado.                             |
-| `ack`               | `reqId`, `result?`                                                                                         | Resposta de sucesso a uma requisição.                 |
-| `error`             | `reqId?`, `message`                                                                                        | Erro.                                                 |
+| `doc:opened`        | `info`, `doc`, `history`                                                                                                                    | Documento aberto ou criado.                           |
+| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                                                    | Mudança aplicada. No MVP inclui o documento completo. |
+| `doc:saved`         | `docId`, `path`                                                                                                                             | Documento salvo em disco.                             |
+| `doc:closed`        | `docId`                                                                                                                                     | Documento fechado.                                    |
+| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                                                              | Seleção alterada.                                     |
+| `active:changed`    | `docId` (ou null)                                                                                                                           | Documento ativo alterado.                             |
+| `ack`               | `reqId`, `result?`                                                                                                                          | Resposta de sucesso a uma requisição.                 |
+| `error`             | `reqId?`, `message`                                                                                                                         | Erro.                                                 |
 
 `source` é `'editor'`, `'mcp'` ou `'system'`. `OpenDocumentInfo` tem `docId`, `name`, `path` (null se não salvo), `dirty` e `revision`.
 
@@ -164,17 +174,17 @@ O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (cliente
 
 Toda requisição tem `reqId` (string) e é respondida com `ack` ou `error`.
 
-| `type`          | Campos               | Descrição                        |
-| --------------- | -------------------- | -------------------------------- |
-| `op:apply`      | `docId`, `ops[]`     | Aplica ops.                      |
-| `selection:set` | `docId`, `nodeIds[]` | Define a seleção.                |
-| `doc:open`      | `path`               | Abre um arquivo.                 |
-| `doc:new`       | `path`, `name`       | Cria um documento (ack com o info, sem `doc`). |
+| `type`          | Campos               | Descrição                                        |
+| --------------- | -------------------- | ------------------------------------------------ |
+| `op:apply`      | `docId`, `ops[]`     | Aplica ops.                                      |
+| `selection:set` | `docId`, `nodeIds[]` | Define a seleção.                                |
+| `doc:open`      | `path`               | Abre um arquivo.                                 |
+| `doc:new`       | `path`, `name`       | Cria um documento (ack com o info, sem `doc`).   |
 | `doc:close`     | `docId`              | Fecha o documento (salva se pendente); ack `{}`. |
-| `doc:save`      | `docId?`             | Salva (padrão: documento ativo). |
-| `undo`          | `docId?`             | Desfaz.                          |
-| `redo`          | `docId?`             | Refaz.                           |
-| `active:set`    | `docId`              | Define o documento ativo.        |
+| `doc:save`      | `docId?`             | Salva (padrão: documento ativo).                 |
+| `undo`          | `docId?`             | Desfaz.                                          |
+| `redo`          | `docId?`             | Refaz.                                           |
+| `active:set`    | `docId`              | Define o documento ativo.                        |
 
 ## HTTP
 
@@ -182,20 +192,20 @@ Base `http://127.0.0.1:4747`.
 
 O header `Host` é validado antes de qualquer rota (`isAllowedHost`, proteção contra DNS rebinding): o hostname deve ser `127.0.0.1`, `localhost`, `::1` ou o `host` configurado no daemon, com qualquer porta. Caso contrário, 403 `{ error: 'Host não permitido' }`. Erros: `HttpError` e erros 4xx do body-parser mantêm o status; qualquer outro vira 500 `{ error: 'Erro interno' }` (detalhe só no log).
 
-| Rota                   | Descrição                                                        |
-| ---------------------- | ---------------------------------------------------------------- |
-| `GET /api/health`      | Estado do daemon; usado pelo CLI para confirmar o `daemon.json`. |
-| `GET /api/docs`        | `{ documents, activeDocId }` com os documentos abertos.          |
-| `GET /api/docs/:id`    | `{ info, doc, selection }`: documento completo.                  |
-| `POST /api/open`       | Corpo `{ path }`. Abre um arquivo.                               |
-| `POST /api/new`        | Corpo `{ path, name }`. Cria um documento.                       |
-| `POST /api/save`       | Corpo `{ docId? }`. Salva.                                       |
-| `POST /api/active`     | Corpo `{ docId }`. Define o documento ativo.                     |
-| `GET /api/recent`      | `{ recent: string[] }`: documentos recentes que ainda existem em disco. |
+| Rota                            | Descrição                                                                                                                                                                                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`               | Estado do daemon; usado pelo CLI para confirmar o `daemon.json`.                                                                                                                                                                                                                                                  |
+| `GET /api/docs`                 | `{ documents, activeDocId }` com os documentos abertos.                                                                                                                                                                                                                                                           |
+| `GET /api/docs/:id`             | `{ info, doc, selection }`: documento completo.                                                                                                                                                                                                                                                                   |
+| `POST /api/open`                | Corpo `{ path }`. Abre um arquivo.                                                                                                                                                                                                                                                                                |
+| `POST /api/new`                 | Corpo `{ path, name }`. Cria um documento.                                                                                                                                                                                                                                                                        |
+| `POST /api/save`                | Corpo `{ docId? }`. Salva.                                                                                                                                                                                                                                                                                        |
+| `POST /api/active`              | Corpo `{ docId }`. Define o documento ativo.                                                                                                                                                                                                                                                                      |
+| `GET /api/recent`               | `{ recent: string[] }`: documentos recentes que ainda existem em disco.                                                                                                                                                                                                                                           |
 | `POST /api/assets/:docId?name=` | Corpo binário cru (até 20 MB; extensões png, jpg, jpeg, gif, webp, svg, avif). Grava em `assets/` com nome sanitizado e sufixo `-1`, `-2` se já existir; responde `{ src }` relativo a `assets/`. 404 documento inexistente, 409 sem caminho (salvar antes), 400 nome/extensão/corpo inválido, 413 grande demais. |
-| `GET /assets/:docId/*` | Serve arquivos de `assets/` do documento.                        |
-| `/ws`                  | WebSocket (upgrade).                                             |
-| `/mcp`                 | MCP Streamable HTTP.                                             |
+| `GET /assets/:docId/*`          | Serve arquivos de `assets/` do documento.                                                                                                                                                                                                                                                                         |
+| `/ws`                           | WebSocket (upgrade).                                                                                                                                                                                                                                                                                              |
+| `/mcp`                          | MCP Streamable HTTP.                                                                                                                                                                                                                                                                                              |
 
 ## MCP
 

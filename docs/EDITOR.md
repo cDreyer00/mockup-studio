@@ -1,0 +1,139 @@
+# Editor
+
+Editor visual do Mockup Studio (`packages/editor`, Vite + React 19 + zustand). Roda no navegador (e, na tarefa 3, dentro do Electron) e fala com o daemon por WebSocket. **Toda mutação do documento vira `Op` do core enviada ao daemon (`op:apply`)**; o editor nunca altera o documento localmente. Assim o editor e o MCP veem sempre o mesmo documento, e o undo/redo do daemon vale para os dois.
+
+![Editor com o exemplo landing](img/editor.png)
+
+## Como usar
+
+```bash
+npm install
+npm run build
+npm run dev          # daemon em 127.0.0.1:4747 + editor em http://localhost:5173
+```
+
+Abra um documento pelo menu **Arquivo › Abrir…** (caminho do `.mockup.json`), por `mockup open <arquivo>` ou pelo MCP (`open_document`). **Arquivo › Novo…** cria um documento (o daemon acrescenta `.mockup.json` e nunca sobrescreve um arquivo existente).
+
+Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (T) dentro dele, ajustar no painel de propriedades, mover e redimensionar no canvas, desfazer/refazer, salvar (Ctrl+S; o autosave do daemon também grava 800 ms após a última edição).
+
+## Layout
+
+- **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
+- **Painel esquerdo**: páginas (criar, renomear com duplo clique, excluir pelo menu de contexto, trocar) e a árvore de camadas da página ativa.
+- **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
+- **Painel direito**: propriedades da seleção (ou dados do documento e tokens quando nada está selecionado).
+
+## Canvas
+
+- **Zoom**: Ctrl+roda ou pinça (no ponteiro), `+`/`-`, `Shift+0` (100%), `Shift+1` (ajustar tudo), `Shift+2` (zoom na seleção) e o menu de zoom da barra.
+- **Pan**: roda (Shift+roda na horizontal), espaço+arrastar, botão do meio ou a ferramenta Mão (H).
+- **Seleção** (regras no estilo das ferramentas de design): clique seleciona o filho direto do frame (ou o irmão da seleção atual); duplo clique desce um nível; Ctrl+clique seleciona o elemento exato; Shift+clique alterna; Esc sobe um nível; arrastar no vazio faz marquee de frames (Shift soma). Clicar ou arrastar o **nome do frame** seleciona/move o frame. Nós travados não são selecionáveis no canvas.
+- **Hover** com contorno; **Alt** mostra a régua de distâncias entre a seleção e o nó sob o ponteiro.
+- **Mover**: frames raiz mudam `position`; filhos `position: absolute` mudam `left`/`top`; filhos em fluxo de um pai flex/bloco são **reordenados** com indicador de inserção (`moveNodes` com índice). Shift restringe ao eixo; Esc cancela o arrasto.
+- **Redimensionar** pelas 8 alças (`width`/`height` em px); Alt redimensiona a partir do centro; Shift mantém a proporção. O rótulo `W × H` aparece sob a seleção.
+- **Criar**: Frame (F) e Container (R) desenhando com arrasto (clique simples cria no tamanho padrão); Texto (T) com clique, já em edição; Imagem (botão da barra, clique no canvas, `Ctrl+Shift+K`, colar ou soltar arquivo) envia o arquivo para `assets/` do documento (`POST /api/assets/:docId`) e cria um nó `img` com `src` relativo. Dentro de pai flex o nó entra no fluxo; em pai bloco vira `absolute` (o pai ganha `position: relative` se for estático).
+- **Texto inline**: duplo clique num texto selecionado edita; Enter confirma, Shift+Enter quebra linha, Esc cancela.
+- **Menu de contexto** (botão direito, também nas camadas): duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, excluir.
+- **MCP ao vivo**: mudanças feitas por agentes aparecem sem recarregar; a seleção feita pelo MCP (`set_selection`) seleciona e enquadra os nós; frames tocados pelo MCP nos últimos 4 s mostram o badge **IA** pulsante ao lado do nome. A seleção do editor é publicada no daemon (`get_selection`).
+
+## Camadas e páginas
+
+- Árvore com ícone por tipo/tag, nome e tag; expandir/recolher; ocultar (olho) e travar (cadeado).
+- Clique seleciona, Ctrl+clique alterna, Shift+clique seleciona o intervalo. Duplo clique renomeia.
+- Arrastar linhas reordena ou muda o pai (antes/depois/dentro), inclusive para a raiz da página (o nó vira frame raiz na posição atual).
+- A seleção é sincronizada com o canvas e o MCP (ancestrais expandidos e rolagem até a linha).
+
+## Propriedades
+
+Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
+
+- **Nome** e tipo/tag.
+- **Posição e tamanho**: X/Y (frames e absolutos), W/H com modo Fixo, Auto, 100% ou Fill (`flex: 1` no eixo principal do pai flex), rotação (`transform: rotate()`), `position`.
+- **Layout**: display, direção, gap, quebra, alinhamento, distribuição, padding (vinculado ou por lado), margin, overflow.
+- **Tipografia**: família, peso, tamanho, altura de linha, espaçamento, alinhamento, cor, decoração, transformação e o conteúdo do texto.
+- **Aparência**: opacidade, fundo (cor, gradiente ou imagem), borda, raio (único ou por canto), sombras múltiplas, mix-blend-mode.
+- **Efeitos**: blur do `filter` e do `backdrop-filter` (preservando outras funções).
+- **Tag e atributos**: tag (op `setTag`), id, href, alt, placeholder, type e atributos livres.
+- **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
+
+Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+
+## Atalhos
+
+| Atalho                              | Ação                                          |
+| ----------------------------------- | --------------------------------------------- |
+| V / H / F (ou A) / R / T            | Selecionar / Mão / Frame / Container / Texto  |
+| Ctrl+Shift+K                        | Inserir imagem                                |
+| Espaço (segurar)                    | Pan temporário                                |
+| Alt (segurar)                       | Régua de distâncias; redimensionar do centro  |
+| Delete / Backspace                  | Excluir                                       |
+| Ctrl+D                              | Duplicar                                      |
+| Ctrl+G / Ctrl+Shift+G               | Agrupar em container / desagrupar             |
+| Ctrl+] / Ctrl+[                     | Avançar / recuar                              |
+| Ctrl+Shift+] / Ctrl+Shift+[         | Trazer para frente / enviar para trás         |
+| Ctrl+Shift+H / Ctrl+Shift+L         | Ocultar / travar                              |
+| Setas / Shift+setas                 | Mover 1 px / 10 px (reordena filhos em fluxo) |
+| Esc                                 | Volta à ferramenta Selecionar; sobe um nível  |
+| Enter / Shift+Enter                 | Seleciona os filhos / o pai                   |
+| Ctrl+A                              | Seleciona irmãos (ou todos os frames)         |
+| Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y     | Desfazer / refazer                            |
+| Ctrl+C / Ctrl+X / Ctrl+V            | Copiar / recortar / colar                     |
+| Ctrl+S                              | Salvar                                        |
+| + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: aproximar, afastar, 100%, tudo, seleção |
+
+Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo ou na edição inline (exceto Ctrl+S).
+
+## Clipboard
+
+- **Copiar** grava o HTML dos nós (`nodesToHtml`) no clipboard do sistema, com um marcador, e guarda uma cópia interna fiel.
+- **Colar**: o conteúdo copiado no próprio editor volta com fidelidade total e **ids novos**; HTML externo (de um navegador, de um agente ou texto que pareça HTML) passa por `htmlToNodes` do core; imagens viram upload para `assets/`; texto puro vira um nó de texto.
+- **Destino**: dentro do nó selecionado (se aceitar filhos), depois dele (se for folha) ou na raiz da página (como frame, no centro da tela).
+
+## Arquitetura interna
+
+| Pasta / arquivo                        | Conteúdo                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes. |
+| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo, histórico (`canUndo`/`canRedo`), atividade do agente.                                          |
+| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, pedidos de foco, toasts.                     |
+| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                   |
+| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                       |
+| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                  |
+| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                |
+| `layers/`                              | Páginas e árvore de camadas.                                                                                                                  |
+| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                     |
+| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                          |
+| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                  |
+
+Prévias de arrasto e redimensionamento (`ui.setPreview`) são transitórias: só ao soltar o editor envia as ops, numa única chamada (= uma entrada de undo).
+
+## Desempenho
+
+Decisões:
+
+- O documento chega completo a cada `doc:changed`; o editor aplica **compartilhamento estrutural** (`shareStructure`), então só os nós alterados (e seus ancestrais) ganham objetos novos.
+- `NodeView` e `FrameView` usam `React.memo` por identidade de nó; cada nó assina só a própria prévia de arrasto.
+- Seleção, hover, marquee e alças ficam numa **camada de overlay** separada: mudar a seleção ou passar o mouse não re-renderiza a árvore.
+- Pan e zoom escrevem o `transform` direto no DOM (sem render do React).
+- Linhas de camadas e o painel de propriedades assinam só os nós que exibem.
+
+Medições (Windows, documento com 300 nós em 6 frames × 50):
+
+| Medição                                                        | Resultado                           | Onde                                     |
+| -------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
+| `applyOp` no daemon (`updateStyles`/`setPosition`/`moveNodes`) | ~0,8 / 0,65 / 0,63 ms por op        | `packages/core/src/perf.test.ts`         |
+| `JSON.stringify` do documento (custo do `doc:changed`)         | ~0,21 ms                            | `packages/core/src/perf.test.ts`         |
+| Clonagem do documento: JSON vs `structuredClone`               | ~0,62 ms vs ~0,87 ms (mantido JSON) | `packages/core/src/perf.test.ts`         |
+| Editor: `JSON.parse` + compartilhamento + índice               | ~0,30 + 0,36 + 0,04 ms por mensagem | `packages/editor/src/state/perf.test.ts` |
+| Latência MCP `update_styles` → DOM atualizado (ponta a ponta)  | média ~31 ms, máx. ~46 ms (10 ops)  | `packages/editor/e2e/perf.spec.ts`       |
+| Arrasto de frame com 50 nós (intervalo entre quadros)          | p95 ~16,7 ms (60 fps)               | `packages/editor/e2e/perf.spec.ts`       |
+
+Com esses números, a clonagem por JSON no core e o documento completo no `doc:changed` ficam bem abaixo de um quadro (16 ms) e foram mantidos; deltas por ops no WS ficam para quando os documentos crescerem uma ordem de grandeza.
+
+## Testes
+
+- Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
+- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o fluxo de edição (container, texto inline, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
+- `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
+
+Na primeira vez: `npx playwright install chromium`.

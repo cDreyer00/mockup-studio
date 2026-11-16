@@ -14,7 +14,7 @@ Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o qu
 - Scaffold do editor como visualizador somente leitura.
 - Documentação inicial.
 
-### Tarefa 2 — Editor visual completo
+### Tarefa 2 — Editor visual completo (concluída)
 
 - **Canvas infinito**
   - Zoom: Ctrl+roda, pinch, `+`, `-`, `Shift+0`, `Shift+1`, `Shift+2`.
@@ -46,6 +46,16 @@ Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o qu
 - **Arquivo**: abrir, novo, salvar, recentes, indicador de não salvo.
 - **Desempenho** com 300 nós. Pendências herdadas da tarefa 1: `applyOp` faz cópia profunda do documento via JSON a cada op, e `doc:changed` envia o documento completo pelo WebSocket a cada mudança. Medir com 300 nós e, se preciso, trocar por clonagem estrutural (`structuredClone`/cópia por caminho) e por deltas de ops no WS.
 - **Qualidade**: testes Vitest, 5 testes e2e com Playwright, `docs/EDITOR.md`, screenshot no README.
+
+Resultado: tudo acima entregue (ver [EDITOR.md](EDITOR.md)). Medição com 300 nós: `applyOp` < 1 ms, `doc:changed` completo < 1 ms para serializar e integrar, latência MCP → canvas ~31 ms, arrasto a 60 fps; a clonagem por JSON e o documento completo no WS foram mantidos. Decisões: zustand para os stores; op `setTag` (com ferramenta MCP `set_tag`); `history` (`canUndo`/`canRedo`) nos eventos; `doc:new`/`doc:close` no WS; `POST /api/assets/:docId` e `GET /api/recent`.
+
+Pendências herdadas para a tarefa 3:
+
+- Diálogos nativos de abrir/salvar (hoje um diálogo com o caminho digitado) e "Salvar como".
+- Assets SVG enviados pelo editor são servidos por `GET /assets/...` na origem do daemon; abrir o SVG direto no navegador executaria scripts embutidos. Servir assets com `Content-Security-Policy: sandbox` (ou recusar SVG com script no upload).
+- Op para trocar o `src` de imagens (hoje somente leitura no painel) e para o fundo da página (`page.background`).
+- Canvas: marquee com Ctrl para selecionar filhos de um frame; arrastar no canvas para mudar o pai (hoje só pelas camadas); seleção mista (livres + em fluxo) move só os livres; pai `grid` tratado como bloco vertical na reordenação.
+- Texto criado fora de um frame mostra um aviso em vez de criar um frame.
 
 ### Tarefa 3 — Electron, screenshot e exportação
 
