@@ -6,7 +6,10 @@
  * Assim o agente (Claude Code, Codex) fala stdio e o daemon continua único e compartilhado com o editor.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError,
+} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -21,22 +24,55 @@ import { ensureDaemon, log, type DaemonLocation } from './discover.js';
 
 const CLIENT_INFO = { name: 'mockup-cli', version: '0.1.0' };
 
-async function connectUpstream(location: DaemonLocation): Promise<Client> {
+const NETWORK_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ECONNABORTED',
+  'EPIPE',
+  'UND_ERR_SOCKET',
+]);
+
+function networkCode(e: unknown): boolean {
+  const code = (e as { code?: unknown } | null | undefined)?.code;
+  return typeof code === 'string' && NETWORK_CODES.has(code);
+}
+
+/**
+ * Só erros de conexão justificam reconectar e repetir (daemon caiu ou reiniciou).
+ * Timeouts e erros de aplicação NÃO: repetir duplicaria efeitos como `write_html`.
+ */
+export function isConnectionError(err: unknown): boolean {
+  if (err === null || typeof err !== 'object') return false;
+  const cause = (err as { cause?: unknown }).cause;
+  if (networkCode(err) || networkCode(cause)) return true;
+  if (err instanceof StreamableHTTPError) return err.code === 404;
+  return err instanceof Error && err.message.includes('fetch failed') && !!cause;
+}
+
+interface Upstream {
+  client: Client;
+  transport: StreamableHTTPClientTransport;
+}
+
+async function connectUpstream(location: DaemonLocation): Promise<Upstream> {
   const client = new Client(CLIENT_INFO);
-  await client.connect(new StreamableHTTPClientTransport(new URL(location.mcpUrl)));
-  return client;
+  const transport = new StreamableHTTPClientTransport(new URL(location.mcpUrl));
+  await client.connect(transport);
+  return { client, transport };
 }
 
 export async function runStdioProxy(): Promise<void> {
   let location = await ensureDaemon();
-  let upstream = await connectUpstream(location);
+  let current = await connectUpstream(location);
+  let upstream = current.client;
   log(`conectado ao daemon em ${location.mcpUrl}`);
 
-  /** Reconecta uma vez se o daemon caiu (ou foi reiniciado) entre chamadas. */
+  /** Reconecta e repete uma vez, apenas se o erro for de conexão (daemon caiu ou reiniciou). */
   async function withUpstream<T>(fn: (c: Client) => Promise<T>): Promise<T> {
     try {
       return await fn(upstream);
     } catch (err) {
+      if (!isConnectionError(err)) throw err;
       log('falha ao falar com o daemon; tentando reconectar.', (err as Error).message);
       try {
         await upstream.close();
@@ -44,7 +80,8 @@ export async function runStdioProxy(): Promise<void> {
         /* ignorado */
       }
       location = await ensureDaemon();
-      upstream = await connectUpstream(location);
+      current = await connectUpstream(location);
+      upstream = current.client;
       return fn(upstream);
     }
   }
@@ -78,7 +115,14 @@ export async function runStdioProxy(): Promise<void> {
   transport.onclose = async () => {
     log('stdio fechado; encerrando proxy.');
     try {
+      await current.transport.terminateSession();
+    } catch {
+      /* ignorado */
+    }
+    try {
       await upstream.close();
+    } catch {
+      /* ignorado */
     } finally {
       process.exit(0);
     }

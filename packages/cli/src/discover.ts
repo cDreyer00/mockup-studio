@@ -2,6 +2,7 @@
  * Descoberta do daemon: lê `daemon.json` na pasta de dados, confere `/api/health`
  * e, se não houver daemon vivo, sobe um headless destacado.
  */
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -12,6 +13,7 @@ import {
   removeDaemonInfo,
   resolvePort,
   type DaemonInfo,
+  type HealthInfo,
 } from '@mockup/server';
 
 export interface DaemonLocation {
@@ -22,6 +24,13 @@ export interface DaemonLocation {
   /** `true` quando este processo acabou de iniciar o daemon. */
   spawned: boolean;
   pid?: number;
+}
+
+/** Confere que a resposta de `/api/health` é de um daemon do Mockup Studio (e não de outro serviço). */
+export function isMockupHealth(h: unknown): h is HealthInfo {
+  if (h === null || typeof h !== 'object') return false;
+  const o = h as Record<string, unknown>;
+  return o.ok === true && o.name === 'mockup-studio' && typeof o.version === 'string';
 }
 
 export function log(...args: unknown[]): void {
@@ -40,13 +49,13 @@ export async function findDaemon(): Promise<DaemonLocation | null> {
   const info: DaemonInfo | null = readDaemonInfo(dataDir);
   if (info) {
     const health = await checkHealth(info.url);
-    if (health) return locationFromPort(info.port, false, info.pid);
+    if (isMockupHealth(health)) return locationFromPort(info.port, false, info.pid);
     // Arquivo obsoleto (daemon morreu sem limpar): remove para não confundir.
     removeDaemonInfo(dataDir);
   }
   const port = resolvePort();
   const health = await checkHealth(`http://127.0.0.1:${port}`);
-  if (health) return locationFromPort(port, false, health.pid);
+  if (isMockupHealth(health)) return locationFromPort(port, false, health.pid);
   return null;
 }
 
@@ -62,12 +71,31 @@ export async function spawnHeadlessDaemon(
   timeoutMs = 20000,
 ): Promise<DaemonLocation> {
   const bin = resolveDaemonBin();
+  const dataDir = getDataDir();
+  let logFd: number | undefined;
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    logFd = fs.openSync(path.join(dataDir, 'daemon.log'), 'a');
+    fs.writeSync(
+      logFd,
+      `[mockup] ${new Date().toISOString()} iniciando daemon headless na porta ${port}\n`,
+    );
+  } catch {
+    logFd = undefined; // sem log: o daemon roda com stdio descartado
+  }
   const child = spawn(process.execPath, [bin, '--headless', '--port', String(port)], {
     detached: true,
-    stdio: 'ignore',
+    stdio: logFd === undefined ? 'ignore' : ['ignore', logFd, logFd],
     windowsHide: true,
-    env: { ...process.env, MOCKUP_DATA_DIR: getDataDir() },
+    env: { ...process.env, MOCKUP_DATA_DIR: dataDir },
   });
+  if (logFd !== undefined) {
+    try {
+      fs.closeSync(logFd);
+    } catch {
+      /* ignorado */
+    }
+  }
   child.unref();
   log(`daemon headless iniciado (pid ${child.pid}) na porta ${port}; aguardando...`);
 
@@ -75,7 +103,7 @@ export async function spawnHeadlessDaemon(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const health = await checkHealth(url, 1000);
-    if (health) return locationFromPort(port, true, child.pid);
+    if (isMockupHealth(health)) return locationFromPort(port, true, child.pid);
     await new Promise((r) => setTimeout(r, 250));
   }
   throw new Error(`O daemon não respondeu em ${url}/api/health após ${timeoutMs} ms.`);

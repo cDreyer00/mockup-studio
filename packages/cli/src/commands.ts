@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { startDaemon, resolvePort } from '@mockup/server';
+import { startDaemon, resolvePort, normalizeDocumentPath, DOCUMENT_EXT } from '@mockup/server';
 import { ensureDaemon, log } from './discover.js';
 
 async function post(url: string, body: unknown): Promise<unknown> {
@@ -21,13 +21,8 @@ export async function serve(opts: { port?: number; files: string[] }): Promise<v
     openFiles: opts.files.map((f) => path.resolve(f)),
   });
   log(`daemon em ${handle.url} (MCP: ${handle.mcpUrl}, WS: ${handle.wsUrl}). Ctrl+C para sair.`);
-  await new Promise<void>((resolve) => {
-    const stop = () => {
-      void handle.close().finally(resolve);
-    };
-    process.once('SIGINT', stop);
-    process.once('SIGTERM', stop);
-  });
+  // Sem handlers de sinal aqui: `startDaemon` (writeInfo) já instala SIGINT/SIGTERM, fecha o
+  // daemon e chama process.exit(0). O servidor HTTP mantém o processo vivo.
 }
 
 /** `mockup open <arquivo>`: abre no daemon (subindo um headless se preciso). */
@@ -41,11 +36,30 @@ export async function open(file: string): Promise<void> {
   log(`aberto: ${target}${info.docId ? ` (${info.docId})` : ''}`);
 }
 
+/** Resolve o caminho do novo documento (sempre `.mockup.json`) e o nome padrão (basename sem extensão). */
+export function resolveNewDocument(
+  file: string,
+  name?: string,
+): { target: string; docName: string } {
+  const target = normalizeDocumentPath(file);
+  const base = path.basename(target);
+  return { target, docName: name ?? base.slice(0, base.length - DOCUMENT_EXT.length) };
+}
+
+/** Converte `--port`; lança erro em português se não for inteiro entre 0 e 65535. */
+export function parsePort(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 65535) {
+    throw new Error('--port exige um número inteiro entre 0 e 65535.');
+  }
+  return n;
+}
+
 /** `mockup new <arquivo> [--name Nome]`: cria um documento vazio e abre. */
 export async function create(file: string, name?: string): Promise<void> {
-  const target = path.resolve(file.endsWith('.mockup.json') ? file : `${file}.mockup.json`);
+  const { target, docName } = resolveNewDocument(file, name);
   const daemon = await ensureDaemon();
-  const docName = name ?? path.basename(target).replace(/\.mockup\.json$/, '');
   const info = (await post(`${daemon.url}/api/new`, { path: target, name: docName })) as {
     docId?: string;
   };

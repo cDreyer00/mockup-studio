@@ -121,6 +121,7 @@ describe('mockup mcp contra daemon existente', () => {
     try {
       const { tools } = await c.listTools();
       expect(tools.map((t) => t.name)).toContain('get_basic_info');
+      expect(fs.existsSync(path.join(dataDir, 'daemon.log'))).toBe(true);
     } finally {
       await c.close().catch(() => undefined);
       const infoPath = path.join(dataDir, 'daemon.json');

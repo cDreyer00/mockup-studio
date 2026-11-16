@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-import { create, open, serve } from './commands.js';
+import { create, open, parsePort, serve } from './commands.js';
 import { runStdioProxy } from './proxy.js';
+
+// parsePort vive em commands.ts (importar este arquivo executa o CLI); reexportado por conveniência.
+export { parsePort };
 
 const HELP = `mockup - Mockup Studio CLI
 
@@ -8,7 +11,7 @@ Uso:
   mockup mcp                       Servidor MCP por stdio (sobe o daemon se preciso)
   mockup serve [--port N] [arq...] Daemon em primeiro plano
   mockup open <arquivo>            Abre um .mockup.json no daemon
-  mockup new <arquivo> [--name N]  Cria um documento e abre
+  mockup new <arquivo> [--name N]  Cria um .mockup.json e abre
   mockup help
 
 Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados).`;
@@ -37,7 +40,7 @@ function parseArgs(argv: string[]): Parsed {
 
 async function main(): Promise<void> {
   const { command, positional, flags } = parseArgs(process.argv.slice(2));
-  const port = typeof flags.port === 'string' ? Number(flags.port) : undefined;
+  const port = parsePort(typeof flags.port === 'string' ? flags.port : undefined);
 
   switch (command) {
     case 'mcp':
