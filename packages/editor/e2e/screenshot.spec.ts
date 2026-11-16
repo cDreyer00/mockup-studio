@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { copyExample, findByName, getDoc, gotoEditor, openDoc } from './helpers';
+import { copyExample, findByName, getDoc, gotoEditor, openDoc, waitForStableBox } from './helpers';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -23,6 +23,7 @@ test('screenshot do editor com o exemplo landing', async ({ page }) => {
   await page.getByTestId(`layer-row-${hero.id}`).click();
   await expect(page.getByTestId('selection-box')).toBeVisible();
   await page.mouse.move(2, 2);
-  await page.waitForTimeout(300);
+  await expect(page.locator('.cv-hover')).toHaveCount(0);
+  await waitForStableBox(page.getByTestId('selection-box'));
   await page.screenshot({ path: path.join(root, 'docs/img/editor.png') });
 });

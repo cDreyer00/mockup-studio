@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { Document, Node, OpenDocumentInfo } from '@mockup/core';
 
 export const E2E_DIR = process.env.MOCKUP_E2E_DIR!;
@@ -117,6 +117,19 @@ export class Mcp {
 }
 
 /** Abre o editor e espera conectar ao daemon e exibir o documento ativo. */
+/** Espera a caixa do elemento parar de mudar entre duas leituras (fim de rAF/medição). */
+export async function waitForStableBox(locator: Locator): Promise<void> {
+  let last = '';
+  await expect
+    .poll(async () => {
+      const box = JSON.stringify(await locator.boundingBox());
+      const stable = box === last && box !== 'null';
+      last = box;
+      return stable;
+    })
+    .toBe(true);
+}
+
 export async function gotoEditor(page: Page): Promise<void> {
   await page.goto('/');
   await expect(page.getByTestId('canvas')).toBeVisible();

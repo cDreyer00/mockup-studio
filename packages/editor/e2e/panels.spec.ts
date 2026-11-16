@@ -270,8 +270,8 @@ test('badge "IA" aparece no frame alterado via MCP e some depois de alguns segun
 }) => {
   const { info, mcp, frame } = await setup('badge');
   await gotoEditor(page);
-  await page.waitForTimeout(5000); // deixa o badge da criação inicial expirar
-  await expect(page.getByTestId(`agent-badge-${frame.id}`)).toHaveCount(0);
+  // espera o badge da criação inicial expirar
+  await expect(page.getByTestId(`agent-badge-${frame.id}`)).toHaveCount(0, { timeout: 9000 });
   const a = (await wrapOf(info.docId)).children[0]!;
   await mcp.call('update_styles', { nodeIds: [a.id], styles: { background: '#0f0' } });
   await expect(page.getByTestId(`agent-badge-${frame.id}`)).toBeVisible();

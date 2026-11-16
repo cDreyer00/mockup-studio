@@ -74,3 +74,40 @@ test('cria container e texto, edita texto inline, renomeia, copia e cola', async
   await expect.poll(async () => (await getDoc(info.docId)).pages.length).toBe(2);
   await expect(page.getByTestId(`frame-label-${frame.id}`)).toHaveCount(0);
 });
+
+test('Shift+Enter quebra a linha e a quebra continua visível depois de confirmar (um undo)', async ({
+  page,
+}) => {
+  const info = await createDoc('quebra');
+  const mcp = await new Mcp().init();
+  await mcp.call('create_frame', { name: 'Tela', width: 600, height: 400, x: 0, y: 0 });
+  const frame = (await getDoc(info.docId)).pages[0]!.frames[0]!;
+  await gotoEditor(page);
+  const box = (await page
+    .getByTestId('canvas-world')
+    .locator(`[data-node-id="${frame.id}"]`)
+    .boundingBox())!;
+  await page.keyboard.press('t');
+  await page.mouse.click(box.x + 60, box.y + 60);
+  await expect(page.getByTestId('text-editor')).toBeVisible();
+  await expect
+    .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children.length)
+    .toBe(1);
+  const created = (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!;
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('linha 1');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('linha 2');
+  await page.keyboard.press('Enter');
+  const node = async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!;
+  await expect.poll(async () => (await node()).text).toBe('linha 1\nlinha 2');
+  expect((await node()).style['white-space']).toBe('pre-wrap');
+  await expect(page.getByTestId('text-editor')).toHaveCount(0);
+  const el = page.getByTestId('canvas-world').locator(`[data-node-id="${created.id}"]`);
+  expect(await el.evaluate((e) => (e as HTMLElement).innerText)).toBe('linha 1\nlinha 2');
+  // Um único undo volta texto e white-space juntos.
+  await page.getByTestId('canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await node()).text).toBe(created.text);
+  expect((await node()).style['white-space']).toBeUndefined();
+});

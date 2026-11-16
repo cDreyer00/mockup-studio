@@ -147,6 +147,14 @@ test('reordenar filho em pai flex arrastando (para depois e para antes)', async 
   const pc = await centerOfNode(page, c);
   await drag(page, pa, { x: pc.box.x + pc.box.width - 10, y: pc.y }, { steps: 20 });
   await expect.poll(() => rows(info, wrap.id)).toEqual([b, c, a]);
+  // O daemon responde ao HTTP antes de o editor renderizar o `doc:changed`: mede A só depois
+  // de o DOM refletir a nova ordem (senão o arrasto começa na posição antiga).
+  const domRows = () =>
+    page
+      .getByTestId('canvas-world')
+      .locator(`[data-node-id="${wrap.id}"] > [data-node-id]`)
+      .evaluateAll((els) => els.map((e) => e.getAttribute('data-node-id')));
+  await expect.poll(domRows).toEqual([b, c, a]);
 
   // A (agora por último) -> antes de B: ordem A, B, C.
   const pa2 = await centerOfNode(page, a);
@@ -170,10 +178,21 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
   /** Ajusta o zoom para caber tudo (a alça fica visível) e devolve a alça sudeste e a escala. */
   const prepare = async () => {
     await page.keyboard.press('Shift+1');
-    await page.waitForTimeout(300);
+    // O overlay remede por rAF: espera a alça sudeste chegar ao canto do frame já enquadrado.
+    const handle = page.getByTestId('handle-se');
+    await expect
+      .poll(async () => {
+        const f = await nodeEl(page, frame.id).boundingBox();
+        const h = await handle.boundingBox();
+        if (!f || !h) return Infinity;
+        const dx = h.x + h.width / 2 - (f.x + f.width);
+        const dy = h.y + h.height / 2 - (f.y + f.height);
+        return Math.hypot(dx, dy);
+      })
+      .toBeLessThan(1.5);
     const s = await size();
     const z = (await nodeEl(page, frame.id).boundingBox())!.width / s.w;
-    const h = (await page.getByTestId('handle-se').boundingBox())!;
+    const h = (await handle.boundingBox())!;
     return { x: h.x + h.width / 2, y: h.y + h.height / 2, z };
   };
 
