@@ -45,6 +45,8 @@ export function NumberInput({
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
   const scrub = useRef<{ startX: number; base: number; unit: string; last: string } | null>(null);
+  // Enter/Esc já resolveram a edição: o blur que vem em seguida (antes do ack) não confirma de novo.
+  const settled = useRef(false);
 
   useEffect(() => {
     if (!focused && !scrub.current) setText(shown);
@@ -67,9 +69,11 @@ export function NumberInput({
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      settled.current = true;
       commit(text);
       (e.target as HTMLInputElement).blur();
     } else if (e.key === 'Escape') {
+      settled.current = true;
       setText(shown);
       (e.target as HTMLInputElement).blur();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -129,11 +133,16 @@ export function NumberInput({
         spellCheck={false}
         onChange={(e) => setText(e.target.value)}
         onFocus={(e) => {
+          settled.current = false;
           setFocused(true);
           e.target.select();
         }}
         onBlur={() => {
           setFocused(false);
+          if (settled.current) {
+            settled.current = false;
+            return;
+          }
           commit(text);
         }}
         onKeyDown={onKeyDown}

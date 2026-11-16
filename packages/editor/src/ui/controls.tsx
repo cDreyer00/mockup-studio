@@ -1,5 +1,5 @@
 /** Controles compartilhados: seção recolhível, select, cor, botão de ícone, campo de texto. */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -124,15 +124,21 @@ export function TextInput({
   const shown = value ?? '';
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
+  // Enter/Esc já resolveram a edição: o blur que vem em seguida não confirma de novo.
+  const settled = useRef(false);
   useEffect(() => {
     if (!focused) setText(shown);
   }, [shown, focused]);
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-    else if (e.key === 'Escape') {
+    const input = e.target as HTMLInputElement;
+    if (e.key === 'Enter') {
+      settled.current = true;
+      if (input.value !== shown) onCommit(input.value);
+      input.blur();
+    } else if (e.key === 'Escape') {
+      settled.current = true;
       setText(shown);
-      setFocused(false);
-      requestAnimationFrame(() => (e.target as HTMLInputElement).blur());
+      input.blur();
     }
     e.stopPropagation();
   };
@@ -144,10 +150,17 @@ export function TextInput({
       placeholder={value === null ? 'Misto' : placeholder}
       spellCheck={false}
       onChange={(e) => setText(e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => {
+      onFocus={() => {
+        settled.current = false;
+        setFocused(true);
+      }}
+      onBlur={(e) => {
         setFocused(false);
-        if (text !== shown) onCommit(text);
+        if (settled.current) {
+          settled.current = false;
+          return;
+        }
+        if (e.target.value !== shown) onCommit(e.target.value);
       }}
       onKeyDown={onKeyDown}
     />
@@ -174,7 +187,11 @@ export function toHexColor(v: string | undefined | null): string | null {
   return null;
 }
 
-/** Amostra de cor + campo de texto (aceita qualquer valor CSS: hex, rgb(), var(--token)...). */
+/**
+ * Amostra de cor + campo de texto (aceita qualquer valor CSS: hex, rgb(), var(--token)...).
+ * Arrastar no seletor nativo só faz prévia (o `onChange` do React dispara a cada `input`);
+ * a op é confirmada uma vez, no `change` nativo, quando o seletor fecha.
+ */
 export function ColorInput({
   value,
   onCommit,
@@ -189,14 +206,32 @@ export function ColorInput({
   title?: string;
 }) {
   const hex = toHexColor(value);
+  // Cor escolhida no seletor enquanto o valor confirmado não chega (evita o React repor o antigo).
+  const [picked, setPicked] = useState<string | null>(null);
+  const swatchRef = useRef<HTMLInputElement>(null);
+  const commitRef = useRef(onCommit);
+  commitRef.current = onCommit;
+  useEffect(() => setPicked(null), [value]);
+  useEffect(() => {
+    const el = swatchRef.current;
+    if (!el) return;
+    const onNativeChange = () => {
+      if (el.value !== hex) commitRef.current(el.value);
+    };
+    el.addEventListener('change', onNativeChange);
+    return () => el.removeEventListener('change', onNativeChange);
+  }, [hex]);
   return (
     <div className="color-input" title={title}>
       <label className="color-swatch" style={{ background: value ?? 'transparent' }}>
         <input
+          ref={swatchRef}
           type="color"
-          value={hex ?? '#000000'}
-          onInput={(e) => onPreview?.((e.target as HTMLInputElement).value)}
-          onChange={(e) => onCommit(e.target.value)}
+          value={picked ?? hex ?? '#000000'}
+          onChange={(e) => {
+            setPicked(e.target.value);
+            onPreview?.(e.target.value);
+          }}
         />
       </label>
       <TextInput value={value} onCommit={onCommit} placeholder={placeholder} monospace />
