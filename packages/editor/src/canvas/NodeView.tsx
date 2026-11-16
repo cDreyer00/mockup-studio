@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { VOID_TAGS } from '@mockup/core';
-import type { Node } from '@mockup/core';
+import type { Node, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
@@ -53,10 +53,12 @@ interface EditableProps {
   props: Record<string, unknown>;
   text: string;
   nodeId: string;
+  /** O nó já define `white-space` (então quebras de linha não precisam de `pre-wrap`). */
+  hasWhiteSpace: boolean;
 }
 
 /** Texto em edição inline: o React não gerencia o conteúdo (evita sobrescrever o que se digita). */
-function EditableText({ tag, props, text, nodeId }: EditableProps) {
+function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps) {
   const ref = useRef<HTMLElement | null>(null);
   const done = useRef(false);
 
@@ -83,9 +85,20 @@ function EditableText({ tag, props, text, nodeId }: EditableProps) {
       ui.editText(null);
       return;
     }
-    void daemon
-      .applySafe([{ type: 'setText', changes: [{ nodeId, text: value }] }])
-      .then(() => ui.editText(null));
+    const ops: Op[] = [{ type: 'setText', changes: [{ nodeId, text: value }] }];
+    // Sem `pre-wrap` o render normal colapsa a quebra do Shift+Enter; vai na mesma chamada (um undo).
+    if (value.includes('\n') && !hasWhiteSpace) {
+      ops.push({ type: 'updateStyles', changes: [{ nodeId, set: { 'white-space': 'pre-wrap' } }] });
+    }
+    void daemon.applySafe(ops).then((ack) => {
+      if (ack) {
+        ui.editText(null);
+        return;
+      }
+      // Falhou (desconectado, nó travado...): mantém a edição aberta para não perder o texto.
+      done.current = false;
+      if (el?.isConnected) el.focus();
+    });
   };
 
   const onKeyDown = (e: KeyboardEvent): void => {
@@ -157,7 +170,15 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   if (VOID_TAGS.has(tag)) return createElement(tag, props);
 
   if (editing && node.type === 'text') {
-    return <EditableText tag={tag} props={props} text={node.text ?? ''} nodeId={node.id} />;
+    return (
+      <EditableText
+        tag={tag}
+        props={props}
+        text={node.text ?? ''}
+        nodeId={node.id}
+        hasWhiteSpace={node.style['white-space'] !== undefined}
+      />
+    );
   }
 
   const children: ReactNode[] = [];
