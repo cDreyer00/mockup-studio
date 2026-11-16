@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { applyOp } from '../apply.js';
 import { createDocument, createNode } from '../document.js';
-import { parseDocument, serializeDocument } from '../schema.js';
+import { FontRefSchema, parseDocument, serializeDocument } from '../schema.js';
+import { fontFaceCss } from '../fonts.js';
 import { cssValueProblem, normalizeStyles } from '../styles.js';
 import type { Document } from '../types.js';
 import { exportHtml } from './html.js';
@@ -215,5 +216,78 @@ describe('prefixo -- dos tokens', () => {
     expect(() => applyOp(doc, { type: 'setTokens', set: { '--x': 'red; } a {' } })).toThrow(
       /valor inválido/,
     );
+  });
+});
+
+describe('fontes: injeção por família, estilo e arquivo', () => {
+  const lines = (fonts: unknown[]): Document => {
+    const doc = createDocument('Fontes');
+    doc.fonts = fonts as Document['fonts'];
+    return doc;
+  };
+
+  it('FontRefSchema recusa família, estilo e arquivo perigosos', () => {
+    const base = { family: 'Inter', source: 'file', files: ['fonts/a.woff2'] };
+    const parse = (f: unknown) => FontRefSchema.safeParse(f).success;
+    expect(parse(base)).toBe(true);
+    expect(parse({ ...base, family: 'X</style><script>alert(1)</script>' })).toBe(false);
+    expect(parse({ ...base, styles: ['italic;}body{'] })).toBe(false);
+    expect(parse({ ...base, files: ['../x.woff2'] })).toBe(false);
+    expect(parse({ ...base, files: ['fonts/a.woff2");}</style>'] })).toBe(false);
+    expect(parse({ ...base, files: ['/etc/x.woff2'] })).toBe(false);
+    expect(parse({ ...base, weights: [0] })).toBe(false);
+    expect(parse({ ...base, weights: [400.5] })).toBe(false);
+    expect(parse({ ...base, styles: ['oblique'], weights: [1000] })).toBe(true);
+  });
+
+  it('parseDocument recusa documento com fonte perigosa', () => {
+    const raw = JSON.parse(serializeDocument(createDocument('F'))) as Record<string, unknown>;
+    raw.fonts = [{ family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] }];
+    expect(() => parseDocument(JSON.stringify(raw))).toThrow();
+  });
+
+  it('fontFaceCss descarta entradas inválidas (defesa em profundidade)', () => {
+    const css = fontFaceCss(
+      lines([
+        { family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] },
+        {
+          family: 'B',
+          source: 'file',
+          files: ['../x.woff2', 'fonts/ok.woff2'],
+          styles: ['italic;}body{', 'italic'],
+        },
+        { family: 'C', source: 'file', files: ['fonts/c.woff2'], styles: ['italic;}body{'] },
+      ]),
+      (f) => `assets/${f}`,
+    );
+    expect(css).not.toMatch(/<|body\{|script|\.\./);
+    expect(css).toContain('font-family:"B"');
+    expect(css).toContain('font-family:"C"');
+    expect(css).toContain('font-style:normal');
+    expect(css).not.toContain('font-family:"A');
+  });
+
+  it('o <style> do SVG sai escapado e o data URL sobrevive', () => {
+    const doc = lines([{ family: 'Inter', source: 'file', files: ['fonts/a.woff2'] }]);
+    doc.pages[0]!.frames.push(
+      createNode({ tag: 'div', type: 'frame', id: 'fr_x0000001', name: 'F' }),
+    );
+    const svg = exportSvg(doc, {
+      nodeId: 'fr_x0000001',
+      layout: {
+        id: 'fr_x0000001',
+        type: 'frame',
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10,
+        style: {},
+        children: [],
+      } as never,
+      resolveImage: () => 'data:font/woff2;base64,Zm9v',
+    });
+    expect(svg).toContain('data:font/woff2;base64,Zm9v');
+    expect(svg).toContain('font-family:"Inter"');
+    expect(svg.match(/<style>/g)).toHaveLength(1);
   });
 });

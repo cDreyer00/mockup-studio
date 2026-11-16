@@ -101,12 +101,33 @@ export const PageSchema: z.ZodType<Page, unknown> = z.object({
   background: z.string().default('#1e1e1e'),
 });
 
+// Charset restrito: o nome da família e os arquivos vão para CSS/HTML/SVG, então nada de
+// < > { } ; "  crase, quebras de linha ou caracteres de controle.
+// eslint-disable-next-line no-control-regex
+const SAFE_FONT_TEXT = /^[^<>{};"\\\x60\u0000-\u001f\u007f]+$/;
+const FontFamilySchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(SAFE_FONT_TEXT, { error: 'família com caracteres inválidos' });
+const FontFileSchema = z
+  .string()
+  .min(1)
+  .max(300)
+  .regex(SAFE_FONT_TEXT, { error: 'arquivo de fonte com caracteres inválidos' })
+  .refine((f) => !f.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(f) && !f.includes('\\'), {
+    error: 'o arquivo de fonte deve ser um caminho relativo a assets/',
+  })
+  .refine((f) => !f.split('/').some((seg) => seg === '..' || seg === ''), {
+    error: 'o arquivo de fonte não pode conter ".." nem segmentos vazios',
+  });
+
 export const FontRefSchema: z.ZodType<FontRef, unknown> = z.object({
-  family: z.string(),
+  family: FontFamilySchema,
   source: z.enum(['local', 'file', 'google']).optional(),
-  files: z.array(z.string()).optional(),
-  weights: z.array(z.number()).optional(),
-  styles: z.array(z.string()).optional(),
+  files: z.array(FontFileSchema).optional(),
+  weights: z.array(z.number().int().min(1).max(1000)).optional(),
+  styles: z.array(z.enum(['normal', 'italic', 'oblique'])).optional(),
 });
 
 export const DocumentSchema: z.ZodType<Document, unknown> = z.object({

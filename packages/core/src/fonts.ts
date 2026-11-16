@@ -9,24 +9,55 @@ const FORMATS: Record<string, string> = {
 
 /** Extensões de arquivo de fonte aceitas em `assets/fonts/`. */
 export const FONT_EXTS = Object.keys(FORMATS);
+// eslint-disable-next-line no-control-regex
+const SAFE_TEXT = /^[^<>{};"\\\x60\u0000-\u001f\u007f]+$/;
+const cssString = (s: string): string =>
+  // eslint-disable-next-line no-control-regex
+  '"' + s.replace(/[<>{};"'\\\x60\u0000-\u001f\u007f]/g, '') + '"';
 
-const cssString = (s: string): string => `"${s.replace(/["\\\n\r]/g, '')}"`;
+/** URL dentro de url("..."): ';' e ',' são válidos (data URL), o resto que escapa do CSS/HTML é removido. */
+const cssUrl = (s: string): string =>
+  // eslint-disable-next-line no-control-regex
+  '"' + s.replace(/[<>"'\\\x60\u0000-\u001f\u007f]/g, '') + '"';
+
+const STYLES = new Set(['normal', 'italic', 'oblique']);
+
+/** Arquivo relativo, sem ".." nem esquema, e sem caracteres que escapem do CSS/HTML. */
+function safeFile(file: unknown): file is string {
+  return (
+    typeof file === 'string' &&
+    SAFE_TEXT.test(file) &&
+    !file.startsWith('/') &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(file) &&
+    !file.includes('\\') &&
+    !file.split('/').some((seg) => seg === '..' || seg === '')
+  );
+}
+
+const safeWeight = (w: unknown): w is number =>
+  typeof w === 'number' && Number.isInteger(w) && w >= 1 && w <= 1000;
 
 function fontFaces(font: FontRef, urlOf: (file: string) => string): string[] {
+  if (typeof font.family !== 'string' || !SAFE_TEXT.test(font.family)) return [];
   const files = font.files ?? [];
   if (files.length === 0) return [];
+  const weights = font.weights?.every(safeWeight) ? font.weights : undefined;
   const sameLength = (a?: unknown[]): boolean => !!a && a.length === files.length;
-  return files.map((file, i) => {
+  return files.flatMap((file, i) => {
+    if (!safeFile(file)) return [];
     const ext = file.split('.').pop()?.toLowerCase() ?? '';
     const fmt = FORMATS[ext];
-    const weight = sameLength(font.weights)
-      ? String(font.weights![i])
-      : font.weights && font.weights.length > 0
-        ? `${Math.min(...font.weights)} ${Math.max(...font.weights)}`
+    const weight = sameLength(weights)
+      ? String(weights![i])
+      : weights && weights.length > 0
+        ? `${Math.min(...weights)} ${Math.max(...weights)}`
         : '100 900';
-    const style = sameLength(font.styles) ? font.styles![i] : 'normal';
-    const src = `url(${cssString(urlOf(file))})${fmt ? ` format("${fmt}")` : ''}`;
-    return `@font-face{font-family:${cssString(font.family)};src:${src};font-weight:${weight};font-style:${style};font-display:block}`;
+    const rawStyle = sameLength(font.styles) ? font.styles![i] : 'normal';
+    const style = rawStyle && STYLES.has(rawStyle) ? rawStyle : 'normal';
+    const src = `url(${cssUrl(urlOf(file))})${fmt ? ` format("${fmt}")` : ''}`;
+    return [
+      `@font-face{font-family:${cssString(font.family)};src:${src};font-weight:${weight};font-style:${style};font-display:block}`,
+    ];
   });
 }
 

@@ -536,11 +536,15 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
 
   const body = draw(layout);
   const fontCss = options.resolveImage
-    ? fontFaceCss({ fonts: fontsWithResolvableFiles(doc, options.resolveImage) }, (f) =>
-        escXml(options.resolveImage?.(f) ?? f),
+    ? fontFaceCss(
+        { fonts: fontsWithResolvableFiles(doc, options.resolveImage) },
+        (f) => options.resolveImage?.(f) ?? f,
       )
     : '';
-  if (fontCss) defs.unshift(`<style>${fontCss}</style>`);
+  if (fontCss)
+    defs.unshift(
+      `<style>${fontCss.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</style>`,
+    );
 
   const head = `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}">`;
   return [
