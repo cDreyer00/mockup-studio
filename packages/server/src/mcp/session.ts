@@ -71,7 +71,11 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
           return;
         }
         if (req.method === 'POST' && isInitializeRequest(req.body)) {
-          const server = createMcpServer(store, { render: opts.render, dataDir: opts.dataDir });
+          const server = createMcpServer(store, {
+            render: opts.render,
+            dataDir: opts.dataDir,
+            getPort: opts.getPort,
+          });
           const port = opts.getPort?.();
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),

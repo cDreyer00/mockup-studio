@@ -221,3 +221,39 @@ export function safeJoin(root: string, rel: string): string | null {
   const target = path.resolve(base, rel);
   return target.startsWith(base + path.sep) ? target : null;
 }
+
+/** Tipos MIME dos arquivos que podem ser embutidos como data URL (imagens e fontes). */
+export const EMBEDDABLE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.avif': 'image/avif',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+};
+
+/**
+ * Lê um arquivo de `assets/` (imagem ou fonte) e devolve a data URL; data URLs passam direto.
+ * `undefined` para caminho inseguro (`..`, absoluto fora da pasta), extensão desconhecida ou erro.
+ * Usado pelo SVG exportado (`resolveImage` resolve imagens e os arquivos das fontes embutidas).
+ */
+export function assetDataUrl(
+  assetsDir: string | null | undefined,
+  src: string,
+): string | undefined {
+  if (src.startsWith('data:')) return src;
+  if (!assetsDir) return undefined;
+  const target = safeJoin(assetsDir, src);
+  const mime = target ? EMBEDDABLE_MIME[path.extname(target).toLowerCase()] : undefined;
+  if (!target || !mime) return undefined;
+  try {
+    return `data:${mime};base64,${fs.readFileSync(target).toString('base64')}`;
+  } catch {
+    return undefined;
+  }
+}

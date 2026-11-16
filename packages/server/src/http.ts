@@ -3,7 +3,8 @@ import path from 'node:path';
 import { exportSvg, findNode } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
-import { RENDER_UNAVAILABLE, type RenderProvider, type RenderScale } from './render.js';
+import { assetDataUrl } from './assets.js';
+import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
@@ -78,16 +79,6 @@ export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   if (WINDOWS_RESERVED.test(base)) base = base.replace(/^[^.]+/, (m) => `${m}-arquivo`);
   return { base, ext };
 }
-
-const IMAGE_MIME: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.avif': 'image/avif',
-};
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -321,23 +312,11 @@ export function createApp(
       res.setHeader('Cache-Control', 'no-store');
 
       if (ext === 'svg') {
-        const layout = ctx.render ? await ctx.render.measure({ doc, docId, nodeId }) : undefined;
+        const layout = ctx.render
+          ? await ctx.render.measure({ doc, docId, nodeId, assetsDir: store.assetsDir(docId) })
+          : undefined;
         const assets = store.assetsDir(docId);
-        const resolveImage = (src: string): string | undefined => {
-          if (src.startsWith('data:')) return src;
-          if (!assets || !src || src.includes('\0') || src.split(/[\\/]/).includes('..'))
-            return undefined;
-          const root = path.resolve(assets);
-          const target = path.resolve(root, src);
-          if (!target.startsWith(root + path.sep)) return undefined;
-          const mime = IMAGE_MIME[path.extname(target).toLowerCase()];
-          if (!mime) return undefined;
-          try {
-            return `data:${mime};base64,${fs.readFileSync(target).toString('base64')}`;
-          } catch {
-            return undefined;
-          }
-        };
+        const resolveImage = (src: string): string | undefined => assetDataUrl(assets, src);
         let svg: string;
         try {
           svg = exportSvg(doc, { nodeId, layout, resolveImage });
@@ -354,7 +333,9 @@ export function createApp(
       }
 
       if (!ctx.render) {
-        res.status(503).json({ error: RENDER_UNAVAILABLE });
+        res
+          .status(503)
+          .json({ error: renderUnavailableMessage({ pid: process.pid, port: ctx.getPort?.() }) });
         return;
       }
       const scale = Number(req.query.scale ?? 1);
@@ -372,6 +353,7 @@ export function createApp(
           doc,
           docId,
           nodeId,
+          assetsDir: store.assetsDir(docId),
           scale: scale as RenderScale,
           format: ext === 'jpg' ? 'jpg' : 'png',
           quality,

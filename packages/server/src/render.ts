@@ -14,6 +14,11 @@ export interface RenderTarget {
   docId: string;
   /** Nó a capturar; o frame raiz que o contém é renderizado inteiro e recortado no nó. */
   nodeId: string;
+  /**
+   * Pasta `assets/` do documento (ou null se não salvo). O motor usa o tamanho e a data dos
+   * arquivos referenciados (imagens e fontes) na chave do cache, para não devolver render obsoleto.
+   */
+  assetsDir?: string | null;
 }
 
 export interface CaptureRequest extends RenderTarget {
@@ -43,6 +48,20 @@ export interface RenderProvider {
   /** Geometria da subárvore do nó, relativa ao frame raiz (ver `LayoutNode`). */
   measure(target: RenderTarget): Promise<LayoutNode>;
   close?(): Promise<void>;
+}
+
+/** Mensagem de render indisponível com o pid e a porta do daemon sem render e como resolver. */
+export function renderUnavailableMessage(info: { pid?: number; port?: number } = {}): string {
+  const who =
+    info.pid !== undefined
+      ? ` Este é um daemon Node sem render (pid ${info.pid}${info.port !== undefined ? `, porta ${info.port}` : ''}).`
+      : '';
+  return (
+    RENDER_UNAVAILABLE +
+    who +
+    ' Para trocar por um com screenshot: encerre-o com `mockup stop` (ou finalize o processo pelo pid) ' +
+    'e chame a ferramenta de novo, ou abra o app desktop, que assume a porta sozinho.'
+  );
 }
 
 export const RENDER_UNAVAILABLE =

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { LayoutNode } from '@mockup/core';
-import { RENDER_UNAVAILABLE } from '../../render.js';
+import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const short = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
@@ -39,7 +39,8 @@ export function registerRenderTools(ctx: ToolContext): void {
   const { tool, store, opts, requireNode } = ctx;
 
   const needRender = () => {
-    if (!opts.render) throw new ToolError(RENDER_UNAVAILABLE);
+    if (!opts.render)
+      throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
     return opts.render;
   };
 
@@ -89,6 +90,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           doc,
           docId: id,
           nodeId: target,
+          assetsDir: store.assetsDir(id),
           scale: scale ?? 1,
           format: fmt,
           maxWidth,
@@ -135,7 +137,7 @@ export function registerRenderTools(ctx: ToolContext): void {
       requireNode(doc, nodeId);
       let layout: LayoutNode;
       try {
-        layout = await render.measure({ doc, docId: id, nodeId });
+        layout = await render.measure({ doc, docId: id, nodeId, assetsDir: store.assetsDir(id) });
       } catch (e) {
         throw new ToolError(
           `Falha ao medir ${nodeId}: ${e instanceof Error ? e.message : String(e)}`,

@@ -32,6 +32,8 @@ export interface McpServerOptions {
   /** Motor de render (Electron). Ausente: ferramentas de screenshot informam que não há render. */
   render?: RenderProvider;
   dataDir?: string;
+  /** Porta do daemon (para a mensagem de render indisponível). */
+  getPort?: () => number;
 }
 
 export interface ToolContext {

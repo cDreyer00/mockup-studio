@@ -3,21 +3,11 @@ import path from 'node:path';
 import { z } from 'zod';
 import * as core from '@mockup/core';
 import type { Document, LayoutNode, Node } from '@mockup/core';
-import { safeJoin } from '../../assets.js';
-import { RENDER_UNAVAILABLE } from '../../render.js';
+import { assetDataUrl, safeJoin } from '../../assets.js';
+import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
-
-const IMAGE_MIME: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.avif': 'image/avif',
-};
 
 /* Opções ainda não tipadas em todas as versões do core (fragment, cdn): chamamos via tipos soltos. */
 type Loose<R> = (doc: Document, opts: Record<string, unknown>) => R;
@@ -145,7 +135,8 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       const paths = nodeIds.map((n) => requireNode(doc, n));
       const isImage = format === 'png' || format === 'jpg';
-      if (isImage && !opts.render) throw new ToolError(RENDER_UNAVAILABLE);
+      if (isImage && !opts.render)
+        throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
       await fs.promises.mkdir(dir, { recursive: true });
 
       const used = new Set<string>();
@@ -177,6 +168,7 @@ export function registerExportTools(ctx: ToolContext): void {
             doc,
             docId: id,
             nodeId: node.id,
+            assetsDir: store.assetsDir(id),
             scale: scale ?? 1,
             format,
           });
@@ -185,24 +177,18 @@ export function registerExportTools(ctx: ToolContext): void {
           let layout: LayoutNode | undefined;
           if (opts.render) {
             try {
-              layout = await opts.render.measure({ doc, docId: id, nodeId: node.id });
+              layout = await opts.render.measure({
+                doc,
+                docId: id,
+                nodeId: node.id,
+                assetsDir: store.assetsDir(id),
+              });
             } catch {
               layout = undefined;
             }
           }
           const assets = store.assetsDir(id);
-          const resolveImage = (src: string): string | undefined => {
-            if (src.startsWith('data:')) return src;
-            if (!assets) return undefined;
-            const target = safeJoin(assets, src);
-            const mime = target ? IMAGE_MIME[path.extname(target).toLowerCase()] : undefined;
-            if (!target || !mime) return undefined;
-            try {
-              return `data:${mime};base64,${fs.readFileSync(target).toString('base64')}`;
-            } catch {
-              return undefined;
-            }
-          };
+          const resolveImage = (src: string): string | undefined => assetDataUrl(assets, src);
           await write(
             uniq(slug, '.svg'),
             exportSvg(doc, { nodeId: node.id, layout, resolveImage }),

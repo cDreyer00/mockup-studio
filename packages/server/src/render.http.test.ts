@@ -97,7 +97,9 @@ describe('rotas /render', () => {
     await start();
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.png`);
     expect(r.status).toBe(503);
-    expect(((await r.json()) as { error: string }).error).toBe(RENDER_UNAVAILABLE);
+    const err = ((await r.json()) as { error: string }).error;
+    expect(err).toContain(RENDER_UNAVAILABLE);
+    expect(err).toContain(`pid ${process.pid}`);
   });
 
   it('SVG com layout medido; falha do measure vira 500 (não derruba o daemon)', async () => {
