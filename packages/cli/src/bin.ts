@@ -8,19 +8,25 @@ export { parsePort };
 const HELP = `mockup - Mockup Studio CLI
 
 Uso:
-  mockup mcp                       Servidor MCP por stdio (sobe o daemon se preciso)
-  mockup serve [--port N] [arq...] Daemon em primeiro plano
+  mockup mcp                       Servidor MCP por stdio (sobe o daemon se preciso;
+                                   usa o Electron headless quando disponível, com screenshot)
+  mockup serve [--port N] [arq...] Daemon Node em primeiro plano (editor em http://127.0.0.1:PORTA/)
+  mockup serve --render [arq...]   Electron headless em primeiro plano (com screenshot)
   mockup open <arquivo>            Abre um .mockup.json no daemon
   mockup new <arquivo> [--name N]  Cria um .mockup.json e abre
   mockup help
 
-Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados).`;
+Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados),
+           MOCKUP_DESKTOP_EXE (executável do app desktop), MOCKUP_NO_ELECTRON=1 (força o daemon Node).`;
 
 interface Parsed {
   command: string | undefined;
   positional: string[];
   flags: Record<string, string | boolean>;
 }
+
+/** Flags sem valor (não consomem o próximo argumento). */
+const BOOLEAN_FLAGS = new Set(['render']);
 
 function parseArgs(argv: string[]): Parsed {
   const [command, ...rest] = argv;
@@ -31,6 +37,7 @@ function parseArgs(argv: string[]): Parsed {
     if (a.startsWith('--')) {
       const [k, inline] = a.slice(2).split('=', 2);
       if (inline !== undefined) flags[k] = inline;
+      else if (BOOLEAN_FLAGS.has(k)) flags[k] = true;
       else if (rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) flags[k] = rest[++i];
       else flags[k] = true;
     } else positional.push(a);
@@ -47,7 +54,7 @@ async function main(): Promise<void> {
       await runStdioProxy();
       return;
     case 'serve':
-      await serve({ port, files: positional });
+      await serve({ port, files: positional, render: flags.render === true });
       return;
     case 'open':
       if (!positional[0]) throw new Error('Uso: mockup open <arquivo>');

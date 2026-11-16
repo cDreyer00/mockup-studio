@@ -31,11 +31,10 @@ try {
   process.exit(2);
 }
 
-if (args.dataDir) {
-  const dir = path.resolve(args.dataDir);
-  process.env.MOCKUP_DATA_DIR = dir;
+if (args.dataDir) process.env.MOCKUP_DATA_DIR = path.resolve(args.dataDir);
+if (process.env.MOCKUP_DATA_DIR) {
   // userData próprio: o lock de instância única é por userData (testes e instâncias isoladas)
-  app.setPath('userData', path.join(dir, 'electron'));
+  app.setPath('userData', path.join(path.resolve(process.env.MOCKUP_DATA_DIR), 'electron'));
 }
 if (args.headless && process.env.MOCKUP_DISABLE_GPU === '1') app.disableHardwareAcceleration();
 app.setAppUserModelId('app.mockupstudio.desktop');

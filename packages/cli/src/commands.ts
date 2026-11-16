@@ -1,6 +1,9 @@
 import path from 'node:path';
 import { startDaemon, resolvePort, normalizeDocumentPath, DOCUMENT_EXT } from '@mockup/server';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import { ensureDaemon, log } from './discover.js';
+import { locateElectron, runElectronForeground } from './electron.js';
 
 async function post(url: string, body: unknown): Promise<unknown> {
   const res = await fetch(url, {
@@ -13,14 +16,49 @@ async function post(url: string, body: unknown): Promise<unknown> {
   return data;
 }
 
-/** `mockup serve [--port N] [arquivos...]`: daemon em primeiro plano (headless; o editor roda à parte). */
-export async function serve(opts: { port?: number; files: string[] }): Promise<void> {
+/** Pasta `packages/editor/dist` (monorepo) quando já foi buildada; senão `undefined`. */
+export function findEditorDir(): string | undefined {
+  try {
+    const pkg = createRequire(import.meta.url).resolve('@mockup/editor/package.json');
+    const dir = path.join(path.dirname(pkg), 'dist');
+    return fs.existsSync(path.join(dir, 'index.html')) ? dir : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `mockup serve [--port N] [--render] [arquivos...]`: daemon em primeiro plano. Com `--render` roda o
+ * Electron headless (com screenshot); sem, o daemon Node (que serve o editor em `/` se estiver buildado).
+ */
+export async function serve(opts: {
+  port?: number;
+  files: string[];
+  render?: boolean;
+}): Promise<void> {
+  const files = opts.files.map((f) => path.resolve(f));
+  if (opts.render) {
+    const electron = locateElectron();
+    if (!electron) {
+      throw new Error(
+        'Electron não encontrado para --render: instale o app desktop, defina MOCKUP_DESKTOP_EXE ' +
+          'ou rode `npm run build` (o pacote @mockup/desktop precisa estar buildado).',
+      );
+    }
+    log(`Electron headless (${electron.source}) em primeiro plano. Ctrl+C para sair.`);
+    process.exitCode = await runElectronForeground(electron, resolvePort(opts.port), files);
+    return;
+  }
+  const editorDir = findEditorDir();
   const handle = await startDaemon({
     port: resolvePort(opts.port),
     headless: true,
-    openFiles: opts.files.map((f) => path.resolve(f)),
+    openFiles: files,
+    editorDir,
   });
   log(`daemon em ${handle.url} (MCP: ${handle.mcpUrl}, WS: ${handle.wsUrl}). Ctrl+C para sair.`);
+  if (editorDir) log(`editor no navegador: ${handle.url}/`);
+  log('sem motor de render (daemon Node): screenshot indisponível; use --render para o Electron.');
   // Sem handlers de sinal aqui: `startDaemon` (writeInfo) já instala SIGINT/SIGTERM, fecha o
   // daemon e chama process.exit(0). O servidor HTTP mantém o processo vivo.
 }

@@ -15,6 +15,7 @@ import {
   type DaemonInfo,
   type HealthInfo,
 } from '@mockup/server';
+import { locateElectron, spawnElectronHeadless } from './electron.js';
 
 export interface DaemonLocation {
   url: string;
@@ -109,9 +110,34 @@ export async function spawnHeadlessDaemon(
   throw new Error(`O daemon não respondeu em ${url}/api/health após ${timeoutMs} ms.`);
 }
 
-/** Garante um daemon disponível: usa o existente ou sobe um headless. */
+/**
+ * Garante um daemon disponível: usa o existente ou sobe um headless. Tenta primeiro o Electron
+ * headless (com motor de render/screenshot); sem Electron ou se falhar, cai para o daemon Node puro.
+ */
 export async function ensureDaemon(): Promise<DaemonLocation> {
   const found = await findDaemon();
   if (found) return found;
+  const electron = locateElectron();
+  if (electron) {
+    const port = resolvePort();
+    try {
+      const { pid } = await spawnElectronHeadless(electron, port);
+      log(`Electron headless pronto (${electron.source}); screenshot disponível`);
+      return locationFromPort(port, true, pid);
+    } catch (e) {
+      log(
+        `não foi possível subir o Electron headless (${e instanceof Error ? e.message : e}); ` +
+          'usando o daemon Node: screenshot e layout medido ficarão indisponíveis.',
+      );
+      // outro daemon pode ter assumido a porta enquanto isso
+      const again = await findDaemon();
+      if (again) return again;
+    }
+  } else if (process.env.MOCKUP_NO_ELECTRON !== '1') {
+    log(
+      'Electron não encontrado (defina MOCKUP_DESKTOP_EXE ou instale o app): ' +
+        'usando o daemon Node, sem screenshot.',
+    );
+  }
   return spawnHeadlessDaemon();
 }
