@@ -227,6 +227,64 @@ describe('HTTP', () => {
       expect(((await odd.json()) as { src: string }).src).toBe('meu-arquivo-.jpg');
     });
 
+    it('recusa upload e demais POST de outra origem; aceita origem local e sem Origin', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      const evil = await fetch(`${daemon.url}/api/assets/${id}?name=x.svg`, {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain', origin: 'http://evil.com' },
+        body: '<svg/>',
+      });
+      expect(evil.status).toBe(403);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'x.svg'))).toBe(false);
+      for (const route of ['/api/save', '/api/open', '/api/new', '/api/active', '/API/save']) {
+        const r = await fetch(`${daemon.url}${route}`, {
+          method: 'POST',
+          headers: { 'content-type': 'text/plain', origin: 'null' },
+          body: '{}',
+        });
+        expect(r.status, route).toBe(403);
+      }
+      const mcp = await fetch(`${daemon.url}/mcp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://evil.com' },
+        body: '{}',
+      });
+      expect(mcp.status).toBe(403);
+      const local = await fetch(`${daemon.url}/api/assets/${id}?name=ok.png`, {
+        method: 'POST',
+        headers: { 'content-type': 'image/png', origin: 'http://localhost:5173' },
+        body: new Uint8Array(png),
+      });
+      expect(local.status).toBe(200);
+      expect((await post(id, 'sem-origin.png', png)).status).toBe(200);
+      const read = await fetch(`${daemon.url}/api/docs`, {
+        headers: { origin: 'http://evil.com' },
+      });
+      expect(read.status).toBe(200);
+      expect(read.headers.get('access-control-allow-origin')).toBeNull();
+    });
+
+    it('serve assets com CSP restritiva, nosniff e SVG como anexo', async () => {
+      const id = daemon.store.list()[0]!.docId;
+      const svg = Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      );
+      expect((await post(id, 'x.svg', svg, 'image/svg+xml')).status).toBe(200);
+      const got = await fetch(`${daemon.url}/assets/${id}/x.svg`);
+      expect(got.status).toBe(200);
+      expect(got.headers.get('content-type')).toContain('image/svg+xml');
+      expect(got.headers.get('content-security-policy')).toBe(
+        "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+      );
+      expect(got.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(got.headers.get('content-disposition')).toBe('attachment');
+      await post(id, 'foto.png', png);
+      const pngRes = await fetch(`${daemon.url}/assets/${id}/foto.png`);
+      expect(pngRes.headers.get('content-security-policy')).toContain("default-src 'none'");
+      expect(pngRes.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(pngRes.headers.get('content-disposition')).toBeNull();
+    });
+
     it('erros: 404, 400 e 413', async () => {
       const id = daemon.store.list()[0]!.docId;
       expect((await post('doc_inexistente', 'a.png', png)).status).toBe(404);

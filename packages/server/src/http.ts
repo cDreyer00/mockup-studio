@@ -5,6 +5,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
+import { isAllowedOrigin } from './ws.js';
 
 export const SERVER_NAME = 'mockup-studio';
 export const SERVER_VERSION = '0.1.0';
@@ -68,6 +69,13 @@ export function sanitizeAssetName(raw: string): { base: string; ext: string } {
 }
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * Política das respostas de `/assets`: um SVG aberto direto numa aba não roda script nem carrega
+ * nada na origem do daemon (que alcança `/api`, `/mcp` e o WS). `<img>` ignora esses headers.
+ */
+export const ASSET_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox";
 
 export function createApp(
   store: DocumentStore,
@@ -86,6 +94,20 @@ export function createApp(
   app.use((req, res, next) => {
     if (!isAllowedHost(req.headers.host, ctx.allowedHosts)) {
       res.status(403).json({ error: 'Host não permitido' });
+      return;
+    }
+    next();
+  });
+  // Navegadores mandam POST "simples" (text/plain, form) de qualquer site sem preflight:
+  // recusa escrita de outra origem antes de ler o corpo. Clientes sem Origin (CLI, agentes) passam.
+  app.use((req, res, next) => {
+    const route = req.path.toLowerCase();
+    const guarded =
+      route === '/mcp' ||
+      route.startsWith('/mcp/') ||
+      (route.startsWith('/api/') && !SAFE_METHODS.has(req.method));
+    if (guarded && !isAllowedOrigin(req.headers.origin)) {
+      res.status(403).json({ error: 'Origem não permitida' });
       return;
     }
     next();
@@ -245,6 +267,10 @@ export function createApp(
       const root = path.resolve(dir);
       const target = path.resolve(root, rel);
       if (!target.startsWith(root + path.sep)) throw new HttpError(403, 'Caminho inválido');
+      res.setHeader('Content-Security-Policy', ASSET_CSP);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      if (path.extname(target).toLowerCase() === '.svg')
+        res.setHeader('Content-Disposition', 'attachment');
       return new Promise<void>((resolve) => {
         res.sendFile(target, { dotfiles: 'allow' }, (err) => {
           if (err && !res.headersSent) res.status(404).json({ error: 'Arquivo não encontrado' });
