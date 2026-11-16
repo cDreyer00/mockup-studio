@@ -1,26 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import * as core from '@mockup/core';
-import type { Document, LayoutNode, Node } from '@mockup/core';
+import {
+  exportHtml,
+  exportReact,
+  exportSvg,
+  exportTailwind,
+  tailwindThemeCss,
+  type Document,
+  type LayoutNode,
+  type Node,
+} from '@mockup/core';
 import { assetDataUrl, safeJoin } from '../../assets.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
-
-/* Opções ainda não tipadas em todas as versões do core (fragment, cdn): chamamos via tipos soltos. */
-type Loose<R> = (doc: Document, opts: Record<string, unknown>) => R;
-const exportHtml = core.exportHtml as unknown as Loose<string>;
-const exportTailwind = core.exportTailwind as unknown as Loose<string>;
-const exportReact = core.exportReact as unknown as Loose<{
-  componentName: string;
-  code: string;
-  css?: string;
-}>;
-const exportSvg = core.exportSvg as unknown as Loose<string>;
-const tailwindThemeCss = (core as unknown as { tailwindThemeCss?: (doc: Document) => string })
-  .tailwindThemeCss;
 
 /** Nome de arquivo a partir do nome do nó: `Desktop 1440` → `desktop-1440`. */
 export function slugOf(name: string, fallback: string): string {
@@ -95,7 +90,7 @@ export function registerExportTools(ctx: ToolContext): void {
       description:
         'Grava um arquivo por nó em outputDir (padrão: <pasta do documento>/exports/). Formatos: png, jpg (exigem render), svg, html (CSS em classes), ' +
         'tailwind (HTML com classes Tailwind v4) e react (componente .tsx; styles "tailwind" ou "inline"). Para html/tailwind/react copia as imagens e fontes ' +
-        'usadas para <outputDir>/assets/. Devolve os caminhos gravados e, para código, o conteúdo (se pequeno). Para só ler o código sem gravar, use get_code.',
+        'usadas para <outputDir>/assets/. Arquivos de mesmo nome em outputDir são SOBRESCRITOS (a resposta marca os substituídos com "(substituído)"); use outro outputDir para preservar versões anteriores. Devolve os caminhos gravados e, para código, o conteúdo (se pequeno). Para só ler o código sem gravar, use get_code.',
       inputSchema: {
         nodeIds: z
           .array(z.string())
@@ -147,13 +142,15 @@ export function registerExportTools(ctx: ToolContext): void {
         return name;
       };
 
-      const written: { file: string; content?: string }[] = [];
+      const written: { file: string; content?: string; replaced: boolean }[] = [];
       const write = async (name: string, data: string | Buffer, showText = false) => {
         const file = path.join(dir, name);
+        const replaced = fs.existsSync(file);
         await fs.promises.writeFile(file, data);
         const text = typeof data === 'string' ? data : undefined;
         written.push({
           file,
+          replaced,
           content:
             showText && text && Buffer.byteLength(text) <= MAX_INLINE_BYTES ? text : undefined,
         });
@@ -223,7 +220,7 @@ export function registerExportTools(ctx: ToolContext): void {
         }
       }
       if (themeCss) await write('theme.css', themeCss, true);
-      else if (format === 'tailwind' && tailwindThemeCss && Object.keys(doc.tokens).length) {
+      else if (format === 'tailwind' && Object.keys(doc.tokens).length) {
         await write('theme.css', tailwindThemeCss(doc), true);
       }
 
@@ -242,7 +239,7 @@ export function registerExportTools(ctx: ToolContext): void {
       }
 
       const lines = [`Exportado(s) ${written.length} arquivo(s) (${format}):`];
-      for (const w of written) lines.push(`- ${w.file}`);
+      for (const w of written) lines.push(`- ${w.file}${w.replaced ? ' (substituído)' : ''}`);
       if (assetsNote) lines.push(assetsNote.trim());
       for (const w of written) {
         if (w.content) lines.push(`\n--- ${path.basename(w.file)} ---\n${w.content}`);
@@ -282,8 +279,7 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       if (format === 'tailwind') {
         const html = exportTailwind(doc, { nodeIds: [nodeId], title: node.name, fragment: true });
-        const css =
-          tailwindThemeCss && Object.keys(doc.tokens).length ? tailwindThemeCss(doc) : undefined;
+        const css = Object.keys(doc.tokens).length ? tailwindThemeCss(doc) : undefined;
         return css ? `${html}\n\n/* theme.css */\n${css}` : html;
       }
       const r = exportReact(doc, {

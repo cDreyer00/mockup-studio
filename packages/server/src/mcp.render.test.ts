@@ -260,6 +260,9 @@ describe('MCP render, export e guias', () => {
       const r = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
       expect(r.isError, textOf(r)).toBeFalsy();
       expect(fs.readFileSync(path.join(out, 'desktop.svg'), 'utf8')).toContain('<svg');
+      expect(textOf(r)).not.toContain('(substituído)');
+      const again = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
+      expect(textOf(again)).toContain('desktop.svg (substituído)');
     });
 
     it('export svg embute as fontes registradas em doc.fonts como data URL', async () => {
