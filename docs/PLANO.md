@@ -52,7 +52,6 @@ Resultado: tudo acima entregue (ver [EDITOR.md](EDITOR.md)). Medição com 300 n
 Pendências herdadas para a tarefa 3:
 
 - Diálogos nativos de abrir/salvar (hoje um diálogo com o caminho digitado) e "Salvar como".
-- Assets SVG enviados pelo editor são servidos por `GET /assets/...` na origem do daemon; abrir o SVG direto no navegador executaria scripts embutidos. Servir assets com `Content-Security-Policy: sandbox` (ou recusar SVG com script no upload).
 - Op para trocar o `src` de imagens (hoje somente leitura no painel) e para o fundo da página (`page.background`).
 - Canvas: marquee com Ctrl para selecionar filhos de um frame; arrastar no canvas para mudar o pai (hoje só pelas camadas); seleção mista (livres + em fluxo) move só os livres; pai `grid` tratado como bloco vertical na reordenação.
 - Texto criado fora de um frame mostra um aviso em vez de criar um frame.
