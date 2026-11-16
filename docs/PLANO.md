@@ -49,14 +49,13 @@ Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o qu
 
 Resultado: tudo acima entregue (ver [EDITOR.md](EDITOR.md)). Medição com 300 nós: `applyOp` < 1 ms, `doc:changed` completo < 1 ms para serializar e integrar, latência MCP → canvas ~31 ms, arrasto a 60 fps; a clonagem por JSON e o documento completo no WS foram mantidos. Decisões: zustand para os stores; op `setTag` (com ferramenta MCP `set_tag`); `history` (`canUndo`/`canRedo`) nos eventos; `doc:new`/`doc:close` no WS; `POST /api/assets/:docId` e `GET /api/recent`.
 
-Pendências herdadas para a tarefa 3:
+Pendências herdadas da tarefa 2 que seguem abertas (as de diálogos nativos, "Salvar como" e troca de `src` foram atendidas na tarefa 3):
 
-- Diálogos nativos de abrir/salvar (hoje um diálogo com o caminho digitado) e "Salvar como".
-- Op para trocar o `src` de imagens (hoje somente leitura no painel) e para o fundo da página (`page.background`).
+- Op para o fundo da página (`page.background`): o fundo ainda não tem op nem controle no painel.
 - Canvas: marquee com Ctrl para selecionar filhos de um frame; arrastar no canvas para mudar o pai (hoje só pelas camadas); seleção mista (livres + em fluxo) move só os livres; pai `grid` tratado como bloco vertical na reordenação.
 - Texto criado fora de um frame mostra um aviso em vez de criar um frame.
 
-### Tarefa 3 — Electron, screenshot e exportação
+### Tarefa 3 — Electron, screenshot e exportação (concluída)
 
 - **`packages/desktop`**
   - electron-vite e electron-builder; daemon in-process; menu nativo; diálogos; associação `.mockup.json`; ícone próprio.
@@ -78,11 +77,25 @@ Pendências herdadas para a tarefa 3:
   - `finish_working`.
   - Guias `screenshot-loop` e `export`.
 - `docs/EXPORT.md`.
-- Pendências herdadas da tarefa 1 (segurança local):
-  - O WebSocket aceita `Origin` `file://`; o Electron deve usar um protocolo próprio (`app://`) ou um token de sessão em vez de `file://`.
-  - O `allowedHosts` do MCP não inclui o host de bind; só importa se o daemon deixar de escutar em 127.0.0.1.
-  - Valores de `style` com `}` quebram a regra no CSS exportado (injeção de CSS, não XSS); validar chaves e valores no `NodeSchema` quando o exportador HTML for revisto.
-  - Tokens exigem o prefixo `--`; adicionar o prefixo automaticamente no `set_tokens` e na leitura de arquivos quando os agentes mandarem `primary`.
+
+Resultado: tudo acima entregue (ver [ARQUITETURA.md](ARQUITETURA.md), [EXPORT.md](EXPORT.md), [MCP.md](MCP.md) e o [README do desktop](../packages/desktop/README.md)).
+
+- App Electron 45 com o daemon in-process, o `RenderService` (janela oculta em `/render.html`, captura via CDP `Page.captureScreenshot`, escala 1 a 3, JPG e `maxWidth` por `nativeImage`, cache LRU por hash, fila serial e recuperação da janela), menu nativo, diálogos de abrir/salvar, "Salvar como" (`doc:saveAs`, Ctrl+Shift+S) e modo `--headless`. `mockup mcp` sobe o Electron headless e cai para o daemon Node (sem screenshot); `mockup serve --render` roda o Electron em primeiro plano.
+- `npm run dist` gera o instalador NSIS (por usuário) e o portátil em `dist/`; associação de `.mockup.json` por ProgID em `OpenWithProgids` (o Windows só vê a última extensão).
+- Exportadores html, tailwind (v4), react (Tailwind ou inline) e svg (com layout medido ou `<foreignObject>`), com snapshots. CSS base único do documento (`base.ts`): o mesmo no canvas, no render e no código exportado; o CSS da interface não vaza no design.
+- MCP: `get_screenshot`, `get_layout`, `export`, `get_code`, `insert_image`, `insert_icon`, `search_icons`, `list_fonts`, `get_font_info`, `add_font`, `finish_working`, e os guias `screenshot-loop` e `export`. Ops novas `setFonts` e `setSrc`; evento `agent:finished`; rotas `GET /render/:docId/:nodeId.(png|jpg|svg)`; editor estático em `/`; `render` no `/api/health`.
+- Pendências herdadas da tarefa 1 resolvidas: o WebSocket não aceita mais `Origin` `file://` (o app serve o editor do próprio daemon); valores de `style` que escapam da declaração são recusados na edição e descartados na leitura e no export; tokens ganham o prefixo `--` automaticamente. Segue em aberto só o `allowedHosts` do MCP, que não inclui o host de bind (só importa se o daemon deixar de escutar em 127.0.0.1).
+
+Pendências herdadas para a tarefa 4:
+
+- O menu nativo e os diálogos do app não são exercitados em teste automatizado de UI.
+- O cache de render não invalida se um arquivo de `assets/` for trocado mantendo o nome.
+- O instalador NSIS é gerado, mas a instalação e a associação de arquivo não foram testadas numa máquina limpa; sem assinatura de código.
+- `add_font` com `google` só baixa o estilo normal e o subconjunto latin, e não foi testado contra a internet.
+- O Tailwind exportado só foi validado num projeto Vite com `@tailwindcss/vite`; outros bundlers não foram testados.
+- SVG com layout ignora `transform`, sombras múltiplas e gradientes não lineares.
+- `insert_image` usa o tamanho intrínseco, sem limitar ao do pai.
+- O daemon headless (Electron) iniciado pelo `mockup mcp` continua rodando até ser encerrado (como o daemon Node).
 
 ### Tarefa 4 — Integração com agentes e QA ponta a ponta
 

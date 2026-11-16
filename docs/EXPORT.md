@@ -25,6 +25,16 @@ Regras comuns a todos os formatos:
 - Atributos `on*`, `style`, `class`, `srcdoc` e URLs `javascript:`/`data:` não-imagem são removidos.
   SVG inline passa por `sanitizeSvg`.
 
+## CSS base do documento
+
+`documentBaseCss` (`packages/core/src/base.ts`) é a fonte única do CSS base: o canvas, a página de render (screenshot) e o código exportado usam o mesmo, então os três saem idênticos. O CSS da interface do editor não vaza no design. Ele define:
+
+- `box-sizing: border-box` e `margin: 0` em tudo (`*`, `::before`, `::after`);
+- controles (`button`, `input`, `select`, `textarea`) herdam fonte, cor e `letter-spacing`;
+- tipografia padrão da raiz (`body` no código exportado): fonte do sistema (`system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`), 16px, `line-height: normal`, texto preto.
+
+Nos formatos html, react com estilos inline e svg ele entra como CSS (`BASE_CSS`). No Tailwind o preflight já cobre o reset e os controles, então só a tipografia da raiz vira `@layer base { body { ... } }` no `theme.css` (`TAILWIND_BASE_CSS`, dentro de `tailwindThemeCss`).
+
 ## html
 
 ```ts
@@ -34,7 +44,7 @@ exportHtml(doc, { pageId?, nodeIds?, title?, mode?: 'classes' | 'inline', fragme
 - `mode: 'classes'` (padrão): uma classe por nó, com o **slug do nome da camada** (`Hero Title` →
   `.hero-title`; acentos removidos; repetidos ganham `-2`, `-3`). `mode: 'inline'`: `style=""` em cada tag.
 - `fragment: true`: só `<style>` + markup, sem `<!doctype>`/`<head>`.
-- Tokens vão em `:root { --x: ... }`, depois o reset `*{box-sizing:border-box;margin:0}` e os
+- Tokens vão em `:root { --x: ... }`, depois o CSS base do documento (reset, controles e tipografia da raiz) e os
   `@font-face` das fontes embutidas (`assets/<arquivo>`).
 - Padrão sem `nodeIds`: todos os frames da página (`pageId` ou a primeira).
 
@@ -201,7 +211,7 @@ compilador do TypeScript). O nome é o PascalCase do nome do nó (acentos removi
 - `styles: 'inline'`: `style={{ backgroundColor: 'var(--color-bg)' }}` (camelCase, tudo string com
   unidade). Os tokens do documento viram custom properties no `style` do elemento **raiz**
   (`{ '--color-bg': '#0f1115', ... } as CSSProperties`, com `import type { CSSProperties } from 'react'`).
-  `css` traz o reset `*{box-sizing:border-box;margin:0}` e os `@font-face`.
+  `css` traz o CSS base do documento e os `@font-face`.
 - Atributos: `for` → `htmlFor`, `tabindex` → `tabIndex={0}`, `readonly` → `readOnly`, booleanos sem
   valor (`disabled`), `aria-*`/`data-*` mantidos, `value` de campo vira `defaultValue`, tags void
   auto-fechadas. Só atributos HTML conhecidos entram (os demais são descartados para o TSX compilar).
