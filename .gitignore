@@ -11,3 +11,6 @@ Thumbs.db
 # dados locais de teste
 .mockup-data/
 tmp/
+# artefatos do Playwright
+test-results/
+playwright-report/
