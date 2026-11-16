@@ -347,8 +347,6 @@ test('arquivo: Salvar como grava no novo caminho e o título passa a usá-lo', a
   await page.getByTestId('file-save-as').click();
   await page.locator('.modal input[name="path"]').fill(dest);
   await page.locator('.modal button[type="submit"]').click();
-  await expect(page).toHaveTitle(
-    new RegExp(`${path.basename(dest).replace(/\./g, '\.')} — Mockup Studio`),
-  );
+  await expect.poll(() => page.title()).toContain(`${path.basename(dest)} — Mockup Studio`);
   expect(fs.existsSync(dest)).toBe(true);
 });
