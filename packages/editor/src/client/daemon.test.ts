@@ -98,6 +98,28 @@ describe('DaemonClient', () => {
     expect(useDoc.getState().agentActivity[frame.id]).toBeGreaterThan(0);
   });
 
+  it('agent:finished apaga o badge dos frames dos nós (ou de todos quando vazio)', () => {
+    const { doc, frame, a } = makeDoc();
+    FakeSocket.last!.emit(hello(doc));
+    const now = Date.now();
+    useDoc.setState({ agentActivity: { [frame.id]: now, fr_outro: now } });
+    FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [a.id] });
+    expect(useDoc.getState().agentActivity).toEqual({ fr_outro: now });
+    useDoc.setState({ agentActivity: { [frame.id]: now } });
+    FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [] });
+    expect(useDoc.getState().agentActivity).toEqual({});
+  });
+
+  it('doc:saved com caminho novo atualiza o caminho do documento', () => {
+    const { doc } = makeDoc();
+    FakeSocket.last!.emit(hello(doc));
+    FakeSocket.last!.emit({ type: 'doc:saved', docId: doc.id, path: '/novo/x.mockup.json' });
+    expect(useDoc.getState().documents[0]).toMatchObject({
+      path: '/novo/x.mockup.json',
+      dirty: false,
+    });
+  });
+
   it('seleção do MCP seleciona e pede foco; a do editor é ignorada', () => {
     const { doc, a } = makeDoc();
     FakeSocket.last!.emit(hello(doc));

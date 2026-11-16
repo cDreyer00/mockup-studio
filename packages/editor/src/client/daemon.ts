@@ -12,7 +12,7 @@ import type {
   OpenDocumentInfo,
   ServerMessage,
 } from '@mockup/core';
-import { getEntry } from '../model/tree';
+import { getEntry, getFrameOf } from '../model/tree';
 import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 
@@ -195,6 +195,13 @@ export class DaemonClient {
   save(): Promise<{ path: string }> {
     return this.request({ type: 'doc:save', docId: useDoc.getState().activeDocId ?? undefined });
   }
+  saveAs(path: string): Promise<OpenDocumentInfo> {
+    return this.request({
+      type: 'doc:saveAs',
+      docId: useDoc.getState().activeDocId ?? undefined,
+      path,
+    });
+  }
   openDoc(path: string): Promise<OpenDocumentInfo> {
     return this.request({ type: 'doc:open', path });
   }
@@ -302,6 +309,26 @@ export class DaemonClient {
           ...(isActive ? { doc, history, revision: msg.revision } : {}),
         });
         if (isActive) this.pruneUi(doc);
+        return;
+      }
+      case 'agent:finished': {
+        const doc = s.docs[msg.docId];
+        if (!doc) return;
+        const frames = new Set<string>();
+        if (msg.nodeIds.length === 0) {
+          for (const page of doc.pages) for (const f of page.frames) frames.add(f.id);
+        } else {
+          for (const id of msg.nodeIds) {
+            const f = getFrameOf(doc, id);
+            if (f) frames.add(f.id);
+          }
+        }
+        if (!Object.keys(s.agentActivity).some((id) => frames.has(id))) return;
+        useDoc.setState({
+          agentActivity: Object.fromEntries(
+            Object.entries(s.agentActivity).filter(([id]) => !frames.has(id)),
+          ),
+        });
         return;
       }
       case 'doc:saved':
