@@ -20,6 +20,7 @@ import {
 import { useDoc } from '../state/docStore';
 import { currentPageId, selectPage } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
+import type { NodePreview } from '../state/uiStore';
 import { openContextMenu } from '../ui/overlays';
 import { clientToWorld, findNodeEl, measureWorldRect } from './dom';
 import { clearFx, useFx } from './fx';
@@ -211,6 +212,7 @@ export function attachInteractions(root: HTMLElement): () => void {
       }));
       let dx = 0;
       let dy = 0;
+      let shown: Record<string, NodePreview> = {};
       return {
         update(ev: PointerEvent): void {
           const z = st().viewport.z;
@@ -230,10 +232,11 @@ export function attachInteractions(root: HTMLElement): () => void {
               ? { position: { x, y } }
               : { style: { left: px(x), top: px(y) } };
           }
+          shown = preview;
           ui.setPreview(preview);
         },
         async commit(cancelled: boolean): Promise<void> {
-          if (cancelled || (dx === 0 && dy === 0)) return ui.clearPreview();
+          if (cancelled || (dx === 0 && dy === 0)) return ui.releasePreview(shown);
           const cur = currentDoc();
           const ops: Op[] = [];
           for (const it of items) {
@@ -241,7 +244,7 @@ export function attachInteractions(root: HTMLElement): () => void {
             if (cur && node) ops.push(...buildPositionOps(cur, node, it.x + dx, it.y + dy));
           }
           await daemon.applySafe(ops);
-          ui.clearPreview();
+          ui.releasePreview(shown);
         },
       };
     }
@@ -271,7 +274,7 @@ export function attachInteractions(root: HTMLElement): () => void {
       },
       async commit(cancelled: boolean): Promise<void> {
         clearFx();
-        if (cancelled || isNoopReorder(movingReal, moveIndex)) return ui.clearPreview();
+        if (cancelled || isNoopReorder(movingReal, moveIndex)) return ui.releasePreview(ghost);
         await daemon.applySafe([
           {
             type: 'moveNodes',
@@ -280,7 +283,7 @@ export function attachInteractions(root: HTMLElement): () => void {
             index: moveIndex,
           },
         ]);
-        ui.clearPreview();
+        ui.releasePreview(ghost);
       },
     };
   }
@@ -334,6 +337,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     const startY = e.clientY;
     let result: { id: string; set: Record<string, string>; pos: Point | null }[] = [];
     let moved = false;
+    let shown: Record<string, NodePreview> = {};
 
     begin({
       move(ev) {
@@ -374,10 +378,11 @@ export function attachInteractions(root: HTMLElement): () => void {
             ...(pos && it.root ? { position: pos } : {}),
           };
         }
+        shown = preview;
         ui.setPreview(preview);
       },
       async up(_e, cancelled) {
-        if (cancelled || !moved) return ui.clearPreview();
+        if (cancelled || !moved) return ui.releasePreview(shown);
         const cur = currentDoc();
         const ops: Op[] = [];
         const changes = result.filter(
@@ -394,7 +399,7 @@ export function attachInteractions(root: HTMLElement): () => void {
           if (cur && node && r.pos) ops.push(...buildPositionOps(cur, node, r.pos.x, r.pos.y));
         }
         if (ops.length) await daemon.applySafe(ops);
-        ui.clearPreview();
+        ui.releasePreview(shown);
       },
     });
   }

@@ -101,6 +101,18 @@ export const ui = {
   clearPreview(): void {
     if (Object.keys(useUi.getState().preview).length) useUi.setState({ preview: {} });
   },
+  /**
+   * Remove só as entradas que ainda são as de `mine` (a última prévia que um gesto definiu):
+   * um gesto novo, iniciado antes do ack do anterior, mantém a própria prévia.
+   */
+  releasePreview(mine: Record<string, NodePreview>): void {
+    const cur = useUi.getState().preview;
+    const owned = Object.keys(mine).filter((id) => cur[id] === mine[id]);
+    if (!owned.length) return;
+    const next = { ...cur };
+    for (const id of owned) delete next[id];
+    useUi.setState({ preview: next });
+  },
   editText(id: string | null): void {
     useUi.setState({ editingTextId: id });
   },
