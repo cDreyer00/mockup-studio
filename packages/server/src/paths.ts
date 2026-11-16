@@ -56,8 +56,13 @@ export function readDaemonInfo(dataDir: string = getDataDir()): DaemonInfo | nul
   return readJson<DaemonInfo>(path.join(dataDir, 'daemon.json'));
 }
 
-export function removeDaemonInfo(dataDir: string = getDataDir()): void {
+/** Remove o daemon.json. Com `onlyIfPid`, só remove se o pid gravado for o mesmo (outro daemon pode ter assumido o arquivo). */
+export function removeDaemonInfo(dataDir: string = getDataDir(), onlyIfPid?: number): void {
   try {
+    if (onlyIfPid !== undefined) {
+      const cur = readDaemonInfo(dataDir);
+      if (cur && cur.pid !== onlyIfPid) return;
+    }
     fs.rmSync(path.join(dataDir, 'daemon.json'), { force: true });
   } catch {
     /* ignorado */

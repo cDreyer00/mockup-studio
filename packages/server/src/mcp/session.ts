@@ -9,6 +9,7 @@ import { createMcpServer } from './server.js';
 interface Session {
   server: McpServer;
   transport: StreamableHTTPServerTransport;
+  lastSeen: number;
 }
 
 export interface McpHandler {
@@ -17,28 +18,65 @@ export interface McpHandler {
   sessionCount(): number;
 }
 
-export function createMcpHandler(store: DocumentStore): McpHandler {
-  const sessions = new Map<string, Session>();
+export interface McpHandlerOptions {
+  /** Porta atual do daemon; usada para montar os `Host` aceitos (o SDK compara o header inteiro, com porta). */
+  getPort?: () => number;
+  /** Tempo de ociosidade, em ms, após o qual uma sessão é encerrada. Padrão: 30 min. */
+  sessionTtlMs?: number;
+}
 
-  const badRequest = (res: Response, message: string): void => {
-    res.status(400).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: null });
+export const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000;
+
+export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions = {}): McpHandler {
+  const sessions = new Map<string, Session>();
+  const ttl = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
+
+  const jsonRpcError = (res: Response, status: number, code: number, message: string): void => {
+    res.status(status).json({ jsonrpc: '2.0', error: { code, message }, id: null });
   };
+
+  const sweep = setInterval(
+    () => {
+      const now = Date.now();
+      for (const [id, s] of [...sessions]) {
+        if (now - s.lastSeen > ttl) {
+          sessions.delete(id);
+          s.server.close().catch(() => undefined);
+        }
+      }
+    },
+    Math.max(10, Math.min(ttl / 2, 60_000)),
+  );
+  sweep.unref();
 
   return {
     async handleMcpRequest(req, res) {
       try {
         const header = req.headers['mcp-session-id'];
         const sid = Array.isArray(header) ? header[0] : header;
-        if (sid && sessions.has(sid)) {
-          await sessions.get(sid)!.transport.handleRequest(req, res, req.body);
+        if (sid) {
+          const s = sessions.get(sid);
+          if (!s) {
+            jsonRpcError(res, 404, -32001, 'Sessão não encontrada');
+            return;
+          }
+          s.lastSeen = Date.now();
+          await s.transport.handleRequest(req, res, req.body);
+          s.lastSeen = Date.now();
           return;
         }
-        if (!sid && req.method === 'POST' && isInitializeRequest(req.body)) {
+        if (req.method === 'POST' && isInitializeRequest(req.body)) {
           const server = createMcpServer(store);
+          const port = opts.getPort?.();
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
+            enableDnsRebindingProtection: true,
+            allowedHosts:
+              port !== undefined
+                ? [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]
+                : undefined,
             onsessioninitialized: (id) => {
-              sessions.set(id, { server, transport });
+              sessions.set(id, { server, transport, lastSeen: Date.now() });
             },
           });
           transport.onclose = () => {
@@ -48,18 +86,20 @@ export function createMcpHandler(store: DocumentStore): McpHandler {
           await transport.handleRequest(req, res, req.body);
           return;
         }
-        badRequest(res, 'Bad Request: sessão inválida ou ausente');
+        jsonRpcError(
+          res,
+          400,
+          -32000,
+          'Requisição inválida: sessão ausente. Envie initialize primeiro.',
+        );
       } catch (e) {
         if (!res.headersSent) {
-          res.status(500).json({
-            jsonrpc: '2.0',
-            error: { code: -32603, message: e instanceof Error ? e.message : 'Erro interno' },
-            id: null,
-          });
+          jsonRpcError(res, 500, -32603, e instanceof Error ? e.message : 'Erro interno');
         }
       }
     },
     async closeAll() {
+      clearInterval(sweep);
       const all = [...sessions.values()];
       sessions.clear();
       await Promise.allSettled(all.map((s) => s.server.close()));

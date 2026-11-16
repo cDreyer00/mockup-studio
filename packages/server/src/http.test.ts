@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkHealth, startDaemon, type DaemonHandle } from './index.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { checkHealth, isAllowedHost, startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
 describe('HTTP', () => {
@@ -95,5 +95,56 @@ describe('HTTP', () => {
       expect(r.status).not.toBe(200);
       expect(r.body).not.toContain('segredo');
     }
+  });
+
+  const rawReq = (method: string, p: string, headers: Record<string, string>) =>
+    new Promise<{ status: number; body: string }>((resolve, reject) => {
+      const req = http.request(
+        { host: '127.0.0.1', port: daemon.port, path: p, method, headers },
+        (res) => {
+          let b = '';
+          res.on('data', (c) => (b += c));
+          res.on('end', () => resolve({ status: res.statusCode ?? 0, body: b }));
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+
+  it('isAllowedHost', () => {
+    expect(isAllowedHost('localhost:4747')).toBe(true);
+    expect(isAllowedHost('127.0.0.1')).toBe(true);
+    expect(isAllowedHost('[::1]:80')).toBe(true);
+    expect(isAllowedHost('evil.com')).toBe(false);
+    expect(isAllowedHost(undefined)).toBe(false);
+    expect(isAllowedHost('meu-host:1', ['meu-host'])).toBe(true);
+  });
+
+  it('valida o header Host (DNS rebinding)', async () => {
+    const bad = await rawReq('GET', '/api/health', { Host: 'evil.com' });
+    expect(bad.status).toBe(403);
+    expect(JSON.parse(bad.body)).toEqual({ error: 'Host não permitido' });
+    const ok = await rawReq('GET', '/api/health', {});
+    expect(ok.status).toBe(200);
+    expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
+  });
+
+  it('erro inesperado vira 500 genérico e JSON malformado vira 400', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const spy = vi.spyOn(daemon.store, 'list').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const r = await fetch(`${daemon.url}/api/docs`);
+    expect(r.status).toBe(500);
+    expect(await r.json()).toEqual({ error: 'Erro interno' });
+    expect(err).toHaveBeenCalled();
+    spy.mockRestore();
+    err.mockRestore();
+    const bad = await fetch(`${daemon.url}/api/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{ malformado',
+    });
+    expect(bad.status).toBe(400);
   });
 });

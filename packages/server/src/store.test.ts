@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseDocument } from '@mockup/core';
 import { DocumentStore } from './store.js';
+import { readDaemonInfo, removeDaemonInfo, writeDaemonInfo } from './paths.js';
 import { makeWorkspace } from './test-utils.js';
 
 describe('DocumentStore', () => {
@@ -84,5 +85,51 @@ describe('DocumentStore', () => {
     await store.close(docId);
     expect(readBg()).toBe('#444444');
     expect(store.getActive()).toBeNull();
+  });
+
+  it('create normaliza a extensão e não sobrescreve arquivo existente', async () => {
+    const info = await store.create(path.join(ws.dir, 'foo.json'), 'Foo');
+    expect(info.path!.endsWith('foo.mockup.json')).toBe(true);
+    expect(fs.existsSync(info.path!)).toBe(true);
+    const before = fs.readFileSync(ws.file, 'utf8');
+    await expect(store.create(ws.file, 'Outro')).rejects.toThrow(/já existe/);
+    expect(fs.readFileSync(ws.file, 'utf8')).toBe(before);
+  });
+
+  it('saves em fila: o arquivo fica com a última revisão e dirty=false', async () => {
+    const { docId } = await store.open(ws.file);
+    bg(docId, '#111111');
+    const p1 = store.save(docId);
+    bg(docId, '#222222');
+    const p2 = store.save(docId);
+    await Promise.all([p1, p2]);
+    expect(readBg()).toBe('#222222');
+    expect(store.getInfo(docId).dirty).toBe(false);
+    expect(fs.readdirSync(ws.dir).filter((f) => f.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('mudança durante um save em andamento mantém dirty=true', async () => {
+    const { docId } = await store.open(ws.file);
+    bg(docId, '#111111');
+    const p1 = store.save(docId);
+    await new Promise((r) => setImmediate(r)); // deixa o save 1 começar a gravar
+    bg(docId, '#333333');
+    await p1;
+    expect(store.getInfo(docId).dirty).toBe(true);
+    await store.save(docId);
+    expect(store.getInfo(docId).dirty).toBe(false);
+    expect(readBg()).toBe('#333333');
+  });
+
+  it('removeDaemonInfo só remove do próprio pid quando onlyIfPid é dado', () => {
+    const info = { port: 1, pid: 999999, startedAt: 'x', url: 'u', mcpUrl: 'm', wsUrl: 'w' };
+    writeDaemonInfo(info, ws.dataDir);
+    removeDaemonInfo(ws.dataDir, process.pid);
+    expect(readDaemonInfo(ws.dataDir)?.pid).toBe(999999);
+    removeDaemonInfo(ws.dataDir, 999999);
+    expect(readDaemonInfo(ws.dataDir)).toBeNull();
+    writeDaemonInfo(info, ws.dataDir);
+    removeDaemonInfo(ws.dataDir);
+    expect(readDaemonInfo(ws.dataDir)).toBeNull();
   });
 });

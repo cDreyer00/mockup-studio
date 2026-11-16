@@ -11,7 +11,11 @@ import {
   type OpSource,
   type OpenDocumentInfo,
 } from '@mockup/core';
-import { addRecent } from './paths.js';
+import { addRecent, normalizeDocumentPath } from './paths.js';
+
+let tmpCounter = 0;
+const RENAME_RETRY_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 export interface OpenDoc {
   id: string;
@@ -20,6 +24,8 @@ export interface OpenDoc {
   history: History;
   dirty: boolean;
   saveTimer: NodeJS.Timeout | null;
+  /** Cadeia de gravações do documento: nunca há duas gravações simultâneas no mesmo arquivo. */
+  saveChain: Promise<void>;
 }
 
 export interface StoreEvents {
@@ -101,6 +107,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       history: new History(doc, { limit: 200 }),
       dirty: false,
       saveTimer: null,
+      saveChain: Promise.resolve(),
     };
     this.docs.set(d.id, d);
     this.selection.set(d.id, []);
@@ -130,10 +137,22 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
   }
 
   async create(p: string, name: string): Promise<OpenDocumentInfo & { doc: Document }> {
-    let abs = path.resolve(p);
-    if (!path.extname(abs)) abs += '.mockup.json';
+    const abs = normalizeDocumentPath(p);
     const doc = createDocument(name);
-    await this.writeFile(abs, serializeDocument(doc));
+    await fs.promises.mkdir(path.dirname(abs), { recursive: true });
+    let fh: fs.promises.FileHandle;
+    try {
+      fh = await fs.promises.open(abs, 'wx');
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'EEXIST')
+        throw new Error(`O arquivo já existe: ${abs}. Use open_document para abri-lo.`);
+      throw e;
+    }
+    try {
+      await fh.writeFile(serializeDocument(doc), 'utf8');
+    } finally {
+      await fh.close();
+    }
     return this.register(doc, abs);
   }
 
@@ -154,9 +173,25 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
 
   private async writeFile(file: string, content: string): Promise<void> {
     await fs.promises.mkdir(path.dirname(file), { recursive: true });
-    const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-    await fs.promises.writeFile(tmp, content, 'utf8');
-    await fs.promises.rename(tmp, file);
+    const rand = Math.random().toString(36).slice(2, 8);
+    const tmp = `${file}.${process.pid}.${Date.now()}.${tmpCounter++}.${rand}.tmp`;
+    try {
+      await fs.promises.writeFile(tmp, content, 'utf8');
+      const delays = [50, 100, 200];
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await fs.promises.rename(tmp, file);
+          break;
+        } catch (e) {
+          const code = (e as NodeJS.ErrnoException).code ?? '';
+          if (!RENAME_RETRY_CODES.has(code) || attempt >= delays.length) throw e;
+          await sleep(delays[attempt]!);
+        }
+      }
+    } catch (e) {
+      await fs.promises.rm(tmp, { force: true }).catch(() => undefined);
+      throw e;
+    }
   }
 
   async save(docId?: string): Promise<string> {
@@ -166,11 +201,18 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       clearTimeout(d.saveTimer);
       d.saveTimer = null;
     }
-    const revision = d.history.revision;
-    await this.writeFile(d.path, serializeDocument(d.history.doc));
-    if (d.history.revision === revision) d.dirty = false;
-    this.emit('doc:saved', { type: 'doc:saved', docId: d.id, path: d.path });
-    return d.path;
+    const file = d.path;
+    const run = async (): Promise<void> => {
+      // o snapshot é tomado quando chega a vez na fila, para gravar o estado mais recente
+      const revision = d.history.revision;
+      await this.writeFile(file, serializeDocument(d.history.doc));
+      if (d.history.revision === revision) d.dirty = false;
+      this.emit('doc:saved', { type: 'doc:saved', docId: d.id, path: file });
+    };
+    const next = d.saveChain.then(run, run);
+    d.saveChain = next.catch(() => undefined);
+    await next;
+    return file;
   }
 
   list(): OpenDocumentInfo[] {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
-import { startDaemon, type DaemonHandle } from './index.js';
+import { isAllowedOrigin, startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
 describe('WebSocket', () => {
@@ -71,6 +71,60 @@ describe('WebSocket', () => {
     sock.send(JSON.stringify({ type: 'doc:open', reqId: 'r2', path: '/nao/existe.mockup.json' }));
     const err = await waitFor((m) => m.type === 'error' && m.reqId === 'r2');
     expect(String(err.message)).toContain('arquivo');
+    sock.close();
+  });
+
+  it('isAllowedOrigin', () => {
+    for (const o of [
+      undefined,
+      'null',
+      'file:///C:/app/index.html',
+      'http://localhost:5173',
+      'https://127.0.0.1:9',
+      'http://[::1]:3000',
+    ])
+      expect(isAllowedOrigin(o), String(o)).toBe(true);
+    for (const o of ['http://evil.com', 'http://localhost.evil.com', 'ftp://localhost', 'lixo'])
+      expect(isAllowedOrigin(o), o).toBe(false);
+  });
+
+  it('rejeita Origin externo com 403 e aceita localhost', async () => {
+    const bad = new WebSocket(daemon.wsUrl, { headers: { Origin: 'http://evil.com' } });
+    const status = await new Promise<number>((resolve, reject) => {
+      bad.on('unexpected-response', (_req, res) => resolve(res.statusCode ?? 0));
+      bad.on('open', () => reject(new Error('não deveria conectar')));
+      bad.on('error', () => undefined);
+    });
+    expect(status).toBe(403);
+
+    const good = new WebSocket(daemon.wsUrl, { headers: { Origin: 'http://localhost:5173' } });
+    await new Promise<void>((resolve, reject) => {
+      good.on('open', () => resolve());
+      good.on('error', reject);
+    });
+    good.close();
+  });
+
+  it('op:apply inválido vira error e não altera o documento', async () => {
+    const { sock, waitFor } = connect();
+    const hello = await waitFor((m) => m.type === 'hello');
+    const docId = hello.activeDocId as string;
+    const rev = daemon.store.getRevision(docId);
+    sock.send(
+      JSON.stringify({
+        type: 'op:apply',
+        reqId: 'bad1',
+        docId,
+        ops: [{ type: 'createNode', parentId: ws.frameId, node: { id: 'x' } }],
+      }),
+    );
+    const err = await waitFor((m) => m.type === 'error' && m.reqId === 'bad1');
+    expect(String(err.message)).toContain('Operação inválida');
+    sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad2', docId, ops: 'x' }));
+    expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad2')).toBeTruthy();
+    sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad3', ops: [] }));
+    expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad3')).toBeTruthy();
+    expect(daemon.store.getRevision(docId)).toBe(rev);
     sock.close();
   });
 });

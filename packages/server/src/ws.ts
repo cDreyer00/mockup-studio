@@ -3,6 +3,20 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type { ClientMessage, HelloEvent, ServerMessage } from '@mockup/core';
 import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** Aceita Origin ausente (clientes não-navegador), `null`, `file://` e http(s) em host local (qualquer porta). */
+export function isAllowedOrigin(origin: string | undefined): boolean {
+  if (origin === undefined || origin === '' || origin === 'null') return true;
+  if (origin.toLowerCase().startsWith('file://')) return true;
+  try {
+    const u = new URL(origin);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && LOCAL_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export interface WsHandle {
   broadcast(msg: ServerMessage): void;
   close(): Promise<void>;
@@ -23,6 +37,10 @@ function buildHello(store: DocumentStore): HelloEvent {
 async function handleMessage(store: DocumentStore, msg: ClientMessage): Promise<unknown> {
   switch (msg.type) {
     case 'op:apply': {
+      if (typeof msg.docId !== 'string' || !msg.docId)
+        throw new Error('op:apply exige "docId" (string).');
+      if (!Array.isArray(msg.ops))
+        throw new Error('op:apply exige "ops" como um array de operações.');
       const r = store.applyOps(msg.docId, msg.ops, { source: 'editor' });
       return { revision: r.revision, results: r.results.map((x) => x ?? null) };
     }
@@ -56,7 +74,14 @@ export function attachWebSocket(
   store: DocumentStore,
   path = '/ws',
 ): WsHandle {
-  const wss = new WebSocketServer({ server: httpServer, path });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path,
+    verifyClient: (info, cb) => {
+      if (isAllowedOrigin(info.origin)) cb(true);
+      else cb(false, 403, 'Origin não permitido');
+    },
+  });
 
   const send = (ws: WebSocket, msg: ServerMessage): void => {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -86,14 +111,16 @@ export function attachWebSocket(
         return;
       }
       const reqId = (msg as { reqId?: string }).reqId;
-      handleMessage(store, msg).then(
-        (result) => {
-          if (reqId !== undefined) send(ws, { type: 'ack', reqId, result });
-        },
-        (e: unknown) => {
-          send(ws, { type: 'error', reqId, message: e instanceof Error ? e.message : String(e) });
-        },
-      );
+      Promise.resolve()
+        .then(() => handleMessage(store, msg))
+        .then(
+          (result) => {
+            if (reqId !== undefined) send(ws, { type: 'ack', reqId, result });
+          },
+          (e: unknown) => {
+            send(ws, { type: 'error', reqId, message: e instanceof Error ? e.message : String(e) });
+          },
+        );
     });
     ws.on('error', () => undefined);
   });

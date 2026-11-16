@@ -13,6 +13,8 @@ export interface DaemonOptions {
   openFiles?: string[];
   dataDir?: string;
   writeInfo?: boolean;
+  /** TTL de ociosidade das sessões MCP em ms (padrão 30 min). */
+  sessionTtlMs?: number;
 }
 
 export interface DaemonHandle {
@@ -22,6 +24,8 @@ export interface DaemonHandle {
   mcpUrl: string;
   wsUrl: string;
   store: DocumentStore;
+  /** Número de sessões MCP ativas. */
+  sessionCount(): number;
   close(): Promise<void>;
 }
 
@@ -35,9 +39,16 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   const startedAt = new Date().toISOString();
 
   const store = new DocumentStore({ dataDir });
-  const mcp = createMcpHandler(store);
   let actualPort = requestedPort;
-  const app = createApp(store, mcp, { getPort: () => actualPort, startedAt });
+  const mcp = createMcpHandler(store, {
+    getPort: () => actualPort,
+    sessionTtlMs: opts.sessionTtlMs,
+  });
+  const app = createApp(store, mcp, {
+    getPort: () => actualPort,
+    startedAt,
+    allowedHosts: [host],
+  });
   const server = http.createServer(app);
   const ws = attachWebSocket(server, store);
 
@@ -73,7 +84,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   }
 
   const info = { port: actualPort, pid: process.pid, startedAt, url, mcpUrl, wsUrl };
-  const cleanupInfo = (): void => removeDaemonInfo(dataDir);
+  const cleanupInfo = (): void => removeDaemonInfo(dataDir, process.pid);
   const onSignal = (): void => {
     void handle.close().finally(() => process.exit(0));
   };
@@ -92,6 +103,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     mcpUrl,
     wsUrl,
     store,
+    sessionCount: () => mcp.sessionCount(),
     close() {
       closing ??= (async () => {
         if (writeInfo) {
@@ -104,7 +116,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         server.closeAllConnections();
         await new Promise<void>((resolve) => server.close(() => resolve()));
         await store.closeAll();
-        if (writeInfo) removeDaemonInfo(dataDir);
+        if (writeInfo) removeDaemonInfo(dataDir, process.pid);
         log('encerrado');
       })();
       return closing;

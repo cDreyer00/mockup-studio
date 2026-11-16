@@ -13,6 +13,8 @@ export {
 } from './paths.js';
 export type { DaemonInfo } from './paths.js';
 export type { HealthInfo } from './http.js';
+export { isAllowedHost } from './http.js';
+export { isAllowedOrigin } from './ws.js';
 
 import type { HealthInfo } from './http.js';
 

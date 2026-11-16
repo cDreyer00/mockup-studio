@@ -28,16 +28,41 @@ class HttpError extends Error {
   }
 }
 
+const LOCAL_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+
+/** Valida o hostname do header Host (porta qualquer) contra os hosts locais e os extras configurados. */
+export function isAllowedHost(hostHeader: string | undefined, extra: string[] = []): boolean {
+  if (!hostHeader) return false;
+  let hostname: string;
+  try {
+    hostname = new URL(`http://${hostHeader}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (LOCAL_HOSTNAMES.has(hostname)) return true;
+  return extra.some((h) => {
+    const x = h.toLowerCase();
+    return x === hostname || x === `[${hostname}]` || `[${x}]` === hostname;
+  });
+}
+
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 export function createApp(
   store: DocumentStore,
   mcp: McpHandler,
-  ctx: { getPort?: () => number; startedAt?: string } = {},
+  ctx: { getPort?: () => number; startedAt?: string; allowedHosts?: string[] } = {},
 ): Express {
   const app = express();
   const startedAt = ctx.startedAt ?? new Date().toISOString();
 
+  app.use((req, res, next) => {
+    if (!isAllowedHost(req.headers.host, ctx.allowedHosts)) {
+      res.status(403).json({ error: 'Host não permitido' });
+      return;
+    }
+    next();
+  });
   app.use(
     cors({
       origin: (origin, cb) => cb(null, !origin || LOCAL_ORIGIN.test(origin)),
@@ -168,14 +193,18 @@ export function createApp(
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (res.headersSent) return;
-    const e = err as { status?: number; type?: string; message?: string };
-    const status =
-      err instanceof HttpError
-        ? err.status
-        : e.type === 'entity.parse.failed'
-          ? 400
-          : (e.status ?? 400);
-    res.status(status).json({ error: e.message ?? 'Erro desconhecido' });
+    const e = err as { status?: number; type?: string; message?: string; expose?: boolean };
+    let status: number | null = null;
+    if (err instanceof HttpError) status = err.status;
+    else if (typeof e?.type === 'string' && e.type.startsWith('entity.'))
+      status = e.status && e.status >= 400 && e.status < 500 ? e.status : 400;
+    else if (e?.expose === true && e.status && e.status >= 400 && e.status < 500) status = e.status;
+    if (status === null) {
+      console.error('[mockup-daemon] erro interno:', e?.message ?? err);
+      res.status(500).json({ error: 'Erro interno' });
+      return;
+    }
+    res.status(status).json({ error: e.message ?? 'Requisição inválida' });
   });
 
   return app;

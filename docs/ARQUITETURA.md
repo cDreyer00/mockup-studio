@@ -141,6 +141,8 @@ Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os i
 
 Endpoint `ws://127.0.0.1:4747/ws`. Mensagens JSON, uma por frame. Tipos em `packages/core/src/protocol.ts`. Ao conectar, o servidor envia `hello`.
 
+O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (clientes não-navegador), `null`, `file://` e `http(s)` em `localhost`, `127.0.0.1` ou `[::1]` (qualquer porta). O resto recebe 403. Em `op:apply`, `docId` (string) e `ops` (array) são exigidos; cada op é validada pelo core e qualquer exceção vira `error` com o `reqId`.
+
 ### Servidor para cliente
 
 | `type`              | Campos                                                                                                     | Descrição                                             |
@@ -175,6 +177,8 @@ Toda requisição tem `reqId` (string) e é respondida com `ack` ou `error`.
 
 Base `http://127.0.0.1:4747`.
 
+O header `Host` é validado antes de qualquer rota (`isAllowedHost`, proteção contra DNS rebinding): o hostname deve ser `127.0.0.1`, `localhost`, `::1` ou o `host` configurado no daemon, com qualquer porta. Caso contrário, 403 `{ error: 'Host não permitido' }`. Erros: `HttpError` e erros 4xx do body-parser mantêm o status; qualquer outro vira 500 `{ error: 'Erro interno' }` (detalhe só no log).
+
 | Rota                   | Descrição                                                        |
 | ---------------------- | ---------------------------------------------------------------- |
 | `GET /api/health`      | Estado do daemon; usado pelo CLI para confirmar o `daemon.json`. |
@@ -192,6 +196,9 @@ Base `http://127.0.0.1:4747`.
 
 - Transporte: Streamable HTTP em `http://127.0.0.1:4747/mcp`, com `@modelcontextprotocol/sdk` 1.x.
 - Sessões: o servidor atribui um id de sessão na inicialização; o cliente o envia no header `mcp-session-id` nas requisições seguintes.
+- Proteção: o transporte usa `enableDnsRebindingProtection` com `allowedHosts` `127.0.0.1:<porta>`, `localhost:<porta>` e `[::1]:<porta>` (o SDK compara o header `Host` inteiro, com porta). Host externo recebe 403.
+- Ciclo de vida: `mcp-session-id` desconhecido responde 404 (`-32001`, `Sessão não encontrada`) para o cliente reinicializar; requisição sem sessão que não seja `initialize` responde 400. `DELETE /mcp` encerra a sessão.
+- TTL: sessão ociosa por mais de 30 min (`sessionTtlMs`) é fechada por uma varredura periódica; cada requisição renova o `lastSeen`.
 - `mockup mcp` expõe o mesmo servidor por stdio, fazendo proxy para o endpoint HTTP.
 - Ferramentas, convenções e guias em [MCP.md](MCP.md).
 
@@ -204,6 +211,14 @@ Base `http://127.0.0.1:4747`.
 | `config.json` | `{ port? }`                                                                                  |
 | `recent.json` | Caminhos de documentos recentes.                                                             |
 | `daemon.json` | `{ port, pid, startedAt, url, mcpUrl, wsUrl }`. Escrito ao subir o daemon, removido ao sair. |
+
+`daemon.json` só é removido pelo próprio pid (`removeDaemonInfo(dir, process.pid)`): um daemon antigo que encerra não apaga o arquivo de um mais novo.
+
+### Gravação
+
+- `create` usa `normalizeDocumentPath` (`.json` vira `.mockup.json`) e abre com flag `wx`: nunca sobrescreve (erro `O arquivo já existe`).
+- Cada documento tem uma fila de saves (`saveChain`): nunca há duas gravações simultâneas no mesmo arquivo. `dirty` só volta a `false` se a revisão gravada ainda for a atual.
+- Gravação em temporário único (`<arquivo>.<pid>.<ts>.<contador>.<aleatório>.tmp`) seguido de `rename`, com 3 tentativas (50, 100 e 200 ms) em `EPERM`/`EBUSY`/`EACCES`. Em erro, o temporário é removido.
 
 A porta padrão é 4747. Pode ser definida com `--port` ou `MOCKUP_PORT` (e `port` em `config.json`).
 
