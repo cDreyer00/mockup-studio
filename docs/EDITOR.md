@@ -18,7 +18,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 
 ## Layout
 
-- **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
+- **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
 - **Painel esquerdo**: páginas (criar, renomear com duplo clique, excluir pelo menu de contexto, trocar) e a árvore de camadas da página ativa.
 - **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
 - **Painel direito**: propriedades da seleção (ou dados do documento e tokens quando nada está selecionado).
@@ -78,7 +78,7 @@ Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), seta
 | Ctrl+A                              | Seleciona irmãos (ou todos os frames)         |
 | Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y     | Desfazer / refazer                            |
 | Ctrl+C / Ctrl+X / Ctrl+V            | Copiar / recortar / colar                     |
-| Ctrl+S                              | Salvar                                        |
+| Ctrl+S / Ctrl+Shift+S               | Salvar / Salvar como                          |
 | + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: aproximar, afastar, 100%, tudo, seleção |
 
 Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo ou na edição inline (exceto Ctrl+S).
@@ -102,8 +102,17 @@ Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo
 | `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                |
 | `layers/`                              | Páginas e árvore de camadas.                                                                                                                  |
 | `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                     |
+| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                             |
 | `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                          |
 | `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                  |
+
+## Salvar como, fontes embutidas e app desktop
+
+- **Salvar como…** (Arquivo, Ctrl+Shift+S) envia `doc:saveAs`: o daemon grava no novo caminho (sobrescreve), copia `assets/` para ao lado do novo arquivo sem sobrescrever o que já existe, e passa a apontar o documento para ele (`doc:saved` com o caminho novo). Recusa um caminho que já é de OUTRO documento aberto. No navegador o caminho é digitado; no desktop abre o diálogo nativo.
+- **Fontes embutidas**: o canvas injeta um `<style>` com os `@font-face` de `doc.fonts` (`fontFaceCss` do core, arquivos em `/assets/<docId>/...`), então fontes de `add_font` aparecem como na exportação. As famílias do documento aparecem no seletor de fonte.
+- **Indicador "IA"**: o evento `agent:finished` do servidor apaga o selo dos frames dos nós informados (ou de todos, se a lista vier vazia).
+- **Ponte desktop** (`desktop/bridge.ts`): com `window.mockupDesktop` (preload do Electron), Novo/Abrir/Salvar como usam os diálogos nativos, o menu nativo aciona os mesmos fluxos (`onMenu`; undo/redo vão para o campo focado quando editável) e o editor informa nome/caminho/não salvo à janela (`setDocumentState`).
+- **Página de render** (`render.html`, `src/render/`): gerada junto com o editor em `dist/render.html` e servida em `/render.html`. Não conecta ao WebSocket. `window.__mockupRenderReady` fica `true` ao montar; `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renderiza só o frame raiz que contém o nó, em (0,0), com o mesmo `NodeView` do canvas (sem sombra, rótulo ou badge), espera fontes, imagens e 2 frames, e devolve `RenderBox`; `measure(nodeId)` devolve a `LayoutNode` medida do último render. Fundo: `transparent: true` deixa html/body transparentes (e usa `color-scheme: normal`; o processo principal deve usar fundo transparente na janela), senão usa o `background` da página do frame.
 
 Prévias de arrasto e redimensionamento (`ui.setPreview`) são transitórias: só ao soltar o editor envia as ops, numa única chamada (= uma entrada de undo).
 
