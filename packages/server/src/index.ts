@@ -3,6 +3,8 @@ export type { DaemonHandle, DaemonOptions } from './daemon.js';
 export { DocumentStore } from './store.js';
 export {
   DEFAULT_PORT,
+  DOCUMENT_EXT,
+  normalizeDocumentPath,
   getDataDir,
   readDaemonInfo,
   removeDaemonInfo,

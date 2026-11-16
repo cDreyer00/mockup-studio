@@ -4,10 +4,13 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 
+export const SERVER_NAME = 'mockup-studio';
 export const SERVER_VERSION = '0.1.0';
 
 export interface HealthInfo {
   ok: boolean;
+  /** Identifica o serviço (sempre `mockup-studio`); o CLI confere antes de reutilizar a porta. */
+  name: string;
   pid: number;
   port: number;
   startedAt: string;
@@ -62,6 +65,7 @@ export function createApp(
     wrap((_req, res) => {
       const body: HealthInfo = {
         ok: true,
+        name: SERVER_NAME,
         pid: process.pid,
         port: ctx.getPort?.() ?? 0,
         startedAt,

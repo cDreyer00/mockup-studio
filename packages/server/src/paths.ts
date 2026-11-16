@@ -4,6 +4,19 @@ import path from 'node:path';
 
 export const DEFAULT_PORT = 4747;
 
+export const DOCUMENT_EXT = '.mockup.json';
+
+/**
+ * Normaliza o caminho de um documento para terminar em `.mockup.json`:
+ * `foo.mockup.json` mantém; `foo.json` vira `foo.mockup.json`; `foo` vira `foo.mockup.json`.
+ */
+export function normalizeDocumentPath(p: string): string {
+  const abs = path.resolve(p);
+  if (abs.toLowerCase().endsWith(DOCUMENT_EXT)) return abs;
+  if (abs.toLowerCase().endsWith('.json')) return abs.slice(0, -'.json'.length) + DOCUMENT_EXT;
+  return abs + DOCUMENT_EXT;
+}
+
 export interface DaemonInfo {
   port: number;
   pid: number;
