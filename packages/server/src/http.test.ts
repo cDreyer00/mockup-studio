@@ -60,6 +60,32 @@ describe('HTTP', () => {
     expect(((await r.json()) as { error: string }).error).toContain('path');
   });
 
+  it('/api/open com arquivo inexistente dá 404 e /api/new repetido dá 409 com mensagem', async () => {
+    const missing = await fetch(`${daemon.url}/api/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: path.join(ws.dir, 'nao-existe.mockup.json') }),
+    });
+    expect(missing.status).toBe(404);
+    expect(((await missing.json()) as { error: string }).error).toContain('nao-existe');
+
+    const file = path.join(ws.dir, 'novo.mockup.json');
+    const body = JSON.stringify({ path: file, name: 'Novo' });
+    const first = await fetch(`${daemon.url}/api/new`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+    expect(first.status).toBe(200);
+    const again = await fetch(`${daemon.url}/api/new`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { error: string }).error).toContain('já existe');
+  });
+
   it('CORS aceita localhost e bloqueia outras origens', async () => {
     const ok = await fetch(`${daemon.url}/api/health`, {
       headers: { Origin: 'http://localhost:5173' },

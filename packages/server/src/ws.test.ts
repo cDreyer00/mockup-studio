@@ -77,14 +77,20 @@ describe('WebSocket', () => {
   it('isAllowedOrigin', () => {
     for (const o of [
       undefined,
-      'null',
       'file:///C:/app/index.html',
       'http://localhost:5173',
       'https://127.0.0.1:9',
       'http://[::1]:3000',
     ])
       expect(isAllowedOrigin(o), String(o)).toBe(true);
-    for (const o of ['http://evil.com', 'http://localhost.evil.com', 'ftp://localhost', 'lixo'])
+    for (const o of [
+      'null',
+      'http://evil.com',
+      'http://localhost.evil.com',
+      'http://127.0.0.1.nip.io',
+      'ftp://localhost',
+      'lixo',
+    ])
       expect(isAllowedOrigin(o), o).toBe(false);
   });
 

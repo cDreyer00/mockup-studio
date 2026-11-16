@@ -1,6 +1,6 @@
 export { startDaemon } from './daemon.js';
 export type { DaemonHandle, DaemonOptions } from './daemon.js';
-export { DocumentStore } from './store.js';
+export { DocumentStore, StoreError } from './store.js';
 export {
   DEFAULT_PORT,
   DOCUMENT_EXT,

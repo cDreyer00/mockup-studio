@@ -66,6 +66,21 @@ export interface ApplyOutcome {
 
 export const AUTOSAVE_MS = 800;
 
+/**
+ * Erro causado pelo pedido do usuário (arquivo inexistente, já existe, documento desconhecido).
+ * `expose` e `status` permitem que a camada HTTP devolva 4xx com a mensagem em vez de 500.
+ */
+export class StoreError extends Error {
+  readonly expose = true;
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'StoreError';
+  }
+}
+
 export class DocumentStore extends EventEmitter<StoreEvents> {
   private docs = new Map<string, OpenDoc>();
   private selection = new Map<string, string[]>();
@@ -88,7 +103,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
   private entry(docId: string): OpenDoc {
     const d = this.docs.get(docId);
     if (!d)
-      throw new Error(
+      throw new StoreError(
+        404,
         `Documento não encontrado: ${docId}. Use list_documents para ver os abertos.`,
       );
     return d;
@@ -96,7 +112,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
 
   private register(doc: Document, filePath: string | null): OpenDocumentInfo & { doc: Document } {
     if (this.docs.has(doc.id)) {
-      throw new Error(
+      throw new StoreError(
+        409,
         `Já existe outro documento aberto com o id ${doc.id}. Feche-o antes de abrir esta cópia.`,
       );
     }
@@ -130,7 +147,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     try {
       raw = await fs.promises.readFile(abs, 'utf8');
     } catch {
-      throw new Error(`Não foi possível ler o arquivo: ${abs}`);
+      throw new StoreError(404, `Não foi possível ler o arquivo: ${abs}`);
     }
     const doc = parseDocument(raw);
     return this.register(doc, abs);
@@ -145,7 +162,10 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       fh = await fs.promises.open(abs, 'wx');
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'EEXIST')
-        throw new Error(`O arquivo já existe: ${abs}. Use open_document para abri-lo.`);
+        throw new StoreError(
+          409,
+          `O arquivo já existe: ${abs}. Abra-o em vez de criar (open_document ou \`mockup open\`).`,
+        );
       throw e;
     }
     try {
@@ -196,7 +216,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
 
   async save(docId?: string): Promise<string> {
     const d = this.entry(this.resolveDocId(docId));
-    if (!d.path) throw new Error('Documento sem caminho em disco; não é possível salvar.');
+    if (!d.path)
+      throw new StoreError(400, 'Documento sem caminho em disco; não é possível salvar.');
     if (d.saveTimer) {
       clearTimeout(d.saveTimer);
       d.saveTimer = null;
@@ -244,7 +265,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       return docId;
     }
     if (this.activeDocId && this.docs.has(this.activeDocId)) return this.activeDocId;
-    throw new Error(
+    throw new StoreError(
+      400,
       'Nenhum documento aberto. Use open_document(path) ou create_document(path, name).',
     );
   }
