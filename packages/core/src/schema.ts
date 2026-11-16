@@ -72,6 +72,7 @@ export const FontRefSchema: z.ZodType<FontRef, unknown> = z.object({
   source: z.enum(['local', 'file', 'google']).optional(),
   files: z.array(z.string()).optional(),
   weights: z.array(z.number()).optional(),
+  styles: z.array(z.string()).optional(),
 });
 
 export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
@@ -166,6 +167,7 @@ export function serializeDocument(doc: Document): string {
       if (f.source !== undefined) o.source = f.source;
       if (f.files !== undefined) o.files = f.files;
       if (f.weights !== undefined) o.weights = f.weights;
+      if (f.styles !== undefined) o.styles = f.styles;
       return o;
     }),
     meta: { createdAt, updatedAt, ...restMeta },

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import type { RenderProvider } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
@@ -20,6 +21,8 @@ export interface HealthInfo {
   version: string;
   docs: number;
   activeDocId: string | null;
+  /** `true` quando o daemon tem motor de render (app desktop / Electron headless). */
+  render: boolean;
 }
 
 class HttpError extends Error {
@@ -93,6 +96,9 @@ export function createApp(
     allowedHosts?: string[];
     dataDir?: string;
     maxAssetBytes?: number;
+    render?: RenderProvider;
+    /** Build do editor servido em `/` (SPA). */
+    editorDir?: string;
   } = {},
 ): Express {
   const app = express();
@@ -194,6 +200,7 @@ export function createApp(
         version: SERVER_VERSION,
         docs: store.list().length,
         activeDocId: store.activeDocId,
+        render: !!ctx.render,
       };
       res.json(body);
     }),
@@ -294,6 +301,18 @@ export function createApp(
     }
     void mcp.handleMcpRequest(req, res);
   });
+
+  // Editor estático (app desktop e `mockup serve`): mesma origem que /api, /assets e /ws.
+  if (ctx.editorDir && fs.existsSync(path.join(ctx.editorDir, 'index.html'))) {
+    const editorDir = path.resolve(ctx.editorDir);
+    app.use(express.static(editorDir, { index: 'index.html', fallthrough: true }));
+    // Fallback de SPA: GET sem extensão fora das rotas do daemon devolve o index.html.
+    const reserved = /^\/(api|assets|mcp|ws|render)(\/|$)/i;
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || reserved.test(req.path) || path.extname(req.path)) return next();
+      res.sendFile(path.join(editorDir, 'index.html'));
+    });
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Rota não encontrada' });

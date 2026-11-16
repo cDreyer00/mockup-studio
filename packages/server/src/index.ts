@@ -15,6 +15,15 @@ export type { DaemonInfo } from './paths.js';
 export type { HealthInfo } from './http.js';
 export { isAllowedHost } from './http.js';
 export { isAllowedOrigin } from './ws.js';
+export { RENDER_UNAVAILABLE } from './render.js';
+export type {
+  CaptureRequest,
+  CaptureResult,
+  RenderFormat,
+  RenderProvider,
+  RenderScale,
+  RenderTarget,
+} from './render.js';
 
 import type { HealthInfo } from './http.js';
 

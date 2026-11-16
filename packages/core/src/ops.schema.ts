@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Op } from './ops.js';
-import { NodeSchema, TokensSchema } from './schema.js';
+import { FontRefSchema, NodeSchema, TokensSchema } from './schema.js';
 
 const strMap = z.record(z.string(), z.string());
 const id = z.string().min(1);
@@ -89,6 +89,11 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
     type: z.literal('setTag'),
     changes: z.array(z.object({ nodeId: id, tag: z.string() })),
   }),
+  z.object({ type: z.literal('setFonts'), fonts: z.array(FontRefSchema) }),
+  z.object({
+    type: z.literal('setSrc'),
+    changes: z.array(z.object({ nodeId: id, src: z.string().min(1) })),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -109,6 +114,8 @@ const OP_TYPES = [
   'setTokens',
   'setNodeFlags',
   'setTag',
+  'setFonts',
+  'setSrc',
 ];
 
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */

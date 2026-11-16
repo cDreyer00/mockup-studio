@@ -50,6 +50,7 @@ export interface StoreEvents {
     { type: 'selection:changed'; docId: string; nodeIds: string[]; source: OpSource },
   ];
   'active:changed': [{ type: 'active:changed'; docId: string | null }];
+  'agent:finished': [{ type: 'agent:finished'; docId: string; nodeIds: string[] }];
 }
 
 export const STORE_EVENT_NAMES = [
@@ -59,6 +60,7 @@ export const STORE_EVENT_NAMES = [
   'doc:closed',
   'selection:changed',
   'active:changed',
+  'agent:finished',
 ] as const;
 
 export interface ApplyOutcome {
@@ -370,6 +372,12 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       nodeIds: [...nodeIds],
       source,
     });
+  }
+
+  /** O agente terminou de editar estes nós (vazio = documento inteiro); o editor apaga o badge. */
+  finishWorking(docId: string, nodeIds: string[]): void {
+    this.entry(docId);
+    this.emit('agent:finished', { type: 'agent:finished', docId, nodeIds: [...nodeIds] });
   }
 
   getRevision(docId: string): number {

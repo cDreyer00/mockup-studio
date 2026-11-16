@@ -2,7 +2,7 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { Document, Node, Position } from './types.js';
+import type { Document, FontRef, Node, Position } from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -117,6 +117,18 @@ export interface SetTagOp {
   changes: { nodeId: string; tag: string }[];
 }
 
+/** Substitui a lista de fontes do documento (usada por `add_font`). */
+export interface SetFontsOp {
+  type: 'setFonts';
+  fonts: FontRef[];
+}
+
+/** Troca o `src` de nós image (caminho relativo a `assets/` ou data URL). */
+export interface SetSrcOp {
+  type: 'setSrc';
+  changes: { nodeId: string; src: string }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -132,7 +144,9 @@ export type Op =
   | RenamePageOp
   | SetTokensOp
   | SetNodeFlagsOp
-  | SetTagOp;
+  | SetTagOp
+  | SetFontsOp
+  | SetSrcOp;
 
 export type OpType = Op['type'];
 

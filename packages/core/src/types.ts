@@ -51,8 +51,12 @@ export interface Page {
 export interface FontRef {
   family: string;
   source?: 'local' | 'file' | 'google';
+  /** Arquivos de fonte relativos a `assets/` (ex.: `fonts/inter-400.woff2`). */
   files?: string[];
+  /** Peso de cada arquivo (paralelo a `files`) ou o intervalo coberto. */
   weights?: number[];
+  /** Estilo de cada arquivo (`normal` | `italic`), paralelo a `files`. */
+  styles?: string[];
 }
 
 export interface DocumentMeta {

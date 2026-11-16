@@ -431,6 +431,31 @@ function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Appli
   return { inverse: [{ type: 'setTokens', set: prevSet, unset: prevUnset }] };
 }
 
+function doSetFonts(d: Document, op: Extract<Op, { type: 'setFonts' }>): Applied {
+  const seen = new Set<string>();
+  for (const f of op.fonts) {
+    const key = f.family.trim().toLowerCase();
+    if (!key) fail('Fonte sem nome de família');
+    if (seen.has(key)) fail(`Fonte duplicada: "${f.family}"`);
+    seen.add(key);
+  }
+  const prev = deepClone(d.fonts);
+  d.fonts = deepClone(op.fonts);
+  return { inverse: [{ type: 'setFonts', fonts: prev }] };
+}
+
+function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
+  const prev: { nodeId: string; src: string }[] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    if (p.node.type !== 'image') fail(`O nó "${c.nodeId}" não é uma imagem`);
+    prev.push({ nodeId: c.nodeId, src: p.node.src ?? '' });
+    p.node.src = c.src;
+  }
+  return { inverse: [{ type: 'setSrc', changes: prev.reverse() }] };
+}
+
 /* ---------------- API pública ---------------- */
 
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
@@ -483,6 +508,12 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setTag':
       applied = doSetTag(d, op);
+      break;
+    case 'setFonts':
+      applied = doSetFonts(d, op);
+      break;
+    case 'setSrc':
+      applied = doSetSrc(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

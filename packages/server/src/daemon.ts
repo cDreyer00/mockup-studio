@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from './http.js';
 import { createMcpHandler } from './mcp/session.js';
 import { getDataDir, removeDaemonInfo, resolvePort, writeDaemonInfo } from './paths.js';
+import type { RenderProvider } from './render.js';
 import { DocumentStore } from './store.js';
 import { attachWebSocket } from './ws.js';
 
@@ -15,6 +16,10 @@ export interface DaemonOptions {
   writeInfo?: boolean;
   /** TTL de ociosidade das sessões MCP em ms (padrão 30 min). */
   sessionTtlMs?: number;
+  /** Motor de render (injetado pelo app desktop). Sem ele, screenshot/layout ficam indisponíveis. */
+  render?: RenderProvider;
+  /** Pasta com o build do editor (`packages/editor/dist`), servida em `/` pelo daemon. */
+  editorDir?: string;
 }
 
 export interface DaemonHandle {
@@ -24,6 +29,8 @@ export interface DaemonHandle {
   mcpUrl: string;
   wsUrl: string;
   store: DocumentStore;
+  /** Motor de render injetado (ou `undefined`). */
+  render?: RenderProvider;
   /** Número de sessões MCP ativas. */
   sessionCount(): number;
   close(): Promise<void>;
@@ -43,12 +50,16 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   const mcp = createMcpHandler(store, {
     getPort: () => actualPort,
     sessionTtlMs: opts.sessionTtlMs,
+    render: opts.render,
+    dataDir,
   });
   const app = createApp(store, mcp, {
     getPort: () => actualPort,
     startedAt,
     allowedHosts: [host],
     dataDir,
+    render: opts.render,
+    editorDir: opts.editorDir,
   });
   const server = http.createServer(app);
   const ws = attachWebSocket(server, store);
@@ -104,6 +115,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     mcpUrl,
     wsUrl,
     store,
+    render: opts.render,
     sessionCount: () => mcp.sessionCount(),
     close() {
       closing ??= (async () => {
@@ -117,6 +129,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         server.closeAllConnections();
         await new Promise<void>((resolve) => server.close(() => resolve()));
         await store.closeAll();
+        await opts.render?.close?.().catch(() => undefined);
         if (writeInfo) removeDaemonInfo(dataDir, process.pid);
         log('encerrado');
       })();

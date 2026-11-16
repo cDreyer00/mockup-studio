@@ -14,6 +14,7 @@ import {
   type Node,
   type Op,
 } from '@mockup/core';
+import type { RenderProvider } from '../render.js';
 import type { DocumentStore } from '../store.js';
 import { GUIDES, GUIDE_TOPICS, type GuideTopic } from './guides.js';
 
@@ -39,7 +40,13 @@ function pxOf(v: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function createMcpServer(store: DocumentStore): McpServer {
+export interface McpServerOptions {
+  /** Motor de render (Electron). Ausente: ferramentas de screenshot informam que não há render. */
+  render?: RenderProvider;
+  dataDir?: string;
+}
+
+export function createMcpServer(store: DocumentStore, _opts: McpServerOptions = {}): McpServer {
   const server = new McpServer({ name: 'mockup-studio', version: '0.1.0' });
 
   /* ---------- helpers ---------- */

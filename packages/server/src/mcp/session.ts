@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { RenderProvider } from '../render.js';
 import type { DocumentStore } from '../store.js';
 import { createMcpServer } from './server.js';
 
@@ -23,6 +24,10 @@ export interface McpHandlerOptions {
   getPort?: () => number;
   /** Tempo de ociosidade, em ms, após o qual uma sessão é encerrada. Padrão: 30 min. */
   sessionTtlMs?: number;
+  /** Motor de render (screenshot, layout, SVG medido). */
+  render?: RenderProvider;
+  /** Pasta de dados do daemon. */
+  dataDir?: string;
 }
 
 export const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000;
@@ -66,7 +71,7 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
           return;
         }
         if (req.method === 'POST' && isInitializeRequest(req.body)) {
-          const server = createMcpServer(store);
+          const server = createMcpServer(store, { render: opts.render, dataDir: opts.dataDir });
           const port = opts.getPort?.();
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),

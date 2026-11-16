@@ -70,6 +70,13 @@ export interface ActiveChangedEvent {
   type: 'active:changed';
   docId: string | null;
 }
+/** O agente terminou de mexer nos nós (`finish_working`): o editor apaga o indicador "IA" dos frames. */
+export interface AgentFinishedEvent {
+  type: 'agent:finished';
+  docId: string;
+  /** Nós informados pelo agente; vazio = todos os frames do documento. */
+  nodeIds: string[];
+}
 export interface AckMessage {
   type: 'ack';
   reqId: string;
@@ -89,6 +96,7 @@ export type ServerMessage =
   | DocClosedEvent
   | SelectionChangedEvent
   | ActiveChangedEvent
+  | AgentFinishedEvent
   | AckMessage
   | ErrorMessage;
 
@@ -145,6 +153,14 @@ export interface DocCloseRequest {
   docId: string;
 }
 
+/** Salva o documento em outro caminho (sobrescreve; o diálogo nativo já confirmou) e copia `assets/`. */
+export interface DocSaveAsRequest {
+  type: 'doc:saveAs';
+  reqId: string;
+  docId?: string;
+  path: string;
+}
+
 export type ClientMessage =
   | OpApplyRequest
   | SelectionSetRequest
@@ -154,4 +170,5 @@ export type ClientMessage =
   | RedoRequest
   | ActiveSetRequest
   | DocNewRequest
-  | DocCloseRequest;
+  | DocCloseRequest
+  | DocSaveAsRequest;
