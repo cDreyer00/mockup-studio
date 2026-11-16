@@ -8,7 +8,6 @@ import {
   getTreeSummary,
   htmlToNodes,
   newPageId,
-  normalizeStyles,
   nodesToHtml,
   summarizeNode,
   type Document,
@@ -67,6 +66,15 @@ export function createMcpServer(store: DocumentStore): McpServer {
     if (!p) {
       throw new ToolError(
         `Nó não encontrado: "${id}". Use get_tree_summary para listar ids válidos (ex.: "fr_ab12cd34").`,
+      );
+    }
+    return p;
+  };
+  const requirePage = (doc: Document, pageId: string) => {
+    const p = doc.pages.find((x) => x.id === pageId);
+    if (!p) {
+      throw new ToolError(
+        `Página não encontrada: "${pageId}". Use get_basic_info para ver as páginas.`,
       );
     }
     return p;
@@ -454,22 +462,9 @@ export function createMcpServer(store: DocumentStore): McpServer {
     ({ name, width, height, pageId, x, y, styles, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
-      const ops: Op[] = [];
-      let page = pageId ? doc.pages.find((p) => p.id === pageId) : doc.pages[0];
-      let targetPageId: string;
-      if (pageId && !page) {
-        throw new ToolError(
-          `Página não encontrada: "${pageId}". Use get_basic_info para ver as páginas.`,
-        );
-      }
-      if (!page) {
-        targetPageId = newPageId();
-        ops.push({ type: 'createPage', pageId: targetPageId, name: 'Página 1' });
-      } else {
-        targetPageId = page.id;
-      }
-      page = page ?? undefined;
-      const last = page?.frames[page.frames.length - 1];
+      const page = pageId ? requirePage(doc, pageId) : doc.pages[0]!;
+      const targetPageId = page.id;
+      const last = page.frames[page.frames.length - 1];
       const px = x ?? (last ? (last.position?.x ?? 0) + pxOf(last.style['width']) + 100 : 0);
       const py = y ?? (last ? (last.position?.y ?? 0) : 0);
       const frame = createNodeFromTag('div', {
@@ -483,8 +478,11 @@ export function createMcpServer(store: DocumentStore): McpServer {
         },
         position: { x: px, y: py },
       });
-      ops.push({ type: 'createNode', parentId: null, pageId: targetPageId, node: frame });
-      const r = apply(id, ops, 'create_frame');
+      const r = apply(
+        id,
+        [{ type: 'createNode', parentId: null, pageId: targetPageId, node: frame }],
+        'create_frame',
+      );
       return `Frame criado: ${frame.id} "${name}" ${width}x${height} em ${px},${py}.\n${summaryOf(r.doc, [frame.id])}`;
     },
   );
@@ -495,7 +493,7 @@ export function createMcpServer(store: DocumentStore): McpServer {
       title: 'Escrever HTML',
       description:
         'Cria nós a partir de HTML + CSS. Ex.: html "<section class=\\"hero\\"><h1>Olá</h1></section>", css ".hero{display:flex;gap:16px}". ' +
-        'mode: append (padrão, ao final dos filhos), replace-children (troca os filhos do pai), replace (troca o próprio nó). ' +
+        'mode: append (padrão, ao final dos filhos), replace-children (troca os filhos do pai), replace (troca o próprio nó; em frame raiz exige um único elemento de topo, que vira o frame). ' +
         'Sem parentId usa o nó selecionado ou o primeiro frame.',
       inputSchema: {
         html: z.string().describe('Marcação HTML a inserir.'),
@@ -528,6 +526,22 @@ export function createMcpServer(store: DocumentStore): McpServer {
       let summaryParent = targetId;
       if (m === 'replace') {
         const parent = target.parent;
+        if (!parent) {
+          if (nodes.length !== 1) {
+            throw new ToolError(
+              'mode "replace" em frame raiz exige um único elemento de topo; envolva o conteúdo em um <div> ou use mode "replace-children".',
+            );
+          }
+          const nn = nodes[0]!;
+          const old = target.node;
+          nn.type = 'frame';
+          if (old.position) nn.position = { ...old.position };
+          for (const k of ['width', 'height'] as const) {
+            if (!nn.style[k] && old.style[k]) nn.style[k] = old.style[k]!;
+          }
+          const generic = nn.tag.charAt(0).toUpperCase() + nn.tag.slice(1);
+          if (nn.name === generic) nn.name = old.name;
+        }
         ops.push({ type: 'deleteNodes', nodeIds: [targetId] });
         nodes.forEach((node, i) => {
           ops.push(
@@ -594,7 +608,9 @@ export function createMcpServer(store: DocumentStore): McpServer {
         'Altera estilos CSS de vários nós. Ex.: nodeIds ["el_x"], styles { "gap": "24px" }, unset ["margin"].',
       inputSchema: {
         nodeIds: nodeIdsField,
-        styles: stylesField.optional(),
+        styles: stylesField
+          .optional()
+          .describe('Propriedades CSS a definir; valor "" remove a propriedade.'),
         unset: z.array(z.string()).optional().describe('Propriedades a remover, ex.: ["margin"].'),
         docId: docIdField,
       },
@@ -612,7 +628,7 @@ export function createMcpServer(store: DocumentStore): McpServer {
           {
             type: 'updateStyles',
             nodeIds,
-            styles: styles ? normalizeStyles(styles) : undefined,
+            styles,
             unset,
           },
         ],
@@ -732,10 +748,18 @@ export function createMcpServer(store: DocumentStore): McpServer {
     {
       title: 'Mover nós',
       description:
-        'Move nós para outro pai e/ou índice. Sem parentId, apenas reordena no pai atual. Ex.: nodeIds ["el_a"], parentId "el_b", index 0.',
+        'Move nós para outro pai e/ou índice. Sem parentId, apenas reordena no pai atual. parentId null move para a raiz da página (vira frame). Ex.: nodeIds ["el_a"], parentId "el_b", index 0.',
       inputSchema: {
         nodeIds: nodeIdsField,
-        parentId: z.string().optional().describe('Novo pai (padrão: mantém o atual).'),
+        parentId: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Novo pai (padrão: mantém o atual). null = raiz da página (vira frame).'),
+        pageId: z
+          .string()
+          .optional()
+          .describe('Página de destino quando parentId é null (padrão: página do primeiro nó).'),
         index: z
           .number()
           .int()
@@ -746,10 +770,28 @@ export function createMcpServer(store: DocumentStore): McpServer {
       },
       annotations: WRITE,
     },
-    ({ nodeIds, parentId, index, docId }) => {
+    ({ nodeIds, parentId, pageId, index, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
-      requireNodes(doc, nodeIds);
+      const paths = requireNodes(doc, nodeIds);
+      if (parentId === null) {
+        const page = requirePage(doc, pageId ?? paths[0]!.page.id);
+        const ops: Op[] = [{ type: 'moveNodes', nodeIds, parentId: null, pageId: page.id, index }];
+        const moving = new Set(nodeIds);
+        const others = page.frames.filter((f) => !moving.has(f.id));
+        const last = others[others.length - 1];
+        let nextX = last ? (last.position?.x ?? 0) + pxOf(last.style['width']) + 100 : 0;
+        const y = last?.position?.y ?? 0;
+        const changes: { nodeId: string; position: { x: number; y: number } }[] = [];
+        for (const p of paths) {
+          if (p.node.position) continue;
+          changes.push({ nodeId: p.node.id, position: { x: nextX, y } });
+          nextX += pxOf(p.node.style['width']) + 100;
+        }
+        if (changes.length) ops.push({ type: 'setPosition', changes });
+        const r = apply(id, ops, 'move_nodes');
+        return `${nodeIds.length} nó(s) movido(s) para a raiz da página ${page.id}.\n${summaryOf(r.doc, nodeIds)}`;
+      }
       if (parentId) requireNode(doc, parentId);
       const r = apply(id, [{ type: 'moveNodes', nodeIds, parentId, index }], 'move_nodes');
       const target = parentId ? [parentId] : fallbackFor(doc, nodeIds);
@@ -842,6 +884,75 @@ export function createMcpServer(store: DocumentStore): McpServer {
       const pageId = newPageId();
       const r = apply(id, [{ type: 'createPage', pageId, name }], 'create_page');
       return `Página criada: ${pageId} "${name}".\n${getDocumentSummary(r.doc, 1)}`;
+    },
+  );
+
+  tool(
+    'rename_page',
+    {
+      title: 'Renomear página',
+      description: 'Renomeia uma página. Ex.: pageId "pg_ab12cd34", name "Mobile".',
+      inputSchema: {
+        pageId: z.string().describe('Id da página (veja get_basic_info).'),
+        name: z.string().describe('Novo nome da página.'),
+        docId: docIdField,
+      },
+      annotations: WRITE,
+    },
+    ({ pageId, name, docId }) => {
+      const id = store.resolveDocId(docId);
+      requirePage(store.get(id), pageId);
+      const r = apply(id, [{ type: 'renamePage', pageId, name }], 'rename_page');
+      return `Página ${pageId} renomeada para "${name}".\n${getDocumentSummary(r.doc, 1)}`;
+    },
+  );
+
+  tool(
+    'delete_page',
+    {
+      title: 'Excluir página',
+      description:
+        'Remove uma página e seus frames (reversível com undo). Não é possível excluir a última página.',
+      inputSchema: {
+        pageId: z.string().describe('Id da página (veja get_basic_info).'),
+        docId: docIdField,
+      },
+      annotations: DESTRUCTIVE,
+    },
+    ({ pageId, docId }) => {
+      const id = store.resolveDocId(docId);
+      requirePage(store.get(id), pageId);
+      const r = apply(id, [{ type: 'deletePage', pageId }], 'delete_page');
+      return `Página ${pageId} removida.\n${getDocumentSummary(r.doc, 1)}`;
+    },
+  );
+
+  tool(
+    'set_node_flags',
+    {
+      title: 'Ocultar/bloquear nós',
+      description:
+        'Define hidden (oculto) e/ou locked (bloqueado) em nós. Informe ao menos um. Ex.: nodeIds ["el_a"], hidden true.',
+      inputSchema: {
+        nodeIds: nodeIdsField,
+        hidden: z.boolean().optional().describe('true oculta o nó; false o exibe.'),
+        locked: z.boolean().optional().describe('true bloqueia o nó no editor; false desbloqueia.'),
+        docId: docIdField,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    ({ nodeIds, hidden, locked, docId }) => {
+      const id = store.resolveDocId(docId);
+      requireNodes(store.get(id), nodeIds);
+      if (hidden === undefined && locked === undefined) {
+        throw new ToolError('Informe hidden e/ou locked. Ex.: hidden true.');
+      }
+      const r = apply(
+        id,
+        [{ type: 'setNodeFlags', changes: nodeIds.map((nodeId) => ({ nodeId, hidden, locked })) }],
+        'set_node_flags',
+      );
+      return `Flags atualizadas em ${nodeIds.length} nó(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 

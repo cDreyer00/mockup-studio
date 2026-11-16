@@ -4,6 +4,12 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
+function idOf(re: RegExp, text: string): string {
+  const id = re.exec(text)?.[1];
+  if (!id) throw new Error('id não encontrado em: ' + text);
+  return id;
+}
+
 type Ws = ReturnType<typeof makeWorkspace>;
 
 function textOf(r: unknown): string {
@@ -112,6 +118,96 @@ describe('MCP', () => {
     );
     expect(rp).toContain('Tres');
     expect(rp).not.toContain('Dois');
+  });
+
+  it('update_styles com valor vazio remove a propriedade', async () => {
+    await call('open_document', { path: ws.file });
+    const created = await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Caixa' });
+    const id = idOf(/(el_[0-9a-z]+)/, textOf(created));
+    await call('update_styles', { nodeIds: [id], styles: { color: 'red' } });
+    expect(textOf(await call('get_node_info', { nodeId: id }))).toContain('color: red');
+    const u = await call('update_styles', { nodeIds: [id], styles: { color: '' } });
+    expect(u.isError).toBeFalsy();
+    expect(textOf(await call('get_node_info', { nodeId: id }))).not.toContain('color');
+  });
+
+  it('write_html replace em frame raiz converte o único nó de topo em frame', async () => {
+    await call('open_document', { path: ws.file });
+    const r = await call('write_html', {
+      html: '<main style="background:#000"><h1>x</h1></main>',
+      mode: 'replace',
+      parentId: ws.frameId,
+    });
+    expect(r.isError).toBeFalsy();
+    const newId = idOf(/(el_[0-9a-z]+)/, textOf(r));
+    const info = textOf(await call('get_node_info', { nodeId: newId }));
+    expect(info).toContain('tipo: frame');
+    expect(info).toContain('nome: Desktop');
+    expect(info).toContain('raiz da página');
+    expect(info).toContain('posição: 0, 0');
+    expect(info).toContain('width: 1440px');
+    expect(info).toContain('height: 900px');
+    expect(info).toContain('#000');
+    expect((await call('get_node_info', { nodeId: ws.frameId })).isError).toBe(true);
+  });
+
+  it('write_html replace em frame raiz com dois irmãos orienta replace-children', async () => {
+    await call('open_document', { path: ws.file });
+    const r = await call('write_html', {
+      html: '<p>a</p><p>b</p>',
+      mode: 'replace',
+      parentId: ws.frameId,
+    });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('replace-children');
+    expect((await call('get_node_info', { nodeId: ws.frameId })).isError).toBeFalsy();
+  });
+
+  it('rename_page e delete_page', async () => {
+    await call('open_document', { path: ws.file });
+    const cp = textOf(await call('create_page', { name: 'Extra' }));
+    const pageId = idOf(/(pg_[0-9a-z]+)/, cp);
+    const rn = await call('rename_page', { pageId, name: 'Mobile' });
+    expect(rn.isError).toBeFalsy();
+    expect(textOf(await call('get_basic_info'))).toContain('Mobile');
+    expect((await call('rename_page', { pageId: 'pg_naoexiste', name: 'X' })).isError).toBe(true);
+    const del = await call('delete_page', { pageId });
+    expect(del.isError).toBeFalsy();
+    expect(textOf(await call('get_basic_info'))).not.toContain('Mobile');
+    const first = idOf(/\((pg_[0-9a-z]+)\)/, textOf(await call('get_basic_info')));
+    const last = await call('delete_page', { pageId: first });
+    expect(last.isError).toBe(true);
+    expect(textOf(last)).toContain('última página');
+  });
+
+  it('set_node_flags oculta e bloqueia nós', async () => {
+    await call('open_document', { path: ws.file });
+    const none = await call('set_node_flags', { nodeIds: [ws.frameId] });
+    expect(none.isError).toBe(true);
+    expect(textOf(none)).toContain('hidden');
+    const r = await call('set_node_flags', { nodeIds: [ws.frameId], hidden: true, locked: true });
+    expect(r.isError).toBeFalsy();
+    const info = textOf(await call('get_node_info', { nodeId: ws.frameId }));
+    expect(info).toContain('bloqueado');
+    expect(info).toContain('oculto');
+    await call('set_node_flags', { nodeIds: [ws.frameId], hidden: false });
+    const after = textOf(await call('get_node_info', { nodeId: ws.frameId }));
+    expect(after).not.toContain('oculto');
+    expect(after).toContain('bloqueado');
+  });
+
+  it('move_nodes com parentId null vira frame à direita do último', async () => {
+    await call('open_document', { path: ws.file });
+    const created = await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Solto' });
+    const id = idOf(/(el_[0-9a-z]+)/, textOf(created));
+    const r = await call('move_nodes', { nodeIds: [id], parentId: null });
+    expect(r.isError).toBeFalsy();
+    const info = textOf(await call('get_node_info', { nodeId: id }));
+    expect(info).toContain('raiz da página');
+    expect(info).toContain('posição: 1540, 0');
+    const bad = await call('move_nodes', { nodeIds: [id], parentId: null, pageId: 'pg_naoexiste' });
+    expect(bad.isError).toBe(true);
+    expect(textOf(bad)).toContain('Página não encontrada');
   });
 
   it('nó inexistente devolve isError', async () => {

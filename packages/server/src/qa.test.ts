@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import WebSocket from 'ws';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { parseDocument } from '@mockup/core';
 import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
@@ -72,6 +73,24 @@ describe('QA: MCP + daemon', () => {
     expect(isErr(info)).toBe(false);
     const health = await fetch(`${daemon.url}/api/health`);
     expect(health.status).toBe(200);
+  });
+
+  it('erros de validação do core viram isError e o daemon continua válido', async () => {
+    const t1 = await call('create_node', { parentId: ws.frameId, tag: 'SCRIPT' });
+    expect(isErr(t1)).toBe(true);
+    expect(textOf(t1)).toContain('Tag inválida');
+
+    const t2 = await call('set_attrs', { nodeIds: [ws.frameId], attrs: { onclick: 'x()' } });
+    expect(isErr(t2)).toBe(true);
+
+    const t3 = await call('write_html', { parentId: ws.frameId, html: '<iframe src=x></iframe>' });
+    expect(isErr(t3)).toBe(true);
+    expect(textOf(t3)).toContain('não gerou nenhum nó');
+
+    expect(isErr(await call('get_basic_info'))).toBe(false);
+    expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
+    await call('save_document');
+    expect(() => parseDocument(fs.readFileSync(ws.file, 'utf8'))).not.toThrow();
   });
 
   it('get_tree_summary com depth 0, 1 e 10', async () => {
