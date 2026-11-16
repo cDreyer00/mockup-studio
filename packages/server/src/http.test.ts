@@ -86,6 +86,18 @@ describe('HTTP', () => {
     expect(((await again.json()) as { error: string }).error).toContain('já existe');
   });
 
+  it('/api/open com .mockup.json inválido dá 400 com a mensagem do schema', async () => {
+    const bad = path.join(ws.dir, 'quebrado.mockup.json');
+    fs.writeFileSync(bad, JSON.stringify({ version: 99, id: 'x' }));
+    const r = await fetch(`${daemon.url}/api/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: bad }),
+    });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toMatch(/inválido|version/i);
+  });
+
   it('CORS aceita localhost e bloqueia outras origens', async () => {
     const ok = await fetch(`${daemon.url}/api/health`, {
       headers: { Origin: 'http://localhost:5173' },

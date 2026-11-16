@@ -149,7 +149,12 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     } catch {
       throw new StoreError(404, `Não foi possível ler o arquivo: ${abs}`);
     }
-    const doc = parseDocument(raw);
+    let doc: Document;
+    try {
+      doc = parseDocument(raw);
+    } catch (e) {
+      throw new StoreError(400, `${abs}: ${(e as Error).message}`);
+    }
     return this.register(doc, abs);
   }
 
@@ -166,7 +171,10 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
           409,
           `O arquivo já existe: ${abs}. Abra-o em vez de criar (open_document ou \`mockup open\`).`,
         );
-      throw e;
+      throw new StoreError(
+        400,
+        `Não foi possível criar o arquivo ${abs}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`,
+      );
     }
     try {
       await fh.writeFile(serializeDocument(doc), 'utf8');
