@@ -11,6 +11,7 @@ import {
   getNode,
   isAbsolute,
   isFlex,
+  isLockedDeep,
   pxValue,
   sortByDocumentOrder,
 } from '../model/tree';
@@ -89,21 +90,37 @@ export function resolvePasteTarget(
   if (entries.length === 0) {
     return fallbackPage ? { parentId: null, parent: null, pageId: fallbackPage.id } : null;
   }
+  let target: PasteTarget;
   if (entries.length === 1 && canHaveChildren(entries[0]!.node)) {
     const e = entries[0]!;
-    return { parentId: e.node.id, parent: e.node, pageId: e.pageId };
+    target = { parentId: e.node.id, parent: e.node, pageId: e.pageId };
+  } else {
+    const lastId = sortByDocumentOrder(
+      doc,
+      entries.map((e) => e!.node.id),
+    ).at(-1)!;
+    const last = getEntry(doc, lastId)!;
+    target = {
+      parentId: last.parentId,
+      parent: last.parentId ? (getNode(doc, last.parentId) ?? null) : null,
+      pageId: last.pageId,
+      index: last.index + 1,
+    };
   }
-  const lastId = sortByDocumentOrder(
-    doc,
-    entries.map((e) => e!.node.id),
-  ).at(-1)!;
-  const target = getEntry(doc, lastId)!;
-  return {
-    parentId: target.parentId,
-    parent: target.parentId ? (getNode(doc, target.parentId) ?? null) : null,
-    pageId: target.pageId,
-    index: target.index + 1,
-  };
+  // Nada entra em nó travado (nem em descendente dele): sobe até o primeiro pai livre, colando
+  // logo depois do travado; acima do frame raiz, a colagem vai para a raiz da página.
+  while (target.parentId && isLockedDeep(doc, target.parentId)) {
+    const locked = getEntry(doc, target.parentId)!;
+    target = locked.parentId
+      ? {
+          parentId: locked.parentId,
+          parent: getNode(doc, locked.parentId) ?? null,
+          pageId: locked.pageId,
+          index: locked.index + 1,
+        }
+      : { parentId: null, parent: null, pageId: locked.pageId };
+  }
+  return target;
 }
 
 /* ------------------------------------------------------------------ */

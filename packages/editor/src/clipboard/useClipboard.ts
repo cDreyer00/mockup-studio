@@ -7,7 +7,7 @@ import { daemon } from '../client/daemon';
 import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile } from '../canvas/imageTool';
 import { makeText } from '../model/factory';
-import { getNode, topLevel } from '../model/tree';
+import { getNode, isLockedDeep, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
@@ -35,11 +35,24 @@ function newToken(): string {
   );
 }
 
-/** Copia a seleção de topo; `false` se não há nada a copiar. */
-function copySelection(e: ClipboardEvent): boolean {
+/**
+ * Copia a seleção de topo; `false` se não há nada a copiar. No recorte (`editableOnly`), nós
+ * travados ficam de fora: o `deleteSelection` não os exclui e colar depois os duplicaria.
+ * Exportada para testes.
+ */
+export function copySelection(e: ClipboardEvent, editableOnly = false): boolean {
   const { doc } = useDoc.getState();
   if (!doc) return false;
-  const ids = topLevel(doc, useUi.getState().selection);
+  let ids = topLevel(doc, useUi.getState().selection);
+  if (editableOnly) {
+    const total = ids.length;
+    ids = ids.filter((id) => !isLockedDeep(doc, id));
+    if (total && !ids.length) {
+      e.preventDefault();
+      ui.toast('Nós travados não podem ser recortados');
+      return false;
+    }
+  }
   if (!ids.length) return false;
   const nodes: Node[] = [];
   for (const id of ids) {
@@ -117,7 +130,7 @@ export function useClipboard(): void {
     };
     const onCut = (e: ClipboardEvent) => {
       if (skip(e)) return;
-      if (copySelection(e)) void actions.deleteSelection();
+      if (copySelection(e, true)) void actions.deleteSelection();
     };
     const onPaste = (e: ClipboardEvent) => {
       if (skip(e) || !e.clipboardData) return;

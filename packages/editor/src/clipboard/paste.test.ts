@@ -82,6 +82,24 @@ describe('resolvePasteTarget', () => {
       index: 3,
     });
   });
+  it('nunca cola dentro de nó travado: sobe para o pai, logo depois do travado', () => {
+    const { doc, frame, c } = makeDoc();
+    c.locked = true;
+    expect(resolvePasteTarget(doc, [c.id], null)).toMatchObject({ parentId: frame.id, index: 3 });
+    expect(resolvePasteTarget(doc, [c.children[0]!.id], null)).toMatchObject({
+      parentId: frame.id,
+      index: 3,
+    });
+  });
+  it('frame raiz travado: cola na raiz da página', () => {
+    const { doc, frame, b } = makeDoc();
+    frame.locked = true;
+    for (const sel of [[frame.id], [b.id]]) {
+      const t = resolvePasteTarget(doc, sel, null)!;
+      expect(t).toMatchObject({ parentId: null, pageId: doc.pages[0]!.id });
+      expect(t.index).toBeUndefined();
+    }
+  });
 });
 
 describe('prepareNodesForPaste', () => {
