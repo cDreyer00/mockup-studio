@@ -1,5 +1,11 @@
 /** Lógica pura do painel de camadas: lista visível, intervalo de seleção e cálculo de drop. */
 import type { Document, Node, Op, Page, StyleChange } from '@mockup/core';
+import {
+  LEAF_FRAME_PADDING,
+  POSITION_STYLE_KEYS,
+  isLeafNode,
+  makeLeafFrame,
+} from '../model/factory';
 import { canHaveChildren, getEntry, getNode, isAncestor, pxValue, topLevel } from '../model/tree';
 
 export interface FlatRow {
@@ -120,12 +126,31 @@ export function computeDropOps(
   const ops: Op[] = [move];
 
   if (parentId === null) {
-    const positions: { nodeId: string; position: { x: number; y: number } }[] = [];
+    const pad = LEAF_FRAME_PADDING;
+    const positions: { nodeId: string; position: { x: number; y: number } | null }[] = [];
     const styles: StyleChange[] = [];
-    for (const id of dragged) {
+    // Texto, imagem e SVG não viram frame sozinhos (como na colagem): ganham um frame em volta,
+    // no mesmo lugar. O `moveNodes` acima os pôs contíguos em `index + k`; cada embrulho insere o
+    // frame antes da folha e a move para dentro dele, sem mudar o índice das seguintes.
+    const wraps: Op[] = [];
+    dragged.forEach((id, k) => {
       const e = getEntry(doc, id)!;
-      if (e.parentId === null) continue;
+      if (e.parentId === null) return;
       const rect = measure?.(id) ?? null;
+      if (isLeafNode(e.node)) {
+        const w = rect?.w ?? pxValue(e.node.style.width) ?? 200;
+        const h = rect?.h ?? pxValue(e.node.style.height) ?? 40;
+        const at = rect ? { x: rect.x, y: rect.y } : { x: pad, y: pad };
+        const frame = makeLeafFrame(e.node, at.x - pad, at.y - pad, w, h);
+        wraps.push(
+          { type: 'createNode', parentId: null, pageId, index: index + k, node: frame },
+          { type: 'moveNodes', nodeIds: [id], parentId: frame.id, index: 0 },
+        );
+        const unset = POSITION_STYLE_KEYS.filter((p) => e.node.style[p] !== undefined);
+        if (unset.length) styles.push({ nodeId: id, unset });
+        if (e.node.position) positions.push({ nodeId: id, position: null });
+        return;
+      }
       positions.push({
         nodeId: id,
         position: rect ? { x: Math.round(rect.x), y: Math.round(rect.y) } : { x: 0, y: 0 },
@@ -136,7 +161,8 @@ export function computeDropOps(
         if (pxValue(e.node.style.height) === undefined) set.height = `${Math.round(rect.h)}px`;
       }
       if (Object.keys(set).length) styles.push({ nodeId: id, set });
-    }
+    });
+    ops.push(...wraps);
     if (positions.length) ops.push({ type: 'setPosition', changes: positions });
     if (styles.length) ops.push({ type: 'updateStyles', changes: styles });
   } else {

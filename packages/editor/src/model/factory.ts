@@ -10,6 +10,35 @@ const px = (n: number): string => `${Math.round(n)}px`;
 
 let frameCounter = 0;
 
+/** Folhas que não viram frame raiz sozinhas: levadas para a raiz, ganham um frame em volta. */
+export function isLeafNode(node: Node): boolean {
+  return node.type === 'text' || node.type === 'image' || node.type === 'svg';
+}
+
+/** Recuo entre o frame que embrulha uma folha e o conteúdo. */
+export const LEAF_FRAME_PADDING = 24;
+
+/** Propriedades de posicionamento que a folha perde ao entrar no frame que a embrulha. */
+export const POSITION_STYLE_KEYS = ['position', 'left', 'top', 'right', 'bottom'] as const;
+
+/**
+ * Frame raiz (vazio) que embrulha uma folha de `w`×`h`: mesmo nome, `padding` e tamanho com folga.
+ * `x`/`y` são a posição do frame; o conteúdo fica `LEAF_FRAME_PADDING` para dentro.
+ */
+export function makeLeafFrame(
+  leaf: Node,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  min = { w: 0, h: 0 },
+): Node {
+  const pad = LEAF_FRAME_PADDING * 2;
+  const frame = makeFrame(x, y, Math.max(min.w, w + pad), Math.max(min.h, h + pad), leaf.name);
+  frame.style.padding = px(LEAF_FRAME_PADDING);
+  return frame;
+}
+
 /** Frame raiz (artboard) posicionado no canvas. */
 export function makeFrame(
   x: number,

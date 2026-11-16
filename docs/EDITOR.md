@@ -40,7 +40,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 
 - Árvore com ícone por tipo/tag, nome e tag; expandir/recolher; ocultar (olho) e travar (cadeado).
 - Clique seleciona, Ctrl+clique alterna, Shift+clique seleciona o intervalo. Duplo clique renomeia.
-- Arrastar linhas reordena ou muda o pai (antes/depois/dentro), inclusive para a raiz da página (o nó vira frame raiz na posição atual).
+- Arrastar linhas reordena ou muda o pai (antes/depois/dentro), inclusive para a raiz da página, na posição atual: texto, imagem e SVG ganham um frame em volta (com 24 px de recuo, como na colagem) e perdem o posicionamento absoluto; contêineres (`element`) viram nós raiz com a posição e o tamanho medidos, mas mantêm `type: element` (o `moveNodes` do core não muda o tipo). Tudo numa única entrada de undo.
 - A seleção é sincronizada com o canvas e o MCP (ancestrais expandidos e rolagem até a linha).
 
 ## Propriedades

@@ -4,7 +4,7 @@
  */
 import { cloneNodeWithNewIds, nodesToHtml } from '@mockup/core';
 import type { Document, Node } from '@mockup/core';
-import { makeFrame } from '../model/factory';
+import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
 import {
   canHaveChildren,
   getEntry,
@@ -120,7 +120,6 @@ export interface PasteOptions {
 }
 
 const DEFAULT_PASTE_SIZE = { w: 400, h: 300 };
-const POSITION_KEYS = ['position', 'left', 'top', 'right', 'bottom'] as const;
 
 const px = (n: number): string => `${Math.round(n)}px`;
 
@@ -180,19 +179,17 @@ function prepareForRoot(nodes: readonly Node[], opts: PasteOptions, count: numbe
   const first = nodes[0]?.position;
   for (const original of nodes) {
     const { w, h } = sizeOf(original, opts.measure);
-    const leaf = original.type === 'text' || original.type === 'image' || original.type === 'svg';
     let node: Node;
     let width = w;
     let height = h;
-    if (leaf) {
+    if (isLeafNode(original)) {
       const child = cloneNodeWithNewIds(original).node;
       delete child.position;
-      for (const k of POSITION_KEYS) delete child.style[k];
-      width = Math.max(DEFAULT_PASTE_SIZE.w, w + 48);
-      height = Math.max(DEFAULT_PASTE_SIZE.h, h + 48);
-      node = makeFrame(0, 0, width, height, original.name);
-      node.style.padding = '24px';
+      for (const k of POSITION_STYLE_KEYS) delete child.style[k];
+      node = makeLeafFrame(original, 0, 0, w, h, DEFAULT_PASTE_SIZE);
       node.children = [child];
+      width = pxValue(node.style.width)!;
+      height = pxValue(node.style.height)!;
     } else {
       node = cloneNodeWithNewIds({ ...original, type: 'frame' }).node;
       node.style = { ...node.style, width: px(w), height: px(h) };
