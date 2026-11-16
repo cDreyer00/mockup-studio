@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -56,22 +57,33 @@ describe.skipIf(!dev || !editorReady())('spawnElectronHeadless (Electron real)',
     process.env.MOCKUP_DATA_DIR = dataDir;
   });
 
+  let port = 0;
+
   afterAll(async () => {
     if (pid) {
       try {
-        process.kill(pid);
+        // No Windows `process.kill` encerra só o principal; os filhos (GPU, render) ficam
+        // segurando o userData. `taskkill /T` derruba a árvore inteira.
+        if (process.platform === 'win32')
+          spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
+        else process.kill(pid);
       } catch {
         /* já encerrou */
       }
-      await new Promise((r) => setTimeout(r, 1500));
+      // Espera o daemon parar de responder: os processos filhos do Electron (GPU, render)
+      // ainda seguram arquivos do userData por alguns instantes depois do principal.
+      const deadline = Date.now() + 10_000;
+      while (Date.now() < deadline && (await checkHealth(`http://127.0.0.1:${port}`, 300))) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
     }
     if (prev === undefined) delete process.env.MOCKUP_DATA_DIR;
     else process.env.MOCKUP_DATA_DIR = prev;
-    fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it('sobe o headless e o health informa render: true', async () => {
-    const port = 49000 + Math.floor(Math.random() * 1000);
+    port = 49000 + Math.floor(Math.random() * 1000);
     ({ pid } = await spawnElectronHeadless(dev!, port));
     const h = await checkHealth(`http://127.0.0.1:${port}`);
     expect(h?.render).toBe(true);
