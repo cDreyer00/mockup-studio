@@ -104,9 +104,7 @@ describe('QA core: history', () => {
 });
 
 describe('QA core: bugs conhecidos', () => {
-  // BUG: duplicar um nó junto com o seu ancestral falha com 'Id duplicado' (deleteNodes ignora
-  // descendentes redundantes; duplicateNodes deveria fazer o mesmo). Remova o .fails ao corrigir.
-  it.fails('duplicateNodes com nó e ancestral na mesma chamada', () => {
+  it('duplicateNodes com nó e ancestral na mesma chamada', () => {
     const { doc, pageId, frame, nodes } = setup();
     const h = new History(doc);
     h.apply([{ type: 'createNode', pageId, node: frame }]);
@@ -172,9 +170,7 @@ describe('QA core: HTML', () => {
     expect(out).not.toContain('<script');
   });
 
-  // BUG: <svg> inline é guardado sem sanitização (onload/onerror/<script>) e o editor o injeta
-  // com dangerouslySetInnerHTML. Remova o .fails ao corrigir.
-  it.fails('svg inline é sanitizado (sem handlers on* nem script)', () => {
+  it('svg inline é sanitizado (sem handlers on* nem script)', () => {
     const [svg] = htmlToNodes(
       '<svg onload="alert(1)"><script>alert(2)</script><circle onclick="x()"/></svg>',
     );

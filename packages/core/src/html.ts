@@ -2,6 +2,8 @@ import { DomUtils, parseDocument as parseHtml } from 'htmlparser2';
 import type { AnyNode, Element } from 'domhandler';
 import { createNodeFromTag } from './document.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
+import { sanitizeSvg } from './svg.js';
+import { ATTR_NAME_RE, TAG_RE, VOID_TAGS } from './tags.js';
 import type { Node } from './types.js';
 
 /* ====================================================================== */
@@ -179,11 +181,35 @@ function safeNormalize(decls: Decl[]): Record<string, string> {
 /* HTML → Nodes                                                            */
 /* ====================================================================== */
 
-const SKIP_TAGS = new Set(['script', 'style', 'head', 'meta', 'link', 'title', 'noscript']);
+const SKIP_TAGS = new Set([
+  'script',
+  'style',
+  'head',
+  'meta',
+  'link',
+  'title',
+  'noscript',
+  'iframe',
+  'object',
+  'embed',
+  'base',
+]);
 const UNWRAP_TAGS = new Set(['html', 'body']);
 const NAME_TEXT_MAX = 32;
 
-const collapse = (s: string): string => s.replace(/[ \t\r\n\f]+/g, ' ').trim();
+/**
+ * Regra de espaços em runs de texto: só whitespace → descartado; senão sequências de whitespace
+ * viram um único espaço, e o whitespace inicial (ou final) é removido se contiver quebra de linha.
+ * Quebras de linha/indentação de HTML "bonito" são formatação e somem; espaços simples inline
+ * ("Olá <b>mundo</b>") são conteúdo e viram um espaço.
+ */
+function cleanText(raw: string): string {
+  const m = /^([ \t\r\n\f]*)([\s\S]*?)([ \t\r\n\f]*)$/.exec(raw);
+  if (!m || m[2] === '') return '';
+  const lead = m[1] && !m[1].includes('\n') ? ' ' : '';
+  const trail = m[3] && !m[3].includes('\n') ? ' ' : '';
+  return lead + m[2].replace(/[ \t\r\n\f]+/g, ' ') + trail;
+}
 const capitalize = (s: string): string => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n) + '…' : s);
 
@@ -204,6 +230,7 @@ function elementAttrs(el: Element, omit: string[] = []): Record<string, string> 
   const attrs: Record<string, string> = {};
   for (const [k, v] of Object.entries(el.attribs)) {
     if (k === 'class' || k === 'style' || k === 'id' || k === 'data-name') continue;
+    if (/^on/i.test(k) || !ATTR_NAME_RE.test(k)) continue;
     if (omit.includes(k)) continue;
     attrs[k] = v;
   }
@@ -224,12 +251,14 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
   for (const c of children) {
     if (DomUtils.isTag(c)) {
       const name = c.name.toLowerCase();
-      if (SKIP_TAGS.has(name)) continue;
+      if (SKIP_TAGS.has(name) || !TAG_RE.test(name)) continue;
       if (UNWRAP_TAGS.has(name)) out.push(...convertChildren(c.children, ctx));
       else out.push(convertElement(c, ctx));
     } else if (DomUtils.isText(c)) {
-      const text = collapse(c.data);
-      if (text) out.push(createNodeFromTag('span', { text, name: truncate(text, NAME_TEXT_MAX) }));
+      const text = cleanText(c.data);
+      if (text) {
+        out.push(createNodeFromTag('span', { text, name: truncate(text.trim(), NAME_TEXT_MAX) }));
+      }
     }
   }
   return out;
@@ -252,7 +281,7 @@ function convertElement(el: Element, ctx: Ctx): Node {
     const saved = { style: el.attribs.style, class: el.attribs.class };
     delete el.attribs.style;
     delete el.attribs.class;
-    const svg = DomUtils.getOuterHTML(el);
+    const svg = sanitizeSvg(DomUtils.getOuterHTML(el));
     if (saved.style !== undefined) el.attribs.style = saved.style;
     if (saved.class !== undefined) el.attribs.class = saved.class;
     return createNodeFromTag('svg', { name: elementName(el), styles, svg });
@@ -260,16 +289,16 @@ function convertElement(el: Element, ctx: Ctx): Node {
 
   const meaningful = el.children.filter((c) => DomUtils.isTag(c) || DomUtils.isText(c));
   const hasTags = meaningful.some((c) => DomUtils.isTag(c));
-  const textContent = collapse(
+  const textContent = cleanText(
     meaningful
       .filter((c) => DomUtils.isText(c))
       .map((c) => (c as { data: string }).data)
-      .join(' '),
+      .join(''),
   );
 
   if (!hasTags && textContent) {
     return createNodeFromTag(tag, {
-      name: elementName(el, textContent),
+      name: elementName(el, textContent.trim()),
       styles,
       text: textContent,
       attrs: elementAttrs(el),
@@ -297,22 +326,6 @@ export function htmlToNodes(html: string, options: { css?: string } = {}): Node[
 /* Nodes → HTML                                                            */
 /* ====================================================================== */
 
-const VOID_TAGS = new Set([
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'source',
-  'track',
-  'wbr',
-]);
-
 export function slugify(name: string): string {
   const slug = name
     .normalize('NFD')
@@ -326,7 +339,12 @@ export function slugify(name: string): string {
 const escapeText = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const escapeAttr = escapeText;
+const escapeAttr = (s: string): string => escapeText(s).replace(/'/g, '&#39;');
+
+/** Impede que um valor CSS feche o <style> que o contém ("</" vira "<\/"). */
+export function escapeCssText(s: string): string {
+  return s.replace(/<\//g, '<\\/');
+}
 
 /** Nome de classe único: slug do nome + últimos 4 chars do id. */
 export function classNameFor(node: Node): string {
@@ -352,7 +370,7 @@ export function nodesToHtml(
       return `style="${escapeAttr(value)}"`;
     }
     const cls = classNameFor(node);
-    const body = entries.map(([k, v]) => `  ${k}: ${v};`).join('\n');
+    const body = entries.map(([k, v]) => `  ${k}: ${escapeCssText(v)};`).join('\n');
     cssRules.push(`.${cls} {\n${body}\n}`);
     return `class="${cls}"`;
   };
@@ -362,7 +380,12 @@ export function nodesToHtml(
     if (node.type === 'image' || node.tag === 'img') {
       if (node.src !== undefined) parts.push(`src="${escapeAttr(node.src)}"`);
     }
-    for (const [k, v] of Object.entries(node.attrs)) parts.push(`${k}="${escapeAttr(v)}"`);
+    for (const [k, v] of Object.entries(node.attrs)) {
+      if (!ATTR_NAME_RE.test(k)) {
+        throw new Error(`Nome de atributo inválido no nó "${node.id}": "${k}"`);
+      }
+      parts.push(`${k}="${escapeAttr(v)}"`);
+    }
     if (extra) parts.push(extra);
     return parts.length > 0 ? ' ' + parts.join(' ') : '';
   };
@@ -379,6 +402,11 @@ export function nodesToHtml(
 
     const open = `<${node.tag}${attrString(node, extra)}>`;
     if (VOID_TAGS.has(node.tag)) {
+      if (node.children.length > 0) {
+        throw new Error(
+          `O nó "${node.id}" (${node.tag}) é uma tag void e não pode ter filhos; remova-os ou troque a tag`,
+        );
+      }
       lines.push(pad(depth) + open);
       return;
     }

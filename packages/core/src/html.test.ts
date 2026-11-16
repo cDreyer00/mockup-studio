@@ -39,13 +39,14 @@ describe('htmlToNodes', () => {
     expect(section.name).toBe('A');
   });
 
-  it('texto misto vira span, whitespace é colapsado', () => {
+  it('texto misto vira span; espaços inline preservados, quebras de linha são formatação', () => {
+    // Regra: whitespace sem quebra de linha vira 1 espaço (conteúdo); com quebra é descartado nas pontas.
     const [p] = htmlToNodes('<p>  Olá   <b>mundo</b>\n  fim </p>');
     expect(p.type).toBe('element');
     expect(p.children.map((c) => [c.tag, c.type, c.text])).toEqual([
-      ['span', 'text', 'Olá'],
+      ['span', 'text', ' Olá '],
       ['b', 'text', 'mundo'],
-      ['span', 'text', 'fim'],
+      ['span', 'text', 'fim '],
     ]);
   });
 

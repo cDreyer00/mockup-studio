@@ -10,4 +10,7 @@ export * from './html.js';
 export * from './summary.js';
 export * from './computed.js';
 export * from './schema.js';
+export * from './ops.schema.js';
+export * from './tags.js';
+export * from './svg.js';
 export * from './export/html.js';

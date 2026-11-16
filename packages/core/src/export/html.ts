@@ -1,6 +1,6 @@
 import { deepClone } from '../clone.js';
 import { findNode, findPage } from '../document.js';
-import { nodesToHtml } from '../html.js';
+import { escapeCssText, nodesToHtml } from '../html.js';
 import type { Document, Node } from '../types.js';
 
 const escapeHtml = (s: string): string =>
@@ -43,13 +43,13 @@ export function exportHtml(
 
   const { html, css } = nodesToHtml(copies, { mode, indent: true });
 
-  const tokenLines = Object.entries(doc.tokens).map(([k, v]) => `    ${k}: ${v};`);
+  const tokenLines = Object.entries(doc.tokens).map(([k, v]) => `    ${k}: ${escapeCssText(v)};`);
   const style: string[] = [];
   if (tokenLines.length > 0) style.push(`  :root {\n${tokenLines.join('\n')}\n  }`);
   style.push('  *{box-sizing:border-box;margin:0}');
   if (css)
     style.push(
-      css
+      escapeCssText(css)
         .split('\n')
         .map((l) => `  ${l}`)
         .join('\n'),

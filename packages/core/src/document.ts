@@ -1,5 +1,6 @@
 import { newDocumentId, newNodeId, newPageId } from './ids.js';
 import { normalizeStyles } from './styles.js';
+import { normalizeTag } from './tags.js';
 import type { Document, Node, NodePath, NodeType, Page, Position } from './types.js';
 import { DOCUMENT_VERSION } from './types.js';
 
@@ -44,15 +45,17 @@ function inferType(init: Partial<Node> & { tag: string }): NodeType {
 }
 
 export function createNode(init: Partial<Node> & { tag: string }): Node {
+  const tag = normalizeTag(init.tag);
+  init = { ...init, tag };
   const type = inferType(init);
   const text = init.text;
   const name =
-    init.name ?? (type === 'text' && text ? truncate(text, NAME_TEXT_MAX) : capitalize(init.tag));
+    init.name ?? (type === 'text' && text ? truncate(text, NAME_TEXT_MAX) : capitalize(tag));
   const node: Node = {
     id: init.id ?? newNodeId(type),
     type,
     name,
-    tag: init.tag,
+    tag,
     attrs: { ...(init.attrs ?? {}) },
     style: normalizeStyles(init.style ?? {}),
     children: init.children ?? [],
@@ -80,6 +83,7 @@ export function createNodeFromTag(
     position?: Position;
   } = {},
 ): Node {
+  tag = normalizeTag(tag);
   const hasChildren = (opts.children?.length ?? 0) > 0;
   let type: NodeType;
   if (opts.isRoot) type = 'frame';

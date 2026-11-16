@@ -36,7 +36,7 @@ function roundTrip(doc: Document, op: Op): { after: Document; inverse: Op[] } {
   const r = applyOp(doc, op);
   expect(strip(doc)).toEqual(strip(before)); // imutável
   const back = applyOps(r.doc, r.inverse);
-  expect(strip(back.doc)).toEqual(strip(doc));
+  expect(strip(back.doc)).toStrictEqual(strip(doc));
   return { after: r.doc, inverse: r.inverse };
 }
 

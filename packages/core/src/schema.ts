@@ -1,25 +1,63 @@
 import { z } from 'zod';
 import { collectIds } from './document.js';
+import { sanitizeSvg } from './svg.js';
+import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
 import type { Document, FontRef, Node, Page } from './types.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
+const TagSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(TAG_RE, {
+    error: 'tag inválida (use letras minúsculas, dígitos e hífen, começando por letra)',
+  })
+  .refine((t) => !BLOCKED_TAGS.has(t), { error: 'tag bloqueada por segurança' });
+
+const AttrsSchema = z
+  .record(z.string(), z.string())
+  .superRefine((attrs, ctx) => {
+    for (const k of Object.keys(attrs)) {
+      const problem = attrNameProblem(k);
+      if (problem) ctx.addIssue({ code: 'custom', message: problem, path: [k] });
+    }
+  })
+  .default({});
+
+/** Mapa de tokens CSS: as chaves precisam casar `--nome`. */
+export const TokensSchema = z.record(z.string(), z.string()).superRefine((tokens, ctx) => {
+  for (const k of Object.keys(tokens)) {
+    if (!TOKEN_NAME_RE.test(k)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `nome de token inválido: "${k}" (use o formato --nome)`,
+        path: [k],
+      });
+    }
+  }
+});
+
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
-  z.object({
-    id: z.string().min(1),
-    type: z.enum(['frame', 'element', 'text', 'image', 'svg']),
-    name: z.string(),
-    tag: z.string().min(1),
-    attrs: z.record(z.string(), z.string()).default({}),
-    style: z.record(z.string(), z.string()).default({}),
-    text: z.string().optional(),
-    src: z.string().optional(),
-    svg: z.string().optional(),
-    children: z.array(NodeSchema).default([]),
-    locked: z.boolean().default(false),
-    hidden: z.boolean().default(false),
-    position: PositionSchema.optional(),
-  }),
+  z
+    .object({
+      id: z.string().min(1),
+      type: z.enum(['frame', 'element', 'text', 'image', 'svg']),
+      name: z.string(),
+      tag: TagSchema,
+      attrs: AttrsSchema,
+      style: z.record(z.string(), z.string()).default({}),
+      text: z.string().optional(),
+      src: z.string().optional(),
+      svg: z.string().transform(sanitizeSvg).optional(),
+      children: z.array(NodeSchema).default([]),
+      locked: z.boolean().default(false),
+      hidden: z.boolean().default(false),
+      position: PositionSchema.optional(),
+    })
+    .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
+      error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
+    }),
 );
 
 export const PageSchema: z.ZodType<Page, unknown> = z.object({
@@ -41,7 +79,7 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   id: z.string().min(1),
   name: z.string(),
   pages: z.array(PageSchema).min(1, { error: 'o documento precisa de ao menos uma página' }),
-  tokens: z.record(z.string(), z.string()).default({}),
+  tokens: TokensSchema.default({}),
   fonts: z.array(FontRefSchema).default([]),
   meta: z
     .object({ createdAt: z.string(), updatedAt: z.string() })

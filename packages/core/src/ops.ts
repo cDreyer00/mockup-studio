@@ -48,7 +48,8 @@ export interface UpdateStylesOp {
 
 export interface SetTextOp {
   type: 'setText';
-  changes: { nodeId: string; text: string }[];
+  /** `null` remove o campo `text` do nó. */
+  changes: { nodeId: string; text: string | null }[];
 }
 
 export interface SetAttrsOp {
@@ -73,7 +74,8 @@ export interface DuplicateNodesOp {
 
 export interface SetPositionOp {
   type: 'setPosition';
-  changes: { nodeId: string; position: Position }[];
+  /** `null` remove o campo `position` do nó. */
+  changes: { nodeId: string; position: Position | null }[];
 }
 
 export interface CreatePageOp {

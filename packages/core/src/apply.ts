@@ -1,5 +1,7 @@
 import { deepClone } from './clone.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
+import { parseOp } from './ops.schema.js';
+import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import type { Document, Node, NodePath, Page } from './types.js';
@@ -41,8 +43,13 @@ function containerArray(path: NodePath): Node[] {
 }
 
 function assertCanHaveChildren(parent: Node): void {
-  if (parent.type === 'image' || parent.type === 'svg' || parent.tag === 'img') {
-    fail(`O nó "${parent.id}" (${parent.tag}) não pode ter filhos`);
+  if (
+    parent.type === 'text' ||
+    parent.type === 'image' ||
+    parent.type === 'svg' ||
+    VOID_TAGS.has(parent.tag)
+  ) {
+    fail(`O nó "${parent.id}" (${parent.tag}, tipo ${parent.type}) não pode ter filhos`);
   }
 }
 
@@ -227,11 +234,12 @@ function doUpdateStyles(d: Document, op: Extract<Op, { type: 'updateStyles' }>):
 /* ---------------- setText / setAttrs / rename / position / flags ---------------- */
 
 function doSetText(d: Document, op: Extract<Op, { type: 'setText' }>): Applied {
-  const inv: { nodeId: string; text: string }[] = [];
+  const inv: { nodeId: string; text: string | null }[] = [];
   for (const ch of op.changes) {
     const node = requireNode(d, ch.nodeId).node;
-    inv.push({ nodeId: ch.nodeId, text: node.text ?? '' });
-    node.text = ch.text;
+    inv.push({ nodeId: ch.nodeId, text: node.text ?? null });
+    if (ch.text === null) delete node.text;
+    else node.text = ch.text;
   }
   return { inverse: [{ type: 'setText', changes: inv.reverse() }] };
 }
@@ -246,6 +254,8 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
       if (key === 'style') fail('O atributo "style" não é permitido em attrs; use updateStyles');
       if (key === 'class') fail('O atributo "class" não é permitido em attrs; use updateStyles');
       if (!key) fail('Nome de atributo vazio');
+      const problem = attrNameProblem(key);
+      if (problem) fail(problem);
       set[key] = String(v);
     }
     const unset = unique((ch.unset ?? []).map((k) => k.trim()));
@@ -273,18 +283,20 @@ function doRename(d: Document, op: Extract<Op, { type: 'renameNodes' }>): Applie
 }
 
 function doSetPosition(d: Document, op: Extract<Op, { type: 'setPosition' }>): Applied {
-  const inv: { nodeId: string; position: { x: number; y: number } }[] = [];
+  const inv: { nodeId: string; position: { x: number; y: number } | null }[] = [];
   for (const ch of op.changes) {
     const node = requireNode(d, ch.nodeId).node;
-    const { x, y } = ch.position ?? { x: NaN, y: NaN };
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      fail(`Posição inválida para o nó "${ch.nodeId}": x e y devem ser números`);
+    let next: { x: number; y: number } | null = null;
+    if (ch.position !== null) {
+      const { x, y } = ch.position ?? { x: NaN, y: NaN };
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        fail(`Posição inválida para o nó "${ch.nodeId}": x e y devem ser números`);
+      }
+      next = { x, y };
     }
-    inv.push({
-      nodeId: ch.nodeId,
-      position: node.position ? { ...node.position } : { x: 0, y: 0 },
-    });
-    node.position = { x, y };
+    inv.push({ nodeId: ch.nodeId, position: node.position ? { ...node.position } : null });
+    if (next) node.position = next;
+    else delete node.position;
   }
   return { inverse: [{ type: 'setPosition', changes: inv.reverse() }] };
 }
@@ -314,8 +326,12 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
   const newRootIds: string[] = [];
   const clones: Node[] = [];
   const insertions: { path: NodePath; clone: Node }[] = [];
-  for (const id of unique(op.nodeIds)) {
-    const path = requireNode(d, id);
+  const ids = unique(op.nodeIds);
+  const idSet = new Set(ids);
+  const paths = ids.map((id) => requireNode(d, id));
+  // Só os nós de topo: ancestral e descendente na mesma chamada duplicariam o descendente duas vezes.
+  const top = paths.filter((p) => !p.ancestors.some((a) => idSet.has(a.id)));
+  for (const path of top) {
     const { node: clone } = cloneNodeWithNewIds(path.node, idMap);
     if (!path.parent && clone.position) {
       clone.position = { x: clone.position.x + 40, y: clone.position.y };
@@ -329,7 +345,7 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
     const arr = containerArray(path);
     arr.splice(arr.indexOf(path.node) + 1, 0, clone);
   }
-  const full: DuplicateNodesOp = { type: 'duplicateNodes', nodeIds: op.nodeIds, idMap };
+  const full: DuplicateNodesOp = { type: 'duplicateNodes', nodeIds: top.map((p) => p.node.id), idMap };
   return {
     inverse: [{ type: 'deleteNodes', nodeIds: newRootIds }],
     result: { idMap, nodeIds: newRootIds, op: full },
@@ -384,6 +400,9 @@ function doRenamePage(d: Document, op: Extract<Op, { type: 'renamePage' }>): App
 function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Applied {
   const set = op.set ?? {};
   const unset = op.unset ?? [];
+  for (const k of Object.keys(set)) {
+    if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
+  }
   const prevSet: Record<string, string> = {};
   const prevUnset: string[] = [];
   for (const k of unique([...unset, ...Object.keys(set)])) {
@@ -398,7 +417,8 @@ function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Appli
 /* ---------------- API pública ---------------- */
 
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
-export function applyOp(doc: Document, op: Op): ApplyResult {
+export function applyOp(doc: Document, rawOp: Op): ApplyResult {
+  const op = parseOp(rawOp);
   const d = deepClone(doc);
   let applied: Applied;
   switch (op.type) {
