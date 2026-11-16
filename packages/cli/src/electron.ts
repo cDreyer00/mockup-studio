@@ -3,7 +3,7 @@
  * render (screenshot). Sem Electron, o CLI cai para o daemon Node puro (sem screenshot).
  */
 import fs from 'node:fs';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { checkHealth, getDataDir } from '@mockup/server';
@@ -19,13 +19,71 @@ export interface ElectronLaunch {
 
 const PRODUCT_NAME = 'Mockup Studio';
 
-/** Procura o app: (1) MOCKUP_DESKTOP_EXE, (2) instalação NSIS por usuário, (3) pacote do monorepo + electron. */
-export function locateElectron(env: NodeJS.ProcessEnv = process.env): ElectronLaunch | null {
+const UNINSTALL = String.raw`Software\Microsoft\Windows\CurrentVersion\Uninstall`;
+
+/** Linhas `HKEY_...` de uma saída de `reg query` (as chaves encontradas). */
+export function parseRegKeys(out: string): string[] {
+  return out
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => /^HKEY_/i.test(l));
+}
+
+/** Valor `InstallLocation` (REG_SZ/REG_EXPAND_SZ) de uma saída de `reg query`, ou null. */
+export function parseInstallLocation(out: string): string | null {
+  for (const line of out.split(/\r?\n/)) {
+    const m = /^\s*InstallLocation\s+REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/i.exec(line);
+    if (m?.[1]) return m[1].replace(/^"(.*)"$/, '$1');
+  }
+  return null;
+}
+
+function reg(args: string[]): string {
+  const r = spawnSync('reg', args, { encoding: 'utf8', timeout: 5000, windowsHide: true });
+  return r.status === 0 ? r.stdout : '';
+}
+
+/**
+ * Pastas de instalação gravadas pelo instalador NSIS no registro (`InstallLocation` da chave de
+ * desinstalação cujo nome de exibição contém "Mockup Studio"): vale para pasta personalizada.
+ * HKCU primeiro (instalação por usuário), depois HKLM.
+ */
+export function registryInstallDirs(run: (args: string[]) => string = reg): string[] {
+  const dirs: string[] = [];
+  const roots = [
+    `HKCU\\${UNINSTALL}`,
+    `HKLM\\${UNINSTALL}`,
+    String.raw`HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
+  ];
+  for (const root of roots) {
+    for (const key of parseRegKeys(run(['query', root, '/s', '/f', PRODUCT_NAME, '/d']))) {
+      const dir = parseInstallLocation(run(['query', key, '/v', 'InstallLocation']));
+      if (dir && !dirs.includes(dir)) dirs.push(dir);
+    }
+  }
+  return dirs;
+}
+
+/**
+ * Procura o app: (1) MOCKUP_DESKTOP_EXE, (2) instalação registrada (pasta personalizada),
+ * (3) instalação NSIS padrão por usuário, (4) pacote do monorepo + electron.
+ */
+export function locateElectron(
+  env: NodeJS.ProcessEnv = process.env,
+  installDirs: () => string[] = registryInstallDirs,
+): ElectronLaunch | null {
   if (env.MOCKUP_NO_ELECTRON === '1') return null;
 
   const fromEnv = env.MOCKUP_DESKTOP_EXE;
   if (fromEnv && fs.existsSync(fromEnv))
     return { exe: fromEnv, args: [], source: 'MOCKUP_DESKTOP_EXE' };
+
+  if (process.platform === 'win32') {
+    for (const dir of installDirs()) {
+      const exe = path.join(dir, `${PRODUCT_NAME}.exe`);
+      if (fs.existsSync(exe)) return { exe, args: [], source: 'instalado' };
+    }
+  }
 
   if (process.platform === 'win32' && env.LOCALAPPDATA) {
     const exe = path.join(env.LOCALAPPDATA, 'Programs', PRODUCT_NAME, `${PRODUCT_NAME}.exe`);
@@ -46,9 +104,13 @@ export function locateElectron(env: NodeJS.ProcessEnv = process.env): ElectronLa
   return null;
 }
 
-/** Ambiente do Electron: nunca herda ELECTRON_RUN_AS_NODE (faria o exe rodar como Node puro). */
-export function electronEnv(dataDir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, MOCKUP_DATA_DIR: dataDir };
+/**
+ * Ambiente do Electron: nunca herda ELECTRON_RUN_AS_NODE (faria o exe rodar como Node puro).
+ * `MOCKUP_DATA_DIR` só chega ao app se o usuário o definiu: forçá-lo trocaria o `userData` e o
+ * lock de instância única, e o headless viraria uma segunda instância ao lado do app aberto.
+ */
+export function electronEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base };
   delete env.ELECTRON_RUN_AS_NODE;
   return env;
 }
@@ -65,6 +127,7 @@ export async function spawnElectronHeadless(
   l: ElectronLaunch,
   port: number,
   timeoutMs = 30000,
+  files: string[] = [],
 ): Promise<{ pid?: number }> {
   const dataDir = getDataDir();
   let logFd: number | undefined;
@@ -77,11 +140,11 @@ export async function spawnElectronHeadless(
   } catch {
     logFd = undefined;
   }
-  const child: ChildProcess = spawn(l.exe, electronArgs(l, port), {
+  const child: ChildProcess = spawn(l.exe, electronArgs(l, port, files), {
     detached: true,
     stdio: logFd === undefined ? 'ignore' : ['ignore', logFd, logFd],
     windowsHide: true,
-    env: electronEnv(dataDir),
+    env: electronEnv(),
   });
   if (logFd !== undefined) {
     try {
@@ -123,7 +186,7 @@ export function runElectronForeground(
   return new Promise((resolve, reject) => {
     const child = spawn(l.exe, electronArgs(l, port, files), {
       stdio: 'inherit',
-      env: electronEnv(getDataDir()),
+      env: electronEnv(),
     });
     const forward = (sig: NodeJS.Signals) => () => child.kill(sig);
     process.once('SIGINT', forward('SIGINT'));

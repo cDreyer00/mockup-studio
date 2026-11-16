@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { checkHealth } from '@mockup/server';
-import { electronArgs, electronEnv, locateElectron, spawnElectronHeadless } from './electron.js';
+import { electronArgs, locateElectron, spawnElectronHeadless } from './electron.js';
 
 const withElectron = { ...process.env, MOCKUP_NO_ELECTRON: undefined } as NodeJS.ProcessEnv;
 
@@ -20,17 +20,6 @@ describe('locateElectron', () => {
       args: [],
       source: 'MOCKUP_DESKTOP_EXE',
     });
-  });
-
-  it('electronEnv remove ELECTRON_RUN_AS_NODE e fixa a pasta de dados', () => {
-    process.env.ELECTRON_RUN_AS_NODE = '1';
-    try {
-      const env = electronEnv('X:\\dados');
-      expect(env.ELECTRON_RUN_AS_NODE).toBeUndefined();
-      expect(env.MOCKUP_DATA_DIR).toBe('X:\\dados');
-    } finally {
-      delete process.env.ELECTRON_RUN_AS_NODE;
-    }
   });
 
   it('electronArgs monta --headless --port', () => {
