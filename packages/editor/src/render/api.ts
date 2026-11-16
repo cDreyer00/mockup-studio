@@ -138,6 +138,30 @@ function findNode(n: Node, id: string): Node | null {
   return null;
 }
 
+/** Primeiro nó oculto no caminho do frame (exclusive) até `id` (inclusive), ou null. */
+function hiddenOnPath(root: Node, id: string): Node | null {
+  const walk = (n: Node, hiddenAbove: Node | null): Node | null | undefined => {
+    const h = hiddenAbove ?? (n !== root && n.hidden ? n : null);
+    if (n.id === id) return h;
+    for (const c of n.children ?? []) {
+      const r = walk(c, h);
+      if (r !== undefined) return r;
+    }
+    return undefined;
+  };
+  return walk(root, null) ?? null;
+}
+
+function assertVisible(frame: Node, id: string): void {
+  const h = hiddenOnPath(frame, id);
+  if (!h) return;
+  const quem =
+    h.id === id
+      ? `O nó "${id}" está oculto (hidden)`
+      : `O nó "${id}" está dentro de "${h.id}", que está oculto (hidden)`;
+  throw new Error(`${quem}; mostre-o com set_node_flags ou capture outro nó.`);
+}
+
 interface Last {
   world: HTMLElement;
   frameEl: HTMLElement;
@@ -154,6 +178,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       const picked = pickFrame(doc, nodeId);
       if (!picked) throw new Error(`Nó não encontrado no documento: ${nodeId}`);
       const frame = renderFrameOf(picked.frame);
+      assertVisible(frame, nodeId);
 
       const bg = transparent ? 'transparent' : picked.background || DEFAULT_PAGE_BG;
       for (const el of [document.documentElement, document.body]) {
@@ -195,6 +220,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       const { world, frameEl, frame } = last;
       const node = findNode(frame, nodeId);
       if (!node) throw new Error(`O nó ${nodeId} não está no último render (frame ${frame.id}).`);
+      assertVisible(frame, nodeId);
       const origin = frameEl.getBoundingClientRect();
 
       const build = (n: Node): LayoutNode | null => {

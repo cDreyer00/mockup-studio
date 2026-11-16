@@ -56,4 +56,27 @@ describe('página de render', () => {
     const { doc } = makeDoc();
     await expect(api.render({ doc, docId: doc.id, nodeId: 'x' })).rejects.toThrow(/não encontrado/);
   });
+
+  it('nó oculto (ou dentro de um oculto) erra em render e measure; frame raiz oculto renderiza', async () => {
+    const { doc, frame, a, c } = makeDoc();
+    a.hidden = true;
+    await expect(api.render({ doc, docId: doc.id, nodeId: a.id })).rejects.toThrow(
+      `O nó "${a.id}" está oculto (hidden); mostre-o com set_node_flags`,
+    );
+    a.hidden = false;
+    frame.hidden = true;
+    await api.render({ doc, docId: doc.id, nodeId: a.id });
+    expect(api.measure(frame.id).id).toBe(frame.id);
+    frame.hidden = false;
+    const inner = c.children[0]!;
+    c.hidden = true;
+    await expect(api.render({ doc, docId: doc.id, nodeId: inner.id })).rejects.toThrow(
+      `dentro de "${c.id}", que está oculto`,
+    );
+    c.hidden = false;
+    a.hidden = false;
+    await api.render({ doc, docId: doc.id, nodeId: frame.id });
+    a.hidden = true;
+    expect(() => api.measure(a.id)).toThrow(/oculto/);
+  });
 });
