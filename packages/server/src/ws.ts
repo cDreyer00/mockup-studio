@@ -1,0 +1,110 @@
+import type { Server as HttpServer } from 'node:http';
+import { WebSocket, WebSocketServer } from 'ws';
+import type { ClientMessage, HelloEvent, ServerMessage } from '@mockup/core';
+import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
+
+export interface WsHandle {
+  broadcast(msg: ServerMessage): void;
+  close(): Promise<void>;
+}
+
+function buildHello(store: DocumentStore): HelloEvent {
+  const active = store.getActive();
+  return {
+    type: 'hello',
+    documents: store.list(),
+    activeDocId: active?.id ?? null,
+    doc: active ? active.history.doc : null,
+    selection: active ? store.getSelection(active.id) : [],
+    revision: active ? active.history.revision : 0,
+  };
+}
+
+async function handleMessage(store: DocumentStore, msg: ClientMessage): Promise<unknown> {
+  switch (msg.type) {
+    case 'op:apply': {
+      const r = store.applyOps(msg.docId, msg.ops, { source: 'editor' });
+      return { revision: r.revision, results: r.results.map((x) => x ?? null) };
+    }
+    case 'selection:set':
+      store.setSelection(msg.docId, msg.nodeIds, 'editor');
+      return {};
+    case 'doc:open': {
+      const { doc: _doc, ...info } = await store.open(msg.path);
+      return info;
+    }
+    case 'doc:save':
+      return { path: await store.save(msg.docId) };
+    case 'undo': {
+      const r = store.undo(msg.docId, 'editor');
+      return { applied: r !== null, revision: r?.revision ?? null };
+    }
+    case 'redo': {
+      const r = store.redo(msg.docId, 'editor');
+      return { applied: r !== null, revision: r?.revision ?? null };
+    }
+    case 'active:set':
+      store.setActive(msg.docId);
+      return {};
+    default:
+      throw new Error(`Tipo de mensagem desconhecido: ${(msg as { type?: string }).type ?? '?'}`);
+  }
+}
+
+export function attachWebSocket(
+  httpServer: HttpServer,
+  store: DocumentStore,
+  path = '/ws',
+): WsHandle {
+  const wss = new WebSocketServer({ server: httpServer, path });
+
+  const send = (ws: WebSocket, msg: ServerMessage): void => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  };
+  const broadcast = (msg: ServerMessage): void => {
+    const data = JSON.stringify(msg);
+    for (const c of wss.clients) if (c.readyState === WebSocket.OPEN) c.send(data);
+  };
+
+  const listeners: Array<() => void> = [];
+  for (const name of STORE_EVENT_NAMES) {
+    const fn = (ev: ServerMessage): void => broadcast(ev);
+    store.on(name, fn as never);
+    listeners.push(() => store.off(name, fn as never));
+  }
+
+  wss.on('connection', (ws) => {
+    send(ws, buildHello(store));
+    ws.on('message', (data) => {
+      let msg: ClientMessage;
+      try {
+        msg = JSON.parse(data.toString()) as ClientMessage;
+        if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string')
+          throw new Error('formato');
+      } catch {
+        send(ws, { type: 'error', message: 'JSON inválido ou mensagem malformada.' });
+        return;
+      }
+      const reqId = (msg as { reqId?: string }).reqId;
+      handleMessage(store, msg).then(
+        (result) => {
+          if (reqId !== undefined) send(ws, { type: 'ack', reqId, result });
+        },
+        (e: unknown) => {
+          send(ws, { type: 'error', reqId, message: e instanceof Error ? e.message : String(e) });
+        },
+      );
+    });
+    ws.on('error', () => undefined);
+  });
+
+  return {
+    broadcast,
+    close: () =>
+      new Promise<void>((resolve) => {
+        listeners.forEach((off) => off());
+        for (const c of wss.clients) c.terminate();
+        wss.close(() => resolve());
+      }),
+  };
+}
