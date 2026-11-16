@@ -21,7 +21,16 @@ export default defineConfig({
   },
   server: { proxy },
   preview: { proxy },
-  build: { outDir: 'dist' },
+  build: {
+    outDir: 'dist',
+    // Duas páginas: o editor e a página de render (screenshots do app desktop).
+    rollupOptions: {
+      input: {
+        main: path.resolve(dirname, 'index.html'),
+        render: path.resolve(dirname, 'render.html'),
+      },
+    },
+  },
   test: {
     name: 'editor',
     environment: 'node',

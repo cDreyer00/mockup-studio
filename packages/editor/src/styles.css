@@ -3,33 +3,8 @@
  * (canvas/canvas.css, layers/layers.css, properties/properties.css, toolbar/toolbar.css)
  * e deve usar as variáveis abaixo.
  */
-:root {
-  --bg: #0e0f12;
-  --surface: #16181d;
-  --surface-2: #1d2026;
-  --surface-3: #252931;
-  --border: #2a2e37;
-  --border-strong: #3a3f4a;
-  --text: #e6e7eb;
-  --text-dim: #b4b7c0;
-  --muted: #7d818d;
-  --accent: #2dd4bf;
-  --accent-strong: #14b8a6;
-  --accent-soft: rgba(45, 212, 191, 0.16);
-  --agent: #a78bfa;
-  --danger: #f87171;
-  --warning: #fbbf24;
-  --radius: 4px;
-  --row-h: 24px;
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  --panel-w: 248px;
-  --toolbar-h: 40px;
-  color-scheme: dark;
-}
-* {
-  box-sizing: border-box;
-}
+@import './base.css';
+
 html,
 body,
 #root {
@@ -39,18 +14,6 @@ body,
 }
 body {
   background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 12px;
-  line-height: 1.35;
-  -webkit-font-smoothing: antialiased;
-}
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
 }
 
 /* ---------------- layout ---------------- */
