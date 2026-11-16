@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { collectIds } from './document.js';
+import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { sanitizeSvg } from './svg.js';
 import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
 import type { Document, FontRef, Node, Page } from './types.js';
@@ -26,17 +27,50 @@ const AttrsSchema = z
   .default({});
 
 /** Mapa de tokens CSS: as chaves precisam casar `--nome`. */
-export const TokensSchema = z.record(z.string(), z.string()).superRefine((tokens, ctx) => {
-  for (const k of Object.keys(tokens)) {
-    if (!TOKEN_NAME_RE.test(k)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: `nome de token inválido: "${k}" (use o formato --nome)`,
-        path: [k],
-      });
-    }
+/** Tokens sem o prefixo `--` (ex.: `primary`) ganham o prefixo; chaves já corretas ficam como estão. */
+export function normalizeTokenNames(tokens: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(tokens)) {
+    const name = k.trim();
+    out[name.startsWith('--') || name === '' ? name : `--${name}`] = v;
   }
-});
+  return out;
+}
+
+/**
+ * Mapa de tokens CSS: nomes sem `--` ganham o prefixo; as chaves precisam casar `--nome` e os
+ * valores não podem escapar da declaração CSS (ver `cssValueProblem`).
+ */
+export const TokensSchema = z
+  .record(z.string(), z.string())
+  .transform(normalizeTokenNames)
+  .superRefine((tokens, ctx) => {
+    for (const [k, v] of Object.entries(tokens)) {
+      if (!TOKEN_NAME_RE.test(k)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `nome de token inválido: "${k}" (use o formato --nome)`,
+          path: [k],
+        });
+      }
+      const problem = cssValueProblem(v);
+      if (problem) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `valor inválido para "${k}": ${problem}`,
+          path: [k],
+        });
+      }
+    }
+  });
+
+/** Na leitura de arquivos, tokens com valor perigoso são descartados em vez de recusar o documento. */
+const FileTokensSchema = z
+  .record(z.string(), z.string())
+  .transform((tokens) =>
+    Object.fromEntries(Object.entries(tokens).filter(([, v]) => cssValueProblem(v) === null)),
+  )
+  .pipe(TokensSchema);
 
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
@@ -46,7 +80,7 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       name: z.string(),
       tag: TagSchema,
       attrs: AttrsSchema,
-      style: z.record(z.string(), z.string()).default({}),
+      style: z.record(z.string(), z.string()).default({}).transform(dropUnsafeStyles),
       text: z.string().optional(),
       src: z.string().optional(),
       svg: z.string().transform(sanitizeSvg).optional(),
@@ -80,7 +114,7 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   id: z.string().min(1),
   name: z.string(),
   pages: z.array(PageSchema).min(1, { error: 'o documento precisa de ao menos uma página' }),
-  tokens: TokensSchema.default({}),
+  tokens: FileTokensSchema.default({}),
   fonts: z.array(FontRefSchema).default([]),
   meta: z
     .object({ createdAt: z.string(), updatedAt: z.string() })

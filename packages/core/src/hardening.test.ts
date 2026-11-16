@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, applyOps } from './apply.js';
 import { createDocument, createNode, createNodeFromTag, findNode } from './document.js';
-import { exportHtml } from './export/html.js';
 import { htmlToNodes, nodesToHtml } from './html.js';
 import { History } from './history.js';
 import { parseOp } from './ops.schema.js';
@@ -286,21 +285,26 @@ describe('escaping (item 7)', () => {
     const { css } = nodesToHtml(n, { mode: 'classes' });
     expect(css).not.toContain('</style>');
     expect(css).toContain('<\\/style>');
+    // defesa em profundidade: mesmo se o valor chegar ao exportador, o `</style` não escapa
     const { doc, frameId } = base();
-    const d1 = applyOp(doc, { type: 'createNode', parentId: frameId, node: n }).doc;
-    const d2 = applyOp(d1, {
-      type: 'setTokens',
-      set: { '--x': '</style><script>alert(1)</script>' },
-    }).doc;
-    const out = exportHtml(d2);
-    expect(out).not.toContain('</style><script>');
-    expect(out.match(/<\/style>/g)).toHaveLength(1);
+    const created = applyOp(doc, { type: 'createNode', parentId: frameId, node: n }).doc;
+    expect(JSON.stringify(created)).not.toContain('</style>');
+    expect(() =>
+      applyOp(created, {
+        type: 'updateStyles',
+        nodeIds: [frameId],
+        styles: { content: '"</style>"' },
+      }),
+    ).toThrow(/Valor CSS inválido/);
+    expect(() =>
+      applyOp(doc, { type: 'setTokens', set: { '--x': '</style><script>alert(1)</script>' } }),
+    ).toThrow(/valor inválido/);
   });
 
   it('nomes de token inválidos são rejeitados', () => {
     const { doc } = base();
     expect(() => applyOp(doc, { type: 'setTokens', set: { 'x;}': '1' } })).toThrow(/token/);
-    expect(() => applyOp(doc, { type: 'setTokens', set: { x: '1' } })).toThrow(/token/);
+    expect(() => applyOp(doc, { type: 'setTokens', set: { 'a b': '1' } })).toThrow(/token/);
   });
 });
 

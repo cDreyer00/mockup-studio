@@ -1,7 +1,7 @@
 import { DomUtils, parseDocument as parseHtml } from 'htmlparser2';
 import type { AnyNode, Element } from 'domhandler';
 import { createNodeFromTag } from './document.js';
-import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
+import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { sanitizeSvg } from './svg.js';
 import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
 import type { Node } from './types.js';
@@ -172,7 +172,7 @@ function safeNormalize(decls: Decl[]): Record<string, string> {
   const merged: Record<string, string> = {};
   for (const [k, v] of decls) {
     const key = toKebabCase(k.trim());
-    if (isValidCssPropertyName(key)) merged[key] = v;
+    if (isValidCssPropertyName(key) && cssValueProblem(v.trim()) === null) merged[key] = v;
   }
   return normalizeStyles(merged);
 }

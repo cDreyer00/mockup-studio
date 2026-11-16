@@ -3,7 +3,8 @@ import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './doc
 import { parseOp } from './ops.schema.js';
 import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag } from './tags.js';
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
-import { isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
+import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
+import { normalizeTokenNames } from './schema.js';
 import type { Document, Node, NodePath, Page } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
@@ -415,10 +416,12 @@ function doRenamePage(d: Document, op: Extract<Op, { type: 'renamePage' }>): App
 }
 
 function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Applied {
-  const set = op.set ?? {};
-  const unset = op.unset ?? [];
-  for (const k of Object.keys(set)) {
+  const set = normalizeTokenNames(op.set ?? {});
+  const unset = (op.unset ?? []).map((k) => (k.startsWith('--') ? k : `--${k}`));
+  for (const [k, v] of Object.entries(set)) {
     if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
+    const problem = cssValueProblem(v);
+    if (problem) fail(`Valor inválido para o token "${k}": ${problem}`);
   }
   const prevSet: Record<string, string> = {};
   const prevUnset: string[] = [];
