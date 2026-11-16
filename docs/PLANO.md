@@ -69,6 +69,11 @@ Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o qu
   - `finish_working`.
   - Guias `screenshot-loop` e `export`.
 - `docs/EXPORT.md`.
+- Pendências herdadas da tarefa 1 (segurança local):
+  - O WebSocket aceita `Origin` `file://`; o Electron deve usar um protocolo próprio (`app://`) ou um token de sessão em vez de `file://`.
+  - O `allowedHosts` do MCP não inclui o host de bind; só importa se o daemon deixar de escutar em 127.0.0.1.
+  - Valores de `style` com `}` quebram a regra no CSS exportado (injeção de CSS, não XSS); validar chaves e valores no `NodeSchema` quando o exportador HTML for revisto.
+  - Tokens exigem o prefixo `--`; adicionar o prefixo automaticamente no `set_tokens` e na leitura de arquivos quando os agentes mandarem `primary`.
 
 ### Tarefa 4 — Integração com agentes e QA ponta a ponta
 
