@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile, pickImageFile } from '../canvas/imageTool';
+import { saveDocumentAs } from '../desktop/fileFlows';
 import { useClipboard } from '../clipboard/useClipboard';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
@@ -35,6 +36,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return void pickAndInsertImage();
     case 'save':
       return void actions.save();
+    case 'saveAs':
+      return void saveDocumentAs();
     case 'delete':
       return void actions.deleteSelection();
     case 'duplicate':
@@ -89,8 +92,8 @@ export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const cmd = resolveShortcut(e);
-      // Ctrl+S sempre salva, mesmo em campos de texto e modais.
-      if (cmd?.type === 'save') {
+      // Ctrl+S / Ctrl+Shift+S sempre salvam, mesmo em campos de texto e modais.
+      if (cmd?.type === 'save' || cmd?.type === 'saveAs') {
         e.preventDefault();
         runShortcut(cmd);
         return;

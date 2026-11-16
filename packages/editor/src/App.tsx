@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Canvas } from './canvas/Canvas';
 import { LayersPanel } from './layers/LayersPanel';
 import { PropertiesPanel } from './properties/PropertiesPanel';
+import { useDesktop } from './desktop/useDesktop';
 import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
 import { Toolbar } from './toolbar/Toolbar';
@@ -18,6 +19,7 @@ export function App() {
   const hasDoc = useDoc((s) => !!s.doc);
   const info = useDoc(selectActiveInfo);
   useShortcuts();
+  useDesktop();
 
   useEffect(() => {
     const name = fileName(info?.path) ?? info?.name;

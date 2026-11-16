@@ -14,13 +14,19 @@ import {
 } from 'lucide-react';
 import { actions } from '../actions';
 import { daemon } from '../client/daemon';
+import {
+  closeActiveDocument,
+  fileNameOf,
+  newDocument,
+  openDocument,
+  saveDocumentAs,
+} from '../desktop/fileFlows';
 import { canvasApi } from '../canvas/canvasApi';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import type { ConnectionStatus } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 import type { Tool } from '../state/uiStore';
 import { IconButton } from '../ui/controls';
-import { prompt } from '../ui/overlays';
 import './toolbar.css';
 
 const ICON = 16;
@@ -39,10 +45,6 @@ const STATUS_TEXT: Record<ConnectionStatus, string> = {
   connecting: 'Conectando…',
   offline: 'Offline',
 };
-
-export function fileNameOf(path: string | null | undefined): string {
-  return path ? (path.split(/[/\\]/).pop() ?? path) : '';
-}
 
 function reportError(e: unknown): void {
   ui.toast(e instanceof Error ? e.message : String(e), 'error');
@@ -146,41 +148,6 @@ function Logo() {
   );
 }
 
-async function newDocument(): Promise<void> {
-  const r = await prompt({
-    title: 'Novo documento',
-    confirmLabel: 'Criar',
-    fields: [
-      { name: 'path', label: 'Caminho', placeholder: 'C:\\projetos\\site' },
-      { name: 'name', label: 'Nome', placeholder: 'Meu site' },
-    ],
-  });
-  if (!r?.path?.trim()) return;
-  try {
-    await daemon.newDoc(r.path.trim(), r.name?.trim() || fileNameOf(r.path.trim()));
-  } catch (e) {
-    reportError(e);
-  }
-}
-
-async function openDocument(path?: string): Promise<void> {
-  let target = path;
-  if (!target) {
-    const r = await prompt({
-      title: 'Abrir documento',
-      confirmLabel: 'Abrir',
-      fields: [{ name: 'path', label: 'Caminho', placeholder: 'C:\\projetos\\site.mockup.json' }],
-    });
-    target = r?.path?.trim();
-  }
-  if (!target) return;
-  try {
-    await daemon.openDoc(target);
-  } catch (e) {
-    reportError(e);
-  }
-}
-
 function FileMenu() {
   const [recent, setRecent] = useState<string[]>([]);
   const activeDocId = useDoc((s) => s.activeDocId);
@@ -202,10 +169,17 @@ function FileMenu() {
       onSelect: () => void actions.save(),
     },
     {
+      label: 'Salvar como…',
+      testId: 'file-save-as',
+      shortcut: 'Ctrl+Shift+S',
+      disabled: !activeDocId,
+      onSelect: () => void saveDocumentAs(),
+    },
+    {
       label: 'Fechar documento',
       testId: 'file-close',
       disabled: !activeDocId,
-      onSelect: () => activeDocId && void daemon.closeDoc(activeDocId).catch(reportError),
+      onSelect: () => void closeActiveDocument(),
     },
   ];
   return (

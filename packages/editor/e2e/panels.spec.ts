@@ -338,3 +338,17 @@ test('reconexão do WS: o editor reconecta e recarrega o documento', async ({ pa
     .poll(() => nodeEl(page, frame.id).evaluate((el) => getComputedStyle(el).backgroundColor))
     .toBe('rgb(18, 52, 86)');
 });
+
+test('arquivo: Salvar como grava no novo caminho e o título passa a usá-lo', async ({ page }) => {
+  await createDoc('origem');
+  await gotoEditor(page);
+  const dest = docPath('copia');
+  await page.getByTestId('menu-file').click();
+  await page.getByTestId('file-save-as').click();
+  await page.locator('.modal input[name="path"]').fill(dest);
+  await page.locator('.modal button[type="submit"]').click();
+  await expect(page).toHaveTitle(
+    new RegExp(`${path.basename(dest).replace(/\./g, '\.')} — Mockup Studio`),
+  );
+  expect(fs.existsSync(dest)).toBe(true);
+});

@@ -31,6 +31,9 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('k', ctrl))).toBeNull();
     expect(resolveShortcut(key('s', ctrl))).toEqual({ type: 'save' });
     expect(resolveShortcut(key('s', { metaKey: true }))).toEqual({ type: 'save' });
+    expect(resolveShortcut(key('s', { ctrlKey: true, shiftKey: true }))).toEqual({
+      type: 'saveAs',
+    });
     expect(resolveShortcut(key('d', ctrl))).toEqual({ type: 'duplicate' });
     expect(resolveShortcut(key('g', ctrl))).toEqual({ type: 'group' });
     expect(resolveShortcut(key('G', ctrlShift))).toEqual({ type: 'ungroup' });

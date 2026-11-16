@@ -6,6 +6,7 @@ export type ShortcutCommand =
   | { type: 'tool'; tool: Tool }
   | { type: 'pickImage' }
   | { type: 'save' }
+  | { type: 'saveAs' }
   | { type: 'delete' }
   | { type: 'duplicate' }
   | { type: 'group' }
@@ -76,7 +77,7 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
     }
     switch (letter) {
       case 's':
-        return shift ? null : { type: 'save' };
+        return { type: shift ? 'saveAs' : 'save' };
       case 'd':
         return shift ? null : { type: 'duplicate' };
       case 'g':
