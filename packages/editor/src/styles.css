@@ -404,26 +404,3 @@ textarea.mono {
   border-color: var(--danger);
   color: #fecaca;
 }
-
-/* ---------------- canvas provisório (substituído por canvas/canvas.css) ---------------- */
-
-.canvas {
-  position: relative;
-  overflow: hidden;
-  outline: none;
-  user-select: none;
-}
-.canvas-world {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-}
-.frame-label {
-  position: absolute;
-  transform-origin: 0 100%;
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
-  pointer-events: none;
-}

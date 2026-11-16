@@ -1,0 +1,205 @@
+/* Canvas infinito: mundo transformado + overlay em coordenadas de tela. */
+
+.cv {
+  position: relative;
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+  touch-action: none;
+  background-image: radial-gradient(circle, rgba(128, 128, 140, 0.32) 1px, transparent 1.2px);
+  background-size: 24px 24px;
+  --z: 1;
+}
+.cv[data-pan='1'],
+.cv[data-pan='1'] * {
+  cursor: grab !important;
+}
+.cv[data-panning='1'],
+.cv[data-panning='1'] * {
+  cursor: grabbing !important;
+}
+.cv[data-tool='frame'],
+.cv[data-tool='rect'],
+.cv[data-tool='image'] {
+  cursor: crosshair;
+}
+.cv[data-tool='frame'] *,
+.cv[data-tool='rect'] *,
+.cv[data-tool='image'] * {
+  cursor: crosshair;
+}
+.cv[data-tool='text'],
+.cv[data-tool='text'] * {
+  cursor: text;
+}
+
+.cv-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+.cv-world [data-testid='text-editor'] {
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: currentColor;
+}
+
+/* ---------------- rótulo do frame ---------------- */
+
+.cv-frame-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 14px;
+  transform-origin: 0 0;
+  transform: scale(calc(1 / var(--z))) translateY(calc(-100% - 4px));
+  cursor: default;
+}
+.cv-frame-label:hover .cv-frame-name {
+  color: var(--text);
+}
+.cv-frame-name {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 5px;
+  height: 14px;
+  border-radius: 7px;
+  color: var(--agent);
+  background: rgba(167, 139, 250, 0.16);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.cv-agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--agent);
+  animation: cv-pulse 1s ease-in-out infinite;
+}
+@keyframes cv-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+.cv-frame-error {
+  position: absolute;
+  background: #2a1d1d;
+  border: 1px solid #c33;
+  color: #f3c0c0;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* ---------------- overlay (coordenadas de tela) ---------------- */
+
+.cv-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cv-overlay > * {
+  position: absolute;
+}
+.cv-hover {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.cv-sel-node {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.cv-sel-box {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.cv-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 1px;
+  pointer-events: auto;
+}
+.cv-handle-nw,
+.cv-handle-se {
+  cursor: nwse-resize;
+}
+.cv-handle-ne,
+.cv-handle-sw {
+  cursor: nesw-resize;
+}
+.cv-handle-n,
+.cv-handle-s {
+  cursor: ns-resize;
+}
+.cv-handle-e,
+.cv-handle-w {
+  cursor: ew-resize;
+}
+.cv-dim {
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--accent-strong);
+  color: #04201c;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cv-marquee {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+.cv-draw {
+  border: 1px solid var(--accent);
+  background: rgba(45, 212, 191, 0.08);
+}
+.cv-insert {
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(14, 15, 18, 0.5);
+}
+.cv-guide-wrap {
+  position: absolute;
+  inset: 0;
+}
+.cv-guide {
+  position: absolute;
+  background: var(--danger);
+}
+.cv-guide-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--danger);
+  color: #1c0a0a;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,238 +1,214 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
-import type { Document, Node, Page } from '@mockup/core';
-import { FrameView } from './FrameView';
-import { RenderCtx } from './NodeView';
-import { useActivePage } from '../state/hooks';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
+import { frameSize } from '../model/tree';
 import { useDoc } from '../state/docStore';
+import { useActivePage } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
+import { canvasApi, registerCanvasApi } from './canvasApi';
+import type { CanvasApi } from './canvasApi';
+import { FrameView } from './FrameView';
+import { fitRect, rectInside, rectToScreen, unionRects, zoomAtPoint } from './geometry';
+import type { Rect, Viewport } from './geometry';
+import { measureWorldRect } from './dom';
+import { attachInteractions } from './interactions';
+import { DocIdContext } from './NodeView';
+import { Overlay } from './Overlay';
+import './canvas.css';
 
-const MIN_ZOOM = 0.05;
-const MAX_ZOOM = 8;
+const FIT_PADDING = 60;
+/** Zoom máximo ao enquadrar a página inteira / ao enquadrar nós. */
+const FIT_ALL_MAX_ZOOM = 1;
+const FIT_NODES_MAX_ZOOM = 2;
+const ZOOM_STEP = 1.25;
 
-interface View {
-  x: number;
-  y: number;
-  z: number;
+/** Último pedido de foco tratado (sobrevive a remontagens do canvas). */
+let handledFocusNonce = 0;
+
+/** Aplica o viewport direto no DOM (sem re-render): transform do mundo, `--z` e grade de pontos. */
+function applyViewport(root: HTMLElement, world: HTMLElement, vp: Viewport): void {
+  world.style.transform = `translate(${vp.x}px, ${vp.y}px) scale(${vp.z})`;
+  root.style.setProperty('--z', String(vp.z));
+  let size = 24 * vp.z;
+  while (size < 12) size *= 4;
+  root.style.backgroundSize = `${size}px ${size}px`;
+  root.style.backgroundPosition = `${vp.x - size / 2}px ${vp.y - size / 2}px`;
 }
 
-interface CanvasProps {
-  doc: Document;
-  page: Page;
-  selection: string[];
-  onSelect: (nodeIds: string[]) => void;
-  onZoomChange: (zoom: number) => void;
-}
+/** Canvas infinito: mundo transformado, frames da página e overlay de seleção/gestos. */
+export function Canvas() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const docId = useDoc((s) => s.doc?.id ?? null);
+  const tokens = useDoc((s) => s.doc?.tokens);
+  const page = useActivePage();
+  const focusRequest = useUi((s) => s.focusRequest);
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const saved = useRef(new Map<string, Viewport>());
+  const lastKey = useRef<string | null>(null);
+  const pendingFit = useRef(false);
 
-const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
-
-/** Tamanho em px de um frame (width/height do style; padrão 800x600). */
-function frameSize(f: Node): { w: number; h: number } {
-  const w = parseFloat(f.style?.width ?? '');
-  const h = parseFloat(f.style?.height ?? '');
-  return { w: Number.isFinite(w) ? w : 800, h: Number.isFinite(h) ? h : 600 };
-}
-
-/** Canvas infinito com zoom/pan; renderiza os frames da página como HTML real. */
-function CanvasInner({ doc, page, selection, onSelect, onZoomChange }: CanvasProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<View>({ x: 0, y: 0, z: 1 });
-  const [spaceDown, setSpaceDown] = useState(false);
-  const [panning, setPanning] = useState(false);
-  const drag = useRef<{ px: number; py: number; moved: boolean } | null>(null);
-  /** O último pointerdown virou arrasto (pan): o click seguinte não deve selecionar. */
-  const lastDragMoved = useRef(false);
-  const viewRef = useRef(view);
-  viewRef.current = view;
-  const framesRef = useRef(page.frames);
-  framesRef.current = page.frames;
-
-  /** Enquadra todos os frames da página na área visível. */
-  const fit = () => {
-    const el = ref.current;
-    const frames = framesRef.current.filter((f) => !f.hidden);
-    if (!el || frames.length === 0) return setView({ x: 0, y: 0, z: 1 });
-    let x0 = Infinity,
-      y0 = Infinity,
-      x1 = -Infinity,
-      y1 = -Infinity;
-    for (const f of frames) {
-      const { w, h } = frameSize(f);
-      const fx = f.position?.x ?? 0;
-      const fy = f.position?.y ?? 0;
-      x0 = Math.min(x0, fx);
-      y0 = Math.min(y0, fy);
-      x1 = Math.max(x1, fx + w);
-      y1 = Math.max(y1, fy + h);
-    }
-    const pad = 60;
-    const { clientWidth: cw, clientHeight: ch } = el;
-    const z = clamp(Math.min((cw - pad * 2) / (x1 - x0), (ch - pad * 2) / (y1 - y0), 1));
-    setView({ z, x: (cw - (x1 - x0) * z) / 2 - x0 * z, y: (ch - (y1 - y0) * z) / 2 - y0 * z });
-  };
-
-  /** Altera o zoom mantendo o ponto (cx, cy) do viewport fixo. */
-  const zoomAt = (factor: number, cx: number, cy: number) => {
-    setView((v) => {
-      const z = clamp(v.z * factor);
-      const k = z / v.z;
-      return { z, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
+  // Viewport → DOM (sem passar pelo React).
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const world = worldRef.current;
+    if (!root || !world) return;
+    applyViewport(root, world, useUi.getState().viewport);
+    return useUi.subscribe((s, p) => {
+      if (s.viewport !== p.viewport) applyViewport(root, world, s.viewport);
     });
-  };
-  const zoomCenter = (factor: number) => {
-    const el = ref.current;
-    if (el) zoomAt(factor, el.clientWidth / 2, el.clientHeight / 2);
-  };
-
-  // Fit automático na primeira vez que um doc/página é exibido.
-  const pageKey = `${doc.id}:${page.id}`;
-  useEffect(() => {
-    fit();
-  }, [pageKey]);
-
-  useEffect(() => onZoomChange(view.z), [view.z, onZoomChange]);
-
-  // Wheel precisa de listener não passivo para poder chamar preventDefault.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (e.ctrlKey) {
-        const r = el.getBoundingClientRect();
-        zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
-      } else {
-        setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Atalhos de teclado: Espaço (pan), Shift+0 (100%), Shift+1 (fit), +/- (zoom).
+  // Interações (ponteiro, teclado, roda, menu de contexto, drop).
   useEffect(() => {
-    const typing = (e: KeyboardEvent) =>
-      e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-    const down = (e: KeyboardEvent) => {
-      if (typing(e)) return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setSpaceDown(true);
-      } else if (e.shiftKey && e.code === 'Digit0') {
-        const el = ref.current;
-        if (el) zoomAt(1 / viewRef.current.z, el.clientWidth / 2, el.clientHeight / 2);
-      } else if (e.shiftKey && e.code === 'Digit1') {
-        fit();
-      } else if (e.key === '+' || e.key === '=') {
-        zoomCenter(1.25);
-      } else if (e.key === '-' || e.key === '_') {
-        zoomCenter(0.8);
-      }
-    };
-    const up = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setSpaceDown(false);
-    };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-    };
+    const root = rootRef.current;
+    return root ? attachInteractions(root) : undefined;
   }, []);
 
-  const onPointerDown = (e: ReactPointerEvent) => {
-    lastDragMoved.current = false;
-    if (e.button === 1 || (e.button === 0 && spaceDown)) {
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { px: e.clientX, py: e.clientY, moved: false };
-      setPanning(true);
-    }
-  };
-  const onPointerMove = (e: ReactPointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.px;
-    const dy = e.clientY - d.py;
-    d.px = e.clientX;
-    d.py = e.clientY;
-    d.moved = true;
-    setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
-  };
-  const onPointerUp = () => {
-    lastDragMoved.current = drag.current?.moved ?? false;
-    drag.current = null;
-    setPanning(false);
-  };
-
-  // Refs evitam recriar o contexto: ignora seleção com Espaço pressionado ou logo após um pan.
-  const spaceRef = useRef(spaceDown);
-  spaceRef.current = spaceDown;
-  const ctx = useMemo(
-    () => ({
-      docId: doc.id,
-      selection: new Set(selection),
-      onSelect: (id: string) => {
-        if (spaceRef.current || lastDragMoved.current) return;
-        onSelect([id]);
+  // API imperativa para as outras áreas.
+  useEffect(() => {
+    const size = (): { w: number; h: number } => {
+      const r = rootRef.current;
+      return { w: r?.clientWidth ?? 0, h: r?.clientHeight ?? 0 };
+    };
+    const setVp = (vp: Viewport): void => ui.setViewport(vp);
+    const zoomBy = (factor: number): void => {
+      const s = size();
+      setVp(
+        zoomAtPoint(
+          useUi.getState().viewport,
+          useUi.getState().viewport.z * factor,
+          s.w / 2,
+          s.h / 2,
+        ),
+      );
+    };
+    const nodeRect = (id: string): Rect | null => {
+      const root = rootRef.current;
+      return root ? measureWorldRect(root, id) : null;
+    };
+    const fitModelRect = (): Rect | null => {
+      const frames = (pageRef.current?.frames ?? []).filter((f) => !f.hidden);
+      return unionRects(
+        frames.map((f) => ({ x: f.position?.x ?? 0, y: f.position?.y ?? 0, ...frameSize(f) })),
+      );
+    };
+    const api: CanvasApi = {
+      zoomIn: () => zoomBy(ZOOM_STEP),
+      zoomOut: () => zoomBy(1 / ZOOM_STEP),
+      zoomTo: (z) => {
+        const s = size();
+        const vp = useUi.getState().viewport;
+        setVp(zoomAtPoint(vp, z, s.w / 2, s.h / 2));
       },
-    }),
-    [doc.id, selection, onSelect],
-  );
+      fitAll: () => {
+        const s = size();
+        const rect = fitModelRect();
+        if (s.w <= 0 || s.h <= 0) return;
+        setVp(rect ? fitRect(rect, s, FIT_PADDING, FIT_ALL_MAX_ZOOM) : { x: 0, y: 0, z: 1 });
+      },
+      fitNodes: (ids = useUi.getState().selection) => {
+        const rect = unionRects(ids.map(nodeRect).filter((r): r is Rect => !!r));
+        const s = size();
+        if (rect && s.w > 0) setVp(fitRect(rect, s, FIT_PADDING, FIT_NODES_MAX_ZOOM));
+      },
+      viewportCenter: () => {
+        const s = size();
+        const vp = useUi.getState().viewport;
+        return { x: (s.w / 2 - vp.x) / vp.z, y: (s.h / 2 - vp.y) / vp.z };
+      },
+      nodeRect,
+    };
+    return registerCanvasApi(api);
+  }, []);
 
-  const background = page.background || '#0f1115';
-  const dot = Math.max(16 * view.z, 8);
-  const canvasStyle: CSSProperties = {
-    backgroundColor: background,
-    backgroundImage: 'radial-gradient(rgba(128,128,140,.28) 1px, transparent 1px)',
-    backgroundSize: `${dot}px ${dot}px`,
-    backgroundPosition: `${view.x}px ${view.y}px`,
-    cursor: panning ? 'grabbing' : spaceDown ? 'grab' : 'default',
-  };
+  // Primeira exibição de um documento/página: restaura o viewport salvo ou enquadra tudo.
+  const key = docId && page ? `${docId}:${page.id}` : null;
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || key === lastKey.current) return;
+    if (lastKey.current) saved.current.set(lastKey.current, useUi.getState().viewport);
+    lastKey.current = key;
+    if (!key) return;
+    const prev = saved.current.get(key);
+    if (prev) {
+      ui.setViewport(prev);
+      return;
+    }
+    if (root.clientWidth > 0) {
+      canvasApi.fitAll();
+    } else {
+      pendingFit.current = true;
+    }
+  }, [key]);
+
+  // Se o canvas ainda não tinha tamanho no primeiro enquadramento, refaz quando ganhar.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (pendingFit.current && root.clientWidth > 0) {
+        pendingFit.current = false;
+        canvasApi.fitAll();
+      }
+    });
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, []);
+
+  // Pedido de foco (seleção do MCP, Shift+2): espera o DOM e enquadra (ou só traz à vista).
+  useEffect(() => {
+    const req = focusRequest;
+    const root = rootRef.current;
+    if (!req || !root || req.nonce <= handledFocusNonce) return;
+    let raf = 0;
+    let tries = 0;
+    const run = (): void => {
+      const rects = req.nodeIds
+        .map((id) => measureWorldRect(root, id))
+        .filter((r): r is Rect => !!r);
+      if (rects.length === 0) {
+        if (tries++ < 8) raf = requestAnimationFrame(run);
+        return;
+      }
+      handledFocusNonce = req.nonce;
+      const union = unionRects(rects)!;
+      const size = { w: root.clientWidth, h: root.clientHeight };
+      if (size.w <= 0 || size.h <= 0) return;
+      const vp = useUi.getState().viewport;
+      if (req.soft) {
+        const view: Rect = { x: 0, y: 0, w: size.w, h: size.h };
+        if (rectInside(view, rectToScreen(vp, union), 8)) return;
+        ui.setViewport(fitRect(union, size, FIT_PADDING, vp.z));
+      } else {
+        ui.setViewport(fitRect(union, size, FIT_PADDING, FIT_NODES_MAX_ZOOM));
+      }
+    };
+    raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [focusRequest]);
 
   return (
     <div
-      ref={ref}
-      className="canvas"
-      style={canvasStyle}
-      tabIndex={0}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onAuxClick={(e) => e.preventDefault()}
-      onClick={() => !spaceDown && !lastDragMoved.current && onSelect([])}
+      ref={rootRef}
+      className="cv"
+      data-testid="canvas"
+      tabIndex={-1}
+      style={{ backgroundColor: page?.background || '#0f1115' }}
     >
-      <RenderCtx.Provider value={ctx}>
-        <div
-          className="canvas-world"
-          style={{
-            ...(doc.tokens as CSSProperties),
-            transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`,
-          }}
-        >
-          {page.frames.map((f) => (
-            <FrameView key={f.id} frame={f} zoom={view.z} />
+      <div
+        ref={worldRef}
+        className="cv-world"
+        data-testid="canvas-world"
+        style={tokens as CSSProperties | undefined}
+      >
+        <DocIdContext.Provider value={docId ?? ''}>
+          {page?.frames.map((f) => (
+            <FrameView key={f.id} frame={f} />
           ))}
-        </div>
-      </RenderCtx.Provider>
+        </DocIdContext.Provider>
+      </div>
+      <Overlay rootRef={rootRef} />
     </div>
-  );
-}
-
-/** Canvas (versão provisória da base, ligada aos stores). */
-export function Canvas() {
-  const doc = useDoc((s) => s.doc);
-  const page = useActivePage();
-  const selection = useUi((s) => s.selection);
-  if (!doc || !page) return null;
-  return (
-    <CanvasInner
-      doc={doc}
-      page={page}
-      selection={selection}
-      onSelect={ui.select}
-      onZoomChange={(z) => ui.setViewport((v) => ({ ...v, z }))}
-    />
   );
 }
