@@ -36,6 +36,10 @@ interface Pending {
 }
 
 const REQUEST_TIMEOUT_MS = 15000;
+/** Intervalo mínimo entre `selection:set` (o marquee muda a seleção a cada `pointermove`). */
+export const SELECTION_SYNC_MS = 100;
+/** Atividade do agente mais antiga que isso é descartada (o selo some bem antes). */
+const AGENT_ACTIVITY_TTL_MS = 10000;
 
 function defaultSocketUrl(): string {
   const custom = import.meta.env?.VITE_DAEMON_URL as string | undefined;
@@ -65,30 +69,54 @@ export class DaemonClient {
   private delay = 1000;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private unsubSelection: (() => void) | null = null;
+  private selectionTimer: ReturnType<typeof setTimeout> | undefined;
+  private selectionSentAt = 0;
 
   constructor(private readonly url: () => string = defaultSocketUrl) {}
 
   connect(): void {
     this.closed = false;
     this.open();
-    // Publica a seleção local no daemon (para `get_selection` do MCP).
+    // Publica a seleção local no daemon (para `get_selection` do MCP), no máximo uma vez a cada
+    // SELECTION_SYNC_MS: a primeira mudança sai logo e as seguintes são agrupadas na última.
     this.unsubSelection ??= useUi.subscribe((s, prev) => {
-      if (s.selection === prev.selection) return;
-      const docId = useDoc.getState().activeDocId;
-      if (docId)
-        void this.request({ type: 'selection:set', docId, nodeIds: s.selection }).catch(
-          () => undefined,
-        );
+      if (s.selection !== prev.selection) this.scheduleSelectionSync();
     });
   }
 
   disconnect(): void {
     this.closed = true;
     clearTimeout(this.timer);
+    clearTimeout(this.selectionTimer);
+    this.selectionTimer = undefined;
     this.unsubSelection?.();
     this.unsubSelection = null;
-    this.ws?.close();
+    const ws = this.ws;
     this.ws = null;
+    // Sem isso o `onclose` (que confere `this.ws`) ignora o socket e as pendentes só expiram em 15 s.
+    this.rejectPending();
+    ws?.close();
+  }
+
+  private rejectPending(): void {
+    for (const [id, p] of this.pending) {
+      clearTimeout(p.timer);
+      p.reject(new Error('Conexão com o daemon perdida'));
+      this.pending.delete(id);
+    }
+  }
+
+  private scheduleSelectionSync(): void {
+    if (this.selectionTimer !== undefined) return;
+    const wait = Math.max(0, SELECTION_SYNC_MS - (Date.now() - this.selectionSentAt));
+    this.selectionTimer = setTimeout(() => {
+      this.selectionTimer = undefined;
+      this.selectionSentAt = Date.now();
+      const docId = useDoc.getState().activeDocId;
+      if (!docId) return;
+      const nodeIds = useUi.getState().selection;
+      void this.request({ type: 'selection:set', docId, nodeIds }).catch(() => undefined);
+    }, wait);
   }
 
   private open(): void {
@@ -110,11 +138,7 @@ export class DaemonClient {
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
-      for (const [id, p] of this.pending) {
-        clearTimeout(p.timer);
-        p.reject(new Error('Conexão com o daemon perdida'));
-        this.pending.delete(id);
-      }
+      this.rejectPending();
       if (this.closed) return;
       useDoc.setState({ status: 'offline' });
       this.timer = setTimeout(() => this.open(), this.delay);
@@ -265,7 +289,9 @@ export class DaemonClient {
         let agentActivity = s.agentActivity;
         if (msg.source === 'mcp') {
           const now = Date.now();
-          agentActivity = { ...agentActivity };
+          agentActivity = Object.fromEntries(
+            Object.entries(agentActivity).filter(([, at]) => now - at < AGENT_ACTIVITY_TTL_MS),
+          );
           for (const f of touchedFrameIds(msg.ops, doc, prev)) agentActivity[f] = now;
         }
         useDoc.setState({
@@ -286,9 +312,12 @@ export class DaemonClient {
       case 'doc:closed': {
         const docs = { ...s.docs };
         delete docs[msg.docId];
+        const histories = { ...s.histories };
+        delete histories[msg.docId];
         const wasActive = s.activeDocId === msg.docId;
         useDoc.setState({
           docs,
+          histories,
           documents: s.documents.filter((d) => d.docId !== msg.docId),
           ...(wasActive ? { activeDocId: null, doc: null, history: NO_HISTORY } : {}),
         });
@@ -310,9 +339,11 @@ export class DaemonClient {
       }
       case 'active:changed': {
         const doc = msg.docId ? (s.docs[msg.docId] ?? null) : null;
+        const info = msg.docId ? s.documents.find((d) => d.docId === msg.docId) : undefined;
         useDoc.setState({
           activeDocId: msg.docId,
           doc,
+          revision: info?.revision ?? 0,
           history: msg.docId ? (s.histories[msg.docId] ?? NO_HISTORY) : NO_HISTORY,
         });
         ui.setPage(null);

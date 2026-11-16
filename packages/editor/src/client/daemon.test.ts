@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyOp, createNodeFromTag } from '@mockup/core';
 import type { Document, ServerMessage } from '@mockup/core';
 import { makeDoc } from '../test/fixtures';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
-import { DaemonClient } from './daemon';
+import { DaemonClient, SELECTION_SYNC_MS } from './daemon';
 
 class FakeSocket {
   static OPEN = 1;
@@ -132,11 +132,72 @@ describe('DaemonClient', () => {
     await expect(p2).rejects.toThrow('falhou');
   });
 
-  it('mudança de seleção local é publicada no daemon', () => {
-    const { doc, a } = makeDoc();
+  it('mudança de seleção local é publicada no daemon, agrupada no tempo', () => {
+    vi.useFakeTimers();
+    try {
+      const { doc, a, b, c } = makeDoc();
+      FakeSocket.last!.emit(hello(doc));
+      const sent = () => FakeSocket.last!.sent.filter((m) => m.type === 'selection:set');
+      useUi.setState({ selection: [a.id] });
+      vi.advanceTimersByTime(0);
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toMatchObject({ docId: doc.id, nodeIds: [a.id] });
+      // marquee: várias mudanças seguidas viram um único envio com a última seleção
+      for (const sel of [[a.id, b.id], [b.id], [a.id, b.id, c.id]]) {
+        useUi.setState({ selection: sel });
+        vi.advanceTimersByTime(10);
+      }
+      expect(sent()).toHaveLength(1);
+      vi.advanceTimersByTime(SELECTION_SYNC_MS);
+      expect(sent()).toHaveLength(2);
+      expect(sent()[1]).toMatchObject({ nodeIds: [a.id, b.id, c.id] });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('disconnect rejeita as requisições pendentes na hora', async () => {
+    const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
-    useUi.setState({ selection: [a.id] });
-    const last = FakeSocket.last!.sent.at(-1)!;
-    expect(last).toMatchObject({ type: 'selection:set', docId: doc.id, nodeIds: [a.id] });
+    const p = client.undo();
+    client.disconnect();
+    await expect(p).rejects.toThrow('perdida');
+  });
+
+  it('doc:closed remove o histórico e active:changed atualiza a revisão', () => {
+    const { doc } = makeDoc();
+    const other = { ...structuredClone(doc), id: 'doc_outro01' };
+    FakeSocket.last!.emit(hello(doc));
+    FakeSocket.last!.emit({
+      type: 'doc:opened',
+      info: { docId: other.id, name: 'Outro', path: null, dirty: false, revision: 7 },
+      doc: other,
+      history: { canUndo: true, canRedo: false },
+    });
+    expect(useDoc.getState().histories[other.id]).toBeDefined();
+    FakeSocket.last!.emit({ type: 'active:changed', docId: other.id });
+    expect(useDoc.getState().revision).toBe(7);
+    expect(useDoc.getState().history.canUndo).toBe(true);
+    FakeSocket.last!.emit({ type: 'doc:closed', docId: other.id });
+    expect(useDoc.getState().histories[other.id]).toBeUndefined();
+    expect(useDoc.getState().docs[other.id]).toBeUndefined();
+  });
+
+  it('atividade antiga do agente é descartada quando chega nova', () => {
+    const { doc, frame } = makeDoc();
+    FakeSocket.last!.emit(hello(doc));
+    useDoc.setState({ agentActivity: { fr_velho: Date.now() - 60_000 } });
+    const node = createNodeFromTag('div', { name: 'Novo' });
+    const op = { type: 'createNode' as const, parentId: frame.id, node };
+    FakeSocket.last!.emit({
+      type: 'doc:changed',
+      docId: doc.id,
+      ops: [op],
+      source: 'mcp',
+      revision: 1,
+      doc: applyOp(doc, op).doc,
+      history: H,
+    });
+    expect(Object.keys(useDoc.getState().agentActivity)).toEqual([frame.id]);
   });
 });
