@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
@@ -20,6 +21,43 @@ interface FontFile {
   ext: string;
   weight: number;
   style: 'normal' | 'italic';
+}
+
+/** Preferência de formato quando a fonte traz o mesmo peso/estilo em vários: woff2 > woff > ttf/otf. */
+const FORMAT_RANK: Record<string, number> = { woff2: 0, woff: 1, ttf: 2, otf: 2 };
+
+/** Um arquivo por peso/estilo, no melhor formato disponível. */
+export function dedupeFormats(files: FontFile[]): FontFile[] {
+  const best = new Map<string, FontFile>();
+  for (const f of files) {
+    const key = `${f.weight}/${f.style}`;
+    const cur = best.get(key);
+    if (!cur || (FORMAT_RANK[f.ext] ?? 9) < (FORMAT_RANK[cur.ext] ?? 9)) best.set(key, f);
+  }
+  return [...best.values()];
+}
+
+/** Slug da família; se outra família do documento gera o mesmo slug, acrescenta um sufixo estável. */
+export function uniqueSlug(family: string, otherFamilies: string[]): string {
+  const slug = fontSlug(family);
+  if (!otherFamilies.some((o) => fontSlug(o) === slug)) return slug;
+  return `${slug}-${createHash('sha1').update(family.toLowerCase()).digest('hex').slice(0, 4)}`;
+}
+
+/**
+ * Grava a fonte como `<slug>-<peso>-<estilo>-<hash8>.<ext>` (hash do conteúdo): o nome muda quando a
+ * fonte muda e nunca sobrescreve arquivo existente. Mesmo conteúdo reaproveita o arquivo.
+ */
+async function writeFontFile(dir: string, slug: string, f: FontFile): Promise<string> {
+  const hash = createHash('sha256').update(f.bytes).digest('hex').slice(0, 8);
+  const name = `${slug}-${f.weight}-${f.style}-${hash}.${f.ext}`;
+  const file = path.join(dir, name);
+  try {
+    if ((await fs.promises.readFile(file)).equals(f.bytes)) return name;
+  } catch {
+    // não existe: grava abaixo
+  }
+  return writeAsset(dir, name, f.bytes);
 }
 
 const fontExt = (file: string): string => path.extname(file).toLowerCase().replace('.', '');
@@ -279,14 +317,17 @@ export function registerFontTools(ctx: ToolContext): void {
           throw new ToolError(
             `source inválido: "${src}". Use "google", "local", um caminho absoluto ou uma URL http(s).`,
           );
+        files = dedupeFormats(files);
         files.sort((a, b) => a.weight - b.weight || a.style.localeCompare(b.style));
-        const slug = fontSlug(fam);
+        const slug = uniqueSlug(
+          fam,
+          doc.fonts
+            .filter((f) => f.family.toLowerCase() !== fam.toLowerCase())
+            .map((f) => f.family),
+        );
         const dir = path.join(assets, 'fonts');
         const names: string[] = [];
-        for (const f of files) {
-          const base = `${slug}-${f.weight}${f.style === 'italic' ? '-italic' : ''}.${f.ext}`;
-          names.push(`fonts/${await writeAsset(dir, base, f.bytes, { overwrite: true })}`);
-        }
+        for (const f of files) names.push(`fonts/${await writeFontFile(dir, slug, f)}`);
         ref = {
           family: fam,
           source: 'file',
@@ -296,8 +337,11 @@ export function registerFontTools(ctx: ToolContext): void {
         };
       }
 
-      const others = doc.fonts.filter((f) => f.family.toLowerCase() !== fam.toLowerCase());
-      store.applyOps(id, [{ type: 'setFonts', fonts: [...others, ref] }], {
+      // Re-adicionar a família troca a entrada no lugar (um undo restaura a anterior); os arquivos
+      // antigos continuam em assets/fonts.
+      const at = doc.fonts.findIndex((f) => f.family.toLowerCase() === fam.toLowerCase());
+      const fonts = at < 0 ? [...doc.fonts, ref] : doc.fonts.map((f, i) => (i === at ? ref : f));
+      store.applyOps(id, [{ type: 'setFonts', fonts }], {
         source: 'mcp',
         label: 'add_font',
       });

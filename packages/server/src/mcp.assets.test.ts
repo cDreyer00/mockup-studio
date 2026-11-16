@@ -297,16 +297,17 @@ describe('MCP imagens, ícones e fontes', () => {
       fs.writeFileSync(file, Buffer.from('falso'));
       const r = await call('add_font', { family: 'Inter', source: file });
       expect(r.isError, textOf(r)).toBeFalsy();
-      expect(doc().fonts).toEqual([
-        {
-          family: 'Inter',
-          source: 'file',
-          files: ['fonts/inter-700.woff2'],
-          weights: [700],
-          styles: ['normal'],
-        },
+      const [font] = doc().fonts;
+      expect(font).toMatchObject({
+        family: 'Inter',
+        source: 'file',
+        weights: [700],
+        styles: ['normal'],
+      });
+      expect(font!.files).toEqual([
+        expect.stringMatching(/^fonts[/]inter-700-normal-[0-9a-f]{8}[.]woff2$/),
       ]);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'fonts', 'inter-700.woff2'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', font!.files![0]!))).toBe(true);
       expect(textOf(r)).toContain('font-family: "Inter", sans-serif');
       await call('undo');
       expect(doc().fonts).toEqual([]);
@@ -331,10 +332,61 @@ describe('MCP imagens, ícones e fontes', () => {
       });
       const r = await call('add_font', { family: 'Foo', source: `${base}/Foo-Light.woff` });
       expect(r.isError, textOf(r)).toBeFalsy();
-      expect(doc().fonts[0]).toMatchObject({ files: ['fonts/foo-300.woff'], weights: [300] });
+      expect(doc().fonts[0]).toMatchObject({ weights: [300] });
+      expect(doc().fonts[0]!.files![0]).toMatch(/^fonts[/]foo-300-normal-[0-9a-f]{8}[.]woff$/);
       const bad = await call('add_font', { family: 'Foo', source: `${base}/x.exe` });
       expect(bad.isError).toBe(true);
       expect(textOf(bad)).toContain('arquivo de fonte');
+    });
+
+    it('add_font: nome único pelo conteúdo, sem sobrescrever; re-adicionar troca a entrada no lugar', async () => {
+      const file = path.join(ws.dir, 'Inter-Regular.woff2');
+      fs.writeFileSync(file, 'versao-1');
+      await call('add_font', { family: 'Inter', source: file });
+      await call('add_font', { family: 'Arial', source: 'local' });
+      const v1 = doc().fonts[0]!.files![0]!;
+      fs.writeFileSync(file, 'versao-2');
+      await call('add_font', { family: 'Inter', source: file });
+      const v2 = doc().fonts[0]!.files![0]!;
+      expect(doc().fonts.map((f) => f.family)).toEqual(['Inter', 'Arial']);
+      expect(v2).not.toBe(v1);
+      const fontsDir = path.join(ws.dir, 'assets', 'fonts');
+      expect(fs.readFileSync(path.join(ws.dir, 'assets', v1), 'utf8')).toBe('versao-1');
+      expect(fs.readdirSync(fontsDir)).toHaveLength(2);
+      // mesmo conteúdo reaproveita o arquivo
+      await call('add_font', { family: 'Inter', source: file });
+      expect(doc().fonts[0]!.files![0]).toBe(v2);
+      expect(fs.readdirSync(fontsDir)).toHaveLength(2);
+      await call('undo');
+      await call('undo');
+      expect(doc().fonts[0]!.files![0]).toBe(v1);
+    });
+
+    it('add_font com pasta: um arquivo por peso/estilo, preferindo woff2 > woff > ttf', async () => {
+      const dir = path.join(ws.dir, 'multi');
+      fs.mkdirSync(dir);
+      for (const f of ['Kai-Regular.ttf', 'Kai-Regular.woff', 'Kai-Regular.woff2', 'Kai-Bold.ttf'])
+        fs.writeFileSync(path.join(dir, f), f);
+      await call('add_font', { family: 'Kai', source: dir });
+      const font = doc().fonts[0]!;
+      expect(font.weights).toEqual([400, 700]);
+      expect(font.files![0]).toMatch(/kai-400-normal-[0-9a-f]{8}[.]woff2$/);
+      expect(font.files![1]).toMatch(/kai-700-normal-[0-9a-f]{8}[.]ttf$/);
+    });
+
+    it('add_font: famílias com o mesmo slug ganham sufixo e não se misturam', async () => {
+      const a = path.join(ws.dir, 'a');
+      const b = path.join(ws.dir, 'b');
+      fs.mkdirSync(a);
+      fs.mkdirSync(b);
+      fs.writeFileSync(path.join(a, 'X-Regular.woff2'), 'A');
+      fs.writeFileSync(path.join(b, 'X-Regular.woff2'), 'B');
+      await call('add_font', { family: 'Foo Bar', source: path.join(a, 'X-Regular.woff2') });
+      await call('add_font', { family: 'Foo-Bar!', source: path.join(b, 'X-Regular.woff2') });
+      const [f1, f2] = doc().fonts;
+      expect(f1!.files![0]).toMatch(/^fonts[/]foo-bar-400-/);
+      expect(f2!.files![0]).toMatch(/^fonts[/]foo-bar-[0-9a-f]{4}-400-/);
+      expect(f2!.files![0]).not.toBe(f1!.files![0]);
     });
 
     it('add_font local só registra', async () => {
@@ -351,7 +403,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(list).toContain('Zeta Sans [embutida]');
       const info = textOf(await call('get_font_info', { family: 'Zeta Sans' }));
       expect(info).toContain('Documento: embutida');
-      expect(info).toContain('fonts/zeta-sans-400.woff2');
+      expect(info).toMatch(/fonts[/]zeta-sans-400-normal-[0-9a-f]{8}[.]woff2/);
       expect(info).toContain('font-family: "Zeta Sans", sans-serif');
       const all = textOf(await call('list_fonts', { limit: 5 }));
       expect(all).toContain('No sistema');
