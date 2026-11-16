@@ -1,0 +1,173 @@
+.toolbar {
+  height: var(--toolbar-h);
+  gap: 2px;
+}
+.tb-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px 0 4px;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.tb-logo {
+  color: var(--text-dim);
+}
+.tb-sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--border);
+}
+.tb-group {
+  display: flex;
+  gap: 2px;
+}
+.tb-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+.tb-doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.tb-doc-empty {
+  color: var(--muted);
+}
+.tb-doc-name {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-doc-file {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-doc-select {
+  max-width: 240px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.tb-dirty {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+.tb-dd {
+  position: relative;
+}
+.tb-dd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.tb-dd-trigger:hover,
+.tb-dd-trigger.open {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.tb-zoom {
+  min-width: 62px;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.tb-dd-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 950;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+.tb-dd:last-child .tb-dd-panel,
+.tb-zoom + .tb-dd-panel {
+  left: auto;
+  right: 0;
+}
+.tb-dd-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  height: var(--row-h);
+  align-items: center;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.tb-dd-item:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.tb-dd-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tb-dd-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-dd-shortcut {
+  color: var(--muted);
+}
+.tb-dd-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+.tb-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+.tb-dot.online {
+  background: #34d399;
+}
+.tb-dot.connecting {
+  background: var(--warning);
+}
+.tb-dot.offline {
+  background: var(--danger);
+}
