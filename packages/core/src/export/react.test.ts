@@ -73,7 +73,8 @@ describe('exportReact', () => {
     expect(compile('export const a: number = "x";').length).toBeGreaterThan(0);
     expect(compile('const sobra = 1; export {};').length).toBeGreaterThan(0);
     expect(compile('export const a = <div foo="1" />;').length).toBeGreaterThan(0);
-  });
+    // três programas tsc com lib.dom a frio: sob a suíte inteira em paralelo passa de 5 s
+  }, 30_000);
 
   it('snapshot do Desktop 1440 com Tailwind', () => {
     expect(exportReact(landing, { nodeId: 'fr_d3sk1440' })).toMatchSnapshot();
