@@ -2,8 +2,9 @@
  * Ações de vetor: texto em contornos (rota do servidor), booleanas e achatar (builders do core).
  * Cada ação aplica as ops em UMA chamada `applySafe` (= uma entrada de undo) e seleciona o resultado.
  */
-import { buildBooleanOps, buildFlattenOps } from '@mockup/core';
-import type { BooleanOp, Document, Op } from '@mockup/core';
+import { buildBooleanOps, buildFlattenOps, findNode, isFreeNode } from '@mockup/core';
+import type { BooleanOp, Box, Document, Op } from '@mockup/core';
+import { findNodeEl, getCanvasRoot, measureWorldRect } from '../canvas/dom';
 import { daemon } from '../client/daemon';
 import { getNode, isLockedDeep, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
@@ -55,8 +56,34 @@ export async function textToOutlines(): Promise<void> {
   }
 }
 
+/**
+ * Caixas medidas no DOM dos nós em fluxo (não raiz e sem position absolute/fixed), em px do mundo,
+ * relativas ao padding box do pai (retângulo do filho − do pai − borda do pai). Os livres seguem
+ * o estilo e ficam de fora; sem canvas ou elemento, o core recusa o nó com mensagem clara.
+ */
+export function measureFlowBoxes(doc: Document, ids: readonly string[]): Record<string, Box> {
+  const boxes: Record<string, Box> = {};
+  const root = getCanvasRoot();
+  if (!root) return boxes;
+  for (const id of ids) {
+    const found = findNode(doc, id);
+    if (!found?.parent || isFreeNode(found.node, false)) continue;
+    const rect = measureWorldRect(root, id);
+    const parentRect = measureWorldRect(root, found.parent.id);
+    const parentEl = findNodeEl(root, found.parent.id);
+    if (!rect || !parentRect) continue;
+    boxes[id] = {
+      x: rect.x - parentRect.x - (parentEl?.clientLeft ?? 0),
+      y: rect.y - parentRect.y - (parentEl?.clientTop ?? 0),
+      width: rect.w,
+      height: rect.h,
+    };
+  }
+  return boxes;
+}
+
 async function applyBuilt(
-  build: (doc: Document, ids: string[]) => { ops: Op[]; nodeId: string },
+  build: (doc: Document, ids: string[], boxes: Record<string, Box>) => { ops: Op[]; nodeId: string },
   minNodes: number,
   hint: string,
 ): Promise<void> {
@@ -68,7 +95,7 @@ async function applyBuilt(
     return;
   }
   try {
-    const { ops, nodeId } = build(doc, ids);
+    const { ops, nodeId } = build(doc, ids, measureFlowBoxes(doc, ids));
     const ack = await daemon.applySafe(ops);
     if (ack) ui.select([nodeId]);
   } catch (e) {
@@ -79,7 +106,7 @@ async function applyBuilt(
 /** União, subtração, interseção ou exclusão entre os svg selecionados (2 ou mais). */
 export function booleanOp(op: BooleanOp): Promise<void> {
   return applyBuilt(
-    (doc, ids) => buildBooleanOps(doc, ids, op),
+    (doc, ids, boxes) => buildBooleanOps(doc, ids, op, { boxes }),
     2,
     'Selecione 2 ou mais vetores para combinar',
   );
@@ -87,5 +114,5 @@ export function booleanOp(op: BooleanOp): Promise<void> {
 
 /** Achatar: junta os paths do svg selecionado, ou dos vários svg selecionados, num só nó. */
 export function flatten(): Promise<void> {
-  return applyBuilt((doc, ids) => buildFlattenOps(doc, ids), 1, 'Selecione um vetor para achatar');
+  return applyBuilt((doc, ids, boxes) => buildFlattenOps(doc, ids, { boxes }), 1, 'Selecione um vetor para achatar');
 }
