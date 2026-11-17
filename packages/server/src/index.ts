@@ -16,6 +16,8 @@ export {
 export type { DaemonInfo } from './paths.js';
 export type { DaemonMode, HealthInfo } from './http.js';
 export { checkHealth } from './health.js';
+export { listSystemFonts } from './fonts.js';
+export type { SystemFont } from './fonts.js';
 export { listOpenDocuments, requestShutdown, takeOverDaemon, waitForShutdown } from './control.js';
 export type { TakeoverResult } from './control.js';
 export { isAllowedHost } from './http.js';
