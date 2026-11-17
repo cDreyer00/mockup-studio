@@ -23,6 +23,11 @@ export interface HtmlExportOptions {
   mode?: 'inline' | 'classes';
   /** `true`: só `<style>` + markup, sem `<!doctype>`/`<head>`. Padrão `false`. */
   fragment?: boolean;
+  /**
+   * Lê um arquivo de `assets/` (caminho relativo). Com ele, animações Lottie `.json` de até 512 KB
+   * vão embutidas no HTML e abrem por `file://`; sem ele (ou acima disso) o HTML busca o arquivo.
+   */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 /**
@@ -44,6 +49,7 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   const media = newMediaCollector();
   const markup = renderHtmlTree(roots, {
     media,
+    readAsset: options.readAsset,
     styleOf: (node) => {
       if (Object.keys(node.style).length === 0) return {};
       if (mode === 'inline') {

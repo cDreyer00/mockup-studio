@@ -172,7 +172,7 @@ Bibliotecas de CDN no HTML e no Tailwind exportados (constantes em `packages/cor
 | Rive     | `https://unpkg.com/@rive-app/canvas@2`                                       |
 | Three.js | `https://cdn.jsdelivr.net/npm/three@0.187/build/three.module.js` (módulo ES) |
 
-Só entram os scripts dos recursos que o documento usa. O Lottie é montado com o renderer SVG, lendo o arquivo por `path`; para abrir o HTML com Lottie/Rive locais, sirva a pasta por um servidor HTTP (navegadores costumam bloquear a leitura de arquivos locais a partir de `file://`). No HTML exportado, o código do Three.js roda direto na página, **sem** o sandbox do editor, e anima com o relógio real (`performance.now`).
+Só entram os scripts dos recursos que o documento usa. O Lottie é montado com o renderer SVG. Quando o `export` (MCP) consegue ler o arquivo de `assets/` e ele é um `.json` de até **512 KB**, o JSON vai **embutido** no HTML (`<script type="application/json">` com `<`, U+2028 e U+2029 escapados) e o HTML abre direto por `file://`. Nos demais casos (JSON acima de 512 KB, `.lottie`, qualquer Rive `.riv`, ou HTML gerado sem acesso a `assets/`, como `get_html`) o runtime lê o arquivo por `data-src`, e navegadores bloqueiam essa leitura a partir de `file://` (CORS): sirva a pasta de saída por um servidor HTTP, por exemplo `npx serve`. No HTML exportado, o código do Three.js roda direto na página, **sem** o sandbox do editor, e anima com o relógio real (`performance.now`).
 
 ## Exportação
 

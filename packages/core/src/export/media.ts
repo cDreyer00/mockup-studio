@@ -62,11 +62,13 @@ export interface MediaCollector {
   effects: Map<string, string | undefined>;
   lottie: boolean;
   rive: boolean;
+  /** JSON (já normalizado) das animações Lottie embutidas; o índice vai em `data-lottie-data`. */
+  lottieData: string[];
   three: { code: string; params: Record<string, MediaParamValue> }[];
 }
 
 export function newMediaCollector(): MediaCollector {
-  return { effects: new Map(), lottie: false, rive: false, three: [] };
+  return { effects: new Map(), lottie: false, rive: false, lottieData: [], three: [] };
 }
 
 export function paramBool(
@@ -135,6 +137,37 @@ export interface MediaElementOptions {
    * atributos `data-*`, para o parser de HTML reconstruir o nó (get_html → write_html).
    */
   roundtrip?: boolean;
+  /**
+   * Lê o conteúdo de um arquivo de `assets/`. Com ele, Lottie `.json` de até
+   * `MAX_INLINE_LOTTIE` bytes é embutido no HTML (abre por `file://`, sem fetch).
+   */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
+}
+
+/** Tamanho máximo (bytes) de um JSON Lottie embutido no HTML exportado. */
+export const MAX_INLINE_LOTTIE = 512 * 1024;
+
+/** JSON seguro para `<script type="application/json">`: sem `<`, U+2028 nem U+2029. */
+export function safeJsonForScript(json: string): string {
+  return json
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+/** Normaliza o JSON de uma animação Lottie para embutir; `null` se grande demais ou inválido. */
+function inlineLottie(ref: string, read: MediaElementOptions['readAsset']): string | null {
+  if (!read || !/\.json$/i.test(ref.split(/[?#]/)[0]!) || /^[a-z][a-z0-9+.-]*:/i.test(ref))
+    return null;
+  const raw = read(ref);
+  if (raw === undefined) return null;
+  const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw);
+  if (new TextEncoder().encode(text).length > MAX_INLINE_LOTTIE) return null;
+  try {
+    return JSON.stringify(JSON.parse(text) as unknown);
+  } catch {
+    return null;
+  }
 }
 
 /** Elemento HTML de um nó effect/video/embed; `null` se o nó não tem a especificação ou ela não serve. */
@@ -235,6 +268,12 @@ export function mediaElement(node: Node, o: MediaElementOptions): MediaElement |
         attrs.push(['data-autoplay', String(paramBool(e.params, 'autoplay', true))]);
         if (e.provider === 'lottie') {
           c.lottie = true;
+          const inline = inlineLottie(e.src!, o.readAsset);
+          if (inline !== null) {
+            let i = c.lottieData.indexOf(inline);
+            if (i < 0) i = c.lottieData.push(inline) - 1;
+            attrs.push(['data-lottie-data', String(i)]);
+          }
           attrs.push(['data-loop', String(paramBool(e.params, 'loop', true))]);
           return { tag: 'div', attrs };
         }
@@ -341,19 +380,29 @@ export function mediaScripts(c: MediaCollector): string {
   }
 
   if (c.lottie) {
+    // animationData embutido: evita o fetch do data-src, que o file:// bloqueia (CORS)
+    c.lottieData.forEach((json, i) =>
+      out.push(
+        `<script type="application/json" id="mockup-lottie-${i}">${safeJsonForScript(json)}</script>`,
+      ),
+    );
     out.push(
       [
         `<script src="${LOTTIE_CDN_URL}"></script>`,
         '<script>',
         CDN_NOTE,
         `document.querySelectorAll('[data-mockup-embed="lottie"]').forEach(function (el) {`,
-        '  lottie.loadAnimation({',
+        "  var inline = el.getAttribute('data-lottie-data');",
+        "  var data = inline === null ? null : document.getElementById('mockup-lottie-' + inline);",
+        '  var config = {',
         '    container: el,',
-        "    path: el.getAttribute('data-src'),",
         "    loop: el.getAttribute('data-loop') !== 'false',",
         "    autoplay: el.getAttribute('data-autoplay') !== 'false',",
         "    renderer: 'svg',",
-        '  });',
+        '  };',
+        '  if (data) config.animationData = JSON.parse(data.textContent);',
+        "  else config.path = el.getAttribute('data-src');",
+        '  lottie.loadAnimation(config);',
         '});',
         '</script>',
       ].join('\n'),

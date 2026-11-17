@@ -205,6 +205,16 @@ export function registerExportTools(ctx: ToolContext): void {
       const extraNotes: string[] = [];
       await fs.promises.mkdir(dir, { recursive: true });
 
+      // Lottie .json pequeno vai embutido no HTML (abre por file://)
+      const readAsset = (ref: string): string | undefined => {
+        const root = store.assetsDir(id);
+        const file = root ? safeJoin(root, ref) : null;
+        try {
+          return file ? fs.readFileSync(file, 'utf8') : undefined;
+        } catch {
+          return undefined;
+        }
+      };
       const used = new Set<string>();
       const usedComponents = new Set<string>();
       const uniq = (base: string, ext: string): string => {
@@ -305,13 +315,18 @@ export function registerExportTools(ctx: ToolContext): void {
         } else if (format === 'html') {
           await write(
             uniq(slug, '.html'),
-            exportHtml(doc, { nodeIds: [node.id], title: node.name, mode: 'classes' }),
+            exportHtml(doc, {
+              nodeIds: [node.id],
+              title: node.name,
+              mode: 'classes',
+              readAsset,
+            }),
             true,
           );
         } else if (format === 'tailwind') {
           await write(
             uniq(slug, '.tailwind.html'),
-            exportTailwind(doc, { nodeIds: [node.id], title: node.name }),
+            exportTailwind(doc, { nodeIds: [node.id], title: node.name, readAsset }),
             true,
           );
         } else {

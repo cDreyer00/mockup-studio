@@ -225,6 +225,8 @@ export interface HtmlRenderOptions {
   mediaMode?: 'live' | 'static';
   /** Recebe o que os nós de mídia `live` precisam carregar (scripts, fragments). */
   media?: MediaCollector;
+  /** Lê arquivos de `assets/` para embutir o JSON de animações Lottie pequenas no HTML. */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 /** Texto do nó: `\n` fica literal (o CSS decide se vira quebra); apenas escapa. */
@@ -265,6 +267,7 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
       const m = mediaElement(node, {
         mode: opts.mediaMode ?? 'live',
         collector: opts.media,
+        readAsset: opts.readAsset,
         url: (ref, kind) => {
           const url =
             (kind === 'poster' ? opts.resolveSrc?.(ref) : undefined) ??

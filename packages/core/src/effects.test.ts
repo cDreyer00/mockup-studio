@@ -771,3 +771,55 @@ describe('exportReact com mídia', () => {
     expect(files).toBeUndefined();
   });
 });
+
+describe('Lottie embutido no HTML (file://)', () => {
+  const lottie = (extra = '') =>
+    JSON.stringify({ v: '5.7.0', fr: 30, layers: [], nm: `</script><b>${extra}\u2028x\u2029` });
+  const doc = () => docWith([createEmbedNode({ provider: 'lottie', src: 'lottie/a.json' })]);
+
+  it('com readAsset embute o JSON escapado e o runtime usa animationData', () => {
+    const html = exportHtml(doc(), {
+      readAsset: (ref) => (ref === 'lottie/a.json' ? lottie() : undefined),
+    });
+    expect(html).toContain('data-lottie-data="0"');
+    const m = /<script type="application\/json" id="mockup-lottie-0">([\s\S]*?)<\/script>/.exec(
+      html,
+    );
+    expect(m).not.toBeNull();
+    expect(m![1]).not.toMatch(/[<\u2028\u2029]/);
+    expect((JSON.parse(m![1]!) as { nm: string }).nm).toBe('</script><b>\u2028x\u2029');
+    expect(html).toContain('config.animationData = JSON.parse(data.textContent)');
+  });
+
+  it('o mesmo JSON em dois nós é embutido uma vez', () => {
+    const d = docWith([
+      createEmbedNode({ provider: 'lottie', src: 'a.json' }),
+      createEmbedNode({ provider: 'lottie', src: 'b.json' }),
+    ]);
+    const html = exportHtml(d, { readAsset: () => lottie() });
+    expect(html.match(/id="mockup-lottie-/g)).toHaveLength(1);
+    expect(html.match(/data-lottie-data="0"/g)).toHaveLength(2);
+  });
+
+  it('acima de 512 KB, sem readAsset, JSON inválido ou .lottie: mantém data-src sem embutir', () => {
+    const big = JSON.stringify({ pad: 'x'.repeat(512 * 1024 + 10) });
+    for (const html of [
+      exportHtml(doc(), { readAsset: () => big }),
+      exportHtml(doc(), { readAsset: () => '{nao json' }),
+      exportHtml(doc(), { readAsset: () => undefined }),
+      exportHtml(doc()),
+      exportHtml(docWith([createEmbedNode({ provider: 'lottie', src: 'a.lottie' })]), {
+        readAsset: () => lottie(),
+      }),
+    ]) {
+      expect(html).not.toContain('mockup-lottie-0"');
+      expect(html).not.toContain('data-lottie-data="');
+      expect(html).toContain('data-src="assets/');
+    }
+  });
+
+  it('exportTailwind também embute', () => {
+    const html = exportTailwind(doc(), { fragment: true, readAsset: () => lottie() });
+    expect(html).toContain('id="mockup-lottie-0"');
+  });
+});
