@@ -68,6 +68,19 @@ test('prévia "hover" troca o fundo do botão e "Nenhum" volta', async ({ page }
   await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
 });
 
+test('prévia "dark" troca os tokens para os do tema dark e "Nenhum" volta', async ({ page }) => {
+  const { button, mcp } = await setup(page);
+  await mcp.call('create_theme', {
+    name: 'dark',
+    overrides: { '--color-primary': '#fafafa', '--color-primary-foreground': '#18181b' },
+  });
+  await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
+  await page.getByTestId('preview-state').selectOption('dark');
+  await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(250, 250, 250)');
+  await page.getByTestId('preview-state').selectOption('');
+  await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
+});
+
 test('editar o campo de classes (px-4 → px-8) muda o canvas e o documento', async ({ page }) => {
   const { docId, button, mcp } = await setup(page);
   await mcp.call('set_selection', { nodeIds: [button.id] });
