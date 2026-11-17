@@ -1,6 +1,6 @@
-/** Path data SVG: parse para comandos absolutos, serialização, transformação, caixa e achatamento. */
+/** SVG path data: parsing into absolute commands, serialization, transformation, bounds and flattening. */
 
-/** Comandos absolutos normalizados. H/V viram L; S/T viram C/Q; A (arco) vira C. */
+/** Normalized absolute commands. H/V become L; S/T become C/Q; A (arc) becomes C. */
 export type PathCommand =
   | { type: 'M'; x: number; y: number }
   | { type: 'L'; x: number; y: number }
@@ -8,7 +8,7 @@ export type PathCommand =
   | { type: 'Q'; x1: number; y1: number; x: number; y: number }
   | { type: 'Z' };
 
-/** Matriz afim SVG `matrix(a b c d e f)`: x' = a·x + c·y + e, y' = b·x + d·y + f. */
+/** SVG affine matrix `matrix(a b c d e f)`: x' = a·x + c·y + e, y' = b·x + d·y + f. */
 export interface Matrix {
   a: number;
   b: number;
@@ -25,22 +25,22 @@ export interface Box {
   height: number;
 }
 
-/** Uma poligonal achatada de um subpath. */
+/** A flattened polyline of a subpath. */
 export interface FlatPolyline {
   points: [number, number][];
   closed: boolean;
 }
 
-/* ------------------------------------------------------------------------------- números */
+/* ------------------------------------------------------------------------------- numbers */
 
-/** Arredonda para `precision` casas e devolve o número como texto, sem zeros à toa nem `-0`. */
+/** Rounds to `precision` places and returns the number as text, without needless zeros or `-0`. */
 export function formatNumber(n: number, precision = 3): string {
   if (!Number.isFinite(n)) return '0';
   const f = 10 ** precision;
   const r = Math.round(n * f) / f;
   if (r === 0) return '0';
   const s = String(r);
-  // números muito grandes/pequenos caem em notação científica; `toFixed` evita isso
+  // very large/small numbers fall into scientific notation; `toFixed` avoids that
   return s.includes('e') ? r.toFixed(precision).replace(/\.?0+$/, '') : s;
 }
 
@@ -61,7 +61,7 @@ const ARG_COUNT: Record<string, number> = {
 
 const NUMBER_RE = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
 
-/** Leitor de tokens de path data (comandos, números e flags de arco compactadas). */
+/** Path data token reader (commands, numbers and compact arc flags). */
 class Scanner {
   private i = 0;
 
@@ -71,13 +71,13 @@ class Scanner {
     while (this.i < this.s.length && /[\s,]/.test(this.s[this.i]!)) this.i++;
   }
 
-  /** Há mais conteúdo (depois de espaços e vírgulas)? */
+  /** Is there more content (after spaces and commas)? */
   more(): boolean {
     this.skipSeparators();
     return this.i < this.s.length;
   }
 
-  /** Próximo caractere, se for uma letra de comando. */
+  /** Next character, if it is a command letter. */
   peekCommand(): string | null {
     this.skipSeparators();
     const ch = this.s[this.i];
@@ -93,24 +93,24 @@ class Scanner {
     this.skipSeparators();
     NUMBER_RE.lastIndex = this.i;
     const m = NUMBER_RE.exec(this.s);
-    if (!m) throw new Error(`Path inválido: número esperado na posição ${this.i}`);
+    if (!m) throw new Error(`Invalid path: number expected at position ${this.i}`);
     this.i += m[0].length;
     return parseFloat(m[0]);
   }
 
-  /** Flag de arco: um único `0` ou `1` (pode vir colado ao próximo número). */
+  /** Arc flag: a single `0` or `1` (may come glued to the next number). */
   flag(): 0 | 1 {
     this.skipSeparators();
     const ch = this.s[this.i];
     if (ch !== '0' && ch !== '1') {
-      throw new Error(`Path inválido: flag de arco (0 ou 1) esperada na posição ${this.i}`);
+      throw new Error(`Invalid path: arc flag (0 or 1) expected at position ${this.i}`);
     }
     this.i++;
     return ch === '1' ? 1 : 0;
   }
 }
 
-/** Arco elíptico (endpoint) → cúbicas, segmentos de até 90°. */
+/** Elliptical arc (endpoint) → cubics, segments of up to 90°. */
 function arcToCubics(
   x1: number,
   y1: number,
@@ -178,7 +178,7 @@ function arcToCubics(
   return out;
 }
 
-/** Faz o parse de `d` (todos os comandos SVG, relativos e absolutos). Lança em path inválido. */
+/** Parses `d` (all SVG commands, relative and absolute). Throws on an invalid path. */
 export function parsePathData(d: string): PathCommand[] {
   const sc = new Scanner(d);
   const out: PathCommand[] = [];
@@ -186,13 +186,13 @@ export function parsePathData(d: string): PathCommand[] {
   let cy = 0;
   let sx = 0;
   let sy = 0;
-  // último ponto de controle (para S/T) e se o comando anterior era cúbica/quadrática
+  // last control point (for S/T) and whether the previous command was cubic/quadratic
   let lcx = 0;
   let lcy = 0;
   let prev: 'C' | 'Q' | null = null;
   let cmd = '';
   let first = true;
-  // depois de Z, um comando de desenho começa novo subpath no ponto inicial: emite `M` explícito
+  // after Z, a drawing command starts a new subpath at the start point: emits an explicit `M`
   let afterClose = false;
 
   while (sc.more()) {
@@ -200,14 +200,14 @@ export function parsePathData(d: string): PathCommand[] {
     if (letter !== null) {
       sc.takeCommand();
       if (!(letter.toLowerCase() in ARG_COUNT)) {
-        throw new Error(`Path inválido: comando desconhecido "${letter}"`);
+        throw new Error(`Invalid path: unknown command "${letter}"`);
       }
       cmd = letter;
     } else if (cmd === '' || cmd.toLowerCase() === 'z') {
-      throw new Error('Path inválido: número sem comando');
+      throw new Error('Invalid path: number without a command');
     }
     if (first && cmd.toLowerCase() !== 'm') {
-      throw new Error('Path inválido: deve começar com "M"');
+      throw new Error('Invalid path: must start with "M"');
     }
     first = false;
     const rel = cmd !== cmd.toUpperCase();
@@ -237,7 +237,7 @@ export function parsePathData(d: string): PathCommand[] {
         cy = sy = y;
         prev = null;
         afterClose = false;
-        // pares seguintes são L implícitos
+        // following pairs are implicit L
         cmd = rel ? 'l' : 'L';
         break;
       }
@@ -339,9 +339,9 @@ export function parsePathData(d: string): PathCommand[] {
   return out;
 }
 
-/* ------------------------------------------------------------------------------- serialização */
+/* ------------------------------------------------------------------------------- serialization */
 
-/** Serializa comandos (`M 0 0 L 10 0 C ... Z`), números com até `precision` casas, sem zeros à toa. */
+/** Serializes commands (`M 0 0 L 10 0 C ... Z`), numbers with up to `precision` places, without needless zeros. */
 export function serializePathData(cmds: PathCommand[], precision = 3): string {
   const n = (v: number): string => formatNumber(v, precision);
   return cmds
@@ -367,11 +367,11 @@ export function normalizePathData(d: string, precision = 3): string {
   return serializePathData(parsePathData(d), precision);
 }
 
-/* ------------------------------------------------------------------------------- matrizes */
+/* ------------------------------------------------------------------------------- matrices */
 
 export const IDENTITY: Matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 
-/** Produto `m1 · m2` (aplica m2 primeiro). */
+/** Product `m1 · m2` (applies m2 first). */
 export function multiplyMatrix(m1: Matrix, m2: Matrix): Matrix {
   return {
     a: m1.a * m2.a + m1.c * m2.b,
@@ -385,7 +385,7 @@ export function multiplyMatrix(m1: Matrix, m2: Matrix): Matrix {
 
 const TRANSFORM_FN_RE = /\s*,?\s*([a-zA-Z]+)\s*\(([^)]*)\)/y;
 
-/** Faz o parse de um atributo `transform` SVG (matrix, translate, scale, rotate, skewX, skewY). */
+/** Parses an SVG `transform` attribute (matrix, translate, scale, rotate, skewX, skewY). */
 export function parseTransform(value: string): Matrix {
   let m: Matrix = IDENTITY;
   const s = value.trim();
@@ -393,12 +393,12 @@ export function parseTransform(value: string): Matrix {
   while (pos < s.length) {
     TRANSFORM_FN_RE.lastIndex = pos;
     const match = TRANSFORM_FN_RE.exec(s);
-    if (!match) throw new Error(`Transform inválido: "${value}"`);
+    if (!match) throw new Error(`Invalid transform: "${value}"`);
     pos += match[0].length;
     const name = match[1]!;
     const args = (match[2]!.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g) ?? []).map(Number);
     const bad = (): never => {
-      throw new Error(`Transform inválido: "${name}" com argumentos incorretos`);
+      throw new Error(`Invalid transform: "${name}" with wrong arguments`);
     };
     let t: Matrix;
     switch (name) {
@@ -440,7 +440,7 @@ export function parseTransform(value: string): Matrix {
         t = { ...IDENTITY, b: Math.tan((args[0]! * Math.PI) / 180) };
         break;
       default:
-        throw new Error(`Transform inválido: função desconhecida "${name}"`);
+        throw new Error(`Invalid transform: unknown function "${name}"`);
     }
     m = multiplyMatrix(m, t);
   }
@@ -451,7 +451,7 @@ function applyMatrix(m: Matrix, x: number, y: number): [number, number] {
   return [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f];
 }
 
-/** Aplica a matriz a todos os pontos dos comandos. */
+/** Applies the matrix to all points of the commands. */
 export function transformCommands(cmds: PathCommand[], m: Matrix): PathCommand[] {
   return cmds.map((c): PathCommand => {
     switch (c.type) {
@@ -477,14 +477,14 @@ export function transformCommands(cmds: PathCommand[], m: Matrix): PathCommand[]
   });
 }
 
-/** Aplica a matriz a todos os pontos do path. */
+/** Applies the matrix to all points of the path. */
 export function transformPathData(d: string, m: Matrix, precision = 3): string {
   return serializePathData(transformCommands(parsePathData(d), m), precision);
 }
 
-/* ------------------------------------------------------------------------------- caixa */
+/* ------------------------------------------------------------------------------- bounds */
 
-/** Raízes em (0,1) da derivada de uma cúbica 1D com pontos p0..p3. */
+/** Roots in (0,1) of the derivative of a 1D cubic with points p0..p3. */
 function cubicExtrema(p0: number, p1: number, p2: number, p3: number): number[] {
   const a = -p0 + 3 * p1 - 3 * p2 + p3;
   const b = 2 * (p0 - 2 * p1 + p2);
@@ -512,7 +512,7 @@ function quadAt(p0: number, p1: number, p2: number, t: number): number {
   return u * u * p0 + 2 * u * t * p1 + t * t * p2;
 }
 
-/** Caixa exata dos comandos (extremos das curvas), sem traço. Sem pontos: caixa 0. */
+/** Exact box of the commands (curve extremes), without stroke. No points: box 0. */
 export function commandsBounds(cmds: PathCommand[]): Box {
   let minX = Infinity;
   let minY = Infinity;
@@ -575,16 +575,16 @@ export function commandsBounds(cmds: PathCommand[]): Box {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-/** Caixa exata do path (extremos das curvas), sem traço. Path vazio: caixa 0. */
+/** Exact box of the path (curve extremes), without stroke. Empty path: box 0. */
 export function pathBounds(d: string): Box {
   return commandsBounds(parsePathData(d));
 }
 
-/* ------------------------------------------------------------------------------- achatamento */
+/* ------------------------------------------------------------------------------- flattening */
 
 const MAX_SEGMENTS = 400;
 
-/** Achata as curvas em poligonais (`tolerance` = erro máximo em unidades do path). */
+/** Flattens curves into polylines (`tolerance` = maximum error in path units). */
 export function flattenPath(d: string, tolerance = 0.25): FlatPolyline[] {
   const tol = Math.max(tolerance, 1e-6);
   const out: FlatPolyline[] = [];
@@ -611,7 +611,7 @@ export function flattenPath(d: string, tolerance = 0.25): FlatPolyline[] {
         cy = c.y;
         break;
       case 'C': {
-        // erro de uma poligonal uniforme de n segmentos ≤ 0.75·|B''| / n² (|B''|/6 ≈ dd)
+        // error of a uniform polyline of n segments ≤ 0.75·|B''| / n² (|B''|/6 ≈ dd)
         const dd = Math.max(
           Math.hypot(cx - 2 * c.x1 + c.x2, cy - 2 * c.y1 + c.y2),
           Math.hypot(c.x1 - 2 * c.x2 + c.x, c.y1 - 2 * c.y2 + c.y),
@@ -654,9 +654,9 @@ export function flattenPath(d: string, tolerance = 0.25): FlatPolyline[] {
   return out;
 }
 
-/* ------------------------------------------------------------------------------- formas */
+/* ------------------------------------------------------------------------------- shapes */
 
-/** Path de um retângulo (`rx`/`ry` > 0 arredondam os cantos com arcos, já convertidos em cúbicas). */
+/** Path of a rectangle (`rx`/`ry` > 0 round the corners with arcs, already converted to cubics). */
 export function rectPathData(
   x: number,
   y: number,
@@ -697,7 +697,7 @@ export function rectPathData(
 
 const KAPPA = 0.5522847498307936;
 
-/** Path de uma elipse com 4 cúbicas, começando à direita e seguindo no sentido horário da tela. */
+/** Path of an ellipse with 4 cubics, starting at the right and going clockwise on screen. */
 export function ellipsePathData(
   cx: number,
   cy: number,

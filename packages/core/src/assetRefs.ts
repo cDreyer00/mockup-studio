@@ -1,7 +1,7 @@
 /**
- * Referências a arquivos de `assets/` num documento: `src` de imagens (inclusive os vindos de
- * dados de repetidores), `url(assets/...)` em estilos e arquivos de fontes. Usado para contar o
- * uso no painel/MCP, remover não usados e reescrever referências ao otimizar ou renomear.
+ * References to files in `assets/` within a document: image `src` (including those coming from
+ * repeater data), `url(assets/...)` in styles, and font files. Used to count usage in the
+ * panel/MCP, remove unused ones, and rewrite references when optimizing or renaming.
  */
 import { baseNodeId, expandRepeaters, hasBindings } from './data.js';
 import { walk } from './document.js';
@@ -11,16 +11,16 @@ import type { Document, Node } from './types.js';
 export type AssetRefKind = 'src' | 'style' | 'font' | 'data';
 
 export interface AssetRef {
-  /** Caminho relativo a `assets/` (barras normais). */
+  /** Path relative to `assets/` (forward slashes). */
   path: string;
-  /** Nós que usam (ids reais, sem o sufixo de expansão). */
+  /** Nodes that use it (real ids, without the expansion suffix). */
   nodeIds: string[];
   kinds: AssetRefKind[];
 }
 
 const STYLE_URL_RE = /url[(]\s*(["']?)(?:\.\/)?assets[/]([^"')]+)\1\s*[)]/g;
 
-/** `src` relativo a `assets/` (não data URL, não http, sem `..`)? Devolve o caminho normalizado. */
+/** Is `src` relative to `assets/` (not a data URL, not http, no `..`)? Returns the normalized path. */
 export function assetPathOf(src: string | undefined): string | null {
   if (!src) return null;
   const s = src.trim().replace(/\\/g, '/');
@@ -47,7 +47,7 @@ function addRef(
   if (!ref.kinds.includes(kind)) ref.kinds.push(kind);
 }
 
-/** Mapa caminho → uso. Chaves em barras normais, relativas a `assets/`. */
+/** Map of path → usage. Keys use forward slashes, relative to `assets/`. */
 export function collectAssetRefs(doc: Document): Map<string, AssetRef> {
   const map = new Map<string, AssetRef>();
   const visit = (n: Node, fromData: boolean): void => {
@@ -62,7 +62,7 @@ export function collectAssetRefs(doc: Document): Map<string, AssetRef> {
   };
   walk(doc, (n) => {
     if (n.type === 'repeater') {
-      // Template e itens expandidos (src vindos dos dados).
+      // Template and expanded items (src values coming from the data).
       const bound = new Set<string>();
       walk(n, (t) => {
         if (hasBindings(t.src)) bound.add(t.id);
@@ -82,9 +82,9 @@ export function collectAssetRefs(doc: Document): Map<string, AssetRef> {
 }
 
 /**
- * Ops que trocam referências de assets pelo mapa `de → para` (caminhos relativos a `assets/`):
- * `setSrc` nas imagens, `updateStyles` nos `url(assets/...)`, `setData` nos valores de dados
- * iguais ao caminho antigo e `setFonts` nos arquivos de fonte.
+ * Ops that swap asset references using the `from → to` map (paths relative to `assets/`):
+ * `setSrc` on images, `updateStyles` on `url(assets/...)`, `setData` on data values
+ * equal to the old path, and `setFonts` on font files.
  */
 export function rewriteAssetRefsOps(doc: Document, renamed: Map<string, string>): Op[] {
   if (renamed.size === 0) return [];

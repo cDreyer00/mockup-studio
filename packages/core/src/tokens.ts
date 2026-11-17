@@ -1,12 +1,12 @@
 /**
- * Tokens e temas em CSS real.
+ * Tokens and themes in real CSS.
  *
- * - `doc.tokens` são as variáveis CSS base (`:root`), `doc.tokenMeta` guarda grupo e descrição e
- *   `doc.themes` lista temas que sobrescrevem tokens dentro de nós com `data-theme="<tema>"`.
- * - A resolução segue a semântica do CSS: uma variável é resolvida no elemento onde é declarada.
- *   Por isso o CSS de um tema redeclara também os tokens base que dependem (direta ou
- *   indiretamente) de um token sobrescrito: `--surface: var(--gray-900)` acompanha o tema escuro.
- * - Os `plan*` produzem as ops usadas pelo editor e pelo MCP (mesmo caminho de undo).
+ * - `doc.tokens` are the base CSS variables (`:root`), `doc.tokenMeta` holds group and description, and
+ *   `doc.themes` lists themes that override tokens inside nodes with `data-theme="<theme>"`.
+ * - Resolution follows CSS semantics: a variable is resolved on the element where it is declared.
+ *   So a theme's CSS also redeclares the base tokens that depend (directly or
+ *   indirectly) on an overridden token: `--surface: var(--gray-900)` follows the dark theme.
+ * - The `plan*` functions produce the ops used by the editor and MCP (same undo path).
  */
 import { evaluateCss } from './cssEval.js';
 import { lexer, parse } from './csstree.js';
@@ -18,27 +18,27 @@ import { THEME_ATTR, THEME_NAME_RE, TOKEN_NAME_RE } from './tags.js';
 import type { Document, Node, Theme, TokenMeta } from './types.js';
 
 /* ====================================================================== */
-/* Nomes e grupos                                                          */
+/* Names and groups                                                        */
 /* ====================================================================== */
 
-/** `primary` → `--primary`; nomes já com `--` ficam como estão. */
+/** `primary` → `--primary`; names already starting with `--` stay as they are. */
 export function normalizeTokenName(name: string): string {
   const n = name.trim();
   return n.startsWith('--') || n === '' ? n : `--${n}`;
 }
 
 export const TOKEN_GROUPS = [
-  { id: 'color', label: 'Cores' },
-  { id: 'typography', label: 'Tipografia' },
-  { id: 'spacing', label: 'Espaçamento' },
-  { id: 'radius', label: 'Raio' },
-  { id: 'shadow', label: 'Sombra' },
-  { id: 'other', label: 'Outros' },
+  { id: 'color', label: 'Colors' },
+  { id: 'typography', label: 'Typography' },
+  { id: 'spacing', label: 'Spacing' },
+  { id: 'radius', label: 'Radius' },
+  { id: 'shadow', label: 'Shadow' },
+  { id: 'other', label: 'Other' },
 ] as const;
 
 export type BuiltinTokenGroup = (typeof TOKEN_GROUPS)[number]['id'];
 
-/** Rótulo em português de um grupo (grupos livres ficam com o próprio nome). */
+/** English label of a group (free groups keep their own name). */
 export function tokenGroupLabel(group: string): string {
   return TOKEN_GROUPS.find((g) => g.id === group)?.label ?? group;
 }
@@ -46,21 +46,35 @@ export function tokenGroupLabel(group: string): string {
 const foldGroup = (g: string): string =>
   g.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 
+/** Former Portuguese labels (folded), still accepted when reading stored groups. */
+const LEGACY_GROUP_LABELS: Record<string, BuiltinTokenGroup> = {
+  cores: 'color',
+  tipografia: 'typography',
+  espacamento: 'spacing',
+  raio: 'radius',
+  sombra: 'shadow',
+  outros: 'other',
+};
+
 /**
- * Grupo canônico: um grupo livre com o rótulo (ou o id) de um grupo embutido, sem diferenciar
- * caixa nem acentos (`Cores`, `cores`, `Espacamento`), vira o embutido, para não aparecerem dois
- * grupos com o mesmo título no painel e no `get_tokens`. Os demais ficam como estão.
+ * Canonical group: a free group named after the label (or id) of a built-in group, ignoring
+ * case and accents (`Colors`, `colors`, `Cores`), becomes the built-in one, so two
+ * groups with the same title never show up in the panel and in `get_tokens`. Others stay as they are.
  */
 export function canonicalTokenGroup(group: string): string {
   const f = foldGroup(group);
-  return TOKEN_GROUPS.find((g) => g.id === f || foldGroup(g.label) === f)?.id ?? group;
+  return (
+    TOKEN_GROUPS.find((g) => g.id === f || foldGroup(g.label) === f)?.id ??
+    LEGACY_GROUP_LABELS[f] ??
+    group
+  );
 }
 
 const COLOR_FN = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\(/i;
 const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const LENGTH = /^-?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vw|vh|vmin|vmax|ch|ex|svh|dvh|lvh)$/i;
 
-/** Grupo inferido pelo prefixo do nome e, sem prefixo conhecido, pelo valor. */
+/** Group inferred from the name prefix and, without a known prefix, from the value. */
 export function inferTokenGroup(name: string, value?: string): BuiltinTokenGroup {
   const n = name.replace(/^--/, '').toLowerCase();
   if (/^(?:colou?rs?|bg|background|fg|foreground|surface|border-color|accent|brand)(?:-|$)/.test(n))
@@ -99,13 +113,13 @@ const NAMED_BASIC = new Set([
   'transparent',
 ]);
 
-/** Grupo efetivo: o de `tokenMeta` ou o inferido. */
+/** Effective group: the one in `tokenMeta` or the inferred one. */
 export function tokenGroup(doc: Document, name: string): string {
   const g = doc.tokenMeta?.[name]?.group;
   return g !== undefined ? canonicalTokenGroup(g) : inferTokenGroup(name, doc.tokens[name]);
 }
 
-/** Todos os nomes de token definidos (base e temas), na ordem dos tokens base e depois dos temas. */
+/** All defined token names (base and themes), base tokens first and then themes. */
 export function tokenNames(doc: Document): string[] {
   const names = new Set(Object.keys(doc.tokens));
   for (const t of doc.themes ?? []) for (const k of Object.keys(t.overrides)) names.add(k);
@@ -113,7 +127,7 @@ export function tokenNames(doc: Document): string[] {
 }
 
 /* ====================================================================== */
-/* Referências var()                                                       */
+/* var() references                                                        */
 /* ====================================================================== */
 
 export interface VarRef {
@@ -121,7 +135,7 @@ export interface VarRef {
   fallback?: string;
 }
 
-/** Fim da chamada que abre em `start` (índice do `(`), respeitando aninhamento e aspas; -1 se aberta. */
+/** End of the call that opens at `start` (index of the `(`), respecting nesting and quotes; -1 if unclosed. */
 function closeParen(value: string, open: number): number {
   let depth = 0;
   let quote: string | null = null;
@@ -139,7 +153,7 @@ function closeParen(value: string, open: number): number {
   return -1;
 }
 
-/** Referências `var(--x[, fallback])` do valor, inclusive as que estão dentro de fallbacks. */
+/** `var(--x[, fallback])` references in the value, including those inside fallbacks. */
 export function findVarRefs(value: string): VarRef[] {
   const out: VarRef[] = [];
   const re = /var\(/gi;
@@ -158,15 +172,15 @@ export function findVarRefs(value: string): VarRef[] {
   return out;
 }
 
-/** Nomes referenciados por `var()` no valor (sem repetição). */
+/** Names referenced by `var()` in the value (deduplicated). */
 export function referencedTokens(value: string): string[] {
   return [...new Set(findVarRefs(value).map((r) => r.name))];
 }
 
 /**
- * Troca `var(--from` por `var(--to` (só o nome exato). A função `var(` casa sem diferenciar
- * maiúsculas (como no CSS; a flag `i` não serve, pois tornaria o nome insensível também) e a
- * grafia original é preservada; o nome da variável diferencia maiúsculas.
+ * Replaces `var(--from` with `var(--to` (exact name only). The `var(` function matches
+ * case-insensitively (as in CSS; the `i` flag won't do, since it would make the name insensitive too) and the
+ * original spelling is preserved; the variable name is case-sensitive.
  */
 export function replaceVarRefs(value: string, from: string, to: string): string {
   if (!value.includes(from)) return value;
@@ -176,11 +190,11 @@ export function replaceVarRefs(value: string, from: string, to: string): string 
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 
-/** Raízes de utilidade Tailwind que aceitam cor. */
+/** Tailwind utility roots that accept a color. */
 const COLOR_ROOTS =
   'bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|decoration|accent|caret|divide|placeholder';
 
-/** Raízes de utilidade de cada namespace de tema (`null`: qualquer raiz, o caso do spacing). */
+/** Utility roots of each theme namespace (`null`: any root, the spacing case). */
 const NS_ROOTS: Record<string, string> = {
   color: COLOR_ROOTS,
   radius: 'rounded(?:-(?:[xytblrse]|[st][se]|[be][se]))?',
@@ -193,7 +207,7 @@ const NS_ROOTS: Record<string, string> = {
   spacing: '[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*)*',
 };
 
-/** Parte a classe em variantes e base nos `:` fora de `[]` e `()`. */
+/** Splits the class into variants and base at the `:` outside `[]` and `()`. */
 function splitVariants(cls: string): { variants: string; base: string } {
   let depth = 0;
   let cut = -1;
@@ -207,10 +221,10 @@ function splitVariants(cls: string): { variants: string; base: string } {
 }
 
 /**
- * Reescreve em uma lista de classes Tailwind (`node.classes`) as referências ao token `from`:
- * formas arbitrárias (`bg-[var(--from)]`, `bg-(--from)`), sempre; e utilidades com o nome curto de
- * tema (`bg-brand`, `hover:bg-brand/90`, `!-mt-gutter`), só quando `from` e `to` são do mesmo
- * namespace de tema. Devolve o texto novo e quantas classes mudaram.
+ * Rewrites, in a list of Tailwind classes (`node.classes`), the references to the token `from`:
+ * arbitrary forms (`bg-[var(--from)]`, `bg-(--from)`), always; and utilities with the short
+ * theme name (`bg-brand`, `hover:bg-brand/90`, `!-mt-gutter`), only when `from` and `to` are in the same
+ * theme namespace. Returns the new text and how many classes changed.
  */
 export function renameTokenInClasses(
   classes: string,
@@ -243,32 +257,32 @@ export function renameTokenInClasses(
 }
 
 /**
- * Problema que impede renomear `from` para `to` (mensagem pronta) ou `null` se pode.
- * Recusa nome inválido, igual, origem inexistente, destino já definido (base ou tema) e destino
- * já declarado como custom property no estilo de algum nó (o rename perderia um dos valores).
+ * Problem that prevents renaming `from` to `to` (ready-made message) or `null` if it can.
+ * Rejects an invalid name, an equal name, a missing source, a destination already defined (base or theme) and a destination
+ * already declared as a custom property in some node's style (the rename would lose one of the values).
  */
 export function renameTokenProblem(doc: Document, from: string, to: string): string | null {
   const a = normalizeTokenName(from);
   const b = normalizeTokenName(to);
-  if (!TOKEN_NAME_RE.test(b)) return `Nome de token inválido: "${b}" (use o formato --nome)`;
-  if (a === b) return 'O nome novo é igual ao atual';
+  if (!TOKEN_NAME_RE.test(b)) return `Invalid token name: "${b}" (use the --name format)`;
+  if (a === b) return 'The new name is the same as the current one';
   const defined = (name: string): boolean =>
     name in doc.tokens || (doc.themes ?? []).some((t) => name in t.overrides);
-  if (!defined(a)) return `Token "${a}" não encontrado`;
-  if (defined(b)) return `Já existe um token "${b}"`;
+  if (!defined(a)) return `Token "${a}" not found`;
+  if (defined(b)) return `Token "${b}" already exists`;
   let local: Node | undefined;
   walk(doc, (n) => {
     if (!local && b in n.style) local = n;
   });
   if (local) {
-    return `A variável "${b}" já está declarada no estilo do nó "${local.name}" (${local.id}); renomeie ou remova antes`;
+    return `Variable "${b}" is already declared in the style of node "${local.name}" (${local.id}); rename or remove it first`;
   }
   return null;
 }
 
 /**
- * Substitui as `var()` do valor usando `lookup` (que devolve o valor já resolvido ou `undefined`).
- * Sem valor e sem fallback, a referência fica no texto (o CSS a trataria como inválida).
+ * Replaces the `var()` calls in the value using `lookup` (which returns the already resolved value or `undefined`).
+ * Without a value and without a fallback, the reference stays in the text (CSS would treat it as invalid).
  */
 export function substituteVars(
   value: string,
@@ -304,21 +318,21 @@ export function substituteVars(
   return { value: run(value, 0), missing };
 }
 
-/** Variáveis de um escopo e as que ficaram inválidas (sem valor), com o motivo. */
+/** Variables of a scope and those that ended up invalid (no value), with the reason. */
 export interface ScopeResolution {
   vars: Record<string, string>;
   /**
-   * Variáveis declaradas no escopo que ficaram inválidas: nome → referências que faltaram
-   * (inexistentes ou também inválidas, sem fallback). Ciclos aparecem com `[]`.
+   * Variables declared in the scope that ended up invalid: name → references that were missing
+   * (nonexistent or also invalid, without a fallback). Cycles appear as `[]`.
    */
   invalid: Record<string, string[]>;
 }
 
 /**
- * Variáveis resolvidas num elemento: `declared` (custom properties do próprio elemento) vê as
- * outras declarações do mesmo elemento e herda o resto de `inherited`. Como no CSS, uma variável
- * com ciclo ou com `var()` para variável inexistente (sem fallback) fica sem valor (inválida no
- * momento do cálculo), e quem a referencia com fallback passa a usar o fallback.
+ * Variables resolved on an element: `declared` (the element's own custom properties) sees the
+ * other declarations of the same element and inherits the rest from `inherited`. As in CSS, a variable
+ * with a cycle or with a `var()` to a nonexistent variable (without a fallback) has no value (invalid at the
+ * time of calculation), and whoever references it with a fallback starts using the fallback.
  */
 export function resolveScopeDetailed(
   inherited: Record<string, string>,
@@ -334,7 +348,7 @@ export function resolveScopeDetailed(
     if (done.has(name)) return done.get(name);
     const at = stack.indexOf(name);
     if (at !== -1) {
-      // Ciclo: todas as variáveis do laço ficam inválidas (sem valor).
+      // Cycle: all variables in the loop become invalid (no value).
       for (const n of stack.slice(at)) poisoned.add(n);
       return undefined;
     }
@@ -360,7 +374,7 @@ export function resolveScopeDetailed(
   return { vars: out, invalid };
 }
 
-/** {@link resolveScopeDetailed} só com as variáveis. */
+/** {@link resolveScopeDetailed} with just the variables. */
 export function resolveScope(
   inherited: Record<string, string>,
   declared: Record<string, string>,
@@ -369,20 +383,20 @@ export function resolveScope(
 }
 
 /* ====================================================================== */
-/* Temas                                                                   */
+/* Themes                                                                  */
 /* ====================================================================== */
 
 export function findTheme(doc: Document, name: string): Theme | undefined {
   return doc.themes?.find((t) => t.name === name);
 }
 
-/** Tema declarado no nó (`data-theme`), se existir no documento. */
+/** Theme declared on the node (`data-theme`), if it exists in the document. */
 export function nodeTheme(doc: Document, node: Node): string | undefined {
   const t = node.attrs[THEME_ATTR];
   return t !== undefined && findTheme(doc, t) ? t : undefined;
 }
 
-/** Tema efetivo de um nó: o do próprio nó ou do ancestral mais próximo com `data-theme`. */
+/** Effective theme of a node: the node's own or the nearest ancestor's with `data-theme`. */
 export function effectiveTheme(doc: Document, nodeId: string): string | undefined {
   const path = findNode(doc, nodeId);
   if (!path) return undefined;
@@ -394,8 +408,8 @@ export function effectiveTheme(doc: Document, nodeId: string): string | undefine
 }
 
 /**
- * Declarações do seletor `[data-theme="<tema>"]`: as sobrescritas do tema e os tokens base que
- * dependem delas (redeclarados com o valor base, para serem resolvidos dentro do tema).
+ * Declarations of the `[data-theme="<theme>"]` selector: the theme's overrides and the base tokens that
+ * depend on them (redeclared with the base value, so they resolve inside the theme).
  */
 export function themeDeclarations(doc: Document, themeName: string): Record<string, string> {
   const theme = findTheme(doc, themeName);
@@ -419,33 +433,33 @@ export function themeDeclarations(doc: Document, themeName: string): Record<stri
   return { ...out, ...theme.overrides };
 }
 
-/** Variáveis resolvidas no `:root` e, com `theme`, dentro de `[data-theme="<tema>"]`. */
+/** Variables resolved in `:root` and, with `theme`, inside `[data-theme="<theme>"]`. */
 export function resolvedTokens(doc: Document, theme?: string): Record<string, string> {
   return resolvedTokensDetailed(doc, theme).vars;
 }
 
-/** {@link resolvedTokens} com as variáveis que ficaram inválidas (referência ausente ou ciclo). */
+/** {@link resolvedTokens} with the variables that ended up invalid (missing reference or cycle). */
 export function resolvedTokensDetailed(doc: Document, theme?: string): ScopeResolution {
   const root = resolveScopeDetailed({}, doc.tokens);
   if (!theme) return root;
   const decl = themeDeclarations(doc, theme);
   const t = resolveScopeDetailed(root.vars, decl);
   const invalid = { ...root.invalid };
-  // Redeclaradas no tema: valem as do tema (inclusive quando voltam a ter valor).
+  // Redeclared in the theme: the theme's values apply (including when they get a value again).
   for (const k of Object.keys(decl)) delete invalid[k];
   return { vars: t.vars, invalid: { ...invalid, ...t.invalid } };
 }
 
-/** Valor resolvido (var, calc, color-mix) de um token, no tema indicado. */
+/** Resolved value (var, calc, color-mix) of a token, in the given theme. */
 export function resolveTokenValue(doc: Document, name: string, theme?: string): string | undefined {
   const v = resolvedTokens(doc, theme)[normalizeTokenName(name)];
   return v === undefined ? undefined : evaluateCss(v);
 }
 
 /**
- * Variáveis vistas por cada nó do caminho até `nodeId` (ancestrais primeiro, o nó por último):
- * tokens base, temas (`data-theme`) e custom properties declaradas. `theme` força um tema no
- * próprio nó (como se ele tivesse `data-theme="<tema>"`, no lugar do que tiver).
+ * Variables seen by each node on the path to `nodeId` (ancestors first, the node last):
+ * base tokens, themes (`data-theme`) and declared custom properties. `theme` forces a theme on
+ * the node itself (as if it had `data-theme="<theme>"`, in place of whatever it has).
  */
 export function scopeChainFor(
   doc: Document,
@@ -453,7 +467,7 @@ export function scopeChainFor(
   opts: { theme?: string } = {},
 ): { node: Node; vars: Record<string, string> }[] {
   const path = findNode(doc, nodeId);
-  if (!path) throw new Error(`Nó "${nodeId}" não encontrado`);
+  if (!path) throw new Error(`Node "${nodeId}" not found`);
   const forced = opts.theme && findTheme(doc, opts.theme) ? opts.theme : undefined;
   let vars = resolveScope({}, doc.tokens);
   const chain: { node: Node; vars: Record<string, string> }[] = [];
@@ -469,8 +483,8 @@ export function scopeChainFor(
 }
 
 /**
- * Variáveis vistas por um nó: tokens, temas (`data-theme`) e custom properties dos ancestrais.
- * `theme` força um tema no próprio nó (ver {@link scopeChainFor}).
+ * Variables seen by a node: tokens, themes (`data-theme`) and the ancestors' custom properties.
+ * `theme` forces a theme on the node itself (see {@link scopeChainFor}).
  */
 export function scopeVarsFor(
   doc: Document,
@@ -489,10 +503,10 @@ const escapeXml = (v: string): string =>
     .replace(/'/g, '&apos;');
 
 /**
- * Troca as `var(--x[, fallback])` do markup SVG pelos valores de `vars` (escapados para XML). Serve
- * para o SVG que sai do DOM do documento (`<img>` por data URI no render, SVG standalone), onde as
- * custom properties do documento não chegam. Variáveis declaradas dentro do próprio SVG ficam
- * intactas (lá dentro vale a declaração interna); sem valor e sem fallback, a `var()` fica como está.
+ * Replaces the `var(--x[, fallback])` calls in SVG markup with the values from `vars` (escaped for XML). Used
+ * for the SVG that comes out of the document DOM (`<img>` via data URI in render, standalone SVG), where the document's
+ * custom properties don't reach. Variables declared inside the SVG itself stay
+ * intact (the inner declaration applies there); without a value and without a fallback, the `var()` stays as is.
  */
 export function inlineSvgVars(svg: string, vars: Record<string, string>): string {
   if (!/var\(/i.test(svg)) return svg;
@@ -515,17 +529,17 @@ export function inlineSvgVars(svg: string, vars: Record<string, string>): string
   return out + svg.slice(i);
 }
 
-/** Resolve `var()` com as variáveis dadas e avalia `calc()`/`color-mix()` quando possível. */
+/** Resolves `var()` with the given variables and evaluates `calc()`/`color-mix()` when possible. */
 export function resolveCssValue(value: string, vars: Record<string, string>): string {
   return evaluateCss(substituteVars(value, (n) => vars[n]).value);
 }
 
 /* ====================================================================== */
-/* Validação (css-tree)                                                    */
+/* Validation (css-tree)                                                   */
 /* ====================================================================== */
 
 export interface TokenProblem {
-  /** `error`: valor recusado/quebrado; `warning`: aceito, mas suspeito (tipo não bate, referência ausente). */
+  /** `error`: rejected/broken value; `warning`: accepted but suspicious (type mismatch, missing reference). */
   level: 'error' | 'warning';
   message: string;
 }
@@ -542,14 +556,14 @@ function balanceProblem(value: string): string | null {
     }
     if (c === '"' || c === "'") quote = c;
     else if (c === '(') depth++;
-    else if (c === ')' && --depth < 0) return 'parêntese ")" sem abertura';
+    else if (c === ')' && --depth < 0) return 'unmatched ")"';
   }
-  if (quote) return 'aspas não fechadas';
-  if (depth > 0) return 'parênteses não fechados';
+  if (quote) return 'unclosed quotes';
+  if (depth > 0) return 'unclosed parentheses';
   return null;
 }
 
-/** Propriedade CSS usada para conferir o tipo do valor de um grupo. */
+/** CSS property used to check the value type of a group. */
 function typeCheckProperty(name: string, group: string): string | null {
   const n = name.toLowerCase();
   switch (group) {
@@ -573,18 +587,18 @@ function typeCheckProperty(name: string, group: string): string | null {
   }
 }
 
-/** Palavras do tipo esperado por grupo, para as mensagens. */
+/** Words for the expected type of each group, for messages. */
 const GROUP_NOUN: Record<string, string> = {
-  color: 'uma cor',
-  shadow: 'uma sombra (box-shadow)',
-  radius: 'um raio (comprimento ou %)',
-  spacing: 'um comprimento',
+  color: 'a color',
+  shadow: 'a shadow (box-shadow)',
+  radius: 'a radius (length or %)',
+  spacing: 'a length',
 };
 
 /**
- * Valida o valor de um token com css-tree: sintaxe (parênteses, aspas, valor que escapa da
- * declaração) e, depois de resolver as `var()`, o tipo esperado pelo grupo (cor, sombra...).
- * `vars` são as variáveis já resolvidas (padrão: os tokens do documento).
+ * Validates a token's value with css-tree: syntax (parentheses, quotes, a value that escapes the
+ * declaration) and, after resolving the `var()` calls, the type expected by the group (color, shadow...).
+ * `vars` are the already resolved variables (default: the document's tokens).
  */
 export function validateTokenValue(
   name: string,
@@ -592,20 +606,20 @@ export function validateTokenValue(
   opts: {
     group?: string;
     vars?: Record<string, string>;
-    /** Variáveis inválidas do escopo (de {@link resolvedTokensDetailed}), para a mensagem. */
+    /** Invalid variables of the scope (from {@link resolvedTokensDetailed}), for the message. */
     invalid?: Record<string, string[]>;
   } = {},
 ): TokenProblem | null {
   const unsafe = cssValueProblem(value);
   if (unsafe) return { level: 'error', message: unsafe };
-  if (value.trim() === '') return { level: 'error', message: 'valor vazio' };
+  if (value.trim() === '') return { level: 'error', message: 'empty value' };
   const bal = balanceProblem(value);
   if (bal) return { level: 'error', message: bal };
   let ast;
   try {
     ast = parse(value, { context: 'value' });
   } catch (e) {
-    return { level: 'error', message: `CSS inválido: ${e instanceof Error ? e.message : e}` };
+    return { level: 'error', message: `Invalid CSS: ${e instanceof Error ? e.message : e}` };
   }
   void ast;
   const vars = opts.vars ?? {};
@@ -615,13 +629,13 @@ export function validateTokenValue(
     const broken = names.filter((n) => opts.invalid && n in opts.invalid);
     const absent = names.filter((n) => !broken.includes(n));
     const parts: string[] = [];
-    if (absent.length > 0) parts.push(`referência a token inexistente: ${absent.join(', ')}`);
+    if (absent.length > 0) parts.push(`reference to nonexistent token: ${absent.join(', ')}`);
     if (broken.length > 0) {
       const why = (n: string): string => {
         const m = opts.invalid![n]!;
-        return m.length > 0 ? `${n} (→ ${m.join(', ')})` : `${n} (ciclo)`;
+        return m.length > 0 ? `${n} (→ ${m.join(', ')})` : `${n} (cycle)`;
       };
-      parts.push(`referência a token sem valor válido: ${broken.map(why).join(', ')}`);
+      parts.push(`reference to token without a valid value: ${broken.map(why).join(', ')}`);
     }
     return { level: 'warning', message: parts.join('; ') };
   }
@@ -632,33 +646,33 @@ export function validateTokenValue(
     const resolved = parse(sub.value, { context: 'value' });
     const m = lexer.matchProperty(prop, resolved);
     if (m.error) {
-      const noun = GROUP_NOUN[group] ?? `um valor válido para ${prop}`;
-      return { level: 'warning', message: `o valor não parece ${noun}` };
+      const noun = GROUP_NOUN[group] ?? `a valid value for ${prop}`;
+      return { level: 'warning', message: `the value doesn't look like ${noun}` };
     }
   } catch {
-    return { level: 'warning', message: 'não foi possível conferir o tipo do valor' };
+    return { level: 'warning', message: 'could not check the value type' };
   }
   return null;
 }
 
 /* ====================================================================== */
-/* Uso e problemas                                                         */
+/* Usage and problems                                                      */
 /* ====================================================================== */
 
 export interface TokenUsage {
-  /** Nós que referenciam o token em algum estilo. */
+  /** Nodes that reference the token in some style. */
   nodeIds: string[];
-  /** Tokens (base ou de tema) cujo valor referencia este. */
+  /** Tokens (base or theme) whose value references this one. */
   tokens: string[];
 }
 
 export interface BrokenRef {
-  /** Nó (estilo) ou token/tema onde está a referência quebrada. */
+  /** Node (style) or token/theme where the broken reference is. */
   nodeId?: string;
   token?: string;
   theme?: string;
   property?: string;
-  /** Variável referenciada que não existe (e sem fallback). */
+  /** Referenced variable that does not exist (and has no fallback). */
   missing: string;
 }
 
@@ -667,11 +681,11 @@ export interface TokenInfo {
   value: string | undefined;
   group: string;
   description?: string;
-  /** Valor resolvido no `:root` (var, calc e color-mix avaliados). */
+  /** Value resolved in `:root` (var, calc and color-mix evaluated). */
   resolved?: string;
-  /** Valor por tema (só os temas que sobrescrevem este token). */
+  /** Value per theme (only the themes that override this token). */
   themes: Record<string, string>;
-  /** Valor resolvido por tema (todos os temas). */
+  /** Value resolved per theme (all themes). */
   resolvedByTheme: Record<string, string>;
   usage: TokenUsage;
   problem?: TokenProblem;
@@ -684,7 +698,7 @@ export interface TokenReport {
   broken: BrokenRef[];
 }
 
-/** Ids dos nós com `data-theme` igual ao tema. */
+/** Ids of the nodes whose `data-theme` equals the theme. */
 export function nodesWithTheme(doc: Document, theme: string): string[] {
   const out: string[] = [];
   walk(doc, (n) => {
@@ -696,9 +710,9 @@ export function nodesWithTheme(doc: Document, theme: string): string[] {
 type TokenInfoBase = Omit<TokenInfo, 'usage'>;
 
 /**
- * Parte do relatório que só depende de tokens, metadados e temas (resolução e validação com
- * css-tree, a parte cara). Fica em cache pela serialização desses três campos (barata perto da
- * validação e imune a mutação no lugar): arrastar ou editar nós não refaz este cálculo.
+ * Part of the report that depends only on tokens, metadata and themes (resolution and validation with
+ * css-tree, the expensive part). Cached by the serialization of those three fields (cheap compared to
+ * validation and immune to in-place mutation): dragging or editing nodes doesn't redo this calculation.
  */
 const INFO_CACHE_SIZE = 8;
 const infoCache = new Map<string, TokenInfoBase[]>();
@@ -761,7 +775,7 @@ function computeTokenInfos(doc: Document): TokenInfoBase[] {
   });
 }
 
-/** Relatório completo: tokens com grupo, valores resolvidos, uso, não usados e referências quebradas. */
+/** Full report: tokens with group, resolved values, usage, unused ones and broken references. */
 export function getTokenReport(doc: Document): TokenReport {
   const names = tokenNames(doc);
   const usage = new Map<string, TokenUsage>(names.map((n) => [n, { nodeIds: [], tokens: [] }]));
@@ -787,19 +801,19 @@ export function getTokenReport(doc: Document): TokenReport {
       checkValue(v, { token: k, theme: t.name }, defined);
     }
   }
-  // Custom properties declaradas nos estilos valem para o nó e os descendentes.
+  // Custom properties declared in styles apply to the node and its descendants.
   const visit = (node: Node, scope: Set<string>): void => {
     const local = new Set(scope);
     for (const k of Object.keys(node.style)) if (k.startsWith('--')) local.add(k);
     for (const [prop, v] of Object.entries(node.style)) {
       checkValue(v, { nodeId: node.id, property: prop }, local);
     }
-    // Valores de atributos (ex.: `fill="var(--x)"`) e markup de SVG inline também usam var().
+    // Attribute values (e.g. `fill="var(--x)"`) and inline SVG markup also use var().
     for (const [attr, v] of Object.entries(node.attrs ?? {})) {
       checkValue(v, { nodeId: node.id, property: `attr:${attr}` }, local);
     }
     if (node.svg) checkValue(node.svg, { nodeId: node.id, property: 'svg' }, local);
-    // Estados (hover, dark, md...): custom properties declaradas no estado valem só para ele.
+    // States (hover, dark, md...): custom properties declared in a state apply only to it.
     for (const [key, st] of Object.entries(node.states ?? {})) {
       const stLocal = new Set(local);
       for (const k of Object.keys(st)) if (k.startsWith('--')) stLocal.add(k);
@@ -828,21 +842,21 @@ export function getTokenReport(doc: Document): TokenReport {
 }
 
 /* ====================================================================== */
-/* CSS de temas                                                            */
+/* Theme CSS                                                               */
 /* ====================================================================== */
 
 function safeEntries(map: Record<string, string>): [string, string][] {
   return Object.entries(map).filter(([k, v]) => TOKEN_NAME_RE.test(k) && !cssValueProblem(v));
 }
 
-/** Seletor de um tema, ex.: `[data-theme="dark"]` (o nome já é restrito por `THEME_NAME_RE`). */
+/** Selector of a theme, e.g. `[data-theme="dark"]` (the name is already restricted by `THEME_NAME_RE`). */
 export function themeSelector(theme: string): string {
   return `[${THEME_ATTR}="${theme}"]`;
 }
 
 /**
- * Regras `[data-theme="<tema>"] { ... }` de todos os temas. `scope` prefixa o seletor (o canvas usa
- * `.cv-world `, para não vazar na interface).
+ * Rules `[data-theme="<theme>"] { ... }` for all themes. `scope` prefixes the selector (the canvas uses
+ * `.cv-world `, so it doesn't leak into the interface).
  */
 export function themeRulesCss(
   doc: Document,
@@ -862,8 +876,8 @@ export function themeRulesCss(
 }
 
 /**
- * `@custom-variant theme-<nome>` para cada tema (e `dark` quando existe um tema `dark`), para usar
- * `theme-dark:bg-...` / `dark:bg-...` no Tailwind v4.
+ * `@custom-variant theme-<name>` for each theme (and `dark` when a `dark` theme exists), to use
+ * `theme-dark:bg-...` / `dark:bg-...` in Tailwind v4.
  */
 export function themeVariantsCss(doc: Document): string {
   const out: string[] = [];
@@ -877,7 +891,7 @@ export function themeVariantsCss(doc: Document): string {
   return out.join('\n');
 }
 
-/** `:root { tokens }` seguido das regras dos temas. */
+/** `:root { tokens }` followed by the theme rules. */
 export function tokensCss(doc: Document, opts: { indent?: string } = {}): string {
   const indent = opts.indent ?? '';
   const base = safeEntries(doc.tokens);
@@ -893,7 +907,7 @@ export function tokensCss(doc: Document, opts: { indent?: string } = {}): string
 }
 
 /* ====================================================================== */
-/* Planejadores de ops (editor e MCP)                                      */
+/* Op planners (editor and MCP)                                            */
 /* ====================================================================== */
 
 function fail(message: string): never {
@@ -903,8 +917,8 @@ function fail(message: string): never {
 function requireThemeName(doc: Document, name: string): Theme {
   const t = findTheme(doc, name);
   if (!t) {
-    const list = (doc.themes ?? []).map((x) => x.name).join(', ') || 'nenhum';
-    fail(`Tema "${name}" não encontrado (temas: ${list})`);
+    const list = (doc.themes ?? []).map((x) => x.name).join(', ') || 'none';
+    fail(`Theme "${name}" not found (themes: ${list})`);
   }
   return t;
 }
@@ -912,12 +926,12 @@ function requireThemeName(doc: Document, name: string): Theme {
 function checkThemeName(name: string): void {
   if (!THEME_NAME_RE.test(name)) {
     fail(
-      `Nome de tema inválido: "${name}" (letras, dígitos, "-" e "_", começando por letra ou dígito)`,
+      `Invalid theme name: "${name}" (letters, digits, "-" and "_", starting with a letter or digit)`,
     );
   }
 }
 
-/** Remove tokens da base, dos metadados e de todos os temas (as referências ficam quebradas). */
+/** Removes tokens from the base, the metadata and all themes (references are left broken). */
 export function planDeleteTokens(doc: Document, names: string[]): Op[] {
   const list = [...new Set(names.map(normalizeTokenName))];
   const ops: Op[] = [];
@@ -929,11 +943,11 @@ export function planDeleteTokens(doc: Document, names: string[]): Op[] {
     const own = list.filter((n) => n in t.overrides);
     if (own.length > 0) ops.push({ type: 'setTokens', theme: t.name, unset: own });
   }
-  if (ops.length === 0) fail(`Token não encontrado: ${list.join(', ')}`);
+  if (ops.length === 0) fail(`Token not found: ${list.join(', ')}`);
   return ops;
 }
 
-/** Liga a propriedade CSS dos nós ao token: `{ [property]: 'var(--token)' }`. */
+/** Binds the nodes' CSS property to the token: `{ [property]: 'var(--token)' }`. */
 export function planApplyToken(
   doc: Document,
   nodeIds: string[],
@@ -942,11 +956,11 @@ export function planApplyToken(
 ): Op[] {
   const name = normalizeTokenName(token);
   if (!tokenNames(doc).includes(name)) {
-    fail(`Token "${name}" não existe; crie com set_tokens antes de aplicar`);
+    fail(`Token "${name}" doesn't exist; create it with set_tokens before applying`);
   }
   const prop = toKebabCase(property.trim());
-  if (!prop) fail('Propriedade vazia');
-  for (const id of nodeIds) if (!findNode(doc, id)) fail(`Nó "${id}" não encontrado`);
+  if (!prop) fail('Empty property');
+  for (const id of nodeIds) if (!findNode(doc, id)) fail(`Node "${id}" not found`);
   const changes: StyleChange[] = nodeIds.map((nodeId) => ({
     nodeId,
     set: { [prop]: `var(${name})` },
@@ -954,7 +968,7 @@ export function planApplyToken(
   return [{ type: 'updateStyles', changes }];
 }
 
-/** Cria um tema (opcionalmente copiando as sobrescritas de outro). */
+/** Creates a theme (optionally copying the overrides of another). */
 export function planCreateTheme(
   doc: Document,
   name: string,
@@ -962,14 +976,14 @@ export function planCreateTheme(
 ): Op[] {
   const n = name.trim();
   checkThemeName(n);
-  if (findTheme(doc, n)) fail(`Já existe um tema "${n}"`);
+  if (findTheme(doc, n)) fail(`Theme "${n}" already exists`);
   const base = opts.copyFrom ? { ...requireThemeName(doc, opts.copyFrom).overrides } : {};
   for (const [k, v] of Object.entries(opts.overrides ?? {})) base[normalizeTokenName(k)] = v;
   const themes = [...(doc.themes ?? []), { name: n, overrides: base }];
   return [{ type: 'setThemes', themes }];
 }
 
-/** Remove o tema e tira o `data-theme` dos nós que o usavam. */
+/** Removes the theme and strips `data-theme` from the nodes that used it. */
 export function planDeleteTheme(doc: Document, name: string): Op[] {
   requireThemeName(doc, name);
   const ops: Op[] = [
@@ -985,13 +999,13 @@ export function planDeleteTheme(doc: Document, name: string): Op[] {
   return ops;
 }
 
-/** Renomeia o tema e atualiza o `data-theme` dos nós. */
+/** Renames the theme and updates the nodes' `data-theme`. */
 export function planRenameTheme(doc: Document, from: string, to: string): Op[] {
   requireThemeName(doc, from);
   const n = to.trim();
   checkThemeName(n);
-  if (n === from) fail('O nome novo é igual ao atual');
-  if (findTheme(doc, n)) fail(`Já existe um tema "${n}"`);
+  if (n === from) fail('The new name is the same as the current one');
+  if (findTheme(doc, n)) fail(`Theme "${n}" already exists`);
   const themes = (doc.themes ?? []).map((t) => (t.name === from ? { ...t, name: n } : t));
   const ops: Op[] = [{ type: 'setThemes', themes }];
   const nodes = nodesWithTheme(doc, from);
@@ -1004,10 +1018,10 @@ export function planRenameTheme(doc: Document, from: string, to: string): Op[] {
   return ops;
 }
 
-/** Define (ou, com `null`, remove) o tema dos nós (normalmente frames). */
+/** Sets (or, with `null`, removes) the theme of nodes (usually frames). */
 export function planSetFrameTheme(doc: Document, nodeIds: string[], theme: string | null): Op[] {
   if (theme !== null) requireThemeName(doc, theme);
-  for (const id of nodeIds) if (!findNode(doc, id)) fail(`Nó "${id}" não encontrado`);
+  for (const id of nodeIds) if (!findNode(doc, id)) fail(`Node "${id}" not found`);
   return [
     {
       type: 'setAttrs',
@@ -1018,18 +1032,18 @@ export function planSetFrameTheme(doc: Document, nodeIds: string[], theme: strin
   ];
 }
 
-/** Sistema de tokens importado (CSS ou JSON). */
+/** Token system imported (CSS or JSON). */
 export interface TokenSet {
   tokens: Record<string, string>;
   tokenMeta: Record<string, TokenMeta>;
   themes: Theme[];
-  /** Avisos de importação (regras ignoradas, valores descartados...). */
+  /** Import warnings (ignored rules, discarded values...). */
   warnings: string[];
 }
 
 /**
- * Ops para importar um conjunto de tokens. `merge` (padrão) mantém o que existe e sobrescreve os
- * nomes repetidos (temas são mesclados por nome); `replace` troca o sistema inteiro.
+ * Ops to import a set of tokens. `merge` (default) keeps what exists and overwrites
+ * repeated names (themes are merged by name); `replace` swaps the whole system.
  */
 export function planImportTokens(
   doc: Document,

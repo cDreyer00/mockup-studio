@@ -1,15 +1,15 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`export React com componentes > snapshot com Tailwind e com estilos inline 1`] = `
+exports[`React export with components > snapshot with Tailwind and with inline styles 1`] = `
 {
   "code": "import type { CSSProperties, ReactNode } from 'react';
 
 export interface ButtonProps {
-  /** Estilo visual do botão. */
+  /** Visual style of the button. */
   variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-  /** Tamanho do botão. */
+  /** Size of the button. */
   size?: 'sm' | 'default' | 'lg';
-  /** Texto do botão. */
+  /** Button text. */
   label?: string;
   className?: string;
   style?: CSSProperties;
@@ -18,7 +18,7 @@ export interface ButtonProps {
 export function Button({
   variant = 'default',
   size = 'default',
-  label = 'Botão',
+  label = 'Button',
   className,
   style,
 }: ButtonProps) {
@@ -51,23 +51,23 @@ export function Button({
 }
 
 export interface CardProps {
-  /** Título. */
+  /** Title. */
   title?: string;
-  /** Texto de apoio abaixo do título. */
+  /** Supporting text below the title. */
   description?: string;
-  /** Conteúdo principal. */
+  /** Main content. */
   content?: ReactNode;
-  /** Rodapé (ações). */
+  /** Footer (actions). */
   footer?: ReactNode;
-  /** Atalho para o slot "content". */
+  /** Shortcut for the "content" slot. */
   children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 }
 
 export function Card({
-  title = 'Título do cartão',
-  description = 'Descrição curta do cartão.',
+  title = 'Card title',
+  description = 'Short card description.',
   content,
   footer,
   children,
@@ -103,7 +103,7 @@ export function Card({
             <p
               className="text-sm leading-[1.4286] text-card-foreground box-border [font-family:inherit] m-0"
             >
-              Conteúdo do cartão. Arraste elementos para este espaço.
+              Card content. Drag elements into this space.
             </p>
           </>
         )}
@@ -114,7 +114,7 @@ export function Card({
       >
         {footer ?? (
           <>
-            <Button size="sm" label="Ação" />
+            <Button size="sm" label="Action" />
           </>
         )}
       </div>
@@ -122,26 +122,26 @@ export function Card({
   );
 }
 
-export function TelaDePedido() {
+export function OrderScreen() {
   return (
     <div className="w-[800px] flex flex-col min-h-[600px]">
-      <Button variant="outline" label="Salvar" />
+      <Button variant="outline" label="Save" />
       <Button size="lg" style={{ marginTop: '8px' }} />
       <Card
-        title="Pedido"
+        title="Order"
         footer={
-          <Button label="Confirmar" />
+          <Button label="Confirm" />
         }
       >
-        <p>Corpo do cartão</p>
+        <p>Card body</p>
       </Card>
     </div>
   );
 }
 
-export default TelaDePedido;
+export default OrderScreen;
 ",
-  "componentName": "TelaDePedido",
+  "componentName": "OrderScreen",
   "css": "@import "tailwindcss";
 
 @theme {
@@ -204,16 +204,16 @@ export default TelaDePedido;
 }
 `;
 
-exports[`export React com componentes > snapshot com Tailwind e com estilos inline 2`] = `
+exports[`React export with components > snapshot with Tailwind and with inline styles 2`] = `
 {
   "code": "import type { CSSProperties, ReactNode } from 'react';
 
 export interface ButtonProps {
-  /** Estilo visual do botão. */
+  /** Visual style of the button. */
   variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-  /** Tamanho do botão. */
+  /** Size of the button. */
   size?: 'sm' | 'default' | 'lg';
-  /** Texto do botão. */
+  /** Button text. */
   label?: string;
   className?: string;
   style?: CSSProperties;
@@ -222,7 +222,7 @@ export interface ButtonProps {
 export function Button({
   variant = 'default',
   size = 'default',
-  label = 'Botão',
+  label = 'Button',
   className,
   style,
 }: ButtonProps) {
@@ -266,23 +266,23 @@ export function Button({
 }
 
 export interface CardProps {
-  /** Título. */
+  /** Title. */
   title?: string;
-  /** Texto de apoio abaixo do título. */
+  /** Supporting text below the title. */
   description?: string;
-  /** Conteúdo principal. */
+  /** Main content. */
   content?: ReactNode;
-  /** Rodapé (ações). */
+  /** Footer (actions). */
   footer?: ReactNode;
-  /** Atalho para o slot "content". */
+  /** Shortcut for the "content" slot. */
   children?: ReactNode;
   className?: string;
   style?: CSSProperties;
 }
 
 export function Card({
-  title = 'Título do cartão',
-  description = 'Descrição curta do cartão.',
+  title = 'Card title',
+  description = 'Short card description.',
   content,
   footer,
   children,
@@ -333,7 +333,7 @@ export function Card({
             <p
               style={{ fontSize: '0.875rem', lineHeight: '1.4286', color: 'var(--color-card-foreground)', boxSizing: 'border-box', fontFamily: 'inherit', margin: '0' }}
             >
-              Conteúdo do cartão. Arraste elementos para este espaço.
+              Card content. Drag elements into this space.
             </p>
           </>
         )}
@@ -344,7 +344,7 @@ export function Card({
       >
         {footer ?? (
           <>
-            <Button size="sm" label="Ação" />
+            <Button size="sm" label="Action" />
           </>
         )}
       </div>
@@ -352,28 +352,28 @@ export function Card({
   );
 }
 
-export function TelaDePedido() {
+export function OrderScreen() {
   return (
     <div
       style={{ '--color-background': 'oklch(1 0 0)', '--color-foreground': 'oklch(0.145 0 0)', '--color-card': 'oklch(1 0 0)', '--color-card-foreground': 'oklch(0.145 0 0)', '--color-popover': 'oklch(1 0 0)', '--color-popover-foreground': 'oklch(0.145 0 0)', '--color-primary': 'oklch(0.205 0 0)', '--color-primary-foreground': 'oklch(0.985 0 0)', '--color-secondary': 'oklch(0.97 0 0)', '--color-secondary-foreground': 'oklch(0.205 0 0)', '--color-muted': 'oklch(0.97 0 0)', '--color-muted-foreground': 'oklch(0.556 0 0)', '--color-accent': 'oklch(0.97 0 0)', '--color-accent-foreground': 'oklch(0.205 0 0)', '--color-destructive': 'oklch(0.577 0.245 27.325)', '--color-border': 'oklch(0.922 0 0)', '--color-input': 'oklch(0.922 0 0)', '--color-ring': 'oklch(0.708 0 0)', '--radius': '0.625rem', '--radius-sm': 'calc(var(--radius) - 4px)', '--radius-md': 'calc(var(--radius) - 2px)', '--radius-lg': 'var(--radius)', '--radius-xl': 'calc(var(--radius) + 4px)', width: '800px', display: 'flex', flexDirection: 'column', minHeight: '600px' } as CSSProperties}
     >
-      <Button variant="outline" label="Salvar" />
+      <Button variant="outline" label="Save" />
       <Button size="lg" style={{ marginTop: '8px' }} />
       <Card
-        title="Pedido"
+        title="Order"
         footer={
-          <Button label="Confirmar" />
+          <Button label="Confirm" />
         }
       >
-        <p>Corpo do cartão</p>
+        <p>Card body</p>
       </Card>
     </div>
   );
 }
 
-export default TelaDePedido;
+export default OrderScreen;
 ",
-  "componentName": "TelaDePedido",
+  "componentName": "OrderScreen",
   "css": "*,*::before,*::after{box-sizing:border-box;margin:0}
 button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
 body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}

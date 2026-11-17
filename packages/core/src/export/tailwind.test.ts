@@ -21,14 +21,14 @@ const TOKENS = {
   '--font-weight-heavy': '850',
 };
 
-/** [nome, css, classes esperadas] */
+/** [name, css, expected classes] */
 type Case = [string, Record<string, string>, string[]];
 
 const cases: Case[] = [
   // layout
-  ['flex em coluna', { display: 'flex', 'flex-direction': 'column' }, ['flex', 'flex-col']],
+  ['flex column', { display: 'flex', 'flex-direction': 'column' }, ['flex', 'flex-col']],
   [
-    'alinhamento e wrap',
+    'alignment and wrap',
     {
       'align-items': 'center',
       'justify-content': 'space-between',
@@ -39,59 +39,59 @@ const cases: Case[] = [
   ],
   ['flex: 1', { flex: '1' }, ['flex-1']],
   ['flex longhands', { 'flex-grow': '1', 'flex-shrink': '0' }, ['grow', 'shrink-0']],
-  ['flex arbitrário', { flex: '2 1 30%' }, ['flex-[2_1_30%]']],
+  ['arbitrary flex', { flex: '2 1 30%' }, ['flex-[2_1_30%]']],
   ['display none', { display: 'none' }, ['hidden']],
   [
     'grid repeat',
     { display: 'grid', 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' },
     ['grid', 'grid-cols-3'],
   ],
-  // `repeat(3, 1fr)` tem mínimo auto: não é o `grid-cols-3` (minmax(0, 1fr))
+  // `repeat(3, 1fr)` has an auto minimum: it is not `grid-cols-3` (minmax(0, 1fr))
   [
-    'grid repeat com 1fr',
+    'grid repeat with 1fr',
     { 'grid-template-columns': 'repeat(3, 1fr)' },
     ['grid-cols-[repeat(3,1fr)]'],
   ],
-  ['grid arbitrário', { 'grid-template-columns': '200px 1fr 2fr' }, ['grid-cols-[200px_1fr_2fr]']],
-  // espaçamento
-  ['gap na escala', { gap: '24px' }, ['gap-6']],
-  ['gap duplo', { gap: '8px 16px' }, ['gap-y-2', 'gap-x-4']],
+  ['arbitrary grid', { 'grid-template-columns': '200px 1fr 2fr' }, ['grid-cols-[200px_1fr_2fr]']],
+  // spacing
+  ['gap on the scale', { gap: '24px' }, ['gap-6']],
+  ['double gap', { gap: '8px 16px' }, ['gap-y-2', 'gap-x-4']],
   ['padding 16px', { padding: '16px' }, ['p-4']],
-  ['padding com meio passo', { padding: '6px' }, ['p-1.5']],
-  ['padding vertical/horizontal', { padding: '20px 64px' }, ['py-5', 'px-16']],
-  ['padding 3 valores', { padding: '32px 64px 96px' }, ['pt-8', 'pb-24', 'px-16']],
-  ['padding fora da escala', { padding: '13px' }, ['p-[13px]']],
+  ['padding with half step', { padding: '6px' }, ['p-1.5']],
+  ['vertical/horizontal padding', { padding: '20px 64px' }, ['py-5', 'px-16']],
+  ['padding 3 values', { padding: '32px 64px 96px' }, ['pt-8', 'pb-24', 'px-16']],
+  ['padding off the scale', { padding: '13px' }, ['p-[13px]']],
   ['padding-left longhand', { 'padding-left': '12px' }, ['pl-3']],
-  ['margin auto horizontal', { margin: '0 auto' }, ['my-0', 'mx-auto']],
-  ['margin negativo', { 'margin-top': '-8px' }, ['-mt-2']],
+  ['horizontal auto margin', { margin: '0 auto' }, ['my-0', 'mx-auto']],
+  ['negative margin', { 'margin-top': '-8px' }, ['-mt-2']],
   ['1px', { 'padding-top': '1px' }, ['pt-px']],
   ['padding 0', { padding: '0' }, ['p-0']],
-  ['padding em rem', { padding: '1rem' }, ['p-4']],
-  // tamanhos
-  ['largura/altura cheia', { width: '100%', height: '100%' }, ['size-full']],
-  ['largura e altura iguais', { width: '40px', height: '40px' }, ['size-10']],
-  ['largura grande arbitrária', { width: '1440px' }, ['w-[1440px]']],
+  ['padding in rem', { padding: '1rem' }, ['p-4']],
+  // sizes
+  ['full width/height', { width: '100%', height: '100%' }, ['size-full']],
+  ['equal width and height', { width: '40px', height: '40px' }, ['size-10']],
+  ['large arbitrary width', { width: '1440px' }, ['w-[1440px]']],
   ['w auto', { width: 'auto' }, ['w-auto']],
   ['w-full e h-screen', { width: '100%', height: '100vh' }, ['w-full', 'h-screen']],
-  ['fração', { width: '50%' }, ['w-1/2']],
+  ['fraction', { width: '50%' }, ['w-1/2']],
   ['min-height', { 'min-height': '900px' }, ['min-h-[900px]']],
-  ['max-width nomeado', { 'max-width': '448px' }, ['max-w-md']],
-  ['max-width arbitrário', { 'max-width': '800px' }, ['max-w-[800px]']],
+  ['named max-width', { 'max-width': '448px' }, ['max-w-md']],
+  ['arbitrary max-width', { 'max-width': '800px' }, ['max-w-[800px]']],
   ['max-width none', { 'max-width': 'none' }, ['max-w-none']],
-  // tipografia
-  ['font-size na escala', { 'font-size': '14px' }, ['text-sm']],
+  // typography
+  ['font-size on the scale', { 'font-size': '14px' }, ['text-sm']],
   ['font-size 128', { 'font-size': '128px' }, ['text-9xl']],
-  ['font-size fora da escala', { 'font-size': '17px' }, ['text-[17px]']],
+  ['font-size off the scale', { 'font-size': '17px' }, ['text-[17px]']],
   ['font-weight', { 'font-weight': '700' }, ['font-bold']],
-  ['font-weight palavra', { 'font-weight': 'bold' }, ['font-bold']],
-  ['font-weight fora da escala', { 'font-weight': '550' }, ['font-[550]']],
-  ['line-height nomeado', { 'line-height': '1.5' }, ['leading-normal']],
-  ['line-height arbitrário', { 'line-height': '1.4' }, ['leading-[1.4]']],
-  ['line-height em px', { 'line-height': '28px' }, ['leading-7']],
-  ['letter-spacing nomeado', { 'letter-spacing': '0.05em' }, ['tracking-wider']],
-  ['letter-spacing arbitrário', { 'letter-spacing': '2px' }, ['tracking-[2px]']],
+  ['font-weight keyword', { 'font-weight': 'bold' }, ['font-bold']],
+  ['font-weight off the scale', { 'font-weight': '550' }, ['font-[550]']],
+  ['named line-height', { 'line-height': '1.5' }, ['leading-normal']],
+  ['arbitrary line-height', { 'line-height': '1.4' }, ['leading-[1.4]']],
+  ['line-height in px', { 'line-height': '28px' }, ['leading-7']],
+  ['named letter-spacing', { 'letter-spacing': '0.05em' }, ['tracking-wider']],
+  ['arbitrary letter-spacing', { 'letter-spacing': '2px' }, ['tracking-[2px]']],
   [
-    'texto',
+    'text',
     {
       'text-align': 'center',
       'text-transform': 'uppercase',
@@ -101,77 +101,73 @@ const cases: Case[] = [
     },
     ['text-center', 'uppercase', 'italic', 'underline', 'whitespace-pre-wrap'],
   ],
-  ['sem decoração', { 'text-decoration': 'none' }, ['no-underline']],
-  // cores
-  ['cor hex', { 'background-color': '#6c5ce7' }, ['bg-[#6c5ce7]']],
-  ['cor branca', { color: '#ffffff' }, ['text-white']],
-  ['cor rgba', { 'background-color': 'rgba(0, 0, 0, 0.5)' }, ['bg-[rgba(0,0,0,0.5)]']],
-  ['cor transparente', { background: 'transparent' }, ['bg-transparent']],
-  ['cor nomeada', { color: 'red' }, ['text-[color:red]']],
+  ['no decoration', { 'text-decoration': 'none' }, ['no-underline']],
+  // colors
+  ['hex color', { 'background-color': '#6c5ce7' }, ['bg-[#6c5ce7]']],
+  ['white color', { color: '#ffffff' }, ['text-white']],
+  ['rgba color', { 'background-color': 'rgba(0, 0, 0, 0.5)' }, ['bg-[rgba(0,0,0,0.5)]']],
+  ['transparent color', { background: 'transparent' }, ['bg-transparent']],
+  ['named color', { color: 'red' }, ['text-[color:red]']],
   [
-    'background shorthand com gradiente',
+    'background shorthand with gradient',
     { background: 'linear-gradient(90deg, #000, #fff)' },
     ['bg-[linear-gradient(90deg,#000,#fff)]'],
   ],
-  // bordas e raio
-  ['borda completa', { border: '1px solid #ccc' }, ['border', 'border-solid', 'border-[#ccc]']],
+  // borders and radius
+  ['full border', { border: '1px solid #ccc' }, ['border', 'border-solid', 'border-[#ccc]']],
   [
-    'borda 2px tracejada',
+    '2px dashed border',
     { border: '2px dashed #000' },
     ['border-2', 'border-dashed', 'border-black'],
   ],
-  ['borda superior', { 'border-top': '1px solid #eee' }, ['border-t', 'border-t-[#eee]']],
-  ['borda none', { border: 'none' }, ['border-none']],
+  ['top border', { 'border-top': '1px solid #eee' }, ['border-t', 'border-t-[#eee]']],
+  ['border none', { border: 'none' }, ['border-none']],
   ['border-width', { 'border-width': '4px' }, ['border-4']],
-  ['radius nomeado', { 'border-radius': '8px' }, ['rounded-lg']],
+  ['named radius', { 'border-radius': '8px' }, ['rounded-lg']],
   ['radius md', { 'border-radius': '6px' }, ['rounded-md']],
   ['radius full', { 'border-radius': '9999px' }, ['rounded-full']],
-  ['radius arbitrário', { 'border-radius': '10px' }, ['rounded-[10px]']],
+  ['arbitrary radius', { 'border-radius': '10px' }, ['rounded-[10px]']],
   [
-    'radius por canto',
+    'per-corner radius',
     { 'border-radius': '8px 8px 0 0' },
     ['rounded-tl-lg', 'rounded-tr-lg', 'rounded-br-none', 'rounded-bl-none'],
   ],
   ['radius longhand', { 'border-top-left-radius': '12px' }, ['rounded-tl-xl']],
-  // sombra e afins
+  // shadow and related
   [
-    'sombra arbitrária',
+    'arbitrary shadow',
     { 'box-shadow': '0 2px 4px rgba(0, 0, 0, 0.2)' },
     ['shadow-[0_2px_4px_rgba(0,0,0,0.2)]'],
   ],
-  ['sombra none', { 'box-shadow': 'none' }, ['shadow-none']],
+  ['shadow none', { 'box-shadow': 'none' }, ['shadow-none']],
   ['opacity', { opacity: '0.5' }, ['opacity-50']],
-  ['opacity fracionária', { opacity: '0.333' }, ['opacity-[0.333]']],
+  ['fractional opacity', { opacity: '0.333' }, ['opacity-[0.333]']],
   [
     'overflow',
     { overflow: 'hidden', 'overflow-y': 'auto' },
     ['overflow-hidden', 'overflow-y-auto'],
   ],
-  // posição
+  // position
   [
     'position + offsets',
     { position: 'absolute', left: '12px', top: '0' },
     ['absolute', 'left-3', 'top-0'],
   ],
   ['inset 0', { inset: '0' }, ['inset-0']],
-  ['offset arbitrário', { left: '13px' }, ['left-[13px]']],
+  ['arbitrary offset', { left: '13px' }, ['left-[13px]']],
   ['z-index', { 'z-index': '10' }, ['z-10']],
-  ['z-index arbitrário', { 'z-index': '7' }, ['z-[7]']],
+  ['arbitrary z-index', { 'z-index': '7' }, ['z-[7]']],
   [
-    'object-fit e cursor',
+    'object-fit and cursor',
     { 'object-fit': 'cover', cursor: 'pointer' },
     ['object-cover', 'cursor-pointer'],
   ],
   ['!important', { padding: '16px !important' }, ['p-4!']],
-  // arbitrários
-  ['transição', { transition: 'all 0.2s ease' }, ['[transition:all_0.2s_ease]']],
-  [
-    'propriedade sem equivalente',
-    { 'backdrop-filter': 'blur(8px)' },
-    ['[backdrop-filter:blur(8px)]'],
-  ],
+  // arbitrary
+  ['transition', { transition: 'all 0.2s ease' }, ['[transition:all_0.2s_ease]']],
+  ['prop with no equivalent', { 'backdrop-filter': 'blur(8px)' }, ['[backdrop-filter:blur(8px)]']],
   ['custom property', { '--accent': '#f00' }, ['[--accent:#f00]']],
-  ['underscore literal escapado', { content: '"a_b"' }, ['[content:"a\\_b"]']],
+  ['escaped literal underscore', { content: '"a_b"' }, ['[content:"a\\_b"]']],
 ];
 
 describe('cssToTailwind', () => {
@@ -185,7 +181,7 @@ describe('cssToTailwind', () => {
     const opts = { tokens: TOKENS };
     const t = (style: Record<string, string>): string[] => cssToTailwind(style, opts).classes;
 
-    it('dentro de namespace de tema usam o nome curto', () => {
+    it('inside a theme namespace they use the short name', () => {
       expect(t({ 'background-color': 'var(--color-primary)' })).toEqual(['bg-primary']);
       expect(t({ color: 'var(--color-bg)' })).toEqual(['text-bg']);
       expect(t({ border: '1px solid var(--color-primary)' })).toEqual([
@@ -202,39 +198,39 @@ describe('cssToTailwind', () => {
       expect(t({ 'font-weight': 'var(--font-weight-heavy)' })).toEqual(['font-heavy']);
     });
 
-    it('fora de namespace usam a sintaxe de variável do v4', () => {
+    it('outside a namespace they use the v4 variable syntax', () => {
       expect(t({ 'border-radius': 'var(--radius)' })).toEqual(['rounded-(--radius)']);
       expect(t({ 'font-family': 'var(--font)' })).toEqual(['font-(family-name:--font)']);
       expect(t({ background: 'var(--surface)' })).toEqual(['bg-(color:--surface)']);
       expect(t({ padding: 'var(--pad)' })).toEqual(['p-(--pad)']);
     });
 
-    it('variável de outro namespace no lugar errado não vira nome curto', () => {
+    it('a variable from another namespace in the wrong place does not become a short name', () => {
       expect(t({ 'background-color': 'var(--radius-card)' })).toEqual(['bg-(color:--radius-card)']);
     });
 
-    it('token inexistente (quando a lista é dada) usa a sintaxe de variável', () => {
+    it('missing token (when the list is given) uses the variable syntax', () => {
       expect(t({ color: 'var(--color-missing)' })).toEqual(['text-(color:--color-missing)']);
     });
 
-    it('var com fallback vira valor arbitrário', () => {
+    it('var with fallback becomes an arbitrary value', () => {
       expect(t({ color: 'var(--x, #fff)' })).toEqual(['text-[color:var(--x,#fff)]']);
     });
   });
 
-  it('valor inseguro para classe arbitrária fica em rest', () => {
+  it('value unsafe for an arbitrary class stays in rest', () => {
     const { classes, rest } = cssToTailwind({ content: '"a<b"', color: '#fff' });
     expect(classes).toEqual(['text-white']);
     expect(rest).toEqual({ content: '"a<b"' });
   });
 
-  it('propriedades herdadas de Object.prototype não quebram', () => {
+  it('props inherited from Object.prototype do not break', () => {
     expect(() => cssToTailwind({ constructor: 'x', toString: 'y' })).not.toThrow();
   });
 });
 
 describe('tailwindThemeCss', () => {
-  it('separa @theme, :root e @font-face', () => {
+  it('separates @theme, :root and @font-face', () => {
     const doc = parseDocument(
       JSON.stringify({
         ...landing,
@@ -249,23 +245,23 @@ describe('tailwindThemeCss', () => {
     expect(css).toContain('@font-face{font-family:"Inter";src:url("assets/fonts/i.woff2")');
   });
 
-  it('neutraliza o line-height padrão dos tamanhos text-* usados', () => {
+  it('neutralizes the default line-height of the text-* sizes used', () => {
     const css = tailwindThemeCss(landing);
     expect(css).toContain('--text-sm--line-height: inherit;');
     expect(css).not.toContain('--text-9xl--line-height');
   });
 
-  it('sem import quando pedido', () => {
+  it('no import when requested', () => {
     expect(tailwindThemeCss(landing, { import: false })).not.toContain('@import');
   });
 });
 
 describe('exportTailwind', () => {
-  it('snapshot do exemplo (documento completo)', () => {
+  it('snapshot of the example (full document)', () => {
     expect(exportTailwind(landing)).toMatchSnapshot();
   });
 
-  it('inclui CDN e tema; cdn: false remove só o script', () => {
+  it('includes CDN and theme; cdn: false removes only the script', () => {
     const full = exportTailwind(landing, { nodeIds: ['fr_m0b10390'] });
     expect(full).toContain(
       '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>',
@@ -277,14 +273,14 @@ describe('exportTailwind', () => {
     expect(noCdn).toContain('<style type="text/tailwindcss">');
   });
 
-  it('fragmento é só o markup', () => {
+  it('fragment is markup only', () => {
     const frag = exportTailwind(landing, { nodeIds: ['el_dsk00007'], fragment: true });
     expect(frag.startsWith('<header class="')).toBe(true);
     expect(frag).not.toContain('<style');
     expect(frag).not.toContain('<script');
   });
 
-  it('usa nomes de tema e a sintaxe de variável do exemplo', () => {
+  it('uses theme names and the variable syntax of the example', () => {
     const frag = exportTailwind(landing, { nodeIds: ['el_dsk00007'], fragment: true });
     expect(frag).toContain('bg-surface');
     expect(frag).toContain('rounded-(--radius)');
@@ -292,8 +288,8 @@ describe('exportTailwind', () => {
   });
 });
 
-describe('propriedades sem classe equivalente e estados do nó', () => {
-  it('propriedade alterada por um estado vai como classe arbitrária, não como style inline', () => {
+describe('props with no equivalent class and node states', () => {
+  it('prop changed by a state goes as an arbitrary class, not as inline style', () => {
     const node = createNodeFromTag('div', {
       styles: { 'scroll-snap-type': 'x mandatory', 'text-wrap': 'balance' },
     });
@@ -304,7 +300,7 @@ describe('propriedades sem classe equivalente e estados do nó', () => {
     expect(classes).toContain('hover:[scroll-snap-type:none]');
   });
 
-  it('valor que não vira classe arbitrária segura continua inline', () => {
+  it('value that does not become a safe arbitrary class stays inline', () => {
     const node = createNodeFromTag('div', { styles: { 'font-feature-settings': '"a;b"' } });
     node.states = { hover: { 'font-feature-settings': 'normal' } };
     expect(tailwindNodeParts(node, {}).rest).toEqual({ 'font-feature-settings': '"a;b"' });

@@ -5,7 +5,7 @@ import type { Document, Node } from './types.js';
 
 const TEXT_MAX = 40;
 
-/** `24px` → `24`; outras unidades são mantidas. Aplica a cada token do valor. */
+/** `24px` → `24`; other units are kept. Applies to each token of the value. */
 function shorten(value: string): string {
   return value
     .trim()
@@ -42,7 +42,7 @@ function sides(s: Record<string, string>, base: string, label: string): string |
   return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
-/** `grid 3x2` (colunas x linhas declaradas); só um dos eixos vira `grid 3col`/`grid 2row`. */
+/** `grid 3x2` (declared columns x rows); only one axis becomes `grid 3col`/`grid 2row`. */
 function gridToken(s: Record<string, string>): string {
   const cols = trackCount(s, 'columns');
   const rows = trackCount(s, 'rows');
@@ -52,7 +52,7 @@ function gridToken(s: Record<string, string>): string {
   return 'grid';
 }
 
-/** Posição num grid: `cell:2/1 span:2x1` (coluna/linha 1-based) ou `area:nome`. */
+/** Position in a grid: `cell:2/1 span:2x1` (1-based column/row) or `area:name`. */
 function placementTokens(node: Node): string[] {
   const s = node.style;
   if (
@@ -103,7 +103,7 @@ function flags(node: Node): string[] {
   return f;
 }
 
-/** Marcadores de Tailwind: `tw` (tem `classes`) e `states:hover,md` (tem estados com estilo). */
+/** Tailwind markers: `tw` (has `classes`) and `states:hover,md` (has states with styles). */
 function tailwindTokens(node: Node): string[] {
   const out: string[] = [];
   if (node.classes) out.push('tw');
@@ -115,8 +115,8 @@ function tailwindTokens(node: Node): string[] {
 }
 
 /**
- * Instância (ou raiz expandida): `◆Nome` do componente (o id sem `doc`) e as props da instância,
- * ex. `◆Button variant=outline label="Salvar"` (strings e cores entre aspas).
+ * Instance (or expanded root): `◆Name` of the component (the id without `doc`) and the instance's props,
+ * e.g. `◆Button variant=outline label="Save"` (strings and colors in quotes).
  */
 function instanceTokens(node: Node, doc?: Document): string[] {
   if (!node.componentId) return [];
@@ -131,7 +131,7 @@ function instanceTokens(node: Node, doc?: Document): string[] {
   return out;
 }
 
-/** Linha única de resumo do nó (`doc` dá o nome do componente das instâncias). */
+/** Single summary line for the node (`doc` provides the component name of instances). */
 export function summarizeNode(node: Node, doc?: Document): string {
   const s = node.style;
   const parts: string[] = [
@@ -213,8 +213,8 @@ function lines(
   out.push(pad + summarizeNode(node, doc));
   if (node.children.length === 0) return;
   if (depth <= 0) {
-    // depth 0 no topo mostra só o nó; abaixo disso indica os filhos omitidos.
-    if (level > 0) out.push(`${pad}  … +${node.children.length} filhos`);
+    // depth 0 at the top shows only the node; below that it indicates the omitted children.
+    if (level > 0) out.push(`${pad}  … +${node.children.length} children`);
     return;
   }
   for (const child of node.children) lines(child, depth - 1, level + 1, base, out, doc);

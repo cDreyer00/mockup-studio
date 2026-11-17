@@ -1,6 +1,6 @@
 /**
- * Planejadores de componentes (ver `docs/COMPONENTES.md`, seção Ops): funções puras que leem o
- * documento e devolvem as ops primitivas (aplicadas pelo chamador como uma entrada de histórico).
+ * Component planners (see `docs/COMPONENTS.md`, Ops section): pure functions that read the
+ * document and return the primitive ops (applied by the caller as a single history entry).
  */
 import { deepClone } from '../clone.js';
 import { findNode, walk } from '../document.js';
@@ -37,10 +37,10 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-/** Nome livre entre `taken` (sem diferenciar maiúsculas): `Nome`, `Nome 2`, `Nome 3`... */
+/** Name free among `taken` (case-insensitive): `Name`, `Name 2`, `Name 3`... */
 export function uniqueComponentName(base: string, taken: Iterable<string>): string {
   const set = new Set([...taken].map((n) => n.trim().toLowerCase()));
-  const name = base.trim() || 'Componente';
+  const name = base.trim() || 'Component';
   if (!set.has(name.toLowerCase())) return name;
   for (let i = 2; ; i++) {
     const candidate = `${name} ${i}`;
@@ -52,30 +52,30 @@ function otherNames(doc: Document, exceptId?: string): string[] {
   return (doc.components ?? []).filter((c) => c.id !== exceptId).map((c) => c.name);
 }
 
-/** Instância real (página ou raiz de um principal) pelo id; recusa ids virtuais. */
+/** Real instance (page or main component root) by id; rejects virtual ids. */
 function requireRealInstance(doc: Document, nodeId: string, action: string): Node {
   if (isVirtualId(nodeId)) {
     fail(
-      `O nó "${nodeId}" é interno de outra instância: não dá para ${action} (edite o principal ou destaque a instância de fora)`,
+      `Node "${nodeId}" is internal to another instance: cannot ${action} (edit the main component or detach the outer instance)`,
     );
   }
   const node = findNode(doc, nodeId)?.node ?? componentNodeById(doc, nodeId);
-  if (!node) fail(`Nó "${nodeId}" não encontrado`);
-  if (node.type !== 'instance') fail(`O nó "${nodeId}" não é uma instância de componente`);
+  if (!node) fail(`Node "${nodeId}" not found`);
+  if (node.type !== 'instance') fail(`Node "${nodeId}" is not a component instance`);
   return node;
 }
 
 function requireDef(doc: Document, inst: Node): ComponentDef {
   const def = getComponent(doc, inst.componentId);
-  if (!def) fail(`O componente "${inst.componentId ?? ''}" da instância "${inst.id}" não existe`);
+  if (!def) fail(`Component "${inst.componentId ?? ''}" of instance "${inst.id}" does not exist`);
   return def;
 }
 
 /* ---------------- createComponent ---------------- */
 
 /**
- * Propriedades que posicionam o nó no pai: saem da raiz do principal e ficam no estilo da
- * instância (cada instância se posiciona onde está).
+ * Properties that position the node in its parent: they leave the main component's root and stay
+ * in the instance's style (each instance is positioned where it sits).
  */
 const PLACEMENT_RE =
   /^(position|top|right|bottom|left|inset(-.+)?|z-index|margin(-.+)?|flex|flex-grow|flex-shrink|flex-basis|align-self|justify-self|place-self|order|grid-area|grid-column(-.+)?|grid-row(-.+)?)$/;
@@ -84,10 +84,10 @@ export function isPlacementProperty(prop: string): boolean {
   return PLACEMENT_RE.test(prop);
 }
 
-/** Alvo de `bind`: o texto do nó, um atributo (`attr:href`) ou uma propriedade de estilo (`style:color`). */
+/** Target of `bind`: the node's text, an attribute (`attr:href`) or a style property (`style:color`). */
 export type PropBindTarget = 'text' | `attr:${string}` | `style:${string}`;
 
-/** Prop na entrada de `createComponentOps`: `bind` troca o valor atual do nó por `{{nome}}`. */
+/** Prop in the input of `createComponentOps`: `bind` replaces the node's current value with `{{name}}`. */
 export interface PropInput extends PropDef {
   bind?: { nodeId: string; target: PropBindTarget };
 }
@@ -95,7 +95,7 @@ export interface PropInput extends PropDef {
 export interface CreateComponentOptions {
   name?: string;
   description?: string;
-  /** Props declaradas; as não declaradas são inferidas (`{{nome}}` → string, `data-slot` → slot). */
+  /** Declared props; undeclared ones are inferred (`{{name}}` → string, `data-slot` → slot). */
   props?: PropInput[];
   componentId?: string;
   instanceId?: string;
@@ -114,33 +114,33 @@ function bindProp(root: Node, p: PropInput): PropDef {
   const def: PropDef = { ...rest };
   if (!bind) return def;
   if (def.type === 'slot')
-    fail(`A prop "${def.name}" é um slot: marque o contêiner com data-slot em vez de "bind"`);
+    fail(`Prop "${def.name}" is a slot: mark the container with data-slot instead of "bind"`);
   const target = findInTree(root, bind.nodeId);
   if (!target)
-    fail(`O nó "${bind.nodeId}" (bind da prop "${def.name}") não está no nó do componente`);
+    fail(`Node "${bind.nodeId}" (bind of prop "${def.name}") is not inside the component node`);
   const ph = `{{${def.name}}}`;
   let current: string | undefined;
   if (bind.target === 'text') {
     current = target.text;
     if (current === undefined)
-      fail(`O nó "${bind.nodeId}" não tem texto (bind da prop "${def.name}")`);
+      fail(`Node "${bind.nodeId}" has no text (bind of prop "${def.name}")`);
     target.text = ph;
   } else if (bind.target.startsWith('attr:')) {
     const attr = bind.target.slice(5).trim();
     current = target.attrs[attr];
-    if (current === undefined) fail(`O nó "${bind.nodeId}" não tem o atributo "${attr}"`);
+    if (current === undefined) fail(`Node "${bind.nodeId}" has no "${attr}" attribute`);
     target.attrs = { ...target.attrs, [attr]: ph };
   } else if (bind.target.startsWith('style:')) {
     const prop = toKebabCase(bind.target.slice(6).trim());
     current = target.style[prop];
     if (current === undefined) {
       fail(
-        `O nó "${bind.nodeId}" não tem "${prop}" no estilo${isPlacementProperty(prop) && target === root ? ' (propriedades de posicionamento ficam na instância)' : ''}`,
+        `Node "${bind.nodeId}" has no "${prop}" in its style${isPlacementProperty(prop) && target === root ? ' (positioning properties stay on the instance)' : ''}`,
       );
     }
     target.style = { ...target.style, [prop]: ph };
   } else {
-    fail(`Alvo de bind inválido: "${String(bind.target)}" (use text, attr:<nome> ou style:<prop>)`);
+    fail(`Invalid bind target: "${String(bind.target)}" (use text, attr:<name> or style:<prop>)`);
   }
   if (def.default === undefined) {
     if (def.type === 'number' && Number.isFinite(Number(current))) def.default = Number(current);
@@ -150,7 +150,7 @@ function bindProp(root: Node, p: PropInput): PropDef {
   return def;
 }
 
-/** Props inferidas da árvore: `{{nome}}` (string, padrão `''`) e `data-slot` (slot). */
+/** Props inferred from the tree: `{{name}}` (string, default `''`) and `data-slot` (slot). */
 export function inferProps(root: Node): PropDef[] {
   const strings: string[] = [];
   const slots: string[] = [];
@@ -185,13 +185,13 @@ export function inferProps(root: Node): PropDef[] {
 }
 
 /**
- * Transforma o nó num componente: a raiz é o clone do nó com os mesmos ids (sem `position`,
- * sem as propriedades de posicionamento no pai) e o nó vira a primeira instância (herda
- * posição, nome, `locked`, `hidden` e o posicionamento). Ops: `replaceNode` (nó → nó provisório
- * vazio), `addComponent` e `replaceNode` (provisório → instância). Os ids da raiz só ficam livres
- * depois da primeira troca; o provisório faz o `addComponent` acontecer sem instâncias, então o
- * desfazer (ordem inversa: instância → provisório, `deleteComponent`, provisório → nó) não precisa
- * de `force`.
+ * Turns the node into a component: the root is a clone of the node with the same ids (without
+ * `position`, without the positioning properties in its parent) and the node becomes the first
+ * instance (inheriting position, name, `locked`, `hidden` and the positioning). Ops:
+ * `replaceNode` (node → empty provisional node), `addComponent` and `replaceNode` (provisional →
+ * instance). The root ids only become free after the first swap; the provisional node makes
+ * `addComponent` happen with no instances, so the undo (reverse order: instance → provisional,
+ * `deleteComponent`, provisional → node) does not need `force`.
  */
 export function createComponentOps(
   doc: Document,
@@ -199,23 +199,23 @@ export function createComponentOps(
   opts: CreateComponentOptions = {},
 ): { ops: Op[]; componentId: string; instanceId: string } {
   if (isVirtualId(nodeId)) {
-    fail(`O nó "${nodeId}" é interno de uma instância: destaque a instância ou edite o principal`);
-  }
-  if (isComponentNodeId(doc, nodeId)) {
     fail(
-      `O nó "${nodeId}" está dentro de um principal: crie o componente a partir de nós das páginas`,
+      `Node "${nodeId}" is internal to an instance: detach the instance or edit the main component`,
     );
   }
+  if (isComponentNodeId(doc, nodeId)) {
+    fail(`Node "${nodeId}" is inside a main component: create the component from page nodes`);
+  }
   const path = findNode(doc, nodeId);
-  if (!path) fail(`Nó "${nodeId}" não encontrado`);
+  if (!path) fail(`Node "${nodeId}" not found`);
   const node = path.node;
   if (!path.parent || node.type === 'frame') {
-    fail(`O nó "${nodeId}" é um frame raiz: crie o componente a partir de um nó dentro do frame`);
+    fail(`Node "${nodeId}" is a root frame: create the component from a node inside the frame`);
   }
-  if (node.type === 'instance') fail(`O nó "${nodeId}" já é uma instância de componente`);
+  if (node.type === 'instance') fail(`Node "${nodeId}" is already a component instance`);
 
   const componentId = opts.componentId ?? newComponentId();
-  if (getComponent(doc, componentId)) fail(`Já existe um componente com id "${componentId}"`);
+  if (getComponent(doc, componentId)) fail(`A component with id "${componentId}" already exists`);
   const instanceId = opts.instanceId ?? newNodeId('instance');
   const name = uniqueComponentName(opts.name ?? node.name, otherNames(doc));
 
@@ -242,8 +242,8 @@ export function createComponentOps(
 
   const props: PropDef[] = [];
   for (const p of opts.props ?? []) {
-    if (!PROP_NAME_RE.test(p.name.trim())) fail(`Nome de prop inválido: "${p.name}"`);
-    if (props.some((x) => x.name === p.name.trim())) fail(`Prop duplicada: "${p.name}"`);
+    if (!PROP_NAME_RE.test(p.name.trim())) fail(`Invalid prop name: "${p.name}"`);
+    if (props.some((x) => x.name === p.name.trim())) fail(`Duplicate prop: "${p.name}"`);
     props.push(cleanPropDef(bindProp(root, { ...p, name: p.name.trim() })));
   }
   for (const p of inferProps(root)) if (!props.some((x) => x.name === p.name)) props.push(p);
@@ -298,11 +298,11 @@ export function createComponentOps(
   };
 }
 
-/* ---------------- instâncias ---------------- */
+/* ---------------- instances ---------------- */
 
 export interface InstanceOptions {
   props?: Record<string, PropValue>;
-  /** Conteúdo por slot (vai nos contêineres `data-slot`; slots omitidos usam o padrão). */
+  /** Content per slot (goes in the `data-slot` containers; omitted slots use the default). */
   slots?: Record<string, Node[]>;
   name?: string;
   style?: Record<string, string>;
@@ -310,9 +310,9 @@ export interface InstanceOptions {
 }
 
 /**
- * Nó instância pronto para `createNode`: props validadas (as iguais ao padrão são omitidas) e um
- * contêiner por prop `slot` (`{ type:'element', tag:'div', name:'Slot <nome>', attrs:{'data-slot'} }`).
- * `componentId` aceita também o nome ou `kit/Nome`.
+ * Instance node ready for `createNode`: validated props (those equal to the default are omitted)
+ * and one container per `slot` prop (`{ type:'element', tag:'div', name:'Slot <name>', attrs:{'data-slot'} }`).
+ * `componentId` also accepts the name or `kit/Name`.
  */
 export function instanceNodeFor(
   doc: Document,
@@ -320,7 +320,7 @@ export function instanceNodeFor(
   opts: InstanceOptions = {},
 ): Node {
   const def = getComponent(doc, componentId) ?? findComponent(doc, componentId);
-  if (!def) fail(`Componente "${componentId}" não encontrado`);
+  if (!def) fail(`Component "${componentId}" not found`);
   const props: Record<string, PropValue> = {};
   for (const [k, v] of Object.entries(opts.props ?? {})) {
     const value = normalizePropValue(def, k, v);
@@ -332,7 +332,7 @@ export function instanceNodeFor(
   for (const k of Object.keys(opts.slots ?? {})) {
     if (!slots.includes(k)) {
       fail(
-        `O componente "${def.name}" não tem o slot "${k}"${slots.length > 0 ? ` (slots: ${slots.join(', ')})` : ''}`,
+        `Component "${def.name}" has no slot "${k}"${slots.length > 0 ? ` (slots: ${slots.join(', ')})` : ''}`,
       );
     }
   }
@@ -359,12 +359,12 @@ export function instanceNodeFor(
 }
 
 /**
- * Destaca a instância: `replaceNode` pela árvore concreta. Nós vindos do principal (ids
- * virtuais) e a raiz ganham ids novos reais (prefixo do tipo); contêineres e conteúdo de slot
- * mantêm os ids; instâncias aninhadas continuam instâncias, com os overrides herdados.
+ * Detaches the instance: `replaceNode` with the concrete tree. Nodes coming from the main
+ * component (virtual ids) and the root get new real ids (type prefix); slot containers and
+ * content keep their ids; nested instances remain instances, with the inherited overrides.
  */
 export function detachInstanceOps(doc: Document, nodeId: string): Op[] {
-  const inst = requireRealInstance(doc, nodeId, 'destacar');
+  const inst = requireRealInstance(doc, nodeId, 'detach');
   requireDef(doc, inst);
   const tree = deepClone(expandInstance(doc, inst, { deep: false }));
   const taken = documentNodeIds(doc);
@@ -384,12 +384,12 @@ export function detachInstanceOps(doc: Document, nodeId: string): Op[] {
 }
 
 /**
- * Grava os overrides da instância no principal (nós do principal e overrides das instâncias
- * aninhadas nele) e limpa os da instância. Overrides de nós que não existem mais são ignorados.
- * As variantes do principal continuam valendo por cima do que foi gravado.
+ * Writes the instance's overrides into the main component (main-component nodes and the
+ * overrides of instances nested in it) and clears the instance's own. Overrides of nodes that no
+ * longer exist are ignored. The main component's variants still apply on top of what was written.
  */
 export function pushOverridesToMainOps(doc: Document, nodeId: string): Op[] {
-  const inst = requireRealInstance(doc, nodeId, 'enviar ao principal');
+  const inst = requireRealInstance(doc, nodeId, 'push to the main component');
   const def = requireDef(doc, inst);
   const overrides = inst.overrides ?? {};
   if (Object.keys(overrides).length === 0) return [];
@@ -415,20 +415,20 @@ export function pushOverridesToMainOps(doc: Document, nodeId: string): Op[] {
   ];
 }
 
-/** Remove os overrides da instância (para uma instância aninhada, use o id virtual dela). */
+/** Removes the instance's overrides (for a nested instance, use its virtual id). */
 export function resetInstanceOps(doc: Document, nodeId: string): Op[] {
-  if (!isVirtualId(nodeId)) requireRealInstance(doc, nodeId, 'restaurar');
+  if (!isVirtualId(nodeId)) requireRealInstance(doc, nodeId, 'reset');
   return [{ type: 'setInstanceOverrides', changes: [{ nodeId, overrides: null }] }];
 }
 
 /* ---------------- importKit ---------------- */
 
 /**
- * Situação de cada componente do kit no documento:
- * - `added`: não existia (pelo id do kit) e foi adicionado;
- * - `updated`: existia com `kit` igual e foi sobrescrito pelo do kit (só sem `onlyMissing`);
- * - `unchanged`: já igual ao do kit;
- * - `diverged`: existe com `kit` igual mas difere do kit (edições do usuário) e foi mantido
+ * Status of each kit component in the document:
+ * - `added`: did not exist (by kit id) and was added;
+ * - `updated`: existed with the same `kit` and was overwritten by the kit's (only without `onlyMissing`);
+ * - `unchanged`: already equal to the kit's;
+ * - `diverged`: exists with the same `kit` but differs from the kit (user edits) and was kept
  *   (`onlyMissing`).
  */
 export type ImportKitStatus = 'added' | 'updated' | 'unchanged' | 'diverged';
@@ -436,16 +436,16 @@ export type ImportKitStatus = 'added' | 'updated' | 'unchanged' | 'diverged';
 export interface ImportKitResult {
   ops: Op[];
   components: { id: string; name: string; status: ImportKitStatus }[];
-  /** Componentes com o id de um do kit mas de outra origem (`kit` diferente): nunca são tocados. */
+  /** Components with a kit component's id but another origin (different `kit`): never touched. */
   skipped: { id: string; name: string; kit?: string }[];
   tokensAdded: string[];
 }
 
 export interface ImportKitOptions {
   /**
-   * Só adiciona os componentes ausentes (pelo id do kit, que é estável: renomear não conta como
-   * ausente); nunca atualiza os existentes (os que diferem saem como `diverged`). Tokens que
-   * faltam continuam sendo criados.
+   * Only adds the missing components (by kit id, which is stable: renaming does not count as
+   * missing); never updates existing ones (those that differ are reported as `diverged`). Missing
+   * tokens are still created.
    */
   onlyMissing?: boolean;
 }
@@ -461,7 +461,7 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** Componentes do kit com as dependências (instâncias de outros componentes do kit) antes. */
+/** Kit components with their dependencies (instances of other kit components) first. */
 function topoOrder(list: ComponentDef[]): ComponentDef[] {
   const byId = new Map(list.map((c) => [c.id, c]));
   const out: ComponentDef[] = [];
@@ -481,14 +481,14 @@ function topoOrder(list: ComponentDef[]): ComponentDef[] {
 }
 
 /**
- * Importa os componentes de um kit (documento `*.mockup.json` com `components`):
- * - id novo: `addComponent` (dependências antes), com `kit` preenchido e nome único;
- * - mesmo id já no documento com `kit === kitName`: `unchanged` se igual; se difere, `updated`
- *   (`updateComponent`) ou, com `onlyMissing`, `diverged` (mantido como está);
- * - mesmo id com outro `kit` (ou sem): nunca tocado (`skipped`);
- * - ids de nós que colidem com nós de outro dono ganham ids derivados (determinísticos, então
- *   importar de novo não muda nada), remapeando as chaves de variantes e overrides;
- * - tokens (com metadados) que faltam e as sobrescritas dos temas (ex. `dark`) desses tokens.
+ * Imports the components of a kit (a `*.mockup.json` document with `components`):
+ * - new id: `addComponent` (dependencies first), with `kit` filled in and a unique name;
+ * - same id already in the document with `kit === kitName`: `unchanged` if equal; if it differs,
+ *   `updated` (`updateComponent`) or, with `onlyMissing`, `diverged` (kept as is);
+ * - same id with another `kit` (or none): never touched (`skipped`);
+ * - node ids that collide with nodes of another owner get derived ids (deterministic, so
+ *   importing again changes nothing), remapping the variant and override keys;
+ * - missing tokens (with metadata) and the theme overrides (e.g. `dark`) of those tokens.
  */
 export function importKitOps(
   doc: Document,
@@ -498,7 +498,7 @@ export function importKitOps(
 ): ImportKitResult {
   const ops: Op[] = [];
 
-  // Tokens que faltam, metadados e sobrescritas de tema deles (como planShadcnTokens).
+  // Missing tokens, their metadata and theme overrides (like planShadcnTokens).
   const set: Record<string, string> = {};
   for (const [k, v] of Object.entries(kit.tokens)) if (!(k in doc.tokens)) set[k] = v;
   const tokensAdded = Object.keys(set);
@@ -532,7 +532,7 @@ export function importKitOps(
     if (changedTheme) ops.push({ type: 'setThemes', themes });
   }
 
-  // Componentes.
+  // Components.
   const kitList = kit.components ?? [];
   const kitById = new Map(kitList.map((c) => [c.id, c]));
   const remaps = new Map<string, Map<string, string>>();
@@ -543,7 +543,7 @@ export function importKitOps(
   const components: ImportKitResult['components'] = [];
   const skipped: ImportKitResult['skipped'] = [];
 
-  /** Caminho de override relativo ao componente `cid` com os ids remapeados. */
+  /** Override path relative to component `cid` with the ids remapped. */
   const remapPath = (path: string, cid: string): string => {
     if (path === '') return path;
     let cur: string | undefined = cid;
@@ -621,7 +621,7 @@ export function importKitOps(
     } else if (stableStringify(existing) === stableStringify(desired)) {
       components.push({ id: kc.id, name, status: 'unchanged' });
     } else if (opts.onlyMissing) {
-      // Edições do usuário no principal (inclusive renomear) são preservadas.
+      // User edits to the main component (including renames) are preserved.
       components.push({ id: kc.id, name: existing.name, status: 'diverged' });
     } else {
       names.set(kc.id, name);

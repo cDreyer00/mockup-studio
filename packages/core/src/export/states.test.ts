@@ -15,8 +15,8 @@ const landing = parseDocument(
 );
 
 function docWith(root: Node, tokens: Record<string, string> = {}): Document {
-  const doc = createDocument('Estados', { id: 'doc_estado01' });
-  root.id = 'fr_estado001';
+  const doc = createDocument('States', { id: 'doc_state01' });
+  root.id = 'fr_state0001';
   doc.pages[0].frames.push(root);
   Object.assign(doc.tokens, tokens);
   return doc;
@@ -24,11 +24,11 @@ function docWith(root: Node, tokens: Record<string, string> = {}): Document {
 
 function button(): Node {
   const btn = createNodeFromTag('button', {
-    name: 'Botão',
-    text: 'Enviar',
+    name: 'Button',
+    text: 'Send',
     styles: { 'background-color': '#6c5ce7', padding: '8px 16px', color: '#fff' },
   });
-  btn.id = 'el_estado001';
+  btn.id = 'el_state0001';
   btn.states = {
     hover: { 'background-color': '#5b4bd6' },
     md: { padding: '12px 24px' },
@@ -41,7 +41,7 @@ function button(): Node {
 
 function withButton(tokens: Record<string, string> = {}): Document {
   const frame = createNodeFromTag('div', {
-    name: 'Tela',
+    name: 'Screen',
     isRoot: true,
     styles: { width: '800px' },
   });
@@ -56,37 +56,37 @@ function textNode(name: string, styles: Record<string, string>): Node {
 }
 
 function docWithTexts(...texts: Node[]): Document {
-  const frame = createNodeFromTag('div', { name: 'Tela', isRoot: true });
+  const frame = createNodeFromTag('div', { name: 'Screen', isRoot: true });
   frame.children = texts;
   return docWith(frame);
 }
 
-describe('exportTailwind: neutralização do line-height', () => {
-  it('neutraliza o tamanho usado por nó sem line-height', () => {
-    const doc = docWithTexts(textNode('Sem lh', { 'font-size': '14px' }));
+describe('exportTailwind: line-height neutralization', () => {
+  it('neutralizes the size used by a node without line-height', () => {
+    const doc = docWithTexts(textNode('No lh', { 'font-size': '14px' }));
     expect(neutralLeadingSizes(doc)).toEqual(new Set(['sm']));
     expect(tailwindThemeCss(doc)).toContain('--text-sm--line-height: inherit;');
   });
 
-  it('neutraliza quando o line-height difere do padrão do tamanho', () => {
+  it('neutralizes when the line-height differs from the size default', () => {
     const doc = docWithTexts(textNode('Lh 1.7', { 'font-size': '0.875rem', 'line-height': '1.7' }));
     expect(tailwindThemeCss(doc)).toContain('--text-sm--line-height: inherit;');
   });
 
-  it('dispensa quando todos os nós têm o line-height padrão (unitless ou em px)', () => {
+  it('skips when all nodes have the default line-height (unitless or in px)', () => {
     const doc = docWithTexts(
-      textNode('Importado', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
-      textNode('Em px', { 'font-size': '14px', 'line-height': '20px' }),
-      textNode('Grande', { 'font-size': '1.125rem', 'line-height': '1.5556' }),
+      textNode('Imported', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
+      textNode('In px', { 'font-size': '14px', 'line-height': '20px' }),
+      textNode('Large', { 'font-size': '1.125rem', 'line-height': '1.5556' }),
     );
     expect(neutralLeadingSizes(doc).size).toBe(0);
     expect(tailwindThemeCss(doc)).not.toContain('line-height: inherit');
   });
 
-  it('um nó fora do padrão neutraliza só o seu tamanho', () => {
+  it('a non-default node neutralizes only its own size', () => {
     const doc = docWithTexts(
-      textNode('Padrão', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
-      textNode('Outro', { 'font-size': '1.125rem', 'line-height': '1.2' }),
+      textNode('Default', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
+      textNode('Other', { 'font-size': '1.125rem', 'line-height': '1.2' }),
     );
     expect(neutralLeadingSizes(doc)).toEqual(new Set(['lg']));
     const css = tailwindThemeCss(doc);
@@ -94,18 +94,18 @@ describe('exportTailwind: neutralização do line-height', () => {
     expect(css).not.toContain('--text-sm--line-height');
   });
 
-  it('tamanhos sem nome e estados com font-size entram na conta', () => {
+  it('unnamed sizes and states with font-size are taken into account', () => {
     const odd = textNode('Odd', { 'font-size': '13px' });
-    const withState = textNode('Estado', { 'font-size': '1rem', 'line-height': '1.5' });
+    const withState = textNode('State', { 'font-size': '1rem', 'line-height': '1.5' });
     withState.states = { md: { 'font-size': '1.25rem' } };
     const doc = docWithTexts(odd, withState);
-    // md: 1.25rem herda o line-height base 1.5, que não é o padrão de xl (1.4)
+    // md: 1.25rem inherits the base line-height 1.5, which is not xl's default (1.4)
     expect(neutralLeadingSizes(doc)).toEqual(new Set(['xl']));
   });
 });
 
-describe('exportTailwind: estados sem o motor', () => {
-  it('exporta node.states como classes com prefixo de variante', () => {
+describe('exportTailwind: states without the engine', () => {
+  it('exports node.states as classes with a variant prefix', () => {
     const html = exportTailwind(withButton(), { fragment: true });
     expect(html).toContain('hover:bg-[#5b4bd6]');
     expect(html).toContain('md:py-3');
@@ -116,7 +116,7 @@ describe('exportTailwind: estados sem o motor', () => {
     expect(html).not.toContain('style=');
   });
 
-  it('o tema traz o @custom-variant dark só quando algum nó usa dark', () => {
+  it('the theme includes the dark @custom-variant only when some node uses dark', () => {
     const doc = withButton();
     const css = tailwindThemeCss(doc);
     expect(css).toContain(
@@ -128,15 +128,15 @@ describe('exportTailwind: estados sem o motor', () => {
     expect(tailwindThemeCss(landing)).not.toContain('@custom-variant');
   });
 
-  it('o documento completo inclui o @custom-variant no <style type="text/tailwindcss">', () => {
+  it('the full document includes the @custom-variant in the <style type="text/tailwindcss">', () => {
     const html = exportTailwind(withButton());
     expect(html).toContain('@custom-variant dark');
     expect(html).not.toContain('@import "tailwindcss"');
   });
 });
 
-describe('exportHtml: breakpoints customizados', () => {
-  it('usa --breakpoint-* do documento na @media', () => {
+describe('exportHtml: custom breakpoints', () => {
+  it('uses the document --breakpoint-* in @media', () => {
     const custom = exportHtml(withButton({ '--breakpoint-md': '900px' }));
     expect(custom).toContain('@media (min-width: 900px)');
     expect(custom).not.toContain('@media (min-width: 768px)');
@@ -148,7 +148,7 @@ describe('exportHtml: breakpoints customizados', () => {
 });
 
 describe('cssBase', () => {
-  it('Tailwind: só o body da camada base muda', () => {
+  it('Tailwind: only the base layer body changes', () => {
     const doc = withButton();
     const normal = tailwindThemeCss(doc);
     expect(normal).toContain('body { font-family:system-ui');
@@ -159,7 +159,7 @@ describe('cssBase', () => {
     expect(tw).not.toContain('border:0 solid');
   });
 
-  it('HTML: com cssBase tailwind inclui o preflight', () => {
+  it('HTML: with cssBase tailwind includes the preflight', () => {
     const doc = withButton();
     expect(exportHtml(doc)).not.toContain('border:0 solid');
     doc.cssBase = 'tailwind';
@@ -168,56 +168,56 @@ describe('cssBase', () => {
     expect(html).toContain('h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}');
   });
 
-  it('React inline e SVG seguem o cssBase', () => {
+  it('React inline and SVG follow cssBase', () => {
     const doc = withButton();
     doc.cssBase = 'tailwind';
-    const r = exportReact(doc, { nodeId: 'fr_estado001', styles: 'inline' });
+    const r = exportReact(doc, { nodeId: 'fr_state0001', styles: 'inline' });
     expect(r.css).toContain('border:0 solid');
-    const svg = exportSvg(doc, { nodeId: 'fr_estado001' });
+    const svg = exportSvg(doc, { nodeId: 'fr_state0001' });
     expect(svg).toContain('border:0 solid');
   });
 });
 
-describe('exportHtml: estados', () => {
-  it('modo classes: regras por pseudo-classe, breakpoint, dark e combinações', () => {
+describe('exportHtml: states', () => {
+  it('classes mode: rules per pseudo-class, breakpoint, dark and combinations', () => {
     const html = exportHtml(withButton(), { fragment: true });
-    expect(html).toContain('.botao:hover {\n    background-color: #5b4bd6;\n  }');
-    expect(html).toContain('.botao:disabled {\n    opacity: 0.5;\n  }');
+    expect(html).toContain('.button:hover {\n    background-color: #5b4bd6;\n  }');
+    expect(html).toContain('.button:disabled {\n    opacity: 0.5;\n  }');
     expect(html).toContain(
-      '.botao:where([data-theme="dark"], [data-theme="dark"] *) {\n    background-color: #222;\n  }',
+      '.button:where([data-theme="dark"], [data-theme="dark"] *) {\n    background-color: #222;\n  }',
     );
     expect(html).toContain(
-      '@media (min-width: 768px) {\n    .botao {\n      padding: 12px 24px;\n    }\n  }',
+      '@media (min-width: 768px) {\n    .button {\n      padding: 12px 24px;\n    }\n  }',
     );
     expect(html).toContain(
-      '@media (min-width: 768px) {\n    .botao:hover {\n      background-color: #4a3cc0;\n    }\n  }',
+      '@media (min-width: 768px) {\n    .button:hover {\n      background-color: #4a3cc0;\n    }\n  }',
     );
-    // o estado vem depois da regra base do mesmo nó
-    expect(html.indexOf('.botao {')).toBeLessThan(html.indexOf('.botao:hover'));
+    // the state comes after the base rule of the same node
+    expect(html.indexOf('.button {')).toBeLessThan(html.indexOf('.button:hover'));
     expect(html).toMatchSnapshot();
   });
 
-  it('modo inline: base no style e estados em <style> com !important', () => {
+  it('inline mode: base in style and states in <style> with !important', () => {
     const html = exportHtml(withButton(), { fragment: true, mode: 'inline' });
-    expect(html).toContain('<button class="botao" style="background-color: #6c5ce7;');
-    expect(html).toContain('.botao:hover {\n    background-color: #5b4bd6 !important;\n  }');
+    expect(html).toContain('<button class="button" style="background-color: #6c5ce7;');
+    expect(html).toContain('.button:hover {\n    background-color: #5b4bd6 !important;\n  }');
     expect(html).toContain(
-      '@media (min-width: 768px) {\n    .botao {\n      padding: 12px 24px !important;',
+      '@media (min-width: 768px) {\n    .button {\n      padding: 12px 24px !important;',
     );
   });
 
-  it('nó só com estados (sem style) também ganha classe', () => {
-    const frame = createNodeFromTag('div', { name: 'Tela', isRoot: true });
-    const n = createNodeFromTag('a', { name: 'Link', text: 'ir' });
-    n.id = 'el_estado002';
+  it('a node with only states (no style) also gets a class', () => {
+    const frame = createNodeFromTag('div', { name: 'Screen', isRoot: true });
+    const n = createNodeFromTag('a', { name: 'Link', text: 'go' });
+    n.id = 'el_state0002';
     n.states = { hover: { 'text-decoration': 'underline' } };
     frame.children = [n];
     const html = exportHtml(docWith(frame), { fragment: true });
-    expect(html).toContain('<a class="link">ir</a>');
+    expect(html).toContain('<a class="link">go</a>');
     expect(html).toContain('.link:hover {');
   });
 
-  it('estados com valores inseguros ou chaves inválidas não saem', () => {
+  it('states with unsafe values or invalid keys are not emitted', () => {
     const doc = withButton();
     const node = doc.pages[0].frames[0].children[0];
     node.states!['group-hover'] = { color: 'red' };
@@ -228,28 +228,28 @@ describe('exportHtml: estados', () => {
     expect(html).not.toContain(':focus');
   });
 
-  it('sem estados a saída não muda (sem regras extras)', () => {
+  it('without states the output does not change (no extra rules)', () => {
     const html = exportHtml(landing);
     expect(html).not.toContain(':hover');
     expect(html).not.toContain('@media');
   });
 });
 
-describe('exportReact e exportSvg: estados', () => {
-  it('React tailwind sem motor leva as variantes no className', () => {
-    const { code } = exportReact(withButton(), { nodeId: 'fr_estado001' });
+describe('exportReact and exportSvg: states', () => {
+  it('React tailwind without the engine puts the variants in className', () => {
+    const { code } = exportReact(withButton(), { nodeId: 'fr_state0001' });
     expect(code).toContain('hover:bg-[#5b4bd6]');
     expect(code).toContain('md:hover:bg-[#4a3cc0]');
   });
 
-  it('React inline não exporta estados (style={{}} não tem variantes)', () => {
-    const { code } = exportReact(withButton(), { nodeId: 'fr_estado001', styles: 'inline' });
+  it('React inline does not export states (style={{}} has no variants)', () => {
+    const { code } = exportReact(withButton(), { nodeId: 'fr_state0001', styles: 'inline' });
     expect(code).not.toContain('hover');
     expect(code).not.toContain('5b4bd6');
   });
 
-  it('nós com estados diferentes não são extraídos como repetição', () => {
-    const frame = createNodeFromTag('ul', { name: 'Lista', isRoot: true });
+  it('nodes with different states are not extracted as a repetition', () => {
+    const frame = createNodeFromTag('ul', { name: 'List', isRoot: true });
     const mk = (i: number, hover: string): Node => {
       const li = createNodeFromTag('li', {
         name: 'Item',
@@ -261,34 +261,34 @@ describe('exportReact e exportSvg: estados', () => {
       return li;
     };
     frame.children = [mk(1, 'blue'), mk(2, 'green'), mk(3, 'green')];
-    const { code } = exportReact(docWith(frame), { nodeId: 'fr_estado001' });
+    const { code } = exportReact(docWith(frame), { nodeId: 'fr_state0001' });
     expect(code).toContain('hover:text-[color:blue]');
     expect(code).toContain('hover:text-[color:green]');
   });
 
-  it('SVG ignora os estados', () => {
-    const svg = exportSvg(withButton(), { nodeId: 'fr_estado001' });
+  it('SVG ignores the states', () => {
+    const svg = exportSvg(withButton(), { nodeId: 'fr_state0001' });
     expect(svg).not.toContain('5b4bd6');
     expect(svg).not.toContain(':hover');
   });
 });
 
-describe('exportTailwind com o motor', () => {
+describe('exportTailwind with the engine', () => {
   let engine: TailwindEngine;
   beforeAll(async () => {
     engine = await createTailwindEngine(landing);
-    // aquecimento da canonicalização (~1 s) fora do tempo dos testes; os documentos sem tokens
-    // abaixo compartilham o motor do cache
+    // canonicalization warm-up (~1 s) outside the tests' timing; the token-less documents
+    // below share the cached engine
     engine.warmup();
     (await getTailwindEngine(withButton())).warmup();
   }, 30000);
 
-  it('exemplo landing: snapshot com o motor', () => {
+  it('landing example: snapshot with the engine', () => {
     const html = exportTailwind(landing, { tailwind: engine });
     expect(html).toMatchSnapshot();
   });
 
-  it('com o motor as classes são canonicalizadas e as variantes saem do estado', async () => {
+  it('with the engine the classes are canonicalized and the variants come from the state', async () => {
     const doc = withButton();
     const e = await getTailwindEngine(doc);
     const html = exportTailwind(doc, { tailwind: e, fragment: true });
@@ -300,30 +300,30 @@ describe('exportTailwind com o motor', () => {
     expect(html).toContain('text-white');
   });
 
-  it('neutraliza o line-height no tema e mantém o leading do nó no markup', async () => {
+  it('neutralizes the line-height in the theme and keeps the node leading in the markup', async () => {
     const doc = docWithTexts(
-      textNode('Padrao', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
-      textNode('Outro', { 'font-size': '0.875rem', 'line-height': '1.7' }),
-      textNode('Sem lh', { 'font-size': '0.875rem' }),
+      textNode('Default', { 'font-size': '0.875rem', 'line-height': '1.4286' }),
+      textNode('Other', { 'font-size': '0.875rem', 'line-height': '1.7' }),
+      textNode('No lh', { 'font-size': '0.875rem' }),
     );
     const e = await getTailwindEngine(doc);
     const html = exportTailwind(doc, { tailwind: e });
     expect(html).toContain('--text-sm--line-height: inherit;');
     const body = html.slice(html.indexOf('<body>'));
     const lines = body.split('\n');
-    const padrao = lines.find((l) => l.includes('>Padrao<'))!;
-    // o nó com o padrão do Tailwind precisa do leading explícito, já que o tema neutraliza text-sm
-    expect(padrao).toMatch(/text-sm/);
-    expect(padrao).toMatch(/leading-/);
-    const semLh = lines.find((l) => l.includes('>Sem lh<'))!;
-    expect(semLh).toMatch(/text-sm/);
-    expect(semLh).not.toMatch(/leading-/);
+    const dflt = lines.find((l) => l.includes('>Default<'))!;
+    // the node with the Tailwind default needs an explicit leading, since the theme neutralizes text-sm
+    expect(dflt).toMatch(/text-sm/);
+    expect(dflt).toMatch(/leading-/);
+    const noLh = lines.find((l) => l.includes('>No lh<'))!;
+    expect(noLh).toMatch(/text-sm/);
+    expect(noLh).not.toMatch(/leading-/);
   });
 
-  it('React com o motor usa as classes do motor', async () => {
+  it('React with the engine uses the engine classes', async () => {
     const doc = withButton();
     const e = await getTailwindEngine(doc);
-    const { code, css } = exportReact(doc, { nodeId: 'fr_estado001', tailwind: e });
+    const { code, css } = exportReact(doc, { nodeId: 'fr_state0001', tailwind: e });
     expect(code).toContain('hover:bg-[#5b4bd6]');
     expect(css).toContain('@custom-variant dark');
   });

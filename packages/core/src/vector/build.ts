@@ -1,6 +1,6 @@
 /**
- * Builders de ops compartilhados pelo MCP e pelo editor (cada um devolve as ops de uma única
- * entrada de undo). Lançam `Error` com mensagem em português quando a entrada não serve.
+ * Op builders shared by the MCP and the editor (each returns the ops of a single
+ * undo entry). They throw an `Error` with an English message when the input is invalid.
  */
 import { deepClone } from '../clone.js';
 import { findNode } from '../document.js';
@@ -26,10 +26,10 @@ function pxValue(value: string | undefined): number | null {
 }
 
 /**
- * Caixa do nó no pai, em px, lida do estilo: `left`/`top` e `width`/`height` em px (padrão:
- * viewBox do vetor). `null` se width/height não forem px nem houver viewBox. A posição segue o
- * editor: raiz da página (`isRoot`) usa `node.position`; filho usa `left`/`top`, senão
- * `node.position`, senão 0.
+ * Node box in the parent, in px, read from the style: `left`/`top` and `width`/`height` in px (default:
+ * the vector's viewBox). `null` if width/height are not px and there is no viewBox. The position follows the
+ * editor: a page root (`isRoot`) uses `node.position`; a child uses `left`/`top`, otherwise
+ * `node.position`, otherwise 0.
  */
 export function nodeBoxInParent(node: Node, isRoot = false): Box | null {
   const vb = ensureVector(node)?.viewBox;
@@ -45,25 +45,25 @@ export function nodeBoxInParent(node: Node, isRoot = false): Box | null {
   };
 }
 
-/** Opções de `buildBooleanOps`/`buildFlattenOps`. */
+/** Options of `buildBooleanOps`/`buildFlattenOps`. */
 export interface BuildOptions {
   name?: string;
   id?: string;
   /**
-   * Caixa medida (px, no padding box do pai) de cada nó, por id. Obrigatória para nós em fluxo
-   * (não raiz e sem `position: absolute|fixed`); para os livres tem precedência sobre o estilo.
+   * Measured box (px, in the parent's padding box) of each node, by id. Required for in-flow nodes
+   * (not root and without `position: absolute|fixed`); for free nodes it takes precedence over the style.
    */
   boxes?: Record<string, Box>;
 }
 
-/** Nó "livre": raiz da página ou `position: absolute|fixed`; a posição vem do estilo. */
+/** "Free" node: page root or `position: absolute|fixed`; the position comes from the style. */
 export function isFreeNode(node: Node, isRoot: boolean): boolean {
   if (isRoot) return true;
   const pos = (node.style['position'] ?? '').trim();
   return pos === 'absolute' || pos === 'fixed';
 }
 
-/** Leva o viewBox à caixa respeitando `preserveAspectRatio` (como o navegador desenha). */
+/** Brings the viewBox to the box respecting `preserveAspectRatio` (as the browser draws it). */
 function viewBoxMatrix(vector: Vector, box: Box): Matrix {
   const vb = vector.viewBox;
   const rx = vb.width ? box.width / vb.width : 1;
@@ -85,24 +85,24 @@ interface Source {
   node: Node;
   vector: Vector;
   box: Box;
-  /** Leva coordenadas do viewBox ao espaço do pai. */
+  /** Brings viewBox coordinates to the parent's space. */
   matrix: Matrix;
 }
 
 interface Context {
   sources: Source[];
   parentId: string | null;
-  /** Estilo do pai (para o bloco de contenção do resultado). */
+  /** Parent style (for the result's containing block). */
   parentStyle: Record<string, string> | null;
   pageId: string;
   index: number;
-  /** Algum nó em fluxo entrou com caixa medida. */
+  /** Some in-flow node came in with a measured box. */
   usedFlow: boolean;
 }
 
 const label = (n: Node): string => `"${n.name ?? n.id}"`;
 
-/** Valida e ordena (ordem no pai) os nós svg irmãos. `what` completa "antes ___" na recusa. */
+/** Validates and sorts (parent order) the sibling svg nodes. `what` completes "before ___" in the refusal. */
 function collectSources(
   doc: Document,
   nodeIds: string[],
@@ -112,28 +112,28 @@ function collectSources(
 ): Context {
   const ids = [...new Set(nodeIds)];
   if (ids.length < min) {
-    throw new Error(`Selecione pelo menos ${min} ${min === 1 ? 'nó' : 'nós'} svg`);
+    throw new Error(`Select at least ${min} svg ${min === 1 ? 'node' : 'nodes'}`);
   }
   const found = ids.map((id) => {
     const p = findNode(doc, id);
-    if (!p) throw new Error(`Nó não encontrado: "${id}"`);
+    if (!p) throw new Error(`Node not found: "${id}"`);
     return p;
   });
   const first = found[0]!;
   for (const p of found) {
-    if (p.node.type !== 'svg') throw new Error(`O nó ${label(p.node)} não é um svg`);
+    if (p.node.type !== 'svg') throw new Error(`Node ${label(p.node)} is not an svg`);
     if ((p.parent?.id ?? null) !== (first.parent?.id ?? null) || p.page.id !== first.page.id) {
-      throw new Error('Os nós precisam ser irmãos (ter o mesmo pai)');
+      throw new Error('The nodes must be siblings (have the same parent)');
     }
   }
   found.sort((a, b) => a.index - b.index);
-  // um nó só (achatar via setVector) não depende da posição
+  // a single node (flatten via setVector) does not depend on the position
   const multi = found.length > 1;
   let usedFlow = false;
   const sources = found.map((p): Source => {
     const vector = ensureVector(p.node);
     if (!vector || !isVectorEditable(vector)) {
-      throw new Error(`O nó ${label(p.node)} não tem paths editáveis`);
+      throw new Error(`Node ${label(p.node)} has no editable paths`);
     }
     const isRoot = p.parent === null;
     const measured = boxes?.[p.node.id];
@@ -151,15 +151,13 @@ function collectSources(
       if (!isFreeNode(p.node, isRoot)) usedFlow = true;
     } else if (!isFreeNode(p.node, isRoot)) {
       throw new Error(
-        `O nó ${label(p.node)} está em fluxo (sem position: absolute); posicione-o livremente antes ${what}`,
+        `Node ${label(p.node)} is in flow (no position: absolute); position it freely before ${what}`,
       );
     } else {
       box = nodeBoxInParent(p.node, isRoot);
     }
     if (!box) {
-      throw new Error(
-        `Não foi possível determinar a caixa do nó ${label(p.node)} (width/height em px)`,
-      );
+      throw new Error(`Could not determine the box of node ${label(p.node)} (width/height in px)`);
     }
     return { node: p.node, vector, box, matrix: viewBoxMatrix(vector, box) };
   });
@@ -175,7 +173,7 @@ function collectSources(
 
 const BOX_KEYS = ['left', 'top', 'width', 'height', 'position'];
 
-/** Multiplica cada número de um dasharray por `k` (`"2 1"` × 2 = `"4 2"`). */
+/** Multiplies each number of a dasharray by `k` (`"2 1"` × 2 = `"4 2"`). */
 function scaleDash(dash: string, k: number): string {
   return dash.replace(/-?\d*\.?\d+(?:e[+-]?\d+)?/gi, (n) =>
     String(Number((parseFloat(n) * k).toFixed(4))),
@@ -183,8 +181,8 @@ function scaleDash(dash: string, k: number): string {
 }
 
 /**
- * Leva espessura e tracejado ao espaço do pai: × escala da matriz (`hypot(a, b)`, como
- * `importShape`). Traço visível sem `strokeWidth` vale 1 no SVG, então vira a própria escala.
+ * Brings thickness and dash to the parent's space: × matrix scale (`hypot(a, b)`, like
+ * `importShape`). A visible stroke without `strokeWidth` is 1 in SVG, so it becomes the scale itself.
  */
 function scalePaint<T extends Omit<VectorPath, 'id' | 'd' | 'fillRule'>>(p: T, m: Matrix): T {
   const k = Math.hypot(m.a, m.b);
@@ -197,7 +195,7 @@ function scalePaint<T extends Omit<VectorPath, 'id' | 'd' | 'fillRule'>>(p: T, m
   return out;
 }
 
-/** Monta o nó resultado a partir de paths já no espaço do pai e emite as ops (create + delete). */
+/** Builds the result node from paths already in the parent's space and emits the ops (create + delete). */
 function buildResult(
   ctx: Context,
   paths: VectorPath[],
@@ -215,7 +213,7 @@ function buildResult(
     maxX = Math.max(maxX, b.x + b.width);
     maxY = Math.max(maxY, b.y + b.height);
   }
-  // espessuras já escaladas (espaço do pai)
+  // thicknesses already scaled (parent space)
   const maxStroke = Math.max(
     0,
     ...paths.map((p) => (p.stroke && p.stroke !== 'none' ? (p.strokeWidth ?? 1) : 0)),
@@ -236,7 +234,7 @@ function buildResult(
   const px = (n: number): string => `${Number(n.toFixed(3))}px`;
   const root = ctx.parentId === null;
   if (root) {
-    // frame raiz: a posição no canvas fica em `node.position` (sem left/top/position)
+    // root frame: the canvas position lives in `node.position` (without left/top/position)
     Object.assign(style, { width: px(width), height: px(height) });
   } else {
     Object.assign(style, {
@@ -254,7 +252,7 @@ function buildResult(
     ? { type: 'createNode', parentId: ctx.parentId, node, index: ctx.index }
     : { type: 'createNode', parentId: null, pageId: ctx.pageId, node, index: ctx.index };
   const ops: Op[] = [];
-  // o resultado é absoluto no pai: com nós em fluxo medidos, o pai precisa ser o bloco de contenção
+  // the result is absolute in the parent: with measured in-flow nodes, the parent must be the containing block
   if (ctx.usedFlow && ctx.parentId) {
     const pos = (ctx.parentStyle?.['position'] ?? '').trim();
     if (pos === '' || pos === 'static') {
@@ -268,7 +266,7 @@ function buildResult(
   return { ops, nodeId };
 }
 
-/** Tinta de um path (sem id/d/fillRule). */
+/** Paint of a path (without id/d/fillRule). */
 function paintOf(p: VectorPath): Omit<VectorPath, 'id' | 'd' | 'fillRule'> {
   const { id: _id, d: _d, fillRule: _fr, ...paint } = p;
   void _id;
@@ -278,19 +276,19 @@ function paintOf(p: VectorPath): Omit<VectorPath, 'id' | 'd' | 'fillRule'> {
 }
 
 /**
- * Booleana entre nós svg irmãos (2 ou mais, com paths editáveis; nós sem `vector` usam
- * `ensureVector`). Cada path vai ao espaço do pai (caixa do nó × viewBox, respeitando o
- * `preserveAspectRatio` do vetor). Resultado: um nó svg novo, no lugar do primeiro (mesmo
- * índice), na caixa do resultado, com o estilo do nó mais ao fundo (sem left/top/width/height/
- * position) e a tinta do primeiro path dele (espessura e tracejado × escala); os originais são
- * removidos. Ordem dos nós = ordem no pai (o de baixo é o "primeiro" do subtract).
+ * Boolean between sibling svg nodes (2 or more, with editable paths; nodes without `vector` use
+ * `ensureVector`). Each path goes to the parent's space (node box × viewBox, respecting the
+ * vector's `preserveAspectRatio`). Result: a new svg node, in place of the first (same
+ * index), in the result's box, with the style of the bottom-most node (without left/top/width/height/
+ * position) and the paint of its first path (thickness and dash × scale); the originals are
+ * removed. Node order = parent order (the bottom one is the "first" of subtract).
  *
- * Posição: nós livres (raiz da página ou `position: absolute|fixed`) usam o estilo (raiz:
- * `node.position`). Nós em fluxo exigem `opts.boxes` (caixa medida no padding box do pai); sem ela,
- * lança erro. Com nó em fluxo, o resultado é `position: absolute` no pai (que passa a
- * `position: relative` se for estático) e os irmãos restantes refluem. Na raiz da página o
- * resultado usa `node.position`, como os frames raiz. O viewBox do resultado começa em 0,0.
- * O resultado é achatado (só segmentos de reta); `fillRule` é aproximado (veja `booleanPathData`).
+ * Position: free nodes (page root or `position: absolute|fixed`) use the style (root:
+ * `node.position`). In-flow nodes require `opts.boxes` (box measured in the parent's padding box); without it,
+ * it throws. With an in-flow node, the result is `position: absolute` in the parent (which becomes
+ * `position: relative` if static) and the remaining siblings reflow. On the page root the
+ * result uses `node.position`, like root frames. The result's viewBox starts at 0,0.
+ * The result is flattened (straight segments only); `fillRule` is approximated (see `booleanPathData`).
  */
 export function buildBooleanOps(
   doc: Document,
@@ -298,33 +296,33 @@ export function buildBooleanOps(
   op: BooleanOp,
   opts: BuildOptions = {},
 ): { ops: Op[]; nodeId: string } {
-  const ctx = collectSources(doc, nodeIds, 2, opts.boxes, 'da booleana');
+  const ctx = collectSources(doc, nodeIds, 2, opts.boxes, 'the boolean operation');
   const items = ctx.sources.flatMap((s) =>
     s.vector.paths.map((p) => ({ d: p.d, matrix: s.matrix, fillRule: p.fillRule })),
   );
   const d = booleanPathData(op, items);
-  if (!d) throw new Error('O resultado da operação booleana é vazio');
+  if (!d) throw new Error('The result of the boolean operation is empty');
   const first = ctx.sources[0]!;
   const path: VectorPath = {
     id: 'p1',
     d,
     ...scalePaint(paintOf(first.vector.paths[0]!), first.matrix),
   };
-  return buildResult(ctx, [path], opts.name ?? 'Booleana', opts.id);
+  return buildResult(ctx, [path], opts.name ?? 'Boolean', opts.id);
 }
 
 /**
- * Achatar. Um nó: junta todos os paths num só (`d` concatenado, tinta do primeiro), via
- * `setVector`. Vários nós svg irmãos: um nó novo com os paths de todos levados ao espaço comum
- * (cada um mantém a tinta, com espessura e tracejado × escala), no lugar do mais ao fundo; os
- * originais são removidos. Posição e `opts.boxes`: veja `buildBooleanOps`.
+ * Flatten. One node: merges all paths into one (`d` concatenated, paint of the first), via
+ * `setVector`. Several sibling svg nodes: a new node with the paths of all brought to the common space
+ * (each keeps its paint, with thickness and dash × scale), in place of the bottom-most; the
+ * originals are removed. Position and `opts.boxes`: see `buildBooleanOps`.
  */
 export function buildFlattenOps(
   doc: Document,
   nodeIds: string[],
   opts: BuildOptions = {},
 ): { ops: Op[]; nodeId: string } {
-  const ctx = collectSources(doc, nodeIds, 1, opts.boxes, 'de achatar');
+  const ctx = collectSources(doc, nodeIds, 1, opts.boxes, 'flattening');
   if (ctx.sources.length === 1) {
     const { node, vector } = ctx.sources[0]!;
     const first = vector.paths[0]!;
@@ -344,5 +342,5 @@ export function buildFlattenOps(
       d: transformPathData(p.d, s.matrix),
     })),
   );
-  return buildResult(ctx, paths, opts.name ?? 'Vetor achatado', opts.id);
+  return buildResult(ctx, paths, opts.name ?? 'Flattened vector', opts.id);
 }

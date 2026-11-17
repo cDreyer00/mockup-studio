@@ -1,10 +1,10 @@
-/** Validação (zod) do modelo vetorial: usada pela op `setVector` e pela leitura de arquivos. */
+/** Validation (zod) of the vector model: used by the `setVector` op and when reading files. */
 import { z } from 'zod';
 import { sanitizeSvg } from '../svg.js';
 import { parsePathData } from './path.js';
 import type { Vector, VectorGradient, VectorPaint, VectorPath } from '../types.js';
 
-/** Atributos do `<svg>` que o gerador controla: nunca vão para `Vector.attrs`. */
+/** `<svg>` attributes that the generator controls: they never go into `Vector.attrs`. */
 export const GENERATED_SVG_ATTRS: readonly string[] = ['viewBox', 'xmlns', 'width', 'height'];
 
 // eslint-disable-next-line no-control-regex
@@ -12,8 +12,8 @@ const CONTROL_RE = /[\u0000-\u001f\u007f]/;
 const PAINT_FORBIDDEN_RE = /[<>";{}\\]|url\(|expression\(|javascript:/i;
 
 /**
- * Cor/tinta em texto: sem caracteres que escapem do atributo ou da declaração CSS (`< > " ; { }`,
- * barra invertida, controle) nem `url(`/`expression(`/`javascript:` (gradiente é objeto).
+ * Color/paint as text: no characters that escape the attribute or the CSS declaration (`< > " ; { }`,
+ * backslash, control) nor `url(`/`expression(`/`javascript:` (a gradient is an object).
  */
 export function isSafePaintString(value: string): boolean {
   return (
@@ -25,7 +25,7 @@ export function isSafePaintString(value: string): boolean {
 }
 
 const PaintString = z.string().refine(isSafePaintString, {
-  error: 'tinta inválida (sem < > " ; { } \\, url(, expression( ou javascript:)',
+  error: 'invalid paint (without < > " ; { } \\, url(, expression( or javascript:)',
 });
 
 const Frac = z.number().min(0).max(1);
@@ -50,28 +50,26 @@ const GradientSchema = z.object({
 
 const PaintSchema = z.union([PaintString, GradientSchema]);
 
-/** Só caracteres de path data (comandos, dígitos, sinais, ponto, expoente, vírgula e espaço). */
+/** Only path data characters (commands, digits, signs, dot, exponent, comma and space). */
 const PATH_DATA_RE = /^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]*$/;
 const DASH_RE = /^(?:none|[0-9eE.,+\-\s]+)$/;
 const PATH_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const ATTR_KEY_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
 
 const PathSchema = z.object({
-  id: z
-    .string()
-    .regex(PATH_ID_RE, { error: 'id de path inválido (use letras, dígitos, "-" e "_")' }),
+  id: z.string().regex(PATH_ID_RE, { error: 'invalid path id (use letters, digits, "-" and "_")' }),
   d: z
     .string()
-    .regex(PATH_DATA_RE, { error: 'path data com caracteres inválidos' })
+    .regex(PATH_DATA_RE, { error: 'path data with invalid characters' })
     .superRefine((d, ctx) => {
       try {
         parsePathData(d);
       } catch (err) {
         const why = (err instanceof Error ? err.message : String(err)).replace(
-          /^Path inválido:\s*/,
+          /^Invalid path:\s*/,
           '',
         );
-        ctx.addIssue({ code: 'custom', message: `Path data inválido em "d": ${why}` });
+        ctx.addIssue({ code: 'custom', message: `Invalid path data in "d": ${why}` });
       }
     }),
   fill: PaintSchema.optional(),
@@ -80,14 +78,14 @@ const PathSchema = z.object({
   opacity: Frac.optional(),
   strokeLinecap: z.enum(['butt', 'round', 'square']).optional(),
   strokeLinejoin: z.enum(['miter', 'round', 'bevel']).optional(),
-  strokeDasharray: z.string().regex(DASH_RE, { error: 'strokeDasharray inválido' }).optional(),
+  strokeDasharray: z.string().regex(DASH_RE, { error: 'invalid strokeDasharray' }).optional(),
   fillRule: z.enum(['nonzero', 'evenodd']).optional(),
 });
 
 const AttrsSchema = z.record(z.string(), z.string()).superRefine((attrs, ctx) => {
   for (const k of Object.keys(attrs)) {
     if (!ATTR_KEY_RE.test(k) || /^on/i.test(k) || /(^|:)(href|style)$/i.test(k)) {
-      ctx.addIssue({ code: 'custom', message: `atributo "${k}" não permitido`, path: [k] });
+      ctx.addIssue({ code: 'custom', message: `attribute "${k}" not allowed`, path: [k] });
     }
   }
 });
@@ -104,7 +102,7 @@ export const VectorSchema: z.ZodType<Vector, unknown> = z
     raw: z
       .string()
       .transform(sanitizeSvg)
-      .refine((s) => s.length > 0, { error: 'raw sem <svg>' })
+      .refine((s) => s.length > 0, { error: 'raw without <svg>' })
       .optional(),
     attrs: AttrsSchema.optional(),
   })
@@ -114,7 +112,7 @@ export const VectorSchema: z.ZodType<Vector, unknown> = z
       if (seen.has(p.id)) {
         ctx.addIssue({
           code: 'custom',
-          message: `id de path duplicado: "${p.id}"`,
+          message: `duplicate path id: "${p.id}"`,
           path: ['paths', i, 'id'],
         });
       }
@@ -122,14 +120,14 @@ export const VectorSchema: z.ZodType<Vector, unknown> = z
     });
   }) as unknown as z.ZodType<Vector, unknown>;
 
-/** Valida na leitura de arquivo: vetor inválido vira `undefined` (o campo é descartado). */
+/** Validates when reading a file: an invalid vector becomes `undefined` (the field is dropped). */
 export function parseVectorLoose(input: unknown): Vector | undefined {
   if (input === undefined || input === null) return undefined;
   const r = VectorSchema.safeParse(input);
   return r.success ? r.data : undefined;
 }
 
-/* ------------------------------------------------------------------------------- ordem estável */
+/* ------------------------------------------------------------------------------- stable order */
 
 function orderPaint(p: VectorPaint): unknown {
   if (typeof p === 'string') return p;
@@ -159,7 +157,7 @@ function orderPath(p: VectorPath): Record<string, unknown> {
   return o;
 }
 
-/** Vetor com chaves em ordem estável (para `serializeDocument`). */
+/** Vector with keys in stable order (for `serializeDocument`). */
 export function orderVector(v: Vector): Record<string, unknown> {
   const out: Record<string, unknown> = {
     viewBox: { x: v.viewBox.x, y: v.viewBox.y, width: v.viewBox.width, height: v.viewBox.height },

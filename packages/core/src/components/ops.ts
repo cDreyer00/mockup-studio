@@ -1,10 +1,10 @@
 /**
- * Ops primitivas de componentes (ver `docs/COMPONENTES.md`, seção Ops) e as validações
- * compartilhadas com `apply.ts` (ids únicos no documento inteiro, filhos de instância).
+ * Primitive component ops (see `docs/COMPONENTS.md`, Ops section) and the validations shared
+ * with `apply.ts` (document-wide unique ids, instance children).
  *
- * Os handlers recebem o clone mutável do documento (como os de `apply.ts`) e devolvem o inverso
- * exato. Toda mudança em `doc.components` troca o array por um novo: os índices de
- * `expand.ts` são cacheados pela identidade do array.
+ * Handlers receive the mutable clone of the document (like those in `apply.ts`) and return the
+ * exact inverse. Every change to `doc.components` swaps the array for a new one: the indexes in
+ * `expand.ts` are cached by array identity.
  */
 import type { z } from 'zod';
 import { deepClone } from '../clone.js';
@@ -55,21 +55,21 @@ function unique<T>(list: T[]): T[] {
 
 function clampIndex(index: number | undefined, length: number): number {
   if (index === undefined || index === null) return length;
-  if (!Number.isFinite(index)) fail(`Índice inválido: ${String(index)}`);
+  if (!Number.isFinite(index)) fail(`Invalid index: ${String(index)}`);
   return Math.max(0, Math.min(length, Math.floor(index)));
 }
 
-/* ---------------- validações compartilhadas ---------------- */
+/* ---------------- shared validations ---------------- */
 
-/** Ids de todos os nós do documento: páginas e raízes dos componentes (opcionalmente sem um). */
+/** Ids of all nodes in the document: pages and component roots (optionally excluding one). */
 export function documentNodeIds(doc: Document, exceptComponentId?: string): Set<string> {
   return new Set([...collectIds(doc), ...componentNodeIds(doc, exceptComponentId)]);
 }
 
 /**
- * Garante que os ids das subárvores são únicos entre si e em relação ao documento inteiro
- * (páginas e raízes dos componentes). `ignore`: ids que vão sair do documento na mesma op
- * (ex. a subárvore trocada por `replaceNode`).
+ * Ensures the subtree ids are unique among themselves and across the whole document (pages and
+ * component roots). `ignore`: ids that leave the document in the same op (e.g. the subtree
+ * swapped by `replaceNode`).
  */
 export function assertFreshNodeIds(
   doc: Document,
@@ -80,22 +80,24 @@ export function assertFreshNodeIds(
   const seen = new Set<string>();
   for (const root of nodes) {
     walk(root, (n) => {
-      if (existing.has(n.id) && !opts.ignore?.has(n.id)) fail(`Já existe um nó com id "${n.id}"`);
-      if (seen.has(n.id)) fail(`Id duplicado "${n.id}" na subárvore`);
+      if (existing.has(n.id) && !opts.ignore?.has(n.id))
+        fail(`A node with id "${n.id}" already exists`);
+      if (seen.has(n.id)) fail(`Duplicate id "${n.id}" in the subtree`);
       seen.add(n.id);
     });
   }
 }
 
-/** Nomes das props `slot` do componente. */
+/** Names of the component's `slot` props. */
 export function slotNames(def: ComponentDef): string[] {
   return def.props.filter((p) => p.type === 'slot').map((p) => p.name);
 }
 
 /**
- * A instância só aceita como filhos contêineres de slot: `element` com `data-slot` igual a uma
- * prop `slot` do componente, um por slot. `incoming`: nós que vão entrar (os que já são filhos
- * da instância, numa reordenação, não contam como repetição); `replacing`: filho que sai.
+ * An instance only accepts slot containers as children: an `element` whose `data-slot` equals a
+ * `slot` prop of the component, one per slot. `incoming`: nodes about to enter (those already
+ * children of the instance, in a reorder, do not count as repeats); `replacing`: the child being
+ * replaced.
  */
 export function assertInstanceChildren(
   doc: Document,
@@ -116,20 +118,20 @@ export function assertInstanceChildren(
     const s = n.type === 'element' ? n.attrs?.[SLOT_ATTR] : undefined;
     if (!s || (slots && !slots.includes(s))) {
       const list =
-        slots && slots.length > 0 ? ` (${slots.join(', ')})` : ' (o componente não tem slots)';
+        slots && slots.length > 0 ? ` (${slots.join(', ')})` : ' (the component has no slots)';
       fail(
-        `A instância "${inst.id}" só aceita contêineres de slot como filhos${list}: insira dentro de um slot`,
+        `Instance "${inst.id}" only accepts slot containers as children${list}: insert inside a slot`,
       );
     }
-    if (used.has(s)) fail(`A instância "${inst.id}" já tem um contêiner para o slot "${s}"`);
+    if (used.has(s)) fail(`Instance "${inst.id}" already has a container for slot "${s}"`);
     used.add(s);
   }
 }
 
 /**
- * Regras de componente para nós inseridos em `parent` (createNode, moveNodes): pai instância só
- * recebe contêineres de slot, e instâncias dentro das subárvores inseridas também só têm
- * contêineres de slot como filhos.
+ * Component rules for nodes inserted into `parent` (createNode, moveNodes): an instance parent
+ * only receives slot containers, and instances inside the inserted subtrees also only have slot
+ * containers as children.
  */
 export function assertComponentInsertion(
   doc: Document,
@@ -157,67 +159,67 @@ function normalizeTree(node: Node): Node {
 }
 
 function assertRootShape(root: Node): void {
-  if (root.type === 'frame') fail('A raiz do componente não pode ser um frame');
-  if (root.type === 'instance') fail('A raiz do componente não pode ser uma instância');
+  if (root.type === 'frame') fail('The component root cannot be a frame');
+  if (root.type === 'instance') fail('The component root cannot be an instance');
 }
 
-/** Recusa variante sem condição (`when` vazio valeria sempre e o export React a descarta). */
+/** Rejects a variant with no condition (an empty `when` would always match and the React export drops it). */
 function assertVariants(c: ComponentDef): void {
   c.variants.forEach((v, i) => {
     if (!hasVariantCondition(v)) {
-      fail(`Componente "${c.name}", variante ${i + 1}: ${EMPTY_VARIANT_MESSAGE}`);
+      fail(`Component "${c.name}", variant ${i + 1}: ${EMPTY_VARIANT_MESSAGE}`);
     }
   });
 }
 
 function assertUniqueName(list: ComponentDef[], name: string, selfId?: string): void {
   const key = name.trim().toLowerCase();
-  if (!key) fail('Componente sem nome');
+  if (!key) fail('Component has no name');
   const other = list.find((c) => c.id !== selfId && c.name.trim().toLowerCase() === key);
-  if (other) fail(`Já existe um componente com o nome "${other.name}" (${other.id})`);
+  if (other) fail(`A component named "${other.name}" already exists (${other.id})`);
 }
 
 function assertNoCycle(doc: Document, componentId: string): void {
   const cycle = findComponentCycle(doc, componentId);
   if (!cycle) return;
   const names = cycle.map((id) => getComponent(doc, id)?.name ?? id);
-  fail(`Ciclo de componentes: ${names.join(' → ')} (um componente não pode conter a si mesmo)`);
+  fail(`Component cycle: ${names.join(' → ')} (a component cannot contain itself)`);
 }
 
 function requireComponentIndex(doc: Document, componentId: string): number {
   const i = (doc.components ?? []).findIndex((c) => c.id === componentId);
-  if (i < 0) fail(`Componente "${componentId}" não encontrado`);
+  if (i < 0) fail(`Component "${componentId}" not found`);
   return i;
 }
 
-/** Nó instância de página (as dos principais são roteadas por `route.ts`). */
+/** Page instance node (those in main components are routed by `route.ts`). */
 function requireInstance(doc: Document, nodeId: string): Node {
   const path = findNode(doc, nodeId);
-  if (!path) fail(`Nó "${nodeId}" não encontrado`);
-  if (path.node.type !== 'instance') fail(`O nó "${nodeId}" não é uma instância de componente`);
+  if (!path) fail(`Node "${nodeId}" not found`);
+  if (path.node.type !== 'instance') fail(`Node "${nodeId}" is not a component instance`);
   return path.node;
 }
 
-/* ---------------- props e overrides ---------------- */
+/* ---------------- props and overrides ---------------- */
 
-/** Valida/converte o valor de uma prop pelo tipo declarado no componente. */
+/** Validates/converts a prop value by the type declared on the component. */
 export function normalizePropValue(def: ComponentDef, name: string, value: PropValue): PropValue {
   const p = def.props.find((x) => x.name === name);
   if (!p) {
     const names = def.props.filter((x) => x.type !== 'slot').map((x) => x.name);
     fail(
-      `O componente "${def.name}" não tem a prop "${name}"${names.length > 0 ? ` (props: ${names.join(', ')})` : ''}`,
+      `Component "${def.name}" has no prop "${name}"${names.length > 0 ? ` (props: ${names.join(', ')})` : ''}`,
     );
   }
   switch (p.type) {
     case 'slot':
       return fail(
-        `"${name}" é um slot: o conteúdo vai no contêiner data-slot="${name}" da instância`,
+        `"${name}" is a slot: its content goes in the instance's data-slot="${name}" container`,
       );
     case 'number': {
       const n = typeof value === 'number' ? value : Number(String(value).trim());
       if (String(value).trim() === '' || !Number.isFinite(n)) {
-        fail(`A prop "${name}" é numérica (recebido ${JSON.stringify(value)})`);
+        fail(`Prop "${name}" is numeric (received ${JSON.stringify(value)})`);
       }
       return n;
     }
@@ -225,12 +227,12 @@ export function normalizePropValue(def: ComponentDef, name: string, value: PropV
       if (typeof value === 'boolean') return value;
       if (value === 'true') return true;
       if (value === 'false') return false;
-      return fail(`A prop "${name}" é booleana (recebido ${JSON.stringify(value)})`);
+      return fail(`Prop "${name}" is boolean (received ${JSON.stringify(value)})`);
     case 'enum': {
       const s = String(value);
       if (p.options && p.options.length > 0 && !p.options.includes(s)) {
         fail(
-          `Valor inválido para "${name}": ${JSON.stringify(s)} (opções: ${p.options.join(', ')})`,
+          `Invalid value for "${name}": ${JSON.stringify(s)} (options: ${p.options.join(', ')})`,
         );
       }
       return s;
@@ -240,10 +242,10 @@ export function normalizePropValue(def: ComponentDef, name: string, value: PropV
   }
 }
 
-/** Caminho de override: `''` (raiz) ou ids separados por `/`, sem segmentos vazios. */
+/** Override path: `''` (root) or ids separated by `/`, with no empty segments. */
 export function assertOverridePath(path: string): void {
   if (path === '') return;
-  if (path.split('/').some((s) => s.trim() === '')) fail(`Caminho de override inválido: "${path}"`);
+  if (path.split('/').some((s) => s.trim() === '')) fail(`Invalid override path: "${path}"`);
 }
 
 function normalizeStatesStrict(
@@ -253,14 +255,14 @@ function normalizeStatesStrict(
   const next: Record<string, Record<string, string>> = {};
   for (const [rawKey, styles] of Object.entries(states)) {
     const key = normalizeStateKey(rawKey);
-    if (!key) fail(`Estado inválido "${rawKey}" em ${where}`);
+    if (!key) fail(`Invalid state "${rawKey}" in ${where}`);
     const clean = normalizeStyles(styles);
     if (Object.keys(clean).length > 0) next[key] = { ...(next[key] ?? {}), ...clean };
   }
   return next;
 }
 
-/** Normaliza (estrito: lança em valor inseguro) uma sobrescrita; campos vazios somem. */
+/** Normalizes an override (strict: throws on an unsafe value); empty fields are dropped. */
 export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOverride {
   const out: NodeOverride = {};
   if (ov.style) {
@@ -271,7 +273,7 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
     const u = unique(
       ov.unsetStyle.map((k) => {
         const key = toKebabCase(k.trim());
-        if (!isValidCssPropertyName(key)) fail(`Nome de propriedade CSS inválido: "${k}"`);
+        if (!isValidCssPropertyName(key)) fail(`Invalid CSS property name: "${k}"`);
         return key;
       }),
     );
@@ -282,7 +284,8 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
     const attrs: Record<string, string> = {};
     for (const [k, v] of Object.entries(ov.attrs)) {
       const key = k.trim();
-      if (key === 'style' || key === 'class') fail(`O atributo "${key}" não é permitido em attrs`);
+      if (key === 'style' || key === 'class')
+        fail(`The "${key}" attribute is not allowed in attrs`);
       const problem = attrNameProblem(key);
       if (problem) fail(problem);
       attrs[key] = String(v);
@@ -292,7 +295,7 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
   if (ov.hidden !== undefined) out.hidden = ov.hidden;
   if (ov.classes !== undefined) {
     const c = ov.classes.trim().replace(/\s+/g, ' ');
-    if (/[<{};"`]/.test(c)) fail(`Classes inválidas em ${where}: ${c}`);
+    if (/[<{};"`]/.test(c)) fail(`Invalid classes in ${where}: ${c}`);
     if (c) out.classes = c;
   }
   if (ov.states) {
@@ -302,7 +305,7 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
   if (ov.src !== undefined) out.src = ov.src;
   if (ov.svg !== undefined) {
     const svg = sanitizeSvg(ov.svg);
-    if (!svg) fail(`O svg de ${where} não contém um <svg> válido`);
+    if (!svg) fail(`The svg in ${where} does not contain a valid <svg>`);
     out.svg = svg;
   }
   if (ov.props && Object.keys(ov.props).length > 0) out.props = { ...ov.props };
@@ -312,7 +315,7 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
     if (!getEffect(effect.kind)) {
       const kinds = effectKinds();
       fail(
-        `Efeito desconhecido "${effect.kind}" em ${where}. Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? '… (veja list_effects)' : ''}`,
+        `Unknown effect "${effect.kind}" in ${where}. Valid: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? '… (see list_effects)' : ''}`,
       );
     }
     out.effect = effect;
@@ -326,7 +329,7 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
   return out;
 }
 
-/** Valida `value` com o schema do campo do nó (o mesmo das ops); lança com as mensagens legíveis. */
+/** Validates `value` with the node field's schema (the same as the ops); throws with readable messages. */
 function strict<T>(schema: z.ZodType<T, unknown>, value: unknown, field: string, where: string): T {
   const r = schema.safeParse(value);
   if (r.success) return r.data;
@@ -334,10 +337,10 @@ function strict<T>(schema: z.ZodType<T, unknown>, value: unknown, field: string,
     const path = i.path.map(String).join('.');
     return path ? `${path}: ${i.message}` : i.message;
   });
-  fail(`${field} inválido em ${where}: ${issues.join('; ')}`);
+  fail(`Invalid ${field} in ${where}: ${issues.join('; ')}`);
 }
 
-/** Normaliza um mapa caminho → override; overrides vazios somem; `null` quando vazio. */
+/** Normalizes a path → override map; empty overrides are dropped; `null` when empty. */
 export function normalizeOverridesMap(
   map: Record<string, NodeOverride>,
 ): Record<string, NodeOverride> | null {
@@ -359,7 +362,7 @@ export function doAddComponent(d: Document, op: AddComponentOp): ComponentApplie
   assertRootShape(c.root);
   assertVariants(c);
   const list = d.components ?? [];
-  if (list.some((x) => x.id === c.id)) fail(`Já existe um componente com id "${c.id}"`);
+  if (list.some((x) => x.id === c.id)) fail(`A component with id "${c.id}" already exists`);
   assertUniqueName(list, c.name);
   assertFreshNodeIds(d, [c.root]);
   const index = clampIndex(op.index, list.length);
@@ -367,9 +370,9 @@ export function doAddComponent(d: Document, op: AddComponentOp): ComponentApplie
   next.splice(index, 0, c);
   d.components = next;
   assertNoCycle(d, c.id);
-  // O inverso só precisa de `force` se já havia instâncias desse id (que voltam a ficar sem
-  // principal no desfazer). `createComponentOps` troca o nó por um provisório antes do
-  // `addComponent`, então o caso comum desfaz sem `force`.
+  // The inverse only needs `force` if instances of this id already existed (they become
+  // main-less again on undo). `createComponentOps` swaps the node for a provisional one before
+  // `addComponent`, so the common case undoes without `force`.
   const orphans = listInstances(d, c.id).length > 0;
   return {
     inverse: [{ type: 'deleteComponent', componentId: c.id, ...(orphans && { force: true }) }],
@@ -385,7 +388,7 @@ export function doDeleteComponent(d: Document, op: DeleteComponentOp): Component
     const n = listInstances(d, c.id).length;
     if (n > 0) {
       fail(
-        `O componente "${c.name}" tem ${n} ${n === 1 ? 'instância' : 'instâncias'}: destaque ou remova antes de excluir`,
+        `Component "${c.name}" has ${n} ${n === 1 ? 'instance' : 'instances'}: detach or remove them before deleting`,
       );
     }
   }
@@ -441,7 +444,7 @@ export function doUpdateComponent(d: Document, op: UpdateComponentOp): Component
 
 export function doReplaceNode(d: Document, op: ReplaceNodeOp): ComponentApplied {
   const path = findNode(d, op.nodeId);
-  if (!path) fail(`Nó "${op.nodeId}" não encontrado`);
+  if (!path) fail(`Node "${op.nodeId}" not found`);
   const node = normalizeTree(deepClone(op.node));
   assertFreshNodeIds(d, [node], { ignore: new Set(collectIds(path.node)) });
   if (path.parent?.type === 'instance') assertInstanceChildren(d, path.parent, [node], path.node);

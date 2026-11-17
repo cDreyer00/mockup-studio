@@ -20,7 +20,7 @@ const LUCIDE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
 describe('svgToVector', () => {
-  it('importa um ícone Lucide resolvendo estilos herdados e preservando raw', () => {
+  it('imports a Lucide icon resolving inherited styles and preserving raw', () => {
     const v = svgToVector(LUCIDE);
     expect(v.viewBox).toEqual({ x: 0, y: 0, width: 24, height: 24 });
     expect(v.paths).toHaveLength(1);
@@ -35,7 +35,7 @@ describe('svgToVector', () => {
     expect(vectorToSvg(v)).toBe(v.raw);
   });
 
-  it('regenera o markup com a nova cor após setVectorPaint e remove raw', () => {
+  it('regenerates the markup with the new color after setVectorPaint and removes raw', () => {
     const v = svgToVector(LUCIDE);
     const painted = setVectorPaint(v, { stroke: '#ff0000' });
     expect(painted.raw).toBeUndefined();
@@ -46,7 +46,7 @@ describe('svgToVector', () => {
     expect(vectorToSvg(edited)).toContain('48');
   });
 
-  it('extrai circle, rect e g com transform', () => {
+  it('extracts circle, rect and g with transform', () => {
     const v = svgToVector(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g transform="translate(10 20)" fill="red"><circle cx="10" cy="10" r="5"/><rect x="0" y="0" width="20" height="10" stroke="blue"/></g></svg>',
     );
@@ -60,7 +60,7 @@ describe('svgToVector', () => {
   });
 
   it.each(['filter', 'mask', 'clipPath'])(
-    'SVG com %s não é simples: paths vazios e raw preservado',
+    'SVG with %s is not simple: empty paths and raw preserved',
     (tag) => {
       const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><${tag} id="x"><rect width="5" height="5"/></${tag}></defs><path d="M0 0 L10 10" ${tag === 'filter' ? 'filter' : tag === 'mask' ? 'mask' : 'clip-path'}="url(#x)"/></svg>`;
       const v = svgToVector(markup);
@@ -82,7 +82,7 @@ describe('path data', () => {
     'M0 0 H 10 V 10 H 0 Z',
   ];
 
-  it.each(samples)('ida e volta mantém a geometria: %s', (d) => {
+  it.each(samples)('round trip keeps the geometry: %s', (d) => {
     const again = serializePathData(parsePathData(d));
     const b1 = pathBounds(d);
     const b2 = pathBounds(again);
@@ -97,7 +97,7 @@ describe('path data', () => {
     expect(normalizePathData(again)).toBe(again);
   });
 
-  it('H/V viram L e arcos viram cúbicas', () => {
+  it('H/V become L and arcs become cubics', () => {
     expect(serializePathData(parsePathData('M0 0 H 10 V 5'))).not.toMatch(/[HV]/);
     expect(serializePathData(parsePathData('M0 10 A 10 10 0 0 1 20 10'))).toMatch(/C/);
   });
@@ -109,14 +109,14 @@ describe('preserveAspectRatio', () => {
     paths: [{ id: 'p1', d: 'M0 0L1 1' }],
   };
 
-  it('markup gerado usa "none" por padrão e respeita attrs', () => {
+  it('generated markup uses "none" by default and respects attrs', () => {
     expect(generateVectorSvg(base)).toContain('preserveAspectRatio="none"');
     const m = generateVectorSvg({ ...base, attrs: { preserveAspectRatio: 'xMinYMin slice' } });
     expect(m).toContain('preserveAspectRatio="xMinYMin slice"');
     expect(m.match(/preserveAspectRatio/g)).toHaveLength(1);
   });
 
-  it('importação grava xMidYMid meet quando ausente e preserva o existente', () => {
+  it('import writes xMidYMid meet when absent and preserves the existing one', () => {
     expect(svgToVector(LUCIDE).attrs?.preserveAspectRatio).toBe('xMidYMid meet');
     const v = svgToVector(
       '<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>',
@@ -124,7 +124,7 @@ describe('preserveAspectRatio', () => {
     expect(v.attrs?.preserveAspectRatio).toBe('none');
   });
 
-  it('um ícone importado regenerado mantém meet', () => {
+  it('an imported icon regenerated keeps meet', () => {
     const v = editVector(svgToVector(LUCIDE), {});
     expect(vectorToSvg(v)).toContain('preserveAspectRatio="xMidYMid meet"');
   });
@@ -146,7 +146,7 @@ describe('preserveAspectRatio', () => {
         svgToVector('<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>'),
       ),
     ).toBe('none');
-    // raw tem prioridade sobre attrs
+    // raw takes priority over attrs
     expect(
       vectorPreserveAspectRatio({
         ...base,

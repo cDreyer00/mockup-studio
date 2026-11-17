@@ -21,7 +21,7 @@ function base(): { doc: Document; frameId: string } {
   const doc = createDocument('QA');
   const frame = createNodeFromTag('div', {
     isRoot: true,
-    name: 'Tela',
+    name: 'Screen',
     styles: { width: '800px', height: '600px' },
     position: { x: 0, y: 0 },
   });
@@ -43,8 +43,8 @@ function importAll(doc: Document): Document {
 
 const firstFrame = (d: Document): Node => d.pages[0]!.frames[0]!;
 
-describe('QA: undo/redo em sequência longa misturando ops de componente e comuns', () => {
-  it('cada passo desfaz e refaz exatamente (createComponent, detach, estilo em id virtual)', () => {
+describe('QA: undo/redo in a long sequence mixing component and regular ops', () => {
+  it('each step undoes and redoes exactly (createComponent, detach, style on a virtual id)', () => {
     const { doc, frameId } = base();
     const h = new History(doc);
     const snaps: unknown[] = [strip(h.doc)];
@@ -55,17 +55,17 @@ describe('QA: undo/redo em sequência longa misturando ops de componente e comun
 
     step(importKitOps(h.doc, kit, 'shadcn-like').ops);
     const btn = instanceNodeFor(h.doc, 'shadcn-like/Button', {
-      props: { variant: 'outline', label: 'Salvar' },
+      props: { variant: 'outline', label: 'Save' },
     });
     step([{ type: 'createNode', parentId: frameId, node: btn }]);
-    const plain = createNodeFromTag('div', { name: 'Caixa', styles: { padding: '8px' } });
+    const plain = createNodeFromTag('div', { name: 'Box', styles: { padding: '8px' } });
     step([{ type: 'createNode', parentId: frameId, node: plain }]);
     step([{ type: 'updateStyles', nodeIds: [plain.id], styles: { background: '#eeeeee' } }]);
     step([{ type: 'setInstanceProps', changes: [{ nodeId: btn.id, set: { label: 'Ir' } }] }]);
     step([
       { type: 'updateStyles', nodeIds: [`${btn.id}/tx_sbtnlabl`], styles: { color: '#ff0000' } },
     ]);
-    const made = createComponentOps(h.doc, plain.id, { name: 'Caixa' });
+    const made = createComponentOps(h.doc, plain.id, { name: 'Box' });
     expect(made.ops).toHaveLength(3);
     step(made.ops);
     step([
@@ -77,37 +77,37 @@ describe('QA: undo/redo em sequência longa misturando ops de componente e comun
     const total = snaps.length - 1;
     for (let i = total; i > 0; i--) {
       h.undo();
-      expect(strip(h.doc), `undo passo ${i}`).toEqual(snaps[i - 1]);
+      expect(strip(h.doc), `undo step ${i}`).toEqual(snaps[i - 1]);
     }
     expect(h.canUndo).toBe(false);
     for (let i = 1; i <= total; i++) {
       h.redo();
-      expect(strip(h.doc), `redo passo ${i}`).toEqual(snaps[i]);
+      expect(strip(h.doc), `redo step ${i}`).toEqual(snaps[i]);
     }
     expect(h.canRedo).toBe(false);
     expect(() => parseDocument(serializeDocument(h.doc))).not.toThrow();
   });
 });
 
-describe('QA: componente deletado, aninhamento e ciclos', () => {
-  it('instância de componente ausente vira placeholder e exporta sem quebrar', () => {
+describe('QA: deleted component, nesting and cycles', () => {
+  it('an instance of a missing component becomes a placeholder and exports without breaking', () => {
     let { doc } = base();
     const frameId = firstFrame(doc).id;
     doc = importAll(doc);
     const inst = instanceNodeFor(doc, 'shadcn-like/Button', { props: { label: 'X' } });
     doc = applyOp(doc, { type: 'createNode', parentId: frameId, node: inst }).doc;
-    // componente removido por fora (edição manual do arquivo)
+    // component removed from outside (manual edit of the file)
     const broken = structuredClone(doc);
     broken.components = broken.components!.filter((c) => c.name !== 'Button');
     const out = expandInstance(broken, firstFrame(broken).children[0]!, { warnings: [] });
-    expect(out.children[0]!.text).toBe('Componente ausente');
-    expect(exportHtml(broken)).toContain('Componente ausente');
+    expect(out.children[0]!.text).toBe('Component missing');
+    expect(exportHtml(broken)).toContain('Component missing');
     expect(() => exportTailwind(broken)).not.toThrow();
     expect(() => exportSvg(broken, { nodeId: frameId })).not.toThrow();
     expect(() => exportReact(broken, { nodeId: frameId } as never)).not.toThrow();
   });
 
-  it('deleteComponent recusa com instância viva e aceita depois de destacá-la', () => {
+  it('deleteComponent refuses with a live instance and accepts after it is detached', () => {
     let { doc } = base();
     const frameId = firstFrame(doc).id;
     doc = importAll(doc);
@@ -116,7 +116,7 @@ describe('QA: componente deletado, aninhamento e ciclos', () => {
     doc = applyOp(doc, { type: 'createNode', parentId: frameId, node: inst }).doc;
     expect(() => applyOp(doc, { type: 'deleteComponent', componentId: button.id })).toThrow();
     doc = applyOp(doc, { type: 'deleteNodes', nodeIds: [inst.id] }).doc;
-    // outros componentes do kit podem usar Button por dentro: se usarem, segue recusado
+    // other kit components may use Button internally: if they do, it stays refused
     const used = doc.components!.some(
       (c) => c.id !== button.id && JSON.stringify(c.root).includes(`"componentId":"${button.id}"`),
     );
@@ -129,7 +129,7 @@ describe('QA: componente deletado, aninhamento e ciclos', () => {
     }
   });
 
-  it('updateComponent que criaria ciclo (Button dentro de Card, que já usa Button) é recusado', () => {
+  it('updateComponent that would create a cycle (Button inside Card, which already uses Button) is rejected', () => {
     let { doc } = base();
     doc = importAll(doc);
     const button = doc.components!.find((c) => c.name === 'Button')!;
@@ -150,19 +150,19 @@ describe('QA: componente deletado, aninhamento e ciclos', () => {
         componentId: button.id,
         root: withInstance(card.id, 'in_qa_loop0001'),
       }),
-    ).toThrow(/ciclo/i);
+    ).toThrow(/cycle/i);
     expect(() =>
       applyOp(doc, {
         type: 'updateComponent',
         componentId: button.id,
         root: withInstance(button.id, 'in_qa_self0001'),
       }),
-    ).toThrow(/ciclo/i);
+    ).toThrow(/cycle/i);
   });
 });
 
-describe('QA: props ausentes ou de tipo errado', () => {
-  it('objeto numa prop é recusado; arquivo com props erradas carrega e exporta sem lançar', () => {
+describe('QA: missing or wrongly typed props', () => {
+  it('an object in a prop is rejected; a file with wrong props loads and exports without throwing', () => {
     const { doc: doc0, frameId } = base();
     let doc = doc0;
     doc = importAll(doc);
@@ -178,8 +178,8 @@ describe('QA: props ausentes ou de tipo errado', () => {
     const raw = JSON.parse(serializeDocument(doc)) as Document;
     (raw.pages[0]!.frames[0]!.children[0] as { props?: unknown }).props = {
       label: 123,
-      variant: 'inexistente',
-      fantasma: true,
+      variant: 'nonexistent',
+      ghost: true,
     };
     const loaded = parseDocument(raw);
     expect(() => exportHtml(loaded)).not.toThrow();
@@ -187,7 +187,7 @@ describe('QA: props ausentes ou de tipo errado', () => {
     expect(JSON.stringify(shown)).not.toContain('{{label}}');
   });
 
-  it('instância sem props usa os padrões', () => {
+  it('an instance without props uses the defaults', () => {
     const { doc: doc0, frameId } = base();
     let doc = doc0;
     doc = importAll(doc);
@@ -199,8 +199,8 @@ describe('QA: props ausentes ou de tipo errado', () => {
   });
 });
 
-describe('QA: documentos antigos sem components', () => {
-  it('carregam iguais, não ganham a chave components e exportam como antes', () => {
+describe('QA: old documents without components', () => {
+  it('load unchanged, do not gain the components key and export as before', () => {
     const { doc, frameId } = base();
     const text = serializeDocument(doc);
     expect(text).not.toContain('"components"');
@@ -214,8 +214,8 @@ describe('QA: documentos antigos sem components', () => {
   });
 });
 
-describe('QA: documento com instâncias nos exportadores', () => {
-  it('HTML, Tailwind, SVG e React não deixam placeholders soltos', () => {
+describe('QA: document with instances in the exporters', () => {
+  it('HTML, Tailwind, SVG and React leave no stray placeholders', () => {
     const { doc: doc0, frameId } = base();
     let doc = doc0;
     doc = importAll(doc);

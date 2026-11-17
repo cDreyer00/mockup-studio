@@ -1,12 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`exportHtml > snapshot do exemplo (classes) 1`] = `
+exports[`exportHtml > example snapshot (classes) 1`] = `
 "<!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Landing exemplo</title>
+  <title>Example landing</title>
   <style>
   :root {
     --color-bg: #0f1115;
@@ -46,22 +46,22 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     display: flex;
     gap: 32px;
   }
-  .produto {
+  .product {
     color: var(--color-muted);
     font-size: 16px;
     text-decoration: none;
   }
-  .precos {
+  .pricing {
     color: var(--color-muted);
     font-size: 16px;
     text-decoration: none;
   }
-  .contato {
+  .contact {
     color: var(--color-muted);
     font-size: 16px;
     text-decoration: none;
   }
-  .botao-entrar {
+  .sign-in-button {
     background: var(--color-primary);
     color: #ffffff;
     padding: 10px 20px;
@@ -78,23 +78,23 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     padding: 96px 64px;
     text-align: center;
   }
-  .titulo {
+  .title {
     font-size: 56px;
     font-weight: 800;
     line-height: 1.1;
     color: var(--color-text);
     max-width: 800px;
   }
-  .subtitulo {
+  .subtitle {
     font-size: 20px;
     color: var(--color-muted);
     max-width: 640px;
   }
-  .acoes {
+  .actions {
     display: flex;
     gap: 16px;
   }
-  .botao-primario {
+  .primary-button {
     background: var(--color-primary);
     color: #ffffff;
     padding: 14px 28px;
@@ -103,7 +103,7 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     font-size: 16px;
     font-weight: 600;
   }
-  .botao-secundario {
+  .secondary-button {
     background: transparent;
     color: var(--color-text);
     padding: 14px 28px;
@@ -118,7 +118,7 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     gap: 24px;
     padding: 32px 64px 96px;
   }
-  .card-design-livre {
+  .card-free-design {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -127,20 +127,20 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone {
+  .icon {
     font-size: 32px;
   }
-  .titulo-do-card {
+  .card-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--color-text);
   }
-  .texto-do-card {
+  .card-text {
     font-size: 16px;
     line-height: 1.5;
     color: var(--color-muted);
   }
-  .card-rapido {
+  .card-fast {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -149,20 +149,20 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone-2 {
+  .icon-2 {
     font-size: 32px;
   }
-  .titulo-do-card-2 {
+  .card-title-2 {
     font-size: 22px;
     font-weight: 700;
     color: var(--color-text);
   }
-  .texto-do-card-2 {
+  .card-text-2 {
     font-size: 16px;
     line-height: 1.5;
     color: var(--color-muted);
   }
-  .card-exportavel {
+  .card-exportable {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -171,15 +171,15 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone-3 {
+  .icon-3 {
     font-size: 32px;
   }
-  .titulo-do-card-3 {
+  .card-title-3 {
     font-size: 22px;
     font-weight: 700;
     color: var(--color-text);
   }
-  .texto-do-card-3 {
+  .card-text-3 {
     font-size: 16px;
     line-height: 1.5;
     color: var(--color-muted);
@@ -204,7 +204,7 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     font-size: 20px;
     font-weight: 700;
   }
-  .botao-entrar-2 {
+  .sign-in-button-2 {
     background: var(--color-primary);
     color: #ffffff;
     padding: 8px 16px;
@@ -220,16 +220,16 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     padding: 40px 20px;
     text-align: center;
   }
-  .titulo-2 {
+  .title-2 {
     font-size: 32px;
     font-weight: 800;
     line-height: 1.15;
   }
-  .subtitulo-2 {
+  .subtitle-2 {
     font-size: 16px;
     color: var(--color-muted);
   }
-  .botao-primario-2 {
+  .primary-button-2 {
     background: var(--color-primary);
     color: #ffffff;
     padding: 14px 24px;
@@ -244,7 +244,7 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     gap: 16px;
     padding: 16px 20px 40px;
   }
-  .card-design-livre-2 {
+  .card-free-design-2 {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -252,19 +252,19 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone-4 {
+  .icon-4 {
     font-size: 28px;
   }
-  .titulo-do-card-4 {
+  .card-title-4 {
     font-size: 18px;
     font-weight: 700;
   }
-  .texto-do-card-4 {
+  .card-text-4 {
     font-size: 14px;
     line-height: 1.5;
     color: var(--color-muted);
   }
-  .card-rapido-2 {
+  .card-fast-2 {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -272,19 +272,19 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone-5 {
+  .icon-5 {
     font-size: 28px;
   }
-  .titulo-do-card-5 {
+  .card-title-5 {
     font-size: 18px;
     font-weight: 700;
   }
-  .texto-do-card-5 {
+  .card-text-5 {
     font-size: 14px;
     line-height: 1.5;
     color: var(--color-muted);
   }
-  .card-exportavel-2 {
+  .card-exportable-2 {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -292,14 +292,14 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     background-color: var(--color-surface);
     border-radius: var(--radius);
   }
-  .icone-6 {
+  .icon-6 {
     font-size: 28px;
   }
-  .titulo-do-card-6 {
+  .card-title-6 {
     font-size: 18px;
     font-weight: 700;
   }
-  .texto-do-card-6 {
+  .card-text-6 {
     font-size: 14px;
     line-height: 1.5;
     color: var(--color-muted);
@@ -311,63 +311,63 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     <header class="navbar">
       <div class="logo">Mockup</div>
       <nav class="links">
-        <a class="produto" href="#">Produto</a>
-        <a class="precos" href="#">Preços</a>
-        <a class="contato" href="#">Contato</a>
+        <a class="product" href="#">Product</a>
+        <a class="pricing" href="#">Pricing</a>
+        <a class="contact" href="#">Contact</a>
       </nav>
-      <button class="botao-entrar">Entrar</button>
+      <button class="sign-in-button">Sign in</button>
     </header>
     <section class="hero">
-      <h1 class="titulo">Desenhe interfaces com a ajuda da IA</h1>
-      <p class="subtitulo">Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.</p>
-      <div class="acoes">
-        <button class="botao-primario">Começar agora</button>
-        <button class="botao-secundario">Ver exemplos</button>
+      <h1 class="title">Design interfaces with the help of AI</h1>
+      <p class="subtitle">Create, edit and export screens in real HTML and CSS, straight from a canvas.</p>
+      <div class="actions">
+        <button class="primary-button">Get started</button>
+        <button class="secondary-button">See examples</button>
       </div>
     </section>
     <section class="cards">
-      <div class="card-design-livre">
-        <div class="icone">🎨</div>
-        <h3 class="titulo-do-card">Design livre</h3>
-        <p class="texto-do-card">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      <div class="card-free-design">
+        <div class="icon">🎨</div>
+        <h3 class="card-title">Free design</h3>
+        <p class="card-text">Place frames on the canvas and tweak every CSS property.</p>
       </div>
-      <div class="card-rapido">
-        <div class="icone-2">⚡</div>
-        <h3 class="titulo-do-card-2">Rápido</h3>
-        <p class="texto-do-card-2">Alterações aparecem na hora, sem etapa de compilação.</p>
+      <div class="card-fast">
+        <div class="icon-2">⚡</div>
+        <h3 class="card-title-2">Fast</h3>
+        <p class="card-text-2">Changes show up instantly, with no build step.</p>
       </div>
-      <div class="card-exportavel">
-        <div class="icone-3">📦</div>
-        <h3 class="titulo-do-card-3">Exportável</h3>
-        <p class="texto-do-card-3">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      <div class="card-exportable">
+        <div class="icon-3">📦</div>
+        <h3 class="card-title-3">Exportable</h3>
+        <p class="card-text-3">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>
   <div class="mobile-390">
     <header class="navbar-2">
       <div class="logo-2">Mockup</div>
-      <button class="botao-entrar-2">Entrar</button>
+      <button class="sign-in-button-2">Sign in</button>
     </header>
     <section class="hero-2">
-      <h1 class="titulo-2">Desenhe interfaces com a ajuda da IA</h1>
-      <p class="subtitulo-2">Crie, edite e exporte telas em HTML e CSS reais.</p>
-      <button class="botao-primario-2">Começar agora</button>
+      <h1 class="title-2">Design interfaces with the help of AI</h1>
+      <p class="subtitle-2">Create, edit and export screens in real HTML and CSS.</p>
+      <button class="primary-button-2">Get started</button>
     </section>
     <section class="cards-2">
-      <div class="card-design-livre-2">
-        <div class="icone-4">🎨</div>
-        <h3 class="titulo-do-card-4">Design livre</h3>
-        <p class="texto-do-card-4">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+      <div class="card-free-design-2">
+        <div class="icon-4">🎨</div>
+        <h3 class="card-title-4">Free design</h3>
+        <p class="card-text-4">Place frames on the canvas and tweak every CSS property.</p>
       </div>
-      <div class="card-rapido-2">
-        <div class="icone-5">⚡</div>
-        <h3 class="titulo-do-card-5">Rápido</h3>
-        <p class="texto-do-card-5">Alterações aparecem na hora, sem etapa de compilação.</p>
+      <div class="card-fast-2">
+        <div class="icon-5">⚡</div>
+        <h3 class="card-title-5">Fast</h3>
+        <p class="card-text-5">Changes show up instantly, with no build step.</p>
       </div>
-      <div class="card-exportavel-2">
-        <div class="icone-6">📦</div>
-        <h3 class="titulo-do-card-6">Exportável</h3>
-        <p class="texto-do-card-6">Leve o resultado como HTML standalone para qualquer projeto.</p>
+      <div class="card-exportable-2">
+        <div class="icon-6">📦</div>
+        <h3 class="card-title-6">Exportable</h3>
+        <p class="card-text-6">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>
@@ -376,13 +376,13 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
 "
 `;
 
-exports[`exportHtml > snapshot do exemplo (inline) 1`] = `
+exports[`exportHtml > example snapshot (inline) 1`] = `
 "<!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Landing exemplo</title>
+  <title>Example landing</title>
   <style>
   :root {
     --color-bg: #0f1115;
@@ -403,63 +403,63 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
     <header style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 20px 64px; background-color: var(--color-surface)">
       <div style="font-size: 22px; font-weight: 700; color: var(--color-text)">Mockup</div>
       <nav style="display: flex; gap: 32px">
-        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Produto</a>
-        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Preços</a>
-        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Contato</a>
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Product</a>
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Pricing</a>
+        <a href="#" style="color: var(--color-muted); font-size: 16px; text-decoration: none">Contact</a>
       </nav>
-      <button style="background: var(--color-primary); color: #ffffff; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 15px; font-weight: 600">Entrar</button>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 15px; font-weight: 600">Sign in</button>
     </header>
     <section style="display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 96px 64px; text-align: center">
-      <h1 style="font-size: 56px; font-weight: 800; line-height: 1.1; color: var(--color-text); max-width: 800px">Desenhe interfaces com a ajuda da IA</h1>
-      <p style="font-size: 20px; color: var(--color-muted); max-width: 640px">Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.</p>
+      <h1 style="font-size: 56px; font-weight: 800; line-height: 1.1; color: var(--color-text); max-width: 800px">Design interfaces with the help of AI</h1>
+      <p style="font-size: 20px; color: var(--color-muted); max-width: 640px">Create, edit and export screens in real HTML and CSS, straight from a canvas.</p>
       <div style="display: flex; gap: 16px">
-        <button style="background: var(--color-primary); color: #ffffff; padding: 14px 28px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Começar agora</button>
-        <button style="background: transparent; color: var(--color-text); padding: 14px 28px; border-radius: var(--radius); border: 1px solid var(--color-muted); font-size: 16px; font-weight: 600">Ver exemplos</button>
+        <button style="background: var(--color-primary); color: #ffffff; padding: 14px 28px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Get started</button>
+        <button style="background: transparent; color: var(--color-text); padding: 14px 28px; border-radius: var(--radius); border: 1px solid var(--color-muted); font-size: 16px; font-weight: 600">See examples</button>
       </div>
     </section>
     <section style="display: flex; flex-direction: row; gap: 24px; padding: 32px 64px 96px">
       <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 32px">🎨</div>
-        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Design livre</h3>
-        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Free design</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Place frames on the canvas and tweak every CSS property.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 32px">⚡</div>
-        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Rápido</h3>
-        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Alterações aparecem na hora, sem etapa de compilação.</p>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Fast</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Changes show up instantly, with no build step.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; padding: 32px; flex: 1; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 32px">📦</div>
-        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Exportável</h3>
-        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Leve o resultado como HTML standalone para qualquer projeto.</p>
+        <h3 style="font-size: 22px; font-weight: 700; color: var(--color-text)">Exportable</h3>
+        <p style="font-size: 16px; line-height: 1.5; color: var(--color-muted)">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>
   <div style="width: 390px; display: flex; flex-direction: column; background-color: var(--color-bg); font-family: var(--font); color: var(--color-text); min-height: 844px">
     <header style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background-color: var(--color-surface)">
       <div style="font-size: 20px; font-weight: 700">Mockup</div>
-      <button style="background: var(--color-primary); color: #ffffff; padding: 8px 16px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600">Entrar</button>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 8px 16px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600">Sign in</button>
     </header>
     <section style="display: flex; flex-direction: column; gap: 16px; padding: 40px 20px; text-align: center">
-      <h1 style="font-size: 32px; font-weight: 800; line-height: 1.15">Desenhe interfaces com a ajuda da IA</h1>
-      <p style="font-size: 16px; color: var(--color-muted)">Crie, edite e exporte telas em HTML e CSS reais.</p>
-      <button style="background: var(--color-primary); color: #ffffff; padding: 14px 24px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Começar agora</button>
+      <h1 style="font-size: 32px; font-weight: 800; line-height: 1.15">Design interfaces with the help of AI</h1>
+      <p style="font-size: 16px; color: var(--color-muted)">Create, edit and export screens in real HTML and CSS.</p>
+      <button style="background: var(--color-primary); color: #ffffff; padding: 14px 24px; border-radius: var(--radius); border: none; font-size: 16px; font-weight: 600">Get started</button>
     </section>
     <section style="display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 40px">
       <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 28px">🎨</div>
-        <h3 style="font-size: 18px; font-weight: 700">Design livre</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+        <h3 style="font-size: 18px; font-weight: 700">Free design</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Place frames on the canvas and tweak every CSS property.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 28px">⚡</div>
-        <h3 style="font-size: 18px; font-weight: 700">Rápido</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Alterações aparecem na hora, sem etapa de compilação.</p>
+        <h3 style="font-size: 18px; font-weight: 700">Fast</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Changes show up instantly, with no build step.</p>
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px; padding: 20px; background-color: var(--color-surface); border-radius: var(--radius)">
         <div style="font-size: 28px">📦</div>
-        <h3 style="font-size: 18px; font-weight: 700">Exportável</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Leve o resultado como HTML standalone para qualquer projeto.</p>
+        <h3 style="font-size: 18px; font-weight: 700">Exportable</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--color-muted)">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>

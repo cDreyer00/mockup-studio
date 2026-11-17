@@ -20,7 +20,7 @@ import { VectorSchema } from './vector/schema.js';
 const strMap = z.record(z.string(), z.string());
 const id = z.string().min(1);
 
-/** Forma de uma sobrescrita (a validação estrita fica no handler, ver components/ops.ts). */
+/** Shape of an override (strict validation lives in the handler, see components/ops.ts). */
 const RawOverrideSchema = z.object({
   style: strMap.optional(),
   unsetStyle: z.array(z.string()).optional(),
@@ -268,27 +268,27 @@ const OP_TYPES = [
 ];
 
 /**
- * Recusa campos internos nas ops vindas de fora (WS `op:apply`, MCP): hoje, `force` em
- * `deleteComponent` (só o inverso de `addComponent` usa; ver `DeleteComponentOp`). O desfazer e o
- * refazer aplicam os inversos pelo histórico, sem passar por aqui.
+ * Rejects internal fields in ops coming from outside (WS `op:apply`, MCP): currently, `force` in
+ * `deleteComponent` (only the inverse of `addComponent` uses it; see `DeleteComponentOp`). Undo and
+ * redo apply the inverses through the history, without passing through here.
  */
 export function assertPublicOps(ops: readonly unknown[]): void {
   for (const op of ops) {
     const o = op as { type?: unknown; force?: unknown } | null;
     if (o?.type === 'deleteComponent' && o.force !== undefined) {
       throw new Error(
-        'Operação inválida: "force" em deleteComponent é interno (só o desfazer usa). Destaque ou remova as instâncias antes de excluir o componente.',
+        'Invalid operation: "force" in deleteComponent is internal (only undo uses it). Detach or remove the instances before deleting the component.',
       );
     }
   }
 }
 
-/** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */
+/** Validates and normalizes an op; throws `Error('Invalid operation: ...')` with readable problems. */
 export function parseOp(input: unknown): Op {
   const type = (input as { type?: unknown } | null)?.type;
   if (typeof type !== 'string' || !OP_TYPES.includes(type)) {
     throw new Error(
-      `Operação inválida: tipo desconhecido ${JSON.stringify(type)} (esperado um de: ${OP_TYPES.join(', ')})`,
+      `Invalid operation: unknown type ${JSON.stringify(type)} (expected one of: ${OP_TYPES.join(', ')})`,
     );
   }
   const r = OpSchema.safeParse(input);
@@ -297,7 +297,7 @@ export function parseOp(input: unknown): Op {
       const path = i.path.map(String).join('.');
       return path ? `${path}: ${i.message}` : i.message;
     });
-    throw new Error(`Operação inválida: ${issues.join('; ')}`);
+    throw new Error(`Invalid operation: ${issues.join('; ')}`);
   }
   return r.data;
 }

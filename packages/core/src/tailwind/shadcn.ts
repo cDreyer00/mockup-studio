@@ -1,12 +1,12 @@
 /**
- * Preset shadcn/ui (tema "neutral" do shadcn v4, MIT) como tokens do documento: os componentes
- * do shadcn usam classes como `bg-primary`, `text-muted-foreground` e `border-input`, que só
- * existem com essas variáveis no `@theme`. `import_component` cria os tokens que faltam.
+ * shadcn/ui preset ("neutral" theme from shadcn v4, MIT) as document tokens: shadcn components
+ * use classes such as `bg-primary`, `text-muted-foreground` and `border-input`, which only
+ * exist with these variables in `@theme`. `import_component` creates the missing tokens.
  */
 import type { Op } from '../ops.js';
 import type { Document, Theme } from '../types.js';
 
-/** Cores do tema claro (base) e do escuro (tema `dark`). */
+/** Light theme (base) and dark theme (`dark` theme) colors. */
 const COLORS: [name: string, light: string, dark: string][] = [
   ['background', 'oklch(1 0 0)', 'oklch(0.145 0 0)'],
   ['foreground', 'oklch(0.145 0 0)', 'oklch(0.985 0 0)'],
@@ -28,7 +28,7 @@ const COLORS: [name: string, light: string, dark: string][] = [
   ['ring', 'oklch(0.708 0 0)', 'oklch(0.556 0 0)'],
 ];
 
-/** Raios do shadcn (relativos a `--radius`). */
+/** shadcn radii (relative to `--radius`). */
 const RADII: Record<string, string> = {
   '--radius': '0.625rem',
   '--radius-sm': 'calc(var(--radius) - 4px)',
@@ -39,7 +39,7 @@ const RADII: Record<string, string> = {
 
 export const SHADCN_COLOR_NAMES = COLORS.map(([n]) => n);
 
-/** Tokens base do preset (`--color-*` claros e raios). */
+/** Preset base tokens (light `--color-*` and radii). */
 export function shadcnTokens(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [n, light] of COLORS) out[`--color-${n}`] = light;
@@ -47,7 +47,7 @@ export function shadcnTokens(): Record<string, string> {
   return out;
 }
 
-/** Sobrescritas do tema `dark`. */
+/** Overrides for the `dark` theme. */
 export function shadcnDarkOverrides(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [n, , dark] of COLORS) out[`--color-${n}`] = dark;
@@ -60,7 +60,7 @@ const SHADCN_CLASS_RE = new RegExp(
   `^-?${UTILITY_PREFIX}-(${SHADCN_COLOR_NAMES.join('|')})(?:/\\S+)?!?$`,
 );
 
-/** A classe (com ou sem variantes) usa uma cor do preset shadcn? */
+/** Does the class (with or without variants) use a shadcn preset color? */
 export function usesShadcnColor(cls: string): boolean {
   const cut = cls.lastIndexOf(':');
   const utility = (cut === -1 ? cls : cls.slice(cut + 1)).replace(/^!/, '');
@@ -68,8 +68,8 @@ export function usesShadcnColor(cls: string): boolean {
 }
 
 /**
- * Ops que criam os tokens do preset que o documento ainda não tem (e o tema `dark`, se não
- * existir). Tokens já definidos não são tocados. Lista vazia = nada a fazer.
+ * Ops that create the preset tokens the document does not have yet (and the `dark` theme, if it does not
+ * exist). Already defined tokens are left untouched. Empty list = nothing to do.
  */
 export function planShadcnTokens(doc: Document): { ops: Op[]; created: string[] } {
   const set: Record<string, string> = {};

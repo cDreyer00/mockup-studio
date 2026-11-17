@@ -1,24 +1,24 @@
 /**
- * Dados reais: nó repetidor (`type: 'repeater'`), bindings `{{campo}}` e leitura de JSON/CSV.
+ * Real data: repeater node (`type: 'repeater'`), `{{field}}` bindings and JSON/CSV reading.
  *
- * O repetidor guarda `data` (lista de itens) e os filhos são o template. Na expansão (canvas,
- * render, export e screenshot) cada item gera uma cópia de todos os filhos, com os bindings
- * resolvidos em `text`, `src` e valores de atributos. Funções puras, sem DOM e sem Node.
+ * The repeater stores `data` (list of items) and its children are the template. On expansion
+ * (canvas, render, export and screenshot) each item produces a copy of all the children, with
+ * bindings resolved in `text`, `src` and attribute values. Pure functions, no DOM and no Node.
  */
 import { newNodeId } from './ids.js';
 import { MAX_DATA_ITEMS } from './schema.js';
 import type { DataSource, Node } from './types.js';
 
-/** Separador entre o id do template e o índice do item nos ids expandidos (`tx_ab12~3`). */
+/** Separator between the template id and the item index in expanded ids (`tx_ab12~3`). */
 export const REPEAT_ID_SEP = '~';
 
-/** Id do nó real (template) de um id expandido: `tx_ab12~3` → `tx_ab12`. */
+/** Id of the real node (template) for an expanded id: `tx_ab12~3` → `tx_ab12`. */
 export function baseNodeId(id: string): string {
   const i = id.indexOf(REPEAT_ID_SEP);
   return i < 0 ? id : id.slice(0, i);
 }
 
-/** Índice do item de um id expandido (`tx_ab12~3` → 3); `0` para ids do template. */
+/** Item index of an expanded id (`tx_ab12~3` → 3); `0` for template ids. */
 export function repeatIndexOf(id: string): number {
   const i = id.lastIndexOf(REPEAT_ID_SEP);
   if (i < 0) return 0;
@@ -28,14 +28,14 @@ export function repeatIndexOf(id: string): number {
 
 const BINDING_RE = /\{\{\s*([^{}|]*?)\s*(?:\|\s*([^{}]*?)\s*)?\}\}/g;
 
-/** Tem algum binding `{{...}}`? */
+/** Has any `{{...}}` binding? */
 export function hasBindings(value: string | undefined): boolean {
   if (!value) return false;
   BINDING_RE.lastIndex = 0;
   return BINDING_RE.test(value);
 }
 
-/** Campos citados nos bindings (sem duplicatas, na ordem em que aparecem). */
+/** Fields cited in the bindings (no duplicates, in order of appearance). */
 export function bindingFields(value: string | undefined): string[] {
   if (!value) return [];
   const out: string[] = [];
@@ -46,7 +46,7 @@ export function bindingFields(value: string | undefined): string[] {
   return out;
 }
 
-/** Campos usados por todos os bindings da subárvore (textos, `src`, atributos). */
+/** Fields used by all bindings in the subtree (texts, `src`, attributes). */
 export function templateFields(nodes: Node[]): string[] {
   const out: string[] = [];
   const add = (v: string | undefined): void => {
@@ -62,7 +62,7 @@ export function templateFields(nodes: Node[]): string[] {
   return out;
 }
 
-/** Lê `a.b.0.c` dentro de `value` (objetos e arrays); `undefined` se o caminho não existe. */
+/** Reads `a.b.0.c` inside `value` (objects and arrays); `undefined` if the path does not exist. */
 export function getPath(value: unknown, path: string): unknown {
   const p = path.trim();
   if (p === '' || p === '.' || p === '$item') return value;
@@ -90,11 +90,11 @@ function toText(v: unknown): string {
 export interface BindingContext {
   item: unknown;
   index: number;
-  /** Campo do template → caminho no item. */
+  /** Template field → path in the item. */
   mapping?: Record<string, string>;
 }
 
-/** Valor de um campo: especiais `$index` (0..n-1), `$number` (1..n), `$item`; depois o mapeamento. */
+/** Value of a field: specials `$index` (0..n-1), `$number` (1..n), `$item`; then the mapping. */
 export function resolveField(field: string, ctx: BindingContext): unknown {
   const f = field.trim();
   if (f === '$index') return ctx.index;
@@ -104,8 +104,8 @@ export function resolveField(field: string, ctx: BindingContext): unknown {
 }
 
 /**
- * Substitui `{{campo}}` e `{{campo | padrão}}` pelos valores do item. Campo inexistente vira o
- * padrão (ou vazio). Objetos viram JSON.
+ * Replaces `{{field}}` and `{{field | default}}` with the item's values. A missing field becomes
+ * the default (or empty). Objects become JSON.
  */
 export function applyBindings(value: string, ctx: BindingContext): string {
   if (!value.includes('{{')) return value;
@@ -146,7 +146,7 @@ function bindNode(n: Node, ctx: BindingContext, suffix: string): Node {
   }
   if (n.position) out.position = { ...n.position };
   if (n.type === 'repeater') {
-    // Repetidor aninhado: o template interno usa os próprios itens, não o item externo.
+    // Nested repeater: the inner template uses its own items, not the outer item.
     const inner: Node = {
       ...out,
       type: 'element',
@@ -161,22 +161,22 @@ function bindNode(n: Node, ctx: BindingContext, suffix: string): Node {
 }
 
 export interface RepeaterExpandOptions {
-  /** Limite de itens expandidos (padrão `MAX_DATA_ITEMS`). */
+  /** Limit of expanded items (default `MAX_DATA_ITEMS`). */
   maxItems?: number;
 }
 
 /**
- * Itens expandidos do repetidor: uma lista de cópias dos filhos por item. O item 0 mantém os ids
- * do template; os demais ganham o sufixo `~<índice>` (ver `baseNodeId`). Sem dados, devolve o
- * template com os bindings resolvidos contra um item vazio.
+ * Expanded items of the repeater: a list of copies of the children per item. Item 0 keeps the
+ * template ids; the others get the `~<index>` suffix (see `baseNodeId`). Without data, returns
+ * the template with bindings resolved against an empty item.
  */
 export function expandRepeaterChildren(node: Node, opts: RepeaterExpandOptions = {}): Node[] {
   return expandItems(node, opts, '');
 }
 
 /**
- * `outer` é o sufixo do item externo (repetidor aninhado): dentro dele todo item ganha `~<i>`,
- * inclusive o 0, para os ids não colidirem com os de outro item externo.
+ * `outer` is the suffix of the outer item (nested repeater): inside it every item gets `~<i>`,
+ * including 0, so ids do not collide with those of another outer item.
  */
 function expandItems(node: Node, opts: RepeaterExpandOptions, outer: string): Node[] {
   const template = node.children.filter((c) => !c.hidden);
@@ -197,7 +197,7 @@ function expandItems(node: Node, opts: RepeaterExpandOptions, outer: string): No
   return out;
 }
 
-/** Repetidor como contêiner comum (`type: 'element'`) com os itens expandidos. */
+/** Repeater as a plain container (`type: 'element'`) with the expanded items. */
 export function expandRepeater(node: Node, opts: RepeaterExpandOptions = {}): Node {
   if (node.type !== 'repeater') return node;
   const out: Node = { ...node, type: 'element', children: expandRepeaterChildren(node, opts) };
@@ -206,22 +206,22 @@ export function expandRepeater(node: Node, opts: RepeaterExpandOptions = {}): No
   return out;
 }
 
-/** Expande todos os repetidores da subárvore (devolve nós novos; a entrada não é mutada). */
+/** Expands all repeaters in the subtree (returns new nodes; the input is not mutated). */
 export function expandRepeaters(node: Node, opts: RepeaterExpandOptions = {}): Node {
   if (node.type === 'repeater') return expandRepeater(node, opts);
   if (!containsRepeater(node)) return node;
   return { ...node, children: node.children.map((c) => expandRepeaters(c, opts)) };
 }
 
-/** A subárvore tem algum repetidor? */
+/** Does the subtree contain any repeater? */
 export function containsRepeater(node: Node): boolean {
   if (node.type === 'repeater') return true;
   return node.children.some(containsRepeater);
 }
 
 /**
- * Cria um repetidor a partir de um contêiner: mesmo tag, nome, estilo, atributos, flags e posição;
- * os filhos viram o template. Recebe id novo (`rp_`) a menos que `id` seja informado.
+ * Creates a repeater from a container: same tag, name, style, attributes, flags and position;
+ * the children become the template. Gets a new id (`rp_`) unless `id` is given.
  */
 export function createRepeaterFrom(
   node: Node,
@@ -246,9 +246,9 @@ export function createRepeaterFrom(
   return out;
 }
 
-/* ---------------- leitura de dados ---------------- */
+/* ---------------- data reading ---------------- */
 
-/** Detecta o separador de um CSV pela primeira linha (`,`, `;` ou tab). */
+/** Detects a CSV delimiter from the first line (`,`, `;` or tab). */
 export function detectCsvDelimiter(text: string): string {
   const first = text.split(/\r?\n/, 1)[0] ?? '';
   let best = ',';
@@ -268,7 +268,7 @@ export function detectCsvDelimiter(text: string): string {
   return best;
 }
 
-/** Linhas de um CSV (RFC 4180: aspas, aspas duplicadas e quebras dentro de aspas). */
+/** Rows of a CSV (RFC 4180: quotes, doubled quotes and line breaks inside quotes). */
 export function parseCsvRows(text: string, delimiter?: string): string[][] {
   const src = text.replace(/^\uFEFF/, '');
   const d = delimiter ?? detectCsvDelimiter(src);
@@ -306,7 +306,7 @@ export function parseCsvRows(text: string, delimiter?: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
-/** CSV com cabeçalho → lista de objetos (valores em texto; cabeçalho vazio vira `colN`). */
+/** CSV with header → list of objects (text values; an empty header becomes `colN`). */
 export function parseCsv(
   text: string,
   opts: { delimiter?: string } = {},
@@ -324,14 +324,14 @@ export function parseCsv(
 }
 
 /**
- * Lista de itens dentro de um JSON: com `select` (`data.items`) segue o caminho; sem ele usa o
- * próprio valor se for lista, senão a primeira propriedade que seja uma lista (busca rasa, até 2
- * níveis). Um objeto sozinho vira lista de um item.
+ * List of items inside a JSON: with `select` (`data.items`) it follows the path; without it, uses
+ * the value itself if it is a list, otherwise the first property that is a list (shallow search,
+ * up to 2 levels). A lone object becomes a one-item list.
  */
 export function selectDataList(json: unknown, select?: string): unknown[] {
   if (select && select.trim()) {
     const v = getPath(json, select);
-    if (!Array.isArray(v)) throw new Error(`"${select}" não aponta para uma lista no JSON`);
+    if (!Array.isArray(v)) throw new Error(`"${select}" does not point to a list in the JSON`);
     return v;
   }
   if (Array.isArray(json)) return json;
@@ -345,10 +345,10 @@ export function selectDataList(json: unknown, select?: string): unknown[] {
     }
     return [json];
   }
-  throw new Error('O JSON não contém uma lista de itens');
+  throw new Error('The JSON does not contain a list of items');
 }
 
-/** Lê texto JSON ou CSV e devolve os itens (limitados a `limit`, padrão `MAX_DATA_ITEMS`). */
+/** Reads JSON or CSV text and returns the items (capped at `limit`, default `MAX_DATA_ITEMS`). */
 export function parseDataText(
   text: string,
   format: 'json' | 'csv',
@@ -361,7 +361,7 @@ export function parseDataText(
     try {
       json = JSON.parse(text.replace(/^\uFEFF/, ''));
     } catch (e) {
-      throw new Error(`JSON inválido: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`);
     }
     list = selectDataList(json, opts.select);
   }
@@ -369,7 +369,7 @@ export function parseDataText(
   return list.slice(0, limit);
 }
 
-/** Formato pelo nome do arquivo/URL ou content-type (`csv` quando parece CSV; senão `json`). */
+/** Format from the file name/URL or content-type (`csv` when it looks like CSV; otherwise `json`). */
 export function guessDataFormat(nameOrType: string): 'json' | 'csv' {
   const s = nameOrType.toLowerCase();
   return /\.csv(\?|#|$)|text\/csv|application\/csv|\.tsv(\?|#|$)|tab-separated/.test(s)
@@ -377,7 +377,7 @@ export function guessDataFormat(nameOrType: string): 'json' | 'csv' {
     : 'json';
 }
 
-/** Colunas dos dados (chaves dos itens objeto, na ordem em que aparecem; `$item` para escalares). */
+/** Data columns (keys of object items, in order of appearance; `$item` for scalars). */
 export function dataColumns(data: unknown[], max = 50): string[] {
   const out: string[] = [];
   for (const item of data) {

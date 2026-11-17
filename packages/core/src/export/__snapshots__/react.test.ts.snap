@@ -1,28 +1,24 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`exportReact > snapshot do Desktop 1440 com Tailwind 1`] = `
+exports[`exportReact > Desktop 1440 snapshot with Tailwind 1`] = `
 {
   "code": "const linksItems = [
-  { text1: 'Produto' },
-  { text1: 'Preços' },
-  { text1: 'Contato' },
+  { text1: 'Product' },
+  { text1: 'Pricing' },
+  { text1: 'Contact' },
 ];
 
 const cardItems = [
   {
-    icone: '🎨',
-    tituloDoCard: 'Design livre',
-    textoDoCard: 'Posicione frames no canvas e ajuste cada propriedade CSS.',
+    icon: '🎨',
+    cardTitle: 'Free design',
+    cardText: 'Place frames on the canvas and tweak every CSS property.',
   },
+  { icon: '⚡', cardTitle: 'Fast', cardText: 'Changes show up instantly, with no build step.' },
   {
-    icone: '⚡',
-    tituloDoCard: 'Rápido',
-    textoDoCard: 'Alterações aparecem na hora, sem etapa de compilação.',
-  },
-  {
-    icone: '📦',
-    tituloDoCard: 'Exportável',
-    textoDoCard: 'Leve o resultado como HTML standalone para qualquer projeto.',
+    icon: '📦',
+    cardTitle: 'Exportable',
+    cardText: 'Take the result as standalone HTML to any project.',
   },
 ];
 
@@ -41,35 +37,35 @@ export function Desktop1440() {
         <button
           className="bg-primary text-white py-2.5 px-5 rounded-(--radius) border-none text-[15px] font-semibold"
         >
-          Entrar
+          Sign in
         </button>
       </header>
       <section className="flex flex-col items-center gap-6 py-24 px-16 text-center">
         <h1 className="text-[56px] font-extrabold leading-[1.1] text-text max-w-[800px]">
-          Desenhe interfaces com a ajuda da IA
+          Design interfaces with the help of AI
         </h1>
         <p className="text-xl text-muted max-w-[640px]">
-          Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.
+          Create, edit and export screens in real HTML and CSS, straight from a canvas.
         </p>
         <div className="flex gap-4">
           <button
             className="bg-primary text-white py-3.5 px-7 rounded-(--radius) border-none text-base font-semibold"
           >
-            Começar agora
+            Get started
           </button>
           <button
             className="bg-transparent text-text py-3.5 px-7 rounded-(--radius) border border-solid border-muted text-base font-semibold"
           >
-            Ver exemplos
+            See examples
           </button>
         </div>
       </section>
       <section className="flex flex-row gap-6 pt-8 pb-24 px-16">
         {cardItems.map((item, index) => (
           <div key={index} className="flex flex-col gap-3 p-8 flex-1 bg-surface rounded-(--radius)">
-            <div className="text-[32px]">{item.icone}</div>
-            <h3 className="text-[22px] font-bold text-text">{item.tituloDoCard}</h3>
-            <p className="text-base leading-normal text-muted">{item.textoDoCard}</p>
+            <div className="text-[32px]">{item.icon}</div>
+            <h3 className="text-[22px] font-bold text-text">{item.cardTitle}</h3>
+            <p className="text-base leading-normal text-muted">{item.cardText}</p>
           </div>
         ))}
       </section>
@@ -106,31 +102,27 @@ export default Desktop1440;
 }
 `;
 
-exports[`exportReact > snapshot do Desktop 1440 com estilos inline 1`] = `
+exports[`exportReact > Desktop 1440 snapshot with inline styles 1`] = `
 {
   "code": "import type { CSSProperties } from 'react';
 
 const linksItems = [
-  { text1: 'Produto' },
-  { text1: 'Preços' },
-  { text1: 'Contato' },
+  { text1: 'Product' },
+  { text1: 'Pricing' },
+  { text1: 'Contact' },
 ];
 
 const cardItems = [
   {
-    icone: '🎨',
-    tituloDoCard: 'Design livre',
-    textoDoCard: 'Posicione frames no canvas e ajuste cada propriedade CSS.',
+    icon: '🎨',
+    cardTitle: 'Free design',
+    cardText: 'Place frames on the canvas and tweak every CSS property.',
   },
+  { icon: '⚡', cardTitle: 'Fast', cardText: 'Changes show up instantly, with no build step.' },
   {
-    icone: '⚡',
-    tituloDoCard: 'Rápido',
-    textoDoCard: 'Alterações aparecem na hora, sem etapa de compilação.',
-  },
-  {
-    icone: '📦',
-    tituloDoCard: 'Exportável',
-    textoDoCard: 'Leve o resultado como HTML standalone para qualquer projeto.',
+    icon: '📦',
+    cardTitle: 'Exportable',
+    cardText: 'Take the result as standalone HTML to any project.',
   },
 ];
 
@@ -159,7 +151,7 @@ export function Desktop1440() {
         <button
           style={{ background: 'var(--color-primary)', color: '#ffffff', padding: '10px 20px', borderRadius: 'var(--radius)', border: 'none', fontSize: '15px', fontWeight: '600' }}
         >
-          Entrar
+          Sign in
         </button>
       </header>
       <section
@@ -168,21 +160,21 @@ export function Desktop1440() {
         <h1
           style={{ fontSize: '56px', fontWeight: '800', lineHeight: '1.1', color: 'var(--color-text)', maxWidth: '800px' }}
         >
-          Desenhe interfaces com a ajuda da IA
+          Design interfaces with the help of AI
         </h1>
         <p style={{ fontSize: '20px', color: 'var(--color-muted)', maxWidth: '640px' }}>
-          Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.
+          Create, edit and export screens in real HTML and CSS, straight from a canvas.
         </p>
         <div style={{ display: 'flex', gap: '16px' }}>
           <button
             style={{ background: 'var(--color-primary)', color: '#ffffff', padding: '14px 28px', borderRadius: 'var(--radius)', border: 'none', fontSize: '16px', fontWeight: '600' }}
           >
-            Começar agora
+            Get started
           </button>
           <button
             style={{ background: 'transparent', color: 'var(--color-text)', padding: '14px 28px', borderRadius: 'var(--radius)', border: '1px solid var(--color-muted)', fontSize: '16px', fontWeight: '600' }}
           >
-            Ver exemplos
+            See examples
           </button>
         </div>
       </section>
@@ -194,12 +186,12 @@ export function Desktop1440() {
             key={index}
             style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '32px', flex: '1', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius)' }}
           >
-            <div style={{ fontSize: '32px' }}>{item.icone}</div>
+            <div style={{ fontSize: '32px' }}>{item.icon}</div>
             <h3 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--color-text)' }}>
-              {item.tituloDoCard}
+              {item.cardTitle}
             </h3>
             <p style={{ fontSize: '16px', lineHeight: '1.5', color: 'var(--color-muted)' }}>
-              {item.textoDoCard}
+              {item.cardText}
             </p>
           </div>
         ))}

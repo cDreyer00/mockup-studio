@@ -1,21 +1,21 @@
 /**
- * Placeholders SVG gerados localmente (offline), determinísticos pela semente: a mesma
- * `kind` + `seed` + tamanho produz sempre o mesmo SVG, byte a byte.
+ * SVG placeholders generated locally (offline), deterministic by seed: the same
+ * `kind` + `seed` + size always produces the same SVG, byte for byte.
  */
 
 export const PLACEHOLDER_KINDS = ['avatar', 'product', 'landscape', 'logo'] as const;
 export type PlaceholderKind = (typeof PLACEHOLDER_KINDS)[number];
 
 export interface PlaceholderOptions {
-  /** Semente (texto ou número). Padrão: `"1"`. */
+  /** Seed (text or number). Default: `"1"`. */
   seed?: string | number;
   width?: number;
   height?: number;
-  /** Texto do logo (padrão: gerado pela semente). Avatar usa as iniciais quando informado. */
+  /** Logo text (default: generated from the seed). Avatar uses the initials when provided. */
   label?: string;
 }
 
-/** Tamanho padrão por tipo (largura × altura). */
+/** Default size per kind (width × height). */
 export const PLACEHOLDER_SIZES: Record<PlaceholderKind, [number, number]> = {
   avatar: [256, 256],
   product: [600, 600],
@@ -23,7 +23,7 @@ export const PLACEHOLDER_SIZES: Record<PlaceholderKind, [number, number]> = {
   logo: [480, 160],
 };
 
-/** Hash FNV-1a de 32 bits. */
+/** 32-bit FNV-1a hash. */
 export function hashSeed(seed: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i++) {
@@ -33,7 +33,7 @@ export function hashSeed(seed: string): number {
   return h >>> 0;
 }
 
-/** PRNG mulberry32 (determinístico). */
+/** mulberry32 PRNG (deterministic). */
 export function seededRandom(seed: string | number): () => number {
   let a = hashSeed(String(seed));
   return () => {
@@ -138,7 +138,7 @@ function product(rand: () => number, w: number, h: number): string {
     `<ellipse cx="${r1(cx)}" cy="${r1(floorY)}" rx="${r1(s * 0.3)}" ry="${r1(s * 0.04)}" fill="rgba(0,0,0,.12)"/>`;
   const kind = Math.floor(rand() * 3);
   if (kind === 0) {
-    // garrafa
+    // bottle
     const bw = s * 0.22;
     body +=
       `<rect x="${r1(cx - bw / 2)}" y="${r1(h * 0.35)}" width="${r1(bw)}" height="${r1(floorY - h * 0.35)}" rx="${r1(bw * 0.25)}" fill="${main}"/>` +
@@ -146,7 +146,7 @@ function product(rand: () => number, w: number, h: number): string {
       `<rect x="${r1(cx - bw * 0.22)}" y="${r1(h * 0.16)}" width="${r1(bw * 0.44)}" height="${r1(h * 0.05)}" rx="3" fill="${dark}"/>` +
       `<rect x="${r1(cx - bw / 2)}" y="${r1(h * 0.5)}" width="${r1(bw)}" height="${r1(h * 0.14)}" fill="rgba(255,255,255,.75)"/>`;
   } else if (kind === 1) {
-    // caixa
+    // box
     const bw = s * 0.42;
     const top = floorY - bw * 0.8;
     body +=
@@ -154,7 +154,7 @@ function product(rand: () => number, w: number, h: number): string {
       `<polygon points="${r1(cx - bw / 2)},${r1(top + bw * 0.15)} ${r1(cx)},${r1(top + bw * 0.3)} ${r1(cx)},${r1(floorY)} ${r1(cx - bw / 2)},${r1(floorY - bw * 0.15)}" fill="${main}"/>` +
       `<polygon points="${r1(cx + bw / 2)},${r1(top + bw * 0.15)} ${r1(cx)},${r1(top + bw * 0.3)} ${r1(cx)},${r1(floorY)} ${r1(cx + bw / 2)},${r1(floorY - bw * 0.15)}" fill="${dark}"/>`;
   } else {
-    // tênis/sacola: sacola
+    // shopping bag
     const bw = s * 0.4;
     const top = floorY - bw;
     body +=
@@ -162,7 +162,7 @@ function product(rand: () => number, w: number, h: number): string {
       `<rect x="${r1(cx - bw / 2)}" y="${r1(top)}" width="${r1(bw)}" height="${r1(bw)}" rx="${r1(bw * 0.06)}" fill="${main}"/>` +
       `<circle cx="${r1(cx)}" cy="${r1(top + bw * 0.5)}" r="${r1(bw * 0.14)}" fill="rgba(255,255,255,.8)"/>`;
   }
-  return wrap(w, h, body, 'Produto');
+  return wrap(w, h, body, 'Product');
 }
 
 function landscape(rand: () => number, w: number, h: number): string {
@@ -191,7 +191,7 @@ function landscape(rand: () => number, w: number, h: number): string {
     const light = night ? 18 + l * 6 : 58 - l * 14;
     body += `<polygon points="${pts.join(' ')}" fill="${hsl(140 + rand() * 40 - l * 10, 30 + l * 8, light)}"/>`;
   }
-  return wrap(w, h, body, 'Paisagem');
+  return wrap(w, h, body, 'Landscape');
 }
 
 function logo(rand: () => number, w: number, h: number, label?: string): string {
@@ -218,11 +218,11 @@ function logo(rand: () => number, w: number, h: number, label?: string): string 
   return wrap(w, h, body, `Logo ${name}`);
 }
 
-/** SVG do placeholder. Tamanho padrão em `PLACEHOLDER_SIZES`; dimensões limitadas a 4096 px. */
+/** Placeholder SVG. Default size in `PLACEHOLDER_SIZES`; dimensions capped at 4096 px. */
 export function placeholderSvg(kind: PlaceholderKind, opts: PlaceholderOptions = {}): string {
   if (!PLACEHOLDER_KINDS.includes(kind)) {
     throw new Error(
-      `Tipo de placeholder inválido: "${String(kind)}" (use ${PLACEHOLDER_KINDS.join(', ')})`,
+      `Invalid placeholder kind: "${String(kind)}" (use ${PLACEHOLDER_KINDS.join(', ')})`,
     );
   }
   const [dw, dh] = PLACEHOLDER_SIZES[kind];
@@ -244,7 +244,7 @@ export function placeholderSvg(kind: PlaceholderKind, opts: PlaceholderOptions =
   }
 }
 
-/** Nome de arquivo estável do placeholder: `avatar-<seed>-256x256.svg` (seed sanitizada). */
+/** Stable file name for the placeholder: `avatar-<seed>-256x256.svg` (sanitized seed). */
 export function placeholderFileName(kind: PlaceholderKind, opts: PlaceholderOptions = {}): string {
   const [dw, dh] = PLACEHOLDER_SIZES[kind];
   const seed =
@@ -260,7 +260,7 @@ export function placeholderFileName(kind: PlaceholderKind, opts: PlaceholderOpti
   return `${kind}-${seed}${label}-${w}x${h}.svg`;
 }
 
-/** Data URL do SVG (para documentos sem caminho e para a interface). */
+/** SVG data URL (for documents without a path and for the UI). */
 export function svgDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }

@@ -3,20 +3,20 @@ import { htmlToNodes, nodesToHtml, slugify } from './html.js';
 import type { Node } from './types.js';
 
 describe('htmlToNodes', () => {
-  it('aplica <style>, inline vence e ignora class/id/style em attrs', () => {
+  it('applies <style>, inline wins and ignores class/id/style in attrs', () => {
     const [n] = htmlToNodes(
       `<style>.box { color: red; padding: 8px } div { color: blue }</style>
-       <div id="x" class="box hero" style="padding: 16px" data-name="Caixa" title="t">Oi</div>`,
+       <div id="x" class="box hero" style="padding: 16px" data-name="Box" title="t">Hi</div>`,
     );
     expect(n.tag).toBe('div');
     expect(n.type).toBe('text');
-    expect(n.text).toBe('Oi');
-    expect(n.name).toBe('Caixa');
+    expect(n.text).toBe('Hi');
+    expect(n.name).toBe('Box');
     expect(n.style).toEqual({ color: 'blue', padding: '16px' });
     expect(n.attrs).toEqual({ title: 't' });
   });
 
-  it('usa o parâmetro css e seletores compostos, descendentes e filhos diretos', () => {
+  it('uses the css parameter and compound, descendant and direct-child selectors', () => {
     const nodes = htmlToNodes(
       `<section class="a"><div class="b"><p class="c">x</p></div><p class="c">y</p></section>`,
       {
@@ -39,18 +39,18 @@ describe('htmlToNodes', () => {
     expect(section.name).toBe('A');
   });
 
-  it('texto misto vira span; espaços inline preservados, quebras de linha são formatação', () => {
-    // Regra: whitespace sem quebra de linha vira 1 espaço (conteúdo); com quebra é descartado nas pontas.
-    const [p] = htmlToNodes('<p>  Olá   <b>mundo</b>\n  fim </p>');
+  it('mixed text becomes a span; inline spaces preserved, line breaks are formatting', () => {
+    // Rule: whitespace without a line break becomes 1 space (content); with a line break it is dropped at the ends.
+    const [p] = htmlToNodes('<p>  Hello   <b>world</b>\n  end </p>');
     expect(p.type).toBe('element');
     expect(p.children.map((c) => [c.tag, c.type, c.text])).toEqual([
-      ['span', 'text', ' Olá '],
-      ['b', 'text', 'mundo'],
-      ['span', 'text', 'fim '],
+      ['span', 'text', ' Hello '],
+      ['b', 'text', 'world'],
+      ['span', 'text', 'end '],
     ]);
   });
 
-  it('img, svg, script, comentários e html/body', () => {
+  it('img, svg, script, comments and html/body', () => {
     const nodes = htmlToNodes(
       `<!doctype html><html><head><title>t</title><style>img{width:10px}</style></head>
        <body><!-- c --><script>alert(1)</script>
@@ -71,7 +71,7 @@ describe('htmlToNodes', () => {
     expect(nodes[1].svg).toContain('<path');
   });
 
-  it('descarta tags bloqueadas (math, template, frameset...) sem lançar', () => {
+  it('drops blocked tags (math, template, frameset...) without throwing', () => {
     const nodes = htmlToNodes(
       `<math><mi>x</mi></math><template><p>t</p></template><frameset></frameset>
        <portal></portal><div>ok</div><svg viewBox="0 0 1 1"></svg>`,
@@ -82,7 +82,7 @@ describe('htmlToNodes', () => {
     ]);
   });
 
-  it('decodifica entidades', () => {
+  it('decodes entities', () => {
     const [n] = htmlToNodes('<p>a &amp; b &lt;c&gt;</p>');
     expect(n.text).toBe('a & b <c>');
   });
@@ -91,19 +91,19 @@ describe('htmlToNodes', () => {
 describe('nodesToHtml', () => {
   const nodes: Node[] = htmlToNodes(
     `<div style="display: flex; gap: 8px" data-name="Hero Section">
-       <h1 style="font-size: 32px; font-family: &quot;Inter&quot;, sans-serif">Título &amp; mais</h1>
+       <h1 style="font-size: 32px; font-family: &quot;Inter&quot;, sans-serif">Title &amp; more</h1>
        <img src="a.png" alt="x" style="width: 10px">
        <button type="button">Ok</button>
        <br>
      </div>`,
   );
 
-  it('modo inline (padrão)', () => {
+  it('inline mode (default)', () => {
     const { html, css } = nodesToHtml(nodes);
     expect(css).toBe('');
     expect(html).toContain('<div style="display: flex; gap: 8px">');
     expect(html).toContain(
-      '<h1 style="font-size: 32px; font-family: &quot;Inter&quot;, sans-serif">Título &amp; mais</h1>',
+      '<h1 style="font-size: 32px; font-family: &quot;Inter&quot;, sans-serif">Title &amp; more</h1>',
     );
     expect(html).toContain('<img src="a.png" alt="x" style="width: 10px">');
     expect(html).toContain('<br>');
@@ -111,7 +111,7 @@ describe('nodesToHtml', () => {
     expect(html).toContain('\n  <h1');
   });
 
-  it('modo classes', () => {
+  it('classes mode', () => {
     const { html, css } = nodesToHtml(nodes, { mode: 'classes' });
     const cls = `hero-section-${nodes[0].id.slice(-4)}`;
     expect(html).toContain(`<div class="${cls}">`);
@@ -119,7 +119,7 @@ describe('nodesToHtml', () => {
     expect(html).not.toContain('style=');
   });
 
-  it('omite hidden e permite indent:false', () => {
+  it('omits hidden and allows indent:false', () => {
     const copy = structuredClone(nodes);
     copy[0].children[0].hidden = true;
     const { html } = nodesToHtml(copy, { indent: false });
@@ -127,7 +127,7 @@ describe('nodesToHtml', () => {
     expect(html).not.toContain('\n');
   });
 
-  it('round-trip preserva tags, texto e estilos', () => {
+  it('round-trip preserves tags, text and styles', () => {
     for (const mode of ['inline', 'classes'] as const) {
       const { html, css } = nodesToHtml(nodes, { mode });
       const back = htmlToNodes(html, { css });
@@ -143,7 +143,7 @@ describe('nodesToHtml', () => {
     }
   });
 
-  it('svg inline recebe estilo e round-trip não duplica atributos', () => {
+  it('inline svg gets styles and round-trip does not duplicate attributes', () => {
     const [svg] = htmlToNodes('<svg viewBox="0 0 1 1" style="width: 24px"></svg>');
     const { html } = nodesToHtml(svg);
     expect(html.match(/style=/g)).toHaveLength(1);
@@ -154,8 +154,8 @@ describe('nodesToHtml', () => {
 });
 
 describe('slugify', () => {
-  it('normaliza acentos e símbolos', () => {
-    expect(slugify('Seção Herói!')).toBe('secao-heroi');
+  it('normalizes accents and symbols', () => {
+    expect(slugify('Café Crème!')).toBe('cafe-creme');
     expect(slugify('***')).toBe('node');
   });
 });

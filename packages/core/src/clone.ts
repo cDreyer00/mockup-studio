@@ -1,4 +1,4 @@
-/** Cópia profunda de dados JSON puros (documentos são sempre serializáveis). */
+/** Deep copy of plain JSON data (documents are always serializable). */
 export function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }

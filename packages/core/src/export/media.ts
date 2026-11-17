@@ -1,7 +1,7 @@
 /**
- * Nós de mídia (effect, video, embed) nos exportadores: elementos HTML, scripts do HTML/Tailwind
- * e arquivos extras do React. Não importa `common.ts` nem `html.ts` (evita ciclos): quem chama
- * entrega a resolução de URLs.
+ * Media nodes (effect, video, embed) in the exporters: HTML elements, HTML/Tailwind scripts
+ * and extra React files. Does not import `common.ts` or `html.ts` (avoids cycles): the caller
+ * provides URL resolution.
  */
 import { dropUnsafeStyles } from '../styles.js';
 import { effectFallbackCss } from '../effects/catalog.js';
@@ -9,7 +9,7 @@ import { effectMountSpec, effectsRuntimeSource } from '../effects/runtime.js';
 import { youtubeEmbedUrl, youtubeId, youtubeStart } from '../media.js';
 import type { EmbedSpec, MediaParamValue, Node } from '../types.js';
 
-/** Versão major.minor do Three.js carregado do CDN no HTML (a instalada no monorepo). */
+/** Major.minor version of Three.js loaded from the CDN in the HTML (the one installed in the monorepo). */
 export const THREE_CDN_VERSION = '0.187';
 export const THREE_CDN_URL = `https://cdn.jsdelivr.net/npm/three@${THREE_CDN_VERSION}/build/three.module.js`;
 export const LOTTIE_CDN_URL =
@@ -24,9 +24,9 @@ export const EMBED_LABELS: Record<EmbedSpec['provider'], string> = {
   iframe: 'Iframe',
 };
 
-/* ---------------- Atributos ---------------- */
+/* ---------------- Attributes ---------------- */
 
-/** `[nome, valor]` (aspas duplas), `[nome, true]` (booleano) ou `[nome, valor, "'"]` (aspas simples). */
+/** `[name, value]` (double quotes), `[name, true]` (boolean) or `[name, value, "'"]` (single quotes). */
 export type MediaAttr = [string, string | true] | [string, string, "'"];
 
 const escDouble = (s: string): string =>
@@ -40,7 +40,7 @@ const escDouble = (s: string): string =>
 const escSingle = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
 
-/** Atributos prontos para a tag (XHTML: booleanos viram `nome="nome"`). */
+/** Attributes ready for the tag (XHTML: booleans become `name="name"`). */
 export function renderMediaAttrs(attrs: MediaAttr[], xhtml = false): string[] {
   return attrs.map(([k, v, q]) => {
     if (v === true) return xhtml ? `${k}="${k}"` : k;
@@ -48,7 +48,7 @@ export function renderMediaAttrs(attrs: MediaAttr[], xhtml = false): string[] {
   });
 }
 
-/** Resolve uma referência (`assets/` ou URL) para a URL exportada; `null` descarta o atributo. */
+/** Resolves a reference (`assets/` or URL) to the exported URL; `null` drops the attribute. */
 export type MediaUrl = (ref: string, kind: 'file' | 'poster') => string | null;
 
 export interface MediaElement {
@@ -56,13 +56,13 @@ export interface MediaElement {
   attrs: MediaAttr[];
 }
 
-/** Escritas de scripts e arquivos que o markup `live` exige. */
+/** Scripts and files that the `live` markup requires. */
 export interface MediaCollector {
-  /** kind → fragment shader (ou `undefined` para partículas). */
+  /** kind → fragment shader (or `undefined` for particles). */
   effects: Map<string, string | undefined>;
   lottie: boolean;
   rive: boolean;
-  /** JSON (já normalizado) das animações Lottie embutidas; o índice vai em `data-lottie-data`. */
+  /** JSON (already normalized) of the inlined Lottie animations; the index goes in `data-lottie-data`. */
   lottieData: string[];
   three: { code: string; params: Record<string, MediaParamValue> }[];
 }
@@ -94,7 +94,7 @@ function paramStr(
 const httpUrl = (u: string | undefined): string | null =>
   u && /^https?:\/\/[^\s"'<>`\\]+$/i.test(u) ? u : null;
 
-/** URL de embed (sem cookies) de um nó YouTube, com `start`/`autoplay`/`loop`/`muted`/`controls` dos params. */
+/** Embed URL (cookie-free) of a YouTube node, with `start`/`autoplay`/`loop`/`muted`/`controls` from the params. */
 export function youtubeSrc(embed: EmbedSpec): string | null {
   const id = embed.url ? youtubeId(embed.url) : null;
   if (!id || !embed.url) return null;
@@ -112,7 +112,7 @@ export function youtubeSrc(embed: EmbedSpec): string | null {
 export const YOUTUBE_ALLOW = 'autoplay; encrypted-media; picture-in-picture';
 export const IFRAME_SANDBOX = 'allow-scripts allow-same-origin allow-popups';
 
-/** Fragmento de `style` extra de nós de mídia: fundo de fallback dos efeitos e `border:0` em iframes. */
+/** Extra `style` fragment for media nodes: fallback background of effects and `border:0` on iframes. */
 export function mediaStyleDefaults(node: Node): Record<string, string> {
   if (node.type === 'effect' && node.effect)
     return dropUnsafeStyles(effectFallbackCss(node.effect));
@@ -127,27 +127,27 @@ export function mediaStyleDefaults(node: Node): Record<string, string> {
 export interface MediaElementOptions {
   url: MediaUrl;
   /**
-   * `live`: markup do export (canvas + scripts; registra o que precisa em `collector`).
-   * `static`: markup inerte (`data-mockup-*`), sem scripts: get_html e foreignObject do SVG.
+   * `live`: export markup (canvas + scripts; registers what it needs in `collector`).
+   * `static`: inert markup (`data-mockup-*`), no scripts: get_html and the SVG foreignObject.
    */
   mode: 'live' | 'static';
   collector?: MediaCollector;
   /**
-   * Só em `static`: embeds viram `<div data-mockup-embed>` com src/url/código/parâmetros em
-   * atributos `data-*`, para o parser de HTML reconstruir o nó (get_html → write_html).
+   * Only in `static`: embeds become `<div data-mockup-embed>` with src/url/code/params in
+   * `data-*` attributes, so the HTML parser can rebuild the node (get_html → write_html).
    */
   roundtrip?: boolean;
   /**
-   * Lê o conteúdo de um arquivo de `assets/`. Com ele, Lottie `.json` de até
-   * `MAX_INLINE_LOTTIE` bytes é embutido no HTML (abre por `file://`, sem fetch).
+   * Reads the content of a file in `assets/`. With it, Lottie `.json` files up to
+   * `MAX_INLINE_LOTTIE` bytes are inlined in the HTML (opens via `file://`, no fetch).
    */
   readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
-/** Tamanho máximo (bytes) de um JSON Lottie embutido no HTML exportado. */
+/** Maximum size (bytes) of a Lottie JSON inlined in the exported HTML. */
 export const MAX_INLINE_LOTTIE = 512 * 1024;
 
-/** JSON seguro para `<script type="application/json">`: sem `<`, U+2028 nem U+2029. */
+/** JSON safe for `<script type="application/json">`: no `<`, U+2028 or U+2029. */
 export function safeJsonForScript(json: string): string {
   return json
     .replace(/</g, '\\u003c')
@@ -155,7 +155,7 @@ export function safeJsonForScript(json: string): string {
     .replace(/\u2029/g, '\\u2029');
 }
 
-/** Normaliza o JSON de uma animação Lottie para embutir; `null` se grande demais ou inválido. */
+/** Normalizes a Lottie animation's JSON for inlining; `null` if too large or invalid. */
 function inlineLottie(ref: string, read: MediaElementOptions['readAsset']): string | null {
   if (!read || !/\.json$/i.test(ref.split(/[?#]/)[0]!) || /^[a-z][a-z0-9+.-]*:/i.test(ref))
     return null;
@@ -170,7 +170,7 @@ function inlineLottie(ref: string, read: MediaElementOptions['readAsset']): stri
   }
 }
 
-/** Elemento HTML de um nó effect/video/embed; `null` se o nó não tem a especificação ou ela não serve. */
+/** HTML element for an effect/video/embed node; `null` if the node has no spec or the spec is unusable. */
 export function mediaElement(node: Node, o: MediaElementOptions): MediaElement | null {
   const live = o.mode === 'live';
   const c = o.collector ?? newMediaCollector();
@@ -301,19 +301,19 @@ export function mediaElement(node: Node, o: MediaElementOptions): MediaElement |
   return null;
 }
 
-/* ---------------- Scripts do HTML / Tailwind ---------------- */
+/* ---------------- HTML / Tailwind scripts ---------------- */
 
-/** Impede que o conteúdo de um `<script>` o feche (`</` → `<\/`) ou abra comentário (`<!--`). */
+/** Prevents the content of a `<script>` from closing it (`</` → `<\/`) or opening a comment (`<!--`). */
 export function escapeScript(s: string): string {
   return s.replace(/<\//g, '<\\/').replace(/<!--/g, '<\\!--');
 }
 
 const CDN_NOTE =
-  '// Lottie, Rive e Three.js neste HTML usam bibliotecas de CDN (o export React usa os pacotes npm).';
+  '// Lottie, Rive and Three.js in this HTML use CDN libraries (the React export uses the npm packages).';
 
 /**
- * Laço de uma ilha Three.js (compartilhado entre o HTML e o arquivo `three-*.js` do React).
- * Cria o WebGLRenderer, anima com requestAnimationFrame, acompanha o tamanho e devolve o cleanup.
+ * Loop of a Three.js island (shared between the HTML and the React `three-*.js` file).
+ * Creates the WebGLRenderer, animates with requestAnimationFrame, tracks the size and returns the cleanup.
  */
 const THREE_RUNNER = `function runIsland(THREE, make, canvas, params) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -352,7 +352,7 @@ const THREE_RUNNER = `function runIsland(THREE, make, canvas, params) {
 const makeSource = (code: string): string =>
   `function make(THREE, renderer, canvas, width, height, params) {\n${code.replace(/\n?$/, '\n')}}`;
 
-/** `<script>`s (CDN, auto-montagem) dos recursos usados; string vazia se não há nenhum. */
+/** `<script>`s (CDN, auto-mount) for the resources used; empty string if there are none. */
 export function mediaScripts(c: MediaCollector): string {
   const out: string[] = [];
 
@@ -363,7 +363,7 @@ export function mediaScripts(c: MediaCollector): string {
       escapeScript(
         [
           '<script>',
-          '// Efeitos: runtime do Mockup Studio (WebGL/canvas 2D) + montagem de todos os <canvas data-mockup-effect>.',
+          '// Effects: Mockup Studio runtime (WebGL/canvas 2D) + mounting of every <canvas data-mockup-effect>.',
           '(function () {',
           `const R = ${effectsRuntimeSource()};`,
           `const FRAGMENTS = ${JSON.stringify(fragments)};`,
@@ -380,7 +380,7 @@ export function mediaScripts(c: MediaCollector): string {
   }
 
   if (c.lottie) {
-    // animationData embutido: evita o fetch do data-src, que o file:// bloqueia (CORS)
+    // inlined animationData: avoids fetching data-src, which file:// blocks (CORS)
     c.lottieData.forEach((json, i) =>
       out.push(
         `<script type="application/json" id="mockup-lottie-${i}">${safeJsonForScript(json)}</script>`,
@@ -461,16 +461,16 @@ export function mediaScripts(c: MediaCollector): string {
   return out.join('\n');
 }
 
-/* ---------------- Arquivos extras do React ---------------- */
+/* ---------------- Extra React files ---------------- */
 
 const EFFECTS_DTS = `export type EffectParamValue = string | number | boolean;
 
-/** Especificação de montagem de um efeito (o fragment shader vem de FRAGMENTS pelo \`kind\`). */
+/** Mount spec of an effect (the fragment shader comes from FRAGMENTS by \`kind\`). */
 export interface EffectMount {
   kind: string;
   category: 'shader' | 'particles';
   params: Record<string, EffectParamValue>;
-  /** Opções dos parâmetros \`select\` (o shader recebe o índice da opção). */
+  /** Options of \`select\` params (the shader receives the option index). */
   selects?: Record<string, string[]>;
 }
 
@@ -478,21 +478,21 @@ export interface EffectStop {
   stop(): void;
 }
 
-/** Fragment shaders dos efeitos usados, por \`kind\`. */
+/** Fragment shaders of the effects used, by \`kind\`. */
 export const FRAGMENTS: Record<string, string>;
 
-/** Monta e anima o efeito no canvas; chame \`stop()\` para desmontar. */
+/** Mounts and animates the effect on the canvas; call \`stop()\` to tear it down. */
 export function playEffect(canvas: HTMLCanvasElement, spec: EffectMount): EffectStop;
 `;
 
-/** `mockup-effects.js` + `.d.ts`: runtime dos efeitos e fragments dos `kind`s usados. */
+/** `mockup-effects.js` + `.d.ts`: effects runtime and fragments of the `kind`s used. */
 export function reactEffectsFiles(
   fragments: Map<string, string | undefined>,
 ): { name: string; code: string }[] {
   const map: Record<string, string> = {};
   for (const [kind, f] of fragments) if (f) map[kind] = f;
   const js = [
-    '// Runtime dos efeitos do Mockup Studio (WebGL/canvas 2D). Gerado: não edite à mão.',
+    '// Mockup Studio effects runtime (WebGL/canvas 2D). Generated: do not edit by hand.',
     `const runtime = ${effectsRuntimeSource()};`,
     '',
     `export const FRAGMENTS = ${JSON.stringify(map, null, 2)};`,
@@ -511,14 +511,14 @@ export function reactEffectsFiles(
 
 const THREE_DTS = `export type ThreeParams = Record<string, string | number | boolean>;
 
-/** Monta a cena Three.js no canvas e devolve a função que a desmonta. */
+/** Mounts the Three.js scene on the canvas and returns the function that tears it down. */
 export function setup(canvas: HTMLCanvasElement, params: ThreeParams): () => void;
 `;
 
-/** `three-<slug>.js` + `.d.ts` de uma ilha Three.js (o TSX nunca importa `three` direto). */
+/** `three-<slug>.js` + `.d.ts` of a Three.js island (the TSX never imports `three` directly). */
 export function reactThreeFiles(slug: string, code: string): { name: string; code: string }[] {
   const js = [
-    '// Ilha Three.js do Mockup Studio. Código do nó em `make`; o resto cria o renderer e o laço.',
+    '// Mockup Studio Three.js island. Node code in `make`; the rest creates the renderer and the loop.',
     "import * as THREE from 'three';",
     '',
     THREE_RUNNER,

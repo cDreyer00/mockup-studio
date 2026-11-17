@@ -1,6 +1,6 @@
 /**
- * Avaliação de CSS: calc()/min()/max()/clamp() e color-mix() de valores já sem var().
- * Módulo puro (sem DOM, sem Node).
+ * CSS evaluation: calc()/min()/max()/clamp() and color-mix() on values that no longer contain var().
+ * Pure module (no DOM, no Node).
  */
 
 export interface Rgba {
@@ -26,7 +26,7 @@ type Space =
   | 'xyz-d50'
   | 'xyz-d65';
 
-/** Cor em um espaço nativo: componentes na escala do próprio espaço (hsl/hwb em 0..100, matiz em graus). */
+/** Color in a native space: components on the space's own scale (hsl/hwb in 0..100, hue in degrees). */
 interface Color {
   space: Space;
   c: Vec3;
@@ -34,7 +34,7 @@ interface Color {
 }
 
 // ---------------------------------------------------------------------------
-// Cores nomeadas
+// Named colors
 // ---------------------------------------------------------------------------
 
 const NAMED_COLORS: Record<string, string> = Object.fromEntries(
@@ -75,7 +75,7 @@ const NAMED_COLORS: Record<string, string> = Object.fromEntries(
 );
 
 // ---------------------------------------------------------------------------
-// Conversões de espaço de cor (matrizes do CSS Color 4)
+// Color space conversions (CSS Color 4 matrices)
 // ---------------------------------------------------------------------------
 
 const LIN_SRGB_TO_XYZ: Mat3 = [
@@ -157,8 +157,8 @@ function mod360(h: number): number {
   return ((h % 360) + 360) % 360;
 }
 
-const rad = (graus: number): number => (graus * Math.PI) / 180;
-const deg = (radianos: number): number => (radianos * 180) / Math.PI;
+const rad = (degrees: number): number => (degrees * Math.PI) / 180;
+const deg = (radians: number): number => (radians * 180) / Math.PI;
 const noNaN = (n: number): number => (Number.isNaN(n) ? 0 : n);
 
 function hslToRgb(h: number, s: number, l: number): Vec3 {
@@ -242,7 +242,7 @@ function xyzToOklab(xyz: Vec3): Vec3 {
   return mul(LMS_TO_OKLAB, lms);
 }
 
-/** Converte do espaço nativo para XYZ D65 (o espaço "hub"). */
+/** Converts from the native space to XYZ D65 (the "hub" space). */
 function toXyz(space: Space, c: Vec3): Vec3 {
   switch (space) {
     case 'srgb':
@@ -270,7 +270,7 @@ function toXyz(space: Space, c: Vec3): Vec3 {
   }
 }
 
-/** Converte de XYZ D65 para o espaço indicado. */
+/** Converts from XYZ D65 to the given space. */
 function fromXyz(space: Space, xyz: Vec3): Vec3 {
   switch (space) {
     case 'srgb':
@@ -302,14 +302,14 @@ function fromXyz(space: Space, xyz: Vec3): Vec3 {
   }
 }
 
-/** Índice do componente de matiz no espaço, ou -1 se o espaço é retangular. */
+/** Index of the hue component in the space, or -1 if the space is rectangular. */
 function hueIndex(space: Space): number {
   if (space === 'hsl' || space === 'hwb') return 0;
   if (space === 'lch' || space === 'oklch') return 2;
   return -1;
 }
 
-/** Marca o matiz como NaN quando ele é "powerless" (croma ~0, saturação 0, branco+preto >= 100%). */
+/** Marks the hue as NaN when it is "powerless" (chroma ~0, saturation 0, white+black >= 100%). */
 function markPowerless(space: Space, c: Vec3): void {
   if (space === 'hsl' && Math.abs(c[1]) < 1e-4) c[0] = NaN;
   else if (space === 'hwb' && c[1] + c[2] >= 100 - 1e-4) c[0] = NaN;
@@ -325,13 +325,13 @@ function convertTo(color: Color, space: Space): Color {
 }
 
 // ---------------------------------------------------------------------------
-// Parsing de cores
+// Color parsing
 // ---------------------------------------------------------------------------
 
 const NUM = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
 const NUM_RE = new RegExp(`^(${NUM})(%|[a-z]*)$`, 'i');
 
-/** Número ou porcentagem (100% = scale). `none` vale 0. NaN se inválido. */
+/** Number or percentage (100% = scale). `none` is 0. NaN if invalid. */
 function parseComponent(tok: string, scale: number): number {
   if (tok.toLowerCase() === 'none') return 0;
   const m = NUM_RE.exec(tok);
@@ -455,7 +455,7 @@ function parseColor(value: string): Color | null {
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
 
-/** Cor CSS → RGBA sRGB (0..1 por canal, alpha 0..1), ou null se não for uma cor reconhecida. */
+/** CSS color → sRGB RGBA (0..1 per channel, alpha 0..1), or null if not a recognized color. */
 export function parseCssColor(value: string): Rgba | null {
   const color = parseColor(value);
   if (!color) return null;
@@ -463,7 +463,7 @@ export function parseCssColor(value: string): Rgba | null {
   return { r: clamp01(r), g: clamp01(g), b: clamp01(b), a: clamp01(color.a) };
 }
 
-/** RGBA → `#rrggbb` (alpha 1) ou `#rrggbbaa`; canais com clamp a 0..1 e arredondados. */
+/** RGBA → `#rrggbb` (alpha 1) or `#rrggbbaa`; channels clamped to 0..1 and rounded. */
 export function formatHexColor(c: Rgba): string {
   const byte = (n: number): string =>
     Math.round(clamp01(Number.isNaN(n) ? 0 : n) * 255)
@@ -474,10 +474,10 @@ export function formatHexColor(c: Rgba): string {
 }
 
 // ---------------------------------------------------------------------------
-// Utilitários de texto (parênteses e strings)
+// Text utilities (parentheses and strings)
 // ---------------------------------------------------------------------------
 
-/** Índice logo após o fim da string que começa em `start` (aspas). */
+/** Index right after the end of the string that starts at `start` (quotes). */
 function skipString(s: string, start: number): number {
   const quote = s[start];
   for (let i = start + 1; i < s.length; i++) {
@@ -487,7 +487,7 @@ function skipString(s: string, start: number): number {
   return s.length;
 }
 
-/** Índice do `)` que fecha o `(` em `open`, ou -1. */
+/** Index of the `)` that closes the `(` at `open`, or -1. */
 function findClose(s: string, open: number): number {
   let depth = 0;
   for (let i = open; i < s.length; i++) {
@@ -499,7 +499,7 @@ function findClose(s: string, open: number): number {
   return -1;
 }
 
-/** Divide no nível raiz por vírgulas ou por espaços em branco. */
+/** Splits at the root level by commas or whitespace. */
 function splitTop(s: string, mode: 'comma' | 'space'): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -582,7 +582,7 @@ function parseCalcBody(text: string): Quantity {
       return { n: parseFloat(num[1]!), u: num[2]! };
     }
     if (ch === '+' || ch === '-') {
-      // Sinal unário antes de parêntese ou função.
+      // Unary sign before a parenthesis or function.
       pos++;
       const q = parseFactor();
       return ch === '-' ? { n: -q.n, u: q.u } : q;
@@ -652,7 +652,7 @@ function formatNumber(n: number): string {
   return s === '-0' ? '0' : s;
 }
 
-/** Avalia uma única expressão `calc(...)` (ou min/max/clamp) ou devolve null se não der. */
+/** Evaluates a single `calc(...)` expression (or min/max/clamp) or returns null if it cannot. */
 export function evaluateCalc(expr: string): string | null {
   const text = expr.trim();
   if (!/^(calc|min|max|clamp)\(/i.test(text)) return null;
@@ -725,14 +725,14 @@ function fixHues(h1: number, h2: number, method: HueMethod): [number, number] {
   return [h1, h2];
 }
 
-/** Avalia uma única `color-mix(...)` e devolve a cor em hex (gamut sRGB com clamp), ou null. */
+/** Evaluates a single `color-mix(...)` and returns the color in hex (sRGB gamut with clamp), or null. */
 export function evaluateColorMix(expr: string): string | null {
   const m = /^color-mix\((.*)\)$/is.exec(expr.trim());
   if (!m) return null;
   const parts = splitTop(m[1]!, 'comma');
   if (parts.length !== 3) return null;
 
-  // Cabeçalho: in <espaço> [<método> hue]?
+  // Header: in <space> [<method> hue]?
   const head = parts[0]!.toLowerCase().split(/\s+/);
   if (head[0] !== 'in' || head.length < 2) return null;
   const space = MIX_SPACES[head[1]!];
@@ -748,7 +748,7 @@ export function evaluateColorMix(expr: string): string | null {
   const i2 = parseMixItem(parts[2]!);
   if (!i1 || !i2) return null;
 
-  // Normalização das porcentagens.
+  // Percentage normalization.
   let p1 = i1.pct;
   let p2 = i2.pct;
   if (p1 === null && p2 === null) p1 = p2 = 50;
@@ -788,7 +788,7 @@ export function evaluateColorMix(expr: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Avaliação de um valor CSS completo
+// Evaluation of a full CSS value
 // ---------------------------------------------------------------------------
 
 const IDENT_CHAR = /[A-Za-z0-9_-]/;
@@ -810,8 +810,8 @@ function evaluateCall(name: string, inner: string): string {
 }
 
 /**
- * Avalia, onde for possível, as funções calc()/min()/max()/clamp() e color-mix() de um valor CSS
- * já sem var(). O resto do valor fica intacto.
+ * Evaluates, where possible, the calc()/min()/max()/clamp() and color-mix() functions of a CSS value
+ * that no longer contains var(). The rest of the value is left intact.
  */
 export function evaluateCss(value: string): string {
   let out = '';

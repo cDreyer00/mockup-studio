@@ -10,14 +10,14 @@ export interface HistoryEntry {
   label?: string;
   at: string;
   /**
-   * Grupo de undo (ex.: um turno do assistente ou uma execução de script). Aplicações seguidas com
-   * o mesmo grupo viram uma única entrada: um undo desfaz todas.
+   * Undo group (e.g. an assistant turn or a script run). Consecutive applications with
+   * the same group become a single entry: one undo reverts them all.
    */
   group?: string;
 }
 
 export interface HistoryApplyOptions {
-  /** Funde com a entrada do topo se ela for do mesmo grupo e nada tiver acontecido entre as duas. */
+  /** Merges with the top entry if it has the same group and nothing happened between the two. */
   group?: string;
 }
 
@@ -27,7 +27,7 @@ export class History {
   private redoStack: HistoryEntry[] = [];
   private rev = 0;
   private readonly limit: number;
-  /** Grupo da última aplicação, enquanto ela continuar no topo da pilha (undo/redo zeram). */
+  /** Group of the last application, while it stays on top of the stack (undo/redo reset it). */
   private openGroup: string | undefined;
 
   constructor(doc: Document, opts: { limit?: number } = {}) {
@@ -57,7 +57,7 @@ export class History {
     opts: HistoryApplyOptions = {},
   ): { doc: Document; results: Results; inverse: Op[]; appliedOps: Op[]; merged: boolean } {
     const r = applyOps(this.current, ops);
-    // Versão com idMap preenchido (duplicateNodes) para que o redo seja determinístico.
+    // Version with idMap filled in (duplicateNodes) so that redo is deterministic.
     const appliedOps = ops.map((op, i) => {
       const filled = r.results[i]?.op as Op | undefined;
       return filled ?? op;
@@ -70,7 +70,7 @@ export class History {
       top.group === opts.group &&
       this.openGroup === opts.group;
     if (merged) {
-      // Redo reaplica na ordem; undo desfaz do mais recente para o mais antigo.
+      // Redo reapplies in order; undo reverts from the most recent to the oldest.
       top.ops = [...top.ops, ...appliedOps];
       top.inverse = [...r.inverse, ...top.inverse];
     } else {
@@ -111,19 +111,19 @@ export class History {
     return { doc: r.doc, ops: entry.ops };
   }
 
-  /** Substitui o documento (ex.: carregar arquivo) e limpa as pilhas. */
+  /** Replaces the document (e.g. loading a file) and clears the stacks. */
   replace(doc: Document): void {
     this.current = doc;
     this.clear();
     this.rev++;
   }
 
-  /** Encerra o grupo aberto: a próxima aplicação, mesmo com o mesmo grupo, vira entrada nova. */
+  /** Closes the open group: the next application, even with the same group, becomes a new entry. */
   closeGroup(group?: string): void {
     if (group === undefined || this.openGroup === group) this.openGroup = undefined;
   }
 
-  /** Entrada do topo da pilha de undo (somente leitura). */
+  /** Top entry of the undo stack (read-only). */
   get top(): Readonly<HistoryEntry> | undefined {
     return this.undoStack[this.undoStack.length - 1];
   }

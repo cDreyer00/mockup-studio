@@ -3,7 +3,7 @@ import { applyOp } from './apply.js';
 import { createDocument, createNodeFromTag } from './document.js';
 import type { Document, Node } from './types.js';
 
-/** 6 frames x 50 nós (300 nós) com estilos realistas. */
+/** 6 frames x 50 nodes (300 nodes) with realistic styles. */
 function bigDoc(): Document {
   const doc = createDocument('Perf', { id: 'doc_perf0001' });
   for (let f = 0; f < 6; f++) {
@@ -16,7 +16,7 @@ function bigDoc(): Document {
     frame.id = `fr_perf${f}aaa`;
     for (let i = 0; i < 49; i++) {
       const n: Node = createNodeFromTag(i % 3 === 0 ? 'p' : 'div', {
-        text: i % 3 === 0 ? 'Texto de exemplo para o mockup' : undefined,
+        text: i % 3 === 0 ? 'Sample text for the mockup' : undefined,
         styles: {
           display: 'flex',
           'flex-direction': 'column',
@@ -39,14 +39,14 @@ function bigDoc(): Document {
 }
 
 function avgMs(fn: () => void, iterations = 100): number {
-  for (let i = 0; i < 5; i++) fn(); // aquecimento
+  for (let i = 0; i < 5; i++) fn(); // warm-up
   const t0 = performance.now();
   for (let i = 0; i < iterations; i++) fn();
   return (performance.now() - t0) / iterations;
 }
 
-describe('desempenho de applyOp (~300 nós)', () => {
-  it('mede applyOp, stringify e clone', () => {
+describe('applyOp performance (~300 nodes)', () => {
+  it('measures applyOp, stringify and clone', () => {
     const doc = bigDoc();
     const id = 'el_perf2x10';
     const r = {
@@ -67,7 +67,7 @@ describe('desempenho de applyOp (~300 nós)', () => {
       cloneStructured: avgMs(() => void structuredClone(doc)),
     };
     const fmt = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, `${v.toFixed(3)} ms`]));
-    console.log('[perf] 300 nós, média de 100 iterações:', JSON.stringify(fmt));
+    console.log('[perf] 300 nodes, average of 100 iterations:', JSON.stringify(fmt));
     expect(r.updateStyles).toBeLessThan(16);
     expect(r.setPosition).toBeLessThan(16);
     expect(r.moveNodes).toBeLessThan(16);

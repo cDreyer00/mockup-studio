@@ -1,7 +1,7 @@
 /**
- * Fragment shaders (GLSL ES 1.0) próprios do catálogo de efeitos. Cada shader declara
- * `u_resolution`, `u_time` (já multiplicado pela velocidade) e um `uniform` por parâmetro (`u_<name>`).
- * Cores chegam como `vec4` rgba (0..1); `select` chega como o índice (float) da opção.
+ * Fragment shaders (GLSL ES 1.0) for the effects catalog. Each shader declares
+ * `u_resolution`, `u_time` (already multiplied by the speed) and one `uniform` per param (`u_<name>`).
+ * Colors arrive as `vec4` rgba (0..1); `select` arrives as the option index (float).
  */
 
 const PRELUDE = `
@@ -47,7 +47,7 @@ mat2 rot(float a) {
   return mat2(c, -s, s, c);
 }
 
-// Dither mínimo para evitar faixas nos degradês suaves.
+// Minimal dither to avoid banding in soft gradients.
 vec3 finish(vec3 c, vec2 frag) {
   return clamp(c + (hash21(frag) - 0.5) / 255.0, 0.0, 1.0);
 }
@@ -69,15 +69,15 @@ void main() {
   vec2 p = (uv - 0.5) * vec2(asp, 1.0);
   float t = u_time * 0.18;
 
-  // torção em torno do centro, mais forte perto dele
+  // swirl around the center, stronger near it
   float r = length(p);
   p = rot(u_swirl * 3.0 * (1.0 - smoothstep(0.0, 1.1, r)) + t * u_swirl * 0.5) * p;
 
-  // deformação por ruído
+  // noise warp
   vec2 q = vec2(fbm(p * 1.4 + vec2(t, -t * 0.7)), fbm(p * 1.4 + vec2(4.1 - t * 0.6, 2.3 + t * 0.5)));
   p += (q - 0.5) * u_distortion * 1.8;
 
-  // quatro manchas que orbitam perto dos cantos
+  // four blobs orbiting near the corners
   vec2 c1 = vec2(-0.30 * asp + 0.20 * asp * sin(t * 1.10), 0.25 + 0.18 * cos(t * 0.90 + 1.0));
   vec2 c2 = vec2(0.30 * asp + 0.20 * asp * cos(t * 0.80 + 2.0), 0.22 + 0.18 * sin(t * 1.20));
   vec2 c3 = vec2(0.28 * asp + 0.20 * asp * sin(t * 0.70 + 4.0), -0.25 + 0.18 * cos(t * 1.00 + 3.0));
@@ -89,7 +89,7 @@ void main() {
   float w4 = exp(-dot(p - c4, p - c4) * k);
   vec3 col = (u_color1.rgb * w1 + u_color2.rgb * w2 + u_color3.rgb * w3 + u_color4.rgb * w4) / (w1 + w2 + w3 + w4 + 0.00001);
 
-  // brilho suave seguindo o ruído
+  // soft glow following the noise
   col += (q.x - 0.5) * 0.10;
 
   float n = hash21(gl_FragCoord.xy + floor(u_time * 30.0) * vec2(13.7, 7.1));
@@ -110,12 +110,12 @@ void main() {
   float asp = u_resolution.x / u_resolution.y;
   float t = u_time * 0.12;
 
-  // base: degradê diagonal levemente ondulado
+  // base: slightly wavy diagonal gradient
   float m = fbm(vec2(uv.x * asp, uv.y) * 1.3 + vec2(t, t * 0.6));
   float g = clamp(uv.y * 0.65 + uv.x * 0.25 + (m - 0.5) * 0.9, 0.0, 1.0);
   vec3 base = mix(u_color1.rgb, u_color2.rgb, smoothstep(0.0, 1.0, g));
 
-  // grão de filme: células em pixels (relativas à altura), quadro novo ~14x por segundo
+  // film grain: cells in pixels (relative to height), new frame ~14x per second
   float cell = max(1.0, u_size * u_resolution.y / 720.0);
   vec2 id = floor(gl_FragCoord.xy / cell);
   float frame = floor(u_time * 14.0);
@@ -145,7 +145,7 @@ void main() {
   vec2 id = floor(q);
   vec2 f = fract(q) - 0.5;
 
-  // campo de tom amostrado no centro da célula (o ponto inteiro tem um só tamanho)
+  // tone field sampled at the cell center (the whole dot has a single size)
   vec2 cp = rot(-a) * ((id + 0.5) * cell);
   vec2 uvc = cp / u_resolution + 0.5;
   float t = u_time * 0.15;
@@ -219,7 +219,7 @@ uniform float u_contrast;
 uniform float u_speed;
 uniform float u_scale;
 
-// altura do "líquido": ruído deformado por ruído
+// "liquid" height: noise warped by noise
 float height(vec2 p, float t) {
   vec2 q = vec2(fbm(p * 0.9 + vec2(t, 0.0)), fbm(p * 0.9 + vec2(3.7, -t)));
   return fbm(p + 2.2 * (q - 0.5) + vec2(0.0, t * 0.5));
@@ -237,7 +237,7 @@ void main() {
   float fy = height(p + vec2(0.0, e), t);
   vec3 nrm = normalize(vec3((f0 - fx) / e * 2.4, (f0 - fy) / e * 2.4, 1.0));
 
-  // ambiente procedural refletido: faixas claras e escuras como num estúdio
+  // reflected procedural environment: light and dark bands like in a studio
   vec3 rd = reflect(vec3(0.0, 0.0, -1.0), nrm);
   float e1 = 0.5 + 0.5 * sin(rd.x * 6.0 + rd.y * 3.5 + 1.0);
   float e2 = 0.5 + 0.5 * cos(rd.y * 8.0 - rd.x * 2.5);
@@ -259,7 +259,7 @@ uniform float u_refraction;
 uniform float u_blur;
 uniform float u_speed;
 
-// pano de fundo visto através do vidro: degradê com manchas de luz em movimento
+// backdrop seen through the glass: gradient with moving light blobs
 vec3 backdrop(vec2 uv, float asp, float t) {
   float m = fbm(vec2(uv.x * asp * 1.5, uv.y * 2.5) + vec2(t * 0.3, -t * 0.2));
   float g = clamp(m + (uv.y - 0.5) * 0.6 + (uv.x - 0.5) * 0.3, 0.0, 1.0);
@@ -275,7 +275,7 @@ void main() {
   float t = u_time * 0.2;
   float ribs = max(u_ribs, 1.0);
 
-  // perfil de cada canelura: s vai de -1 a 1 e desloca a amostra como uma lente
+  // profile of each rib: s goes from -1 to 1 and shifts the sample like a lens
   float s = fract(uv.x * ribs) * 2.0 - 1.0;
   vec2 uvr = uv + vec2(s * u_refraction * 0.9 / ribs, s * s * u_refraction * 0.05);
 

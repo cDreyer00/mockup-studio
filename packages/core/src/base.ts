@@ -1,33 +1,33 @@
 /**
- * CSS base do DOCUMENTO (não da interface do editor): o mesmo no canvas, na página de render
- * (screenshot) e no código exportado, para que os três fiquem idênticos.
+ * Base CSS of the DOCUMENT (not the editor UI): the same on the canvas, on the render page
+ * (screenshot) and in the exported code, so all three stay identical.
  *
- * - `box-sizing: border-box` e `margin: 0` em tudo (os nós controlam o espaçamento com padding/gap);
- * - controles de formulário herdam fonte e cor (como o preflight do Tailwind);
- * - tipografia padrão do documento: fonte do sistema, 16px, `line-height: normal`, texto preto.
+ * - `box-sizing: border-box` e `margin: 0` on everything (nodes control spacing with padding/gap);
+ * - form controls inherit font and color (like Tailwind's preflight);
+ * - default document typography: system font, 16px, `line-height: normal`, black text.
  */
 export const DOCUMENT_FONT_STACK = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
-/** Declarações da raiz do documento (o `body` no código exportado). */
+/** Declarations for the document root (the `body` in exported code). */
 export const DOCUMENT_ROOT_DECLARATIONS =
   `font-family:${DOCUMENT_FONT_STACK};font-size:16px;line-height:normal;color:#000;` +
   'font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;' +
   '-webkit-font-smoothing:auto;color-scheme:light';
 
-/** Fonte padrão do Tailwind v4 (`--default-font-family` = `--font-sans`). */
+/** Tailwind v4 default font (`--default-font-family` = `--font-sans`). */
 export const TAILWIND_FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'";
 
-/** Raiz do documento com a base Tailwind: como a do Mockup Studio, mas com a fonte e o `line-height: 1.5` do preflight. */
+/** Document root with the Tailwind base: like Mockup Studio's, but with the preflight's font and `line-height: 1.5`. */
 export const TAILWIND_ROOT_DECLARATIONS =
   `font-family:${TAILWIND_FONT_STACK};font-size:16px;line-height:1.5;color:#000;` +
   'font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;' +
   '-webkit-font-smoothing:auto;color-scheme:light;tab-size:4;-webkit-text-size-adjust:100%';
 
 /**
- * Preflight do Tailwind v4 (`tailwindcss/preflight.css`, MIT), sem a regra de `html`/`:host`
- * (vai para a raiz do documento) e sem os ajustes de navegador que não afetam o layout.
- * Cada item é `[seletores, declarações]`; os seletores recebem o escopo em `documentBaseCss`.
+ * Tailwind v4 preflight (`tailwindcss/preflight.css`, MIT), without the `html`/`:host` rule
+ * (it goes to the document root) and without the browser fixes that don't affect layout.
+ * Each item is `[selectors, declarations]`; selectors get the scope in `documentBaseCss`.
  */
 export const TAILWIND_PREFLIGHT: [string[], string][] = [
   [
@@ -75,16 +75,16 @@ export const TAILWIND_PREFLIGHT: [string[], string][] = [
 ];
 
 export interface DocumentBaseOptions {
-  /** Inclui o preflight do Tailwind (documentos com `cssBase: 'tailwind'`). */
+  /** Includes the Tailwind preflight (documents with `cssBase: 'tailwind'`). */
   preflight?: boolean;
 }
 
 /**
- * CSS base. Sem `scope`: regras globais com a tipografia no `body` (HTML exportado). Com `scope`
- * (ex.: `.cv-world`): regras restritas ao contêiner; a tipografia vai em `rootSelector` (padrão: o
- * próprio contêiner; no canvas, só os frames, para não atingir rótulos e selos da interface).
- * Com `preflight`, acrescenta o preflight do Tailwind v4 (escopado do mesmo jeito) e usa a raiz
- * tipográfica do Tailwind.
+ * Base CSS. Without `scope`: global rules with the typography on `body` (exported HTML). With `scope`
+ * (e.g. `.cv-world`): rules restricted to the container; the typography goes on `rootSelector` (default: the
+ * container itself; on the canvas, only the frames, so it doesn't reach UI labels and badges).
+ * With `preflight`, adds the Tailwind v4 preflight (scoped the same way) and uses the Tailwind
+ * typographic root.
  */
 export function documentBaseCss(
   scope?: string,
@@ -107,7 +107,7 @@ export function documentBaseCss(
   ].join('\n');
 }
 
-/** CSS base do documento `doc` (com o preflight quando `doc.cssBase === 'tailwind'`). */
+/** Base CSS for document `doc` (with the preflight when `doc.cssBase === 'tailwind'`). */
 export function documentBaseCssFor(
   doc: { cssBase?: 'tailwind' },
   scope?: string,
@@ -116,7 +116,7 @@ export function documentBaseCssFor(
   return documentBaseCss(scope, rootSelector, { preflight: doc.cssBase === 'tailwind' });
 }
 
-/** Declarações da raiz do documento conforme a base (`body` no código exportado). */
+/** Document root declarations for the given base (`body` in exported code). */
 export function documentRootDeclarations(doc: { cssBase?: 'tailwind' }): string {
   return doc.cssBase === 'tailwind' ? TAILWIND_ROOT_DECLARATIONS : DOCUMENT_ROOT_DECLARATIONS;
 }

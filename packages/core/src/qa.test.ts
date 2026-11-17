@@ -1,6 +1,6 @@
 /**
- * Testes de QA do core: sequências mistas de ops com undo/redo, ids de duplicação,
- * seletores CSS em htmlToNodes, round-trip de HTML, herança/var() e rejeição de schema.
+ * Core QA tests: mixed op sequences with undo/redo, duplication ids,
+ * CSS selectors in htmlToNodes, HTML round-trip, inheritance/var() and schema rejection.
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -33,14 +33,14 @@ function setup() {
   const pageId = doc.pages[0]!.id;
   const frame = createNodeFromTag('div', { isRoot: true, name: 'Desktop 1440' });
   const nodes = htmlToNodes(
-    '<section><h1>Título</h1><p>Texto <b>forte</b> fim</p><ul><li>a</li><li>b</li></ul></section>',
+    '<section><h1>Title</h1><p>Text <b>strong</b> end</p><ul><li>a</li><li>b</li></ul></section>',
   );
   frame.children = nodes;
   return { doc, pageId, frame, nodes };
 }
 
 describe('QA core: history', () => {
-  it('sequência mista de ops: undo total devolve documento igual, redo total também', () => {
+  it('mixed op sequence: full undo restores an equal document, and so does full redo', () => {
     const { doc, pageId, frame, nodes } = setup();
     const h = new History(doc);
     const initial = structuredClone(h.doc);
@@ -51,9 +51,9 @@ describe('QA core: history', () => {
     const steps: Parameters<History['apply']>[0][] = [
       [{ type: 'createNode', pageId, node: frame }],
       [{ type: 'updateStyles', nodeIds: [h1.id], styles: { color: 'red', 'font-size': '40px' } }],
-      [{ type: 'setText', changes: [{ nodeId: h1.id, text: 'Novo' }] }],
+      [{ type: 'setText', changes: [{ nodeId: h1.id, text: 'New' }] }],
       [{ type: 'setAttrs', changes: [{ nodeId: p.id, set: { 'data-x': '1' } }] }],
-      [{ type: 'renameNodes', changes: [{ nodeId: ul.id, name: 'Lista' }] } as never],
+      [{ type: 'renameNodes', changes: [{ nodeId: ul.id, name: 'List' }] } as never],
       [{ type: 'duplicateNodes', nodeIds: [section.id] }],
       [{ type: 'moveNodes', nodeIds: [p.id], parentId: frame.id, index: 0 }],
       [{ type: 'deleteNodes', nodeIds: [ul.id] }],
@@ -66,7 +66,7 @@ describe('QA core: history', () => {
       try {
         h.apply(s);
       } catch {
-        // formato de op diferente do suposto neste teste: ignora o passo (não é falha de produto)
+        // op shape differs from the one assumed in this test: skip the step (not a product failure)
         continue;
       }
       applied++;
@@ -84,7 +84,7 @@ describe('QA core: history', () => {
     }
   });
 
-  it('duplicateNodes gera ids novos, únicos e com o prefixo do original', () => {
+  it('duplicateNodes generates new, unique ids with the original prefix', () => {
     const { doc, pageId, frame, nodes } = setup();
     const h = new History(doc);
     h.apply([{ type: 'createNode', pageId, node: frame }]);
@@ -92,9 +92,9 @@ describe('QA core: history', () => {
     const r = h.apply([{ type: 'duplicateNodes', nodeIds: [nodes[0]!.id] }]);
     expect(r.appliedOps.length).toBe(1);
     const after = collectIds(h.doc);
-    expect(new Set(after).size).toBe(after.length); // sem repetidos
-    const novos = after.filter((i) => !before.has(i));
-    expect(novos.length).toBeGreaterThan(0);
+    expect(new Set(after).size).toBe(after.length); // no duplicates
+    const added = after.filter((i) => !before.has(i));
+    expect(added.length).toBeGreaterThan(0);
     const idMap = (r.appliedOps[0] as { idMap: Record<string, string> }).idMap;
     for (const [old, nw] of Object.entries(idMap)) {
       expect(nw).not.toBe(old);
@@ -103,8 +103,8 @@ describe('QA core: history', () => {
   });
 });
 
-describe('QA core: bugs conhecidos', () => {
-  it('duplicateNodes com nó e ancestral na mesma chamada', () => {
+describe('QA core: known bugs', () => {
+  it('duplicateNodes with a node and its ancestor in the same call', () => {
     const { doc, pageId, frame, nodes } = setup();
     const h = new History(doc);
     h.apply([{ type: 'createNode', pageId, node: frame }]);
@@ -123,7 +123,7 @@ describe('QA core: HTML', () => {
     return out;
   };
 
-  it('<style> com tag, .classe, #id, descendente e filho direto', () => {
+  it('<style> with tag, .class, #id, descendant and direct child', () => {
     const ns = htmlToNodes(`
       <style>
         h1 { color: red }
@@ -138,14 +138,14 @@ describe('QA core: HTML', () => {
     const box = find(ns, 'div')[0]!;
     expect(box.style['padding']).toBe('8px');
     const ps = find(ns, 'p');
-    expect(ps.every((p) => p.style['font-size'] === '20px')).toBe(true); // descendente
+    expect(ps.every((p) => p.style['font-size'] === '20px')).toBe(true); // descendant
     expect(ps[1]!.style['margin']).toBe('4px'); // #id
     const spans = find(ns, 'span');
-    expect(spans[0]!.style['opacity']).toBe('.5'); // filho direto
-    expect(spans[1]!.style['opacity']).toBeUndefined(); // neto não casa com ">"
+    expect(spans[0]!.style['opacity']).toBe('.5'); // direct child
+    expect(spans[1]!.style['opacity']).toBeUndefined(); // grandchild does not match ">"
   });
 
-  it('texto misto e atributos', () => {
+  it('mixed text and attributes', () => {
     const ns = htmlToNodes('<p>a <b>b</b> c</p><a href="https://x.y" target="_blank">l</a>');
     const out = nodesToHtml(ns).html;
     expect(out).toContain('a ');
@@ -154,23 +154,23 @@ describe('QA core: HTML', () => {
     expect(out).toContain('target="_blank"');
   });
 
-  it('nodesToHtml -> htmlToNodes -> nodesToHtml é estável', () => {
+  it('nodesToHtml -> htmlToNodes -> nodesToHtml is stable', () => {
     const ns = htmlToNodes(
-      '<section style="display:flex;gap:8px"><h1 style="color:#111">Olá</h1><p>t <i>x</i></p><img src="a.png" alt="z"></section>',
+      '<section style="display:flex;gap:8px"><h1 style="color:#111">Hello</h1><p>t <i>x</i></p><img src="a.png" alt="z"></section>',
     );
     const h1 = nodesToHtml(ns).html;
     const h2 = nodesToHtml(htmlToNodes(h1)).html;
     expect(h2).toBe(h1);
   });
 
-  it('entrada vazia/maliciosa não lança', () => {
+  it('empty/malicious input does not throw', () => {
     expect(htmlToNodes('')).toEqual([]);
-    expect(() => htmlToNodes('<div><p>sem fechar<div>')).not.toThrow();
+    expect(() => htmlToNodes('<div><p>unclosed<div>')).not.toThrow();
     const out = nodesToHtml(htmlToNodes(`<script>alert(1)</script><p onclick="x()">a</p>`)).html;
     expect(out).not.toContain('<script');
   });
 
-  it('svg inline é sanitizado (sem handlers on* nem script)', () => {
+  it('inline svg is sanitized (no on* handlers or script)', () => {
     const [svg] = htmlToNodes(
       '<svg onload="alert(1)"><script>alert(2)</script><circle onclick="x()"/></svg>',
     );
@@ -178,27 +178,27 @@ describe('QA core: HTML', () => {
   });
 });
 
-describe('QA core: computed e schema', () => {
-  it('getComputedLike herda tipografia e resolve var()', () => {
+describe('QA core: computed and schema', () => {
+  it('getComputedLike inherits typography and resolves var()', () => {
     const doc = createDocument('c');
-    doc.tokens['--cor'] = '#abc';
+    doc.tokens['--color'] = '#abc';
     const frame = createNodeFromTag('div', {
       isRoot: true,
-      styles: { color: 'var(--cor)', 'font-family': 'Inter', padding: '8px' },
+      styles: { color: 'var(--color)', 'font-family': 'Inter', padding: '8px' },
     });
-    const [p] = htmlToNodes('<div><p style="background:var(--cor)">x</p></div>');
+    const [p] = htmlToNodes('<div><p style="background:var(--color)">x</p></div>');
     frame.children = [p!];
     doc.pages[0]!.frames.push(frame);
     const cs = getComputedLike(doc, p!.children[0]!.id ?? p!.id);
     const csP = getComputedLike(doc, p!.id);
     expect(csP['color']).toBe('#abc');
     expect(csP['font-family']).toBe('Inter');
-    expect(csP['padding']).toBeUndefined(); // não herdável
+    expect(csP['padding']).toBeUndefined(); // not inheritable
     expect(findNode(doc, p!.id)).toBeDefined();
     expect(cs).toBeDefined();
   });
 
-  it('parseDocument rejeita versão errada, nós inválidos e lixo', () => {
+  it('parseDocument rejects a wrong version, invalid nodes and garbage', () => {
     const doc = createDocument('v');
     const good = JSON.parse(serializeDocument(doc)) as Record<string, unknown>;
     expect(() => parseDocument(good)).not.toThrow();
@@ -207,12 +207,12 @@ describe('QA core: computed e schema', () => {
     const bad = structuredClone(good) as { pages: { frames: unknown[] }[] };
     bad.pages[0]!.frames.push({ id: 'fr_x', tag: 42 });
     expect(() => parseDocument(bad)).toThrow();
-    expect(() => parseDocument('{nao json')).toThrow();
+    expect(() => parseDocument('{not json')).toThrow();
     expect(() => parseDocument(null)).toThrow();
     expect(() => parseDocument({})).toThrow();
   });
 
-  it('exemplo landing.mockup.json valida e tem version 1', () => {
+  it('landing.mockup.json example validates and has version 1', () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const raw = fs.readFileSync(
       path.resolve(here, '../../../examples/landing.mockup.json'),

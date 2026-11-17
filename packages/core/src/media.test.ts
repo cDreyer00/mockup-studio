@@ -30,9 +30,9 @@ function strip(doc: Document): unknown {
   return c;
 }
 
-/** Documento com um frame contendo um nó de cada tipo de mídia. */
+/** Document with a frame containing one node of each media type. */
 function fixture(): Document {
-  const doc = createDocument('Mídia', { id: 'doc_media001' });
+  const doc = createDocument('Media', { id: 'doc_media001' });
   const kids: Node[] = [
     createEffectNode('mesh-gradient', { speed: 2, color1: '#ff0000' }),
     createVideoNode({ src: 'clip.mp4', poster: 'poster.png', autoplay: true, loop: true }),
@@ -53,7 +53,7 @@ function fixture(): Document {
     tag: 'div',
     type: 'frame',
     id: 'fr_aaaaaaaa',
-    name: 'Tela',
+    name: 'Screen',
     style: { width: '400px', height: '300px' },
     children: kids,
   });
@@ -63,7 +63,7 @@ function fixture(): Document {
 
 type RawDoc = { pages: { frames: { children: Record<string, unknown>[] }[] }[] };
 
-/** Documento cru (JSON) com o primeiro filho do frame (fx_aaaaaaaa) substituído. */
+/** Raw document (JSON) with the frame's first child (fx_aaaaaaaa) replaced. */
 function rawWith(patch: Record<string, unknown>, type = 'effect'): RawDoc {
   const raw = JSON.parse(serializeDocument(fixture())) as RawDoc;
   const node = raw.pages[0]!.frames[0]!.children[0]!;
@@ -73,8 +73,8 @@ function rawWith(patch: Record<string, unknown>, type = 'effect'): RawDoc {
   return raw;
 }
 
-describe('createNode de mídia', () => {
-  it('effect: div com type effect e cópia dos params', () => {
+describe('createNode for media', () => {
+  it('effect: div with type effect and a copy of the params', () => {
     const params = { speed: 1 };
     const n = createEffectNode('grain', params);
     expect(n.type).toBe('effect');
@@ -86,38 +86,38 @@ describe('createNode de mídia', () => {
     expect(n.children).toEqual([]);
   });
 
-  it('video: tag video com type video e id vd_', () => {
+  it('video: video tag with type video and vd_ id', () => {
     const n = createVideoNode({ src: 'a.mp4', muted: true });
     expect(n.type).toBe('video');
     expect(n.tag).toBe('video');
     expect(n.id).toMatch(/^vd_/);
     expect(n.video).toEqual({ src: 'a.mp4', muted: true });
-    expect(n.name).toBe('Vídeo');
+    expect(n.name).toBe('Video');
   });
 
-  it('embed: nome padrão por provedor e id eb_', () => {
-    const nomes = EMBED_PROVIDERS.map((provider) => {
+  it('embed: default name per provider and eb_ id', () => {
+    const names = EMBED_PROVIDERS.map((provider) => {
       const n = createEmbedNode({ provider, url: 'https://example.com', src: 'a.json', code: '' });
       expect(n.type).toBe('embed');
       expect(n.tag).toBe('div');
       expect(n.id).toMatch(/^eb_/);
       return n.name;
     });
-    expect(nomes).toEqual(['Lottie', 'Rive', 'YouTube', 'Three.js', 'Iframe']);
+    expect(names).toEqual(['Lottie', 'Rive', 'YouTube', 'Three.js', 'Iframe']);
   });
 
-  it('opções: name, styles e position', () => {
+  it('options: name, styles and position', () => {
     const n = createEffectNode(
       'glass',
       {},
-      { name: 'Fundo', styles: { width: '10px' }, position: { x: 1, y: 2 } },
+      { name: 'Background', styles: { width: '10px' }, position: { x: 1, y: 2 } },
     );
-    expect(n.name).toBe('Fundo');
+    expect(n.name).toBe('Background');
     expect(n.style).toEqual({ width: '10px' });
     expect(n.position).toEqual({ x: 1, y: 2 });
   });
 
-  it('mediaAssetRefs lista só caminhos de assets/ (sem URLs)', () => {
+  it('mediaAssetRefs lists only assets/ paths (no URLs)', () => {
     const doc = fixture();
     const refs = (id: string) => mediaAssetRefs(findNode(doc, id)!.node);
     expect(refs('vd_aaaaaaaa')).toEqual(['clip.mp4', 'poster.png']);
@@ -129,13 +129,13 @@ describe('createNode de mídia', () => {
   });
 });
 
-describe('serialização de documento com mídia', () => {
-  it('passa na validação do schema', () => {
+describe('document serialization with media', () => {
+  it('passes schema validation', () => {
     const r = validateDocument(fixture());
     expect(r.ok).toBe(true);
   });
 
-  it('round-trip JSON é idêntico e estável', () => {
+  it('JSON round-trip is identical and stable', () => {
     const doc = fixture();
     const json = serializeDocument(doc);
     const back = parseDocument(JSON.parse(JSON.stringify(JSON.parse(json))));
@@ -150,52 +150,52 @@ describe('serialização de documento com mídia', () => {
     });
   });
 
-  it('effect sem params recebe {} por padrão', () => {
+  it('effect without params defaults to {}', () => {
     const doc = parseDocument(rawWith({ effect: { kind: 'grain' } }));
     expect(findNode(doc, 'fx_aaaaaaaa')!.node.effect).toEqual({ kind: 'grain', params: {} });
   });
 
-  it('recusa nó sem o campo do seu tipo', () => {
+  it('rejects a node without the field for its type', () => {
     const raw = rawWith({});
     const r = validateDocument(raw);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toContain('nó effect sem o campo effect');
+    if (!r.ok) expect(r.errors.join(' ')).toContain('effect node without the effect field');
   });
 
-  it('recusa filhos em nós de mídia', () => {
+  it('rejects children on media nodes', () => {
     const raw = rawWith({ effect: { kind: 'grain', params: {} } });
     const child = raw.pages[0]!.frames[0]!.children[1]!;
     raw.pages[0]!.frames[0]!.children[0]!.children = [child];
     const r = validateDocument(raw);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toContain('não têm filhos');
+    if (!r.ok) expect(r.errors.join(' ')).toContain('have no children');
   });
 
   it.each([
-    ['provider desconhecido', { embed: { provider: 'vimeo', url: 'https://vimeo.com/1' } }],
-    ['lottie sem src', { embed: { provider: 'lottie' } }],
+    ['unknown provider', { embed: { provider: 'vimeo', url: 'https://vimeo.com/1' } }],
+    ['lottie without src', { embed: { provider: 'lottie' } }],
     [
-      'youtube com url de outro site',
+      'youtube with a url from another site',
       { embed: { provider: 'youtube', url: 'https://example.com' } },
     ],
-    ['iframe com javascript:', { embed: { provider: 'iframe', url: 'javascript:alert(1)' } }],
-    ['iframe sem url', { embed: { provider: 'iframe' } }],
-    ['three sem code', { embed: { provider: 'three' } }],
+    ['iframe with javascript:', { embed: { provider: 'iframe', url: 'javascript:alert(1)' } }],
+    ['iframe without url', { embed: { provider: 'iframe' } }],
+    ['three without code', { embed: { provider: 'three' } }],
     [
-      'three acima de MAX_THREE_CODE',
+      'three above MAX_THREE_CODE',
       { embed: { provider: 'three', code: 'x'.repeat(MAX_THREE_CODE + 1) } },
     ],
-    ['param com nome inválido', { embed: { provider: 'three', code: '', params: { 'a-b': 1 } } }],
+    ['param with invalid name', { embed: { provider: 'three', code: '', params: { 'a-b': 1 } } }],
     [
-      'param com tipo inválido (objeto)',
+      'param with invalid type (object)',
       { embed: { provider: 'three', code: '', params: { a: { x: 1 } } } },
     ],
-    ['param de texto com aspas', { embed: { provider: 'three', code: '', params: { a: 'x"y' } } }],
-  ])('recusa embed: %s', (_nome, patch) => {
+    ['text param with quotes', { embed: { provider: 'three', code: '', params: { a: 'x"y' } } }],
+  ])('rejects embed: %s', (_name, patch) => {
     expect(validateDocument(rawWith(patch, 'embed')).ok).toBe(false);
   });
 
-  it('aceita three com exatamente MAX_THREE_CODE caracteres', () => {
+  it('accepts three with exactly MAX_THREE_CODE characters', () => {
     const embed = { provider: 'three', code: 'x'.repeat(MAX_THREE_CODE) };
     expect(validateDocument(rawWith({ embed }, 'embed')).ok).toBe(true);
   });
@@ -203,39 +203,39 @@ describe('serialização de documento com mídia', () => {
   it.each([
     ['src javascript:', { video: { src: 'javascript:alert(1)' } }],
     ['src data:', { video: { src: 'data:text/html;base64,AAAA' } }],
-    ['src com ..', { video: { src: '../segredo.mp4' } }],
-    ['src absoluto', { video: { src: '/etc/passwd' } }],
-    ['src vazio', { video: { src: '' } }],
+    ['src with ..', { video: { src: '../secret.mp4' } }],
+    ['absolute src', { video: { src: '/etc/passwd' } }],
+    ['empty src', { video: { src: '' } }],
     ['poster javascript:', { video: { src: 'a.mp4', poster: 'javascript:alert(1)' } }],
-    ['time negativo', { video: { src: 'a.mp4', time: -1 } }],
-    ['autoplay não booleano', { video: { src: 'a.mp4', autoplay: 'sim' } }],
-  ])('recusa video: %s', (_nome, patch) => {
+    ['negative time', { video: { src: 'a.mp4', time: -1 } }],
+    ['non-boolean autoplay', { video: { src: 'a.mp4', autoplay: 'yes' } }],
+  ])('rejects video: %s', (_name, patch) => {
     expect(validateDocument(rawWith(patch, 'video')).ok).toBe(false);
   });
 
-  it('aceita poster data:image e src http(s)', () => {
+  it('accepts data:image poster and http(s) src', () => {
     const video = { src: 'https://example.com/a.mp4', poster: 'data:image/png;base64,iVBORw0=' };
     expect(validateDocument(rawWith({ video }, 'video')).ok).toBe(true);
   });
 
   it.each([
-    ['kind com maiúscula', { effect: { kind: 'Mesh' } }],
-    ['kind vazio', { effect: { kind: '' } }],
-    ['param com valor nulo', { effect: { kind: 'grain', params: { speed: null } } }],
-    ['param de texto com caractere proibido', { effect: { kind: 'grain', params: { a: 'x<y' } } }],
-  ])('recusa effect: %s', (_nome, patch) => {
+    ['kind with uppercase', { effect: { kind: 'Mesh' } }],
+    ['empty kind', { effect: { kind: '' } }],
+    ['param with null value', { effect: { kind: 'grain', params: { speed: null } } }],
+    ['text param with forbidden character', { effect: { kind: 'grain', params: { a: 'x<y' } } }],
+  ])('rejects effect: %s', (_name, patch) => {
     expect(validateDocument(rawWith(patch)).ok).toBe(false);
   });
 });
 
 describe('mediaRefProblem', () => {
-  it('aceita caminho relativo e URL http(s)', () => {
+  it('accepts relative path and http(s) URL', () => {
     expect(mediaRefProblem('a/b.mp4')).toBeNull();
     expect(mediaRefProblem('https://example.com/a.mp4?x=1')).toBeNull();
     expect(mediaRefProblem('HTTP://example.com/a')).toBeNull();
   });
 
-  it('recusa esquemas perigosos, caminhos fugitivos e caracteres de injeção', () => {
+  it('rejects dangerous schemes, escaping paths and injection characters', () => {
     for (const ref of [
       'javascript:alert(1)',
       'JavaScript:alert(1)',
@@ -255,7 +255,7 @@ describe('mediaRefProblem', () => {
     }
   });
 
-  it('data:image só com allowDataImage', () => {
+  it('data:image only with allowDataImage', () => {
     const d = 'data:image/png;base64,iVBORw0=';
     expect(mediaRefProblem(d)).not.toBeNull();
     expect(mediaRefProblem(d, { allowDataImage: true })).toBeNull();
@@ -265,29 +265,29 @@ describe('mediaRefProblem', () => {
   });
 });
 
-describe('YouTube e detecção de provedor', () => {
+describe('YouTube and provider detection', () => {
   it.each([
     ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
     ['https://youtu.be/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
     ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
     ['https://youtube.com/shorts/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
     ['https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-    ['https://www.youtube.com/watch?v=curto', null],
+    ['https://www.youtube.com/watch?v=short', null],
     ['https://evil.com/watch?v=dQw4w9WgXcQ', null],
     ['https://notyoutube.com/watch?v=dQw4w9WgXcQ', null],
-    ['não é url', null],
+    ['not a url', null],
   ])('youtubeId(%s)', (url, id) => {
     expect(youtubeId(url)).toBe(id);
   });
 
-  it('youtubeStart entende segundos e 1m30s', () => {
+  it('youtubeStart understands seconds and 1m30s', () => {
     expect(youtubeStart('https://youtu.be/dQw4w9WgXcQ?t=90')).toBe(90);
     expect(youtubeStart('https://youtu.be/dQw4w9WgXcQ?t=1m30s')).toBe(90);
     expect(youtubeStart('https://youtu.be/dQw4w9WgXcQ?start=5')).toBe(5);
     expect(youtubeStart('https://youtu.be/dQw4w9WgXcQ')).toBeUndefined();
   });
 
-  it('youtubeEmbedUrl: sem cookies, autoplay força mute, loop usa playlist', () => {
+  it('youtubeEmbedUrl: cookie-free, autoplay forces mute, loop uses playlist', () => {
     const u = youtubeEmbedUrl('dQw4w9WgXcQ', { autoplay: true, loop: true, controls: false });
     expect(u.startsWith('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?')).toBe(true);
     expect(u).toContain('autoplay=1');
@@ -305,19 +305,19 @@ describe('YouTube e detecção de provedor', () => {
     expect(detectEmbedProvider('a.MP4')).toBe('video');
     expect(detectEmbedProvider('https://example.com/x')).toBe('iframe');
     expect(detectEmbedProvider('')).toBeNull();
-    expect(detectEmbedProvider('algo-sem-extensao')).toBeNull();
+    expect(detectEmbedProvider('something-without-extension')).toBeNull();
   });
 });
 
 describe('op setMedia', () => {
-  it('aplica effect, video e embed e o inverso restaura (imutável)', () => {
+  it('applies effect, video and embed and the inverse restores (immutable)', () => {
     const doc = fixture();
     const before = structuredClone(doc);
     const op = {
       type: 'setMedia' as const,
       changes: [
         { nodeId: 'fx_aaaaaaaa', effect: { kind: 'waves', params: { lines: 5 } } },
-        { nodeId: 'vd_aaaaaaaa', video: { src: 'novo.mp4', muted: true } },
+        { nodeId: 'vd_aaaaaaaa', video: { src: 'new.mp4', muted: true } },
         { nodeId: 'eb_iframe01', embed: { provider: 'iframe' as const, url: 'https://a.dev/' } },
       ],
     };
@@ -327,13 +327,13 @@ describe('op setMedia', () => {
       kind: 'waves',
       params: { lines: 5 },
     });
-    expect(findNode(r.doc, 'vd_aaaaaaaa')!.node.video).toEqual({ src: 'novo.mp4', muted: true });
+    expect(findNode(r.doc, 'vd_aaaaaaaa')!.node.video).toEqual({ src: 'new.mp4', muted: true });
     expect(findNode(r.doc, 'eb_iframe01')!.node.embed!.url).toBe('https://a.dev/');
     const back = applyOps(r.doc, r.inverse);
     expect(strip(back.doc)).toStrictEqual(strip(doc));
   });
 
-  it('não compartilha referência com a op (deepClone)', () => {
+  it('does not share references with the op (deepClone)', () => {
     const effect = { kind: 'grain', params: { speed: 1 } };
     const r = applyOp(fixture(), {
       type: 'setMedia',
@@ -343,20 +343,20 @@ describe('op setMedia', () => {
     expect(findNode(r.doc, 'fx_aaaaaaaa')!.node.effect!.params.speed).toBe(1);
   });
 
-  it('exige exatamente um campo e que case com o tipo do nó', () => {
+  it('requires exactly one field and that it matches the node type', () => {
     const doc = fixture();
     const effect = { kind: 'grain', params: {} };
     const video = { src: 'a.mp4' };
     const run = (c: Record<string, unknown>) =>
       applyOp(doc, { type: 'setMedia', changes: [c as never] });
-    expect(() => run({ nodeId: 'fx_aaaaaaaa' })).toThrow(/exatamente um/);
-    expect(() => run({ nodeId: 'fx_aaaaaaaa', effect, video })).toThrow(/exatamente um/);
-    expect(() => run({ nodeId: 'vd_aaaaaaaa', effect })).toThrow(/só vale em nós effect/);
-    expect(() => run({ nodeId: 'fr_aaaaaaaa', effect })).toThrow(/é frame/);
-    expect(() => run({ nodeId: 'nao_existe', effect })).toThrow(/não encontrado/i);
+    expect(() => run({ nodeId: 'fx_aaaaaaaa' })).toThrow(/exactly one/);
+    expect(() => run({ nodeId: 'fx_aaaaaaaa', effect, video })).toThrow(/exactly one/);
+    expect(() => run({ nodeId: 'vd_aaaaaaaa', effect })).toThrow(/only applies to effect nodes/);
+    expect(() => run({ nodeId: 'fr_aaaaaaaa', effect })).toThrow(/is frame/);
+    expect(() => run({ nodeId: 'does_not_exist', effect })).toThrow(/not found/i);
   });
 
-  it('mudanças múltiplas no mesmo nó desfazem em ordem inversa', () => {
+  it('multiple changes on the same node undo in reverse order', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setMedia',
@@ -373,7 +373,7 @@ describe('op setMedia', () => {
     });
   });
 
-  it('History: undo restaura o estado anterior e redo reaplica', () => {
+  it('History: undo restores the previous state and redo reapplies', () => {
     const h = new History(fixture());
     const original = structuredClone(h.doc);
     h.apply(
@@ -383,7 +383,7 @@ describe('op setMedia', () => {
           changes: [{ nodeId: 'eb_three001', embed: { provider: 'three', code: 'return {};' } }],
         },
       ],
-      'trocar three',
+      'swap three',
     );
     expect(findNode(h.doc, 'eb_three001')!.node.embed).toEqual({
       provider: 'three',
@@ -395,7 +395,7 @@ describe('op setMedia', () => {
     expect(findNode(h.doc, 'eb_three001')!.node.embed!.code).toBe('return {};');
   });
 
-  it('createNode com nó de mídia + inverso remove o nó', () => {
+  it('createNode with a media node + inverse removes the node', () => {
     const doc = fixture();
     const node = createVideoNode({ src: 'x.mp4' });
     const r = applyOp(doc, { type: 'createNode', parentId: 'fr_aaaaaaaa', node });
@@ -404,7 +404,7 @@ describe('op setMedia', () => {
     expect(findNode(back.doc, node.id)).toBeUndefined();
   });
 
-  it('OpSchema valida setMedia e recusa mídia inválida', () => {
+  it('OpSchema validates setMedia and rejects invalid media', () => {
     const ok = OpSchema.safeParse({
       type: 'setMedia',
       changes: [{ nodeId: 'fx_aaaaaaaa', effect: { kind: 'grain', params: { speed: 1 } } }],
@@ -424,7 +424,7 @@ describe('op setMedia', () => {
 });
 
 describe('summary', () => {
-  it('resume cada tipo de mídia com seu campo', () => {
+  it('summarizes each media type with its field', () => {
     const doc = fixture();
     const sum = (id: string) => summarizeNode(findNode(doc, id)!.node);
     expect(sum('fx_aaaaaaaa')).toContain('effect:mesh-gradient');
@@ -435,7 +435,7 @@ describe('summary', () => {
     expect(sum('eb_three001')).not.toContain('return');
   });
 
-  it('árvore do documento lista os nós de mídia', () => {
+  it('document tree lists the media nodes', () => {
     const tree = getDocumentSummary(fixture(), 3);
     expect(tree).toContain('effect:mesh-gradient');
     expect(tree).toContain('embed:iframe https://example.com/page');
@@ -453,18 +453,18 @@ describe('loopbackUrlProblem', () => {
     'http://[::]/',
     'http://[::ffff:127.0.0.1]/',
     'http://LOCALHOST./',
-  ])('recusa %s', (url) => {
+  ])('rejects %s', (url) => {
     expect(loopbackUrlProblem(url)).toMatch(/loopback/);
   });
 
   it.each(['https://example.com/', 'https://128.0.0.1/', 'https://notlocalhost.com/'])(
-    'aceita %s',
+    'accepts %s',
     (url) => {
       expect(loopbackUrlProblem(url)).toBeNull();
     },
   );
 
-  it('EmbedSpecSchema recusa loopback em iframe e YouTube', () => {
+  it('EmbedSpecSchema rejects loopback on iframe and YouTube', () => {
     expect(
       EmbedSpecSchema.safeParse({ provider: 'iframe', url: 'http://127.0.0.1:4747/' }).success,
     ).toBe(false);
@@ -474,7 +474,7 @@ describe('loopbackUrlProblem', () => {
   });
 });
 
-describe('ida e volta de embeds por HTML', () => {
+describe('embeds HTML round trip', () => {
   const specs: EmbedSpec[] = [
     { provider: 'lottie', src: 'lottie/anim.json', params: { loop: false } },
     { provider: 'rive', src: 'rive/a.riv', params: { artboard: 'Main', stateMachine: 'SM' } },
@@ -483,7 +483,7 @@ describe('ida e volta de embeds por HTML', () => {
     { provider: 'youtube', url: 'https://youtu.be/dQw4w9WgXcQ?t=42', params: { start: 42 } },
   ];
 
-  it.each(specs)('nó embed $provider → html → nó com a mesma spec', (spec) => {
+  it.each(specs)('embed node $provider → html → node with the same spec', (spec) => {
     const node = createEmbedNode(spec, { styles: { width: '300px', height: '200px' } });
     const { html, css } = nodesToHtml([node], { mode: 'inline' });
     expect(html).not.toContain('<iframe');
@@ -493,7 +493,7 @@ describe('ida e volta de embeds por HTML', () => {
     expect(back!.style).toMatchObject({ width: '300px', height: '200px' });
   });
 
-  it('embed com url de loopback ou inválida no HTML é ignorado como embed', () => {
+  it('embed with a loopback or invalid url in the HTML is ignored as an embed', () => {
     const [n] = htmlToNodes(
       '<div data-mockup-embed="iframe" data-url="http://127.0.0.1:4747/"></div>',
     );
@@ -501,14 +501,14 @@ describe('ida e volta de embeds por HTML', () => {
   });
 });
 
-describe('setMedia com kind de efeito inexistente', () => {
-  it('recusa e lista kinds válidos', () => {
+describe('setMedia with a nonexistent effect kind', () => {
+  it('rejects and lists valid kinds', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, {
         type: 'setMedia',
-        changes: [{ nodeId: 'fx_aaaaaaaa', effect: { kind: 'nao-existe', params: {} } }],
+        changes: [{ nodeId: 'fx_aaaaaaaa', effect: { kind: 'does-not-exist', params: {} } }],
       }),
-    ).toThrow(/Efeito desconhecido "nao-existe".*mesh-gradient/);
+    ).toThrow(/Unknown effect "does-not-exist".*mesh-gradient/);
   });
 });

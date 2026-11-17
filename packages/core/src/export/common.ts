@@ -1,4 +1,4 @@
-/** Peças compartilhadas pelos exportadores (html, tailwind, react, svg). */
+/** Pieces shared by the exporters (html, tailwind, react, svg). */
 import { deepClone } from '../clone.js';
 import { expandRepeaters } from '../data.js';
 import { findNode, findPage } from '../document.js';
@@ -17,36 +17,36 @@ import {
   type MediaCollector,
 } from './media.js';
 
-/** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
+/** Document base (the same as the canvas and the render): see `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
 
-/** Tipografia da raiz do documento para o Tailwind (o preflight já cobre box-sizing, margin e controles). */
+/** Document root typography for Tailwind (the preflight already covers box-sizing, margin and controls). */
 export const TAILWIND_BASE_CSS = `@layer base {
   body { ${DOCUMENT_ROOT_DECLARATIONS.split(';').join('; ')}; }
 }`;
 
-/** Tipografia da raiz para o Tailwind conforme `doc.cssBase` (o `body` da camada base). */
+/** Root typography for Tailwind according to `doc.cssBase` (the `body` of the base layer). */
 export function tailwindBaseCssFor(doc: { cssBase?: 'tailwind' }): string {
   return `@layer base {\n  body { ${documentRootDeclarations(doc).split(';').join('; ')}; }\n}`;
 }
 
-/** Seleção de nós a exportar: `nodeIds` ou os frames da página (`pageId` ou a primeira). */
+/** Selection of nodes to export: `nodeIds` or the page's frames (`pageId` or the first page). */
 export interface RootSelection {
   pageId?: string;
   nodeIds?: string[];
 }
 
 export interface PrepareOptions {
-  /** Mantém `height` dos frames raiz (padrão: vira `min-height`, o conteúdo pode crescer). */
+  /** Keeps `height` on root frames (default: becomes `min-height`, so content can grow). */
   keepHeight?: boolean;
 }
 
 /**
- * Prepara uma árvore para exportar: remove nós ocultos, descarta declarações CSS inseguras,
- * converte `position` do canvas em left/top nos filhos absolutos e, no frame raiz, troca
- * `height` por `min-height`. Um filho direto com `height:100%` (o wrapper típico da tela) também vira
- * `min-height` com a altura do frame; sem isso o % não tem referência e o conteúdo colapsa, diferente
- * do que se vê no canvas. Trabalha numa cópia; o documento original não é alterado.
+ * Prepares a tree for export: removes hidden nodes, drops unsafe CSS declarations,
+ * converts canvas `position` into left/top on absolute children and, on the root frame, swaps
+ * `height` for `min-height`. A direct child with `height:100%` (the typical screen wrapper) also becomes
+ * `min-height` with the frame's height; without that the % has no reference and the content collapses, unlike
+ * what is seen on the canvas. Works on a copy; the original document is not changed.
  */
 function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   node.style = dropUnsafeStyles(node.style);
@@ -61,7 +61,7 @@ function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
     else delete node.states;
   }
   if (node.type === 'effect' || node.type === 'embed') {
-    // fundo de fallback do efeito (visível sem JS) e `border:0` em iframes; o estilo do nó vence
+    // effect fallback background (visible without JS) and `border:0` on iframes; the node's style wins
     node.style = { ...mediaStyleDefaults(node), ...node.style };
   }
   if (!isRoot && node.style.position === 'absolute' && node.position) {
@@ -85,7 +85,7 @@ function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   for (const c of node.children) prepareNode(c, false, opts);
 }
 
-/** Cópia preparada (ver `prepareNode`) de uma árvore que não é raiz do export: principais e instâncias expandidas. */
+/** Prepared copy (see `prepareNode`) of a tree that is not an export root: main components and expanded instances. */
 export function prepareTree(node: Node, opts: PrepareOptions = {}): Node {
   const copy = deepClone(node);
   prepareNode(copy, false, opts);
@@ -101,21 +101,21 @@ export function resolveRoots(
   if (selection.nodeIds && selection.nodeIds.length > 0) {
     nodes = selection.nodeIds.map((id) => {
       const path = findNode(doc, id);
-      if (!path) throw new Error(`Nó "${id}" não encontrado`);
+      if (!path) throw new Error(`Node "${id}" not found`);
       return path.node;
     });
   } else {
     const page = selection.pageId ? findPage(doc, selection.pageId) : doc.pages[0];
-    if (!page) throw new Error(`Página "${selection.pageId ?? ''}" não encontrada`);
+    if (!page) throw new Error(`Page "${selection.pageId ?? ''}" not found`);
     nodes = page.frames;
   }
-  // Repetidores viram contêineres com os itens expandidos (dados reais no código exportado).
+  // Repeaters become containers with the expanded items (real data in the exported code).
   const copies = deepClone(nodes).map((n) => expandRepeaters(n));
   for (const n of copies) prepareNode(n, true, opts);
   return copies;
 }
 
-/** Tokens com nome e valor válidos (descarta o que quebraria o CSS exportado). */
+/** Tokens with a valid name and value (drops whatever would break the exported CSS). */
 export function cleanTokens(tokens: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(tokens)) {
@@ -137,21 +137,21 @@ export function escapeHtmlAttr(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Bloco `:root { --token: valor }` (vazio se não há tokens). */
+/** `:root { --token: value }` block (empty if there are no tokens). */
 export function rootTokensCss(tokens: Record<string, string>, indent = '  '): string {
   const entries = Object.entries(cleanTokens(tokens));
   if (entries.length === 0) return '';
   return `${indent}:root {\n${entries.map(([k, v]) => `${indent}  ${k}: ${v};`).join('\n')}\n${indent}}`;
 }
 
-/** Corpo de uma regra CSS (`prop: valor;` por linha). */
+/** Body of a CSS rule (`prop: value;` per line). */
 export function cssBody(style: Record<string, string>, indent = '  '): string {
   return Object.entries(style)
     .map(([k, v]) => `${indent}${k}: ${v};`)
     .join('\n');
 }
 
-/** Aloca nomes de classe a partir do nome da camada (slug; repetidos ganham `-2`, `-3`...). */
+/** Allocates class names from the layer name (slug; duplicates get `-2`, `-3`...). */
 export class ClassNamer {
   private used = new Set<string>();
   private counts = new Map<string, number>();
@@ -171,21 +171,21 @@ export class ClassNamer {
   }
 }
 
-/** `src` de imagem relativo a `assets/` → URL exportada; data URLs e URLs absolutas passam. */
+/** Image `src` relative to `assets/` → exported URL; data URLs and absolute URLs pass through. */
 export function assetUrl(src: string, base = 'assets/'): string {
   if (/^(data:|https?:|\/\/|\/|#|blob:)/i.test(src)) return src;
   if (src.startsWith(base)) return src;
   return base + src.replace(/^\.?\//, '');
 }
 
-/** O valor de `white-space` preserva quebras de linha? */
+/** Does the `white-space` value preserve line breaks? */
 export function preservesNewlines(whiteSpace: string | undefined): boolean {
   return !!whiteSpace && /^(pre|pre-wrap|pre-line|break-spaces)$/.test(whiteSpace.trim());
 }
 
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href']);
 
-/** Atributos HTML seguros do nó (sem `on*`, `style`, `class`, `srcdoc` nem URLs perigosas). */
+/** Safe HTML attributes of the node (no `on*`, `style`, `class`, `srcdoc` or dangerous URLs). */
 export function safeAttrs(node: Node): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(node.attrs)) {
@@ -198,7 +198,7 @@ export function safeAttrs(node: Node): Record<string, string> {
   return out;
 }
 
-/** Atributos que, presentes com valor vazio (ou igual ao nome), são booleanos. */
+/** Attributes that are boolean when present with an empty value (or equal to the name). */
 export const BOOLEAN_ATTRS = new Set([
   'allowfullscreen',
   'async',
@@ -227,35 +227,35 @@ export const BOOLEAN_ATTRS = new Set([
 ]);
 
 export interface HtmlStyleAttrs {
-  /** Valor do atributo `class`. */
+  /** Value of the `class` attribute. */
   cls?: string;
-  /** Valor do atributo `style` (declarações `a: b; c: d`). */
+  /** Value of the `style` attribute (`a: b; c: d` declarations). */
   style?: string;
 }
 
 export interface HtmlRenderOptions {
-  /** Classe/estilo de cada nó (chamado em ordem de documento; `isRoot` para os nós raiz). */
+  /** Class/style of each node (called in document order; `isRoot` for root nodes). */
   styleOf: (node: Node, isRoot: boolean) => HtmlStyleAttrs;
-  /** Prefixo de imagens relativas (padrão `assets/`). */
+  /** Prefix for relative images (default `assets/`). */
   assetsBase?: string;
-  /** Troca o `src` de imagens (ex.: data URL). `undefined` mantém o padrão. */
+  /** Overrides the image `src` (e.g. data URL). `undefined` keeps the default. */
   resolveSrc?: (src: string) => string | undefined;
-  /** Saída compatível com XHTML (void tags `<br />`, `xmlns` no svg). */
+  /** XHTML-compatible output (void tags `<br />`, `xmlns` on svg). */
   xhtml?: boolean;
-  /** Recuo inicial em níveis (padrão 0). */
+  /** Initial indentation in levels (default 0). */
   depth?: number;
   /**
-   * Nós de mídia: `live` (padrão) gera canvas/iframe/video prontos para os scripts de
-   * `mediaScripts(media)`; `static` gera markup inerte (`data-mockup-*`), sem scripts.
+   * Media nodes: `live` (default) generates canvas/iframe/video ready for the scripts from
+   * `mediaScripts(media)`; `static` generates inert markup (`data-mockup-*`), without scripts.
    */
   mediaMode?: 'live' | 'static';
-  /** Recebe o que os nós de mídia `live` precisam carregar (scripts, fragments). */
+  /** Receives what `live` media nodes need to load (scripts, fragments). */
   media?: MediaCollector;
-  /** Lê arquivos de `assets/` para embutir o JSON de animações Lottie pequenas no HTML. */
+  /** Reads files from `assets/` to embed the JSON of small Lottie animations in the HTML. */
   readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
-/** Texto do nó: `\n` fica literal (o CSS decide se vira quebra); apenas escapa. */
+/** Node text: `\n` stays literal (CSS decides whether it becomes a break); only escapes. */
 function renderText(text: string): string {
   return escapeHtmlText(text);
 }
@@ -272,7 +272,7 @@ function injectIntoSvg(markup: string, attrs: HtmlStyleAttrs, xhtml: boolean): s
   return out;
 }
 
-/** Renderiza as árvores como HTML (uma linha por tag; texto na linha do elemento). */
+/** Renders the trees as HTML (one line per tag; text on the element's line). */
 export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
   const lines: string[] = [];
   const pad = (d: number): string => '  '.repeat(d);
@@ -340,12 +340,12 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
   return lines.join('\n');
 }
 
-/** Propriedade CSS válida e valor seguro (para uso direto em `style=`/regras). */
+/** Valid CSS property and safe value (for direct use in `style=`/rules). */
 export function isSafeDeclaration(key: string, value: string): boolean {
   return isValidCssPropertyName(key) && cssValueProblem(value) === null;
 }
 
-/** Recua cada linha não vazia de `text` por `n` níveis de 2 espaços. */
+/** Indents each non-empty line of `text` by `n` levels of 2 spaces. */
 export function indentLines(text: string, n: number): string {
   const p = '  '.repeat(n);
   return text
@@ -354,17 +354,17 @@ export function indentLines(text: string, n: number): string {
     .join('\n');
 }
 
-/** O nó tem algum estado com a variante `dark`? */
+/** Does the node have any state with the `dark` variant? */
 export function usesDarkState(node: Node): boolean {
   if (node.states && Object.keys(node.states).some((k) => parseStateKey(k)?.dark)) return true;
   return node.children.some(usesDarkState);
 }
 
 /**
- * Regras CSS dos estados de um nó para o seletor `.cls`: pseudo-classes (`.cls:hover`), `dark`
- * (`.cls:where([data-theme="dark"], [data-theme="dark"] *)`, o mesmo seletor do `@custom-variant`) e
- * breakpoints (`@media (min-width: 768px)`, mobile first). `important` acrescenta `!important` às
- * declarações (necessário quando o estilo base está inline).
+ * CSS rules for a node's states for the `.cls` selector: pseudo-classes (`.cls:hover`), `dark`
+ * (`.cls:where([data-theme="dark"], [data-theme="dark"] *)`, the same selector as the `@custom-variant`) and
+ * breakpoints (`@media (min-width: 768px)`, mobile first). `important` appends `!important` to the
+ * declarations (needed when the base style is inline).
  */
 export function stateRulesCss(
   selector: string,

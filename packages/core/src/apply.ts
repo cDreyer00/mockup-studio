@@ -59,13 +59,13 @@ function fail(message: string): never {
 
 function requireNode(doc: Document, id: string): NodePath {
   const path = findNode(doc, id);
-  if (!path) fail(`Nó "${id}" não encontrado`);
+  if (!path) fail(`Node "${id}" not found`);
   return path;
 }
 
 function requirePage(doc: Document, id: string): Page {
   const page = findPage(doc, id);
-  if (!page) fail(`Página "${id}" não encontrada`);
+  if (!page) fail(`Page "${id}" not found`);
   return page;
 }
 
@@ -75,7 +75,7 @@ function unique<T>(list: T[]): T[] {
 
 function clampIndex(index: number | undefined, length: number): number {
   if (index === undefined || index === null) return length;
-  if (!Number.isFinite(index)) fail(`Índice inválido: ${String(index)}`);
+  if (!Number.isFinite(index)) fail(`Invalid index: ${String(index)}`);
   return Math.max(0, Math.min(length, Math.floor(index)));
 }
 
@@ -85,7 +85,7 @@ function containerArray(path: NodePath): Node[] {
 
 function assertCanHaveChildren(parent: Node): void {
   if (LEAF_TYPES.has(parent.type) || VOID_TAGS.has(parent.tag)) {
-    fail(`O nó "${parent.id}" (${parent.tag}, tipo ${parent.type}) não pode ter filhos`);
+    fail(`Node "${parent.id}" (${parent.tag}, type ${parent.type}) cannot have children`);
   }
 }
 
@@ -99,14 +99,14 @@ function normalizeTree(node: Node): Node {
   return node;
 }
 
-/** Ids da subárvore únicos entre si e no documento (páginas e raízes dos componentes). */
+/** Subtree ids unique among themselves and in the document (pages and component roots). */
 function assertFreshIds(doc: Document, nodes: Node[]): void {
   const existing = new Set([...collectIds(doc), ...componentNodeIds(doc)]);
   const seen = new Set<string>();
   for (const root of nodes) {
     walk(root, (n) => {
-      if (existing.has(n.id)) fail(`Já existe um nó com id "${n.id}"`);
-      if (seen.has(n.id)) fail(`Id duplicado "${n.id}" na subárvore`);
+      if (existing.has(n.id)) fail(`A node with id "${n.id}" already exists`);
+      if (seen.has(n.id)) fail(`Duplicate id "${n.id}" in the subtree`);
       seen.add(n.id);
     });
   }
@@ -125,7 +125,7 @@ function resolveContainer(
     return parent.children;
   }
   assertComponentInsertion(d, null, incoming);
-  if (!pageId) fail('Frame raiz exige "pageId" (e parentId nulo)');
+  if (!pageId) fail('A root frame requires "pageId" (and a null parentId)');
   return requirePage(d, pageId).frames;
 }
 
@@ -146,7 +146,7 @@ function doDeleteNodes(d: Document, op: Extract<Op, { type: 'deleteNodes' }>): A
   const idSet = new Set(ids);
   const paths = ids.map((id) => requireNode(d, id));
   const top = paths.filter((p) => !p.ancestors.some((a) => idSet.has(a.id)));
-  // Ordem crescente de índice garante restauração correta por pai.
+  // Ascending index order guarantees correct restoration per parent.
   const ordered = [...top].sort((a, b) => a.index - b.index);
   const inverse: Op[] = ordered.map((p) =>
     p.parent
@@ -172,7 +172,7 @@ function doMoveNodes(d: Document, op: Extract<Op, { type: 'moveNodes' }>): Appli
     if (op.parentId) {
       const tp = requireNode(d, op.parentId);
       if ([...tp.ancestors, tp.node].some((n) => idSet.has(n.id))) {
-        fail(`Não é possível mover "${tp.node.id}" para dentro de si mesmo ou de um descendente`);
+        fail(`Cannot move "${tp.node.id}" into itself or one of its descendants`);
       }
       assertCanHaveChildren(tp.node);
       if (tp.node.type === 'instance') {
@@ -184,12 +184,12 @@ function doMoveNodes(d: Document, op: Extract<Op, { type: 'moveNodes' }>): Appli
       }
       targetArr = tp.node.children;
     } else {
-      if (!op.pageId) fail('Mover para a raiz exige "pageId"');
+      if (!op.pageId) fail('Moving to the root requires "pageId"');
       targetArr = requirePage(d, op.pageId).frames;
     }
   }
 
-  // Registra as origens antes de remover.
+  // Record the origins before removing.
   interface Origin {
     parentId: string | null;
     pageId: string;
@@ -220,8 +220,8 @@ function doMoveNodes(d: Document, op: Extract<Op, { type: 'moveNodes' }>): Appli
     dest.splice(at, 0, node);
   }
 
-  // Inverso: por contêiner de origem, reposiciona todos os filhos originais (devolve os nós
-  // movidos e restaura a ordem exata dos irmãos).
+  // Inverse: per source container, repositions all original children (returns the moved
+  // nodes and restores the exact sibling order).
   const inverse: Op[] = [];
   for (const o of origins.values()) {
     const base = o.parentId ? { parentId: o.parentId } : { parentId: null, pageId: o.pageId };
@@ -238,14 +238,14 @@ function splitSet(
 ): { set: Record<string, string>; unset: string[] } {
   const keep: Record<string, string> = {};
   const remove: string[] = [];
-  // Valor vazio em `set` equivale a remover a propriedade.
+  // An empty value in `set` is equivalent to removing the property.
   for (const [k, v] of Object.entries(set ?? {})) {
     if (v === undefined || v === null || String(v).trim() === '') remove.push(k);
     else keep[k] = v;
   }
   const norm = (k: string): string => {
     const key = toKebabCase(k.trim());
-    if (!isValidCssPropertyName(key)) fail(`Nome de propriedade CSS inválido: "${k}"`);
+    if (!isValidCssPropertyName(key)) fail(`Invalid CSS property name: "${k}"`);
     return key;
   };
   return {
@@ -255,7 +255,7 @@ function splitSet(
 }
 
 function doUpdateStyles(d: Document, op: Extract<Op, { type: 'updateStyles' }>): Applied {
-  if (!op.changes && !op.nodeIds) fail('updateStyles exige "changes" ou "nodeIds"');
+  if (!op.changes && !op.nodeIds) fail('updateStyles requires "changes" or "nodeIds"');
   const changes: StyleChange[] = [...(op.changes ?? [])];
   for (const nodeId of op.nodeIds ?? []) {
     changes.push({ nodeId, set: op.styles, unset: op.unset });
@@ -297,9 +297,9 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
     const set: Record<string, string> = {};
     for (const [k, v] of Object.entries(ch.set ?? {})) {
       const key = k.trim();
-      if (key === 'style') fail('O atributo "style" não é permitido em attrs; use updateStyles');
-      if (key === 'class') fail('O atributo "class" não é permitido em attrs; use updateStyles');
-      if (!key) fail('Nome de atributo vazio');
+      if (key === 'style') fail('The "style" attribute is not allowed in attrs; use updateStyles');
+      if (key === 'class') fail('The "class" attribute is not allowed in attrs; use updateStyles');
+      if (!key) fail('Empty attribute name');
       const problem = attrNameProblem(key);
       if (problem) fail(problem);
       set[key] = String(v);
@@ -307,19 +307,19 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
     const unset = unique((ch.unset ?? []).map((k) => k.trim()));
     const prevSet: Record<string, string> = {};
     const prevUnset: string[] = [];
-    // Nó svg: os atributos valem para o `<svg>` raiz do markup (é o que export e render usam).
-    // Sem markup, a gravação vai para `node.attrs`, então é dele que vem o valor anterior.
+    // Svg node: the attributes apply to the markup's root `<svg>` (which is what export and render use).
+    // Without markup, the write goes to `node.attrs`, so the previous value comes from there.
     const target = node.type === 'svg' && node.svg ? svgRootAttrs(node.svg) : node.attrs;
     for (const k of unique([...unset, ...Object.keys(set)])) {
       if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
     }
     if (node.type === 'svg' && node.vector) {
-      // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
+      // With a vector model, the attributes go to the vector (raw and attrs) and the markup is regenerated.
       const v = node.vector;
       if (unset.includes('viewBox')) {
         fail(
-          'Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)',
+          'Cannot remove "viewBox" from an svg with a vector model (it defines the coordinate system)',
         );
       }
       if (set.viewBox !== undefined) {
@@ -333,7 +333,7 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
           /^[\s,+\-.\deE]+$/.test(set.viewBox);
         if (!ok)
           fail(
-            `viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`,
+            `Invalid viewBox: "${set.viewBox}" (expected "x y width height", width and height > 0)`,
           );
         v.viewBox = { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
       }
@@ -374,7 +374,7 @@ function doSetPosition(d: Document, op: Extract<Op, { type: 'setPosition' }>): A
     if (ch.position !== null) {
       const { x, y } = ch.position ?? { x: NaN, y: NaN };
       if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        fail(`Posição inválida para o nó "${ch.nodeId}": x e y devem ser números`);
+        fail(`Invalid position for node "${ch.nodeId}": x and y must be numbers`);
       }
       next = { x, y };
     }
@@ -426,11 +426,11 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
   const ids = unique(op.nodeIds);
   const idSet = new Set(ids);
   const paths = ids.map((id) => requireNode(d, id));
-  // Só os nós de topo: ancestral e descendente na mesma chamada duplicariam o descendente duas vezes.
+  // Top-level nodes only: an ancestor and a descendant in the same call would duplicate the descendant twice.
   const top = paths.filter((p) => !p.ancestors.some((a) => idSet.has(a.id)));
   for (const path of top) {
     if (path.parent?.type === 'instance') {
-      fail(`O contêiner de slot "${path.node.id}" não pode ser duplicado (um contêiner por slot)`);
+      fail(`The slot container "${path.node.id}" cannot be duplicated (one container per slot)`);
     }
     const { node: clone } = cloneNodeWithNewIds(path.node, idMap);
     if (!path.parent && clone.position) {
@@ -456,10 +456,10 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
   };
 }
 
-/* ---------------- páginas ---------------- */
+/* ---------------- pages ---------------- */
 
 function doCreatePage(d: Document, op: Extract<Op, { type: 'createPage' }>): Applied {
-  if (findPage(d, op.pageId)) fail(`Já existe uma página com id "${op.pageId}"`);
+  if (findPage(d, op.pageId)) fail(`A page with id "${op.pageId}" already exists`);
   const frames = (op.frames ?? []).map((f) => normalizeTree(deepClone(f)));
   assertFreshIds(d, frames);
   const page: Page = {
@@ -477,7 +477,7 @@ function doCreatePage(d: Document, op: Extract<Op, { type: 'createPage' }>): App
 
 function doDeletePage(d: Document, op: Extract<Op, { type: 'deletePage' }>): Applied {
   const page = requirePage(d, op.pageId);
-  if (d.pages.length <= 1) fail('Não é possível excluir a última página do documento');
+  if (d.pages.length <= 1) fail('Cannot delete the last page of the document');
   const index = d.pages.indexOf(page);
   d.pages.splice(index, 1);
   return {
@@ -503,13 +503,13 @@ function doRenamePage(d: Document, op: Extract<Op, { type: 'renamePage' }>): App
 
 function checkTokenValues(set: Record<string, string>): void {
   for (const [k, v] of Object.entries(set)) {
-    if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
+    if (!TOKEN_NAME_RE.test(k)) fail(`Invalid token name: "${k}" (use the format --name)`);
     const problem = cssValueProblem(v);
-    if (problem) fail(`Valor inválido para o token "${k}": ${problem}`);
+    if (problem) fail(`Invalid value for token "${k}": ${problem}`);
   }
 }
 
-/** Aplica set/unset num mapa e devolve o par (set, unset) que desfaz. */
+/** Applies set/unset to a map and returns the (set, unset) pair that undoes it. */
 function patchMap<T>(
   target: Record<string, T>,
   set: Record<string, T>,
@@ -526,7 +526,7 @@ function patchMap<T>(
   return { prevSet, prevUnset };
 }
 
-/** Remove `tokenMeta`/`themes` vazios: documentos sem temas continuam sem os campos. */
+/** Removes empty `tokenMeta`/`themes`: documents without themes stay without the fields. */
 function tidyTokenFields(d: Document): void {
   if (d.tokenMeta && Object.keys(d.tokenMeta).length === 0) delete d.tokenMeta;
   if (d.themes && d.themes.length === 0) delete d.themes;
@@ -534,7 +534,7 @@ function tidyTokenFields(d: Document): void {
 
 function requireTheme(d: Document, name: string): Theme {
   const theme = d.themes?.find((t) => t.name === name);
-  if (!theme) fail(`Tema "${name}" não encontrado`);
+  if (!theme) fail(`Theme "${name}" not found`);
   return theme;
 }
 
@@ -553,7 +553,7 @@ function doSetTokenMeta(d: Document, op: Extract<Op, { type: 'setTokenMeta' }>):
   const set = normalizeTokenNames(op.set ?? {});
   const unset = (op.unset ?? []).map(normalizeTokenName);
   for (const k of Object.keys(set)) {
-    if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
+    if (!TOKEN_NAME_RE.test(k)) fail(`Invalid token name: "${k}" (use the format --name)`);
   }
   const meta: Record<string, TokenMeta> = (d.tokenMeta ??= {});
   const clean: Record<string, TokenMeta> = {};
@@ -603,7 +603,7 @@ function doReplaceTokens(d: Document, op: Extract<Op, { type: 'replaceTokens' }>
   return { inverse: [inverse] };
 }
 
-/** Troca a chave `from` por `to` mantendo a ordem das chaves. */
+/** Replaces key `from` with `to`, keeping the key order. */
 function renameKey<T>(map: Record<string, T>, from: string, to: string): Record<string, T> {
   const out: Record<string, T> = {};
   for (const [k, v] of Object.entries(map)) out[k === from ? to : k] = v;
@@ -626,10 +626,10 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
   if (d.tokenMeta) d.tokenMeta = renameKey(d.tokenMeta, from, to);
   for (const t of d.themes ?? []) t.overrides = renameValues(t.overrides);
 
-  // Estilos dos nós: referências var() e declarações locais da própria variável.
-  // Também valores de `attrs` (ex.: `fill="var(--x)"`) e o markup de nós svg. O undo de attrs usa
-  // `setAttrs` (nós comuns) ou `setSvg` com `attrs` (nó svg com markup, onde `setAttrs` mexeria no
-  // `<svg>` raiz e não em `node.attrs`), restaurando markup e attrs juntos.
+  // Node styles: var() references and local declarations of the variable itself.
+  // Also `attrs` values (e.g. `fill="var(--x)"`) and the markup of svg nodes. The attrs undo uses
+  // `setAttrs` (regular nodes) or `setSvg` with `attrs` (svg node with markup, where `setAttrs` would touch the
+  // root `<svg>` and not `node.attrs`), restoring markup and attrs together.
   const styleInv: StyleChange[] = [];
   const statesInv: { nodeId: string; states: Record<string, Record<string, string>> }[] = [];
   const attrsInv: { nodeId: string; set: Record<string, string>; unset: string[] }[] = [];
@@ -711,7 +711,7 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
       }
       if (attrsChanged || svgChanged) touched.add(node.id);
 
-      // Dica de classes Tailwind do nó: acompanha o rename (nome curto do tema e formas var()).
+      // Node Tailwind classes hint: follows the rename (short theme name and var() forms).
       if (node.classes) {
         const r = renameTokenInClasses(node.classes, from, to);
         if (r.changed > 0) {
@@ -723,7 +723,7 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
       }
     });
   }
-  // Componentes: raízes, variantes e overrides das instâncias (ver components/tokens.ts).
+  // Components: roots, variants and instance overrides (see components/tokens.ts).
   const comp = renameTokenInComponents(d, from, to);
   inverse.push(...comp.inverse);
   for (const id of comp.nodeIds) touched.add(id);
@@ -740,8 +740,8 @@ function doSetFonts(d: Document, op: Extract<Op, { type: 'setFonts' }>): Applied
   const seen = new Set<string>();
   for (const f of op.fonts) {
     const key = f.family.trim().toLowerCase();
-    if (!key) fail('Fonte sem nome de família');
-    if (seen.has(key)) fail(`Fonte duplicada: "${f.family}"`);
+    if (!key) fail('Font without a family name');
+    if (seen.has(key)) fail(`Duplicate font: "${f.family}"`);
     seen.add(key);
   }
   const prev = deepClone(d.fonts);
@@ -753,8 +753,8 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
   const prev: { nodeId: string; src: string }[] = [];
   for (const c of op.changes) {
     const p = findNode(d, c.nodeId);
-    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
-    if (p.node.type !== 'image') fail(`O nó "${c.nodeId}" não é uma imagem`);
+    if (!p) fail(`Node not found: "${c.nodeId}"`);
+    if (p.node.type !== 'image') fail(`Node "${c.nodeId}" is not an image`);
     prev.push({ nodeId: c.nodeId, src: p.node.src ?? '' });
     p.node.src = c.src;
   }
@@ -765,15 +765,15 @@ function doSetSvg(d: Document, op: Extract<Op, { type: 'setSvg' }>): Applied {
   const prev: { nodeId: string; svg: string; attrs?: Record<string, string> }[] = [];
   for (const c of op.changes) {
     const p = findNode(d, c.nodeId);
-    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
-    if (p.node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um SVG`);
-    // Mesma sanitização aplicada ao `svg` na criação do nó (schema.ts).
+    if (!p) fail(`Node not found: "${c.nodeId}"`);
+    if (p.node.type !== 'svg') fail(`Node "${c.nodeId}" is not an SVG`);
+    // Same sanitization applied to `svg` on node creation (schema.ts).
     const svg = sanitizeSvg(c.svg);
-    if (!svg) fail(`O markup do nó "${c.nodeId}" não contém um <svg> válido`);
-    // `attrs` novos ou alterados passam pelas mesmas regras do `setAttrs` (sem on*, style e class).
+    if (!svg) fail(`The markup of node "${c.nodeId}" does not contain a valid <svg>`);
+    // New or changed `attrs` go through the same rules as `setAttrs` (no on*, style or class).
     for (const [k, v] of Object.entries(c.attrs ?? {})) {
       if (p.node.attrs[k] === v) continue;
-      if (k === 'style' || k === 'class') fail(`O atributo "${k}" não é permitido em attrs`);
+      if (k === 'style' || k === 'class') fail(`The "${k}" attribute is not allowed in attrs`);
       const problem = attrNameProblem(k);
       if (problem) fail(problem);
     }
@@ -795,7 +795,7 @@ function doSetClasses(d: Document, op: Extract<Op, { type: 'setClasses' }>): App
     const p = requireNode(d, c.nodeId);
     prev.push({ nodeId: c.nodeId, classes: p.node.classes ?? null });
     const next = (c.classes ?? '').trim().replace(/\s+/g, ' ');
-    if (/[<{};"`]/.test(next)) fail(`Classes inválidas no nó "${c.nodeId}": ${next}`);
+    if (/[<{};"`]/.test(next)) fail(`Invalid classes on node "${c.nodeId}": ${next}`);
     if (next) p.node.classes = next;
     else delete p.node.classes;
   }
@@ -812,15 +812,15 @@ function doSetStates(d: Document, op: Extract<Op, { type: 'setStates' }>): Appli
       const key = normalizeStateKey(rawKey);
       if (!key) {
         fail(
-          `Estado inválido "${rawKey}" no nó "${c.nodeId}" (use hover, focus, focus-visible, focus-within, active, disabled, dark, sm, md, lg, xl, 2xl ou combinações como "md:hover")`,
+          `Invalid state "${rawKey}" on node "${c.nodeId}" (use hover, focus, focus-visible, focus-within, active, disabled, dark, sm, md, lg, xl, 2xl or combinations like "md:hover")`,
         );
       }
       const clean: Record<string, string> = {};
       for (const [k, v] of Object.entries(styles)) {
         const prop = toKebabCase(k.trim());
-        if (!isValidCssPropertyName(prop)) fail(`Propriedade CSS inválida: "${k}"`);
+        if (!isValidCssPropertyName(prop)) fail(`Invalid CSS property: "${k}"`);
         const problem = cssValueProblem(v);
-        if (problem) fail(`Valor inválido em ${prop} (${key}): ${problem}`);
+        if (problem) fail(`Invalid value in ${prop} (${key}): ${problem}`);
         if (v.trim() !== '') clean[prop] = v.trim();
       }
       if (Object.keys(clean).length > 0) {
@@ -844,10 +844,10 @@ function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Appli
   const prev: { nodeId: string; vector: Vector | null; svg?: string }[] = [];
   for (const c of op.changes) {
     const p = findNode(d, c.nodeId);
-    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    if (!p) fail(`Node not found: "${c.nodeId}"`);
     const node = p.node;
-    if (node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um svg`);
-    // `svg: ''` no inverso = o nó não tinha markup (aplicar remove `node.svg`).
+    if (node.type !== 'svg') fail(`Node "${c.nodeId}" is not an svg`);
+    // `svg: ''` in the inverse = the node had no markup (applying removes `node.svg`).
     const before: { nodeId: string; vector: Vector | null; svg?: string } = {
       nodeId: c.nodeId,
       vector: node.vector ? deepClone(node.vector) : null,
@@ -859,7 +859,7 @@ function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Appli
       if (c.svg === '') delete node.svg;
       else {
         const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
-        if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
+        if (!markup) fail(`Invalid SVG for node "${c.nodeId}"`);
         node.svg = markup;
       }
     } else {
@@ -875,17 +875,18 @@ function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied
   const prev: SetMediaOp['changes'] = [];
   for (const c of op.changes) {
     const p = findNode(d, c.nodeId);
-    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    if (!p) fail(`Node not found: "${c.nodeId}"`);
     const n = p.node;
     const given = (['effect', 'video', 'embed'] as const).filter((k) => c[k] !== undefined);
     if (given.length !== 1)
-      fail(`setMedia em "${c.nodeId}": informe exatamente um de effect, video ou embed`);
+      fail(`setMedia on "${c.nodeId}": provide exactly one of effect, video or embed`);
     const field = given[0]!;
-    if (n.type !== field) fail(`O nó "${c.nodeId}" é ${n.type}; ${field} só vale em nós ${field}`);
+    if (n.type !== field)
+      fail(`Node "${c.nodeId}" is ${n.type}; ${field} only applies to ${field} nodes`);
     if (field === 'effect' && c.effect && !getEffect(c.effect.kind)) {
       const kinds = effectKinds();
       fail(
-        `Efeito desconhecido "${c.effect.kind}" em "${c.nodeId}". Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? `… (${kinds.length} no total; veja list_effects)` : ''}`,
+        `Unknown effect "${c.effect.kind}" on "${c.nodeId}". Valid: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? `… (${kinds.length} in total; see list_effects)` : ''}`,
       );
     }
     prev.push({ nodeId: c.nodeId, [field]: deepClone(n[field]) });
@@ -894,7 +895,7 @@ function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied
   return { inverse: [{ type: 'setMedia', changes: prev.reverse() }] };
 }
 
-/* ---------------- API pública ---------------- */
+/* ---------------- Public API ---------------- */
 
 /* ---------------- setData ---------------- */
 
@@ -903,7 +904,9 @@ function doSetData(d: Document, op: Extract<Op, { type: 'setData' }>): Applied {
   for (const ch of op.changes) {
     const node = requireNode(d, ch.nodeId).node;
     if (node.type !== 'repeater') {
-      fail(`O nó "${ch.nodeId}" não é um repetidor (tipo ${node.type}); só nós repeater têm dados`);
+      fail(
+        `Node "${ch.nodeId}" is not a repeater (type ${node.type}); only repeater nodes have data`,
+      );
     }
     const before: { nodeId: string; data?: unknown[] | null; source?: DataSource | null } = {
       nodeId: ch.nodeId,
@@ -923,10 +926,10 @@ function doSetData(d: Document, op: Extract<Op, { type: 'setData' }>): Applied {
   return { inverse: [{ type: 'setData', changes: prev.reverse() }] };
 }
 
-/** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
+/** Applies an op immutably and returns the new document + inverse op(s). */
 export function applyOp(doc: Document, rawOp: Op): ApplyResult {
   const op = parseOp(rawOp);
-  // Ids virtuais de instância e nós dos principais (ver components/route.ts).
+  // Virtual instance ids and main component nodes (see components/route.ts).
   const routed = routeComponentOp(doc, op, applyOp);
   if (routed) return routed;
   const d = deepClone(doc);
@@ -1035,13 +1038,13 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       applied = doSetMedia(d, op);
       break;
     default:
-      return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);
+      return fail(`Unknown operation: "${String((op as { type?: unknown }).type)}"`);
   }
   d.meta.updatedAt = new Date().toISOString();
   return { doc: d, inverse: applied.inverse, result: applied.result };
 }
 
-/** Aplica ops em sequência, atomicamente. `inverse` já vem na ordem para desfazer. */
+/** Applies ops in sequence, atomically. `inverse` already comes in undo order. */
 export function applyOps(
   doc: Document,
   ops: Op[],
@@ -1057,7 +1060,7 @@ export function applyOps(
       results.push(r.result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Operação #${i + 1} (${op.type}) falhou: ${msg}`);
+      throw new Error(`Operation #${i + 1} (${op.type}) failed: ${msg}`);
     }
   });
   return { doc: cur, inverse: groups.reverse().flat(), results };

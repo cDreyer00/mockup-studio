@@ -2,9 +2,9 @@ import type { Document } from '../types.js';
 import { createTailwindEngine, tailwindEngineKey, type TailwindEngine } from './engine.js';
 
 /**
- * Cache dos motores por chave de tokens (`tailwindEngineKey`): o mesmo documento reaproveita o
- * compilador até os tokens do `@theme` mudarem (aí a chave muda e um novo motor é criado).
- * Guarda os últimos 8 motores e deduplica criações simultâneas.
+ * Engine cache keyed by tokens (`tailwindEngineKey`): the same document reuses the
+ * compiler until the `@theme` tokens change (then the key changes and a new engine is created).
+ * Keeps the last 8 engines and dedupes concurrent creations.
  */
 const MAX = 8;
 const ready = new Map<string, TailwindEngine>();
@@ -19,9 +19,9 @@ function remember(key: string, engine: TailwindEngine): void {
 const warmed = new WeakSet<TailwindEngine>();
 
 /**
- * Aquece o motor em ocioso (uma vez por motor), sem bloquear quem pediu: `requestIdleCallback` no
- * navegador, `setTimeout(0)` no Node (depois de a resposta sair). Assim o primeiro `get_code` ou
- * "Mostrar como Tailwind" não paga a montagem dos índices da canonicalização.
+ * Warms the engine up when idle (once per engine), without blocking the caller: `requestIdleCallback` in
+ * the browser, `setTimeout(0)` in Node (after the response is out). This way the first `get_code` or
+ * "Show as Tailwind" does not pay for building the canonicalization indexes.
  */
 function scheduleWarmup(engine: TailwindEngine): void {
   if (warmed.has(engine)) return;
@@ -30,7 +30,7 @@ function scheduleWarmup(engine: TailwindEngine): void {
     try {
       engine.warmup();
     } catch {
-      /* o aquecimento é só otimização */
+      /* warm-up is only an optimization */
     }
   };
   const ric = (globalThis as { requestIdleCallback?: (cb: () => void) => unknown })
@@ -40,8 +40,8 @@ function scheduleWarmup(engine: TailwindEngine): void {
 }
 
 /**
- * Motor do documento (criado na primeira chamada; depois vem do cache). `warmup: false` não agenda
- * o aquecimento em ocioso do motor recém-criado.
+ * Document engine (created on the first call; afterwards it comes from the cache). `warmup: false` does not schedule
+ * the idle warm-up of the newly created engine.
  */
 export function getTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
@@ -67,14 +67,14 @@ export function getTailwindEngine(
   return p;
 }
 
-/** Motor já pronto para o documento, sem esperar (`undefined` se ainda não foi criado). */
+/** Engine already ready for the document, without waiting (`undefined` if not created yet). */
 export function peekTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
 ): TailwindEngine | undefined {
   return ready.get(tailwindEngineKey(doc));
 }
 
-/** Esvazia o cache (testes). */
+/** Clears the cache (tests). */
 export function clearTailwindEngines(): void {
   ready.clear();
   pending.clear();

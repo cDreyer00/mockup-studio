@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- o runtime acessa globais do navegador sem tipos DOM */
+/* eslint-disable @typescript-eslint/no-explicit-any -- the runtime accesses browser globals without DOM types */
 /**
- * Runtime dos efeitos (WebGL para shaders, canvas 2D para partículas).
+ * Effects runtime (WebGL for shaders, 2D canvas for particles).
  *
- * `mockupEffectsRuntime` é uma fábrica AUTOCONTIDA: o corpo não referencia nada do módulo (só
- * tipos, que somem na compilação), para que `effectsRuntimeSource()` (via `toString`) seja
- * embutido no código exportado (HTML e React) e rode igual ao editor. Globais do navegador são
- * acessados por `globalThis`.
+ * `mockupEffectsRuntime` is a SELF-CONTAINED factory: its body references nothing from the module
+ * (only types, which vanish at compile time), so `effectsRuntimeSource()` (via `toString`) can be
+ * embedded in the exported code (HTML and React) and run the same as in the editor. Browser
+ * globals are accessed through `globalThis`.
  */
 import type { EffectSpec, MediaParamValue } from '../types.js';
 import { getEffect, resolveEffectParams, type EffectCategory } from './catalog.js';
@@ -14,21 +14,21 @@ export interface EffectMountSpec {
   kind: string;
   category: EffectCategory;
   params: Record<string, MediaParamValue>;
-  /** Fragment shader (categoria `shader`). */
+  /** Fragment shader (`shader` category). */
   fragment?: string;
-  /** Opções dos parâmetros `select` (nome → opções), para o shader receber o índice da opção. */
+  /** Options of `select` params (name → options), so the shader receives the option index. */
   selects?: Record<string, string[]>;
 }
 
 export interface EffectHandle {
-  /** Troca os parâmetros (sem recriar o contexto). */
+  /** Replaces the params (without recreating the context). */
   setParams(params: Record<string, MediaParamValue>): void;
-  /** Ajusta o tamanho do canvas (px CSS) e a densidade (padrão 1). */
+  /** Sets the canvas size (CSS px) and density (default 1). */
   resize(width: number, height: number, dpr?: number): void;
-  /** Desenha o quadro no tempo `t` (s; já multiplicado pela velocidade do efeito internamente). */
+  /** Draws the frame at time `t` (s; the effect speed is applied internally). */
   draw(t: number): void;
   destroy(): void;
-  /** `false` quando o WebGL/canvas não está disponível ou o shader não compilou. */
+  /** `false` when WebGL/canvas is unavailable or the shader failed to compile. */
   readonly ok: boolean;
   readonly error?: string;
 }
@@ -39,11 +39,11 @@ export interface EffectPlayer {
 }
 
 export interface EffectsRuntime {
-  /** Monta o efeito num `<canvas>` (sem laço: quem chama decide quando desenhar). */
+  /** Mounts the effect on a `<canvas>` (no loop: the caller decides when to draw). */
   mount(canvas: unknown, spec: EffectMountSpec): EffectHandle;
   /**
-   * Monta e anima com `requestAnimationFrame`, acompanhando o tamanho do canvas
-   * (`ResizeObserver`) e respeitando `prefers-reduced-motion` (desenha só o quadro 0).
+   * Mounts and animates with `requestAnimationFrame`, tracking the canvas size
+   * (`ResizeObserver`) and honoring `prefers-reduced-motion` (draws only frame 0).
    */
   play(canvas: unknown, spec: EffectMountSpec): EffectPlayer;
 }
@@ -123,15 +123,15 @@ export function mockupEffectsRuntime(): EffectsRuntime {
       gl.shaderSource(sh, source);
       gl.compileShader(sh);
       if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-        const log = gl.getShaderInfoLog(sh) || 'erro desconhecido';
+        const log = gl.getShaderInfoLog(sh) || 'unknown error';
         gl.deleteShader(sh);
-        throw new Error('Falha ao compilar o shader: ' + log);
+        throw new Error('Failed to compile the shader: ' + log);
       }
       return sh;
     };
 
-    if (!gl) error = 'WebGL indisponível neste navegador.';
-    else if (!spec.fragment) error = 'Efeito sem fragment shader.';
+    if (!gl) error = 'WebGL is unavailable in this browser.';
+    else if (!spec.fragment) error = 'Effect has no fragment shader.';
     else {
       try {
         const vs = compile(
@@ -148,7 +148,7 @@ export function mockupEffectsRuntime(): EffectsRuntime {
         gl.deleteShader(fs);
         if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
           throw new Error(
-            'Falha ao ligar o programa: ' + (gl.getProgramInfoLog(prog) || 'erro desconhecido'),
+            'Failed to link the program: ' + (gl.getProgramInfoLog(prog) || 'unknown error'),
           );
         }
         buf = gl.createBuffer();
@@ -231,7 +231,7 @@ export function mockupEffectsRuntime(): EffectsRuntime {
     return handle;
   };
 
-  // ---------- partículas (canvas 2D, determinísticas em (seed, i, t)) ----------
+  // ---------- particles (2D canvas, deterministic in (seed, i, t)) ----------
   const mountParticles = (cv: any, spec: EffectMountSpec): EffectHandle => {
     let ctx: any = null;
     try {
@@ -239,12 +239,12 @@ export function mockupEffectsRuntime(): EffectsRuntime {
     } catch {
       ctx = null;
     }
-    if (!ctx) return failed('Canvas 2D indisponível neste navegador.');
+    if (!ctx) return failed('Canvas 2D is unavailable in this browser.');
     let params: Record<string, MediaParamValue> = { ...spec.params };
     let dpr = 1;
     let destroyed = false;
 
-    // hash determinístico em [0, 1)
+    // deterministic hash in [0, 1)
     const hash = (seed: number, i: number, k: number): number => {
       const x = Math.sin(i * 127.1 + k * 311.7 + seed * 74.7 + 0.5) * 43758.5453;
       return x - Math.floor(x);
@@ -379,7 +379,7 @@ export function mockupEffectsRuntime(): EffectsRuntime {
 
   const mount = (canvas: unknown, spec: EffectMountSpec): EffectHandle => {
     const cv: any = canvas;
-    if (!cv || typeof cv.getContext !== 'function') return failed('Canvas inválido.');
+    if (!cv || typeof cv.getContext !== 'function') return failed('Invalid canvas.');
     return spec.category === 'particles' ? mountParticles(cv, spec) : mountShader(cv, spec);
   };
 
@@ -415,7 +415,7 @@ export function mockupEffectsRuntime(): EffectsRuntime {
       observer = new g.ResizeObserver(() => {
         if (stopped) return;
         fit();
-        // redimensionar apaga o quadro: redesenha já (no modo animado o laço cobre o resto)
+        // resizing clears the canvas: redraw now (in animated mode the loop covers the rest)
         if (!animated) handle.draw(0);
       });
       observer.observe(cv);
@@ -439,12 +439,12 @@ export function mockupEffectsRuntime(): EffectsRuntime {
   return { mount, play };
 }
 
-/** Código JS (expressão) que avalia para o `EffectsRuntime`: `(function mockupEffectsRuntime(){...})()`. */
+/** JS code (expression) that evaluates to the `EffectsRuntime`: `(function mockupEffectsRuntime(){...})()`. */
 export function effectsRuntimeSource(): string {
   return `(${mockupEffectsRuntime.toString()})()`;
 }
 
-/** Spec de montagem (definição do catálogo + parâmetros resolvidos). */
+/** Mount spec (catalog definition + resolved params). */
 export function effectMountSpec(spec: EffectSpec): EffectMountSpec {
   const def = getEffect(spec.kind);
   const selects: Record<string, string[]> = {};

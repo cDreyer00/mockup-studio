@@ -27,7 +27,7 @@ const n = (id: string, type: Node['type'], tag: string, extra: Partial<Node> = {
   ...extra,
 });
 
-/** Button (variant/label) e Card (title, slot content, Button aninhado); instâncias na página. */
+/** Button (variant/label) and Card (title, slot content, nested Button); instances on the page. */
 function fixture(pageNodes: Raw[] = defaultPage()): Document {
   return parseDocument({
     version: 1,
@@ -65,7 +65,7 @@ function fixture(pageNodes: Raw[] = defaultPage()): Document {
         id: 'cp_card',
         name: 'Card',
         props: [
-          { name: 'title', type: 'string', default: 'Título' },
+          { name: 'title', type: 'string', default: 'Title' },
           { name: 'content', type: 'slot' },
         ],
         root: n('el_card', 'element', 'div', {
@@ -75,9 +75,12 @@ function fixture(pageNodes: Raw[] = defaultPage()): Document {
             n('el_body', 'element', 'div', {
               attrs: { 'data-slot': 'content' },
               style: { display: 'flex', gap: '8px' },
-              children: [n('tx_def', 'text', 'p', { text: 'Padrão' })] as Node[],
+              children: [n('tx_def', 'text', 'p', { text: 'Default' })] as Node[],
             }),
-            n('in_cbtn', 'instance', 'button', { componentId: 'cp_btn', props: { label: 'Ação' } }),
+            n('in_cbtn', 'instance', 'button', {
+              componentId: 'cp_btn',
+              props: { label: 'Action' },
+            }),
           ] as Node[],
         }),
         variants: [],
@@ -100,7 +103,7 @@ function defaultPage(): Raw[] {
   return [
     n('in_b1', 'instance', 'button', {
       componentId: 'cp_btn',
-      props: { variant: 'outline', label: 'Salvar' },
+      props: { variant: 'outline', label: 'Save' },
     }),
     n('in_c1', 'instance', 'div', {
       componentId: 'cp_card',
@@ -109,13 +112,13 @@ function defaultPage(): Raw[] {
         n('el_s1', 'element', 'div', {
           attrs: { 'data-slot': 'content' },
           style: { padding: '4px' },
-          children: [n('tx_s1', 'text', 'p', { text: 'Meu' })] as Node[],
+          children: [n('tx_s1', 'text', 'p', { text: 'My' })] as Node[],
         }),
       ] as Node[],
     }),
     n('in_c2', 'instance', 'div', { componentId: 'cp_card' }),
     n('el_plain', 'element', 'div', {
-      children: [n('tx_plain', 'text', 'p', { text: 'oi' })] as Node[],
+      children: [n('tx_plain', 'text', 'p', { text: 'hi' })] as Node[],
     }),
   ];
 }
@@ -133,8 +136,8 @@ function find(root: Node, id: string): Node | undefined {
   return undefined;
 }
 
-describe('ids virtuais', () => {
-  it('isVirtualId e splitVirtualId', () => {
+describe('virtual ids', () => {
+  it('isVirtualId and splitVirtualId', () => {
     expect(isVirtualId('in_a/tx_b')).toBe(true);
     expect(isVirtualId('tx_b')).toBe(false);
     expect(splitVirtualId('in_a/in_b/tx_c')).toEqual({
@@ -147,14 +150,14 @@ describe('ids virtuais', () => {
 });
 
 describe('expandInstance', () => {
-  it('props, placeholders e variantes', () => {
+  it('props, placeholders and variants', () => {
     const doc = fixture();
     const out = expandInstance(doc, inst(doc, 'in_b1'));
     expect(out.id).toBe('in_b1');
     expect(out.type).toBe('element');
     expect(out.tag).toBe('button');
     expect(out.componentId).toBe('cp_btn');
-    expect(out.props).toEqual({ variant: 'outline', label: 'Salvar' });
+    expect(out.props).toEqual({ variant: 'outline', label: 'Save' });
     expect(out.overrides).toBeUndefined();
     expect(out.style).toEqual({
       display: 'inline-flex',
@@ -163,11 +166,11 @@ describe('expandInstance', () => {
     });
     expect(out.states).toEqual({ hover: { opacity: '0.9' } });
     expect(out.children[0].id).toBe('in_b1/tx_lbl');
-    expect(out.children[0].text).toBe('Salvar');
+    expect(out.children[0].text).toBe('Save');
     expect(out.children[0].style.color).toBe('red');
   });
 
-  it('padrões quando a instância não tem props', () => {
+  it('defaults when the instance has no props', () => {
     const doc = fixture([n('in_x', 'instance', 'button', { componentId: 'cp_btn' })]);
     const out = expandInstance(doc, inst(doc, 'in_x'));
     expect(out.children[0].text).toBe('OK');
@@ -175,7 +178,7 @@ describe('expandInstance', () => {
     expect(out.children[0].style.color).toBe('white');
   });
 
-  it('slot preenchido: id e estilo do contêiner real, conteúdo real', () => {
+  it('filled slot: real container id and style, real content', () => {
     const doc = fixture();
     const out = expandInstance(doc, inst(doc, 'in_c1'));
     const body = out.children[1];
@@ -183,24 +186,24 @@ describe('expandInstance', () => {
     expect(body.style).toEqual({ display: 'flex', gap: '8px', padding: '4px' });
     expect(body.children.map((c) => c.id)).toEqual(['tx_s1']);
     expect(out.children[0].text).toBe('T1');
-    // Instância aninhada no principal: ids virtuais encadeados.
+    // Instance nested in the main component: chained virtual ids.
     const btn = out.children[2];
     expect(btn.id).toBe('in_c1/in_cbtn');
     expect(btn.componentId).toBe('cp_btn');
     expect(btn.children[0].id).toBe('in_c1/in_cbtn/tx_lbl');
-    expect(btn.children[0].text).toBe('Ação');
+    expect(btn.children[0].text).toBe('Action');
   });
 
-  it('slot vazio ou ausente: conteúdo padrão com ids virtuais', () => {
+  it('empty or missing slot: default content with virtual ids', () => {
     const doc = fixture();
     const out = expandInstance(doc, inst(doc, 'in_c2'));
     expect(out.children[1].id).toBe('in_c2/el_body');
     expect(out.children[1].children[0].id).toBe('in_c2/tx_def');
-    expect(out.children[1].children[0].text).toBe('Padrão');
-    expect(out.children[0].text).toBe('Título');
+    expect(out.children[1].children[0].text).toBe('Default');
+    expect(out.children[0].text).toBe('Title');
   });
 
-  it('override do contêiner de slot do principal entra entre o principal e o da instância', () => {
+  it('main component slot container override sits between the main component and the instance', () => {
     const doc = fixture([
       n('in_c', 'instance', 'div', {
         componentId: 'cp_card',
@@ -216,11 +219,11 @@ describe('expandInstance', () => {
     const body = expandInstance(doc, inst(doc, 'in_c')).children[1];
     expect(body.id).toBe('el_sc');
     expect(body.style).toEqual({ display: 'flex', gap: '1px', color: 'blue' });
-    // Contêiner real vazio: conteúdo padrão.
+    // Empty real container: default content.
     expect(body.children[0].id).toBe('in_c/tx_def');
   });
 
-  it('overrides por caminho, inclusive em instância aninhada', () => {
+  it('overrides by path, including on a nested instance', () => {
     const doc = fixture([
       n('in_c', 'instance', 'div', {
         componentId: 'cp_card',
@@ -229,7 +232,7 @@ describe('expandInstance', () => {
           'in_cbtn/tx_lbl': { text: 'Y' },
           in_cbtn: { props: { variant: 'outline' } },
           tx_def: { hidden: true },
-          el_gone: { text: 'ignorado' },
+          el_gone: { text: 'ignored' },
         },
       }),
     ]);
@@ -238,13 +241,13 @@ describe('expandInstance', () => {
     expect(out.children[0].style.color).toBe('green');
     expect(out.children[1].children[0].hidden).toBe(true);
     const btn = out.children[2];
-    expect(btn.props).toEqual({ label: 'Ação', variant: 'outline' });
+    expect(btn.props).toEqual({ label: 'Action', variant: 'outline' });
     expect(btn.style.background).toBe('transparent');
     expect(btn.children[0].text).toBe('Y');
     expect(btn.children[0].style.color).toBe('red');
   });
 
-  it('override da instância ganha da variante; unsetStyle remove do principal', () => {
+  it('instance override beats the variant; unsetStyle removes from the main component', () => {
     const doc = fixture([
       n('in_x', 'instance', 'button', {
         componentId: 'cp_btn',
@@ -257,13 +260,13 @@ describe('expandInstance', () => {
     expect(out.style.padding).toBeUndefined();
   });
 
-  it('raiz mesclada com style/attrs/states/classes da instância; posição, nome e flags dela', () => {
+  it('root merged with the instance style/attrs/states/classes; its position, name and flags', () => {
     const doc = fixture([
       n('in_x', 'instance', 'button', {
         componentId: 'cp_btn',
-        name: 'Meu botão',
+        name: 'My button',
         style: { margin: '4px', background: 'green' },
-        attrs: { 'aria-label': 'Salvar' },
+        attrs: { 'aria-label': 'Save' },
         states: { hover: { background: 'black' } },
         classes: 'm-1',
         position: { x: 3, y: 4 },
@@ -277,15 +280,15 @@ describe('expandInstance', () => {
       padding: '8px',
       margin: '4px',
     });
-    expect(out.attrs).toEqual({ 'aria-label': 'Salvar' });
+    expect(out.attrs).toEqual({ 'aria-label': 'Save' });
     expect(out.states).toEqual({ hover: { opacity: '0.9', background: 'black' } });
     expect(out.classes).toBe('m-1');
     expect(out.position).toEqual({ x: 3, y: 4 });
-    expect(out.name).toBe('Meu botão');
+    expect(out.name).toBe('My button');
     expect(out.locked).toBe(true);
   });
 
-  it('placeholder em estilo: valor final inseguro é descartado', () => {
+  it('placeholder in style: an unsafe final value is discarded', () => {
     const doc = fixture([n('in_x', 'instance', 'button', { componentId: 'cp_btn' })]);
     doc.components![0].root.style.color = '{{label}}';
     doc.components![0].props[1].default = 'red; } body { x: y';
@@ -293,21 +296,21 @@ describe('expandInstance', () => {
     expect(out.style.color).toBeUndefined();
   });
 
-  it('componente ausente vira contêiner de aviso', () => {
+  it('missing component becomes a warning container', () => {
     const doc = fixture([
       n('in_x', 'instance', 'div', { componentId: 'cp_none', position: { x: 1, y: 2 } }),
     ]);
     const warnings: string[] = [];
     const out = expandInstance(doc, inst(doc, 'in_x'), { warnings });
     expect(out.id).toBe('in_x');
-    expect(out.children[0].text).toBe('Componente ausente');
+    expect(out.children[0].text).toBe('Component missing');
     expect(out.position).toEqual({ x: 1, y: 2 });
     expect(warnings[0]).toMatch(/cp_none/);
   });
 
-  it('ciclo vira aviso (sem recursão infinita)', () => {
+  it('cycle becomes a warning (no infinite recursion)', () => {
     const doc = fixture([n('in_x', 'instance', 'div', { componentId: 'cp_card' })]);
-    // Button passa a conter um Card: Card → Button → Card.
+    // Button now contains a Card: Card → Button → Card.
     doc.components = doc.components!.map((c) =>
       c.id === 'cp_btn'
         ? {
@@ -325,12 +328,12 @@ describe('expandInstance', () => {
     expect(findComponentCycle(doc, 'cp_card')).toEqual(['cp_card', 'cp_btn', 'cp_card']);
     const warnings: string[] = [];
     const out = expandInstance(doc, inst(doc, 'in_x'), { warnings });
-    expect(warnings.some((w) => /ciclo/.test(w))).toBe(true);
+    expect(warnings.some((w) => /cycle/.test(w))).toBe(true);
     const loop = find(out, 'in_x/in_cbtn/in_loop')!;
-    expect(loop.children[0].text).toBe('Componente ausente');
+    expect(loop.children[0].text).toBe('Component missing');
   });
 
-  it('profundidade maior que 16 vira aviso', () => {
+  it('depth greater than 16 becomes a warning', () => {
     const doc = fixture([n('in_x', 'instance', 'div', { componentId: 'cp_d0' })]);
     doc.components = Array.from({ length: 20 }, (_, i) => ({
       id: `cp_d${i}`,
@@ -345,15 +348,15 @@ describe('expandInstance', () => {
     const warnings: string[] = [];
     expandInstance(doc, inst(doc, 'in_x'), { warnings });
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatch(/profundidade/);
+    expect(warnings[0]).toMatch(/depth/);
   });
 
-  it('DAG exponencial (10 níveis × 4 instâncias) vira aviso "Componente grande demais" rápido', () => {
+  it('exponential DAG (10 levels × 4 instances) quickly becomes a "Component too large" warning', () => {
     const doc = fixture([
       n('in_big', 'instance', 'div', { componentId: 'cp_w1' }),
       n('in_ok', 'instance', 'div', { componentId: 'cp_w4' }),
     ]);
-    // C1 tem 4 instâncias de C2, C2 tem 4 de C3... C10 é uma folha: ~4^10 nós se expandisse tudo.
+    // C1 has 4 instances of C2, C2 has 4 of C3... C10 is a leaf: ~4^10 nodes if everything were expanded.
     doc.components = Array.from({ length: 10 }, (_, k) => {
       const i = k + 1;
       const kids =
@@ -363,7 +366,7 @@ describe('expandInstance', () => {
               (_, j) =>
                 n(`in_w${i}x${j}`, 'instance', 'div', { componentId: `cp_w${i + 1}` }) as Node,
             )
-          : [n('tx_leaf', 'text', 'span', { text: 'folha' }) as Node];
+          : [n('tx_leaf', 'text', 'span', { text: 'leaf' }) as Node];
       return {
         id: `cp_w${i}`,
         name: `W${i}`,
@@ -380,8 +383,8 @@ describe('expandInstance', () => {
     const big = expandInstance(doc, inst(doc, 'in_big'), { warnings });
     expect(big.attrs['data-missing-component']).toBe('cp_w1');
     expect(big.children[0]!.text).toBe(TOO_LARGE_COMPONENT_TEXT);
-    expect(warnings).toEqual([expect.stringMatching(/in_big: componente "W1" grande demais/)]);
-    // Abaixo do limite expande normalmente.
+    expect(warnings).toEqual([expect.stringMatching(/in_big: component "W1" too large/)]);
+    // Below the limit it expands normally.
     const ok = expandInstance(doc, inst(doc, 'in_ok'));
     let count = 0;
     const visit = (x: Node): void => {
@@ -390,13 +393,13 @@ describe('expandInstance', () => {
     };
     visit(ok);
     expect(count).toBe(9557);
-    // O documento inteiro também termina rápido.
+    // The whole document also finishes quickly.
     const page = expandDocument(doc).pages[0]!.frames[0]!;
     expect(page.children[0]!.children[0]!.text).toBe(TOO_LARGE_COMPONENT_TEXT);
     expect(performance.now() - t0).toBeLessThan(2000);
   });
 
-  it('deep:false mantém as aninhadas como instâncias com os overrides herdados', () => {
+  it('deep:false keeps nested ones as instances with the inherited overrides', () => {
     const doc = fixture([
       n('in_c', 'instance', 'div', {
         componentId: 'cp_card',
@@ -412,23 +415,23 @@ describe('expandInstance', () => {
 });
 
 describe('expandDocument', () => {
-  it('sem instâncias devolve o próprio documento', () => {
+  it('with no instances returns the document itself', () => {
     const doc = fixture([n('el_a', 'element', 'div')]);
     expect(expandDocument(doc)).toBe(doc);
   });
 
-  it('compartilhamento estrutural e cache', () => {
+  it('structural sharing and cache', () => {
     const doc = fixture();
     const out = expandDocument(doc);
     expect(out).not.toBe(doc);
     expect(expandDocument(doc)).toBe(out);
     const frame = out.pages[0].frames[0];
     expect(frame).not.toBe(doc.pages[0].frames[0]);
-    // Nó sem instância: mesmo objeto.
+    // Node without an instance: same object.
     expect(frame.children[3]).toBe(doc.pages[0].frames[0].children[3]);
     expect(JSON.stringify(out.pages)).not.toContain('"instance"');
     expect(JSON.stringify(out.pages)).not.toContain('{{');
-    // Cache por instância: a mesma árvore em outra chamada.
+    // Per-instance cache: the same tree on another call.
     expect(expandNodeTree(doc, doc.pages[0].frames[0]).children[0]).toBe(frame.children[0]);
   });
 });

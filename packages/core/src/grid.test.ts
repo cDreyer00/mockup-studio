@@ -27,7 +27,7 @@ import { getTreeSummary } from './summary.js';
 const kinds = (v: string): string[] => parseTrackList(v).map((t) => t.kind);
 
 describe('parseTrack / parseTrackList', () => {
-  it('classifica cada tipo de trilha', () => {
+  it('classifies each track type', () => {
     expect(parseTrack('1fr')).toMatchObject({ kind: 'fr', value: '1fr', amount: 1 });
     expect(parseTrack('2.5fr')).toMatchObject({ kind: 'fr', amount: 2.5 });
     expect(parseTrack('200px')).toMatchObject({ kind: 'px', value: '200px', amount: 200 });
@@ -50,14 +50,14 @@ describe('parseTrack / parseTrackList', () => {
     expect(parseTrack('calc(100% - 20px)').kind).toBe('other');
   });
 
-  it('lista simples, vazia e none', () => {
+  it('plain list, empty and none', () => {
     expect(kinds('200px 1fr auto')).toEqual(['px', 'fr', 'auto']);
     expect(parseTrackList('none')).toEqual([]);
     expect(parseTrackList('')).toEqual([]);
     expect(parseTrackList(undefined)).toEqual([]);
   });
 
-  it('expande repeat(n, ...) inclusive com várias trilhas e minmax', () => {
+  it('expands repeat(n, ...) including multiple tracks and minmax', () => {
     expect(parseTrackList('repeat(3, 1fr)').map((t) => t.value)).toEqual(['1fr', '1fr', '1fr']);
     expect(parseTrackList('repeat(2, 100px 1fr) auto').map((t) => t.value)).toEqual([
       '100px',
@@ -71,21 +71,21 @@ describe('parseTrack / parseTrackList', () => {
     expect(t[0]).toMatchObject({ kind: 'minmax', min: '0', max: '1fr' });
   });
 
-  it('repeat(auto-fill/auto-fit) vira uma trilha other preservada', () => {
+  it('repeat(auto-fill/auto-fit) becomes a preserved other track', () => {
     const t = parseTrackList('repeat(auto-fill, minmax(120px, 1fr))');
     expect(t).toEqual([{ kind: 'other', value: 'repeat(auto-fill, minmax(120px, 1fr))' }]);
     expect(kinds('100px repeat(auto-fit, 200px)')).toEqual(['px', 'other']);
     expect(kinds('subgrid')).toEqual(['other']);
   });
 
-  it('descarta nomes de linha e protege contra repeat enorme', () => {
+  it('discards line names and guards against a huge repeat', () => {
     expect(kinds('[a] 1fr [b] 2fr [c]')).toEqual(['fr', 'fr']);
     expect(kinds('repeat(100000, 1fr)')).toEqual(['other']);
   });
 });
 
 describe('serializeTrackList', () => {
-  it('recompacta repetições iguais', () => {
+  it('recompacts equal repetitions', () => {
     expect(serializeTrackList(parseTrackList('1fr 1fr 1fr'))).toBe('repeat(3, 1fr)');
     expect(serializeTrackList(parseTrackList('repeat(3, minmax(0, 1fr))'))).toBe(
       'repeat(3, minmax(0, 1fr))',
@@ -96,21 +96,21 @@ describe('serializeTrackList', () => {
     expect(serializeTrackList(parseTrackList('1fr 2fr 1fr'))).toBe('1fr 2fr 1fr');
   });
 
-  it('aceita strings, números e objetos; lista vazia vira none', () => {
+  it('accepts strings, numbers and objects; an empty list becomes none', () => {
     expect(serializeTrackList(['200px', 'minmax(120px,1fr)', 300, parseTrack('auto')])).toBe(
       '200px minmax(120px, 1fr) 300px auto',
     );
     expect(serializeTrackList([])).toBe('none');
   });
 
-  it('não compacta o repeat(auto-fill) preservado', () => {
+  it('does not compact the preserved repeat(auto-fill)', () => {
     const t = parseTrackList('repeat(auto-fill, 100px)');
     expect(serializeTrackList([...t, ...t])).toBe(
       'repeat(auto-fill, 100px) repeat(auto-fill, 100px)',
     );
   });
 
-  it('ida e volta mantém as trilhas', () => {
+  it('round trip keeps the tracks', () => {
     for (const v of ['200px 1fr', 'repeat(4, 1fr) auto', 'minmax(100px, 2fr) 30% min-content']) {
       const a = parseTrackList(v);
       expect(parseTrackList(serializeTrackList(a))).toEqual(a);
@@ -123,22 +123,22 @@ describe('serializeTrackList', () => {
   });
 });
 
-describe('áreas nomeadas', () => {
-  it('valida e serializa', () => {
+describe('named areas', () => {
+  it('validates and serializes', () => {
     expect(serializeGridAreas(['header header', 'side  main'])).toBe('"header header" "side main"');
     expect(serializeGridAreas(['a .', '. b'])).toBe('"a ." ". b"');
   });
 
-  it('rejeita linhas de tamanhos diferentes, nomes inválidos e áreas não retangulares', () => {
-    expect(() => validateGridAreas([])).toThrow(/ao menos uma linha/);
-    expect(() => validateGridAreas(['a b', 'a'])).toThrow(/mesmo número de células/);
-    expect(() => validateGridAreas(['a 1b'])).toThrow(/Nome de área inválido/);
-    expect(() => validateGridAreas(['a b', 'b a'])).toThrow(/não forma um retângulo/);
-    expect(() => validateGridAreas(['a b a'])).toThrow(/"a" não forma um retângulo/);
+  it('rejects rows of different sizes, invalid names and non-rectangular areas', () => {
+    expect(() => validateGridAreas([])).toThrow(/at least one row/);
+    expect(() => validateGridAreas(['a b', 'a'])).toThrow(/same number of cells/);
+    expect(() => validateGridAreas(['a 1b'])).toThrow(/Invalid area name/);
+    expect(() => validateGridAreas(['a b', 'b a'])).toThrow(/does not form a rectangle/);
+    expect(() => validateGridAreas(['a b a'])).toThrow(/"a" does not form a rectangle/);
     expect(() => validateGridAreas(['a a', 'a .'])).toThrow(/"a"/);
   });
 
-  it('parse e nomes', () => {
+  it('parse and names', () => {
     expect(parseGridAreas('"header header" "side main"')).toEqual(['header header', 'side main']);
     expect(parseGridAreas('none')).toEqual([]);
     expect(gridAreaNames('"header header" "side main" ". main"')).toEqual([
@@ -150,14 +150,14 @@ describe('áreas nomeadas', () => {
 });
 
 describe('gridContainerStyles', () => {
-  it('número vira repeat(n, minmax(0, 1fr))', () => {
+  it('a number becomes repeat(n, minmax(0, 1fr))', () => {
     expect(gridContainerStyles({ columns: 3 })).toEqual({
       display: 'grid',
       'grid-template-columns': 'repeat(3, minmax(0, 1fr))',
     });
   });
 
-  it('string CSS é mantida, lista de trilhas é normalizada', () => {
+  it('a CSS string is kept, a track list is normalized', () => {
     expect(gridContainerStyles({ columns: '200px 1fr' })['grid-template-columns']).toBe(
       '200px 1fr',
     );
@@ -172,7 +172,7 @@ describe('gridContainerStyles', () => {
     );
   });
 
-  it('gaps: gap sozinho, gap + específicos, só específicos', () => {
+  it('gaps: gap alone, gap + specific ones, only specific ones', () => {
     expect(gridContainerStyles({ columns: 2, gap: 16 }).gap).toBe('16px');
     const both = gridContainerStyles({ columns: 2, gap: 16, columnGap: 24 });
     expect(both).toMatchObject({ 'column-gap': '24px', 'row-gap': '16px' });
@@ -182,7 +182,7 @@ describe('gridContainerStyles', () => {
     expect(only['column-gap']).toBeUndefined();
   });
 
-  it('áreas, place-items e auto-flow', () => {
+  it('areas, place-items and auto-flow', () => {
     expect(
       gridContainerStyles({
         columns: 2,
@@ -198,15 +198,15 @@ describe('gridContainerStyles', () => {
     expect(() => gridContainerStyles({ columns: 2, areas: ['a b', 'a'] })).toThrow();
   });
 
-  it('valida columns', () => {
+  it('validates columns', () => {
     expect(() => gridContainerStyles({ columns: 0 })).toThrow(/>= 1/);
-    expect(() => gridContainerStyles({ columns: '  ' })).toThrow(/vazio/);
-    expect(() => gridContainerStyles({ columns: [] })).toThrow(/ao menos uma trilha/);
+    expect(() => gridContainerStyles({ columns: '  ' })).toThrow(/empty/);
+    expect(() => gridContainerStyles({ columns: [] })).toThrow(/at least one track/);
   });
 });
 
-describe('posicionamento', () => {
-  it('gera grid-column/grid-row', () => {
+describe('placement', () => {
+  it('generates grid-column/grid-row', () => {
     expect(gridPlacementStyles({ column: 2, row: 1 })).toEqual({
       'grid-column': '2',
       'grid-row': '1',
@@ -219,18 +219,18 @@ describe('posicionamento', () => {
     expect(gridPlacementStyles({ column: 1, columnSpan: 1 })).toEqual({ 'grid-column': '1' });
   });
 
-  it('grid-area tem prioridade e valida o nome', () => {
+  it('grid-area has priority and validates the name', () => {
     expect(gridPlacementStyles({ area: 'header', column: 3 })).toEqual({ 'grid-area': 'header' });
-    expect(() => gridPlacementStyles({ area: '9x' })).toThrow(/inválido/);
+    expect(() => gridPlacementStyles({ area: '9x' })).toThrow(/Invalid/);
   });
 
-  it('valida inteiros 1-based', () => {
+  it('validates 1-based integers', () => {
     expect(() => gridPlacementStyles({ column: 0 })).toThrow(/>= 1/);
     expect(() => gridPlacementStyles({ row: 1.5 })).toThrow(/>= 1/);
     expect(() => gridPlacementStyles({ columnSpan: -1 })).toThrow();
   });
 
-  it('parseGridPlacement lê as formas comuns', () => {
+  it('parseGridPlacement reads the common forms', () => {
     expect(parseGridPlacement({ 'grid-column': '2 / span 3', 'grid-row': '1' })).toEqual({
       column: 2,
       columnSpan: 3,
@@ -257,21 +257,21 @@ describe('posicionamento', () => {
     expect(parseGridPlacement({ 'grid-column': 'auto' })).toEqual({});
   });
 
-  it('ida e volta com gridPlacementStyles', () => {
+  it('round trip with gridPlacementStyles', () => {
     const p = { column: 3, columnSpan: 2, row: 2, rowSpan: 2 };
     expect(parseGridPlacement(gridPlacementStyles(p))).toEqual(p);
   });
 });
 
 describe('isGridContainer / trackCount', () => {
-  it('reconhece grid e inline-grid', () => {
+  it('recognizes grid and inline-grid', () => {
     expect(isGridContainer({ display: 'grid' })).toBe(true);
     expect(isGridContainer({ display: ' Inline-Grid ' })).toBe(true);
     expect(isGridContainer({ display: 'flex' })).toBe(false);
     expect(isGridContainer({})).toBe(false);
   });
 
-  it('conta trilhas', () => {
+  it('counts tracks', () => {
     const s = { 'grid-template-columns': 'repeat(3, 1fr)', 'grid-template-rows': '100px auto' };
     expect(trackCount(s, 'columns')).toBe(3);
     expect(trackCount(s, 'rows')).toBe(2);
@@ -283,28 +283,28 @@ describe('resolveTrackSizes', () => {
   const sizes = (v: string, avail: number, gap = 0): number[] =>
     resolveTrackSizes(parseTrackList(v), avail, gap);
 
-  it('px, % e fr dividem o espaço', () => {
+  it('px, % and fr split the space', () => {
     expect(sizes('200px 1fr', 600)).toEqual([200, 400]);
     expect(sizes('1fr 2fr', 300)).toEqual([100, 200]);
     expect(sizes('50% 1fr', 400)).toEqual([200, 200]);
     expect(sizes('repeat(3, 1fr)', 320, 10)).toEqual([100, 100, 100]);
   });
 
-  it('auto e *-content contam como 1fr; minmax respeita o piso', () => {
+  it('auto and *-content count as 1fr; minmax respects the floor', () => {
     expect(sizes('100px auto', 300)).toEqual([100, 200]);
     expect(sizes('auto min-content max-content', 90)).toEqual([30, 30, 30]);
     expect(sizes('minmax(150px, 1fr) 1fr', 200)).toEqual([150, 50]);
     expect(sizes('minmax(100px, 300px) 1fr', 600)).toEqual([300, 300]);
   });
 
-  it('soma de fr menor que 1 distribui só essa fração; sem espaço dá 0', () => {
+  it('an fr sum below 1 distributes only that fraction; no space gives 0', () => {
     expect(sizes('0.5fr 0.25fr', 400)).toEqual([200, 100]);
     expect(sizes('1fr 1fr', 0)).toEqual([0, 0]);
     expect(sizes('', 100)).toEqual([]);
   });
 });
 
-describe('células', () => {
+describe('cells', () => {
   const grid: LayoutGrid = {
     columns: layoutTracks([100, 100, 100], 10, 20),
     rows: layoutTracks([50, 50], 10, 5),
@@ -312,7 +312,7 @@ describe('células', () => {
     rowGap: 10,
   };
 
-  it('layoutTracks calcula início e tamanho', () => {
+  it('layoutTracks computes start and size', () => {
     expect(grid.columns).toEqual([
       { start: 20, size: 100 },
       { start: 130, size: 100 },
@@ -320,17 +320,17 @@ describe('células', () => {
     ]);
   });
 
-  it('cellAt acha a célula, trata gaps e devolve null fora', () => {
+  it('cellAt finds the cell, handles gaps and returns null outside', () => {
     expect(cellAt(grid, 25, 10)).toEqual({ column: 1, row: 1 });
     expect(cellAt(grid, 339, 114)).toEqual({ column: 3, row: 2 });
-    expect(cellAt(grid, 122, 10)).toEqual({ column: 1, row: 1 }); // gap: trilha mais próxima
+    expect(cellAt(grid, 122, 10)).toEqual({ column: 1, row: 1 }); // gap: nearest track
     expect(cellAt(grid, 128, 62)).toEqual({ column: 2, row: 2 });
     expect(cellAt(grid, 10, 10)).toBeNull();
     expect(cellAt(grid, 200, 500)).toBeNull();
     expect(cellAt({ ...grid, columns: [] }, 25, 10)).toBeNull();
   });
 
-  it('spanFromRect encaixa as bordas nas trilhas', () => {
+  it('spanFromRect snaps the edges to the tracks', () => {
     expect(spanFromRect(grid, { x: 22, y: 6, width: 98, height: 48 })).toEqual({
       column: 1,
       row: 1,
@@ -346,12 +346,12 @@ describe('células', () => {
     expect(spanFromRect({ ...grid, rows: [] }, { x: 0, y: 0, width: 1, height: 1 })).toBeNull();
   });
 
-  it('spanFromRect nunca devolve span menor que 1 (retângulo invertido)', () => {
+  it('spanFromRect never returns a span below 1 (inverted rectangle)', () => {
     const s = spanFromRect(grid, { x: 240, y: 5, width: -200, height: 10 });
     expect(s?.columnSpan).toBe(1);
   });
 
-  it('cellRect devolve o retângulo da célula/extensão e limita ao grid', () => {
+  it('cellRect returns the cell/span rectangle and clamps to the grid', () => {
     expect(cellRect(grid, { column: 2, row: 1, columnSpan: 2, rowSpan: 1 })).toEqual({
       x: 130,
       y: 5,
@@ -362,7 +362,7 @@ describe('células', () => {
     expect(cellRect(grid, { column: 4, row: 1, columnSpan: 1, rowSpan: 1 })).toBeNull();
   });
 
-  it('formatGridTracks é compacto', () => {
+  it('formatGridTracks is compact', () => {
     expect(formatGridTracks(grid)).toBe(
       'grid cols 20+100,130+100,240+100 rows 5+50,65+50 gap 10/10',
     );
@@ -372,8 +372,8 @@ describe('células', () => {
   });
 });
 
-describe('resumo da árvore', () => {
-  it('contêiner grid e filhos com célula', () => {
+describe('tree summary', () => {
+  it('grid container and children with a cell', () => {
     const child = createNode({
       tag: 'div',
       id: 'el_child001',
@@ -383,15 +383,15 @@ describe('resumo da árvore', () => {
     const text = createNode({
       tag: 'p',
       id: 'tx_child001',
-      name: 'Texto',
+      name: 'Text',
       type: 'text',
-      text: 'oi',
+      text: 'hi',
       style: { 'grid-area': 'main' },
     });
     const box = createNode({
       tag: 'div',
       id: 'el_box00001',
-      name: 'Grade',
+      name: 'Grid',
       style: {
         display: 'grid',
         'grid-template-columns': 'repeat(3, minmax(0, 1fr))',
@@ -406,7 +406,7 @@ describe('resumo da árvore', () => {
     expect(out[2]).toContain('area:main');
   });
 
-  it('só um eixo, sem trilhas e gaps separados', () => {
+  it('single axis, no tracks and separate gaps', () => {
     const mk = (style: Record<string, string>) =>
       getTreeSummary(createNode({ tag: 'div', id: 'el_x0000001', name: 'G', style }), 0);
     expect(mk({ display: 'grid', 'grid-template-columns': '1fr 1fr' })).toContain('grid 2col');

@@ -1,12 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`exportTailwind > snapshot do exemplo (documento completo) 1`] = `
+exports[`exportTailwind > snapshot of the example (full document) 1`] = `
 "<!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Landing exemplo</title>
+  <title>Example landing</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style type="text/tailwindcss">
   @theme {
@@ -36,63 +36,63 @@ exports[`exportTailwind > snapshot do exemplo (documento completo) 1`] = `
     <header class="flex flex-row items-center justify-between py-5 px-16 bg-surface">
       <div class="text-[22px] font-bold text-text">Mockup</div>
       <nav class="flex gap-8">
-        <a class="text-muted text-base no-underline" href="#">Produto</a>
-        <a class="text-muted text-base no-underline" href="#">Preços</a>
-        <a class="text-muted text-base no-underline" href="#">Contato</a>
+        <a class="text-muted text-base no-underline" href="#">Product</a>
+        <a class="text-muted text-base no-underline" href="#">Pricing</a>
+        <a class="text-muted text-base no-underline" href="#">Contact</a>
       </nav>
-      <button class="bg-primary text-white py-2.5 px-5 rounded-(--radius) border-none text-[15px] font-semibold">Entrar</button>
+      <button class="bg-primary text-white py-2.5 px-5 rounded-(--radius) border-none text-[15px] font-semibold">Sign in</button>
     </header>
     <section class="flex flex-col items-center gap-6 py-24 px-16 text-center">
-      <h1 class="text-[56px] font-extrabold leading-[1.1] text-text max-w-[800px]">Desenhe interfaces com a ajuda da IA</h1>
-      <p class="text-xl text-muted max-w-[640px]">Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.</p>
+      <h1 class="text-[56px] font-extrabold leading-[1.1] text-text max-w-[800px]">Design interfaces with the help of AI</h1>
+      <p class="text-xl text-muted max-w-[640px]">Create, edit and export screens in real HTML and CSS, straight from a canvas.</p>
       <div class="flex gap-4">
-        <button class="bg-primary text-white py-3.5 px-7 rounded-(--radius) border-none text-base font-semibold">Começar agora</button>
-        <button class="bg-transparent text-text py-3.5 px-7 rounded-(--radius) border border-solid border-muted text-base font-semibold">Ver exemplos</button>
+        <button class="bg-primary text-white py-3.5 px-7 rounded-(--radius) border-none text-base font-semibold">Get started</button>
+        <button class="bg-transparent text-text py-3.5 px-7 rounded-(--radius) border border-solid border-muted text-base font-semibold">See examples</button>
       </div>
     </section>
     <section class="flex flex-row gap-6 pt-8 pb-24 px-16">
       <div class="flex flex-col gap-3 p-8 flex-1 bg-surface rounded-(--radius)">
         <div class="text-[32px]">🎨</div>
-        <h3 class="text-[22px] font-bold text-text">Design livre</h3>
-        <p class="text-base leading-normal text-muted">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+        <h3 class="text-[22px] font-bold text-text">Free design</h3>
+        <p class="text-base leading-normal text-muted">Place frames on the canvas and tweak every CSS property.</p>
       </div>
       <div class="flex flex-col gap-3 p-8 flex-1 bg-surface rounded-(--radius)">
         <div class="text-[32px]">⚡</div>
-        <h3 class="text-[22px] font-bold text-text">Rápido</h3>
-        <p class="text-base leading-normal text-muted">Alterações aparecem na hora, sem etapa de compilação.</p>
+        <h3 class="text-[22px] font-bold text-text">Fast</h3>
+        <p class="text-base leading-normal text-muted">Changes show up instantly, with no build step.</p>
       </div>
       <div class="flex flex-col gap-3 p-8 flex-1 bg-surface rounded-(--radius)">
         <div class="text-[32px]">📦</div>
-        <h3 class="text-[22px] font-bold text-text">Exportável</h3>
-        <p class="text-base leading-normal text-muted">Leve o resultado como HTML standalone para qualquer projeto.</p>
+        <h3 class="text-[22px] font-bold text-text">Exportable</h3>
+        <p class="text-base leading-normal text-muted">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>
   <div class="w-[390px] flex flex-col bg-bg font-(family-name:--font) text-text min-h-[844px]">
     <header class="flex items-center justify-between py-4 px-5 bg-surface">
       <div class="text-xl font-bold">Mockup</div>
-      <button class="bg-primary text-white py-2 px-4 rounded-(--radius) border-none text-sm font-semibold">Entrar</button>
+      <button class="bg-primary text-white py-2 px-4 rounded-(--radius) border-none text-sm font-semibold">Sign in</button>
     </header>
     <section class="flex flex-col gap-4 py-10 px-5 text-center">
-      <h1 class="text-[32px] font-extrabold leading-[1.15]">Desenhe interfaces com a ajuda da IA</h1>
-      <p class="text-base text-muted">Crie, edite e exporte telas em HTML e CSS reais.</p>
-      <button class="bg-primary text-white py-3.5 px-6 rounded-(--radius) border-none text-base font-semibold">Começar agora</button>
+      <h1 class="text-[32px] font-extrabold leading-[1.15]">Design interfaces with the help of AI</h1>
+      <p class="text-base text-muted">Create, edit and export screens in real HTML and CSS.</p>
+      <button class="bg-primary text-white py-3.5 px-6 rounded-(--radius) border-none text-base font-semibold">Get started</button>
     </section>
     <section class="flex flex-col gap-4 pt-4 pb-10 px-5">
       <div class="flex flex-col gap-2 p-5 bg-surface rounded-(--radius)">
         <div class="text-[28px]">🎨</div>
-        <h3 class="text-lg font-bold">Design livre</h3>
-        <p class="text-sm leading-normal text-muted">Posicione frames no canvas e ajuste cada propriedade CSS.</p>
+        <h3 class="text-lg font-bold">Free design</h3>
+        <p class="text-sm leading-normal text-muted">Place frames on the canvas and tweak every CSS property.</p>
       </div>
       <div class="flex flex-col gap-2 p-5 bg-surface rounded-(--radius)">
         <div class="text-[28px]">⚡</div>
-        <h3 class="text-lg font-bold">Rápido</h3>
-        <p class="text-sm leading-normal text-muted">Alterações aparecem na hora, sem etapa de compilação.</p>
+        <h3 class="text-lg font-bold">Fast</h3>
+        <p class="text-sm leading-normal text-muted">Changes show up instantly, with no build step.</p>
       </div>
       <div class="flex flex-col gap-2 p-5 bg-surface rounded-(--radius)">
         <div class="text-[28px]">📦</div>
-        <h3 class="text-lg font-bold">Exportável</h3>
-        <p class="text-sm leading-normal text-muted">Leve o resultado como HTML standalone para qualquer projeto.</p>
+        <h3 class="text-lg font-bold">Exportable</h3>
+        <p class="text-sm leading-normal text-muted">Take the result as standalone HTML to any project.</p>
       </div>
     </section>
   </div>

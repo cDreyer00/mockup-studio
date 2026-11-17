@@ -1,6 +1,6 @@
 /**
- * Protocolo WebSocket entre o daemon (`@mockup/server`) e os clientes (editor).
- * Mensagens JSON, uma por frame. Compartilhado por servidor e editor via `@mockup/core`.
+ * WebSocket protocol between the daemon (`@mockup/server`) and the clients (editor).
+ * JSON messages, one per frame. Shared by server and editor via `@mockup/core`.
  */
 import type { Document } from './types.js';
 import type { Op } from './ops.js';
@@ -10,29 +10,29 @@ export type OpSource = 'editor' | 'mcp' | 'system';
 export interface OpenDocumentInfo {
   docId: string;
   name: string;
-  /** Caminho absoluto em disco (ou `null` se ainda não salvo). */
+  /** Absolute path on disk (or `null` if not saved yet). */
   path: string | null;
   dirty: boolean;
   revision: number;
 }
 
-/** Estado das pilhas de undo/redo de um documento (para habilitar os botões do editor). */
+/** State of a document's undo/redo stacks (to enable the editor buttons). */
 export interface HistoryState {
   canUndo: boolean;
   canRedo: boolean;
 }
 
-/* ---------- servidor → cliente ---------- */
+/* ---------- server → client ---------- */
 
 export interface HelloEvent {
   type: 'hello';
   documents: OpenDocumentInfo[];
   activeDocId: string | null;
-  /** Documento ativo completo (ou null). */
+  /** Complete active document (or null). */
   doc: Document | null;
   selection: string[];
   revision: number;
-  /** Histórico do documento ativo (`{ canUndo: false, canRedo: false }` sem documento). */
+  /** History of the active document (`{ canUndo: false, canRedo: false }` with no document). */
   history: HistoryState;
 }
 export interface DocOpenedEvent {
@@ -47,7 +47,7 @@ export interface DocChangedEvent {
   ops: Op[];
   source: OpSource;
   revision: number;
-  /** Documento completo após as ops (incluído no MVP para simplificar os clientes). */
+  /** Complete document after the ops (included in the MVP to simplify clients). */
   doc: Document;
   history: HistoryState;
 }
@@ -70,11 +70,11 @@ export interface ActiveChangedEvent {
   type: 'active:changed';
   docId: string | null;
 }
-/** O agente terminou de mexer nos nós (`finish_working`): o editor apaga o indicador "IA" dos frames. */
+/** The agent finished working on the nodes (`finish_working`): the editor clears the "AI" indicator from the frames. */
 export interface AgentFinishedEvent {
   type: 'agent:finished';
   docId: string;
-  /** Nós informados pelo agente; vazio = todos os frames do documento. */
+  /** Nodes reported by the agent; empty = all frames in the document. */
   nodeIds: string[];
 }
 export interface AckMessage {
@@ -88,30 +88,30 @@ export interface ErrorMessage {
   message: string;
 }
 
-/* ---------- assistente de IA, scripts e remix (fase 9) ---------- */
+/* ---------- AI assistant, scripts and remix (phase 9) ---------- */
 
-/** Backend de agente conhecido pelo daemon (CLI instalada ou API). */
+/** Agent backend known to the daemon (installed CLI or API). */
 export interface AssistantBackendInfo {
-  /** `claude`, `codex` (CLIs) ou outro backend registrado (ex.: `fake` nos testes). */
+  /** `claude`, `codex` (CLIs) or another registered backend (e.g. `fake` in tests). */
   id: string;
   name: string;
   available: boolean;
-  /** Executável encontrado no PATH (CLIs). */
+  /** Executable found on PATH (CLIs). */
   path?: string;
-  /** Motivo de indisponibilidade ou versão. */
+  /** Reason for unavailability, or version. */
   detail?: string;
 }
 
-/** Configuração do assistente (persistida na pasta de dados do daemon). */
+/** Assistant configuration (persisted in the daemon data folder). */
 export interface AssistantConfig {
-  /** `auto` = o primeiro disponível (claude, depois codex). */
+  /** `auto` = the first available (claude, then codex). */
   backend: string;
   /**
-   * Modelo do backend configurado (`backend`), repassado à CLI; vazio = padrão da CLI. Na leitura é um
-   * atalho para `models[backend]`; na escrita vale para o backend do mesmo patch (ou o atual).
+   * Model of the configured backend (`backend`), passed to the CLI; empty = CLI default. On read it is a
+   * shortcut for `models[backend]`; on write it applies to the backend in the same patch (or the current one).
    */
   model?: string;
-  /** Modelo por id de backend (um modelo do Claude não serve ao Codex); ausente = padrão da CLI. */
+  /** Model per backend id (a Claude model does not work with Codex); absent = CLI default. */
   models?: Record<string, string>;
 }
 
@@ -120,31 +120,31 @@ export interface AssistantToolCall {
   name: string;
   input?: unknown;
   ok?: boolean;
-  /** Resumo curto do resultado (primeira linha, até ~200 caracteres). */
+  /** Short summary of the result (first line, up to ~200 characters). */
   summary?: string;
 }
 
 export type AssistantTurnStatus = 'running' | 'done' | 'cancelled' | 'error';
 
-/** Mensagem do histórico do assistente de um documento. */
+/** Message from a document's assistant history. */
 export interface AssistantMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   at: string;
   turnId: string;
-  /** Só nas mensagens do assistente. */
+  /** Only on assistant messages. */
   tools?: AssistantToolCall[];
   status?: AssistantTurnStatus;
   error?: string;
   backend?: string;
-  /** Ops aplicadas pelo agente no turno (todas num único grupo de undo). */
+  /** Ops applied by the agent in the turn (all in a single undo group). */
   opsCount?: number;
-  /** Seleção enviada como contexto (mensagem do usuário). */
+  /** Selection sent as context (user message). */
   selection?: string[];
 }
 
-/** Evento de streaming de um turno do assistente. */
+/** Streaming event of an assistant turn. */
 export type AssistantEvent =
   | { kind: 'turn-start'; turnId: string; user: AssistantMessage; backend: string }
   | { kind: 'text'; turnId: string; text: string }
@@ -159,7 +159,7 @@ export interface AssistantEventMessage {
   event: AssistantEvent;
 }
 
-/** Imagem produzida por `doc.screenshot()` num script. */
+/** Image produced by `doc.screenshot()` in a script. */
 export interface ScriptImage {
   nodeId: string;
   mime: string;
@@ -171,33 +171,33 @@ export interface ScriptImage {
 
 export interface ScriptRunResult {
   ok: boolean;
-  /** Saída de `console.log/info/warn/error`, uma linha por chamada. */
+  /** Output of `console.log/info/warn/error`, one line per call. */
   logs: string[];
-  /** Valor devolvido pelo script (serializado em JSON; `undefined` vira ausente). */
+  /** Value returned by the script (serialized as JSON; `undefined` becomes absent). */
   result?: unknown;
   error?: string;
   images: ScriptImage[];
-  /** Ops aplicadas (todas num único grupo de undo). */
+  /** Applied ops (all in a single undo group). */
   opsCount: number;
   durationMs: number;
 }
 
 export interface ScriptFileInfo {
-  /** Nome do arquivo em `scripts/`, com `.js`. */
+  /** File name in `scripts/`, with `.js`. */
   name: string;
   size: number;
   updatedAt: string;
 }
 
-/** Tipos de remix: locais e determinísticos, ou com IA. */
+/** Remix kinds: local and deterministic, or AI-based. */
 export type RemixKind = 'color-scale' | 'font-pairs' | 'spacing' | 'layout' | 'ai';
 
 export interface RemixResult {
-  /** Frames criados lado a lado (vazio no `ai` até o turno terminar). */
+  /** Frames created side by side (empty for `ai` until the turn finishes). */
   frameIds: string[];
-  /** Nome de cada variação, paralelo a `frameIds`. */
+  /** Name of each variation, parallel to `frameIds`. */
   labels: string[];
-  /** Turno do assistente (`ai`). */
+  /** Assistant turn (`ai`). */
   turnId?: string;
 }
 
@@ -214,7 +214,7 @@ export type ServerMessage =
   | AckMessage
   | ErrorMessage;
 
-/* ---------- cliente → servidor ---------- */
+/* ---------- client → server ---------- */
 
 export interface OpApplyRequest {
   type: 'op:apply';
@@ -257,7 +257,7 @@ export interface ActiveSetRequest {
 export interface DocNewRequest {
   type: 'doc:new';
   reqId: string;
-  /** Caminho do arquivo (normalizado para `.mockup.json`; nunca sobrescreve). */
+  /** File path (normalized to `.mockup.json`; never overwrites). */
   path: string;
   name: string;
 }
@@ -267,7 +267,7 @@ export interface DocCloseRequest {
   docId: string;
 }
 
-/** Salva o documento em outro caminho (sobrescreve; o diálogo nativo já confirmou) e copia `assets/`. */
+/** Saves the document to another path (overwrites; the native dialog already confirmed) and copies `assets/`. */
 export interface DocSaveAsRequest {
   type: 'doc:saveAs';
   reqId: string;
@@ -275,24 +275,24 @@ export interface DocSaveAsRequest {
   path: string;
 }
 
-/** Envia um prompt ao assistente (um turno). Ack: `{ turnId }`; o resto chega por `assistant:event`. */
+/** Sends a prompt to the assistant (one turn). Ack: `{ turnId }`; the rest arrives via `assistant:event`. */
 export interface AssistantSendRequest {
   type: 'assistant:send';
   reqId: string;
   docId: string;
   prompt: string;
-  /** Seleção usada como contexto (padrão: a seleção do daemon). */
+  /** Selection used as context (default: the daemon's selection). */
   selection?: string[];
-  /** Backend do turno (padrão: o da configuração). */
+  /** Backend of the turn (default: the one from the config). */
   backend?: string;
 }
-/** Cancela o turno em andamento do documento. Ack: `{ cancelled }`. */
+/** Cancels the document's in-progress turn. Ack: `{ cancelled }`. */
 export interface AssistantCancelRequest {
   type: 'assistant:cancel';
   reqId: string;
   docId: string;
 }
-/** Histórico e estado. Ack: `{ messages, running, backends, config }`. */
+/** History and state. Ack: `{ messages, running, backends, config }`. */
 export interface AssistantHistoryRequest {
   type: 'assistant:history';
   reqId: string;
@@ -303,23 +303,23 @@ export interface AssistantClearRequest {
   reqId: string;
   docId: string;
 }
-/** Lê (sem campos) ou grava a configuração. Ack: `{ config, backends }`. */
+/** Reads (with no fields) or writes the configuration. Ack: `{ config, backends }`. */
 export interface AssistantConfigRequest {
   type: 'assistant:config';
   reqId: string;
   config?: Partial<AssistantConfig>;
 }
 
-/** Executa um script (um grupo de undo). Ack: `ScriptRunResult`. */
+/** Runs a script (one undo group). Ack: `ScriptRunResult`. */
 export interface ScriptRunRequest {
   type: 'script:run';
   reqId: string;
   docId: string;
   code: string;
-  /** Seleção vista por `doc.selection()` (padrão: a do daemon). */
+  /** Selection seen by `doc.selection()` (default: the daemon's). */
   selection?: string[];
 }
-/** Biblioteca `scripts/*.js` ao lado do documento. Ack: `{ dir, scripts: ScriptFileInfo[] }`. */
+/** `scripts/*.js` library next to the document. Ack: `{ dir, scripts: ScriptFileInfo[] }`. */
 export interface ScriptListRequest {
   type: 'script:list';
   reqId: string;
@@ -332,7 +332,7 @@ export interface ScriptReadRequest {
   docId: string;
   name: string;
 }
-/** Ack: `{ name }` (nome normalizado, com `.js`). */
+/** Ack: `{ name }` (normalized name, with `.js`). */
 export interface ScriptSaveRequest {
   type: 'script:save';
   reqId: string;
@@ -346,7 +346,7 @@ export interface ScriptDeleteRequest {
   docId: string;
   name: string;
 }
-/** Gera um script a partir de um prompt (via backend do assistente). Ack: `{ code }`. */
+/** Generates a script from a prompt (via the assistant backend). Ack: `{ code }`. */
 export interface ScriptGenerateRequest {
   type: 'script:generate';
   reqId: string;
@@ -354,7 +354,7 @@ export interface ScriptGenerateRequest {
   prompt: string;
 }
 
-/** Gera variações de um nó lado a lado. Ack: `RemixResult`. */
+/** Generates variations of a node side by side. Ack: `RemixResult`. */
 export interface RemixRequest {
   type: 'remix';
   reqId: string;
@@ -362,7 +362,7 @@ export interface RemixRequest {
   nodeId: string;
   kind: RemixKind;
   count?: number;
-  /** Obrigatório em `ai`. */
+  /** Required for `ai`. */
   prompt?: string;
 }
 

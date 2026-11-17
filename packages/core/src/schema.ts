@@ -30,12 +30,12 @@ import { vectorToSvg } from './vector/svg.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
-/** Caracteres que nunca aparecem em classes Tailwind legítimas (mesmo filtro de `setClasses` e do import HTML). */
+/** Characters that never appear in legitimate Tailwind classes (same filter as `setClasses` and the HTML import). */
 export const UNSAFE_CLASS_CHARS_RE = /[<{};"`]/;
 
 /**
- * Classes Tailwind do nó: espaços colapsados; classes com caracteres proibidos são descartadas
- * (documentos antigos continuam carregando); vazio vira ausente.
+ * Node Tailwind classes: whitespace collapsed; classes with forbidden characters are dropped
+ * (old documents keep loading); empty becomes absent.
  */
 const ClassesSchema = z
   .string()
@@ -49,8 +49,8 @@ const ClassesSchema = z
   .optional();
 
 /**
- * Estados do nó (`hover`, `dark`, `md:hover`...): chaves inválidas e declarações inseguras são
- * descartadas (como em `style`), chaves normalizadas para a ordem canônica; vazio vira ausente.
+ * Node states (`hover`, `dark`, `md:hover`...): invalid keys and unsafe declarations are
+ * dropped (as in `style`), keys normalized to the canonical order; empty becomes absent.
  */
 export const StatesSchema = z
   .record(z.string(), z.record(z.string(), z.string()))
@@ -72,9 +72,9 @@ const TagSchema = z
   .trim()
   .toLowerCase()
   .regex(TAG_RE, {
-    error: 'tag inválida (use letras minúsculas, dígitos e hífen, começando por letra)',
+    error: 'invalid tag (use lowercase letters, digits and hyphens, starting with a letter)',
   })
-  .refine((t) => !BLOCKED_TAGS.has(t), { error: 'tag bloqueada por segurança' });
+  .refine((t) => !BLOCKED_TAGS.has(t), { error: 'tag blocked for security' });
 
 const AttrsSchema = z
   .record(z.string(), z.string())
@@ -86,7 +86,7 @@ const AttrsSchema = z
   })
   .default({});
 
-/** Tokens sem o prefixo `--` (ex.: `primary`) ganham o prefixo; chaves já corretas ficam como estão. */
+/** Tokens without the `--` prefix (e.g. `primary`) get the prefix; already-correct keys stay as they are. */
 export function normalizeTokenNames<T = string>(tokens: Record<string, T>): Record<string, T> {
   const out: Record<string, T> = {};
   for (const [k, v] of Object.entries(tokens)) {
@@ -97,8 +97,8 @@ export function normalizeTokenNames<T = string>(tokens: Record<string, T>): Reco
 }
 
 /**
- * Mapa de tokens CSS: nomes sem `--` ganham o prefixo; as chaves precisam casar `--nome` e os
- * valores não podem escapar da declaração CSS (ver `cssValueProblem`).
+ * CSS token map: names without `--` get the prefix; keys must match `--name` and values
+ * must not escape the CSS declaration (see `cssValueProblem`).
  */
 export const TokensSchema = z
   .record(z.string(), z.string())
@@ -108,7 +108,7 @@ export const TokensSchema = z
       if (!TOKEN_NAME_RE.test(k)) {
         ctx.addIssue({
           code: 'custom',
-          message: `nome de token inválido: "${k}" (use o formato --nome)`,
+          message: `invalid token name: "${k}" (use the format --name)`,
           path: [k],
         });
       }
@@ -116,14 +116,14 @@ export const TokensSchema = z
       if (problem) {
         ctx.addIssue({
           code: 'custom',
-          message: `valor inválido para "${k}": ${problem}`,
+          message: `invalid value for "${k}": ${problem}`,
           path: [k],
         });
       }
     }
   });
 
-/** Na leitura de arquivos, tokens com valor perigoso são descartados em vez de recusar o documento. */
+/** When reading files, tokens with a dangerous value are dropped instead of rejecting the document. */
 const FileTokensSchema = z
   .record(z.string(), z.string())
   .transform((tokens) =>
@@ -131,7 +131,7 @@ const FileTokensSchema = z
   )
   .pipe(TokensSchema);
 
-// Texto livre dos metadados: sem caracteres de controle (exceto quebra de linha) e com limite.
+// Free text of the metadata: no control characters (except newline) and with a limit.
 // eslint-disable-next-line no-control-regex
 const META_TEXT = /^[^\u0000-\u0009\u000b-\u001f\u007f]*$/;
 
@@ -141,13 +141,13 @@ export const TokenMetaSchema: z.ZodType<TokenMeta, unknown> = z.object({
     .trim()
     .min(1)
     .max(64)
-    .regex(/^[\p{L}\p{N} _-]+$/u, { error: 'grupo com caracteres inválidos' })
+    .regex(/^[\p{L}\p{N} _-]+$/u, { error: 'group with invalid characters' })
     .optional(),
   description: z.string().max(500).regex(META_TEXT).optional(),
 });
 
 export const ThemeNameSchema = z.string().trim().regex(THEME_NAME_RE, {
-  error: 'nome de tema inválido (letras, dígitos, "-" e "_", começando por letra ou dígito)',
+  error: 'invalid theme name (letters, digits, "-" and "_", starting with a letter or digit)',
 });
 
 export const ThemeSchema: z.ZodType<Theme, unknown> = z.object({
@@ -155,30 +155,30 @@ export const ThemeSchema: z.ZodType<Theme, unknown> = z.object({
   overrides: TokensSchema.default({}),
 });
 
-/** Mapa nome do token → metadados (nomes normalizados com `--`). */
+/** Map token name → metadata (names normalized with `--`). */
 export const TokenMetaMapSchema = z
   .record(z.string(), TokenMetaSchema)
   .transform((m) => normalizeTokenNames(m))
   .superRefine((m, ctx) => {
     for (const k of Object.keys(m)) {
       if (!TOKEN_NAME_RE.test(k)) {
-        ctx.addIssue({ code: 'custom', message: `nome de token inválido: "${k}"`, path: [k] });
+        ctx.addIssue({ code: 'custom', message: `invalid token name: "${k}"`, path: [k] });
       }
     }
   });
 
-/** Lista de temas com nomes únicos. */
+/** Theme list with unique names. */
 export const ThemesSchema = z.array(ThemeSchema).superRefine((list, ctx) => {
   const seen = new Set<string>();
   list.forEach((t, i) => {
     if (seen.has(t.name)) {
-      ctx.addIssue({ code: 'custom', message: `tema duplicado: "${t.name}"`, path: [i, 'name'] });
+      ctx.addIssue({ code: 'custom', message: `duplicate theme: "${t.name}"`, path: [i, 'name'] });
     }
     seen.add(t.name);
   });
 });
 
-/** Leitura de arquivo: metadados e temas inválidos são descartados em vez de recusar o documento. */
+/** File read: invalid metadata and themes are dropped instead of rejecting the document. */
 const FileTokenMetaSchema = z
   .record(z.string(), z.unknown())
   .optional()
@@ -212,7 +212,7 @@ const FileThemesSchema = z
     return out.length > 0 ? out : undefined;
   });
 
-/** Limites dos dados de um repetidor (itens e tamanho serializado). */
+/** Limits of a repeater's data (items and serialized size). */
 export const MAX_DATA_ITEMS = 1000;
 export const MAX_DATA_BYTES = 2 * 1024 * 1024;
 
@@ -222,7 +222,7 @@ export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
   url: z
     .string()
     .max(4000)
-    .refine((u) => /^https?:\/\//i.test(u), { error: 'a URL deve ser http(s)' })
+    .refine((u) => /^https?:\/\//i.test(u), { error: 'the URL must be http(s)' })
     .optional(),
   select: z.string().max(500).optional(),
   mapping: z.record(z.string(), z.string()).optional(),
@@ -232,16 +232,16 @@ export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
 
 export const DataSchema = z
   .array(z.unknown())
-  .max(MAX_DATA_ITEMS, { error: `no máximo ${MAX_DATA_ITEMS} itens` })
+  .max(MAX_DATA_ITEMS, { error: `at most ${MAX_DATA_ITEMS} items` })
   .refine((list) => JSON.stringify(list).length <= MAX_DATA_BYTES, {
-    error: `os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB`,
+    error: `the data exceeds ${MAX_DATA_BYTES / 1024 / 1024} MB`,
   });
 
-/* ---------------- Componentes (ver docs/COMPONENTES.md) ---------------- */
+/* ---------------- Components (see docs/COMPONENTS.md) ---------------- */
 
 export const PropValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 
-/** Nome de prop: identificador usável em `{{nome}}`. */
+/** Prop name: identifier usable in `{{name}}`. */
 export const PROP_NAME_RE = /^[A-Za-z_][\w-]*$/;
 
 const PropsMapSchema = z
@@ -249,13 +249,13 @@ const PropsMapSchema = z
   .transform((p) => (Object.keys(p).length > 0 ? p : undefined))
   .optional();
 
-/** Remove campos vazios de um objeto (sem lançar). */
+/** Removes empty fields from an object (without throwing). */
 function dropEmpty<T extends object>(o: T): T {
   const out = { ...o } as Record<string, unknown>;
   for (const [k, v] of Object.entries(out)) {
     if (
       v === undefined ||
-      // `data: []` é um valor (repetidor sem itens), não ausência
+      // `data: []` is a value (repeater with no items), not absence
       (k !== 'data' && Array.isArray(v) && v.length === 0) ||
       (v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
     ) {
@@ -266,9 +266,9 @@ function dropEmpty<T extends object>(o: T): T {
 }
 
 /**
- * Sobrescrita de nó (numa instância ou variante). Na leitura, declarações de estilo inseguras são
- * descartadas (como em `style`), atributos com nome inválido também, o svg é sanitizado; campos
- * vazios somem.
+ * Node override (in an instance or variant). On read, unsafe style declarations are
+ * dropped (as in `style`), as are attributes with an invalid name, the svg is sanitized; empty
+ * fields disappear.
  */
 export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
   .object({
@@ -295,7 +295,7 @@ export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
       .transform((s) => (s === '' ? undefined : s))
       .optional(),
     props: PropsMapSchema,
-    // Vetor inválido é descartado (como em `NodeSchema`).
+    // An invalid vector is dropped (as in `NodeSchema`).
     vector: z.unknown().optional().transform(parseVectorLoose),
     effect: EffectSpecSchema.optional(),
     video: VideoSpecSchema.optional(),
@@ -305,7 +305,7 @@ export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
   })
   .transform((o) => dropEmpty(o) as NodeOverride);
 
-/** Mapa caminho → sobrescrita; sobrescritas vazias somem e o mapa vazio vira ausente. */
+/** Map path → override; empty overrides disappear and an empty map becomes absent. */
 export const NodeOverridesMapSchema = z
   .record(z.string(), NodeOverrideSchema)
   .transform((m) => {
@@ -318,7 +318,7 @@ export const NodeOverridesMapSchema = z
 export const PropDefSchema: z.ZodType<PropDef, unknown> = z
   .object({
     name: z.string().trim().regex(PROP_NAME_RE, {
-      error: 'nome de prop inválido (letras, dígitos, "_" e "-", começando por letra ou "_")',
+      error: 'invalid prop name (letters, digits, "_" and "-", starting with a letter or "_")',
     }),
     type: z.enum(['string', 'number', 'boolean', 'enum', 'color', 'slot']),
     default: PropValueSchema.optional(),
@@ -336,32 +336,33 @@ export const PropDefsSchema = z.array(PropDefSchema).superRefine((list, ctx) => 
   const seen = new Set<string>();
   list.forEach((p, i) => {
     if (seen.has(p.name)) {
-      ctx.addIssue({ code: 'custom', message: `prop duplicada: "${p.name}"`, path: [i, 'name'] });
+      ctx.addIssue({ code: 'custom', message: `duplicate prop: "${p.name}"`, path: [i, 'name'] });
     }
     seen.add(p.name);
   });
 });
 
-/** Mensagem para variante com `when` vazio (valeria sempre: o lugar desses estilos é o principal). */
-export const EMPTY_VARIANT_MESSAGE = 'variante sem condição: mova os estilos para o principal';
+/** Message for a variant with an empty `when` (it would always apply: those styles belong in the main component). */
+export const EMPTY_VARIANT_MESSAGE =
+  'variant without a condition: move the styles to the main component';
 
 const VariantShapeSchema = z.object({
   when: z.record(z.string(), PropValueSchema).default({}),
   overrides: NodeOverridesMapSchema.transform((m) => m ?? {}),
 });
 
-/** `true` se a variante tem ao menos uma condição em `when`. */
+/** `true` if the variant has at least one condition in `when`. */
 export function hasVariantCondition(v: { when?: Record<string, unknown> }): boolean {
   return !!v.when && Object.keys(v.when).length > 0;
 }
 
-/** Variante (estrita: `when` vazio é recusado). Usada nas ops (`addComponent`, `updateComponent`). */
+/** Variant (strict: empty `when` is rejected). Used in ops (`addComponent`, `updateComponent`). */
 export const ComponentVariantSchema: z.ZodType<ComponentVariant, unknown> =
   VariantShapeSchema.refine(hasVariantCondition, { error: EMPTY_VARIANT_MESSAGE, path: ['when'] });
 
 /**
- * Variantes na leitura de arquivo: as com `when` vazio são descartadas (como as declarações de
- * estilo inseguras), em vez de recusar o documento inteiro.
+ * Variants on file read: those with an empty `when` are dropped (like unsafe style
+ * declarations), instead of rejecting the whole document.
  */
 const FileVariantsSchema = z
   .array(VariantShapeSchema)
@@ -371,11 +372,11 @@ const FileVariantsSchema = z
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
-      // `~` separa o índice nos clones dos repetidores (`REPEAT_ID_SEP` em data.ts).
+      // `~` separates the index in repeater clones (`REPEAT_ID_SEP` in data.ts).
       id: z
         .string()
         .min(1)
-        .refine((v) => !v.includes('~'), { error: 'o id não pode conter "~"' }),
+        .refine((v) => !v.includes('~'), { error: 'the id cannot contain "~"' }),
       type: z.enum([
         'frame',
         'element',
@@ -395,7 +396,7 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       text: z.string().optional(),
       src: z.string().optional(),
       svg: z.string().transform(sanitizeSvg).optional(),
-      // Vetor inválido é descartado (o markup `svg` continua valendo).
+      // An invalid vector is dropped (the `svg` markup still applies).
       vector: z.unknown().optional().transform(parseVectorLoose),
       effect: EffectSpecSchema.optional(),
       video: VideoSpecSchema.optional(),
@@ -413,7 +414,7 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       dataSource: DataSourceSchema.optional(),
     })
     .transform((n) => {
-      // Campos opcionais que a normalização esvaziou não aparecem como `undefined` no objeto.
+      // Optional fields emptied by normalization do not appear as `undefined` in the object.
       if (n.classes === undefined) delete n.classes;
       if (n.states === undefined) delete n.states;
       if (n.componentId === undefined) delete n.componentId;
@@ -422,28 +423,28 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       return n;
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
-      error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
+      error: 'void tag (e.g. img, input, br) cannot have children or text',
     })
     .refine((n) => n.type !== 'instance' || !!n.componentId, {
-      error: 'instância sem "componentId"',
+      error: 'instance without "componentId"',
     })
     .refine((n) => n.type !== 'effect' || n.effect !== undefined, {
-      error: 'nó effect sem o campo effect',
+      error: 'effect node without the effect field',
     })
     .refine((n) => n.type !== 'video' || n.video !== undefined, {
-      error: 'nó video sem o campo video',
+      error: 'video node without the video field',
     })
     .refine((n) => n.type !== 'embed' || n.embed !== undefined, {
-      error: 'nó embed sem o campo embed',
+      error: 'embed node without the embed field',
     })
     .refine(
       (n) =>
         !(n.type === 'effect' || n.type === 'video' || n.type === 'embed') ||
         n.children.length === 0,
-      { error: 'nós effect, video e embed não têm filhos' },
+      { error: 'effect, video and embed nodes have no children' },
     )
     .transform((n) => {
-      // Só nós svg têm modelo vetorial; com ele, o markup é sempre o gerado (`vectorToSvg`).
+      // Only svg nodes have a vector model; with it, the markup is always the generated one (`vectorToSvg`).
       if (n.vector === undefined || n.type !== 'svg') {
         delete n.vector;
         return n;
@@ -459,7 +460,7 @@ function componentDefSchema(
   return z
     .object({
       id: z.string().min(1),
-      name: z.string().trim().min(1, { error: 'componente sem nome' }),
+      name: z.string().trim().min(1, { error: 'component without a name' }),
       description: z.string().optional(),
       kit: z.string().min(1).optional(),
       props: PropDefsSchema.default([]),
@@ -469,22 +470,22 @@ function componentDefSchema(
     .transform((c) => {
       if (c.description === undefined) delete c.description;
       if (c.kit === undefined) delete c.kit;
-      // A raiz do principal não tem posição (a posição é da instância).
+      // The main component's root has no position (position belongs to the instance).
       delete c.root.position;
       return c;
     })
     .refine((c) => c.root.type !== 'frame' && c.root.type !== 'instance', {
-      error: 'a raiz do componente não pode ser frame nem instância',
+      error: 'the component root cannot be a frame or an instance',
       path: ['root'],
     });
 }
 
-/** Componente nas ops (`addComponent`): estrito (variante com `when` vazio é recusada). */
+/** Component in ops (`addComponent`): strict (a variant with an empty `when` is rejected). */
 export const ComponentDefSchema: z.ZodType<ComponentDef, unknown> = componentDefSchema(
   z.array(ComponentVariantSchema).default([]),
 );
 
-/** Componente na leitura de arquivo: variantes com `when` vazio são descartadas. */
+/** Component on file read: variants with an empty `when` are dropped. */
 const FileComponentDefSchema: z.ZodType<ComponentDef, unknown> =
   componentDefSchema(FileVariantsSchema);
 
@@ -495,25 +496,25 @@ export const PageSchema: z.ZodType<Page, unknown> = z.object({
   background: z.string().default('#1e1e1e'),
 });
 
-// Charset restrito: o nome da família e os arquivos vão para CSS/HTML/SVG, então nada de
-// < > { } ; "  crase, quebras de linha ou caracteres de controle.
+// Restricted charset: the family name and files go into CSS/HTML/SVG, so no
+// < > { } ; "  backticks, line breaks or control characters.
 // eslint-disable-next-line no-control-regex
 const SAFE_FONT_TEXT = /^[^<>{};"\\\x60\u0000-\u001f\u007f]+$/;
 const FontFamilySchema = z
   .string()
   .min(1)
   .max(200)
-  .regex(SAFE_FONT_TEXT, { error: 'família com caracteres inválidos' });
+  .regex(SAFE_FONT_TEXT, { error: 'family with invalid characters' });
 const FontFileSchema = z
   .string()
   .min(1)
   .max(300)
-  .regex(SAFE_FONT_TEXT, { error: 'arquivo de fonte com caracteres inválidos' })
+  .regex(SAFE_FONT_TEXT, { error: 'font file with invalid characters' })
   .refine((f) => !f.startsWith('/') && !/^[a-z][a-z0-9+.-]*:/i.test(f) && !f.includes('\\'), {
-    error: 'o arquivo de fonte deve ser um caminho relativo a assets/',
+    error: 'the font file must be a path relative to assets/',
   })
   .refine((f) => !f.split('/').some((seg) => seg === '..' || seg === ''), {
-    error: 'o arquivo de fonte não pode conter ".." nem segmentos vazios',
+    error: 'the font file cannot contain ".." or empty segments',
   });
 
 export const FontRefSchema: z.ZodType<FontRef, unknown> = z.object({
@@ -525,22 +526,22 @@ export const FontRefSchema: z.ZodType<FontRef, unknown> = z.object({
 });
 
 export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
-  version: z.literal(1, { error: 'versão não suportada (esperado 1)' }),
+  version: z.literal(1, { error: 'unsupported version (expected 1)' }),
   id: z.string().min(1),
   name: z.string(),
-  pages: z.array(PageSchema).min(1, { error: 'o documento precisa de ao menos uma página' }),
+  pages: z.array(PageSchema).min(1, { error: 'the document needs at least one page' }),
   tokens: FileTokensSchema.default({}),
   tokenMeta: FileTokenMetaSchema,
   themes: FileThemesSchema,
-  // Valor desconhecido de `cssBase` cai para o padrão em vez de recusar o arquivo.
+  // An unknown `cssBase` value falls back to the default instead of rejecting the file.
   cssBase: z.enum(['tailwind']).optional().catch(undefined),
-  // Biblioteca de componentes: ausente quando vazia (documentos antigos continuam iguais).
+  // Component library: absent when empty (old documents stay the same).
   components: z
     .array(FileComponentDefSchema)
     .optional()
     .transform((list) => (list && list.length > 0 ? list : undefined)),
-  // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo
-  // ruins) em vez de recusar o documento inteiro; a op `setFonts` continua estrita.
+  // On file read, an invalid/dangerous font is dropped (like bad style declarations)
+  // instead of rejecting the whole document; the `setFonts` op stays strict.
   fonts: z
     .array(z.unknown())
     .default([])
@@ -568,7 +569,7 @@ function parseInternal(input: unknown): Parsed {
       data = JSON.parse(input);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { ok: false, errors: [`JSON malformado: ${msg}`] };
+      return { ok: false, errors: [`Malformed JSON: ${msg}`] };
     }
   }
   const parsed = DocumentSchema.safeParse(data);
@@ -585,21 +586,21 @@ function parseInternal(input: unknown): Parsed {
   const seen = new Set<string>();
   const errors: string[] = [];
   const check = (id: string, kind: string): void => {
-    if (seen.has(id)) errors.push(`${kind} com id duplicado: "${id}"`);
+    if (seen.has(id)) errors.push(`${kind} with duplicate id: "${id}"`);
     seen.add(id);
   };
   for (const page of doc.pages) {
-    check(page.id, 'Página');
-    for (const id of collectIds(page)) check(id, 'Nó');
+    check(page.id, 'Page');
+    for (const id of collectIds(page)) check(id, 'Node');
   }
-  // Componentes: ids e nomes únicos; ids dos nós únicos no documento inteiro.
+  // Components: unique ids and names; node ids unique across the whole document.
   const names = new Set<string>();
   for (const c of doc.components ?? []) {
-    check(c.id, 'Componente');
+    check(c.id, 'Component');
     const key = c.name.toLowerCase();
-    if (names.has(key)) errors.push(`Componente com nome duplicado: "${c.name}"`);
+    if (names.has(key)) errors.push(`Component with duplicate name: "${c.name}"`);
     names.add(key);
-    for (const id of collectIds(c.root)) check(id, 'Nó');
+    for (const id of collectIds(c.root)) check(id, 'Node');
   }
   if (doc.components === undefined) delete doc.components;
   return errors.length > 0 ? { ok: false, errors } : { ok: true, doc };
@@ -611,10 +612,10 @@ export function validateDocument(
   return parseInternal(input);
 }
 
-/** Valida e normaliza (aplica defaults). Aceita string JSON ou objeto. */
+/** Validates and normalizes (applies defaults). Accepts a JSON string or an object. */
 export function parseDocument(input: string | unknown): Document {
   const r = parseInternal(input);
-  if (!r.ok) throw new Error(`Documento inválido: ${r.errors.join('; ')}`);
+  if (!r.ok) throw new Error(`Invalid document: ${r.errors.join('; ')}`);
   return r.doc;
 }
 
@@ -690,7 +691,7 @@ function orderComponent(c: ComponentDef): Record<string, unknown> {
   return out;
 }
 
-/** JSON com 2 espaços, `\n` final e ordem de chaves estável. */
+/** JSON with 2-space indentation, trailing `\n` and stable key order. */
 export function serializeDocument(doc: Document): string {
   const { createdAt, updatedAt, ...restMeta } = doc.meta;
   const ordered = {

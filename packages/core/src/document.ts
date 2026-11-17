@@ -20,7 +20,7 @@ export function createDocument(name: string, opts: { id?: string } = {}): Docume
     version: DOCUMENT_VERSION,
     id: opts.id ?? newDocumentId(),
     name,
-    pages: [createPage('Página 1')],
+    pages: [createPage('Page 1')],
     tokens: {},
     fonts: [],
     meta: { createdAt: now, updatedAt: now },
@@ -147,7 +147,7 @@ export function getPageOfNode(doc: Document, nodeId: string): Page | undefined {
   return findNode(doc, nodeId)?.page;
 }
 
-/** Frame raiz que contém o nó (o próprio nó se for frame raiz). */
+/** Root frame that contains the node (the node itself if it is a root frame). */
 export function getFrameOf(doc: Document, nodeId: string): Node | undefined {
   const path = findNode(doc, nodeId);
   if (!path) return undefined;
@@ -161,7 +161,7 @@ function walkNode(node: Node, parent: Node | null, depth: number, visit: WalkVis
   for (const child of node.children) walkNode(child, node, depth + 1, visit);
 }
 
-/** Percurso em pré-ordem; retornar `false` pula os filhos do nó. */
+/** Pre-order traversal; returning `false` skips the node's children. */
 export function walk(root: Node | Node[] | Page | Document, visit: WalkVisitor): void {
   if (Array.isArray(root)) {
     for (const n of root) walkNode(n, null, 0, visit);
@@ -182,7 +182,7 @@ export function collectIds(root: Node | Node[] | Page | Document): string[] {
   return ids;
 }
 
-/** Clona o nó gerando ids novos (ou reutilizando os de `idMap`). */
+/** Clones the node generating new ids (or reusing those from `idMap`). */
 export function cloneNodeWithNewIds(
   node: Node,
   idMap: Record<string, string> = {},

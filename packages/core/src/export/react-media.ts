@@ -1,14 +1,14 @@
 /**
- * Componentes auxiliares que o export React embute no `.tsx` quando há nós de mídia: efeito
- * animado (runtime do Mockup Studio), Lottie (`lottie-web`), Rive (`@rive-app/canvas`) e ilha
- * Three.js (arquivo `<slug>-three-<n>.js` gerado ao lado).
+ * Helper components that the React export embeds in the `.tsx` when there are media nodes: animated
+ * effect (Mockup Studio runtime), Lottie (`lottie-web`), Rive (`@rive-app/canvas`) and a
+ * Three.js island (`<slug>-three-<n>.js` file generated alongside).
  */
 
 export type ReactMediaHelper = 'effect' | 'lottie' | 'rive' | 'three';
 
 export const REACT_MEDIA_ORDER: readonly ReactMediaHelper[] = ['effect', 'lottie', 'rive', 'three'];
 
-/** Imports de cada helper (além de `useEffect`, `useRef` e `CSSProperties` do React). */
+/** Imports of each helper (besides React's `useEffect`, `useRef` and `CSSProperties`). */
 export const REACT_MEDIA_IMPORTS: Record<ReactMediaHelper, string | null> = {
   effect: "import { playEffect, type EffectMount } from './mockup-effects.js';",
   lottie: "import lottie from 'lottie-web';",
@@ -16,7 +16,7 @@ export const REACT_MEDIA_IMPORTS: Record<ReactMediaHelper, string | null> = {
   three: null,
 };
 
-/** Tipos compartilhados pelos helpers. */
+/** Types shared by the helpers. */
 export const REACT_MEDIA_TYPES: Record<ReactMediaHelper, string | null> = {
   effect: null,
   lottie: null,
@@ -26,7 +26,7 @@ export const REACT_MEDIA_TYPES: Record<ReactMediaHelper, string | null> = {
 
 export const REACT_MEDIA_BOX = 'type Box = { className?: string; style?: CSSProperties };';
 
-/** Nomes que os helpers ocupam no arquivo (o componente e as constantes não podem usá-los). */
+/** Names the helpers occupy in the file (the component and the constants cannot use them). */
 export const REACT_MEDIA_NAMES = [
   'Box',
   'EffectMount',
@@ -43,7 +43,7 @@ export const REACT_MEDIA_NAMES = [
 ];
 
 export const REACT_MEDIA_HELPERS: Record<ReactMediaHelper, string> = {
-  effect: `/** Efeito animado (WebGL/canvas 2D) do Mockup Studio. */
+  effect: `/** Animated effect (WebGL/canvas 2D) from Mockup Studio. */
 function MockupEffect({ spec, className, style }: { spec: EffectMount } & Box) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -53,7 +53,7 @@ function MockupEffect({ spec, className, style }: { spec: EffectMount } & Box) {
   }, [spec]);
   return <canvas ref={ref} aria-hidden="true" className={className} style={style} />;
 }`,
-  lottie: `/** Animação Lottie (lottie-web). */
+  lottie: `/** Lottie animation (lottie-web). */
 function MockupLottie({
   src,
   loop = true,
@@ -75,7 +75,7 @@ function MockupLottie({
   }, [src, loop, autoplay]);
   return <div ref={ref} className={className} style={style} />;
 }`,
-  rive: `/** Animação Rive (@rive-app/canvas). */
+  rive: `/** Rive animation (@rive-app/canvas). */
 function MockupRive({
   src,
   autoplay = true,
@@ -99,7 +99,7 @@ function MockupRive({
   }, [src, autoplay, artboard, stateMachine]);
   return <canvas ref={ref} className={className} style={style} />;
 }`,
-  three: `/** Ilha Three.js: \`setup\` monta a cena no canvas e devolve a função que a desmonta. */
+  three: `/** Three.js island: \`setup\` builds the scene on the canvas and returns the function that tears it down. */
 function ThreeIsland({
   setup,
   params,

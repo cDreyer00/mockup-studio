@@ -21,16 +21,16 @@ import {
 export interface SvgExportOptions {
   nodeId: string;
   /**
-   * Geometria medida pela página de render (`measure(nodeId)`). Sem ela, o SVG cai para um
-   * `<foreignObject>` com o HTML exportado, do tamanho declarado no estilo do nó.
+   * Geometry measured by the render page (`measure(nodeId)`). Without it, the SVG falls back to a
+   * `<foreignObject>` with the exported HTML, sized as declared in the node's style.
    */
   layout?: LayoutNode;
-  /** Resolve o `src` de imagens (relativo a `assets/`) para data URL; `undefined` mantém o src. */
+  /** Resolves the `src` of images (relative to `assets/`) to a data URL; `undefined` keeps the src. */
   resolveImage?: (src: string) => string | undefined;
 }
 
 /* ====================================================================== */
-/* Utilitários                                                             */
+/* Utilities                                                               */
 /* ====================================================================== */
 
 const num = (n: number): string => String(Math.round(n * 100) / 100);
@@ -43,7 +43,7 @@ const escXml = (s: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
-/** `12px` → 12; `0` → 0; outro → `NaN`. */
+/** `12px` → 12; `0` → 0; anything else → `NaN`. */
 function px(v: string | undefined): number {
   if (v === undefined) return NaN;
   const m = /^(-?\d*\.?\d+)(px)?$/.exec(v.trim());
@@ -77,7 +77,7 @@ interface Paint {
   opacity: number;
 }
 
-/** Cor CSS → cor SVG + opacidade (rgba vira `rgb()` + opacity). `null` se transparente/inválida. */
+/** CSS color → SVG color + opacity (rgba becomes `rgb()` + opacity). `null` if transparent/invalid. */
 function parsePaint(value: string | undefined): Paint | null {
   if (!value) return null;
   const v = value.trim();
@@ -106,7 +106,7 @@ const paintAttrs = (kind: 'fill' | 'stroke', p: Paint): string =>
   ` ${kind}="${escXml(p.color)}"` + (p.opacity < 1 ? ` ${kind}-opacity="${num(p.opacity)}"` : '');
 
 /* ====================================================================== */
-/* Formas                                                                  */
+/* Shapes                                                                  */
 /* ====================================================================== */
 
 type Radii = [number, number, number, number]; // tl, tr, br, bl
@@ -125,7 +125,7 @@ function parseRadii(style: LayoutNode['style'], w: number, h: number): Radii {
     const n = px(first);
     return Number.isNaN(n) ? 0 : Math.max(0, n);
   }) as Radii;
-  // CSS: se a soma dos raios de um lado passa do comprimento, todos são reduzidos pelo mesmo fator
+  // CSS: if the sum of the radii on one side exceeds the length, all are reduced by the same factor
   const f = Math.min(
     1,
     r[0] + r[1] > 0 ? w / (r[0] + r[1]) : 1,
@@ -147,7 +147,7 @@ function roundedPath(x: number, y: number, w: number, h: number, r: Radii): stri
   );
 }
 
-/** `<rect>` (raios iguais) ou `<path>` (raios diferentes) com os atributos extras. */
+/** `<rect>` (equal radii) or `<path>` (different radii) with the extra attributes. */
 function shape(rect: LayoutRect, r: Radii, extra: string): string {
   const { x, y, width: w, height: h } = rect;
   if (r.some((v) => v !== r[0])) {
@@ -157,11 +157,11 @@ function shape(rect: LayoutRect, r: Radii, extra: string): string {
   return `<rect x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}"${rx}${extra}/>`;
 }
 
-/** Raios de um retângulo recuado de `d` em cada lado. */
+/** Radii of a rectangle inset by `d` on each side. */
 const inset = (r: Radii, d: number): Radii => r.map((v) => Math.max(0, v - d)) as Radii;
 
 /* ====================================================================== */
-/* Gradientes e sombras                                                    */
+/* Gradients and shadows                                                    */
 /* ====================================================================== */
 
 const DIRECTIONS: Record<string, number> = {
@@ -185,7 +185,7 @@ interface Stop {
   offset: number;
 }
 
-/** `linear-gradient(...)` → `<linearGradient>` em coordenadas do usuário; `null` se não suportado. */
+/** `linear-gradient(...)` → `<linearGradient>` in user coordinates; `null` if unsupported. */
 function linearGradient(layer: string, id: string, rect: LayoutRect): string | null {
   const m = /^(repeating-)?linear-gradient\(([\s\S]*)\)$/i.exec(layer.trim());
   if (!m || m[1]) return null;
@@ -267,7 +267,7 @@ interface Shadow {
   paint: Paint;
 }
 
-/** Primeira sombra externa de `box-shadow` (inset é ignorada). */
+/** First outer shadow of `box-shadow` (inset is ignored). */
 function firstOuterShadow(value: string | undefined): Shadow | null {
   if (!value || value.trim() === 'none') return null;
   for (const item of splitTop(value, 'comma')) {
@@ -292,7 +292,7 @@ function firstOuterShadow(value: string | undefined): Shadow | null {
 }
 
 /* ====================================================================== */
-/* Renderização com layout medido                                          */
+/* Rendering with measured layout                                          */
 /* ====================================================================== */
 
 const FIT: Record<string, string> = {
@@ -363,7 +363,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
     const out: string[] = [];
 
     if (visible && hasBox) {
-      // fundo (+ sombra)
+      // background (+ shadow)
       const bg = parsePaint(st['background-color']);
       const shadow = firstOuterShadow(st['box-shadow']);
       if (bg) {
@@ -379,7 +379,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
         }
         out.push(shape(rect, radii, paintAttrs('fill', bg) + filterAttr));
       }
-      // gradientes (a primeira camada do CSS é a de cima: desenha de trás para frente)
+      // gradients (the first CSS layer is the top one: draws back to front)
       const image = st['background-image'];
       if (image && image !== 'none') {
         for (const layer of splitTop(image, 'comma').reverse()) {
@@ -489,7 +489,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
     }
 
     if (n.type === 'svg') {
-      // Fora do DOM do documento as custom properties não chegam: resolve no escopo do nó.
+      // Outside the document DOM the custom properties do not reach: resolve in the node's scope.
       const raw = findNode(doc, n.id)?.node.svg ?? '';
       const markup = sanitizeSvg(raw && inlineSvgVars(raw, scopeVarsFor(doc, n.id)));
       if (markup) out.push(nestedSvg(scopeSvgIds(markup, n.id), rect, st.color));
@@ -522,7 +522,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
     return out;
   };
 
-  /** Efeito: gradiente/cor de fallback; vídeo: poster ou retângulo escuro; embed: placeholder com o provedor. */
+  /** Effect: gradient/fallback color; video: poster or dark rectangle; embed: placeholder with the provider. */
   const mediaShapes = (n: LayoutNode, rect: LayoutRect, radii: Radii): string[] => {
     const node = findNode(doc, n.id)?.node;
     if (!node) return [];
@@ -607,7 +607,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
 }
 
 /* ====================================================================== */
-/* Fallback: <foreignObject> com o HTML exportado                          */
+/* Fallback: <foreignObject> with the exported HTML                          */
 /* ====================================================================== */
 
 function fallbackSvg(doc: Document, options: SvgExportOptions): string {
@@ -651,10 +651,10 @@ function fallbackSvg(doc: Document, options: SvgExportOptions): string {
   ].join('\n');
 }
 
-/** SVG standalone do nó (rects com raio, borda e sombra; textos posicionados; imagens embutidas). */
+/** Standalone SVG of the node (rects with radius, border and shadow; positioned text; embedded images). */
 export function exportSvg(source: Document, options: SvgExportOptions): string {
-  // instâncias expandidas: o layout do canvas usa os mesmos ids (inclusive virtuais `in_x/...`)
+  // expanded instances: the canvas layout uses the same ids (including virtual `in_x/...`)
   const doc = expandDocument(source);
-  if (!findNode(doc, options.nodeId)) throw new Error(`Nó "${options.nodeId}" não encontrado`);
+  if (!findNode(doc, options.nodeId)) throw new Error(`Node "${options.nodeId}" not found`);
   return options.layout ? layoutSvg(doc, options.layout, options) : fallbackSvg(doc, options);
 }

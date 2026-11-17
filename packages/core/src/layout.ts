@@ -1,9 +1,9 @@
 /**
- * Geometria medida de uma subárvore, produzida pela página de render (`measure(nodeId)`) a partir do
- * DOM real (getBoundingClientRect + getComputedStyle). Usada por `get_layout` e pelo exportador SVG.
+ * Measured geometry of a subtree, produced by the render page (`measure(nodeId)`) from the
+ * real DOM (getBoundingClientRect + getComputedStyle). Used by `get_layout` and the SVG exporter.
  *
- * Coordenadas em px CSS, relativas ao canto superior esquerdo do frame raiz que contém o nó
- * (o frame é renderizado em 0,0 e escala 1).
+ * Coordinates in CSS px, relative to the top-left corner of the root frame containing the node
+ * (the frame is rendered at 0,0 and scale 1).
  */
 import type { NodeType } from './types.js';
 
@@ -14,14 +14,14 @@ export interface LayoutRect {
   height: number;
 }
 
-/** Uma linha de texto renderizada (via `Range.getClientRects`), relativa ao frame. */
+/** A rendered line of text (via `Range.getClientRects`), relative to the frame. */
 export interface LayoutTextLine extends LayoutRect {
   text: string;
-  /** Distância do topo da linha até a baseline, em px (aproximação: ascent da fonte). */
+  /** Distance from the top of the line to the baseline, in px (approximation: the font's ascent). */
   baseline: number;
 }
 
-/** Subconjunto do `getComputedStyle` (valores já resolvidos pelo navegador, em kebab-case). */
+/** Subset of `getComputedStyle` (values already resolved by the browser, in kebab-case). */
 export interface LayoutStyle {
   'background-color'?: string;
   'background-image'?: string;
@@ -67,22 +67,22 @@ export interface LayoutNode extends LayoutRect {
   type: NodeType;
   tag: string;
   style: LayoutStyle;
-  /** Linhas de texto (nós `text`). */
+  /** Text lines (`text` nodes). */
   lines?: LayoutTextLine[];
-  /** Trilhas medidas quando o nó é um contêiner `display: grid` ou `inline-grid`. */
+  /** Measured tracks when the node is a `display: grid` or `inline-grid` container. */
   grid?: LayoutGrid;
-  /** `src` original do nó image (relativo a `assets/` ou data URL). */
+  /** Original `src` of the image node (relative to `assets/` or a data URL). */
   src?: string;
   children: LayoutNode[];
 }
 
-/** Uma trilha de grid medida: início (relativo ao frame, como os nós) e tamanho, em px. */
+/** A measured grid track: start (relative to the frame, like nodes) and size, in px. */
 export interface LayoutTrack {
   start: number;
   size: number;
 }
 
-/** Trilhas de um contêiner grid (área de conteúdo, sem padding e borda), relativas ao frame. */
+/** Tracks of a grid container (content area, without padding and border), relative to the frame. */
 export interface LayoutGrid {
   columns: LayoutTrack[];
   rows: LayoutTrack[];
@@ -90,7 +90,7 @@ export interface LayoutGrid {
   rowGap: number;
 }
 
-/** Resultado de `render(...)` na página de render: retângulo do nó pedido e tamanho do frame. */
+/** Result of `render(...)` on the render page: rectangle of the requested node and the frame size. */
 export interface RenderBox extends LayoutRect {
   frameId: string;
   frameWidth: number;

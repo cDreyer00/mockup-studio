@@ -32,8 +32,8 @@ function docWithSvg(withMarkup: boolean, vector?: Vector): Document {
 
 const node = (d: Document) => findNode(d, 'sv_aaaaaaa1')!.node;
 
-describe('setAttrs viewBox em svg com vetor', () => {
-  it('sincroniza vector.viewBox e desfaz', () => {
+describe('setAttrs viewBox on an svg with a vector', () => {
+  it('syncs vector.viewBox and undoes', () => {
     const doc = docWithSvg(true, V);
     const r = applyOp(doc, {
       type: 'setAttrs',
@@ -46,16 +46,16 @@ describe('setAttrs viewBox em svg com vetor', () => {
     expect(node(back).svg).toBe(node(doc).svg);
   });
 
-  it.each(['0 0 10', '0 0 0 10', 'a b c d', '0 0 -5 5'])('viewBox inválido "%s" falha', (vb) => {
+  it.each(['0 0 10', '0 0 0 10', 'a b c d', '0 0 -5 5'])('invalid viewBox "%s" fails', (vb) => {
     expect(() =>
       applyOp(docWithSvg(true, V), {
         type: 'setAttrs',
         changes: [{ nodeId: 'sv_aaaaaaa1', set: { viewBox: vb } }],
       }),
-    ).toThrow(/viewBox inválido/);
+    ).toThrow(/Invalid viewBox/);
   });
 
-  it('unset de viewBox falha', () => {
+  it('unset of viewBox fails', () => {
     expect(() =>
       applyOp(docWithSvg(true, V), {
         type: 'setAttrs',
@@ -65,17 +65,17 @@ describe('setAttrs viewBox em svg com vetor', () => {
   });
 });
 
-describe('setVector: path data inválido', () => {
-  it.each(['M', 'L 1 2', 'M 0 0 L 1'])('"%s" falha com mensagem clara', (d) => {
+describe('setVector: invalid path data', () => {
+  it.each(['M', 'L 1 2', 'M 0 0 L 1'])('"%s" fails with a clear message', (d) => {
     expect(() =>
       applyOp(docWithSvg(false), {
         type: 'setVector',
         changes: [{ nodeId: 'sv_aaaaaaa1', vector: { ...V, paths: [{ id: 'p1', d }] } }],
       }),
-    ).toThrow(/Path data inválido em "d"/);
+    ).toThrow(/Invalid path data in "d"/);
   });
 
-  it('path válido passa', () => {
+  it('valid path passes', () => {
     expect(() =>
       applyOp(docWithSvg(false), {
         type: 'setVector',
@@ -85,8 +85,8 @@ describe('setVector: path data inválido', () => {
   });
 });
 
-describe('setVector: inverso exato', () => {
-  it('nó sem markup volta sem node.svg nem vector', () => {
+describe('setVector: exact inverse', () => {
+  it('node without markup returns without node.svg or vector', () => {
     const doc = docWithSvg(false);
     expect(node(doc).svg).toBeUndefined();
     const r = applyOp(doc, {
@@ -100,7 +100,7 @@ describe('setVector: inverso exato', () => {
     expect(strip(back)).toStrictEqual(strip(doc));
   });
 
-  it('nó com vetor volta ao vetor e markup anteriores', () => {
+  it('node with a vector returns to the previous vector and markup', () => {
     const doc = docWithSvg(true, V);
     const r = applyOp(doc, {
       type: 'setVector',

@@ -1,14 +1,14 @@
 /**
- * CSS Grid como layout de primeira classe: trilhas, gaps, áreas e posicionamento de filhos.
+ * CSS Grid as a first-class layout: tracks, gaps, areas and child placement.
  *
- * Tudo aqui é puro (sem DOM, sem Node): interpreta e gera os valores CSS de `grid-template-*`,
- * `gap`, `grid-template-areas` e `grid-column`/`grid-row`/`grid-area`, e converte coordenadas em
- * células a partir das trilhas medidas (`LayoutGrid`).
+ * Everything here is pure (no DOM, no Node): it parses and generates the CSS values of
+ * `grid-template-*`, `gap`, `grid-template-areas` and `grid-column`/`grid-row`/`grid-area`, and
+ * converts coordinates into cells from the measured tracks (`LayoutGrid`).
  */
 import type { LayoutGrid, LayoutRect, LayoutTrack } from './layout.js';
 
 /* ====================================================================== */
-/* Trilhas                                                                 */
+/* Tracks                                                                  */
 /* ====================================================================== */
 
 export type GridTrackKind =
@@ -23,9 +23,9 @@ export type GridTrackKind =
   | 'other';
 
 /**
- * Uma trilha (`grid-template-columns`/`rows`). `value` é o texto CSS normalizado da trilha inteira
- * (`1fr`, `200px`, `minmax(120px, 1fr)`); `min`/`max` só existem em `minmax`; `amount` é o número de
- * `fr`, `px` ou `%`.
+ * A track (`grid-template-columns`/`rows`). `value` is the normalized CSS text of the whole track
+ * (`1fr`, `200px`, `minmax(120px, 1fr)`); `min`/`max` exist only on `minmax`; `amount` is the
+ * number of `fr`, `px` or `%`.
  */
 export interface GridTrack {
   kind: GridTrackKind;
@@ -35,10 +35,10 @@ export interface GridTrack {
   amount?: number;
 }
 
-/** Trilha em entrada: texto CSS (`"1fr"`), número (px) ou o objeto já tipado. */
+/** Track as input: CSS text (`"1fr"`), number (px) or the already typed object. */
 export type GridTrackInput = string | number | GridTrack;
 
-/** Limite de repetições expandidas por `repeat(n, ...)`; acima disso a trilha vira `other`. */
+/** Limit of repetitions expanded per `repeat(n, ...)`; above it the track becomes `other`. */
 const MAX_REPEAT = 200;
 
 const NUM = '-?(?:\\d+\\.?\\d*|\\.\\d+)';
@@ -46,7 +46,7 @@ const FR_RE = new RegExp(`^(${NUM})fr$`, 'i');
 const PX_RE = new RegExp(`^(${NUM})px$`, 'i');
 const PERCENT_RE = new RegExp(`^(${NUM})%$`);
 
-/** Divide em tokens no nível superior (fora de parênteses) por espaço; `[nomes]` de linha são descartados. */
+/** Splits into top-level tokens (outside parentheses) by space; line `[names]` are discarded. */
 function splitTopLevel(value: string, sep: RegExp): string[] {
   const out: string[] = [];
   let buf = '';
@@ -65,7 +65,7 @@ function splitTopLevel(value: string, sep: RegExp): string[] {
   return out;
 }
 
-/** Corpo de `fn(...)` (sem os parênteses externos) ou `null`. */
+/** Body of `fn(...)` (without the outer parentheses) or `null`. */
 function fnBody(token: string, name: string): string | null {
   const m = new RegExp(`^${name}\\(([\\s\\S]*)\\)$`, 'i').exec(token.trim());
   return m ? m[1]!.trim() : null;
@@ -73,12 +73,12 @@ function fnBody(token: string, name: string): string | null {
 
 const fmtNum = (n: number): string => String(Math.round(n * 1000) / 1000);
 
-/** Normaliza o espaçamento de uma lista de argumentos (`a,b` e `a ,  b` viram `a, b`). */
+/** Normalizes the spacing of an argument list (`a,b` and `a ,  b` become `a, b`). */
 function normArgs(parts: string[]): string {
   return parts.map((p) => p.trim().replace(/\s+/g, ' ')).join(', ');
 }
 
-/** Classifica um token de trilha (um único tamanho, sem `repeat`). */
+/** Classifies a track token (a single size, without `repeat`). */
 export function parseTrack(token: string): GridTrack {
   const t = token.trim().replace(/\s+/g, ' ');
   const lower = t.toLowerCase();
@@ -110,9 +110,9 @@ export function parseTrack(token: string): GridTrack {
 }
 
 /**
- * Lista de trilhas de um `grid-template-columns`/`rows`. Expande `repeat(n, ...)`; `repeat(auto-fill|auto-fit, ...)`,
- * `subgrid` e `masonry` viram uma trilha `other` com o texto preservado. Nomes de linha (`[a]`) são descartados.
- * `none`, vazio e `undefined` dão lista vazia.
+ * Track list of a `grid-template-columns`/`rows`. Expands `repeat(n, ...)`; `repeat(auto-fill|auto-fit, ...)`,
+ * `subgrid` and `masonry` become an `other` track with the text preserved. Line names (`[a]`) are discarded.
+ * `none`, empty and `undefined` give an empty list.
  */
 export function parseTrackList(value: string | undefined): GridTrack[] {
   const v = (value ?? '').trim();
@@ -144,14 +144,14 @@ export function parseTrackList(value: string | undefined): GridTrack[] {
   return out;
 }
 
-/** Texto CSS de uma trilha de entrada (número = px). */
+/** CSS text of an input track (number = px). */
 function trackText(t: GridTrackInput): string {
   if (typeof t === 'number') return `${fmtNum(t)}px`;
   if (typeof t === 'string') return parseTrack(t).value;
   return t.value;
 }
 
-/** Trilhas → CSS; recompacta repetições iguais em `repeat(n, x)`. Lista vazia vira `none`. */
+/** Tracks → CSS; recompacts equal repetitions into `repeat(n, x)`. An empty list becomes `none`. */
 export function serializeTrackList(tracks: GridTrackInput[]): string {
   const texts = tracks.map((t) => (typeof t === 'object' ? t.value : trackText(t)));
   const kinds = tracks.map((t) => (typeof t === 'object' ? t.kind : parseTrack(trackText(t)).kind));
@@ -160,7 +160,7 @@ export function serializeTrackList(tracks: GridTrackInput[]): string {
   let i = 0;
   while (i < texts.length) {
     let j = i + 1;
-    // `other` pode ser um `repeat(auto-fill, ...)` inteiro: nunca é recompactado
+    // `other` can be a whole `repeat(auto-fill, ...)`: it is never recompacted
     while (kinds[i] !== 'other' && j < texts.length && texts[j] === texts[i]) j++;
     parts.push(j - i >= 2 ? `repeat(${j - i}, ${texts[i]})` : texts[i]!);
     i = j;
@@ -168,38 +168,38 @@ export function serializeTrackList(tracks: GridTrackInput[]): string {
   return parts.join(' ');
 }
 
-/** `repeat(n, minmax(0, 1fr))`: n colunas/linhas iguais (o `grid-cols-n` do Tailwind). */
+/** `repeat(n, minmax(0, 1fr))`: n equal columns/rows (Tailwind's `grid-cols-n`). */
 export function equalTracks(n: number): string {
   const count = Math.max(1, Math.floor(n));
   return `repeat(${count}, minmax(0, 1fr))`;
 }
 
 /* ====================================================================== */
-/* Áreas nomeadas                                                          */
+/* Named areas                                                             */
 /* ====================================================================== */
 
 const AREA_NAME_RE = /^[\p{L}_][\p{L}\p{N}_-]*$/u;
 
 /**
- * Valida as linhas de `grid-template-areas` (`["header header", "side main"]`): todas com o mesmo número de
- * células, nomes válidos (ou `.` para célula vazia) e cada área formando um retângulo. Devolve as linhas
- * normalizadas (células separadas por um espaço) e lança `Error` em português se algo estiver inválido.
+ * Validates the `grid-template-areas` rows (`["header header", "side main"]`): all with the same number of
+ * cells, valid names (or `.` for an empty cell) and each area forming a rectangle. Returns the normalized
+ * rows (cells separated by a single space) and throws an `Error` if anything is invalid.
  */
 export function validateGridAreas(areas: string[]): string[][] {
-  if (areas.length === 0) throw new Error('areas precisa de ao menos uma linha, ex.: ["a b"].');
+  if (areas.length === 0) throw new Error('areas needs at least one row, e.g. ["a b"].');
   const rows = areas.map((r) => r.trim().split(/\s+/).filter(Boolean));
   const width = rows[0]!.length;
   rows.forEach((cells, y) => {
-    if (cells.length === 0) throw new Error(`A linha ${y + 1} de areas está vazia.`);
+    if (cells.length === 0) throw new Error(`Row ${y + 1} of areas is empty.`);
     if (cells.length !== width) {
       throw new Error(
-        `Todas as linhas de areas precisam ter o mesmo número de células: a linha 1 tem ${width} e a linha ${y + 1} tem ${cells.length}.`,
+        `All rows of areas must have the same number of cells: row 1 has ${width} and row ${y + 1} has ${cells.length}.`,
       );
     }
     for (const c of cells) {
       if (!/^\.+$/.test(c) && !AREA_NAME_RE.test(c)) {
         throw new Error(
-          `Nome de área inválido: "${c}". Use letras, números, "-" ou "_" (ou "." para célula vazia).`,
+          `Invalid area name: "${c}". Use letters, numbers, "-" or "_" (or "." for an empty cell).`,
         );
       }
     }
@@ -223,21 +223,21 @@ export function validateGridAreas(areas: string[]): string[][] {
     );
     if (count !== (x1 - x0 + 1) * (y1 - y0 + 1)) {
       throw new Error(
-        `A área "${name}" não forma um retângulo (células separadas ou em L). Cada nome precisa ocupar um bloco contínuo.`,
+        `Area "${name}" does not form a rectangle (separate or L-shaped cells). Each name must occupy a contiguous block.`,
       );
     }
   }
   return rows.map((cells) => cells.map((c) => (/^\.+$/.test(c) ? '.' : c)));
 }
 
-/** Linhas de áreas → valor de `grid-template-areas` (`"header header" "side main"`). */
+/** Area rows → `grid-template-areas` value (`"header header" "side main"`). */
 export function serializeGridAreas(areas: string[]): string {
   return validateGridAreas(areas)
     .map((cells) => `"${cells.join(' ')}"`)
     .join(' ');
 }
 
-/** `grid-template-areas` → linhas (`["header header", "side main"]`); `none`/vazio dão lista vazia. */
+/** `grid-template-areas` → rows (`["header header", "side main"]`); `none`/empty give an empty list. */
 export function parseGridAreas(value: string | undefined): string[] {
   const v = (value ?? '').trim();
   if (v === '' || /^none$/i.test(v)) return [];
@@ -248,7 +248,7 @@ export function parseGridAreas(value: string | undefined): string[] {
   return rows;
 }
 
-/** Nomes das áreas declaradas em `grid-template-areas`, sem repetição, na ordem de aparição. */
+/** Names of the areas declared in `grid-template-areas`, without repeats, in order of appearance. */
 export function gridAreaNames(value: string | undefined): string[] {
   const names: string[] = [];
   for (const row of parseGridAreas(value)) {
@@ -258,20 +258,20 @@ export function gridAreaNames(value: string | undefined): string[] {
 }
 
 /* ====================================================================== */
-/* Estilos do contêiner                                                    */
+/* Container styles                                                        */
 /* ====================================================================== */
 
-/** `columns`/`rows`: número (`repeat(n, minmax(0, 1fr))`), texto CSS ou lista de trilhas. */
+/** `columns`/`rows`: number (`repeat(n, minmax(0, 1fr))`), CSS text or a list of tracks. */
 export type GridTemplateInput = number | string | GridTrackInput[];
 
 export interface GridContainerOptions {
   columns: GridTemplateInput;
   rows?: GridTemplateInput;
-  /** Número (px) ou texto CSS (`"16px"`, `"16px 24px"`). */
+  /** Number (px) or CSS text (`"16px"`, `"16px 24px"`). */
   gap?: number | string;
   columnGap?: number | string;
   rowGap?: number | string;
-  /** Linhas de `grid-template-areas`, ex.: `["header header", "side main"]`. */
+  /** `grid-template-areas` rows, e.g. `["header header", "side main"]`. */
   areas?: string[];
   placeItems?: string;
   autoFlow?: string;
@@ -279,16 +279,15 @@ export interface GridContainerOptions {
 
 function templateValue(input: GridTemplateInput, label: string): string {
   if (typeof input === 'number') {
-    if (!Number.isFinite(input) || input < 1)
-      throw new Error(`${label} precisa ser um inteiro >= 1.`);
+    if (!Number.isFinite(input) || input < 1) throw new Error(`${label} must be an integer >= 1.`);
     return equalTracks(input);
   }
   if (typeof input === 'string') {
     const v = input.trim();
-    if (v === '') throw new Error(`${label} está vazio. Ex.: 3, "1fr 2fr" ou ["200px", "1fr"].`);
+    if (v === '') throw new Error(`${label} is empty. E.g. 3, "1fr 2fr" or ["200px", "1fr"].`);
     return v;
   }
-  if (input.length === 0) throw new Error(`${label} precisa de ao menos uma trilha.`);
+  if (input.length === 0) throw new Error(`${label} needs at least one track.`);
   return serializeTrackList(input);
 }
 
@@ -296,8 +295,8 @@ const gapText = (g: number | string): string =>
   typeof g === 'number' ? `${fmtNum(g)}px` : g.trim();
 
 /**
- * Estilos CSS de um contêiner grid (`display: grid` + trilhas, gaps, áreas, alinhamento e fluxo).
- * Só emite o que foi pedido. Com `gap` e `columnGap`/`rowGap` juntos, expande em `column-gap`/`row-gap`.
+ * CSS styles of a grid container (`display: grid` + tracks, gaps, areas, alignment and flow).
+ * Only emits what was requested. With `gap` and `columnGap`/`rowGap` together, expands to `column-gap`/`row-gap`.
  */
 export function gridContainerStyles(opts: GridContainerOptions): Record<string, string> {
   const style: Record<string, string> = { display: 'grid' };
@@ -320,13 +319,13 @@ export function gridContainerStyles(opts: GridContainerOptions): Record<string, 
   return style;
 }
 
-/** O estilo descreve um contêiner grid (`display: grid` ou `inline-grid`)? */
+/** Does the style describe a grid container (`display: grid` or `inline-grid`)? */
 export function isGridContainer(style: Record<string, string | undefined>): boolean {
   const d = (style.display ?? '').trim().toLowerCase();
   return d === 'grid' || d === 'inline-grid';
 }
 
-/** Número de trilhas declaradas em `grid-template-columns`/`rows` (`repeat(auto-fill, ...)` conta como 1). */
+/** Number of tracks declared in `grid-template-columns`/`rows` (`repeat(auto-fill, ...)` counts as 1). */
 export function trackCount(
   style: Record<string, string | undefined>,
   axis: 'columns' | 'rows',
@@ -335,16 +334,16 @@ export function trackCount(
 }
 
 /* ====================================================================== */
-/* Posicionamento dos filhos                                               */
+/* Child placement                                                         */
 /* ====================================================================== */
 
-/** Posição de um filho no grid; colunas e linhas começam em 1. */
+/** Position of a child in the grid; columns and rows start at 1. */
 export interface GridPlacement {
   column?: number;
   row?: number;
   columnSpan?: number;
   rowSpan?: number;
-  /** Nome de `grid-area` (área nomeada). */
+  /** `grid-area` name (named area). */
   area?: string;
 }
 
@@ -356,16 +355,16 @@ function axisValue(start: number | undefined, span: number | undefined): string 
 
 function checkLine(n: number | undefined, label: string): void {
   if (n !== undefined && (!Number.isInteger(n) || n < 1)) {
-    throw new Error(`${label} precisa ser um inteiro >= 1 (as linhas do grid começam em 1).`);
+    throw new Error(`${label} must be an integer >= 1 (grid lines start at 1).`);
   }
 }
 
-/** Estilos de posicionamento: `grid-column`/`grid-row` (`2 / span 2`) ou `grid-area` (área nomeada). */
+/** Placement styles: `grid-column`/`grid-row` (`2 / span 2`) or `grid-area` (named area). */
 export function gridPlacementStyles(p: GridPlacement): Record<string, string> {
   if (p.area !== undefined && p.area.trim() !== '') {
     const area = p.area.trim();
     if (!AREA_NAME_RE.test(area)) {
-      throw new Error(`Nome de área inválido: "${area}". Use letras, números, "-" ou "_".`);
+      throw new Error(`Invalid area name: "${area}". Use letters, numbers, "-" or "_".`);
     }
     return { 'grid-area': area };
   }
@@ -418,7 +417,7 @@ function splitSlash(value: string | undefined): string[] {
   return (value ?? '').split('/').map((s) => s.trim());
 }
 
-/** Lê `grid-column`, `grid-row`, `grid-area` e as formas longas (`grid-column-start`...) de um estilo. */
+/** Reads `grid-column`, `grid-row`, `grid-area` and the longhand forms (`grid-column-start`...) of a style. */
 export function parseGridPlacement(style: Record<string, string | undefined>): GridPlacement {
   const out: GridPlacement = {};
   const set = (k: keyof GridPlacement, v: number | undefined): void => {
@@ -437,7 +436,7 @@ export function parseGridPlacement(style: Record<string, string | undefined>): G
       const tok = parseAxisToken(parts[0]);
       if (tok.name) out.area = tok.name;
       else {
-        // `grid-area: 2` vale a linha de início da linha (row-start) e repete o resto como `auto`
+        // `grid-area: 2` sets the start line of the row (row-start) and repeats the rest as `auto`
         rowStart = parts[0];
       }
     } else {
@@ -454,15 +453,15 @@ export function parseGridPlacement(style: Record<string, string | undefined>): G
 }
 
 /* ====================================================================== */
-/* Tamanho das trilhas sem DOM                                             */
+/* Track sizing without DOM                                                */
 /* ====================================================================== */
 
 interface Sizing {
-  /** Tamanho fixo em px (px e %). */
+  /** Fixed size in px (px and %). */
   fixed?: number;
-  /** Peso fr (fr, auto, min/max-content, fit-content, other e minmax com máximo flexível). */
+  /** fr weight (fr, auto, min/max-content, fit-content, other and minmax with a flexible max). */
   weight?: number;
-  /** Piso em px (mínimo de `minmax`). */
+  /** Floor in px (minimum of `minmax`). */
   floor: number;
 }
 
@@ -491,15 +490,15 @@ function sizingOf(track: GridTrack, available: number): Sizing {
       return { weight: 1, floor };
     }
     default:
-      // auto, min/max-content, fit-content, other: sem DOM não há medida de conteúdo; contam como 1fr
+      // auto, min/max-content, fit-content, other: without DOM there is no content measure; they count as 1fr
       return { weight: 1, floor: 0 };
   }
 }
 
 /**
- * Tamanho de cada trilha em px, sem DOM: `px` e `%` (do espaço disponível) são fixos, `fr` divide o
- * restante (descontados os gaps) por peso, e `auto`/`min-content`/`max-content`/`fit-content` contam como
- * 1fr. `minmax` respeita o piso em px. É uma aproximação para o fallback quando não há render.
+ * Size of each track in px, without DOM: `px` and `%` (of the available space) are fixed, `fr` splits the
+ * remainder (minus gaps) by weight, and `auto`/`min-content`/`max-content`/`fit-content` count as
+ * 1fr. `minmax` respects the floor in px. It is an approximation for the fallback when there is no render.
  */
 export function resolveTrackSizes(tracks: GridTrack[], available: number, gap = 0): number[] {
   const n = tracks.length;
@@ -509,13 +508,13 @@ export function resolveTrackSizes(tracks: GridTrack[], available: number, gap = 
   const flexible = sizing.map((s, i) => (s.weight !== undefined ? i : -1)).filter((i) => i >= 0);
   const pinned = new Set<number>();
   const free0 = available - gap * (n - 1) - sizes.reduce((a, b) => a + b, 0);
-  // repete: trilhas flexíveis cujo piso passa da parte proporcional ficam no piso e saem do rateio
+  // repeat: flexible tracks whose floor exceeds their proportional share stay at the floor and leave the split
   for (let pass = 0; pass <= flexible.length; pass++) {
     const open = flexible.filter((i) => !pinned.has(i));
     const pinnedTotal = [...pinned].reduce((a, i) => a + sizing[i]!.floor, 0);
     const free = Math.max(0, free0 - pinnedTotal);
     const totalWeight = open.reduce((a, i) => a + sizing[i]!.weight!, 0);
-    // soma dos fatores < 1: só essa fração do espaço livre é distribuída
+    // sum of factors < 1: only that fraction of the free space is distributed
     const scale = totalWeight > 0 && totalWeight < 1 ? totalWeight : 1;
     let again = false;
     for (const i of open) {
@@ -531,7 +530,7 @@ export function resolveTrackSizes(tracks: GridTrack[], available: number, gap = 
   return sizes.map((s) => Math.round(s * 1000) / 1000);
 }
 
-/** Posições e tamanhos (`LayoutTrack`) a partir dos tamanhos resolvidos, com o início em `origin`. */
+/** Positions and sizes (`LayoutTrack`) from the resolved sizes, starting at `origin`. */
 export function layoutTracks(sizes: number[], gap = 0, origin = 0): LayoutTrack[] {
   let pos = origin;
   return sizes.map((size) => {
@@ -542,22 +541,22 @@ export function layoutTracks(sizes: number[], gap = 0, origin = 0): LayoutTrack[
 }
 
 /* ====================================================================== */
-/* Células (para o editor e para o get_layout)                             */
+/* Cells (for the editor and for get_layout)                               */
 /* ====================================================================== */
 
-/** Célula 1-based: coluna e linha. */
+/** 1-based cell: column and row. */
 export interface GridCell {
   column: number;
   row: number;
 }
 
-/** Célula com extensão: início e quantas trilhas ocupa. */
+/** Cell with extent: start and how many tracks it spans. */
 export interface GridSpan extends GridCell {
   columnSpan: number;
   rowSpan: number;
 }
 
-/** Índice (0-based) da trilha que contém `pos`; em gaps, a trilha mais próxima; `-1` fora do grid. */
+/** 0-based index of the track containing `pos`; in gaps, the nearest track; `-1` outside the grid. */
 function trackAt(tracks: LayoutTrack[], pos: number): number {
   const first = tracks[0];
   const last = tracks[tracks.length - 1];
@@ -577,7 +576,7 @@ function trackAt(tracks: LayoutTrack[], pos: number): number {
   return best;
 }
 
-/** Célula (1-based) sob o ponto `(x, y)` (mesmo sistema de coordenadas das trilhas); `null` fora do grid. */
+/** 1-based cell under the point `(x, y)` (same coordinate system as the tracks); `null` outside the grid. */
 export function cellAt(grid: LayoutGrid, x: number, y: number): GridCell | null {
   const c = trackAt(grid.columns, x);
   const r = trackAt(grid.rows, y);
@@ -600,8 +599,8 @@ function nearestEdge(tracks: LayoutTrack[], pos: number, useEnd: boolean): numbe
 }
 
 /**
- * Início e extensão (em trilhas) de um retângulo sobre o grid: a borda inicial encaixa no início da trilha
- * mais próximo e a final, no fim mais próximo (usado ao esticar um filho pelas alças). `null` sem trilhas.
+ * Start and extent (in tracks) of a rectangle over the grid: the start edge snaps to the nearest track
+ * start and the end edge to the nearest track end (used when stretching a child by its handles). `null` without tracks.
  */
 export function spanFromRect(grid: LayoutGrid, rect: LayoutRect): GridSpan | null {
   if (grid.columns.length === 0 || grid.rows.length === 0) return null;
@@ -612,7 +611,7 @@ export function spanFromRect(grid: LayoutGrid, rect: LayoutRect): GridSpan | nul
   return { column: c0 + 1, row: r0 + 1, columnSpan: c1 - c0 + 1, rowSpan: r1 - r0 + 1 };
 }
 
-/** Retângulo (mesmo sistema das trilhas) coberto por uma célula e sua extensão; `null` se fora do grid. */
+/** Rectangle (same system as the tracks) covered by a cell and its extent; `null` if outside the grid. */
 export function cellRect(grid: LayoutGrid, span: GridSpan): LayoutRect | null {
   const c0 = grid.columns[span.column - 1];
   const c1 = grid.columns[Math.min(grid.columns.length, span.column + span.columnSpan - 1) - 1];
@@ -628,14 +627,14 @@ export function cellRect(grid: LayoutGrid, span: GridSpan): LayoutRect | null {
 }
 
 /* ====================================================================== */
-/* Texto compacto das trilhas medidas                                      */
+/* Compact text of the measured tracks                                     */
 /* ====================================================================== */
 
 const round1 = (n: number): string => String(Math.round(n * 10) / 10);
 
 /**
- * Linha compacta das trilhas medidas, usada por `get_layout`:
- * `grid cols 0+200,216+200 rows 0+100 gap 16/16` (cada trilha é `início+tamanho` em px).
+ * Compact line of the measured tracks, used by `get_layout`:
+ * `grid cols 0+200,216+200 rows 0+100 gap 16/16` (each track is `start+size` in px).
  */
 export function formatGridTracks(grid: LayoutGrid): string {
   const list = (tracks: LayoutTrack[]): string =>

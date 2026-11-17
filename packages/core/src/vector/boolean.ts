@@ -1,4 +1,4 @@
-/** Operações booleanas entre paths (via `polygon-clipping`; curvas são achatadas). */
+/** Boolean operations between paths (via `polygon-clipping`; curves are flattened). */
 import polygonClipping from 'polygon-clipping';
 import type { MultiPolygon, Polygon } from 'polygon-clipping';
 import type { VectorPath } from '../types.js';
@@ -11,16 +11,16 @@ export const BOOLEAN_OPS: readonly BooleanOp[] = ['union', 'subtract', 'intersec
 
 export interface BooleanItem {
   d: string;
-  /** Leva o path ao espaço comum (padrão: identidade). */
+  /** Brings the path to the common space (default: identity). */
   matrix?: Matrix;
   fillRule?: VectorPath['fillRule'];
 }
 
 /**
- * Converte um item em MultiPolygon: cada subpath vira um anel (subpaths abertos são fechados, como
- * no preenchimento SVG). Aproximação das regras de preenchimento: `evenodd` combina os anéis com
- * xor (furos por paridade); `nonzero` (padrão) faz a união dos anéis, então um subpath interno de
- * sentido contrário, que no SVG seria um furo, é absorvido pela união.
+ * Converts an item into a MultiPolygon: each subpath becomes a ring (open subpaths are closed, as
+ * in the SVG fill). Approximation of the fill rules: `evenodd` combines the rings with
+ * xor (holes by parity); `nonzero` (default) unions the rings, so an inner subpath with the
+ * opposite direction, which in SVG would be a hole, is absorbed by the union.
  */
 function itemToMultiPolygon(item: BooleanItem, tolerance: number): MultiPolygon {
   const d = item.matrix ? transformPathData(item.d, item.matrix, 6) : item.d;
@@ -38,7 +38,7 @@ function itemToMultiPolygon(item: BooleanItem, tolerance: number): MultiPolygon 
 }
 
 function ringToPath(ring: [number, number][]): string {
-  // polygon-clipping repete o primeiro ponto no fim do anel; o Z já fecha
+  // polygon-clipping repeats the first point at the end of the ring; Z already closes it
   const a = ring[0]!;
   const b = ring[ring.length - 1]!;
   const pts = ring.length > 1 && a[0] === b[0] && a[1] === b[1] ? ring.slice(0, -1) : ring;
@@ -49,12 +49,12 @@ function ringToPath(ring: [number, number][]): string {
 }
 
 /**
- * Resultado em path data (espaço comum), subpaths fechados. `subtract` = primeiro menos os demais;
- * `exclude` = xor. Resultado vazio = `''`. Precisa de ao menos 2 itens.
- * As curvas são achatadas (`tolerance`): o resultado só tem segmentos de reta.
+ * Result as path data (common space), closed subpaths. `subtract` = first minus the rest;
+ * `exclude` = xor. Empty result = `''`. Needs at least 2 items.
+ * Curves are flattened (`tolerance`): the result only has straight segments.
  */
 export function booleanPathData(op: BooleanOp, items: BooleanItem[], tolerance = 0.25): string {
-  if (items.length < 2) throw new Error('A operação booleana precisa de pelo menos 2 formas');
+  if (items.length < 2) throw new Error('The boolean operation needs at least 2 shapes');
   const geoms = items.map((it) => itemToMultiPolygon(it, tolerance));
   const nonEmpty = geoms.filter((g) => g.length > 0);
   let result: MultiPolygon = [];
@@ -79,7 +79,7 @@ export function booleanPathData(op: BooleanOp, items: BooleanItem[], tolerance =
       }
       break;
     default:
-      throw new Error(`Operação booleana desconhecida: "${String(op)}"`);
+      throw new Error(`Unknown boolean operation: "${String(op)}"`);
   }
   return result.flatMap((poly) => poly.map((ring) => ringToPath(ring))).join(' ');
 }

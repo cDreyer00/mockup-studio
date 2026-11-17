@@ -1,7 +1,7 @@
 /**
- * Catálogo de efeitos: shaders GLSL próprios (fragment shaders WebGL 1) e partículas.
- * Fonte única para o editor, a página de render, o MCP (`list_effects`) e os exportadores.
- * Sem DOM e sem Node.
+ * Effects catalog: custom GLSL shaders (WebGL 1 fragment shaders) and particles.
+ * Single source for the editor, the render page, the MCP (`list_effects`) and the exporters.
+ * No DOM and no Node.
  */
 import type { EffectSpec, MediaParamValue } from '../types.js';
 import {
@@ -17,7 +17,7 @@ export type EffectCategory = 'shader' | 'particles';
 export type EffectParamType = 'number' | 'color' | 'boolean' | 'select';
 
 export interface EffectParamDef {
-  /** Nome do parâmetro (camelCase), ex.: `speed`, `color1`. No shader vira o uniform `u_<name>`. */
+  /** Param name (camelCase), e.g. `speed`, `color1`. In the shader it becomes the `u_<name>` uniform. */
   name: string;
   label: string;
   type: EffectParamType;
@@ -25,13 +25,13 @@ export interface EffectParamDef {
   min?: number;
   max?: number;
   step?: number;
-  /** Opções de `select`. */
+  /** Options for `select`. */
   options?: string[];
   description: string;
 }
 
 export interface EffectPreset {
-  /** Id do preset (kebab-case), ex.: `aurora`. */
+  /** Preset id (kebab-case), e.g. `aurora`. */
   name: string;
   label: string;
   params: Record<string, MediaParamValue>;
@@ -44,11 +44,11 @@ export interface EffectDef {
   description: string;
   params: EffectParamDef[];
   presets: EffectPreset[];
-  /** Fragment shader GLSL ES 1.0 (só `shader`). */
+  /** GLSL ES 1.0 fragment shader (`shader` only). */
   fragment?: string;
 }
 
-// ---------- construtores de definições ----------
+// ---------- definition builders ----------
 
 const num = (
   name: string,
@@ -85,7 +85,7 @@ const select = (
 ): EffectParamDef => ({ name, label, type: 'select', default: def, options, description });
 
 const speed = (def = 1): EffectParamDef =>
-  num('speed', 'Velocidade', def, 0, 4, 0.05, 'Velocidade da animação (0 = estático).');
+  num('speed', 'Speed', def, 0, 4, 0.05, 'Animation speed (0 = static).');
 
 const preset = (
   name: string,
@@ -96,19 +96,19 @@ const preset = (
 export const EFFECTS: readonly EffectDef[] = [
   {
     kind: 'mesh-gradient',
-    label: 'Degradê de malha',
+    label: 'Mesh gradient',
     category: 'shader',
     description:
-      'Degradê de quatro cores com manchas suaves que se deslocam, deformadas por ruído, com torção e grão opcionais.',
+      'Four-color gradient with soft drifting blobs, warped by noise, with optional swirl and grain.',
     params: [
-      color('color1', 'Cor 1', '#0d1b4c', 'Primeira cor (canto superior esquerdo).'),
-      color('color2', 'Cor 2', '#00c2a8', 'Segunda cor (canto superior direito).'),
-      color('color3', 'Cor 3', '#7b2ff7', 'Terceira cor (canto inferior direito).'),
-      color('color4', 'Cor 4', '#12d8fa', 'Quarta cor (canto inferior esquerdo).'),
+      color('color1', 'Color 1', '#0d1b4c', 'First color (top-left corner).'),
+      color('color2', 'Color 2', '#00c2a8', 'Second color (top-right corner).'),
+      color('color3', 'Color 3', '#7b2ff7', 'Third color (bottom-right corner).'),
+      color('color4', 'Color 4', '#12d8fa', 'Fourth color (bottom-left corner).'),
       speed(1),
-      num('distortion', 'Distorção', 0.5, 0, 1, 0.01, 'Intensidade da deformação por ruído.'),
-      num('swirl', 'Torção', 0.3, 0, 1, 0.01, 'Quanto o centro gira sobre si mesmo.'),
-      num('grain', 'Grão', 0.15, 0, 1, 0.01, 'Quantidade de grão sobre o degradê.'),
+      num('distortion', 'Distortion', 0.5, 0, 1, 0.01, 'Strength of the noise warp.'),
+      num('swirl', 'Swirl', 0.3, 0, 1, 0.01, 'How much the center twists on itself.'),
+      num('grain', 'Grain', 0.15, 0, 1, 0.01, 'Amount of grain over the gradient.'),
     ],
     presets: [
       preset('aurora', 'Aurora', {
@@ -117,14 +117,14 @@ export const EFFECTS: readonly EffectDef[] = [
         color3: '#7b2ff7',
         color4: '#12d8fa',
       }),
-      preset('sunset', 'Pôr do sol', {
+      preset('sunset', 'Sunset', {
         color1: '#ff5e62',
         color2: '#ff9966',
         color3: '#f9d423',
         color4: '#8e2de2',
         swirl: 0.45,
       }),
-      preset('ocean', 'Oceano', {
+      preset('ocean', 'Ocean', {
         color1: '#03045e',
         color2: '#0077b6',
         color3: '#00b4d8',
@@ -132,7 +132,7 @@ export const EFFECTS: readonly EffectDef[] = [
         distortion: 0.65,
         grain: 0.08,
       }),
-      preset('candy', 'Algodão-doce', {
+      preset('candy', 'Cotton candy', {
         color1: '#ff9ec7',
         color2: '#ffd6a5',
         color3: '#a0c4ff',
@@ -145,36 +145,36 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'grain',
-    label: 'Grão de filme',
+    label: 'Film grain',
     category: 'shader',
-    description: 'Ruído de filme animado sobre um degradê de duas cores.',
+    description: 'Animated film noise over a two-color gradient.',
     params: [
-      color('color1', 'Cor 1', '#1b1b1f', 'Cor de base (topo do degradê).'),
-      color('color2', 'Cor 2', '#4a4a55', 'Cor de base (fundo do degradê).'),
-      num('intensity', 'Intensidade', 0.55, 0, 1, 0.01, 'Força do grão.'),
-      num('size', 'Tamanho', 1.5, 0.5, 6, 0.1, 'Tamanho do grão (px a 720 de altura).'),
+      color('color1', 'Color 1', '#1b1b1f', 'Base color (top of the gradient).'),
+      color('color2', 'Color 2', '#4a4a55', 'Base color (bottom of the gradient).'),
+      num('intensity', 'Intensity', 0.55, 0, 1, 0.01, 'Grain strength.'),
+      num('size', 'Size', 1.5, 0.5, 6, 0.1, 'Grain size (px at 720 height).'),
       speed(1),
     ],
     presets: [
-      preset('film', 'Filme', {
+      preset('film', 'Film', {
         color1: '#1b1b1f',
         color2: '#4a4a55',
         intensity: 0.55,
         size: 1.5,
       }),
-      preset('warm', 'Quente', {
+      preset('warm', 'Warm', {
         color1: '#ff7a59',
         color2: '#ffcf70',
         intensity: 0.45,
         size: 1.2,
       }),
-      preset('cool', 'Frio', {
+      preset('cool', 'Cool', {
         color1: '#1d4ed8',
         color2: '#22d3ee',
         intensity: 0.5,
         size: 1.8,
       }),
-      preset('paper', 'Papel', {
+      preset('paper', 'Paper', {
         color1: '#f5f5f4',
         color2: '#d6d3d1',
         intensity: 0.35,
@@ -186,43 +186,34 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'halftone',
-    label: 'Meio-tom',
+    label: 'Halftone',
     category: 'shader',
-    description:
-      'Pontos, quadrados ou linhas de meio-tom que variam de tamanho sobre um gradiente em movimento.',
+    description: 'Halftone dots, squares or lines that vary in size over a moving gradient.',
     params: [
-      color('color', 'Cor', '#111111', 'Cor dos pontos.'),
-      color('background', 'Fundo', '#f4efe6', 'Cor de fundo.'),
-      num(
-        'dotSize',
-        'Tamanho da célula',
-        22,
-        6,
-        60,
-        1,
-        'Lado da célula da grade (px a 720 de altura).',
-      ),
-      num('angle', 'Ângulo', 45, 0, 90, 1, 'Rotação da grade, em graus.'),
+      color('color', 'Color', '#111111', 'Dot color.'),
+      color('background', 'Background', '#f4efe6', 'Background color.'),
+      num('dotSize', 'Cell size', 22, 6, 60, 1, 'Grid cell side (px at 720 height).'),
+      num('angle', 'Angle', 45, 0, 90, 1, 'Grid rotation, in degrees.'),
       speed(1),
       select(
         'shape',
-        'Forma',
+        'Shape',
         'circle',
         ['circle', 'square', 'line'],
-        'Forma do elemento: círculo, quadrado ou linha.',
+        'Element shape: circle, square or line.',
       ),
     ],
     presets: [
-      preset('ink', 'Tinta', { color: '#111111', background: '#f4efe6', dotSize: 22, angle: 45 }),
+      preset('ink', 'Ink', { color: '#111111', background: '#f4efe6', dotSize: 22, angle: 45 }),
       preset('pop', 'Pop', { color: '#ff3d81', background: '#ffe14d', dotSize: 24, angle: 15 }),
-      preset('blueprint', 'Planta', {
+      preset('blueprint', 'Blueprint', {
         color: '#9ad1ff',
         background: '#0a2540',
         dotSize: 18,
         angle: 0,
         shape: 'square',
       }),
-      preset('scanlines', 'Linhas', {
+      preset('scanlines', 'Lines', {
         color: '#e5e5e5',
         background: '#0b0b0f',
         dotSize: 16,
@@ -234,16 +225,16 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'waves',
-    label: 'Ondas',
+    label: 'Waves',
     category: 'shader',
-    description: 'Linhas fluidas onduladas com degradê entre duas cores sobre um fundo sólido.',
+    description: 'Flowing wavy lines with a two-color gradient over a solid background.',
     params: [
-      color('color1', 'Cor 1', '#22d3ee', 'Cor das primeiras linhas.'),
-      color('color2', 'Cor 2', '#e879f9', 'Cor das últimas linhas.'),
-      color('background', 'Fundo', '#07070f', 'Cor de fundo.'),
-      num('frequency', 'Frequência', 4, 0.5, 12, 0.1, 'Quantas ondulações cabem na largura.'),
-      num('amplitude', 'Amplitude', 1, 0, 2, 0.05, 'Altura das ondas.'),
-      num('lines', 'Linhas', 14, 1, 40, 1, 'Quantidade de linhas.'),
+      color('color1', 'Color 1', '#22d3ee', 'Color of the first lines.'),
+      color('color2', 'Color 2', '#e879f9', 'Color of the last lines.'),
+      color('background', 'Background', '#07070f', 'Background color.'),
+      num('frequency', 'Frequency', 4, 0.5, 12, 0.1, 'How many waves fit across the width.'),
+      num('amplitude', 'Amplitude', 1, 0, 2, 0.05, 'Wave height.'),
+      num('lines', 'Lines', 14, 1, 40, 1, 'Number of lines.'),
       speed(1),
     ],
     presets: [
@@ -252,7 +243,7 @@ export const EFFECTS: readonly EffectDef[] = [
         color2: '#e879f9',
         background: '#07070f',
       }),
-      preset('silk', 'Seda', {
+      preset('silk', 'Silk', {
         color1: '#fda4af',
         color2: '#fcd34d',
         background: '#1c1917',
@@ -261,14 +252,14 @@ export const EFFECTS: readonly EffectDef[] = [
         lines: 22,
         speed: 0.6,
       }),
-      preset('deep', 'Profundo', {
+      preset('deep', 'Deep', {
         color1: '#38bdf8',
         color2: '#818cf8',
         background: '#0b132b',
         frequency: 5.5,
         lines: 9,
       }),
-      preset('mint', 'Menta', {
+      preset('mint', 'Mint', {
         color1: '#34d399',
         color2: '#a7f3d0',
         background: '#052e2b',
@@ -281,21 +272,21 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'liquid-metal',
-    label: 'Metal líquido',
+    label: 'Liquid metal',
     category: 'shader',
-    description: 'Superfície de metal líquido cromado com reflexos procedurais em movimento.',
+    description: 'Chrome liquid-metal surface with moving procedural reflections.',
     params: [
-      color('tint', 'Tom do metal', '#c9ced8', 'Cor do metal nas áreas claras.'),
-      color('highlight', 'Brilho', '#ffffff', 'Cor dos reflexos especulares.'),
-      num('contrast', 'Contraste', 1.4, 0.5, 3, 0.05, 'Contraste entre faixas claras e escuras.'),
+      color('tint', 'Metal tint', '#c9ced8', 'Metal color in the light areas.'),
+      color('highlight', 'Highlight', '#ffffff', 'Color of the specular highlights.'),
+      num('contrast', 'Contrast', 1.4, 0.5, 3, 0.05, 'Contrast between light and dark bands.'),
       speed(1),
-      num('scale', 'Escala', 1, 0.3, 3, 0.05, 'Tamanho das ondulações (maior = mais detalhe).'),
+      num('scale', 'Scale', 1, 0.3, 3, 0.05, 'Size of the ripples (larger = more detail).'),
     ],
     presets: [
-      preset('chrome', 'Cromo', { tint: '#c9ced8', highlight: '#ffffff', contrast: 1.4 }),
-      preset('gold', 'Ouro', { tint: '#e0b050', highlight: '#fff4cf', contrast: 1.6 }),
-      preset('rose', 'Ouro rosé', { tint: '#e8a8b8', highlight: '#fff0f4', contrast: 1.3 }),
-      preset('obsidian', 'Obsidiana', {
+      preset('chrome', 'Chrome', { tint: '#c9ced8', highlight: '#ffffff', contrast: 1.4 }),
+      preset('gold', 'Gold', { tint: '#e0b050', highlight: '#fff4cf', contrast: 1.6 }),
+      preset('rose', 'Rose gold', { tint: '#e8a8b8', highlight: '#fff0f4', contrast: 1.3 }),
+      preset('obsidian', 'Obsidian', {
         tint: '#7a869e',
         highlight: '#bcd0ff',
         contrast: 2.2,
@@ -306,32 +297,42 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'glass',
-    label: 'Vidro canelado',
+    label: 'Fluted glass',
     category: 'shader',
-    description: 'Vidro canelado refrativo sobre um degradê em movimento, com desfoque e reflexos.',
+    description: 'Refractive fluted glass over a moving gradient, with blur and highlights.',
     params: [
-      color('color1', 'Cor 1', '#6d5dfc', 'Primeira cor do fundo visto pelo vidro.'),
-      color('color2', 'Cor 2', '#ff8ab3', 'Segunda cor do fundo visto pelo vidro.'),
-      num('ribs', 'Caneluras', 24, 4, 80, 1, 'Quantidade de caneluras na largura.'),
-      num('refraction', 'Refração', 1, 0, 2, 0.05, 'Quanto cada canelura desloca a imagem.'),
-      num('blur', 'Desfoque', 0.25, 0, 1, 0.01, 'Desfoque do fundo atrás do vidro.'),
+      color(
+        'color1',
+        'Color 1',
+        '#6d5dfc',
+        'First color of the background seen through the glass.',
+      ),
+      color(
+        'color2',
+        'Color 2',
+        '#ff8ab3',
+        'Second color of the background seen through the glass.',
+      ),
+      num('ribs', 'Ribs', 24, 4, 80, 1, 'Number of ribs across the width.'),
+      num('refraction', 'Refraction', 1, 0, 2, 0.05, 'How much each rib shifts the image.'),
+      num('blur', 'Blur', 0.25, 0, 1, 0.01, 'Blur of the background behind the glass.'),
       speed(1),
     ],
     presets: [
-      preset('prism', 'Prisma', { color1: '#6d5dfc', color2: '#ff8ab3' }),
-      preset('dusk', 'Crepúsculo', {
+      preset('prism', 'Prism', { color1: '#6d5dfc', color2: '#ff8ab3' }),
+      preset('dusk', 'Dusk', {
         color1: '#1e1b4b',
         color2: '#f97316',
         ribs: 32,
         refraction: 1.2,
       }),
-      preset('lime', 'Lima', {
+      preset('lime', 'Lime', {
         color1: '#0f766e',
         color2: '#bef264',
         ribs: 16,
         blur: 0.4,
       }),
-      preset('frost', 'Geada', {
+      preset('frost', 'Frost', {
         color1: '#e0f2fe',
         color2: '#a5b4fc',
         ribs: 40,
@@ -343,42 +344,42 @@ export const EFFECTS: readonly EffectDef[] = [
   },
   {
     kind: 'particles',
-    label: 'Partículas',
+    label: 'Particles',
     category: 'particles',
     description:
-      'Partículas em canvas 2D, determinísticas no tempo: a posição é função de (seed, índice, t), sem estado.',
+      '2D canvas particles, deterministic in time: position is a function of (seed, index, t), with no state.',
     params: [
-      num('count', 'Quantidade', 120, 10, 2000, 10, 'Número de partículas.'),
-      color('color', 'Cor', '#ffffff', 'Cor das partículas.'),
+      num('count', 'Count', 120, 10, 2000, 10, 'Number of particles.'),
+      color('color', 'Color', '#ffffff', 'Particle color.'),
       color(
         'background',
-        'Fundo',
+        'Background',
         '#0b1020',
-        'Cor de fundo; `transparent` deixa o canvas transparente.',
+        'Background color; `transparent` makes the canvas transparent.',
       ),
-      num('size', 'Tamanho', 2.5, 0.5, 12, 0.1, 'Raio médio das partículas, em px.'),
+      num('size', 'Size', 2.5, 0.5, 12, 0.1, 'Average particle radius, in px.'),
       speed(1),
       select(
         'direction',
-        'Direção',
+        'Direction',
         'up',
         ['up', 'down', 'left', 'right', 'random'],
-        'Direção do movimento.',
+        'Movement direction.',
       ),
-      num('twinkle', 'Cintilação', 0.5, 0, 1, 0.01, 'Quanto o brilho de cada partícula pisca.'),
-      bool('links', 'Ligações', false, 'Desenha linhas entre partículas vizinhas.'),
       num(
-        'seed',
-        'Semente',
-        1,
+        'twinkle',
+        'Twinkle',
+        0.5,
         0,
-        9999,
         1,
-        'Semente da distribuição (mesma semente, mesmo desenho).',
+        0.01,
+        'How much the brightness of each particle flickers.',
       ),
+      bool('links', 'Links', false, 'Draws lines between neighboring particles.'),
+      num('seed', 'Seed', 1, 0, 9999, 1, 'Distribution seed (same seed, same pattern).'),
     ],
     presets: [
-      preset('stars', 'Estrelas', {
+      preset('stars', 'Stars', {
         color: '#ffffff',
         background: '#05060f',
         count: 300,
@@ -387,7 +388,7 @@ export const EFFECTS: readonly EffectDef[] = [
         direction: 'random',
         twinkle: 0.9,
       }),
-      preset('snow', 'Neve', {
+      preset('snow', 'Snow', {
         color: '#ffffff',
         background: '#0f2a4a',
         count: 160,
@@ -396,7 +397,7 @@ export const EFFECTS: readonly EffectDef[] = [
         direction: 'down',
         twinkle: 0.2,
       }),
-      preset('embers', 'Brasas', {
+      preset('embers', 'Embers', {
         color: '#ffb347',
         background: '#1a0a05',
         count: 140,
@@ -405,7 +406,7 @@ export const EFFECTS: readonly EffectDef[] = [
         direction: 'up',
         twinkle: 0.6,
       }),
-      preset('network', 'Rede', {
+      preset('network', 'Network', {
         color: '#7dd3fc',
         background: '#0b1220',
         count: 90,
@@ -415,7 +416,7 @@ export const EFFECTS: readonly EffectDef[] = [
         twinkle: 0,
         links: true,
       }),
-      preset('fireflies', 'Vaga-lumes', {
+      preset('fireflies', 'Fireflies', {
         color: '#fde68a',
         background: 'transparent',
         count: 50,
@@ -436,7 +437,7 @@ export function effectKinds(): string[] {
   return EFFECTS.map((e) => e.kind);
 }
 
-// ---------- validação ----------
+// ---------- validation ----------
 
 const HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const NUM = '[+-]?(?:\\d+\\.?\\d*|\\.\\d+)%?';
@@ -445,7 +446,7 @@ const FUNC_RE = new RegExp(
   'i',
 );
 
-/** Cor CSS aceita pelos efeitos: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`/`rgba()` ou `transparent`. */
+/** CSS color accepted by effects: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`/`rgba()` or `transparent`. */
 function isCssColor(v: unknown): v is string {
   if (typeof v !== 'string') return false;
   const s = v.trim();
@@ -472,7 +473,7 @@ function clampNumber(def: EffectParamDef, v: number): number {
   return n;
 }
 
-/** Parâmetros completos: padrões do catálogo + valores válidos de `params` (números limitados a min/max). */
+/** Full params: catalog defaults + valid values from `params` (numbers clamped to min/max). */
 export function resolveEffectParams(
   kind: string,
   params: Record<string, MediaParamValue> = {},
@@ -489,42 +490,38 @@ export function resolveEffectParams(
 }
 
 const TYPE_NAMES: Record<EffectParamType, string> = {
-  number: 'número',
-  color: 'cor CSS (#rgb, #rrggbb, #rrggbbaa, rgb() ou rgba())',
-  boolean: 'booleano',
-  select: 'texto (uma das opções)',
+  number: 'a number',
+  color: 'a CSS color (#rgb, #rrggbb, #rrggbbaa, rgb() or rgba())',
+  boolean: 'a boolean',
+  select: 'a string (one of the options)',
 };
 
-/** Problemas de `params` para `kind` (efeito inexistente, parâmetro desconhecido, tipo, faixa). Vazio = ok. */
+/** Problems in `params` for `kind` (unknown effect, unknown param, type, range). Empty = ok. */
 export function effectParamsProblems(
   kind: string,
   params: Record<string, MediaParamValue> = {},
 ): string[] {
   const def = getEffect(kind);
-  if (!def) return [`efeito inexistente: "${kind}" (efeitos válidos: ${effectKinds().join(', ')})`];
+  if (!def) return [`unknown effect: "${kind}" (valid effects: ${effectKinds().join(', ')})`];
   const problems: string[] = [];
   const names = def.params.map((p) => p.name);
   for (const [name, v] of Object.entries(params)) {
     const p = def.params.find((x) => x.name === name);
     if (!p) {
-      problems.push(
-        `parâmetro desconhecido em "${kind}": "${name}" (parâmetros válidos: ${names.join(', ')})`,
-      );
+      problems.push(`unknown param in "${kind}": "${name}" (valid params: ${names.join(', ')})`);
       continue;
     }
     if (p.type === 'select') {
       if (typeof v !== 'string') {
-        problems.push(
-          `parâmetro "${name}" de "${kind}" deve ser ${TYPE_NAMES.select}, recebeu ${typeof v}`,
-        );
+        problems.push(`param "${name}" of "${kind}" must be ${TYPE_NAMES.select}, got ${typeof v}`);
       } else if (!(p.options ?? []).includes(v)) {
         problems.push(
-          `opção inválida em "${name}" de "${kind}": "${v}" (opções: ${(p.options ?? []).join(', ')})`,
+          `invalid option in "${name}" of "${kind}": "${v}" (options: ${(p.options ?? []).join(', ')})`,
         );
       }
     } else if (!isValid(p, v)) {
       problems.push(
-        `parâmetro "${name}" de "${kind}" deve ser ${TYPE_NAMES[p.type]}, recebeu ${
+        `param "${name}" of "${kind}" must be ${TYPE_NAMES[p.type]}, got ${
           typeof v === 'string' ? `"${v}"` : String(v)
         }`,
       );
@@ -532,7 +529,7 @@ export function effectParamsProblems(
       const n = v as number;
       if ((p.min !== undefined && n < p.min) || (p.max !== undefined && n > p.max)) {
         problems.push(
-          `parâmetro "${name}" de "${kind}" fora da faixa: ${n} (permitido: ${p.min} a ${p.max})`,
+          `param "${name}" of "${kind}" out of range: ${n} (allowed: ${p.min} to ${p.max})`,
         );
       }
     }
@@ -540,7 +537,7 @@ export function effectParamsProblems(
   return problems;
 }
 
-/** Parâmetros de um preset (já resolvidos com os padrões) ou undefined. */
+/** Params of a preset (already resolved with defaults) or undefined. */
 export function presetParams(
   kind: string,
   preset: string,
@@ -549,13 +546,13 @@ export function presetParams(
   return p ? resolveEffectParams(kind, p.params) : undefined;
 }
 
-// ---------- fallback CSS ----------
+// ---------- CSS fallback ----------
 
-/** CSS estático que aproxima o efeito (fundo de fallback para export sem JS, SVG e poster). */
+/** Static CSS approximating the effect (fallback background for JS-free export, SVG and poster). */
 export function effectFallbackCss(spec: EffectSpec): Record<string, string> {
   const def = getEffect(spec.kind);
   if (!def) return { background: '#1e1b4b' };
-  // Cores já validadas por resolveEffectParams: só contêm caracteres de cor CSS.
+  // Colors already validated by resolveEffectParams: they only contain CSS color characters.
   const p = resolveEffectParams(spec.kind, spec.params);
   const s = (name: string): string => String(p[name]).trim();
   const n = (name: string): number => Number(p[name]);

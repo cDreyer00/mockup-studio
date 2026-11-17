@@ -1,6 +1,6 @@
 /**
- * Operações (commands) puras e serializáveis sobre o documento.
- * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
+ * Pure, serializable operations (commands) on the document.
+ * Each op has an exact inverse, computed in `applyOp` (see `apply.ts`).
  */
 import type {
   ComponentDef,
@@ -23,13 +23,13 @@ import type {
 
 export interface CreateNodeOp {
   type: 'createNode';
-  /** Pai do novo nó. Omitido/null quando o nó é um frame raiz (então `pageId` é obrigatório). */
+  /** Parent of the new node. Omitted/null when the node is a root frame (then `pageId` is required). */
   parentId?: string | null;
-  /** Página destino (obrigatório para frames raiz; opcional caso contrário). */
+  /** Target page (required for root frames; optional otherwise). */
   pageId?: string;
-  /** Nó completo, com id já gerado (ids dos descendentes também). */
+  /** Complete node, with its id already generated (descendant ids too). */
   node: Node;
-  /** Índice de inserção; omitido = ao final. */
+  /** Insertion index; omitted = at the end. */
   index?: number;
 }
 
@@ -41,10 +41,10 @@ export interface DeleteNodesOp {
 export interface MoveNodesOp {
   type: 'moveNodes';
   nodeIds: string[];
-  /** Novo pai; omitido = mantém o pai atual (reordenação). `null` = virar frame raiz em `pageId`. */
+  /** New parent; omitted = keep the current parent (reorder). `null` = become a root frame in `pageId`. */
   parentId?: string | null;
   pageId?: string;
-  /** Índice destino no novo pai; omitido = ao final. */
+  /** Target index in the new parent; omitted = at the end. */
   index?: number;
 }
 
@@ -55,9 +55,9 @@ export interface StyleChange {
 }
 export interface UpdateStylesOp {
   type: 'updateStyles';
-  /** Forma em lote: uma entrada por nó. */
+  /** Batch form: one entry per node. */
   changes?: StyleChange[];
-  /** Forma simples: os mesmos estilos para vários nós. */
+  /** Simple form: the same styles for several nodes. */
   nodeIds?: string[];
   styles?: Record<string, string>;
   unset?: string[];
@@ -65,7 +65,7 @@ export interface UpdateStylesOp {
 
 export interface SetTextOp {
   type: 'setText';
-  /** `null` remove o campo `text` do nó. */
+  /** `null` removes the `text` field from the node. */
   changes: { nodeId: string; text: string | null }[];
 }
 
@@ -83,15 +83,15 @@ export interface DuplicateNodesOp {
   type: 'duplicateNodes';
   nodeIds: string[];
   /**
-   * Mapa oldId → newId para o nó e todos os descendentes. Se omitido, `applyOp` gera os ids
-   * e os devolve em `result.idMap`; a op inversa/registrada deve conter o mapa para ser determinística.
+   * Map oldId → newId for the node and all descendants. If omitted, `applyOp` generates the ids
+   * and returns them in `result.idMap`; the inverse/recorded op must contain the map to be deterministic.
    */
   idMap?: Record<string, string>;
 }
 
 export interface SetPositionOp {
   type: 'setPosition';
-  /** `null` remove o campo `position` do nó. */
+  /** `null` removes the `position` field from the node. */
   changes: { nodeId: string; position: Position | null }[];
 }
 
@@ -101,7 +101,7 @@ export interface CreatePageOp {
   name: string;
   index?: number;
   background?: string;
-  /** Frames já existentes da página (usado pelo inverso de deletePage). */
+  /** Frames already existing in the page (used by the inverse of deletePage). */
   frames?: Node[];
 }
 
@@ -120,24 +120,24 @@ export interface SetTokensOp {
   type: 'setTokens';
   set?: Record<string, string>;
   unset?: string[];
-  /** Tema alvo: os valores vão para `overrides` desse tema (que precisa existir) em vez dos tokens base. */
+  /** Target theme: the values go to that theme's `overrides` (which must exist) instead of the base tokens. */
   theme?: string;
 }
 
-/** Define (substitui por inteiro) ou remove os metadados (grupo, descrição) de tokens. */
+/** Sets (replaces entirely) or removes token metadata (group, description). */
 export interface SetTokenMetaOp {
   type: 'setTokenMeta';
   set?: Record<string, TokenMeta>;
   unset?: string[];
 }
 
-/** Substitui a lista de temas (criar, remover, renomear, reordenar); nomes únicos. */
+/** Replaces the theme list (create, remove, rename, reorder); unique names. */
 export interface SetThemesOp {
   type: 'setThemes';
   themes: Theme[];
 }
 
-/** Substitui o sistema de tokens inteiro (tokens base, metadados e temas). Usado por importação e inversos. */
+/** Replaces the entire token system (base tokens, metadata and themes). Used by import and inverses. */
 export interface ReplaceTokensOp {
   type: 'replaceTokens';
   tokens: Record<string, string>;
@@ -146,9 +146,9 @@ export interface ReplaceTokensOp {
 }
 
 /**
- * Renomeia um token: chave nos tokens base, nos metadados e nos temas, e todas as referências
- * `var(--antigo)` (estilos dos nós, valores de `attrs`, markup de SVG inline, tokens e temas).
- * O destino não pode existir como token nem estar declarado no estilo de algum nó.
+ * Renames a token: key in the base tokens, metadata and themes, and all `var(--old)`
+ * references (node styles, `attrs` values, inline SVG markup, tokens and themes).
+ * The target must not exist as a token nor be declared in the style of any node.
  */
 export interface RenameTokenOp {
   type: 'renameToken';
@@ -156,34 +156,34 @@ export interface RenameTokenOp {
   to: string;
 }
 
-/** Toggle de `locked`/`hidden`. */
+/** Toggle `locked`/`hidden`. */
 export interface SetNodeFlagsOp {
   type: 'setNodeFlags';
   changes: { nodeId: string; locked?: boolean; hidden?: boolean }[];
 }
 
-/** Troca a tag HTML de nós (ex.: `div` → `section`). Tags bloqueadas/inválidas são recusadas. */
+/** Changes the HTML tag of nodes (e.g. `div` → `section`). Blocked/invalid tags are rejected. */
 export interface SetTagOp {
   type: 'setTag';
   changes: { nodeId: string; tag: string }[];
 }
 
-/** Substitui a lista de fontes do documento (usada por `add_font`). */
+/** Replaces the document font list (used by `add_font`). */
 export interface SetFontsOp {
   type: 'setFonts';
   fonts: FontRef[];
 }
 
-/** Troca o `src` de nós image (caminho relativo a `assets/` ou data URL). */
+/** Changes the `src` of image nodes (path relative to `assets/` or data URL). */
 export interface SetSrcOp {
   type: 'setSrc';
   changes: { nodeId: string; src: string }[];
 }
 
 /**
- * Troca o markup SVG de nós `type: 'svg'` (sanitizado como na criação do nó). `attrs`, quando
- * informado, substitui `node.attrs` por inteiro (usado no undo do `renameToken`, já que
- * `setAttrs` em nó svg com markup grava no `<svg>` raiz e não em `node.attrs`).
+ * Changes the SVG markup of `type: 'svg'` nodes (sanitized as on node creation). `attrs`, when
+ * provided, replaces `node.attrs` entirely (used in the undo of `renameToken`, since
+ * `setAttrs` on an svg node with markup writes to the root `<svg>` and not to `node.attrs`).
  */
 export interface SetSvgOp {
   type: 'setSvg';
@@ -191,8 +191,8 @@ export interface SetSvgOp {
 }
 
 /**
- * Define as classes Tailwind escritas no nó (`node.classes`, dica de round-trip). `null` ou `''`
- * remove. Não mexe no estilo: `set_classes` combina esta op com `updateStyles` e `setStates`.
+ * Sets the Tailwind classes written on the node (`node.classes`, round-trip hint). `null` or `''`
+ * removes. Does not touch the style: `set_classes` combines this op with `updateStyles` and `setStates`.
  */
 export interface SetClassesOp {
   type: 'setClasses';
@@ -200,23 +200,23 @@ export interface SetClassesOp {
 }
 
 /**
- * Substitui os estados do nó (`node.states`: `hover`, `dark`, `md`...; ver `states.ts`).
- * `null` ou `{}` remove todos.
+ * Replaces the node states (`node.states`: `hover`, `dark`, `md`...; see `states.ts`).
+ * `null` or `{}` removes all.
  */
 export interface SetStatesOp {
   type: 'setStates';
   changes: { nodeId: string; states: Record<string, Record<string, string>> | null }[];
 }
 
-/** CSS base do documento: `tailwind` (preflight do Tailwind v4) ou `default`. */
+/** Document base CSS: `tailwind` (Tailwind v4 preflight) or `default`. */
 export interface SetCssBaseOp {
   type: 'setCssBase';
   base: 'default' | 'tailwind';
 }
 
-/* ---------------- Componentes (ver docs/COMPONENTES.md e components/ops.ts) ---------------- */
+/* ---------------- Components (see docs/COMPONENTS.md and components/ops.ts) ---------------- */
 
-/** Acrescenta um componente principal à biblioteca (`index` omitido = ao final). */
+/** Adds a main component to the library (`index` omitted = at the end). */
 export interface AddComponentOp {
   type: 'addComponent';
   component: ComponentDef;
@@ -224,10 +224,10 @@ export interface AddComponentOp {
 }
 
 /**
- * Remove um componente principal. Recusa se houver instâncias (nas páginas ou em outros
- * principais), a menos que `force`: interno, só no inverso de um `addComponent` feito quando já
- * havia instâncias desse id (o desfazer restaura o estado anterior exato). A entrada pública
- * (`assertPublicOps`: WS `op:apply` e MCP) recusa `force`.
+ * Removes a main component. Rejected if there are instances (in pages or in other
+ * main components), unless `force`: internal, only in the inverse of an `addComponent` done when
+ * instances of that id already existed (undo restores the exact previous state). The public entry
+ * (`assertPublicOps`: WS `op:apply` and MCP) rejects `force`.
  */
 export interface DeleteComponentOp {
   type: 'deleteComponent';
@@ -235,7 +235,7 @@ export interface DeleteComponentOp {
   force?: boolean;
 }
 
-/** Atualiza campos do principal; `null` em `description`/`kit` remove o campo. */
+/** Updates fields of the main component; `null` in `description`/`kit` removes the field. */
 export interface UpdateComponentOp {
   type: 'updateComponent';
   componentId: string;
@@ -247,38 +247,38 @@ export interface UpdateComponentOp {
   root?: Node;
 }
 
-/** Troca o nó `nodeId` por `node` no mesmo lugar (ids novos validados contra o documento). */
+/** Replaces node `nodeId` with `node` in the same place (new ids validated against the document). */
 export interface ReplaceNodeOp {
   type: 'replaceNode';
   nodeId: string;
   node: Node;
 }
 
-/** Define/remove props de instâncias. */
+/** Sets/removes props of instances. */
 export interface SetInstancePropsOp {
   type: 'setInstanceProps';
   changes: { nodeId: string; set?: Record<string, PropValue>; unset?: string[] }[];
 }
 
-/** Substitui o mapa de overrides de instâncias (`null` remove todos). */
+/** Replaces the overrides map of instances (`null` removes all). */
 export interface SetInstanceOverridesOp {
   type: 'setInstanceOverrides';
   changes: { nodeId: string; overrides: Record<string, NodeOverride> | null }[];
 }
 
 /**
- * Dados de nós repeater: `data` substitui a lista (omitido = mantém); `source` define a origem
- * (omitido = mantém, `null` = remove).
+ * Data of repeater nodes: `data` replaces the list (omitted = keep); `source` sets the origin
+ * (omitted = keep, `null` = remove).
  */
 export interface SetDataOp {
   type: 'setData';
-  /** `data: null` apaga a lista (usado pelo undo quando o nó não tinha dados). */
+  /** `data: null` clears the list (used by undo when the node had no data). */
   changes: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[];
 }
 
 /**
- * Define (ou remove, com `vector: null`) o modelo vetorial de nós svg. Com vetor, `node.svg` passa
- * a ser `svg` (se informado) ou `vectorToSvg(vector)`; o inverso restaura vetor e markup.
+ * Sets (or removes, with `vector: null`) the vector model of svg nodes. With a vector, `node.svg` becomes
+ * `svg` (if provided) or `vectorToSvg(vector)`; the inverse restores vector and markup.
  */
 export interface SetVectorOp {
   type: 'setVector';
@@ -286,8 +286,8 @@ export interface SetVectorOp {
 }
 
 /**
- * Troca a especificação de mídia de nós: `effect` em nós effect, `video` em nós video e `embed`
- * em nós embed (substitui o objeto inteiro; o campo precisa casar com o tipo do nó).
+ * Changes the media spec of nodes: `effect` on effect nodes, `video` on video nodes and `embed`
+ * on embed nodes (replaces the whole object; the field must match the node type).
  */
 export interface SetMediaOp {
   type: 'setMedia';
@@ -333,10 +333,10 @@ export type Op =
 export type OpType = Op['type'];
 
 export interface ApplyResult {
-  /** Novo documento (o original não é mutado). */
+  /** New document (the original is not mutated). */
   doc: Document;
-  /** Op(s) que desfazem exatamente esta op. */
+  /** Op(s) that exactly undo this op. */
   inverse: Op[];
-  /** Dados extras, ex. `{ idMap }` em duplicateNodes, `{ nodeIds }` em createNode. */
+  /** Extra data, e.g. `{ idMap }` in duplicateNodes, `{ nodeIds }` in createNode. */
   result?: Record<string, unknown>;
 }

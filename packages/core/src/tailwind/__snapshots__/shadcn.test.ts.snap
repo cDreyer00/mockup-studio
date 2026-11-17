@@ -1,15 +1,15 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`shadcn/ui v4: exportação com o motor > Tailwind: reaproveita as classes do autor 1`] = `
+exports[`shadcn/ui v4: export with the engine > Tailwind: reuses the author classes 1`] = `
 "<div class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm border-border w-95" data-slot="card">
   <div class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6" data-slot="card-header">
-    <div class="leading-none font-semibold" data-slot="card-title">Entrar</div>
-    <div class="text-muted-foreground text-sm" data-slot="card-description">Use seu e-mail</div>
+    <div class="leading-none font-semibold" data-slot="card-title">Sign in</div>
+    <div class="text-muted-foreground text-sm" data-slot="card-description">Use your email</div>
   </div>
   <div class="px-6" data-slot="card-content">
-    <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*=&#39;size-&#39;])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[&gt;svg]:px-3" data-slot="button">Continuar</button>
+    <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*=&#39;size-&#39;])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[&gt;svg]:px-3" data-slot="button">Continue</button>
   </div>
-  <div class="flex items-center px-6 [.border-t]:pt-6" data-slot="card-footer">Esqueceu a senha?</div>
+  <div class="flex items-center px-6 [.border-t]:pt-6" data-slot="card-footer">Forgot your password?</div>
 </div>
 "
 `;
