@@ -1,6 +1,5 @@
-import { findNode } from './document.js';
 import { evaluateCss } from './cssEval.js';
-import { scopeVarsFor, substituteVars } from './tokens.js';
+import { scopeChainFor, substituteVars } from './tokens.js';
 import type { Document } from './types.js';
 
 export const INHERITED_PROPS = [
@@ -60,9 +59,11 @@ export function resolveVars(value: string, tokens: Record<string, string>): stri
 }
 
 /**
- * Estilos próprios + propriedades herdadas dos ancestrais, com `var()` resolvido no escopo do nó
- * (tokens base, tema do frame via `data-theme` e custom properties dos ancestrais) e `calc()`/
- * `color-mix()` avaliados quando possível. `theme` força um tema para o nó (como se o frame o usasse);
+ * Estilos próprios + propriedades herdadas dos ancestrais, com `var()` resolvido como no CSS: cada
+ * valor no escopo do nó que o declara (uma propriedade herdada chega ao descendente já calculada
+ * no ancestral; um `data-theme` no descendente não a altera). O escopo inclui tokens base, tema
+ * via `data-theme` e custom properties dos ancestrais; `calc()`/`color-mix()` são avaliados quando
+ * possível. `theme` força um tema no próprio nó (como se ele tivesse `data-theme="<tema>"`);
  * `evaluate: false` mantém `calc()`/`color-mix()` como texto.
  */
 export function getComputedLike(
@@ -70,19 +71,18 @@ export function getComputedLike(
   nodeId: string,
   opts: { theme?: string; evaluate?: boolean } = {},
 ): Record<string, string> {
-  const path = findNode(doc, nodeId);
-  if (!path) throw new Error(`Nó "${nodeId}" não encontrado`);
-  const vars = scopeVarsFor(doc, nodeId, { theme: opts.theme });
+  const chain = scopeChainFor(doc, nodeId, { theme: opts.theme });
   const result: Record<string, string> = {};
-  for (const ancestor of path.ancestors) {
-    for (const [k, v] of Object.entries(ancestor.style)) {
-      if ((INHERITED_PROPS as readonly string[]).includes(k)) result[k] = v;
+  const finish = (value: string, vars: Record<string, string>): string => {
+    const v = substituteVars(value, (n) => vars[n]).value;
+    return opts.evaluate === false ? v : evaluateCss(v);
+  };
+  for (const { node, vars } of chain.slice(0, -1)) {
+    for (const [k, v] of Object.entries(node.style)) {
+      if ((INHERITED_PROPS as readonly string[]).includes(k)) result[k] = finish(v, vars);
     }
   }
-  for (const [k, v] of Object.entries(path.node.style)) result[k] = v;
-  for (const k of Object.keys(result)) {
-    const v = substituteVars(result[k]!, (n) => vars[n]).value;
-    result[k] = opts.evaluate === false ? v : evaluateCss(v);
-  }
+  const self = chain.at(-1)!;
+  for (const [k, v] of Object.entries(self.node.style)) result[k] = finish(v, self.vars);
   return result;
 }

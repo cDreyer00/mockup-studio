@@ -130,7 +130,8 @@ export interface ReplaceTokensOp {
 
 /**
  * Renomeia um token: chave nos tokens base, nos metadados e nos temas, e todas as referências
- * `var(--antigo)` (estilos dos nós, valores de tokens e de temas). O destino não pode existir.
+ * `var(--antigo)` (estilos dos nós, valores de `attrs`, markup de SVG inline, tokens e temas).
+ * O destino não pode existir como token nem estar declarado no estilo de algum nó.
  */
 export interface RenameTokenOp {
   type: 'renameToken';
@@ -162,6 +163,16 @@ export interface SetSrcOp {
   changes: { nodeId: string; src: string }[];
 }
 
+/**
+ * Troca o markup SVG de nós `type: 'svg'` (sanitizado como na criação do nó). `attrs`, quando
+ * informado, substitui `node.attrs` por inteiro (usado no undo do `renameToken`, já que
+ * `setAttrs` em nó svg com markup grava no `<svg>` raiz e não em `node.attrs`).
+ */
+export interface SetSvgOp {
+  type: 'setSvg';
+  changes: { nodeId: string; svg: string; attrs?: Record<string, string> }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -183,7 +194,8 @@ export type Op =
   | SetNodeFlagsOp
   | SetTagOp
   | SetFontsOp
-  | SetSrcOp;
+  | SetSrcOp
+  | SetSvgOp;
 
 export type OpType = Op['type'];
 

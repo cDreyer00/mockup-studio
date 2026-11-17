@@ -15,6 +15,7 @@ import {
   planDeleteTokens,
   planRenameTheme,
   planSetFrameTheme,
+  renameTokenProblem,
   replaceVarRefs,
   resolvedTokens,
   resolveScope,
@@ -232,6 +233,103 @@ describe('renameToken', () => {
     const after = applyAndUndo(rich(), [{ type: 'renameToken', from: '--old', to: '--novo' }]);
     expect(after.tokens['--novo']).toBe('#123456');
   });
+
+  function withAttrsAndSvg(): Document {
+    return docWith(
+      [
+        createNode({
+          tag: 'div',
+          id: 'el_attr0001',
+          attrs: { fill: 'var(--a)', title: 'x' },
+        }),
+        createNode({
+          tag: 'svg',
+          id: 'el_svg00001',
+          svg: '<svg width="10"><path fill="var(--a)"/><path stroke="var(--a, red)"/></svg>',
+        }),
+        createNode({
+          tag: 'svg',
+          id: 'el_svg00002',
+          attrs: { color: 'var(--a)' },
+          svg: '<svg><g fill="var(--a)"/></svg>',
+        }),
+        createNode({ tag: 'svg', id: 'el_svg00003', attrs: { color: 'var(--a)' } }),
+      ],
+      { tokens: { '--a': '#fff' } },
+    );
+  }
+
+  it('troca var() em attrs e no markup SVG, conta nós e referências', () => {
+    const { doc: out, results } = applyOps(withAttrsAndSvg(), [
+      { type: 'renameToken', from: '--a', to: '--b' },
+    ]);
+    const [attr, svg1, svg2, svg3] = out.pages[0].frames[0].children;
+    expect(attr.attrs.fill).toBe('var(--b)');
+    expect(attr.attrs.title).toBe('x');
+    expect(svg1.svg).toBe(
+      '<svg width="10"><path fill="var(--b)"/><path stroke="var(--b, red)"/></svg>',
+    );
+    expect(svg2.svg).toBe('<svg><g fill="var(--b)"/></svg>');
+    expect(svg2.attrs.color).toBe('var(--b)');
+    expect(svg3.attrs.color).toBe('var(--b)');
+    expect(results[0]).toMatchObject({ nodes: 4, references: 6 });
+  });
+
+  it('undo de attrs e SVG volta exatamente ao documento original', () => {
+    const doc = withAttrsAndSvg();
+    const { doc: out, inverse } = applyOps(doc, [{ type: 'renameToken', from: '--a', to: '--b' }]);
+    expect(strip(applyOps(out, inverse).doc)).toEqual(strip(doc));
+    applyAndUndo(doc, [{ type: 'renameToken', from: '--a', to: '--b' }]);
+  });
+
+  it('setSvg recusa nó que não é svg e sanitiza o markup', () => {
+    const doc = withAttrsAndSvg();
+    expect(() =>
+      applyOps(doc, [{ type: 'setSvg', changes: [{ nodeId: 'el_attr0001', svg: '<svg/>' }] }]),
+    ).toThrow(/não é um SVG/);
+    const { doc: out } = applyOps(doc, [
+      {
+        type: 'setSvg',
+        changes: [{ nodeId: 'el_svg00001', svg: '<svg><rect onclick="x()"/><script/></svg>' }],
+      },
+    ]);
+    expect(out.pages[0].frames[0].children[1].svg).toBe('<svg><rect/></svg>');
+    expect(() =>
+      applyOps(doc, [
+        {
+          type: 'setSvg',
+          changes: [{ nodeId: 'el_svg00001', svg: '<svg/>', attrs: { onload: 'x()' } }],
+        },
+      ]),
+    ).toThrow(/on\*/);
+  });
+
+  it('recusa destino já declarado no estilo de algum nó', () => {
+    const doc = docWith([el('el_a0000001', { '--novo': '1px' })], { tokens: { '--old': '#000' } });
+    expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--novo' }])).toThrow(
+      /já está declarada no estilo do nó "el_a0000001" \(el_a0000001\)/,
+    );
+  });
+
+  it('renameTokenProblem cobre cada recusa e devolve null quando pode', () => {
+    const doc = docWith([el('el_a0000001', { '--local': '1px' })], {
+      tokens: { '--old': '#000', '--keep': '1px' },
+      themes: [{ name: 'dark', overrides: { '--so-tema': '#111' } }],
+    });
+    expect(renameTokenProblem(doc, 'old', 'novo')).toBeNull();
+    expect(renameTokenProblem(doc, '--old', '--a b')).toMatch(/inválido/);
+    expect(renameTokenProblem(doc, '--old', 'old')).toMatch(/igual/);
+    expect(renameTokenProblem(doc, '--nada', '--x')).toMatch(/não encontrado/);
+    expect(renameTokenProblem(doc, '--old', '--keep')).toMatch(/Já existe/);
+    expect(renameTokenProblem(doc, '--old', '--so-tema')).toMatch(/Já existe/);
+    expect(renameTokenProblem(doc, '--old', '--local')).toMatch(/já está declarada/);
+  });
+
+  it('replaceVarRefs casa VAR( sem diferenciar maiúsculas e preserva a grafia', () => {
+    expect(replaceVarRefs('VAR(--a) Var( --a, 1px) var(--A)', '--a', '--z')).toBe(
+      'VAR(--z) Var(--z, 1px) var(--A)',
+    );
+  });
 });
 
 describe('ops de tokens e temas', () => {
@@ -379,6 +477,33 @@ describe('planejadores', () => {
 });
 
 describe('getTokenReport', () => {
+  it('conta uso e referências quebradas em attrs e em markup SVG', () => {
+    const doc = docWith(
+      [
+        createNode({
+          tag: 'div',
+          id: 'el_attr0001',
+          attrs: { fill: 'var(--a)', stroke: 'var(--x)' },
+        }),
+        createNode({
+          tag: 'svg',
+          id: 'el_svg00001',
+          svg: '<svg><path fill="var(--a)"/><g fill="var(--y)"/></svg>',
+        }),
+      ],
+      { tokens: { '--a': '#fff' } },
+    );
+    const r = getTokenReport(doc);
+    expect(r.tokens.find((t) => t.name === '--a')!.usage.nodeIds).toEqual([
+      'el_attr0001',
+      'el_svg00001',
+    ]);
+    expect(r.broken).toEqual([
+      { nodeId: 'el_attr0001', property: 'attr:stroke', missing: '--x' },
+      { nodeId: 'el_svg00001', property: 'svg', missing: '--y' },
+    ]);
+  });
+
   it('uso por nós e por tokens, e não usados', () => {
     const doc = docWith(
       [

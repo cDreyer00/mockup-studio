@@ -148,11 +148,39 @@ export function referencedTokens(value: string): string[] {
   return [...new Set(findVarRefs(value).map((r) => r.name))];
 }
 
-/** Troca `var(--from` por `var(--to` (só o nome exato). */
+/**
+ * Troca `var(--from` por `var(--to` (só o nome exato). A função `var(` casa sem diferenciar
+ * maiúsculas (como no CSS; a flag `i` não serve, pois tornaria o nome insensível também) e a
+ * grafia original é preservada; o nome da variável diferencia maiúsculas.
+ */
 export function replaceVarRefs(value: string, from: string, to: string): string {
   if (!value.includes(from)) return value;
-  const re = new RegExp(`var\\(\\s*${from.replace(/[-]/g, '\\-')}(?=\\s*[,)])`, 'g');
-  return value.replace(re, `var(${to}`);
+  const re = new RegExp(`([vV][aA][rR]\\()\\s*${from.replace(/[-]/g, '\\-')}(?=\\s*[,)])`, 'g');
+  return value.replace(re, (_m, open: string) => `${open}${to}`);
+}
+
+/**
+ * Problema que impede renomear `from` para `to` (mensagem pronta) ou `null` se pode.
+ * Recusa nome inválido, igual, origem inexistente, destino já definido (base ou tema) e destino
+ * já declarado como custom property no estilo de algum nó (o rename perderia um dos valores).
+ */
+export function renameTokenProblem(doc: Document, from: string, to: string): string | null {
+  const a = normalizeTokenName(from);
+  const b = normalizeTokenName(to);
+  if (!TOKEN_NAME_RE.test(b)) return `Nome de token inválido: "${b}" (use o formato --nome)`;
+  if (a === b) return 'O nome novo é igual ao atual';
+  const defined = (name: string): boolean =>
+    name in doc.tokens || (doc.themes ?? []).some((t) => name in t.overrides);
+  if (!defined(a)) return `Token "${a}" não encontrado`;
+  if (defined(b)) return `Já existe um token "${b}"`;
+  let local: Node | undefined;
+  walk(doc, (n) => {
+    if (!local && b in n.style) local = n;
+  });
+  if (local) {
+    return `A variável "${b}" já está declarada no estilo do nó "${local.name}" (${local.id}); renomeie ou remova antes`;
+  }
+  return null;
 }
 
 /**
@@ -193,16 +221,28 @@ export function substituteVars(
   return { value: run(value, 0), missing };
 }
 
+/** Variáveis de um escopo e as que ficaram inválidas (sem valor), com o motivo. */
+export interface ScopeResolution {
+  vars: Record<string, string>;
+  /**
+   * Variáveis declaradas no escopo que ficaram inválidas: nome → referências que faltaram
+   * (inexistentes ou também inválidas, sem fallback). Ciclos aparecem com `[]`.
+   */
+  invalid: Record<string, string[]>;
+}
+
 /**
  * Variáveis resolvidas num elemento: `declared` (custom properties do próprio elemento) vê as
- * outras declarações do mesmo elemento e herda o resto de `inherited`. Ciclos ficam sem valor,
- * como no CSS.
+ * outras declarações do mesmo elemento e herda o resto de `inherited`. Como no CSS, uma variável
+ * com ciclo ou com `var()` para variável inexistente (sem fallback) fica sem valor (inválida no
+ * momento do cálculo), e quem a referencia com fallback passa a usar o fallback.
  */
-export function resolveScope(
+export function resolveScopeDetailed(
   inherited: Record<string, string>,
   declared: Record<string, string>,
-): Record<string, string> {
+): ScopeResolution {
   const out: Record<string, string> = { ...inherited };
+  const invalid: Record<string, string[]> = {};
   const done = new Map<string, string | undefined>();
   const stack: string[] = [];
   const poisoned = new Set<string>();
@@ -218,8 +258,14 @@ export function resolveScope(
     stack.push(name);
     const r = substituteVars(declared[name]!, get);
     stack.pop();
-    // Referência ausente fica no texto (`var(--x)`), para o problema aparecer no valor resolvido.
-    const result = poisoned.has(name) ? undefined : r.value;
+    let result: string | undefined = r.value;
+    if (poisoned.has(name)) {
+      result = undefined;
+      invalid[name] = [];
+    } else if (r.missing.length > 0) {
+      result = undefined;
+      invalid[name] = [...new Set(r.missing)];
+    }
     done.set(name, result);
     return result;
   };
@@ -228,7 +274,15 @@ export function resolveScope(
     if (v === undefined) delete out[name];
     else out[name] = v;
   }
-  return out;
+  return { vars: out, invalid };
+}
+
+/** {@link resolveScopeDetailed} só com as variáveis. */
+export function resolveScope(
+  inherited: Record<string, string>,
+  declared: Record<string, string>,
+): Record<string, string> {
+  return resolveScopeDetailed(inherited, declared).vars;
 }
 
 /* ====================================================================== */
@@ -284,8 +338,19 @@ export function themeDeclarations(doc: Document, themeName: string): Record<stri
 
 /** Variáveis resolvidas no `:root` e, com `theme`, dentro de `[data-theme="<tema>"]`. */
 export function resolvedTokens(doc: Document, theme?: string): Record<string, string> {
-  const root = resolveScope({}, doc.tokens);
-  return theme ? resolveScope(root, themeDeclarations(doc, theme)) : root;
+  return resolvedTokensDetailed(doc, theme).vars;
+}
+
+/** {@link resolvedTokens} com as variáveis que ficaram inválidas (referência ausente ou ciclo). */
+export function resolvedTokensDetailed(doc: Document, theme?: string): ScopeResolution {
+  const root = resolveScopeDetailed({}, doc.tokens);
+  if (!theme) return root;
+  const decl = themeDeclarations(doc, theme);
+  const t = resolveScopeDetailed(root.vars, decl);
+  const invalid = { ...root.invalid };
+  // Redeclaradas no tema: valem as do tema (inclusive quando voltam a ter valor).
+  for (const k of Object.keys(decl)) delete invalid[k];
+  return { vars: t.vars, invalid: { ...invalid, ...t.invalid } };
 }
 
 /** Valor resolvido (var, calc, color-mix) de um token, no tema indicado. */
@@ -294,26 +359,42 @@ export function resolveTokenValue(doc: Document, name: string, theme?: string): 
   return v === undefined ? undefined : evaluateCss(v);
 }
 
-/** Variáveis vistas por um nó: tokens, temas (`data-theme`) e custom properties dos ancestrais. */
+/**
+ * Variáveis vistas por cada nó do caminho até `nodeId` (ancestrais primeiro, o nó por último):
+ * tokens base, temas (`data-theme`) e custom properties declaradas. `theme` força um tema no
+ * próprio nó (como se ele tivesse `data-theme="<tema>"`, no lugar do que tiver).
+ */
+export function scopeChainFor(
+  doc: Document,
+  nodeId: string,
+  opts: { theme?: string } = {},
+): { node: Node; vars: Record<string, string> }[] {
+  const path = findNode(doc, nodeId);
+  if (!path) throw new Error(`Nó "${nodeId}" não encontrado`);
+  const forced = opts.theme && findTheme(doc, opts.theme) ? opts.theme : undefined;
+  let vars = resolveScope({}, doc.tokens);
+  const chain: { node: Node; vars: Record<string, string> }[] = [];
+  for (const n of [...path.ancestors, path.node]) {
+    const declared: Record<string, string> = {};
+    const t = n === path.node && forced ? forced : nodeTheme(doc, n);
+    if (t) Object.assign(declared, themeDeclarations(doc, t));
+    for (const [k, v] of Object.entries(n.style)) if (k.startsWith('--')) declared[k] = v;
+    if (Object.keys(declared).length > 0) vars = resolveScope(vars, declared);
+    chain.push({ node: n, vars });
+  }
+  return chain;
+}
+
+/**
+ * Variáveis vistas por um nó: tokens, temas (`data-theme`) e custom properties dos ancestrais.
+ * `theme` força um tema no próprio nó (ver {@link scopeChainFor}).
+ */
 export function scopeVarsFor(
   doc: Document,
   nodeId: string,
   opts: { theme?: string } = {},
 ): Record<string, string> {
-  const path = findNode(doc, nodeId);
-  if (!path) throw new Error(`Nó "${nodeId}" não encontrado`);
-  let vars = resolveScope({}, doc.tokens);
-  if (opts.theme && findTheme(doc, opts.theme)) {
-    vars = resolveScope(vars, themeDeclarations(doc, opts.theme));
-  }
-  for (const n of [...path.ancestors, path.node]) {
-    const declared: Record<string, string> = {};
-    const t = nodeTheme(doc, n);
-    if (t) Object.assign(declared, themeDeclarations(doc, t));
-    for (const [k, v] of Object.entries(n.style)) if (k.startsWith('--')) declared[k] = v;
-    if (Object.keys(declared).length > 0) vars = resolveScope(vars, declared);
-  }
-  return vars;
+  return scopeChainFor(doc, nodeId, opts).at(-1)!.vars;
 }
 
 /** Resolve `var()` com as variáveis dadas e avalia `calc()`/`color-mix()` quando possível. */
@@ -390,7 +471,12 @@ const GROUP_NOUN: Record<string, string> = {
 export function validateTokenValue(
   name: string,
   value: string,
-  opts: { group?: string; vars?: Record<string, string> } = {},
+  opts: {
+    group?: string;
+    vars?: Record<string, string>;
+    /** Variáveis inválidas do escopo (de {@link resolvedTokensDetailed}), para a mensagem. */
+    invalid?: Record<string, string[]>;
+  } = {},
 ): TokenProblem | null {
   const unsafe = cssValueProblem(value);
   if (unsafe) return { level: 'error', message: unsafe };
@@ -407,10 +493,19 @@ export function validateTokenValue(
   const vars = opts.vars ?? {};
   const sub = substituteVars(value, (n) => vars[n]);
   if (sub.missing.length > 0) {
-    return {
-      level: 'warning',
-      message: `referência a token inexistente: ${[...new Set(sub.missing)].join(', ')}`,
-    };
+    const names = [...new Set(sub.missing)];
+    const broken = names.filter((n) => opts.invalid && n in opts.invalid);
+    const absent = names.filter((n) => !broken.includes(n));
+    const parts: string[] = [];
+    if (absent.length > 0) parts.push(`referência a token inexistente: ${absent.join(', ')}`);
+    if (broken.length > 0) {
+      const why = (n: string): string => {
+        const m = opts.invalid![n]!;
+        return m.length > 0 ? `${n} (→ ${m.join(', ')})` : `${n} (ciclo)`;
+      };
+      parts.push(`referência a token sem valor válido: ${broken.map(why).join(', ')}`);
+    }
+    return { level: 'warning', message: parts.join('; ') };
   }
   const group = opts.group ?? inferTokenGroup(name, value);
   const prop = typeCheckProperty(name, group);
@@ -480,6 +575,74 @@ export function nodesWithTheme(doc: Document, theme: string): string[] {
   return out;
 }
 
+type TokenInfoBase = Omit<TokenInfo, 'usage'>;
+
+/**
+ * Parte do relatório que só depende de tokens, metadados e temas (resolução e validação com
+ * css-tree, a parte cara). Fica em cache pela serialização desses três campos (barata perto da
+ * validação e imune a mutação no lugar): arrastar ou editar nós não refaz este cálculo.
+ */
+const INFO_CACHE_SIZE = 8;
+const infoCache = new Map<string, TokenInfoBase[]>();
+
+function tokenInfosFor(doc: Document): TokenInfoBase[] {
+  const key = JSON.stringify([doc.tokens, doc.tokenMeta ?? null, doc.themes ?? null]);
+  const hit = infoCache.get(key);
+  if (hit) {
+    infoCache.delete(key);
+    infoCache.set(key, hit);
+    return hit;
+  }
+  const infos = computeTokenInfos(doc);
+  infoCache.set(key, infos);
+  if (infoCache.size > INFO_CACHE_SIZE) infoCache.delete(infoCache.keys().next().value!);
+  return infos;
+}
+
+function computeTokenInfos(doc: Document): TokenInfoBase[] {
+  const rootRes = resolvedTokensDetailed(doc);
+  const root = rootRes.vars;
+  const themeRes = new Map(
+    (doc.themes ?? []).map((t) => [t.name, resolvedTokensDetailed(doc, t.name)]),
+  );
+  const byTheme = new Map([...themeRes].map(([k, r]) => [k, r.vars]));
+  return tokenNames(doc).map((name) => {
+    const value = doc.tokens[name];
+    const group = tokenGroup(doc, name);
+    const themes: Record<string, string> = {};
+    const resolvedByTheme: Record<string, string> = {};
+    for (const t of doc.themes ?? []) {
+      if (name in t.overrides) themes[t.name] = t.overrides[name]!;
+      const r = byTheme.get(t.name)?.[name];
+      if (r !== undefined) resolvedByTheme[t.name] = evaluateCss(r);
+    }
+    const info: Omit<TokenInfo, 'usage'> = {
+      name,
+      value,
+      group,
+      themes,
+      resolvedByTheme,
+    };
+    const description = doc.tokenMeta?.[name]?.description;
+    if (description) info.description = description;
+    if (root[name] !== undefined) info.resolved = evaluateCss(root[name]);
+    const problem =
+      value !== undefined
+        ? validateTokenValue(name, value, { group, vars: root, invalid: rootRes.invalid })
+        : Object.entries(themes)
+            .map(([t, v]) =>
+              validateTokenValue(name, v, {
+                group,
+                vars: byTheme.get(t),
+                invalid: themeRes.get(t)?.invalid,
+              }),
+            )
+            .find((p) => p !== null);
+    if (problem) info.problem = problem;
+    return info;
+  });
+}
+
 /** Relatório completo: tokens com grupo, valores resolvidos, uso, não usados e referências quebradas. */
 export function getTokenReport(doc: Document): TokenReport {
   const names = tokenNames(doc);
@@ -513,42 +676,19 @@ export function getTokenReport(doc: Document): TokenReport {
     for (const [prop, v] of Object.entries(node.style)) {
       checkValue(v, { nodeId: node.id, property: prop }, local);
     }
+    // Valores de atributos (ex.: `fill="var(--x)"`) e markup de SVG inline também usam var().
+    for (const [attr, v] of Object.entries(node.attrs ?? {})) {
+      checkValue(v, { nodeId: node.id, property: `attr:${attr}` }, local);
+    }
+    if (node.svg) checkValue(node.svg, { nodeId: node.id, property: 'svg' }, local);
     for (const c of node.children) visit(c, local);
   };
   for (const page of doc.pages) for (const f of page.frames) visit(f, defined);
 
-  const root = resolvedTokens(doc);
-  const byTheme = new Map((doc.themes ?? []).map((t) => [t.name, resolvedTokens(doc, t.name)]));
-  const tokens: TokenInfo[] = names.map((name) => {
-    const value = doc.tokens[name];
-    const group = tokenGroup(doc, name);
-    const themes: Record<string, string> = {};
-    const resolvedByTheme: Record<string, string> = {};
-    for (const t of doc.themes ?? []) {
-      if (name in t.overrides) themes[t.name] = t.overrides[name]!;
-      const r = byTheme.get(t.name)?.[name];
-      if (r !== undefined) resolvedByTheme[t.name] = evaluateCss(r);
-    }
-    const info: TokenInfo = {
-      name,
-      value,
-      group,
-      themes,
-      resolvedByTheme,
-      usage: usage.get(name)!,
-    };
-    const description = doc.tokenMeta?.[name]?.description;
-    if (description) info.description = description;
-    if (root[name] !== undefined) info.resolved = evaluateCss(root[name]);
-    const problem =
-      value !== undefined
-        ? validateTokenValue(name, value, { group, vars: root })
-        : Object.entries(themes)
-            .map(([t, v]) => validateTokenValue(name, v, { group, vars: byTheme.get(t) }))
-            .find((p) => p !== null);
-    if (problem) info.problem = problem;
-    return info;
-  });
+  const tokens: TokenInfo[] = tokenInfosFor(doc).map((info) => ({
+    ...info,
+    usage: usage.get(info.name)!,
+  }));
 
   const unused = tokens
     .filter((t) => t.usage.nodeIds.length === 0 && t.usage.tokens.length === 0)

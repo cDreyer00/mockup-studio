@@ -205,6 +205,7 @@ Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `
 | `setTag`         | `changes[{ nodeId, tag }]`                                                          | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
 | `setFonts`       | `fonts[]` (`FontRef`; substitui a lista inteira, sem famílias repetidas)            | `setFonts` com a lista anterior                                                                                     |
 | `setSrc`         | `changes[{ nodeId, src }]` (só nós `image`)                                         | `setSrc` com os `src` anteriores                                                                                    |
+| `setSvg`         | `changes[{ nodeId, svg, attrs? }]` (só nós `svg`, sanitizado)                       | `setSvg` com o markup anterior (e os `attrs` anteriores, se `attrs` veio, que substitui `node.attrs`)               |
 
 Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
 

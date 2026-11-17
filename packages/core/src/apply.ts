@@ -5,8 +5,8 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
-import { normalizeTokenName, replaceVarRefs } from './tokens.js';
-import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
+import { findVarRefs, normalizeTokenName, renameTokenProblem, replaceVarRefs } from './tokens.js';
+import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
 import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
@@ -535,12 +535,8 @@ function renameKey<T>(map: Record<string, T>, from: string, to: string): Record<
 function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): Applied {
   const from = normalizeTokenName(op.from);
   const to = normalizeTokenName(op.to);
-  if (!TOKEN_NAME_RE.test(to)) fail(`Nome de token inválido: "${to}" (use o formato --nome)`);
-  if (from === to) fail('O nome novo é igual ao atual');
-  const defined = (name: string): boolean =>
-    name in d.tokens || (d.themes ?? []).some((t) => name in t.overrides);
-  if (!defined(from)) fail(`Token "${from}" não encontrado`);
-  if (defined(to)) fail(`Já existe um token "${to}"`);
+  const problem = renameTokenProblem(d, from, to);
+  if (problem) fail(problem);
   const inverse: Op[] = [snapshotTokens(d)];
 
   const renameValues = (map: Record<string, string>): Record<string, string> => {
@@ -553,7 +549,13 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
   for (const t of d.themes ?? []) t.overrides = renameValues(t.overrides);
 
   // Estilos dos nós: referências var() e declarações locais da própria variável.
+  // Também valores de `attrs` (ex.: `fill="var(--x)"`) e o markup de nós svg. O undo de attrs usa
+  // `setAttrs` (nós comuns) ou `setSvg` com `attrs` (nó svg com markup, onde `setAttrs` mexeria no
+  // `<svg>` raiz e não em `node.attrs`), restaurando markup e attrs juntos.
   const styleInv: StyleChange[] = [];
+  const attrsInv: { nodeId: string; set: Record<string, string>; unset: string[] }[] = [];
+  const svgInv: { nodeId: string; svg: string; attrs?: Record<string, string> }[] = [];
+  const touched = new Set<string>();
   let refs = 0;
   for (const page of d.pages) {
     walk(page, (node) => {
@@ -566,17 +568,53 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
         if (value !== v) refs++;
         next[key] = value;
       }
-      if (!changed) return;
-      const set: Record<string, string> = {};
-      const unset: string[] = [];
-      for (const [k, v] of Object.entries(node.style)) if (next[k] !== v) set[k] = v;
-      for (const k of Object.keys(next)) if (!(k in node.style)) unset.push(k);
-      styleInv.push({ nodeId: node.id, set, unset });
-      node.style = next;
+      if (changed) {
+        const set: Record<string, string> = {};
+        const unset: string[] = [];
+        for (const [k, v] of Object.entries(node.style)) if (next[k] !== v) set[k] = v;
+        for (const k of Object.keys(next)) if (!(k in node.style)) unset.push(k);
+        styleInv.push({ nodeId: node.id, set, unset });
+        node.style = next;
+        touched.add(node.id);
+      }
+
+      const prevAttrs = node.attrs ?? {};
+      const nextAttrs: Record<string, string> = {};
+      const prevAttrValues: Record<string, string> = {};
+      for (const [k, v] of Object.entries(prevAttrs)) {
+        const value = k === 'style' || k === 'class' ? v : replaceVarRefs(v, from, to);
+        if (value !== v) {
+          refs++;
+          prevAttrValues[k] = v;
+        }
+        nextAttrs[k] = value;
+      }
+      const attrsChanged = Object.keys(prevAttrValues).length > 0;
+      const prevSvg = node.type === 'svg' ? (node.svg ?? '') : '';
+      const nextSvg = prevSvg ? replaceVarRefs(prevSvg, from, to) : prevSvg;
+      const svgChanged = nextSvg !== prevSvg;
+      if (svgChanged) {
+        refs += findVarRefs(prevSvg).filter((r) => r.name === from).length;
+        node.svg = nextSvg;
+      }
+      if (attrsChanged) node.attrs = nextAttrs;
+      if (svgChanged) {
+        svgInv.push(
+          attrsChanged
+            ? { nodeId: node.id, svg: prevSvg, attrs: prevAttrs }
+            : { nodeId: node.id, svg: prevSvg },
+        );
+      } else if (attrsChanged) {
+        if (prevSvg) svgInv.push({ nodeId: node.id, svg: prevSvg, attrs: prevAttrs });
+        else attrsInv.push({ nodeId: node.id, set: prevAttrValues, unset: [] });
+      }
+      if (attrsChanged || svgChanged) touched.add(node.id);
     });
   }
   if (styleInv.length > 0) inverse.push({ type: 'updateStyles', changes: styleInv });
-  return { inverse, result: { from, to, nodes: styleInv.length, references: refs } };
+  if (attrsInv.length > 0) inverse.push({ type: 'setAttrs', changes: attrsInv });
+  if (svgInv.length > 0) inverse.push({ type: 'setSvg', changes: svgInv });
+  return { inverse, result: { from, to, nodes: touched.size, references: refs } };
 }
 
 function doSetFonts(d: Document, op: Extract<Op, { type: 'setFonts' }>): Applied {
@@ -602,6 +640,34 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
     p.node.src = c.src;
   }
   return { inverse: [{ type: 'setSrc', changes: prev.reverse() }] };
+}
+
+function doSetSvg(d: Document, op: Extract<Op, { type: 'setSvg' }>): Applied {
+  const prev: { nodeId: string; svg: string; attrs?: Record<string, string> }[] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    if (p.node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um SVG`);
+    // Mesma sanitização aplicada ao `svg` na criação do nó (schema.ts).
+    const svg = sanitizeSvg(c.svg);
+    if (!svg) fail(`O markup do nó "${c.nodeId}" não contém um <svg> válido`);
+    // `attrs` novos ou alterados passam pelas mesmas regras do `setAttrs` (sem on*, style e class).
+    for (const [k, v] of Object.entries(c.attrs ?? {})) {
+      if (p.node.attrs[k] === v) continue;
+      if (k === 'style' || k === 'class') fail(`O atributo "${k}" não é permitido em attrs`);
+      const problem = attrNameProblem(k);
+      if (problem) fail(problem);
+    }
+    const entry: { nodeId: string; svg: string; attrs?: Record<string, string> } = {
+      nodeId: c.nodeId,
+      svg: p.node.svg ?? '',
+    };
+    if (c.attrs) entry.attrs = { ...p.node.attrs };
+    prev.push(entry);
+    p.node.svg = svg;
+    if (c.attrs) p.node.attrs = { ...c.attrs };
+  }
+  return { inverse: [{ type: 'setSvg', changes: prev.reverse() }] };
 }
 
 /* ---------------- API pública ---------------- */
@@ -674,6 +740,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setSrc':
       applied = doSetSrc(d, op);
+      break;
+    case 'setSvg':
+      applied = doSetSvg(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);
