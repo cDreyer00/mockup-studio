@@ -102,9 +102,9 @@ describe('DaemonClient', () => {
     const { doc, frame, a } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     const now = Date.now();
-    useDoc.setState({ agentActivity: { [frame.id]: now, fr_outro: now } });
+    useDoc.setState({ agentActivity: { [frame.id]: now, fr_other: now } });
     FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [a.id] });
-    expect(useDoc.getState().agentActivity).toEqual({ fr_outro: now });
+    expect(useDoc.getState().agentActivity).toEqual({ fr_other: now });
     useDoc.setState({ agentActivity: { [frame.id]: now } });
     FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [] });
     expect(useDoc.getState().agentActivity).toEqual({});

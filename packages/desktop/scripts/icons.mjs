@@ -30,7 +30,7 @@ async function rasterize(size) {
     win.webContents.on('paint', (_e, _dirty, image) => {
       last = image;
       clearTimeout(win.__t);
-      win.__t = setTimeout(() => resolve(last), 400); // espera a pintura estabilizar
+      win.__t = setTimeout(() => resolve(last), 400); // wait for painting to settle
     });
   });
   const tmp = path.join(os.tmpdir(), `mockup-icon-${process.pid}.html`);

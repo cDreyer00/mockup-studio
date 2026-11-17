@@ -35,7 +35,7 @@ function makeRepeater(): Node {
 describe('dataTable', () => {
   const data = [{ name: 'Ana', age: 30 }, { name: 'Bia' }];
 
-  it('setCell preserva o tipo anterior e devolve lista nova', () => {
+  it('setCell keeps the previous type and returns a new list', () => {
     const next = setCell(data, 0, 'age', '31');
     expect(next[0]).toEqual({ name: 'Ana', age: 31 });
     expect(data[0]).toEqual({ name: 'Ana', age: 30 });
@@ -44,7 +44,7 @@ describe('dataTable', () => {
     expect(parseCell('{"a":1}', {})).toEqual({ a: 1 });
   });
 
-  it('linhas e colunas', () => {
+  it('rows and columns', () => {
     expect(addRow(data, ['name', 'age'])).toHaveLength(3);
     expect(addRow(data, ['name', 'age'])[2]).toEqual({ name: '', age: '' });
     expect(removeRow(data, 0)).toEqual([{ name: 'Bia' }]);
@@ -183,7 +183,7 @@ describe('DataSection', () => {
     ]);
   });
 
-  it('Vincular… cola JSON e chama /bind', async () => {
+  it('Bind… pastes JSON and calls /bind', async () => {
     const bind = vi
       .spyOn(features, 'bindData')
       .mockResolvedValue({ nodeId: rep.id, count: 1, columns: ['a'], source: { kind: 'inline' } });

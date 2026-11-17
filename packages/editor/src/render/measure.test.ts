@@ -66,7 +66,7 @@ describe('pickFrame', () => {
     doc.pages[0]!.background = '#123456';
     expect(pickFrame(doc, a.id)).toMatchObject({ frame: { id: frame.id }, background: '#123456' });
     expect(pickFrame(doc, frame.id)?.frame.id).toBe(frame.id);
-    expect(pickFrame(doc, 'nao_existe')).toBeNull();
+    expect(pickFrame(doc, 'does_not_exist')).toBeNull();
   });
 });
 

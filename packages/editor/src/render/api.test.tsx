@@ -20,10 +20,10 @@ describe('render page', () => {
   it('renders only the node frame at (0,0), without shadow, with the page background', async () => {
     const { doc, frame, a } = makeDoc();
     doc.pages[0]!.background = '#abcdef';
-    doc.pages[0]!.frames.push({ ...frame, id: 'outro', children: [] });
+    doc.pages[0]!.frames.push({ ...frame, id: 'other', children: [] });
     const box = await api.render({ doc, docId: doc.id, nodeId: a.id });
     expect(box.frameId).toBe(frame.id);
-    expect(document.querySelector('[data-node-id="outro"]')).toBeNull();
+    expect(document.querySelector('[data-node-id="other"]')).toBeNull();
     const el = document.querySelector<HTMLElement>(`[data-node-id="${frame.id}"]`)!;
     expect(el.style.left).toBe('0px');
     expect(el.style.boxShadow).toBe('none');

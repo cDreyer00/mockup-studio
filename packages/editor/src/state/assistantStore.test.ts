@@ -79,7 +79,7 @@ describe('assistantStore', () => {
     feed(
       { kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' },
       { kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' },
-      { kind: 'tool-result', turnId: 'outro', toolId: 'c1', ok: true },
+      { kind: 'tool-result', turnId: 'other', toolId: 'c1', ok: true },
     );
     expect(state().messages).toHaveLength(1);
     expect(state().partial!.tools).toEqual([]);

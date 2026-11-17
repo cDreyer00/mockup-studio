@@ -83,7 +83,7 @@ describe('NodeView: SVG with var()', () => {
         tag: 'div',
         type: 'frame',
         id: 'fr_root0001',
-        name: 'Raiz',
+        name: 'Root',
         attrs: theme ? { 'data-theme': theme } : {},
         children: [svgNode],
       }),

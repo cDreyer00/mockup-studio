@@ -133,7 +133,7 @@ export function LayoutSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
               </IconButton>
             </Row>
             <Row label="Wrap">
-              <StyleSelect nodes={nodes} prop="flex-wrap" options={WRAP} placeholder="Sem quebra" />
+              <StyleSelect nodes={nodes} prop="flex-wrap" options={WRAP} placeholder="No wrap" />
             </Row>
             <Row label="Align">
               <StyleSelect

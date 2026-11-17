@@ -14,7 +14,7 @@ afterEach(() => {
 function makeRepeater(count: number): { rep: Node; title: Node } {
   const title = createNodeFromTag('p', { name: 'Title', text: 'Hello {{name}} #{{$number}}' });
   const card = createNodeFromTag('div', { name: 'Card', children: [title] });
-  const holder = createNodeFromTag('section', { name: 'Lista', children: [card] });
+  const holder = createNodeFromTag('section', { name: 'List', children: [card] });
   const data = Array.from({ length: count }, (_, i) => ({ name: `Person ${i}` }));
   return { rep: createRepeaterFrom(holder, data), title };
 }

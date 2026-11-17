@@ -15,7 +15,7 @@ describe('tree', () => {
 
   it('topLevel removes descendants and sorts by document order', () => {
     const { doc, a, c } = makeDoc();
-    expect(topLevel(doc, [c.children[0]!.id, c.id, a.id, 'nada'])).toEqual([a.id, c.id]);
+    expect(topLevel(doc, [c.children[0]!.id, c.id, a.id, 'none'])).toEqual([a.id, c.id]);
   });
 
   it('haveSameParent', () => {

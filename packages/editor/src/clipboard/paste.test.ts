@@ -44,7 +44,7 @@ describe('marker and serialization', () => {
   it('classifyPaste', () => {
     const html = serializeNodes([], 'tok');
     expect(classifyPaste({ html, text: html, imageCount: 0 }, 'tok')).toBe('internal');
-    expect(classifyPaste({ html, text: '', imageCount: 0 }, 'outro')).toBe('html');
+    expect(classifyPaste({ html, text: '', imageCount: 0 }, 'other')).toBe('html');
     expect(classifyPaste({ html: '', text: '', imageCount: 2 }, null)).toBe('images');
     expect(classifyPaste({ html: '<p>a</p>', text: 'a', imageCount: 0 }, null)).toBe('html');
     expect(classifyPaste({ html: '', text: '<div></div>', imageCount: 0 }, null)).toBe('html');

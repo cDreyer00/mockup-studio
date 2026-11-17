@@ -275,7 +275,7 @@ describe.skipIf(!built || !editorReady)(
         });
         expect(r.text).toMatch(/assets\/videos\//);
         const none = centerColor(await shot(frame));
-        expect(isGreen(none), `sem time: ${none}\n${stderr}`).toBe(true);
+        expect(isGreen(none), `no time: ${none}\n${stderr}`).toBe(true);
         const red = centerColor(await shot(frame, { time: 0.5 }));
         expect(isRed(red), `time 0.5: ${red}\n${stderr}`).toBe(true);
         const blue = centerColor(await shot(frame, { time: 1.5 }));

@@ -23,7 +23,7 @@ describe('iframeSandbox', () => {
       'http://[::ffff:127.0.0.1]/',
       'http://2130706433/',
     ])
-      expect(iframeSandbox(u, 'https://outro.dev'), u).toBe(OPAQUE);
+      expect(iframeSandbox(u, 'https://other.dev'), u).toBe(OPAQUE);
     expect(iframeSandbox('https://studio.dev/app', 'https://studio.dev')).toBe(OPAQUE);
   });
 
