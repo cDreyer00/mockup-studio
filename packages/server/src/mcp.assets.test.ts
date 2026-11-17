@@ -317,7 +317,7 @@ describe('MCP imagens, ícones e fontes', () => {
       const dir = path.join(ws.dir, 'familia');
       fs.mkdirSync(dir);
       for (const f of ['Lora-Regular.ttf', 'Lora-Bold.ttf', 'Lora-BoldItalic.ttf'])
-        fs.writeFileSync(path.join(dir, f), 'x');
+        fs.writeFileSync(path.join(dir, f), f);
       await call('add_font', { family: 'Lora', source: dir });
       expect(doc().fonts[0]!.files).toHaveLength(3);
       expect(doc().fonts[0]!.styles).toContain('italic');

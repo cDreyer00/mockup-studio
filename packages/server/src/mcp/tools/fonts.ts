@@ -45,12 +45,18 @@ export function dedupeFormats(files: FontFile[]): FontFile[] {
  * diferentes (fontes estáticas) nada muda.
  */
 export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
-  const first = files[0];
-  if (!first || files.length < 2) return files;
-  const same = files.every((f) => f.style === first.style && f.bytes.equals(first.bytes));
-  if (!same) return files;
-  const ws = files.map((f) => f.weight);
-  return [{ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) }];
+  if (files.length < 2) return files;
+  const out: FontFile[] = [];
+  for (const style of ['normal', 'italic'] as const) {
+    const group = files.filter((f) => f.style === style);
+    const first = group[0];
+    if (!first) continue;
+    if (group.length > 1 && group.every((f) => f.bytes.equals(first.bytes))) {
+      const ws = group.map((f) => f.weight);
+      out.push({ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) });
+    } else out.push(...group);
+  }
+  return out;
 }
 
 /** Slug da família; se outra família do documento gera o mesmo slug, acrescenta um sufixo estável. */
@@ -357,7 +363,9 @@ export function registerFontTools(ctx: ToolContext): void {
           source: 'file',
           files: names,
           weights:
-            files.length === 1 && requested.length > 1 ? requested : files.map((f) => f.weight),
+            files.length < requested.length && files.every((f) => f.weightMax !== undefined)
+              ? requested
+              : files.map((f) => f.weight),
           styles: files.map((f) => f.style),
         };
       }

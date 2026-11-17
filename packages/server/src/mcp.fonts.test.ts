@@ -6,6 +6,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { fontFaceCss } from '@mockup/core';
 import type * as AssetsModule0 from './assets.js';
 import { startDaemon, type DaemonHandle } from './index.js';
+import { mergeIdenticalFiles } from './mcp/tools/fonts.js';
 import { makeWorkspace } from './test-utils.js';
 
 type AssetsModule = typeof AssetsModule0;
@@ -87,5 +88,39 @@ describe('add_font google: fonte variável', () => {
     const css = fontFaceCss(doc(), (f) => f);
     expect(css).toContain('font-weight:400;');
     expect(css).toContain('font-weight:700;');
+  });
+});
+
+describe('mergeIdenticalFiles: normal e itálico', () => {
+  const f = (weight: number, style: 'normal' | 'italic', content: string) => ({
+    bytes: Buffer.from(content),
+    ext: 'woff2',
+    weight,
+    style,
+  });
+
+  it('junta por estilo quando cada grupo tem arquivos idênticos', () => {
+    const out = mergeIdenticalFiles([
+      f(400, 'normal', 'N'),
+      f(700, 'normal', 'N'),
+      f(400, 'italic', 'I'),
+      f(700, 'italic', 'I'),
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out.map((x) => [x.style, x.weight, x.weightMax])).toEqual([
+      ['normal', 400, 700],
+      ['italic', 400, 700],
+    ]);
+  });
+
+  it('não junta o grupo cujos arquivos diferem', () => {
+    const out = mergeIdenticalFiles([
+      f(400, 'normal', 'N'),
+      f(700, 'normal', 'N'),
+      f(400, 'italic', 'I1'),
+      f(700, 'italic', 'I2'),
+    ]);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toMatchObject({ style: 'normal', weight: 400, weightMax: 700 });
   });
 });
