@@ -101,6 +101,17 @@ describe('exportReact', () => {
     expect(inline.css).toContain('box-sizing:border-box');
   });
 
+  it('assetsBase vale também para o @font-face do tema tailwind e do css inline', () => {
+    const doc = structuredClone(landing);
+    doc.fonts = [{ family: 'Inter', source: 'file', files: ['fonts/i.woff2'], weights: [400] }];
+    const tw = exportReact(doc, { nodeId: 'fr_d3sk1440', assetsBase: '/assets/' });
+    expect(tw.css).toContain('src:url("/assets/fonts/i.woff2")');
+    const inline = exportReact(doc, { nodeId: 'fr_d3sk1440', styles: 'inline', assetsBase: '/assets/' });
+    expect(inline.css).toContain('src:url("/assets/fonts/i.woff2")');
+    const padrao = exportReact(doc, { nodeId: 'fr_d3sk1440' });
+    expect(padrao.css).toContain('src:url("assets/fonts/i.woff2")');
+  });
+
   it('inline: style camelCase como string com unidade e tokens no elemento raiz', () => {
     const { code } = exportReact(landing, { nodeId: 'fr_d3sk1440', styles: 'inline' });
     expect(code).toContain("backgroundColor: 'var(--color-bg)'");

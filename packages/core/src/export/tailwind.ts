@@ -1069,7 +1069,10 @@ function collectFontSizes(nodes: Node[], into: Set<string>): void {
  * Os tamanhos `text-*` usados no documento têm o `line-height` padrão do Tailwind neutralizado
  * (`--text-sm--line-height: inherit`), para que a altura de linha continue a do documento.
  */
-export function tailwindThemeCss(doc: Document, opts: { import?: boolean } = {}): string {
+export function tailwindThemeCss(
+  doc: Document,
+  opts: { import?: boolean; assetsBase?: string } = {},
+): string {
   const tokens = cleanTokens(doc.tokens);
   const theme: string[] = [];
   const root: string[] = [];
@@ -1086,7 +1089,8 @@ export function tailwindThemeCss(doc: Document, opts: { import?: boolean } = {})
   if (theme.length > 0) blocks.push(`@theme {\n${theme.join('\n')}\n}`);
   if (root.length > 0) blocks.push(`:root {\n${root.join('\n')}\n}`);
   blocks.push(TAILWIND_BASE_CSS);
-  const faces = fontFaceCss(doc, (f) => `assets/${f}`);
+  const assetsBase = opts.assetsBase ?? 'assets/';
+  const faces = fontFaceCss(doc, (f) => `${assetsBase}${f}`);
   if (faces) blocks.push(faces);
   return escapeCssText(blocks.join('\n\n')) + '\n';
 }
