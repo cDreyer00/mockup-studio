@@ -10,7 +10,7 @@
  *   @@undo                            chama `undo` (deve ser recusado dentro de um turno)
  *   @@sleep <ms>                      espera
  *   @@text <mensagem>                 emite um texto
- *   @@echo                            devolve o prompt, o system prompt, a URL do MCP e o resume
+ *   @@echo                            devolve o prompt, o system prompt, a URL do MCP, o resume e os args
  *   @@fail <mensagem>                 termina com erro (is_error) e código 1
  */
 import fs from 'node:fs';
@@ -109,7 +109,8 @@ try {
   userText = raw;
 }
 
-const resume = arg('--resume');
+const resume =
+  arg('--resume') ?? argv.find((a) => a.startsWith('--resume='))?.slice('--resume='.length);
 const sessionId = resume ?? `fake-${Math.random().toString(16).slice(2, 10)}`;
 const cfgFile = arg('--mcp-config');
 const sysFile = arg('--append-system-prompt-file');
@@ -186,6 +187,7 @@ try {
         `ECHO-SYSTEM:\n${system}`,
         `ECHO-MCP: ${mcpUrl ?? '(sem mcp)'}`,
         `ECHO-RESUME: ${resume ?? '(nenhum)'}`,
+        `ECHO-ARGS: ${JSON.stringify(argv)}`,
         `ECHO-IMAGES: ${images}`,
       ].join('\n');
       textMsg(t);

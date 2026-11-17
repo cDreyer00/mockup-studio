@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import WebSocket from 'ws';
@@ -308,6 +308,22 @@ describe('AssistantService (backend em memória)', () => {
     expect(be.calls[3]!.prompt).toContain('um');
   });
 
+  it('resume falho com texto ou ferramenta já emitidos não refaz o turno', async () => {
+    let n = 0;
+    const be = memBackend((_input, emit) => {
+      n++;
+      if (n === 1) return Promise.resolve({ text: 'r1', sessionId: 'S1' });
+      emit({ kind: 'text', text: 'já falei' });
+      return Promise.reject(new Error('quebrou no meio'));
+    });
+    const svc = svcWith([be]);
+    await svc.runTurn(docId, 'um');
+    const m = await svc.runTurn(docId, 'dois');
+    expect(m).toMatchObject({ status: 'error', error: 'quebrou no meio' });
+    expect(be.calls).toHaveLength(2); // sem segunda tentativa
+    expect(be.calls[1]!.resumeSession).toBe('S1');
+  });
+
   it('nenhum backend disponível: erro claro; id desconhecido; auto escolhe o primeiro disponível', async () => {
     const off = memBackend(() => Promise.resolve({ text: '' }), { id: 'claude', available: false });
     const on = memBackend(() => Promise.resolve({ text: 'do codex' }), { id: 'codex' });
@@ -332,11 +348,11 @@ describe('AssistantService (backend em memória)', () => {
       reqId: '1',
       config: { backend: 'codex', model: ' gpt-5 ' },
     })) as { config: unknown; backends: Array<{ id: string }> };
-    expect(r.config).toEqual({ backend: 'codex', model: 'gpt-5' });
+    expect(r.config).toEqual({ backend: 'codex', model: 'gpt-5', models: { codex: 'gpt-5' } });
     expect(r.backends.map((x) => x.id)).toEqual(['claude', 'codex']);
     expect(JSON.parse(fs.readFileSync(path.join(w.dataDir, 'assistant.json'), 'utf8'))).toEqual({
       backend: 'codex',
-      model: 'gpt-5',
+      models: { codex: 'gpt-5' },
     });
     await expect(
       svc.handle({ type: 'assistant:config', reqId: '2', config: { backend: 'nada' } }),
@@ -346,12 +362,72 @@ describe('AssistantService (backend em memória)', () => {
     ).rejects.toThrow(/inválido/);
     // novo serviço lê o arquivo; o modelo vai ao backend do turno
     const svc2 = svcWith([a, b]);
-    expect(svc2.getConfig()).toEqual({ backend: 'codex', model: 'gpt-5' });
+    expect(svc2.getConfig()).toEqual({
+      backend: 'codex',
+      model: 'gpt-5',
+      models: { codex: 'gpt-5' },
+    });
     await svc2.runTurn(docId, 'oi');
     expect(b.calls[0]!.model).toBe('gpt-5');
     // limpar o modelo
     await svc2.handle({ type: 'assistant:config', reqId: '4', config: { model: '' } });
     expect(svc2.getConfig()).toEqual({ backend: 'codex' });
+  });
+
+  it('modelo por backend: o do claude não vai ao codex no auto; models e atalho model', async () => {
+    const claude = memBackend(() => Promise.reject(new Error('fora')), {
+      id: 'claude',
+      available: false,
+    });
+    const codex = memBackend(() => Promise.resolve({ text: 'cx' }), { id: 'codex' });
+    const svc = svcWith([claude, codex]);
+    await svc.handle({
+      type: 'assistant:config',
+      reqId: '1',
+      config: { models: { claude: 'opus', codex: 'gpt-5' } },
+    });
+    expect(svc.getConfig()).toEqual({
+      backend: 'auto',
+      models: { claude: 'opus', codex: 'gpt-5' },
+    });
+    await svc.runTurn(docId, 'oi'); // auto → codex (claude indisponível)
+    expect(codex.calls[0]!.model).toBe('gpt-5');
+    // sem modelo do backend escolhido: padrão da CLI, nunca o de outro backend
+    await svc.handle({ type: 'assistant:config', reqId: '2', config: { models: { codex: '' } } });
+    await svc.runTurn(docId, 'de novo');
+    expect(codex.calls[1]!.model).toBeUndefined();
+    // com backend auto, o atalho model não diz a qual backend vale
+    await expect(
+      svc.handle({ type: 'assistant:config', reqId: '3', config: { model: 'x' } }),
+    ).rejects.toThrow(/auto/);
+    await expect(
+      svc.handle({ type: 'assistant:config', reqId: '4', config: { models: { nada: 'x' } } }),
+    ).rejects.toThrow(/desconhecido/);
+    // o atalho vale para o backend do mesmo patch
+    await svc.handle({
+      type: 'assistant:config',
+      reqId: '5',
+      config: { backend: 'claude', model: 'sonnet' },
+    });
+    expect(svc.getConfig()).toEqual({
+      backend: 'claude',
+      model: 'sonnet',
+      models: { claude: 'sonnet' },
+    });
+  });
+
+  it('assistant.json antigo com model único: vale para o backend configurado (ou claude no auto)', () => {
+    const a = memBackend(() => Promise.resolve({ text: '' }), { id: 'claude' });
+    const b = memBackend(() => Promise.resolve({ text: '' }), { id: 'codex' });
+    const file = path.join(w.dataDir, 'assistant.json');
+    fs.writeFileSync(file, JSON.stringify({ backend: 'codex', model: 'gpt-5' }));
+    expect(svcWith([a, b]).getConfig()).toEqual({
+      backend: 'codex',
+      model: 'gpt-5',
+      models: { codex: 'gpt-5' },
+    });
+    fs.writeFileSync(file, JSON.stringify({ backend: 'auto', model: 'opus' }));
+    expect(svcWith([a, b]).getConfig()).toEqual({ backend: 'auto', models: { claude: 'opus' } });
   });
 
   it('histórico em arquivo lateral, recarregado por um novo serviço; clear apaga', async () => {
@@ -404,6 +480,120 @@ describe('AssistantService (backend em memória)', () => {
     expect(events2.at(-1)?.kind).toBe('cleared');
   });
 
+  it('sessionId malicioso/inválido no arquivo lateral nunca chega ao backend', async () => {
+    const side = assistantSidecarPath(w.file);
+    const bad: unknown[] = [
+      '--settings={"hooks":{"x":1}}',
+      '--dangerously-skip-permissions',
+      'a b',
+      'x'.repeat(129),
+      '',
+      '../../etc',
+      'ok;rm',
+      42,
+      null,
+    ];
+    for (const value of bad) {
+      fs.writeFileSync(
+        side,
+        JSON.stringify({ version: 1, messages: [], sessions: { fake: value } }),
+        'utf8',
+      );
+      const be = memBackend(() => Promise.resolve({ text: 'ok' }));
+      await svcWith([be]).runTurn(docId, 'oi', { ephemeral: true });
+      expect(be.calls[0]!.resumeSession).toBeUndefined();
+    }
+    // válido continua valendo
+    fs.writeFileSync(
+      side,
+      JSON.stringify({ version: 1, messages: [], sessions: { fake: 'abc-DEF_123' } }),
+    );
+    const ok = memBackend(() => Promise.resolve({ text: 'ok' }));
+    await svcWith([ok]).runTurn(docId, 'oi', { ephemeral: true });
+    expect(ok.calls[0]!.resumeSession).toBe('abc-DEF_123');
+    // sessions que não é objeto também é descartado sem erro
+    fs.writeFileSync(side, JSON.stringify({ version: 1, messages: [], sessions: ['--x'] }));
+    const arr = memBackend(() => Promise.resolve({ text: 'ok' }));
+    await svcWith([arr]).runTurn(docId, 'oi', { ephemeral: true });
+    expect(arr.calls[0]!.resumeSession).toBeUndefined();
+  });
+
+  it('evento session (ou sessionId do resultado) inválido é ignorado e não é gravado', async () => {
+    const be = memBackend((_i, emit) => {
+      emit({ kind: 'session', sessionId: '--settings=x' });
+      return Promise.resolve({ text: 'ok', sessionId: '--model evil' });
+    });
+    const svc = svcWith([be]);
+    await svc.runTurn(docId, 'um');
+    await svc.runTurn(docId, 'dois');
+    expect(be.calls[1]!.resumeSession).toBeUndefined();
+    const saved = JSON.parse(fs.readFileSync(assistantSidecarPath(w.file), 'utf8')) as {
+      sessions: Record<string, string>;
+    };
+    expect(saved.sessions).toEqual({});
+    // um evento válido depois do inválido vale
+    const be2 = memBackend((_i, emit) => {
+      emit({ kind: 'session', sessionId: '--x' });
+      emit({ kind: 'session', sessionId: 'GOOD-1' });
+      return Promise.resolve({ text: 'ok' });
+    });
+    const svc2 = svcWith([be2]);
+    await svc2.runTurn(docId, 'tres');
+    await svc2.runTurn(docId, 'quatro');
+    expect(be2.calls[1]!.resumeSession).toBe('GOOD-1');
+  });
+
+  it('nome do arquivo lateral não colide entre a.json e a.mockup.json', () => {
+    const p = (n: string) => assistantSidecarPath(path.join('x', n));
+    expect(p('a.mockup.json')).toBe(path.join('x', 'a.assistant.json'));
+    expect(p('a.json')).toBe(path.join('x', 'a.json.assistant.json'));
+    expect(p('a.MOCKUP.JSON')).toBe(path.join('x', 'a.assistant.json'));
+    expect(p('semext')).toBe(path.join('x', 'semext.assistant.json'));
+  });
+
+  it('gravações do histórico: temporário único, uma por vez por arquivo, sem sobras', async () => {
+    const be = memBackend(() => Promise.resolve({ text: 'r' }));
+    const svc = svcWith([be]);
+    await svc.runTurn(docId, 'um');
+    const tmps: string[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const realWrite = fs.promises.writeFile.bind(fs.promises);
+    const spy = vi.spyOn(fs.promises, 'writeFile').mockImplementation(async (...args) => {
+      tmps.push(String(args[0]));
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 15));
+      try {
+        return await realWrite(...(args as Parameters<typeof realWrite>));
+      } finally {
+        inFlight--;
+      }
+    });
+    try {
+      const persist = (svc as unknown as { persist(id: string): Promise<void> }).persist.bind(svc);
+      await Promise.all([1, 2, 3, 4, 5].map(() => persist(docId)));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(tmps).toHaveLength(5);
+    expect(new Set(tmps).size).toBe(5);
+    expect(tmps.every((t) => t.endsWith('.tmp'))).toBe(true);
+    expect(maxInFlight).toBe(1);
+    expect(fs.readdirSync(w.dir).filter((n) => n.endsWith('.tmp'))).toEqual([]);
+    JSON.parse(fs.readFileSync(assistantSidecarPath(w.file), 'utf8'));
+  });
+
+  it('documento aberto com o nome do arquivo lateral não é sobrescrito pelo histórico', async () => {
+    const other = path.join(w.dir, 'teste.assistant.json'); // = sidecar de teste.mockup.json
+    fs.writeFileSync(other, serializeDocument(createDocument('Outro')), 'utf8');
+    const before = fs.readFileSync(other, 'utf8');
+    await store.open(other);
+    const svc = svcWith([memBackend(() => Promise.resolve({ text: 'r' }))]);
+    await svc.runTurn(docId, 'oi');
+    expect(fs.readFileSync(other, 'utf8')).toBe(before);
+  });
+
   it('limita o histórico a 200 mensagens', async () => {
     const svc = svcWith([memBackend(() => Promise.resolve({ text: 'r' }))]);
     for (let i = 0; i < 101; i++) await svc.runTurn(docId, `p${i}`, {});
@@ -449,6 +639,51 @@ describe('AssistantService (backend em memória)', () => {
     expect(be.calls[0]!.mcp).toBeUndefined();
     const empty = svcWith([memBackend(() => Promise.resolve({ text: '  ' }))]);
     await expect(empty.generateText('x')).rejects.toThrow(/não devolveu texto/);
+  });
+
+  it('generateText: uma por documento, cancelável por cancel(docId) e por signal', async () => {
+    const be = memBackend((_i, _emit, signal) => abortable(signal));
+    const svc = svcWith([be]);
+    const firstErr = svc.generateText('x', { docId }).catch((e: unknown) => e as Error);
+    await expect(svc.generateText('y', { docId })).rejects.toThrow(/em andamento neste documento/);
+    expect(svc.cancel(docId)).toBe(true);
+    expect(await firstErr).toMatchObject({ name: 'AbortError' });
+    // liberado: nova geração no mesmo documento funciona
+    const ok = svcWith([memBackend(() => Promise.resolve({ text: 'fim' }))]);
+    expect(await ok.generateText('x', { docId })).toBe('fim');
+    // signal
+    const ac = new AbortController();
+    const pErr = svc
+      .generateText('x', { docId, signal: ac.signal })
+      .catch((e: unknown) => e as Error);
+    ac.abort();
+    expect(await pErr).toMatchObject({ name: 'AbortError' });
+    await expect(svc.generateText('x', { signal: AbortSignal.abort() })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    // documento inexistente: erro claro
+    await expect(svc.generateText('x', { docId: 'doc_nope' })).rejects.toThrow(/não encontrado/);
+    // sem docId: teto de gerações simultâneas
+    const many = Array.from({ length: 4 }, () =>
+      svc.generateText('x').catch((e: unknown) => e as Error),
+    );
+    await expect(svc.generateText('x')).rejects.toThrow(/demais/);
+    await svc.close();
+    for (const r of await Promise.all(many)) expect(r).toMatchObject({ name: 'AbortError' });
+  });
+
+  it('assistant:cancel/history/clear validam o docId com erro claro', async () => {
+    const svc = svcWith([memBackend(() => Promise.resolve({ text: 'x' }))]);
+    for (const type of ['assistant:cancel', 'assistant:history', 'assistant:clear'] as const) {
+      for (const bad of [undefined, '', 5, null]) {
+        await expect(
+          svc.handle({ type, reqId: '1', docId: bad as unknown as string }),
+        ).rejects.toThrow(/exige "docId"/);
+      }
+      await expect(svc.handle({ type, reqId: '1', docId: 'doc_nope' })).rejects.toThrow(
+        /Documento não encontrado/,
+      );
+    }
   });
 
   it('mensagens inválidas e documento inexistente', async () => {

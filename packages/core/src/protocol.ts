@@ -106,8 +106,13 @@ export interface AssistantBackendInfo {
 export interface AssistantConfig {
   /** `auto` = o primeiro disponível (claude, depois codex). */
   backend: string;
-  /** Modelo repassado à CLI (`--model`); vazio = padrão da CLI. */
+  /**
+   * Modelo do backend configurado (`backend`), repassado à CLI; vazio = padrão da CLI. Na leitura é um
+   * atalho para `models[backend]`; na escrita vale para o backend do mesmo patch (ou o atual).
+   */
   model?: string;
+  /** Modelo por id de backend (um modelo do Claude não serve ao Codex); ausente = padrão da CLI. */
+  models?: Record<string, string>;
 }
 
 export interface AssistantToolCall {
