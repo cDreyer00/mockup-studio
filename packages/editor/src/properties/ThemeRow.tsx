@@ -1,4 +1,4 @@
-/** Linha "Tema" do painel de propriedades: `data-theme` do nó (frame ou qualquer elemento). */
+/** "Theme" row of the properties panel: the node's `data-theme` (frame or any element). */
 import { THEME_ATTR, effectiveTheme, planSetFrameTheme } from '@mockup/core';
 import type { Node } from '@mockup/core';
 import { useDoc } from '../state/docStore';
@@ -9,7 +9,7 @@ import { common, runOps } from './shared';
 
 export function ThemeRow({ nodes }: { nodes: readonly Node[] }) {
   const themes = useDoc((s) => s.doc?.themes);
-  // Tema efetivo (herdado do ancestral mais próximo) quando um único nó não declara o seu.
+  // Effective theme (inherited from the nearest ancestor) when a single node doesn't declare its own.
   const inherited = useDoc((s) => {
     const only = nodes.length === 1 ? nodes[0] : undefined;
     return s.doc && only ? effectiveTheme(s.doc, only.id) : undefined;
@@ -34,9 +34,9 @@ export function ThemeRow({ nodes }: { nodes: readonly Node[] }) {
     }
   };
 
-  const placeholder = inherited && !known ? `Herdado (${inherited})` : 'Padrão (base)';
+  const placeholder = inherited && !known ? `Inherited (${inherited})` : 'Default (base)';
   return (
-    <Row label="Tema">
+    <Row label="Theme">
       <div className="prop-theme" data-testid="prop-theme">
         <SelectInput
           value={declared === null ? null : known ? declared : ''}
@@ -44,8 +44,8 @@ export function ThemeRow({ nodes }: { nodes: readonly Node[] }) {
           placeholder={placeholder}
           title={
             (themes?.length ?? 0) === 0
-              ? 'Crie temas na aba Tokens'
-              : 'Tema do elemento (data-theme); vazio herda do ancestral'
+              ? 'Create themes in the Tokens tab'
+              : 'Element theme (data-theme); empty inherits from the ancestor'
           }
           onChange={change}
         />

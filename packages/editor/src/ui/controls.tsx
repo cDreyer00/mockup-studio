@@ -1,11 +1,11 @@
-/** Controles compartilhados: seção recolhível, select, cor, botão de ícone, campo de texto. */
+/** Shared controls: collapsible section, select, color, icon button, text field. */
 import { useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 const collapsedSections = new Set<string>();
 
-/** Seção recolhível do painel; o estado aberto/fechado é lembrado por `id` durante a sessão. */
+/** Collapsible panel section; the open/closed state is remembered by `id` during the session. */
 export function Section({
   id,
   title,
@@ -69,7 +69,7 @@ export interface SelectOption {
   label: string;
 }
 
-/** Select nativo estilizado. `value` vazio mostra o placeholder (ex.: "—" ou "Misto"). */
+/** Styled native select. An empty `value` shows the placeholder (e.g. "—" or "Mixed"). */
 export function SelectInput({
   value,
   options,
@@ -94,7 +94,7 @@ export function SelectInput({
       title={title}
       onChange={(e) => onChange(e.target.value)}
     >
-      <option value="">{value === null ? 'Misto' : placeholder}</option>
+      <option value="">{value === null ? 'Mixed' : placeholder}</option>
       {!known && v && <option value={v}>{v}</option>}
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -105,7 +105,7 @@ export function SelectInput({
   );
 }
 
-/** Campo de texto que confirma no Enter/blur e cancela no Esc. */
+/** Text field that commits on Enter/blur and cancels on Esc. */
 export function TextInput({
   value,
   onCommit,
@@ -124,7 +124,7 @@ export function TextInput({
   const shown = value ?? '';
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
-  // Enter/Esc já resolveram a edição: o blur que vem em seguida não confirma de novo.
+  // Enter/Esc already resolved the edit: the blur that follows doesn't commit again.
   const settled = useRef(false);
   useEffect(() => {
     if (!focused) setText(shown);
@@ -147,7 +147,7 @@ export function TextInput({
       className={`text-input${monospace ? ' mono' : ''}${className ? ` ${className}` : ''}`}
       value={text}
       title={title}
-      placeholder={value === null ? 'Misto' : placeholder}
+      placeholder={value === null ? 'Mixed' : placeholder}
       spellCheck={false}
       onChange={(e) => setText(e.target.value)}
       onFocus={() => {
@@ -167,7 +167,7 @@ export function TextInput({
   );
 }
 
-/** Converte cores CSS simples para `#rrggbb` (para o `<input type=color>`); `null` se não der. */
+/** Converts simple CSS colors to `#rrggbb` (for the `<input type=color>`); `null` if not possible. */
 export function toHexColor(v: string | undefined | null): string | null {
   if (!v) return null;
   const t = v.trim().toLowerCase();
@@ -188,15 +188,15 @@ export function toHexColor(v: string | undefined | null): string | null {
 }
 
 /**
- * Amostra de cor + campo de texto (aceita qualquer valor CSS: hex, rgb(), var(--token)...).
- * Arrastar no seletor nativo só faz prévia (o `onChange` do React dispara a cada `input`);
- * a op é confirmada uma vez, no `change` nativo, quando o seletor fecha.
+ * Color swatch + text field (accepts any CSS value: hex, rgb(), var(--token)...).
+ * Dragging in the native picker only previews (React's `onChange` fires on every `input`);
+ * the op is committed once, on the native `change`, when the picker closes.
  */
 export function ColorInput({
   value,
   onCommit,
   onPreview,
-  placeholder = 'nenhuma',
+  placeholder = 'none',
   title,
 }: {
   value: string | undefined | null;
@@ -206,7 +206,7 @@ export function ColorInput({
   title?: string;
 }) {
   const hex = toHexColor(value);
-  // Cor escolhida no seletor enquanto o valor confirmado não chega (evita o React repor o antigo).
+  // Color chosen in the picker while the committed value hasn't arrived yet (keeps React from restoring the old one).
   const [picked, setPicked] = useState<string | null>(null);
   const swatchRef = useRef<HTMLInputElement>(null);
   const commitRef = useRef(onCommit);
@@ -239,7 +239,7 @@ export function ColorInput({
   );
 }
 
-/** Linha rotulada do painel: `<Row label="Gap">{input}</Row>`. */
+/** Labeled panel row: `<Row label="Gap">{input}</Row>`. */
 export function Row({ label, children }: { label?: ReactNode; children: ReactNode }) {
   return (
     <div className="panel-row">

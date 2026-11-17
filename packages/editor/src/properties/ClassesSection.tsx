@@ -13,7 +13,7 @@ import type { NodeCtx } from './shared';
 
 const MAX_SUGGESTIONS = 8;
 
-/** Token (classe) sob o cursor: do início até o cursor e a extensão até o próximo espaço. */
+/** Token (class) under the caret: from its start to the caret, and the extent up to the next space. */
 export function tokenAt(
   text: string,
   caret: number,
@@ -27,7 +27,7 @@ export function tokenAt(
 
 const normalize = (value: string): string => value.split(/\s+/).filter(Boolean).join(' ');
 
-/** Campo de classes com autocomplete e avisos (motor já carregado). */
+/** Classes field with autocomplete and warnings (engine already loaded). */
 function ClassesField({
   ctxs,
   engine,
@@ -39,8 +39,8 @@ function ClassesField({
 }) {
   const locked = useContext(LockedContext);
   const nodes = useMemo(() => ctxs.map((c) => c.node), [ctxs]);
-  // Nó sem `node.classes`: o campo parte das classes equivalentes ao estilo atual, para que
-  // editar (que substitui o estilo) não apague o que já existe.
+  // Node without `node.classes`: the field starts from the classes equivalent to the current style, so
+  // editing (which replaces the style) doesn't erase what already exists.
   const mixed = useMemo(
     () => common(nodes, (n) => n.classes || engine.nodeClasses(n).classes.join(' ')),
     [nodes, engine],
@@ -142,9 +142,9 @@ function ClassesField({
         spellCheck={false}
         disabled={locked}
         placeholder={
-          mixed === null ? 'Misto' : 'flex gap-4 p-6 rounded-lg hover:bg-primary/90 md:p-8'
+          mixed === null ? 'Mixed' : 'flex gap-4 p-6 rounded-lg hover:bg-primary/90 md:p-8'
         }
-        title="Classes Tailwind (substituem o estilo do nó; sem classes, parte das equivalentes ao estilo atual). Enter confirma, Shift+Enter quebra a linha."
+        title="Tailwind classes (replace the node style; with no classes, starts from those equivalent to the current style). Enter confirms, Shift+Enter inserts a line break."
         onChange={(e) => {
           setText(e.target.value);
           setCaret(e.target.selectionStart);
@@ -171,7 +171,7 @@ function ClassesField({
           <ul
             className="prop-classes-list"
             role="listbox"
-            // Mantém o foco no campo ao clicar numa sugestão.
+            // Keeps focus on the field when clicking a suggestion.
             onMouseDown={(e) => e.preventDefault()}
           >
             {suggestions.map((s, i) => (
@@ -198,13 +198,13 @@ function ClassesField({
       {(unknown.length > 0 || unsupported.length > 0) && (
         <div className="prop-classes-warn" data-testid="classes-warnings">
           {unknown.length > 0 && (
-            <div data-testid="classes-unknown" title="O Tailwind não reconhece estas classes">
-              Desconhecidas: <span className="mono">{unknown.join(' ')}</span>
+            <div data-testid="classes-unknown" title="Tailwind does not recognize these classes">
+              Unknown: <span className="mono">{unknown.join(' ')}</span>
             </div>
           )}
           {unsupported.map((i) => (
             <div key={i.cls} data-testid="classes-unsupported" title={i.reason}>
-              Sem efeito: <span className="mono">{i.cls}</span>
+              No effect: <span className="mono">{i.cls}</span>
               {i.reason ? ` (${i.reason})` : ''}
             </div>
           ))}
@@ -214,22 +214,22 @@ function ClassesField({
   );
 }
 
-/** Estilo atual do nó como classes idiomáticas do Tailwind (somente leitura) + o CSS que sobra. */
+/** Current node style as idiomatic Tailwind classes (read-only) + the leftover CSS. */
 function AsTailwind({ node, engine }: { node: Node; engine: TailwindEngine }) {
   const out = useMemo(() => engine.nodeClasses(node), [engine, node]);
   const classes = out.classes.join(' ');
   const rest = useMemo(() => stylesToCssText(out.rest), [out.rest]);
   const copy = (): void => {
     void navigator.clipboard?.writeText(classes).then(
-      () => ui.toast('Classes copiadas'),
-      () => ui.toast('Não foi possível copiar', 'error'),
+      () => ui.toast('Classes copied'),
+      () => ui.toast('Could not copy', 'error'),
     );
   };
   return (
     <div className="prop-classes-as" data-testid="classes-as-tailwind">
       <div className="prop-classes-as-head">
-        <span className="prop-subtitle">Classes Tailwind do estilo atual</span>
-        <IconButton title="Copiar classes" data-testid="classes-copy" onClick={copy}>
+        <span className="prop-subtitle">Tailwind classes for the current style</span>
+        <IconButton title="Copy classes" data-testid="classes-copy" onClick={copy}>
           <Copy size={12} />
         </IconButton>
       </div>
@@ -238,7 +238,7 @@ function AsTailwind({ node, engine }: { node: Node; engine: TailwindEngine }) {
       </pre>
       {rest && (
         <>
-          <span className="prop-subtitle">CSS sem classe equivalente</span>
+          <span className="prop-subtitle">CSS with no equivalent class</span>
           <pre className="mono prop-classes-out" data-testid="classes-rest">
             {rest}
           </pre>
@@ -248,7 +248,7 @@ function AsTailwind({ node, engine }: { node: Node; engine: TailwindEngine }) {
   );
 }
 
-/** Estados do nó (`hover`, `md`, `dark`...) com o CSS de cada um e botão para remover. */
+/** Node states (`hover`, `md`, `dark`...) with the CSS of each one and a button to remove. */
 export function StatesList({ node }: { node: Node }) {
   const keys = sortStateKeys(Object.keys(node.states ?? {}));
   if (keys.length === 0) return null;
@@ -263,13 +263,13 @@ export function StatesList({ node }: { node: Node }) {
   };
   return (
     <div className="prop-states" data-testid="prop-states">
-      <span className="prop-subtitle">Estados</span>
+      <span className="prop-subtitle">States</span>
       {keys.map((key) => (
         <div className="prop-state" key={key} data-testid={`state-row-${key}`}>
           <div className="prop-state-head">
             <span className="prop-state-key mono">{key}</span>
             <IconButton
-              title={`Remover o estado ${key}`}
+              title={`Remove the ${key} state`}
               data-testid={`state-remove-${key}`}
               onClick={() => remove(key)}
             >
@@ -285,7 +285,7 @@ export function StatesList({ node }: { node: Node }) {
   );
 }
 
-/** Seção "Classes": classes Tailwind do nó, "mostrar como Tailwind" e estados. */
+/** "Classes" section: the node's Tailwind classes, "show as Tailwind" and states. */
 export function ClassesSection({ ctxs }: { ctxs: NodeCtx[] }) {
   const tw = useTailwind();
   const show = useUi((s) => s.showAsTailwind);
@@ -296,24 +296,24 @@ export function ClassesSection({ ctxs }: { ctxs: NodeCtx[] }) {
       <Body>
         {tw.status === 'loading' && (
           <div className="prop-subtitle" data-testid="classes-loading">
-            Carregando Tailwind…
+            Loading Tailwind…
           </div>
         )}
         {tw.status === 'error' && (
           <div className="prop-doc-error" data-testid="classes-error">
-            Não foi possível carregar o Tailwind: {tw.message}
+            Could not load Tailwind: {tw.message}
           </div>
         )}
         {tw.status === 'ready' && <ClassesField ctxs={ctxs} engine={tw.engine} mod={tw.mod} />}
         {tw.status === 'ready' && (
-          <label className="prop-check" title="Mostra o estilo do nó como classes do Tailwind">
+          <label className="prop-check" title="Shows the node style as Tailwind classes">
             <input
               type="checkbox"
               data-testid="classes-as-tailwind-toggle"
               checked={show}
               onChange={(e) => ui.setShowAsTailwind(e.target.checked)}
             />
-            Mostrar como Tailwind
+            Show as Tailwind
           </label>
         )}
         {tw.status === 'ready' &&
@@ -321,7 +321,7 @@ export function ClassesSection({ ctxs }: { ctxs: NodeCtx[] }) {
           (single ? (
             <AsTailwind node={single} engine={tw.engine} />
           ) : (
-            <div className="prop-subtitle">Selecione um único nó para ver as classes.</div>
+            <div className="prop-subtitle">Select a single node to see its classes.</div>
           ))}
         {single && <StatesList node={single} />}
       </Body>

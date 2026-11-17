@@ -5,7 +5,7 @@ import { Section } from '../ui/controls';
 import { diffStyles, parseCssText, stylesToCssText } from './css';
 import { Body, LockedContext, commitStyles } from './shared';
 
-/** CSS bruto de um único nó: diff aplicado no blur/Ctrl+Enter. */
+/** Raw CSS of a single node: diff applied on blur/Ctrl+Enter. */
 export function CssSection({ node }: { node: Node }) {
   const locked = useContext(LockedContext);
   const shown = useMemo(() => stylesToCssText(node.style), [node.style]);
@@ -27,7 +27,7 @@ export function CssSection({ node }: { node: Node }) {
   };
 
   return (
-    <Section id="props-css" title="CSS avançado" defaultOpen={false}>
+    <Section id="props-css" title="Advanced CSS" defaultOpen={false}>
       <Body>
         <textarea
           className="mono prop-textarea prop-css"
@@ -36,7 +36,7 @@ export function CssSection({ node }: { node: Node }) {
           rows={8}
           spellCheck={false}
           disabled={locked}
-          placeholder="propriedade: valor;"
+          placeholder="property: value;"
           onChange={(e) => setText(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => {

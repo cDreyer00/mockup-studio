@@ -6,7 +6,7 @@ interface Props {
   children: ReactNode;
 }
 
-/** Isola falhas de renderização (ex.: nó malformado) para não derrubar o canvas inteiro. */
+/** Isolates render failures (e.g. a malformed node) so they don't take down the whole canvas. */
 export class ErrorBoundary extends Component<Props, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
 

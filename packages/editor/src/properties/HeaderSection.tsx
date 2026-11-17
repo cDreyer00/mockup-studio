@@ -33,18 +33,18 @@ const ICONS: Record<NodeType, ReactNode> = {
 
 const TYPE_NAMES: Record<NodeType, string> = {
   frame: 'Frame',
-  element: 'Elemento',
-  text: 'Texto',
-  image: 'Imagem',
+  element: 'Element',
+  text: 'Text',
+  image: 'Image',
   svg: 'SVG',
-  instance: 'Instância',
-  repeater: 'Repetidor',
-  effect: 'Efeito',
-  video: 'Vídeo',
+  instance: 'Instance',
+  repeater: 'Repeater',
+  effect: 'Effect',
+  video: 'Video',
   embed: 'Embed',
 };
 
-/** Tipo exibido: na árvore expandida, a raiz da instância tem o tipo da raiz do principal. */
+/** Displayed type: in the expanded tree, the instance root has the type of the main root. */
 function kindOf(n: Node): NodeType {
   return n.componentId !== undefined ? 'instance' : n.type;
 }
@@ -56,10 +56,10 @@ export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locke
   const name = common(nodes, (n) => n.name);
   const subtitle =
     nodes.length > 1
-      ? `${nodes.length} itens selecionados`
-      : `${TYPE_NAMES[kindOf(first)]}${isVirtualId(first.id) ? ' (interno)' : ''} · <${first.tag}>`;
+      ? `${nodes.length} items selected`
+      : `${TYPE_NAMES[kindOf(first)]}${isVirtualId(first.id) ? ' (internal)' : ''} · <${first.tag}>`;
   return (
-    <Section id="props-header" title={nodes.length > 1 ? 'Seleção' : 'Elemento'}>
+    <Section id="props-header" title={nodes.length > 1 ? 'Selection' : 'Element'}>
       <Body>
         <div className="prop-header">
           <span className="prop-header-icon">
@@ -68,7 +68,7 @@ export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locke
           <div className="prop-header-name" data-testid="prop-name">
             <DraftInput
               value={name}
-              placeholder="Nome"
+              placeholder="Name"
               onCommit={(v) => {
                 const nm = v.trim();
                 if (!nm) return;

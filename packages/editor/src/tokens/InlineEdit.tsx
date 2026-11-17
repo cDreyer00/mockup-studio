@@ -4,9 +4,9 @@ import type { TokenProblem } from '@mockup/core';
 import { ui } from '../state/uiStore';
 
 /**
- * Texto editável no lugar: `display` enquanto parado; ao entrar em edição vira um input.
- * Enter confirma, Esc cancela, blur confirma. `validate` pode recusar (`error`: continua editando
- * e mostra a mensagem) ou só avisar (`warning`: aceita e mostra um aviso).
+ * Inline-editable text: `display` while idle; when entering edit mode it becomes an input.
+ * Enter commits, Esc cancels, blur commits. `validate` can reject (`error`: keeps editing
+ * and shows the message) or just warn (`warning`: accepts and shows a warning).
  */
 export function InlineEdit({
   value,
@@ -48,7 +48,7 @@ export function InlineEdit({
       el.focus();
       el.select();
     }
-    // Só reinicia o rascunho ao entrar em edição.
+    // Only resets the draft when entering edit mode.
   }, [editing]);
 
   if (!editing) {
@@ -57,7 +57,7 @@ export function InlineEdit({
         type="button"
         className="tk-inline"
         data-testid={testId}
-        title="Clique para editar"
+        title="Click to edit"
         onClick={onStart}
       >
         {display}
@@ -75,7 +75,7 @@ export function InlineEdit({
       setError(problem.message);
       return false;
     }
-    if (problem) ui.toast(`Aviso: ${problem.message}`, 'info');
+    if (problem) ui.toast(`Warning: ${problem.message}`, 'info');
     settled.current = true;
     onCommit(text);
     onStop();
@@ -109,7 +109,7 @@ export function InlineEdit({
         }}
         onBlur={() => {
           if (settled.current) return;
-          // Valor recusado: o blur descarta em vez de prender o foco.
+          // Rejected value: blur discards instead of trapping focus.
           if (!confirm()) onStop();
         }}
       />

@@ -1,4 +1,4 @@
-/** Modos de dimensionamento (largura/altura): Fixo, Auto, 100%, Fill. */
+/** Sizing modes (width/height): Fixed, Auto, 100%, Fill. */
 import type { Node } from '@mockup/core';
 import { flexDirection, isFlex } from '../model/tree';
 
@@ -7,17 +7,17 @@ export type SizeModeKind = 'fixed' | 'auto' | 'full' | 'fill' | 'other';
 
 export interface SizeMode {
   mode: SizeModeKind;
-  /** Valor CSS bruto do eixo (`undefined` se ausente). */
+  /** Raw CSS value of the axis (`undefined` if absent). */
   value: string | undefined;
 }
 
-/** O eixo é o eixo principal do pai flex. */
+/** The axis is the main axis of the flex parent. */
 export function isMainAxis(parent: Node | null | undefined, axis: Axis): boolean {
   if (!parent || !isFlex(parent)) return false;
   return (flexDirection(parent) === 'row') === (axis === 'width');
 }
 
-/** `flex` que representa "preencher" (1 1 0 / 1 1 0% / 1 1 0px / 1). */
+/** `flex` that represents "fill" (1 1 0 / 1 1 0% / 1 1 0px / 1). */
 export function isFillFlex(flex: string | undefined): boolean {
   if (!flex) return false;
   return /^\s*1(\s+1)?(\s+0(%|px)?)?\s*$/.test(flex);
@@ -36,7 +36,7 @@ export function sizeMode(node: Node, parent: Node | null | undefined, axis: Axis
   return { mode: 'other', value };
 }
 
-/** Estilos a aplicar ao trocar de modo; `px` é o tamanho a usar no modo Fixo. */
+/** Styles to apply when switching mode; `px` is the size to use in Fixed mode. */
 export function sizeModeChange(
   node: Node,
   axis: Axis,

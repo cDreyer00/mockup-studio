@@ -1,6 +1,6 @@
 /**
- * Lógica pura do painel de tokens e do seletor "ligar a token": agrupamento, busca, detecção de
- * `var(--x)`, prévias e montagem de ops. Nada aqui toca o daemon nem o DOM.
+ * Pure logic of the tokens panel and the "bind to token" picker: grouping, search, detection of
+ * `var(--x)`, previews and op building. Nothing here touches the daemon or the DOM.
  */
 import type { CSSProperties } from 'react';
 import {
@@ -22,17 +22,17 @@ import type { Document, Op, TokenInfo, TokenMeta, TokenProblem, TokenReport } fr
 
 const VAR_ONLY = /^var\(\s*(--[a-zA-Z0-9_-]+)\s*(?:,[^()]*)?\)$/;
 
-/** Nome do token quando o valor inteiro é `var(--x)` (ou `var(--x, fallback)`); senão `null`. */
+/** Token name when the whole value is `var(--x)` (or `var(--x, fallback)`); otherwise `null`. */
 export function varRefName(value: string | undefined | null): string | null {
   if (!value) return null;
   const m = VAR_ONLY.exec(value.trim());
   return m ? m[1]! : null;
 }
 
-/** Estilo que referencia o token: `var(--x)`. */
+/** Style that references the token: `var(--x)`. */
 export const varOf = (name: string): string => `var(${name})`;
 
-/* ------------------------------ propriedades → grupos ------------------------------ */
+/* ------------------------------ properties → groups ------------------------------ */
 
 export type BindKind = 'color' | 'spacing' | 'radius' | 'typography' | 'shadow';
 
@@ -51,7 +51,7 @@ const COLOR_PROPS = new Set([
 const SPACING_PROP =
   /^(gap|row-gap|column-gap|padding|margin|width|height|top|left|right|bottom|inset|flex-basis)(-|$)|^(min|max)-(width|height)$/;
 
-/** Tipo de token que combina com a propriedade CSS (`null` = sem seletor de token). */
+/** Token type that matches the CSS property (`null` = no token picker). */
 export function bindKindFor(prop: string): BindKind | null {
   const p = prop.toLowerCase();
   if (COLOR_PROPS.has(p)) return 'color';
@@ -62,7 +62,7 @@ export function bindKindFor(prop: string): BindKind | null {
   return null;
 }
 
-/** Grupos de token oferecidos primeiro para cada tipo de propriedade. */
+/** Token groups offered first for each property type. */
 export function groupsForKind(kind: BindKind): string[] {
   switch (kind) {
     case 'color':
@@ -79,14 +79,14 @@ export function groupsForKind(kind: BindKind): string[] {
 }
 
 export const KIND_LABELS: Record<BindKind, string> = {
-  color: 'Cores',
-  spacing: 'Espaçamento',
-  radius: 'Raio',
-  typography: 'Tipografia',
-  shadow: 'Sombra',
+  color: 'Colors',
+  spacing: 'Spacing',
+  radius: 'Radius',
+  typography: 'Typography',
+  shadow: 'Shadow',
 };
 
-/* ------------------------------ agrupamento e busca ------------------------------ */
+/* ------------------------------ grouping and search ------------------------------ */
 
 export interface TokenGroupView {
   id: string;
@@ -94,7 +94,7 @@ export interface TokenGroupView {
   tokens: TokenInfo[];
 }
 
-/** Filtra por nome, valor (base, de tema ou resolvido) ou descrição, sem diferenciar maiúsculas. */
+/** Filters by name, value (base, theme or resolved) or description, case-insensitively. */
 export function filterTokens(tokens: readonly TokenInfo[], query: string): TokenInfo[] {
   const q = query.trim().toLowerCase();
   if (!q) return [...tokens];
@@ -110,7 +110,7 @@ export function filterTokens(tokens: readonly TokenInfo[], query: string): Token
   });
 }
 
-/** Grupos nativos na ordem fixa e, depois, os grupos livres em ordem alfabética. Vazios somem. */
+/** Built-in groups in fixed order and then the free groups in alphabetical order. Empty ones are omitted. */
 export function groupTokens(tokens: readonly TokenInfo[], query = ''): TokenGroupView[] {
   const list = filterTokens(tokens, query);
   const byGroup = new Map<string, TokenInfo[]>();
@@ -133,7 +133,7 @@ export function groupTokens(tokens: readonly TokenInfo[], query = ''): TokenGrou
   return out;
 }
 
-/** Tokens do seletor: os dos grupos relevantes primeiro; `all` inclui os demais ao final. */
+/** Picker tokens: those of the relevant groups first; `all` includes the rest at the end. */
 export function pickerTokens(
   tokens: readonly TokenInfo[],
   groups: readonly string[],
@@ -148,7 +148,7 @@ export function pickerTokens(
   return all ? sorted : sorted.filter((t) => rank(t) < groups.length);
 }
 
-/* ------------------------------ resumo e estados ------------------------------ */
+/* ------------------------------ summary and states ------------------------------ */
 
 export interface TokenSummary {
   tokens: number;
@@ -170,20 +170,20 @@ export function isUnused(info: TokenInfo, report: TokenReport): boolean {
   return report.unused.includes(info.name);
 }
 
-/** Problema a mostrar na linha: o do relatório ou a primeira referência quebrada do token. */
+/** Problem to show on the row: the report's or the token's first broken reference. */
 export function rowProblem(info: TokenInfo, report: TokenReport): TokenProblem | null {
   const ref = report.broken.find((b) => b.token === info.name);
-  // Referência a token inexistente é "quebrada" (vermelho), mesmo que o core a trate como aviso.
+  // A reference to a nonexistent token is "broken" (red), even if the core treats it as a warning.
   if (ref) {
     return {
       level: 'error',
-      message: info.problem?.message ?? `referência quebrada: ${ref.missing}`,
+      message: info.problem?.message ?? `broken reference: ${ref.missing}`,
     };
   }
   return info.problem ?? null;
 }
 
-/** Valor mostrado e resolvido de um token no contexto de edição (base ou um tema). */
+/** Shown and resolved value of a token in the editing context (base or a theme). */
 export function shownValue(
   info: TokenInfo,
   theme: string | null,
@@ -193,7 +193,7 @@ export function shownValue(
   return { value: override ?? info.value ?? '', resolved, overridden: override !== undefined };
 }
 
-/* ------------------------------ prévias ------------------------------ */
+/* ------------------------------ previews ------------------------------ */
 
 export interface TokenPreview {
   kind: 'color' | 'spacing' | 'radius' | 'shadow' | 'font';
@@ -203,7 +203,7 @@ export interface TokenPreview {
 const COLOR_VALUE =
   /^(#[0-9a-f]{3,8}|(rgb|hsl|hwb|lab|lch|oklab|oklch|color|color-mix)a?\(|[a-z]+$)/i;
 
-/** Prévia simples de um token (amostra de cor, barra, caixa arredondada, sombra, texto). */
+/** Simple preview of a token (color swatch, bar, rounded box, shadow, text). */
 export function previewFor(
   group: string,
   name: string,
@@ -224,7 +224,7 @@ export function previewFor(
   if (group === 'shadow') return { kind: 'shadow', style: { boxShadow: v } };
   if (group === 'typography') {
     if (/weight/.test(name)) return { kind: 'font', style: { fontWeight: v } };
-    // Tamanhos, alturas de linha e espaçamentos de letra não têm amostra; o resto é família.
+    // Sizes, line heights and letter spacings have no swatch; the rest is a family.
     if (/^-?[\d.]+[a-z%]*$/i.test(v) || /size|height|spacing|tracking|leading/.test(name))
       return null;
     return { kind: 'font', style: { fontFamily: v } };
@@ -232,29 +232,31 @@ export function previewFor(
   return null;
 }
 
-/* ------------------------------ validação ------------------------------ */
+/* ------------------------------ validation ------------------------------ */
 
-/** Erro de nome de token (aceita sem `--`); `null` se válido. */
+/** Token name error (accepts without `--`); `null` if valid. */
 export function tokenNameError(doc: Document, raw: string, existing?: string): string | null {
   const name = normalizeTokenName(raw);
-  if (!name || name === '--') return 'informe um nome';
-  if (!TOKEN_NAME_RE.test(name)) return 'use letras, dígitos, "-" e "_"';
-  if (name !== existing && tokenNames(doc).includes(name)) return `o token ${name} já existe`;
-  // Renomear: recusa destino em tema ou declarado localmente em algum nó (a regra vive no core).
+  if (!name || name === '--') return 'enter a name';
+  if (!TOKEN_NAME_RE.test(name)) return 'use letters, digits, "-" and "_"';
+  if (name !== existing && tokenNames(doc).includes(name))
+    return `the token ${name} already exists`;
+  // Renaming: rejects a target that is in a theme or declared locally on some node (the rule lives in the core).
   if (existing && name !== existing) return renameTokenProblem(doc, existing, name);
   return null;
 }
 
-/** Erro de nome de tema; `null` se válido. */
+/** Theme name error; `null` if valid. */
 export function themeNameError(doc: Document, raw: string, existing?: string): string | null {
   const n = raw.trim();
-  if (!n) return 'informe um nome';
-  if (!THEME_NAME_RE.test(n)) return 'use letras, dígitos, "-" e "_"';
-  if (n !== existing && doc.themes?.some((t) => t.name === n)) return `o tema "${n}" já existe`;
+  if (!n) return 'enter a name';
+  if (!THEME_NAME_RE.test(n)) return 'use letters, digits, "-" and "_"';
+  if (n !== existing && doc.themes?.some((t) => t.name === n))
+    return `the theme "${n}" already exists`;
   return null;
 }
 
-/** `validateTokenValue` com as variáveis do contexto de edição (base ou tema). */
+/** `validateTokenValue` with the variables of the editing context (base or theme). */
 export function validateEdit(
   doc: Document,
   name: string,
@@ -270,17 +272,17 @@ export function validateEdit(
 
 /* ------------------------------ ops ------------------------------ */
 
-/** Define o valor de um token na base ou, com `theme`, nas sobrescritas do tema. */
+/** Sets a token's value in the base or, with `theme`, in the theme's overrides. */
 export function opSetValue(name: string, value: string, theme?: string | null): Op {
   return { type: 'setTokens', set: { [name]: value.trim() }, ...(theme ? { theme } : {}) };
 }
 
-/** Remove a sobrescrita do token no tema (volta a herdar o valor base). */
+/** Removes the token's override in the theme (goes back to inheriting the base value). */
 export function opClearOverride(name: string, theme: string): Op {
   return { type: 'setTokens', unset: [name], theme };
 }
 
-/** Metadados novos do token: junta com os atuais; sem grupo nem descrição remove o meta. */
+/** New token metadata: merges with the current one; with no group or description it removes the meta. */
 export function opSetMeta(doc: Document, name: string, patch: Partial<TokenMeta>): Op | null {
   const had = !!doc.tokenMeta && name in doc.tokenMeta;
   const next: TokenMeta = { ...doc.tokenMeta?.[name], ...patch };
@@ -293,18 +295,18 @@ export function opSetMeta(doc: Document, name: string, patch: Partial<TokenMeta>
 export interface NewTokenInput {
   name: string;
   value: string;
-  /** Vazio = grupo automático (inferido pelo nome/valor). */
+  /** Empty = automatic group (inferred from the name/value). */
   group?: string;
   description?: string;
 }
 
-/** Ops para criar um token (valor base + metadados, se houver). Lança `Error` se inválido. */
+/** Ops to create a token (base value + metadata, if any). Throws `Error` if invalid. */
 export function planCreateToken(doc: Document, input: NewTokenInput): Op[] {
   const err = tokenNameError(doc, input.name);
   if (err) throw new Error(err);
   const name = normalizeTokenName(input.name);
   const value = input.value.trim();
-  if (!value) throw new Error('informe um valor');
+  if (!value) throw new Error('enter a value');
   const problem = validateTokenValue(name, value, {
     group: input.group || inferTokenGroup(name, value),
     vars: resolvedTokens(doc),
@@ -318,7 +320,7 @@ export function planCreateToken(doc: Document, input: NewTokenInput): Op[] {
   return ops;
 }
 
-/** Ops para renomear um token (o core atualiza as referências `var()`). Lança `Error` se inválido. */
+/** Ops to rename a token (the core updates the `var()` references). Throws `Error` if invalid. */
 export function planRenameToken(doc: Document, from: string, rawTo: string): Op[] {
   const err = tokenNameError(doc, rawTo, from);
   if (err) throw new Error(err);

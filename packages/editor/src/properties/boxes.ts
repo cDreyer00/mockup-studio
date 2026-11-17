@@ -1,11 +1,11 @@
-/** Leitura/escrita de propriedades de caixa (padding, margin, border-radius) sem conflito shorthand/longhand. */
+/** Read/write of box properties (padding, margin, border-radius) without shorthand/longhand conflicts. */
 import { parseBox, serializeBox } from './css';
 import type { Box } from './css';
 
 export interface BoxSpec {
   /** Shorthand (`padding`). */
   prop: string;
-  /** Longhands na ordem top, right, bottom, left (para radius: TL, TR, BR, BL). */
+  /** Longhands in the order top, right, bottom, left (for radius: TL, TR, BR, BL). */
   sides: [string, string, string, string];
 }
 
@@ -29,7 +29,7 @@ export const RADIUS: BoxSpec = {
 
 const KEYS = ['top', 'right', 'bottom', 'left'] as const;
 
-/** Valores efetivos dos 4 lados: shorthand como base, longhands por cima; '' = ausente. */
+/** Effective values of the 4 sides: shorthand as the base, longhands on top; '' = absent. */
 export function readBox(style: Record<string, string>, spec: BoxSpec): Box {
   const base = parseBox(style[spec.prop]) ?? { top: '', right: '', bottom: '', left: '' };
   const out = { ...base };
@@ -41,8 +41,8 @@ export function readBox(style: Record<string, string>, spec: BoxSpec): Box {
 }
 
 /**
- * Estilos para gravar o box: sempre o shorthand (lados vazios viram `0`) e remove os longhands,
- * de modo que nunca coexistam. Box totalmente vazio remove tudo.
+ * Styles to write the box: always the shorthand (empty sides become `0`), removing the longhands
+ * so they never coexist. A fully empty box removes everything.
  */
 export function writeBox(
   style: Record<string, string>,
@@ -60,7 +60,7 @@ export function writeBox(
   return { set: { [spec.prop]: serializeBox(full) }, unset: present };
 }
 
-/** Define todos os lados com o mesmo valor ('' remove). */
+/** Sets all sides to the same value ('' removes). */
 export function uniformBox(value: string): Box {
   return { top: value, right: value, bottom: value, left: value };
 }

@@ -33,17 +33,17 @@ afterEach(() => {
 const lastOps = (): Op[] => apply.mock.calls.at(-1)![0] as Op[];
 
 describe('ClassesSection', () => {
-  it('mostra "Carregando Tailwind…" e depois o campo com as classes do nó', async () => {
+  it(`shows "Loading Tailwind…" and then the field with the node's classes`, async () => {
     const { doc, a } = makeDoc();
     a.classes = 'p-4 rounded-md';
     useDoc.setState({ doc });
     render(<ClassesSection ctxs={[ctxOf(a)]} />);
-    expect(screen.getByTestId('classes-loading').textContent).toContain('Carregando Tailwind');
+    expect(screen.getByTestId('classes-loading').textContent).toContain('Loading Tailwind');
     const field = (await screen.findByTestId('prop-classes', {}, WAIT)) as HTMLTextAreaElement;
     expect(field.value).toBe('p-4 rounded-md');
   });
 
-  it('editar e confirmar (blur) aplica setClasses + updateStyles numa única chamada', async () => {
+  it('editing and confirming (blur) applies setClasses + updateStyles in a single call', async () => {
     const { doc, a } = makeDoc();
     a.classes = 'p-4';
     useDoc.setState({ doc });
@@ -65,7 +65,7 @@ describe('ClassesSection', () => {
     });
   });
 
-  it('nó sem classes: campo pré-preenchido com o estilo atual e editar não apaga o estilo', async () => {
+  it("node without classes: field prefilled with the current style and editing doesn't erase the style", async () => {
     const { doc, abs } = makeDoc();
     useDoc.setState({ doc });
     render(<ClassesSection ctxs={[ctxOf(abs)]} />);
@@ -87,7 +87,7 @@ describe('ClassesSection', () => {
     expect(change?.unset ?? []).not.toContain('top');
   });
 
-  it('sem mudança não aplica nada; Esc descarta o rascunho', async () => {
+  it('with no change nothing is applied; Esc discards the draft', async () => {
     const { doc, a } = makeDoc();
     a.classes = 'p-4';
     useDoc.setState({ doc });
@@ -97,14 +97,14 @@ describe('ClassesSection', () => {
     fireEvent.blur(field);
     field.focus();
     fireEvent.change(field, { target: { value: 'p-9' } });
-    // O primeiro Esc fecha as sugestões (se abertas); o seguinte descarta o rascunho.
+    // The first Esc closes the suggestions (if open); the next one discards the draft.
     fireEvent.keyDown(field, { key: 'Escape' });
     if (field.value !== 'p-4') fireEvent.keyDown(field, { key: 'Escape' });
     expect(apply).not.toHaveBeenCalled();
     expect(field.value).toBe('p-4');
   });
 
-  it('multi-seleção com classes diferentes mostra Misto e aplica a todos', async () => {
+  it('multi-selection with different classes shows Mixed and applies to all', async () => {
     const { doc, a, b } = makeDoc();
     a.classes = 'p-4';
     b.classes = 'p-2';
@@ -112,7 +112,7 @@ describe('ClassesSection', () => {
     render(<ClassesSection ctxs={[ctxOf(a), ctxOf(b)]} />);
     const field = (await screen.findByTestId('prop-classes', {}, WAIT)) as HTMLTextAreaElement;
     expect(field.value).toBe('');
-    expect(field.placeholder).toBe('Misto');
+    expect(field.placeholder).toBe('Mixed');
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'p-6' } });
     fireEvent.blur(field);
@@ -125,7 +125,7 @@ describe('ClassesSection', () => {
     });
   });
 
-  it('autocomplete: sugere, navega por setas, mostra o CSS e aceita com Enter', async () => {
+  it('autocomplete: suggests, navigates with arrows, shows the CSS and accepts with Enter', async () => {
     const { doc, a } = makeDoc();
     useDoc.setState({ doc });
     render(<ClassesSection ctxs={[ctxOf(a)]} />);
@@ -146,7 +146,7 @@ describe('ClassesSection', () => {
     expect(screen.queryByTestId('classes-suggestions')).toBeNull();
   });
 
-  it('Esc fecha as sugestões antes de descartar a edição', async () => {
+  it('Esc closes the suggestions before discarding the edit', async () => {
     const { doc, a } = makeDoc();
     useDoc.setState({ doc });
     render(<ClassesSection ctxs={[ctxOf(a)]} />);
@@ -165,11 +165,11 @@ describe('ClassesSection', () => {
     render(<ClassesSection ctxs={[ctxOf(a)]} />);
     const field = await screen.findByTestId('prop-classes', {}, WAIT);
     fireEvent.focus(field);
-    fireEvent.change(field, { target: { value: 'p-4 nao-existe-xyz' } });
-    expect((await screen.findByTestId('classes-unknown')).textContent).toContain('nao-existe-xyz');
+    fireEvent.change(field, { target: { value: 'p-4 does-not-exist-xyz' } });
+    expect((await screen.findByTestId('classes-unknown')).textContent).toContain('does-not-exist-xyz');
   });
 
-  it('"Mostrar como Tailwind" lista as classes do estilo atual (nó sem classes) e persiste no uiStore', async () => {
+  it('"Show as Tailwind" lists the classes of the current style (node without classes) and persists in the uiStore', async () => {
     const { doc, a } = makeDoc();
     a.style = { ...a.style, padding: '1rem', display: 'flex' };
     useDoc.setState({ doc });
@@ -183,7 +183,7 @@ describe('ClassesSection', () => {
     expect(screen.getByTestId('classes-copy')).toBeTruthy();
   });
 
-  it('lista os estados do nó e remove um com setStates', async () => {
+  it("lists the node's states and removes one with setStates", async () => {
     const { doc, a } = makeDoc();
     a.states = { hover: { background: 'red' }, md: { padding: '2rem' } };
     useDoc.setState({ doc });
@@ -205,7 +205,7 @@ describe('ClassesSection', () => {
 });
 
 describe('PropertiesPanel: CSS base', () => {
-  it('sem seleção, o seletor de CSS base aplica setCssBase', async () => {
+  it('with no selection, the CSS base selector applies setCssBase', async () => {
     const { doc } = makeDoc();
     useDoc.setState({ doc });
     render(<PropertiesPanel />);

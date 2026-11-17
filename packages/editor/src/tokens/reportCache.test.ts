@@ -5,12 +5,12 @@ import { nodeScopeVars, tokenListFor, tokenReportFor } from './reportCache';
 const doc = (): Document =>
   ({
     version: 1,
-    name: 'Teste',
+    name: 'Test',
     tokens: { '--a': '#fff', '--b': 'var(--a)' },
     pages: [
       {
         id: 'p1',
-        name: 'Página',
+        name: 'Page',
         frames: [
           {
             id: 'f1',
@@ -26,13 +26,13 @@ const doc = (): Document =>
   }) as unknown as Document;
 
 describe('tokenReportFor', () => {
-  it('reaproveita o relatório quando só algo irrelevante muda', () => {
+  it('reuses the report when only something irrelevant changes', () => {
     const d = doc();
     const r = tokenReportFor(d);
-    expect(tokenReportFor({ ...d, name: 'Outro' })).toBe(r);
+    expect(tokenReportFor({ ...d, name: 'Other' })).toBe(r);
   });
 
-  it('recalcula quando tokens ou páginas mudam', () => {
+  it('recomputes when tokens or pages change', () => {
     const d = doc();
     const r = tokenReportFor(d);
     const t = tokenReportFor({ ...d, tokens: { ...d.tokens, '--c': '1px' } });
@@ -43,7 +43,7 @@ describe('tokenReportFor', () => {
 });
 
 describe('tokenListFor', () => {
-  it('ignora mudanças em pages, mas recalcula com tokens', () => {
+  it('ignores changes in pages, but recomputes with tokens', () => {
     const d = doc();
     const l = tokenListFor(d);
     expect(tokenListFor({ ...d, pages: [...d.pages] })).toBe(l);
@@ -52,7 +52,7 @@ describe('tokenListFor', () => {
 });
 
 describe('nodeScopeVars', () => {
-  it('guarda por documento e nó', () => {
+  it('caches per document and node', () => {
     const d = doc();
     const v = nodeScopeVars(d, 'f1');
     expect(v['--a']).toBe('#fff');

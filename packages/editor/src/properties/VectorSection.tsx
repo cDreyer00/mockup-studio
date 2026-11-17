@@ -1,4 +1,4 @@
-/** Painel de vetor: preenchimento, traço e combinações dos nós svg selecionados. */
+/** Vector panel: fill, stroke and combinations of the selected svg nodes. */
 import { useContext } from 'react';
 import type { ReactNode } from 'react';
 import { Minus, PenLine, Plus } from 'lucide-react';
@@ -22,18 +22,18 @@ import { NumberInput } from '../ui/NumberInput';
 import { Body, LockedContext, runOps } from './shared';
 
 const FILL_MODES: SelectOption[] = [
-  { value: 'none', label: 'Nenhum' },
-  { value: 'solid', label: 'Sólido' },
-  { value: 'linear', label: 'Gradiente linear' },
-  { value: 'radial', label: 'Gradiente radial' },
+  { value: 'none', label: 'None' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'linear', label: 'Linear gradient' },
+  { value: 'radial', label: 'Radial gradient' },
 ];
 const CAPS: SelectOption[] = ['butt', 'round', 'square'].map((v) => ({ value: v, label: v }));
 const JOINS: SelectOption[] = ['miter', 'round', 'bevel'].map((v) => ({ value: v, label: v }));
 const BOOL_LABEL: Record<BooleanOp, string> = {
-  union: 'União',
-  subtract: 'Subtração',
-  intersect: 'Interseção',
-  exclude: 'Exclusão',
+  union: 'Union',
+  subtract: 'Subtract',
+  intersect: 'Intersect',
+  exclude: 'Exclude',
 };
 
 const DEFAULT_STOPS: VectorGradientStop[] = [
@@ -56,7 +56,7 @@ export function paintMode(p: VectorPaint | undefined): FillMode {
   return typeof p === 'string' ? 'solid' : p.type;
 }
 
-/** Aplica um patch de tinta a todos os paths dos nós, numa única op `setVector`. */
+/** Applies a paint patch to all the nodes' paths, in a single `setVector` op. */
 function applyPaint(nodes: readonly Node[], patch: VectorPaintPatch): Promise<void> {
   const ops: Op[] = nodes.flatMap((n) => {
     const v = tryEnsure(n);
@@ -64,7 +64,7 @@ function applyPaint(nodes: readonly Node[], patch: VectorPaintPatch): Promise<vo
     return buildSetVectorOps(n.id, setVectorPaint(v, patch));
   });
   if (ops.length > 1) {
-    // Junta as mudanças numa só op (uma entrada de undo).
+    // Merges the changes into a single op (one undo entry).
     const changes = ops.flatMap((o) => (o.type === 'setVector' ? o.changes : []));
     return runOps([{ type: 'setVector', changes }]);
   }
@@ -74,7 +74,7 @@ function applyPaint(nodes: readonly Node[], patch: VectorPaintPatch): Promise<vo
 const solidOf = (p: VectorPaint | undefined): string | undefined =>
   typeof p === 'string' ? (p === 'none' ? undefined : p) : undefined;
 
-/** Editor de paradas de um gradiente (2 ou mais). */
+/** Editor for a gradient's stops (2 or more). */
 function GradientEditor({
   gradient,
   onChange,
@@ -105,14 +105,14 @@ function GradientEditor({
           <div className="vec-tid" data-testid={`${testPrefix}-stop-color-${i}`}>
             <ColorInput
               value={s.color}
-              title={`Cor da parada ${i + 1}`}
+              title={`Stop ${i + 1} color`}
               onCommit={(v) => setStop(i, { color: v })}
             />
           </div>
           <div className="vec-tid" data-testid={`${testPrefix}-stop-offset-${i}`}>
             <NumberInput
               label="%"
-              title="Posição (%)"
+              title="Position (%)"
               unit=""
               min={0}
               max={100}
@@ -124,7 +124,7 @@ function GradientEditor({
             />
           </div>
           <IconButton
-            title="Remover parada"
+            title="Remove stop"
             disabled={stops.length <= 2}
             data-testid={`${testPrefix}-stop-remove-${i}`}
             onClick={() => onChange({ ...gradient, stops: stops.filter((_, j) => j !== i) })}
@@ -133,7 +133,7 @@ function GradientEditor({
           </IconButton>
         </div>
       ))}
-      <IconButton title="Adicionar parada" data-testid={`${testPrefix}-stop-add`} onClick={add}>
+      <IconButton title="Add stop" data-testid={`${testPrefix}-stop-add`} onClick={add}>
         <Plus size={12} />
       </IconButton>
     </div>
@@ -181,7 +181,7 @@ function PaintEditor({
         <div className="vec-tid" data-testid={`${testPrefix}-color`}>
           <ColorInput
             value={solidOf(paint)}
-            title={`${title}: cor`}
+            title={`${title}: color`}
             onCommit={(v) => onPaint(v.trim() === '' ? 'none' : v.trim())}
           />
         </div>
@@ -197,10 +197,10 @@ function Combine({ nodes }: { nodes: readonly Node[] }) {
   const many = nodes.length >= 2;
   return (
     <>
-      <div className="prop-subhead">Vetor</div>
+      <div className="prop-subhead">Vector</div>
       <Row>
         <IconButton
-          title="Editar pontos (Enter)"
+          title="Edit points (Enter)"
           disabled={nodes.length !== 1}
           data-testid="vector-edit-points"
           onClick={() => ui.editVector(nodes[0]!.id)}
@@ -211,10 +211,10 @@ function Combine({ nodes }: { nodes: readonly Node[] }) {
           type="button"
           className="vec-btn"
           data-testid="vector-flatten"
-          title="Achatar: junta os caminhos num só"
+          title="Flatten: merges the paths into one"
           onClick={() => void flatten()}
         >
-          Achatar
+          Flatten
         </button>
       </Row>
       {many && (
@@ -246,35 +246,34 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
   if (!editable || !first) {
     body = (
       <div className="prop-hint" data-testid="vector-complex">
-        Este SVG é complexo (filtros, máscaras, texto...) e não tem caminhos editáveis: edite o
-        markup.
+        This SVG is complex (filters, masks, text...) and has no editable paths: edit the markup.
       </div>
     );
   } else {
     const strokeMode = paintMode(first.stroke);
     body = (
       <>
-        <div className="prop-subhead">Preenchimento</div>
+        <div className="prop-subhead">Fill</div>
         <PaintEditor
-          title="Preenchimento"
+          title="Fill"
           testPrefix="vector-fill"
           paint={first.fill}
           onPaint={(p) => void applyPaint(nodes, { fill: p })}
         />
-        <div className="prop-subhead">Traço</div>
+        <div className="prop-subhead">Stroke</div>
         <PaintEditor
-          title="Traço"
+          title="Stroke"
           testPrefix="vector-stroke"
           paint={first.stroke}
           onPaint={(p) => void applyPaint(nodes, { stroke: p })}
         />
         {strokeMode !== 'none' && (
           <>
-            <Row label="Largura">
+            <Row label="Width">
               <div className="vec-tid" data-testid="vector-stroke-width">
                 <NumberInput
                   label="W"
-                  title="Largura do traço"
+                  title="Stroke width"
                   unit=""
                   min={0}
                   step={0.5}
@@ -289,13 +288,13 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
                 />
               </div>
             </Row>
-            <Row label="Ponta">
+            <Row label="Cap">
               <div className="vec-tid" data-testid="vector-stroke-cap">
                 <SelectInput
                   value={first.strokeLinecap}
                   options={CAPS}
                   placeholder="butt"
-                  title="Extremidades"
+                  title="Line caps"
                   onChange={(v) =>
                     void applyPaint(nodes, {
                       strokeLinecap: (v || null) as VectorPath['strokeLinecap'] | null,
@@ -304,13 +303,13 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
                 />
               </div>
             </Row>
-            <Row label="Junção">
+            <Row label="Join">
               <div className="vec-tid" data-testid="vector-stroke-join">
                 <SelectInput
                   value={first.strokeLinejoin}
                   options={JOINS}
                   placeholder="miter"
-                  title="Junção"
+                  title="Join"
                   onChange={(v) =>
                     void applyPaint(nodes, {
                       strokeLinejoin: (v || null) as VectorPath['strokeLinejoin'] | null,
@@ -319,17 +318,17 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
                 />
               </div>
             </Row>
-            <Row label="Tracejado">
+            <Row label="Dash">
               <div className="vec-tid" data-testid="vector-stroke-dash">
                 <TextInput
                   value={first.strokeDasharray}
-                  placeholder="ex.: 4 2"
-                  title="Tracejado (dasharray)"
+                  placeholder="e.g. 4 2"
+                  title="Dash (dasharray)"
                   monospace
                   onCommit={(v) => {
                     const t = v.trim();
                     if (t !== '' && !/^(?:none|[0-9eE.,+\-\s]+)$/.test(t)) {
-                      ui.toast('Tracejado inválido: use números, ex.: 4 2', 'error');
+                      ui.toast('Invalid dash: use numbers, e.g. 4 2', 'error');
                       return;
                     }
                     void applyPaint(nodes, {
@@ -345,7 +344,7 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
     );
   }
   return (
-    <Section id="props-vector" title="Vetor">
+    <Section id="props-vector" title="Vector">
       <Body>
         {body}
         {!locked && <Combine nodes={nodes} />}

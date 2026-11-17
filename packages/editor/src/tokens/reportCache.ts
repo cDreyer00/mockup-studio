@@ -1,7 +1,7 @@
 /**
- * Memos compartilhados do relatório de tokens e do escopo de variáveis por nó. Durante arrastes o
- * `doc` muda a cada quadro, mas o store é imutável: `tokens`, `tokenMeta`, `themes` e `pages`
- * mantêm a identidade quando nada neles mudou, então basta comparar as referências.
+ * Shared memos for the token report and the per-node variable scope. During drags the
+ * `doc` changes every frame, but the store is immutable: `tokens`, `tokenMeta`, `themes` and `pages`
+ * keep their identity when nothing in them changed, so comparing the references is enough.
  */
 import { getTokenReport, scopeVarsFor } from '@mockup/core';
 import type { Document, TokenReport } from '@mockup/core';
@@ -24,7 +24,7 @@ const same = (e: Entry | null, doc: Document, pages: Document['pages'] | null): 
 let full: Entry | null = null;
 let list: Entry | null = null;
 
-/** Relatório completo (uso, quebrados, temas); reaproveitado enquanto tokens, metas, temas e páginas forem os mesmos. */
+/** Full report (usage, broken, themes); reused as long as tokens, metas, themes and pages stay the same. */
 export function tokenReportFor(doc: Document): TokenReport {
   if (same(full, doc, doc.pages)) return full.report;
   const { tokens, tokenMeta, themes, pages } = doc;
@@ -34,8 +34,8 @@ export function tokenReportFor(doc: Document): TokenReport {
 }
 
 /**
- * Relatório sem varrer os nós (`usage`, `unused`, `broken` e `frames` ficam vazios): serve a quem só
- * precisa da lista de tokens (seletor). Depende só de tokens, metas e temas, não de `pages`.
+ * Report without scanning the nodes (`usage`, `unused`, `broken` and `frames` stay empty): serves callers that only
+ * need the token list (picker). Depends only on tokens, metas and themes, not on `pages`.
  */
 export function tokenListFor(doc: Document): TokenReport {
   if (same(list, doc, null)) return list.report;
@@ -47,7 +47,7 @@ export function tokenListFor(doc: Document): TokenReport {
 
 const scopes = new WeakMap<Document, Map<string, Record<string, string>>>();
 
-/** Variáveis vistas por um nó, em cache por documento e nó (vários campos ligados partilham o cálculo). */
+/** Variables seen by a node, cached per document and node (several bound fields share the computation). */
 export function nodeScopeVars(doc: Document, nodeId: string): Record<string, string> {
   let byNode = scopes.get(doc);
   if (!byNode) scopes.set(doc, (byNode = new Map()));

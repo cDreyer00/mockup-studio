@@ -1,19 +1,19 @@
-/** Menus de contexto, diálogo de texto (prompt) e toasts. Estado em store próprio. */
+/** Context menus, text dialog (prompt) and toasts. State lives in its own store. */
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { create } from 'zustand';
 import { useUi } from '../state/uiStore';
 
-/* ---------------- menu de contexto ---------------- */
+/* ---------------- context menu ---------------- */
 
 export interface MenuItem {
   label: string;
-  /** Atalho exibido à direita (só texto). */
+  /** Shortcut shown on the right (text only). */
   shortcut?: string;
   disabled?: boolean;
   danger?: boolean;
   onSelect?: () => void;
-  /** Separador antes deste item. */
+  /** Separator before this item. */
   separator?: boolean;
 }
 
@@ -22,7 +22,7 @@ interface MenuState {
 }
 const useMenu = create<MenuState>(() => ({ menu: null }));
 
-/** Abre um menu de contexto na posição de tela (clientX, clientY). */
+/** Opens a context menu at the screen position (clientX, clientY). */
 export function openContextMenu(x: number, y: number, items: MenuItem[]): void {
   useMenu.setState({ menu: { x, y, items } });
 }
@@ -92,7 +92,7 @@ function ContextMenuHost() {
   );
 }
 
-/* ---------------- prompt (diálogo de texto) ---------------- */
+/* ---------------- prompt (text dialog) ---------------- */
 
 export interface PromptField {
   name: string;
@@ -111,8 +111,8 @@ interface PromptRequest {
 const usePrompt = create<{ req: PromptRequest | null }>(() => ({ req: null }));
 
 /**
- * Diálogo modal com campos de texto. Resolve com os valores ou `null` se cancelado.
- * Ex.: `const r = await prompt({ title: 'Abrir', fields: [{ name: 'path', label: 'Caminho' }] })`.
+ * Modal dialog with text fields. Resolves with the values or `null` if cancelled.
+ * E.g.: `const r = await prompt({ title: 'Open', fields: [{ name: 'path', label: 'Path' }] })`.
  */
 export function prompt(opts: {
   title: string;
@@ -174,7 +174,7 @@ function PromptHost() {
         ))}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={() => finish(null)}>
-            Cancelar
+            Cancel
           </button>
           <button type="submit" className="btn primary">
             {req.confirmLabel}
@@ -204,7 +204,7 @@ function ToastHost() {
   );
 }
 
-/** Monte uma vez no App. */
+/** Mount once in the App. */
 export function OverlayHost() {
   return (
     <>

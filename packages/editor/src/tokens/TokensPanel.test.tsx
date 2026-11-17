@@ -12,7 +12,7 @@ function setup() {
   made.doc.tokens = {
     '--color-primary': '#ff0000',
     '--space-4': '16px',
-    '--quebrado': 'var(--nao-existe)',
+    '--broken': 'var(--does-not-exist)',
   };
   made.doc.themes = [{ name: 'dark', overrides: { '--color-primary': '#00ff00' } }];
   made.a.style.background = 'var(--color-primary)';
@@ -32,18 +32,18 @@ describe('TokensPanel', () => {
     useUi.setState({ leftTab: 'layers' });
   });
 
-  it('lista por grupo, com indicadores de não usado e de problema', () => {
+  it('lists by group, with unused and problem indicators', () => {
     setup();
     render(<TokensPanel />);
     expect(screen.getByTestId('token-group-section-color')).toBeTruthy();
     expect(screen.getByTestId('token-group-section-spacing')).toBeTruthy();
     expect(screen.getByTestId('token-unused-space-4')).toBeTruthy();
     expect(screen.queryByTestId('token-unused-color-primary')).toBeNull();
-    const problem = screen.getByTestId('token-problem-quebrado');
-    expect(problem.getAttribute('title')).toMatch(/nao-existe/);
+    const problem = screen.getByTestId('token-problem-broken');
+    expect(problem.getAttribute('title')).toMatch(/does-not-exist/);
   });
 
-  it('busca filtra por nome e valor', () => {
+  it('search filters by name and value', () => {
     setup();
     render(<TokensPanel />);
     fireEvent.change(screen.getByTestId('tokens-search'), { target: { value: '16px' } });
@@ -53,7 +53,7 @@ describe('TokensPanel', () => {
     expect(screen.queryByTestId('token-row-space-4')).toBeNull();
   });
 
-  it('editar o valor: Enter confirma (setTokens), valor inválido bloqueia, Esc cancela', () => {
+  it('editing the value: Enter commits (setTokens), an invalid value blocks, Esc cancels', () => {
     setup();
     render(<TokensPanel />);
     const r = within(row('space-4'));
@@ -68,7 +68,7 @@ describe('TokensPanel', () => {
     expect(daemon.applySafe).toHaveBeenCalledWith([
       { type: 'setTokens', set: { '--space-4': '24px' } },
     ]);
-    // Esc cancela sem op
+    // Esc cancels without an op
     vi.mocked(daemon.applySafe).mockClear();
     fireEvent.click(r.getByTestId('token-value-space-4'));
     input = r.getByTestId('token-value-input');
@@ -78,7 +78,7 @@ describe('TokensPanel', () => {
     expect(r.queryByTestId('token-value-input')).toBeNull();
   });
 
-  it('duplo clique no nome renomeia (renameToken)', () => {
+  it('double-clicking the name renames (renameToken)', () => {
     setup();
     render(<TokensPanel />);
     const r = within(row('color-primary'));
@@ -91,7 +91,7 @@ describe('TokensPanel', () => {
     ]);
   });
 
-  it('renomear para um nome já existente mostra erro e não emite op', () => {
+  it('renaming to an existing name shows an error and emits no op', () => {
     setup();
     render(<TokensPanel />);
     const r = within(row('color-primary'));
@@ -102,7 +102,7 @@ describe('TokensPanel', () => {
     expect(daemon.applySafe).not.toHaveBeenCalled();
   });
 
-  it('com tema selecionado, editar grava na sobrescrita e permite removê-la', () => {
+  it('with a theme selected, editing writes to the override and allows removing it', () => {
     setup();
     render(<TokensPanel />);
     fireEvent.change(screen.getByTestId('tokens-theme-select'), { target: { value: 'dark' } });
@@ -123,24 +123,24 @@ describe('TokensPanel', () => {
     ]);
   });
 
-  it('cria token pelo formulário e recusa nome repetido', () => {
+  it('creates a token from the form and rejects a duplicate name', () => {
     setup();
     render(<TokensPanel />);
     fireEvent.click(screen.getByTestId('tokens-add'));
     fireEvent.change(screen.getByTestId('new-token-name'), { target: { value: 'color-primary' } });
     fireEvent.change(screen.getByTestId('new-token-value'), { target: { value: '#fff' } });
     fireEvent.click(screen.getByTestId('new-token-submit'));
-    expect(screen.getByTestId('new-token-error').textContent).toMatch(/já existe/);
-    fireEvent.change(screen.getByTestId('new-token-name'), { target: { value: 'color-novo' } });
+    expect(screen.getByTestId('new-token-error').textContent).toMatch(/already exists/);
+    fireEvent.change(screen.getByTestId('new-token-name'), { target: { value: 'color-new' } });
     fireEvent.change(screen.getByTestId('new-token-group'), { target: { value: 'color' } });
     fireEvent.click(screen.getByTestId('new-token-submit'));
     expect(daemon.applySafe).toHaveBeenCalledWith([
-      { type: 'setTokens', set: { '--color-novo': '#fff' } },
-      { type: 'setTokenMeta', set: { '--color-novo': { group: 'color' } } },
+      { type: 'setTokens', set: { '--color-new': '#fff' } },
+      { type: 'setTokenMeta', set: { '--color-new': { group: 'color' } } },
     ]);
   });
 
-  it('exclui token (planDeleteTokens) e edita grupo e descrição', () => {
+  it('deletes a token (planDeleteTokens) and edits group and description', () => {
     setup();
     render(<TokensPanel />);
     fireEvent.click(screen.getByTestId('token-menu-space-4'));
@@ -157,12 +157,12 @@ describe('TokensPanel', () => {
     ]);
   });
 
-  it('importar CSS mostra a análise e gera replaceTokens (mesclar)', () => {
+  it('importing CSS shows the analysis and generates replaceTokens (merge)', () => {
     const { doc } = setup();
     render(<TokensPanel />);
     fireEvent.click(screen.getByTestId('tokens-import'));
     fireEvent.change(screen.getByTestId('tokens-import-text'), {
-      target: { value: ':root { --novo: 4px; }' },
+      target: { value: ':root { --new: 4px; }' },
     });
     expect(screen.getByTestId('tokens-import-info').textContent).toContain('1 token');
     fireEvent.click(screen.getByTestId('tokens-import-confirm'));
@@ -170,11 +170,11 @@ describe('TokensPanel', () => {
     expect(ops[0]).toMatchObject({ type: 'replaceTokens' });
     expect((ops[0] as { tokens: Record<string, string> }).tokens).toEqual({
       ...doc.tokens,
-      '--novo': '4px',
+      '--new': '4px',
     });
   });
 
-  it('exportar mostra o texto no formato escolhido', () => {
+  it('exporting shows the text in the chosen format', () => {
     setup();
     render(<TokensPanel />);
     fireEvent.click(screen.getByTestId('tokens-export'));

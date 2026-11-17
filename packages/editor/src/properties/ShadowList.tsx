@@ -1,4 +1,4 @@
-/** Lista editável de sombras (`box-shadow` com várias camadas). */
+/** Editable list of shadows (`box-shadow` with several layers). */
 import { useContext } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { Node } from '@mockup/core';
@@ -37,7 +37,7 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
           onCommit={(v) => void commitStyle(nodes, 'box-shadow', v)}
         />
         <IconButton
-          title="Substituir por uma sombra"
+          title="Replace with a single shadow"
           disabled={locked}
           onClick={() => write([NEW_SHADOW])}
         >
@@ -57,21 +57,21 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
           <div className="prop-grid-4">
             <NumberInput
               label="X"
-              title="Deslocamento X"
+              title="Offset X"
               value={s.x}
               disabled={locked}
               onCommit={(v) => update(i, { x: v || '0px' })}
             />
             <NumberInput
               label="Y"
-              title="Deslocamento Y"
+              title="Offset Y"
               value={s.y}
               disabled={locked}
               onCommit={(v) => update(i, { y: v || '0px' })}
             />
             <NumberInput
               label="B"
-              title="Desfoque"
+              title="Blur"
               value={s.blur}
               min={0}
               disabled={locked}
@@ -79,7 +79,7 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
             />
             <NumberInput
               label="S"
-              title="Espalhamento"
+              title="Spread"
               value={s.spread}
               disabled={locked}
               onCommit={(v) => update(i, { spread: v })}
@@ -98,7 +98,7 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
               onCommit={(v) => update(i, { color: v })}
             />
             <IconButton
-              title="Sombra interna"
+              title="Inner shadow"
               active={s.inset}
               disabled={locked}
               onClick={() => update(i, { inset: !s.inset })}
@@ -106,7 +106,7 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
               <span className="prop-tiny">in</span>
             </IconButton>
             <IconButton
-              title="Remover sombra"
+              title="Remove shadow"
               disabled={locked}
               onClick={() => write(list.filter((_, j) => j !== i))}
             >
@@ -116,7 +116,7 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
         </div>
       ))}
       <IconButton
-        title="Adicionar sombra"
+        title="Add shadow"
         disabled={locked}
         className="prop-add"
         onClick={() => write([...list, NEW_SHADOW])}

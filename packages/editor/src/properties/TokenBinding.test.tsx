@@ -32,27 +32,27 @@ describe('TokenBinding', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('valor var(--x) vira chip com nome e valor resolvido', () => {
+  it('a var(--x) value becomes a chip with name and resolved value', () => {
     setup({ background: 'var(--color-primary)' });
     render(<PropertiesPanel />);
     expect(screen.getByTestId('token-chip-name').textContent).toBe('--color-primary');
     expect(screen.getByTestId('token-chip-value').textContent).toBe('#ff0000');
   });
 
-  it('chip mostra o valor do tema declarado no frame', () => {
+  it('chip shows the value of the theme declared on the frame', () => {
     const { frame } = setup({ background: 'var(--color-primary)' });
     frame.attrs['data-theme'] = 'dark';
     render(<PropertiesPanel />);
     expect(screen.getByTestId('token-chip-value').textContent).toBe('#00ff00');
   });
 
-  it('escolher um token no seletor grava var(--token) via updateStyles', () => {
+  it('choosing a token in the picker writes var(--token) via updateStyles', () => {
     const { frame } = setup();
     render(<PropertiesPanel />);
     const w = document.querySelector('[data-testid=prop-w]')!;
     fireEvent.click(w.querySelector('[data-testid=token-bind]')!);
     expect(screen.getByTestId('token-picker')).toBeTruthy();
-    // largura = espaçamento: não oferece cores
+    // width = spacing: does not offer colors
     expect(screen.queryByTestId('token-option-color-primary')).toBeNull();
     fireEvent.click(screen.getByTestId('token-option-space-4'));
     expect(daemon.applySafe).toHaveBeenCalledWith([
@@ -61,7 +61,7 @@ describe('TokenBinding', () => {
     expect(screen.queryByTestId('token-picker')).toBeNull();
   });
 
-  it('o seletor de cor filtra tokens de cor, a busca refina e "Todos" mostra o resto', () => {
+  it('the color picker filters color tokens, search narrows and "All" shows the rest', () => {
     setup();
     render(<PropertiesPanel />);
     const bg = document.querySelector('.prop-bg')!;
@@ -81,7 +81,7 @@ describe('TokenBinding', () => {
     );
   });
 
-  it('desligar grava o valor resolvido literal', () => {
+  it('unbinding writes the literal resolved value', () => {
     const { frame } = setup({ width: 'var(--ref)' });
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('token-unbind'));
@@ -90,7 +90,7 @@ describe('TokenBinding', () => {
     ]);
   });
 
-  it('linha Tema troca o data-theme do nó (planSetFrameTheme)', () => {
+  it("Theme row changes the node's data-theme (planSetFrameTheme)", () => {
     const { frame } = setup();
     render(<PropertiesPanel />);
     const select = document.querySelector<HTMLSelectElement>('[data-testid=prop-theme] select')!;
@@ -100,12 +100,12 @@ describe('TokenBinding', () => {
     ]);
   });
 
-  it('mostra o tema herdado quando o nó não declara', () => {
+  it("shows the inherited theme when the node doesn't declare one", () => {
     const { frame, a } = setup();
     frame.attrs['data-theme'] = 'dark';
     ui.select([a.id]);
     render(<PropertiesPanel />);
     const select = document.querySelector<HTMLSelectElement>('[data-testid=prop-theme] select')!;
-    expect(select.options[0]!.textContent).toBe('Herdado (dark)');
+    expect(select.options[0]!.textContent).toBe('Inherited (dark)');
   });
 });

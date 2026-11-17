@@ -17,14 +17,14 @@ describe('PropertiesPanel', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('sem seleção mostra o documento', () => {
+  it('with no selection shows the document', () => {
     const { doc } = makeDoc();
     useDoc.setState({ doc });
     render(<PropertiesPanel />);
-    expect(screen.getByTestId('prop-document').textContent).toContain('Teste');
+    expect(screen.getByTestId('prop-document').textContent).toContain('Test');
   });
 
-  it('mostra W do frame e aplica updateStyles', () => {
+  it("shows the frame's W and applies updateStyles", () => {
     const { doc, frame } = makeDoc();
     useDoc.setState({ doc });
     ui.select([frame.id]);
@@ -39,12 +39,12 @@ describe('PropertiesPanel', () => {
     ]);
   });
 
-  it('multi-seleção mostra Misto em valores diferentes', () => {
+  it('multi-selection shows Mixed for different values', () => {
     const { doc, a, b } = makeDoc();
     useDoc.setState({ doc });
     ui.select([a.id, b.id]);
     render(<PropertiesPanel />);
     const w = document.querySelector<HTMLInputElement>('[data-testid=prop-w] input')!;
-    expect(w.placeholder).toBe('Misto');
+    expect(w.placeholder).toBe('Mixed');
   });
 });

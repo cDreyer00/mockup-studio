@@ -30,7 +30,7 @@ function sample(): Document {
     '--radius-md': '6px',
     '--font-body': 'Inter, sans-serif',
     '--brand': 'var(--color-primary)',
-    '--morto': 'var(--nao-existe)',
+    '--dead': 'var(--does-not-exist)',
     '--custom': '1',
   };
   doc.tokenMeta = { '--custom': { group: 'zeta' }, '--space-2': { description: 'base' } };
@@ -41,7 +41,7 @@ function sample(): Document {
 }
 
 describe('varRefName', () => {
-  it('detecta var(--x) inteiro', () => {
+  it('detects a whole var(--x)', () => {
     expect(varRefName('var(--a)')).toBe('--a');
     expect(varRefName(' var(--a-b_1, 4px) ')).toBe('--a-b_1');
     expect(varRefName('calc(var(--a) * 2)')).toBeNull();
@@ -51,7 +51,7 @@ describe('varRefName', () => {
 });
 
 describe('bindKindFor', () => {
-  it('mapeia propriedades para o tipo de token', () => {
+  it('maps properties to the token type', () => {
     expect(bindKindFor('background-color')).toBe('color');
     expect(bindKindFor('color')).toBe('color');
     expect(bindKindFor('border-radius')).toBe('radius');
@@ -68,16 +68,16 @@ describe('bindKindFor', () => {
   });
 });
 
-describe('agrupamento e busca', () => {
+describe('grouping and search', () => {
   const report = getTokenReport(sample());
 
-  it('grupos nativos na ordem e grupos livres no fim', () => {
+  it('built-in groups in order and free groups at the end', () => {
     const ids = groupTokens(report.tokens).map((g) => g.id);
     expect(ids.slice(0, 4)).toEqual(['color', 'typography', 'spacing', 'radius']);
     expect(ids[ids.length - 1]).toBe('zeta');
   });
 
-  it('busca por nome e por valor', () => {
+  it('search by name and by value', () => {
     const byName = groupTokens(report.tokens, 'primary').flatMap((g) =>
       g.tokens.map((t) => t.name),
     );
@@ -89,7 +89,7 @@ describe('agrupamento e busca', () => {
     expect(groupTokens(report.tokens, 'zzzz')).toEqual([]);
   });
 
-  it('seletor: grupo relevante primeiro e "todos" inclui o resto', () => {
+  it('picker: relevant group first and "all" includes the rest', () => {
     const only = pickerTokens(report.tokens, ['radius'], false, '');
     expect(only.map((t) => t.name)).toEqual(['--radius-md']);
     const all = pickerTokens(report.tokens, ['radius'], true, '');
@@ -98,12 +98,12 @@ describe('agrupamento e busca', () => {
   });
 });
 
-describe('estado das linhas', () => {
+describe('row state', () => {
   const doc = sample();
   const report = getTokenReport(doc);
   const info = (n: string) => report.tokens.find((t) => t.name === n)!;
 
-  it('valor por tema e sobrescrita', () => {
+  it('value per theme and override', () => {
     expect(shownValue(info('--color-bg'), null)).toMatchObject({
       value: '#ffffff',
       overridden: false,
@@ -116,8 +116,8 @@ describe('estado das linhas', () => {
     expect(shownValue(info('--color-primary'), 'dark').overridden).toBe(false);
   });
 
-  it('referência quebrada vira problema; resumo conta não usados', () => {
-    expect(rowProblem(info('--morto'), report)).not.toBeNull();
+  it('a broken reference becomes a problem; the summary counts unused', () => {
+    expect(rowProblem(info('--dead'), report)).not.toBeNull();
     const s = summarizeTokens(report);
     expect(s.tokens).toBe(8);
     expect(s.themes).toBe(1);
@@ -125,7 +125,7 @@ describe('estado das linhas', () => {
     expect(s.broken).toBeGreaterThanOrEqual(1);
   });
 
-  it('prévias', () => {
+  it('previews', () => {
     expect(previewFor('color', '--c', '#fff')?.kind).toBe('color');
     expect(previewFor('spacing', '--s', '8px')?.kind).toBe('spacing');
     expect(previewFor('radius', '--r', '6px')?.kind).toBe('radius');
@@ -135,40 +135,40 @@ describe('estado das linhas', () => {
   });
 });
 
-describe('validação e ops', () => {
+describe('validation and ops', () => {
   const doc = sample();
 
-  it('valida nomes de token e de tema', () => {
-    expect(tokenNameError(doc, 'novo')).toBeNull();
-    expect(tokenNameError(doc, 'color-primary')).toMatch(/já existe/);
-    expect(tokenNameError(doc, 'com espaço')).not.toBeNull();
+  it('validates token and theme names', () => {
+    expect(tokenNameError(doc, 'new')).toBeNull();
+    expect(tokenNameError(doc, 'color-primary')).toMatch(/already exists/);
+    expect(tokenNameError(doc, 'with space')).not.toBeNull();
     expect(tokenNameError(doc, '--color-primary', '--color-primary')).toBeNull();
     expect(themeNameError(doc, 'light')).toBeNull();
-    expect(themeNameError(doc, 'dark')).toMatch(/já existe/);
+    expect(themeNameError(doc, 'dark')).toMatch(/already exists/);
     expect(themeNameError(doc, 'a b')).not.toBeNull();
   });
 
-  it('rename recusa destino já existente em tema ou declarado em estilo de nó', () => {
+  it('rename rejects a target that already exists in a theme or is declared in a node style', () => {
     const d = sample();
-    d.themes = [{ name: 'dark', overrides: { '--color-bg': '#111111', '--so-tema': '#000' } }];
+    d.themes = [{ name: 'dark', overrides: { '--color-bg': '#111111', '--theme-only': '#000' } }];
     const local = createNodeFromTag('div', { styles: { '--local': '1px' } });
     d.pages[0]!.frames.push(createNodeFromTag('div', { isRoot: true, children: [local] }));
-    expect(tokenNameError(d, 'so-tema', '--brand')).toMatch(/já existe/);
-    expect(tokenNameError(d, 'local', '--brand')).toMatch(/já está declarada/);
-    expect(() => planRenameToken(d, '--brand', 'local')).toThrow(/já está declarada/);
-    expect(() => planRenameToken(d, '--brand', 'so-tema')).toThrow(/já existe/);
-    expect(planRenameToken(d, '--brand', 'livre')).toHaveLength(1);
+    expect(tokenNameError(d, 'theme-only', '--brand')).toMatch(/already exists/);
+    expect(tokenNameError(d, 'local', '--brand')).toMatch(/already declared/);
+    expect(() => planRenameToken(d, '--brand', 'local')).toThrow(/already declared/);
+    expect(() => planRenameToken(d, '--brand', 'theme-only')).toThrow(/already exists/);
+    expect(planRenameToken(d, '--brand', 'free')).toHaveLength(1);
   });
 
-  it('validateEdit: erro bloqueia, aviso passa', () => {
+  it('validateEdit: an error blocks, a warning passes', () => {
     expect(validateEdit(doc, '--color-primary', 'rgb(1,2')?.level).toBe('error');
-    expect(validateEdit(doc, '--color-primary', 'banana-verde')?.level).toBe('warning');
+    expect(validateEdit(doc, '--color-primary', 'green-banana')?.level).toBe('warning');
     expect(validateEdit(doc, '--color-primary', '#abcdef')).toBeNull();
   });
 
-  it('cria token com grupo e descrição', () => {
-    expect(planCreateToken(doc, { name: 'color-novo', value: '#fff' })).toEqual([
-      { type: 'setTokens', set: { '--color-novo': '#fff' } },
+  it('creates a token with group and description', () => {
+    expect(planCreateToken(doc, { name: 'color-new', value: '#fff' })).toEqual([
+      { type: 'setTokens', set: { '--color-new': '#fff' } },
     ]);
     expect(
       planCreateToken(doc, { name: 'x', value: '1px', group: 'spacing', description: 'd' }),
@@ -176,12 +176,14 @@ describe('validação e ops', () => {
       { type: 'setTokens', set: { '--x': '1px' } },
       { type: 'setTokenMeta', set: { '--x': { group: 'spacing', description: 'd' } } },
     ]);
-    expect(() => planCreateToken(doc, { name: 'color-bg', value: '#fff' })).toThrow(/já existe/);
+    expect(() => planCreateToken(doc, { name: 'color-bg', value: '#fff' })).toThrow(
+      /already exists/,
+    );
     expect(() => planCreateToken(doc, { name: 'y', value: '' })).toThrow();
     expect(() => planCreateToken(doc, { name: 'y', value: 'rgb(1,2' })).toThrow();
   });
 
-  it('renomeia, edita valor/tema, sobrescrita e metadados', () => {
+  it('renames, edits value/theme, override and metadata', () => {
     expect(planRenameToken(doc, '--color-bg', 'surface')).toEqual([
       { type: 'renameToken', from: '--color-bg', to: '--surface' },
     ]);
@@ -197,12 +199,12 @@ describe('validação e ops', () => {
       unset: ['--a'],
       theme: 'dark',
     });
-    // junta com o meta existente
+    // merges with the existing meta
     expect(opSetMeta(doc, '--space-2', { group: 'spacing' })).toEqual({
       type: 'setTokenMeta',
       set: { '--space-2': { description: 'base', group: 'spacing' } },
     });
-    // meta vazio é removido; sem meta e sem mudança não gera op
+    // an empty meta is removed; with no meta and no change no op is generated
     expect(opSetMeta(doc, '--custom', { group: '' })).toEqual({
       type: 'setTokenMeta',
       unset: ['--custom'],

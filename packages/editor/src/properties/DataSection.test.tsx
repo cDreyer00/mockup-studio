@@ -24,46 +24,46 @@ import {
 import { PropertiesPanel } from './PropertiesPanel';
 
 function makeRepeater(): Node {
-  const title = createNodeFromTag('p', { text: '{{nome}} - {{cargo}}' });
+  const title = createNodeFromTag('p', { text: '{{name}} - {{role}}' });
   const holder = createNodeFromTag('div', { children: [title] });
   return createRepeaterFrom(holder, [
-    { nome: 'Ana', idade: 30 },
-    { nome: 'Bia', idade: 25 },
+    { name: 'Ana', age: 30 },
+    { name: 'Bia', age: 25 },
   ]);
 }
 
 describe('dataTable', () => {
-  const data = [{ nome: 'Ana', idade: 30 }, { nome: 'Bia' }];
+  const data = [{ name: 'Ana', age: 30 }, { name: 'Bia' }];
 
   it('setCell preserva o tipo anterior e devolve lista nova', () => {
-    const next = setCell(data, 0, 'idade', '31');
-    expect(next[0]).toEqual({ nome: 'Ana', idade: 31 });
-    expect(data[0]).toEqual({ nome: 'Ana', idade: 30 });
-    expect(setCell(data, 1, 'cargo', 'Dev')[1]).toEqual({ nome: 'Bia', cargo: 'Dev' });
+    const next = setCell(data, 0, 'age', '31');
+    expect(next[0]).toEqual({ name: 'Ana', age: 31 });
+    expect(data[0]).toEqual({ name: 'Ana', age: 30 });
+    expect(setCell(data, 1, 'role', 'Dev')[1]).toEqual({ name: 'Bia', role: 'Dev' });
     expect(parseCell('abc', 5)).toBe('abc');
     expect(parseCell('{"a":1}', {})).toEqual({ a: 1 });
   });
 
   it('linhas e colunas', () => {
-    expect(addRow(data, ['nome', 'idade'])).toHaveLength(3);
-    expect(addRow(data, ['nome', 'idade'])[2]).toEqual({ nome: '', idade: '' });
-    expect(removeRow(data, 0)).toEqual([{ nome: 'Bia' }]);
-    expect(addColumn(data, 'cargo')).toEqual([
-      { nome: 'Ana', idade: 30, cargo: '' },
-      { nome: 'Bia', cargo: '' },
+    expect(addRow(data, ['name', 'age'])).toHaveLength(3);
+    expect(addRow(data, ['name', 'age'])[2]).toEqual({ name: '', age: '' });
+    expect(removeRow(data, 0)).toEqual([{ name: 'Bia' }]);
+    expect(addColumn(data, 'role')).toEqual([
+      { name: 'Ana', age: 30, role: '' },
+      { name: 'Bia', role: '' },
     ]);
-    expect(removeColumn(data, 'idade')[0]).toEqual({ nome: 'Ana' });
+    expect(removeColumn(data, 'age')[0]).toEqual({ name: 'Ana' });
   });
 
-  it('colunas = dados + campos do template; mapeamento só para o que falta', () => {
+  it('columns = data + template fields; mapping only for what is missing', () => {
     const rep = makeRepeater();
-    expect(tableColumns(rep)).toEqual(['nome', 'idade', 'cargo']);
-    expect(unmappedFields(rep)).toEqual(['cargo']);
-    expect(withMapping(undefined, 'cargo', 'idade')).toEqual({
+    expect(tableColumns(rep)).toEqual(['name', 'age', 'role']);
+    expect(unmappedFields(rep)).toEqual(['role']);
+    expect(withMapping(undefined, 'role', 'age')).toEqual({
       kind: 'inline',
-      mapping: { cargo: 'idade' },
+      mapping: { role: 'age' },
     });
-    expect(withMapping({ kind: 'inline', mapping: { cargo: 'idade' } }, 'cargo', '')).toEqual({
+    expect(withMapping({ kind: 'inline', mapping: { role: 'age' } }, 'role', '')).toEqual({
       kind: 'inline',
     });
   });
@@ -85,17 +85,17 @@ describe('DataSection', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('mostra a tabela e o contador', () => {
+  it('shows the table and the counter', () => {
     render(<PropertiesPanel />);
     expect(screen.getByTestId('data-section')).toBeTruthy();
-    expect(screen.getByTestId('data-count').textContent).toBe('2 itens');
-    expect((screen.getByTestId('data-cell-0-nome') as HTMLInputElement).value).toBe('Ana');
-    expect((screen.getByTestId('data-cell-1-idade') as HTMLInputElement).value).toBe('25');
+    expect(screen.getByTestId('data-count').textContent).toBe('2 items');
+    expect((screen.getByTestId('data-cell-0-name') as HTMLInputElement).value).toBe('Ana');
+    expect((screen.getByTestId('data-cell-1-age') as HTMLInputElement).value).toBe('25');
   });
 
-  it('editar uma célula envia setData com a lista nova (uma op)', () => {
+  it('editing a cell sends setData with the new list (one op)', () => {
     render(<PropertiesPanel />);
-    const cell = screen.getByTestId('data-cell-0-nome');
+    const cell = screen.getByTestId('data-cell-0-name');
     fireEvent.change(cell, { target: { value: 'Ana Maria' } });
     fireEvent.blur(cell);
     expect(daemon.applySafe).toHaveBeenCalledTimes(1);
@@ -106,8 +106,8 @@ describe('DataSection', () => {
           {
             nodeId: rep.id,
             data: [
-              { nome: 'Ana Maria', idade: 30 },
-              { nome: 'Bia', idade: 25 },
+              { name: 'Ana Maria', age: 30 },
+              { name: 'Bia', age: 25 },
             ],
           },
         ],
@@ -115,17 +115,17 @@ describe('DataSection', () => {
     ]);
   });
 
-  it('editar dados vindos de arquivo troca a origem para inline (Atualizar não descarta a edição)', () => {
+  it('editing data from a file switches the source to inline (Refresh does not discard the edit)', () => {
     rep.dataSource = {
       kind: 'json',
-      path: 'C:/dados/p.json',
+      path: 'C:/data/p.json',
       select: 'items',
-      mapping: { cargo: 'idade' },
+      mapping: { role: 'age' },
       fetchedAt: '2026-11-16T10:00:00.000Z',
     };
     render(<PropertiesPanel />);
     expect(screen.getByTestId('data-refresh').hasAttribute('disabled')).toBe(false);
-    const cell = screen.getByTestId('data-cell-1-nome');
+    const cell = screen.getByTestId('data-cell-1-name');
     fireEvent.change(cell, { target: { value: 'Beatriz' } });
     fireEvent.blur(cell);
     expect(daemon.applySafe).toHaveBeenCalledTimes(1);
@@ -136,13 +136,13 @@ describe('DataSection', () => {
           {
             nodeId: rep.id,
             data: [
-              { nome: 'Ana', idade: 30 },
-              { nome: 'Beatriz', idade: 25 },
+              { name: 'Ana', age: 30 },
+              { name: 'Beatriz', age: 25 },
             ],
             source: {
               kind: 'inline',
-              path: 'C:/dados/p.json',
-              mapping: { cargo: 'idade' },
+              path: 'C:/data/p.json',
+              mapping: { role: 'age' },
               fetchedAt: '2026-11-16T10:00:00.000Z',
             },
           },
@@ -150,35 +150,35 @@ describe('DataSection', () => {
       },
     ]);
     expect(editedSource({ kind: 'inline' })).toBeUndefined();
-    expect(describeSource({ kind: 'inline', url: 'https://x/a.json' })).toContain('editados');
+    expect(describeSource({ kind: 'inline', url: 'https://x/a.json' })).toContain('Edited data');
   });
 
-  it('adicionar linha inclui todas as colunas (inclusive do template)', () => {
+  it("adding a row includes all columns (including the template's)", () => {
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('data-add-row'));
     const call = vi.mocked(daemon.applySafe).mock.calls[0]![0] as {
       changes: { data: unknown[] }[];
     }[];
     expect(call[0]!.changes[0]!.data).toHaveLength(3);
-    expect(call[0]!.changes[0]!.data[2]).toEqual({ nome: '', idade: '', cargo: '' });
+    expect(call[0]!.changes[0]!.data[2]).toEqual({ name: '', age: '', role: '' });
   });
 
-  it('remover linha', () => {
+  it('remove row', () => {
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('data-remove-row-0'));
     expect(daemon.applySafe).toHaveBeenCalledWith([
-      { type: 'setData', changes: [{ nodeId: rep.id, data: [{ nome: 'Bia', idade: 25 }] }] },
+      { type: 'setData', changes: [{ nodeId: rep.id, data: [{ name: 'Bia', age: 25 }] }] },
     ]);
   });
 
-  it('mapear campo do template grava dataSource.mapping', () => {
+  it('mapping a template field writes dataSource.mapping', () => {
     render(<PropertiesPanel />);
     const select = document.querySelector<HTMLSelectElement>('[data-testid=data-mapping] select')!;
-    fireEvent.change(select, { target: { value: 'idade' } });
+    fireEvent.change(select, { target: { value: 'age' } });
     expect(daemon.applySafe).toHaveBeenCalledWith([
       {
         type: 'setData',
-        changes: [{ nodeId: rep.id, source: { kind: 'inline', mapping: { cargo: 'idade' } } }],
+        changes: [{ nodeId: rep.id, source: { kind: 'inline', mapping: { role: 'age' } } }],
       },
     ]);
   });
@@ -196,12 +196,12 @@ describe('DataSection', () => {
     expect(bind).toHaveBeenCalledWith(rep.id, { text: '[{"a":1}]', format: 'json' });
   });
 
-  it('Atualizar fica desabilitado em dados inline', () => {
+  it('Refresh is disabled for inline data', () => {
     render(<PropertiesPanel />);
     expect((screen.getByTestId('data-refresh') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('contêiner com filhos oferece Converter em repetidor', () => {
+  it('container with children offers Convert to repeater', () => {
     const { doc, c } = makeDoc();
     useDoc.setState({ doc });
     ui.select([c.id]);

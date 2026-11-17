@@ -1,6 +1,6 @@
 /**
- * Lógica do editor de grid do painel (pura, sem React): trilhas de `grid-template-columns`/`rows` como
- * rascunhos editáveis (`fr`, `px`, `%`, `auto`, `minmax(min, max)`), gaps e `place-items`.
+ * Logic of the panel's grid editor (pure, no React): `grid-template-columns`/`rows` tracks as
+ * editable drafts (`fr`, `px`, `%`, `auto`, `minmax(min, max)`), gaps and `place-items`.
  */
 import { parseTrack, parseTrackList, serializeTrackList } from '@mockup/core';
 import type { GridTrack } from '@mockup/core';
@@ -16,7 +16,7 @@ export const TRACK_UNITS: { value: TrackUnit; label: string }[] = [
   { value: 'css', label: 'CSS' },
 ];
 
-/** Uma trilha na UI: `value` serve a fr/px/%/css; `min`/`max` só a `minmax`. */
+/** A track in the UI: `value` serves fr/px/%/css; `min`/`max` only serve `minmax`. */
 export interface TrackDraft {
   unit: TrackUnit;
   value: string;
@@ -26,7 +26,7 @@ export interface TrackDraft {
 
 const NUMBER_RE = /^-?(?:\d+\.?\d*|\.\d+)$/;
 
-/** Texto de um limite de `minmax`/trilha: número puro vira px (`120` → `120px`; `0` fica `0`). */
+/** Text of a `minmax`/track bound: a plain number becomes px (`120` → `120px`; `0` stays `0`). */
 export function normalizeTrackValue(text: string): string {
   const t = text.trim();
   if (t === '') return 'auto';
@@ -36,7 +36,7 @@ export function normalizeTrackValue(text: string): string {
 
 const amountText = (t: GridTrack): string => (t.amount === undefined ? '' : String(t.amount));
 
-/** Trilha medida/parseada → rascunho. */
+/** Measured/parsed track → draft. */
 export function trackToDraft(t: GridTrack): TrackDraft {
   switch (t.kind) {
     case 'fr':
@@ -59,7 +59,7 @@ const numOr = (text: string, fallback: number): number => {
   return Number.isFinite(n) ? Math.max(0, n) : fallback;
 };
 
-/** Rascunho → texto CSS normalizado da trilha. */
+/** Draft → normalized CSS text of the track. */
 export function draftToCss(d: TrackDraft): string {
   switch (d.unit) {
     case 'fr':
@@ -78,18 +78,18 @@ export function draftToCss(d: TrackDraft): string {
   }
 }
 
-/** Trilhas de um `grid-template-*` como rascunhos (`repeat(n, x)` expandido). */
+/** Tracks of a `grid-template-*` as drafts (`repeat(n, x)` expanded). */
 export function draftsFromStyle(value: string | undefined): TrackDraft[] {
   return parseTrackList(value).map(trackToDraft);
 }
 
-/** Rascunhos → valor do estilo (recompacta repetições); `undefined` quando não há trilhas. */
+/** Drafts → style value (re-compacts repetitions); `undefined` when there are no tracks. */
 export function draftsToStyle(drafts: readonly TrackDraft[]): string | undefined {
   if (drafts.length === 0) return undefined;
   return serializeTrackList(drafts.map(draftToCss));
 }
 
-/** Troca a unidade tentando preservar o valor (fr↔px mantém o número; minmax aproveita o valor atual). */
+/** Switches the unit trying to preserve the value (fr↔px keeps the number; minmax reuses the current value). */
 export function changeUnit(d: TrackDraft, unit: TrackUnit): TrackDraft {
   if (unit === d.unit) return d;
   const css = draftToCss(d);
@@ -105,7 +105,7 @@ export function changeUnit(d: TrackDraft, unit: TrackUnit): TrackDraft {
     case 'auto':
       return { unit, value: '', min: '', max: '' };
     case 'minmax':
-      // fr → minmax(0, Nfr); px → minmax(Npx, 1fr); outros → minmax(0, 1fr)
+      // fr → minmax(0, Nfr); px → minmax(Npx, 1fr); others → minmax(0, 1fr)
       if (d.unit === 'fr') return { unit, value: '', min: '0', max: css };
       if (d.unit === 'px') return { unit, value: '', min: css, max: '1fr' };
       return { unit, value: '', min: '0', max: '1fr' };
@@ -135,14 +135,14 @@ export interface StyleChange {
 }
 
 export interface Gaps {
-  /** `column-gap` efetivo (declaração própria ou do shorthand `gap`). */
+  /** Effective `column-gap` (own declaration or from the `gap` shorthand). */
   col: string | undefined;
   row: string | undefined;
-  /** Valor único quando colunas e linhas são iguais (`undefined` se sem gap, `null` se diferentes). */
+  /** Single value when columns and rows are equal (`undefined` if no gap, `null` if different). */
   both: string | undefined | null;
 }
 
-/** Gaps efetivos de um estilo (`gap: <row> [<col>]`, `row-gap`, `column-gap`). */
+/** Effective gaps of a style (`gap: <row> [<col>]`, `row-gap`, `column-gap`). */
 export function readGaps(style: Record<string, string | undefined>): Gaps {
   const tokens = (style.gap ?? '').trim().split(/\s+/).filter(Boolean);
   const col = style['column-gap'] ?? tokens[1] ?? tokens[0];
@@ -153,7 +153,7 @@ export function readGaps(style: Record<string, string | undefined>): Gaps {
 const present = (style: Record<string, string | undefined>, keys: string[]): string[] =>
   keys.filter((k) => style[k] !== undefined);
 
-/** Delta para definir o gap das colunas, das linhas ou dos dois (`value` vazio remove). */
+/** Delta to set the gap of the columns, the rows or both (empty `value` removes). */
 export function gapDelta(
   style: Record<string, string | undefined>,
   axis: 'both' | 'col' | 'row',
@@ -182,7 +182,7 @@ export interface PlaceItems {
   justify: string | undefined;
 }
 
-/** `align-items`/`justify-items` efetivos (inclui o shorthand `place-items: <align> [<justify>]`). */
+/** Effective `align-items`/`justify-items` (includes the `place-items: <align> [<justify>]` shorthand). */
 export function readPlaceItems(style: Record<string, string | undefined>): PlaceItems {
   const tokens = (style['place-items'] ?? '').trim().split(/\s+/).filter(Boolean);
   return {
@@ -191,7 +191,7 @@ export function readPlaceItems(style: Record<string, string | undefined>): Place
   };
 }
 
-/** Delta para `align-items`/`justify-items`; expande o shorthand `place-items` se existir. */
+/** Delta for `align-items`/`justify-items`; expands the `place-items` shorthand if present. */
 export function placeItemsDelta(
   style: Record<string, string | undefined>,
   which: 'align' | 'justify',
