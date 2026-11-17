@@ -14,6 +14,7 @@ import {
   planRenameTheme,
   planSetFrameTheme,
   resolvedTokens,
+  resolvedTokensDetailed,
   tokenGroup,
   tokenGroupLabel,
   validateTokenValue,
@@ -241,12 +242,13 @@ export function registerTokenTools(ctx: ToolContext): void {
             ),
           }
         : { ...doc, tokens: { ...doc.tokens, ...set } };
-      const vars = resolvedTokens(draft, theme);
+      // `invalid` distingue ciclo/referência quebrada (inclusive entre tokens desta chamada) de inexistente.
+      const { vars, invalid } = resolvedTokensDetailed(draft, theme);
       const errors: string[] = [];
       const warnings: string[] = [];
       for (const [name, value] of Object.entries(set)) {
         const group = groupMap[name] ?? tokenGroup(draft, name);
-        const problem = validateTokenValue(name, value, { group, vars });
+        const problem = validateTokenValue(name, value, { group, vars, invalid });
         if (!problem) continue;
         const line = `${name}: ${problem.message}`;
         (problem.level === 'error' ? errors : warnings).push(line);
@@ -408,11 +410,11 @@ export function registerTokenTools(ctx: ToolContext): void {
         ...doc,
         themes: (planned[0] as Extract<Op, { type: 'setThemes' }>).themes,
       };
-      const vars = resolvedTokens(draft, name.trim());
+      const { vars, invalid } = resolvedTokensDetailed(draft, name.trim());
       const errors: string[] = [];
       const warnings: string[] = [];
       for (const [k, v] of Object.entries(ov)) {
-        const p = validateTokenValue(k, v, { group: tokenGroup(draft, k), vars });
+        const p = validateTokenValue(k, v, { group: tokenGroup(draft, k), vars, invalid });
         if (p) (p.level === 'error' ? errors : warnings).push(`${k}: ${p.message}`);
       }
       if (errors.length) {

@@ -128,6 +128,17 @@ describe('MCP tokens e temas', () => {
     expect(unknownGroup.isError).toBe(true);
   });
 
+  it('set_tokens: ciclo entre tokens da mesma chamada é avisado como ciclo, não como inexistente', async () => {
+    const w = await ok('set_tokens', { tokens: { '--a': 'var(--b)', '--b': 'var(--a)' } });
+    expect(w).toContain('--a: referência a token sem valor válido: --b (ciclo)');
+    expect(w).toContain('--b: referência a token sem valor válido: --a (ciclo)');
+    expect(w).not.toContain('inexistente');
+    const g = await ok('get_tokens');
+    expect(g).toContain('(ciclo)');
+    const missing = await ok('set_tokens', { tokens: { '--c': 'var(--nada)' } });
+    expect(missing).toContain('--c: referência a token inexistente: --nada');
+  });
+
   it('get_tokens em texto e json: grupos, usos, não usado e quebrado', async () => {
     await ok('set_tokens', {
       tokens: {
