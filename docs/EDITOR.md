@@ -21,7 +21,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 - **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
 - **Painel esquerdo**: três abas, **Camadas** (páginas e a árvore de camadas da página ativa), **Componentes** (ver [Componentes](#componentes)) e **Tokens** (ver [Tokens e temas](#tokens-e-temas)).
 - **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
-- **Painel direito**: propriedades da seleção (ou, sem seleção, o nome do documento e um resumo de tokens e temas).
+- **Painel direito**: três abas, **Design** (propriedades da seleção ou, sem seleção, o nome do documento e um resumo de tokens e temas), **Assistente** (ver [Assistente de IA](#assistente-de-ia)) e **Scripts** (ver [Scripts](#scripts)). A aba Design mantém a largura de sempre; Assistente e Scripts alargam o painel (380 px) para caber conversa e código.
 
 ## Canvas
 
@@ -33,7 +33,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 - **Redimensionar** pelas 8 alças (`width`/`height` em px); Alt redimensiona a partir do centro; Shift mantém a proporção. O rótulo `W × H` aparece sob a seleção.
 - **Criar**: Frame (F) e Container (R) desenhando com arrasto (clique simples cria no tamanho padrão); Texto (T) com clique, já em edição; Imagem (botão da barra, clique no canvas, `Ctrl+Shift+K`, colar ou soltar arquivo) envia o arquivo para `assets/` do documento (`POST /api/assets/:docId`) e cria um nó `img` com `src` relativo. Dentro de pai flex o nó entra no fluxo; em pai bloco vira `absolute` (o pai ganha `position: relative` se for estático).
 - **Texto inline**: duplo clique num texto selecionado edita; Enter confirma, Shift+Enter quebra linha, Esc cancela.
-- **Menu de contexto** (botão direito, também nas camadas): criar componente, ir para principal, destacar instância, duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, excluir.
+- **Menu de contexto** (botão direito, também nas camadas): criar componente, ir para principal, destacar instância, duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, **Remix** (ver [Remix](#remix)) e excluir.
 - **MCP ao vivo**: mudanças feitas por agentes aparecem sem recarregar; a seleção feita pelo MCP (`set_selection`) seleciona e enquadra os nós; frames tocados pelo MCP nos últimos 4 s mostram o badge **IA** pulsante ao lado do nome. A seleção do editor é publicada no daemon (`get_selection`).
 
 ## Camadas e páginas
@@ -58,6 +58,32 @@ Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
 - **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
 
 Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+
+## Assistente de IA
+
+Aba **Assistente** do painel direito: uma conversa por documento com um agente (Claude Code ou Codex, instalados e logados na máquina) que edita o design pelas mesmas ferramentas do MCP.
+
+- **Mensagens**: as do usuário à direita; as do assistente com o texto (quebras de linha preservadas), as **ferramentas chamadas** como chips (rodando, ok ou erro; o texto do resumo fica no `title`) e, quando o turno alterou o documento, o rodapé "N alterações — Ctrl+Z desfaz o turno". Erros e cancelamentos aparecem na própria mensagem.
+- **Streaming**: o texto e as ferramentas do turno em andamento chegam por `assistant:event` e aparecem na hora; o botão **Cancelar** (`assistant:cancel`) substitui o de enviar durante o turno.
+- **Entrada**: Enter envia, Shift+Enter quebra a linha. O indicador abaixo do campo mostra o contexto enviado ("2 nós selecionados" ou "sem seleção — o documento inteiro").
+- **Backend**: seletor Automático / Claude Code / Codex (com "indisponível" quando a CLI não foi encontrada), gravado por `assistant:config`. Sem nenhum backend, o painel pede para instalar e fazer login no Claude Code ou no Codex.
+- **Histórico**: carregado por `assistant:history` ao abrir o painel, trocar de documento ou reconectar; o botão de lixeira limpa (`assistant:clear`). O estado vive em `state/assistantStore.ts` (por documento: mensagens, turno parcial, backends, configuração).
+- **Undo**: cada turno vira **uma** entrada no histórico do daemon; um Ctrl+Z desfaz tudo o que o agente fez no turno.
+- O estado vazio oferece sugestões (clique preenche o campo).
+
+## Scripts
+
+Aba **Scripts**: um editor **CodeMirror 6** (JavaScript, tema escuro, autocomplete de `doc.` e dos membros dos nós) para automatizar o documento. O CodeMirror é carregado sob demanda (`import()`), fora do chunk principal; enquanto carrega (ou se falhar) um `textarea` faz o papel de editor.
+
+- **Executar**: botão ou Ctrl+Enter (`script:run`, com a seleção atual). O script roda no daemon; `console.log` vai para a saída, o `return` vira o resultado (JSON) e um erro aparece em vermelho. Imagens de `doc.screenshot()` aparecem como `<img>`, e o rodapé mostra "N ops • X ms". Cada execução é **uma** entrada de undo.
+- **API**: `doc.select(query)`, `doc.selectOne(query)`, `doc.get(id)`, `doc.selection()`, `doc.frames()`, `doc.pages()`, `doc.create(pai, spec)`, `doc.apply(op)`, `doc.screenshot(nó?)`, `doc.tokens()`/`doc.setTokens(...)`. Os _handles_ têm `id`, `type`, `tag`, `name`, `text`, `style` (proxy), `attrs`, `children`, `parent`, `frame`, `setStyle(obj)`, `remove()`, `duplicate()` e `select(query)`. Ex.: `doc.select('text').forEach((n, i) => n.name = 'Item ' + (i + 1))`.
+- **Biblioteca**: os scripts salvos ficam em `scripts/*.js` ao lado do documento (`script:list/read/save/delete`); abrir, salvar, salvar como (pede o nome) e excluir (com confirmação). Documento sem caminho: o painel avisa que é preciso salvá-lo antes.
+- **Gerar com IA**: descreva o que quer e o código gerado (`script:generate`) entra no editor para revisão antes de executar.
+- **Exemplos** prontos (renomear textos em sequência, trocar a cor dos botões...) e o rascunho por documento (sobrevive à troca de aba).
+
+## Remix
+
+Itens do menu de contexto (canvas e camadas), habilitados com **exatamente um** nó selecionado (não em instâncias expandidas): **Remix: escala de cor**, **pares de fontes**, **espaçamento**, **layout** e **Remix com IA…** (pergunta o pedido e a quantidade de variações, padrão 3). O daemon cria as variações como frames lado a lado e as seleciona; o editor as enquadra e avisa por toast. Um remix inteiro é **uma** entrada de undo (um Ctrl+Z remove todos os frames). No remix com IA o painel abre a aba Assistente para acompanhar o turno. Erros do daemon aparecem como toast.
 
 ## Componentes
 
@@ -149,22 +175,27 @@ Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo
 
 ## Arquitetura interna
 
-| Pasta / arquivo                        | Conteúdo                                                                                                                                       |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes.  |
-| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo (`rawDoc`) e a visão expandida (`doc`), histórico (`canUndo`/`canRedo`), atividade do agente.    |
-| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts.    |
-| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                      |
-| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                    |
-| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                        |
-| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                   |
-| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                 |
-| `layers/`                              | Páginas e árvore de camadas.                                                                                                                   |
-| `components/`                          | Componentes: visão expandida e página do principal (`model.ts`), modo de edição, comandos, kits, aba Componentes, seções Instância/Componente. |
-| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                      |
-| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                              |
-| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                           |
-| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                   |
+| Pasta / arquivo                        | Conteúdo                                                                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes.                 |
+| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo (`rawDoc`) e a visão expandida (`doc`), histórico (`canUndo`/`canRedo`), atividade do agente.                   |
+| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts, abas dos painéis. |
+| `state/assistantStore.ts`              | Assistente por documento: mensagens, turno em andamento (texto parcial e ferramentas), backends e configuração.                                               |
+| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                                     |
+| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                                   |
+| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                                       |
+| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                                  |
+| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                                |
+| `layers/`                              | Páginas e árvore de camadas.                                                                                                                                  |
+| `components/`                          | Componentes: visão expandida e página do principal (`model.ts`), modo de edição, comandos, kits, aba Componentes, seções Instância/Componente.                |
+| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                                     |
+| `dock/`                                | `RightDock`: abas Design, Assistente e Scripts do painel direito.                                                                                             |
+| `assistant/`                           | Painel do assistente de IA (mensagens, chips de ferramentas, composer, seletor de backend).                                                                   |
+| `scripts/`                             | Painel de scripts: editor CodeMirror (`cm.ts`, sob demanda), saída, biblioteca, exemplos e rascunhos por documento.                                           |
+| `remix/`                               | Ações do menu Remix (`daemon.remix`, diálogo do Remix com IA, enquadramento dos frames criados).                                                              |
+| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                                             |
+| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                                          |
+| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                                  |
 
 ## Salvar como, fontes embutidas e app desktop
 
@@ -202,7 +233,7 @@ Com esses números, a clonagem por JSON no core e o documento completo no `doc:c
 ## Testes
 
 - Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
-- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página), os componentes (Ctrl+Alt+K, instâncias com props pelo painel, edição do principal propagando para 3 instâncias e undo, override de texto e Restaurar, bloqueio de nó interno, kit shadcn-like por clique e arrastando, slot editável, `go_to_main` e Esc) e as medições de desempenho.
+- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página), os scripts (renomear 10 textos por um script e desfazer tudo com um Ctrl+Z) e o Remix (escala de cor cria 10 frames, um Ctrl+Z remove), os componentes (Ctrl+Alt+K, instâncias com props pelo painel, edição do principal propagando para 3 instâncias e undo, override de texto e Restaurar, bloqueio de nó interno, kit shadcn-like por clique e arrastando, slot editável, `go_to_main` e Esc) e as medições de desempenho.
 - `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
 - Portas e pasta do e2e por variável de ambiente: `MOCKUP_E2E_DAEMON_PORT` (padrão 4848), `MOCKUP_E2E_EDITOR_PORT` (padrão 5273) e `MOCKUP_E2E_DIR` (padrão: pasta temporária nova por execução, com os documentos e o `MOCKUP_DATA_DIR` do daemon). `MOCKUP_E2E_DAEMON` é derivada da porta e lida pelos helpers. Mude as portas se o daemon de uso (4747) ou outro processo ocupar as padrão.
 

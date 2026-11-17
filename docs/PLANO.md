@@ -198,7 +198,20 @@ Pendências: overrides não removem atributos/estados do principal (sem `unsetAt
 - Filtros, máscaras, blend modes.
 - Embeds (vídeo, iframe, Lottie) e animações simples.
 
-### Fase 9 — Assistente de IA no editor
+### Fase 9 — Assistente de IA no editor (`feature/design-system`, concluída)
 
 - Chat lateral usando as mesmas ferramentas do MCP.
 - Sugestões de layout e variações.
+
+Resultado (ver [ASSISTENTE.md](ASSISTENTE.md) e [SCRIPTS.md](SCRIPTS.md)):
+
+- Core: grupos de undo no `History` (aplicações seguidas do mesmo grupo viram uma entrada; `closeGroup`), protocolo WS `assistant:*`, `script:*` e `remix`, planejadores puros de remix (`planRemix`, `colorScale` em OKLCH).
+- Assistente: backends `claude` (`claude -p` com stream-json) e `codex` (`codex exec --json`) por subprocesso, detectados no PATH (`.exe`/`.cmd`), com o MCP do próprio daemon em `/mcp?turn=<token>`; contexto da seleção (ids, resumo da árvore, screenshot); streaming por `assistant:event`; um grupo de undo por turno (undo/redo recusados no turno; sessão do turno encerrado não escreve); cancelamento e timeout matando a árvore de processos; histórico em `<base>.assistant.json` ao lado do documento e `--resume` da conversa; interface `AgentBackend` para uma API direta.
+- Scripts: sandbox em worker (`eval`, `resourceLimits`, timeout por `terminate`) com `node:vm` sem geração de código e ponte só por JSON; API `doc.select/get/selection/apply/screenshot/create/tokens` e handles com `style`/`attrs` em Proxy; uma execução = um undo; biblioteca `scripts/*.js`; gerar com IA; MCP `run_script` e `list_scripts`.
+- Remix: `color-scale` (10 tons), `font-pairs`, `spacing` (escala 4/8), `layout` (3 rearranjos do flex) e `ai`, pelo menu de contexto e pelo MCP `remix`; frames lado a lado num único undo.
+- Editor: abas Design/Assistente/Scripts no painel direito, chat com streaming e chips de ferramentas, painel de scripts com CodeMirror 6 (chunk sob demanda), Remix no menu de contexto.
+- Guias `assistant` e `scripts`.
+- Corrigido no app desktop: o bundle do `ws` trocava o `bufferutil` opcional por um objeto vazio e o daemon travava no primeiro frame de 32 bytes ou mais vindo de um cliente WS (bug anterior à fase; teste de regressão no `headless.integration.test`).
+- Verificado com as CLIs reais nesta máquina (Claude Code 2.1.319 e Codex 0.163.0): "deixe o botão primário mais destacado" altera o botão selecionado e um único undo desfaz o turno.
+
+Pendências: edição do usuário no meio de um turno quebra a fusão do grupo (o turno vira mais de um passo de undo); o Codex não permite desligar o shell embutido (roda em sandbox `read-only`); scripts recusam a palavra `import` em qualquer lugar do texto (defesa contra `import()` na vm); sem `save_script` no MCP; o chunk do CodeMirror tem ~507 kB.

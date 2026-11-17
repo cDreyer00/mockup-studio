@@ -273,6 +273,16 @@ Exemplo: create_frame({"name":"Desktop","width":1440,"height":900})
 
 Ferramenta inexistente: `Ferramenta "write_htm" não existe. Ferramentas parecidas: write_html, ...`. Erros de ids e de estado (nó não encontrado, nenhum documento aberto, render indisponível) dizem qual ferramenta usar em seguida; `get_guide('troubleshooting')` reúne as soluções.
 
+### Scripts, remix e assistente
+
+| Ferramenta     | Parâmetros                                                                                                                                      | Descrição                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_script`   | `code` ou `name` (script salvo em `scripts/`), `timeoutMs`, `docId`                                                                             | Executa JavaScript com a API do documento (`doc.select`, `node.style`, `doc.apply`, `doc.screenshot`...) numa sandbox (worker + `node:vm`, sem `require`/`process`/`fs`, timeout e limite de memória). Uma execução = um undo. Devolve logs, resultado, nº de ops, imagens e resumo. Detalhes em [SCRIPTS.md](SCRIPTS.md). |
+| `list_scripts` | `docId`                                                                                                                                         | Lista a biblioteca `scripts/*.js` ao lado do documento.                                                                                                                                                                                                                                                                    |
+| `remix`        | `nodeId` (obrig.), `kind` (`color-scale` \| `font-pairs` \| `spacing` \| `layout` \| `ai`, obrig.), `count`, `prompt` (obrig. em `ai`), `docId` | Variações do frame do nó lado a lado (um undo). Os quatro primeiros são locais e determinísticos; `ai` roda um turno do assistente. Detalhes em [ASSISTENTE.md](ASSISTENTE.md#remix).                                                                                                                                      |
+
+Sessões abertas pelo assistente do editor (`/mcp?turn=<token>`) ficam ligadas ao turno: todas as escritas entram num único grupo de undo, `undo`/`redo` são recusados durante o turno e, depois que o turno termina, a sessão não escreve mais (ver [ASSISTENTE.md](ASSISTENTE.md)). `run_script` e `remix` chamados dentro de um turno entram no mesmo grupo.
+
 ## Resources
 
 Os guias também são publicados como resources (`text/markdown`), um por tópico de `get_guide`:
@@ -290,5 +300,7 @@ Os guias também são publicados como resources (`text/markdown`), um por tópic
 | `guide://export`          | Formatos de exportação, pasta de saída e assets.                                                       |
 | `guide://troubleshooting` | Render indisponível, nó não encontrado, porta ocupada, overflow e logs.                                |
 | `guide://setup`           | Instalar o CLI e registrar o MCP (Claude Code, Codex, Cursor, VS Code).                                |
+| `guide://assistant`       | Assistente do editor: turnos, grupo de undo por turno, contexto da seleção e remix.                    |
+| `guide://scripts`         | `run_script`: API do documento, sandbox, timeout e biblioteca `scripts/*.js`.                          |
 
 Modelo de tokens e temas: [TOKENS.md](TOKENS.md). Veja o plano completo em [PLANO.md](PLANO.md).
