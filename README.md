@@ -1,36 +1,65 @@
 # Mockup Studio
 
-Editor de design em canvas (artboards/frames), voltado para IA, com um servidor MCP capaz de fazer tudo o que a interface faz. Uso pessoal, local, offline-first, sem conta.
+Editor de design em canvas (artboards/frames), voltado para IA, com um servidor MCP que faz tudo o que a interface faz. Local, offline-first, sem conta.
 
-Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via MCP para criar, inspecionar e editar o design. O documento é HTML e CSS reais em um arquivo JSON legível (`*.mockup.json`).
+Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via MCP para criar, ver (screenshot) e editar o design. O documento é HTML e CSS reais em um arquivo JSON legível (`*.mockup.json`).
 
-## Status
+## Recursos
 
-MVP — tarefa 3/4 em andamento: monorepo, core, daemon, MCP, editor visual completo e app desktop (Electron) com render/screenshot e empacotamento.
+- Canvas com frames (artboards), camadas, propriedades, páginas, undo/redo.
+- HTML e CSS reais em `*.mockup.json`, com tokens como variáveis CSS.
+- MCP completo, com 45 ferramentas: tudo o que o editor faz, mais screenshot, medidas, imagens, ícones e fontes.
+- Screenshot dos nós via Electron, para o agente ver e iterar.
+- Exportação para html, tailwind, react, svg, png e jpg.
+- Offline, sem conta, uso local.
 
 ![Editor do Mockup Studio](docs/img/editor.png)
 
-## Requisitos
+## Status
 
-- Node 24
-- npm 11
+MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas (`docs/qa/mvp-e2e.md`) ainda não foi feito. Plano em [docs/PLANO.md](docs/PLANO.md).
 
-## Como rodar
+## Instalação
+
+**Instalador (Windows).** `npm run dist` gera `dist/MockupStudio-Setup-<versão>-x64.exe`. A instalação é por usuário e registra o CLI `mockup` no PATH (abra um terminal novo depois). Também sai uma versão portátil.
+
+**A partir do código.** Requisitos: Node 24 e npm 11.
 
 ```bash
 npm install
 npm run build
-npm test
+npm link -w @mockup/cli     # cria o comando `mockup`
+```
+
+Para desfazer: `npm unlink -g @mockup/cli`.
+
+## Registrar no agente
+
+```bash
+mockup doctor            # diagnóstico e comandos de registro
+mockup setup all         # registra no Claude Code e no Codex
+claude mcp add --scope user mockup-studio -- mockup mcp   # ou o comando manual
+```
+
+Codex: `codex mcp add mockup-studio -- mockup mcp`. Detalhes, HTTP, Cursor, VS Code, Windows e solução de problemas em [docs/INTEGRACAO.md](docs/INTEGRACAO.md).
+
+## Uso rápido
+
+- Peça ao agente: "crie um mockup de uma landing page para um app de finanças, com versões desktop e mobile". Ele cria os frames, confere os screenshots e itera.
+- Abra o editor para ver e ajustar: o app desktop ou `npm run dev` (editor em http://localhost:5173, daemon em `http://127.0.0.1:4747`). Use **Arquivo › Abrir…** ou, no terminal, `mockup open examples/landing.mockup.json`.
+- Comandos do CLI: `mockup mcp` (stdio para agentes), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup --version`.
+
+Guia do editor, atalhos e medições de desempenho em [docs/EDITOR.md](docs/EDITOR.md).
+
+## Desenvolvimento
+
+```bash
+npm install
+npm run build
 npm run dev
 ```
 
-`npm run dev` sobe o daemon em `http://127.0.0.1:4747` e o editor em http://localhost:5173. Nenhum documento é aberto automaticamente: use **Arquivo › Abrir…** ou **Novo…** no editor, ou, em outro terminal:
-
-```bash
-node packages/cli/dist/bin.js open examples/landing.mockup.json
-```
-
-Ou peça ao agente para chamar a ferramenta MCP `open_document`. Guia do editor, atalhos e medições de desempenho em [docs/EDITOR.md](docs/EDITOR.md).
+`npm run dev` sobe o daemon em `http://127.0.0.1:4747` e o editor em http://localhost:5173. Nenhum documento é aberto automaticamente.
 
 ## App desktop (Electron)
 
@@ -56,43 +85,22 @@ Detalhes de arquitetura em [packages/desktop/README.md](packages/desktop/README.
 ```bash
 npm test                     # unitários (Vitest) de todos os pacotes
 npx playwright install chromium   # uma vez
-npm run test:e2e             # e2e do editor (Playwright): sobe daemon e editor em portas de teste
+npm run test:e2e             # e2e do editor (Playwright)
 npm run screenshot           # regenera docs/img/editor.png
 npm run lint
 ```
-
-## Registrar o MCP no Claude Code
-
-Com o repositório compilado (`npm run build`):
-
-```bash
-claude mcp add mockup-studio -- node <caminho-absoluto>/packages/cli/dist/bin.js mcp
-```
-
-Depois de `npm link -w @mockup/cli` (expõe o comando `mockup`):
-
-```bash
-claude mcp add mockup-studio -- mockup mcp
-```
-
-Alternativa HTTP, com o daemon rodando:
-
-```bash
-claude mcp add --transport http mockup-studio http://127.0.0.1:4747/mcp
-```
-
-Detalhes e lista de ferramentas em [docs/MCP.md](docs/MCP.md).
 
 ## Estrutura do repositório
 
 ```
 packages/
-  core/      @mockup/core    modelo, ops, History, HTML <-> nós, schema zod
+  core/      @mockup/core    modelo, ops, History, HTML <-> nós, exportadores, schema zod
   server/    @mockup/server  daemon: documentos, HTTP, WebSocket, MCP
-  cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new)
+  cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new, stop, doctor, setup)
   editor/    @mockup/editor  Vite + React 19 + zustand: editor visual (e2e em editor/e2e)
   desktop/   @mockup/desktop shell Electron, motor de render e empacotamento
-docs/        PLANO.md, ARQUITETURA.md, MCP.md, EDITOR.md
+docs/        PLANO, ARQUITETURA, MCP, EDITOR, EXPORT, INTEGRACAO
+integrations/ skill do Claude Code e trecho de AGENTS.md para o Codex
 examples/    documentos de exemplo
 ```
 
@@ -101,4 +109,24 @@ examples/    documentos de exemplo
 - [docs/PLANO.md](docs/PLANO.md): escopo do MVP e fases seguintes
 - [docs/ARQUITETURA.md](docs/ARQUITETURA.md): pacotes, formato de arquivo, ops, protocolo WS, HTTP
 - [docs/MCP.md](docs/MCP.md): conexão, convenções e ferramentas
-- [docs/EDITOR.md](docs/EDITOR.md): uso do editor, atalhos, painéis, arquitetura interna e desempenho
+- [docs/EDITOR.md](docs/EDITOR.md): uso do editor, atalhos, painéis e desempenho
+- [docs/EXPORT.md](docs/EXPORT.md): exportadores html, tailwind, react e svg
+- [docs/INTEGRACAO.md](docs/INTEGRACAO.md): registro no Claude Code, Codex e outros clientes
+- [packages/desktop/README.md](packages/desktop/README.md): app Electron, render e empacotamento
+
+## Roadmap
+
+Fases seguintes em [docs/PLANO.md](docs/PLANO.md), uma branch por fase:
+
+- Fase 2: tokens com grupos e temas em CSS real.
+- Fase 3: classes Tailwind no modelo.
+- Fase 4: componentes.
+- Fase 5: snapshots e versões.
+- Fase 6: assets.
+- Fase 7: vetores e grid.
+- Fase 8: efeitos e embeds.
+- Fase 9: assistente de IA no editor.
+
+## Licença
+
+MIT. Veja [LICENSE](LICENSE).
