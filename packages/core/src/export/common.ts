@@ -30,7 +30,9 @@ export interface PrepareOptions {
 /**
  * Prepara uma árvore para exportar: remove nós ocultos, descarta declarações CSS inseguras,
  * converte `position` do canvas em left/top nos filhos absolutos e, no frame raiz, troca
- * `height` por `min-height`. Trabalha numa cópia; o documento original não é alterado.
+ * `height` por `min-height`. Um filho direto com `height:100%` (o wrapper típico da tela) também vira
+ * `min-height` com a altura do frame; sem isso o % não tem referência e o conteúdo colapsa, diferente
+ * do que se vê no canvas. Trabalha numa cópia; o documento original não é alterado.
  */
 function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   node.style = dropUnsafeStyles(node.style);
@@ -40,7 +42,16 @@ function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   }
   if (isRoot && node.type === 'frame' && !opts.keepHeight && node.style.height) {
     if (!node.style['min-height']) node.style['min-height'] = node.style.height;
+    const frameHeight = node.style.height;
     delete node.style.height;
+    if (!node.style.padding && !node.style['padding-top'] && !node.style['padding-bottom']) {
+      for (const c of node.children) {
+        if (c.style.height === '100%' && !c.style['min-height']) {
+          c.style['min-height'] = frameHeight;
+          delete c.style.height;
+        }
+      }
+    }
   }
   node.children = node.children.filter((c) => !c.hidden);
   for (const c of node.children) prepareNode(c, false, opts);
