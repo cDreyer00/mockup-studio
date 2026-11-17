@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Mockup Studio — Capturar seção",
+  "name": "Mockup Studio — Capture section",
   "version": "0.1.0",
-  "description": "Captura a seção sob o cursor de qualquer site e a envia ao Mockup Studio como um frame editável.",
+  "description": "Captures the section under the cursor on any site and sends it to Mockup Studio as an editable frame.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtdwwfu4mVmh4zeIS3irKDu4ATB5Pr/YXYrErPGiRB3DILRQaTfjxIf+IQlM7uzJt80EQMXWS31284Lp2H3BQs9Vp0icOjBMKBcAHQlSYJX5h0e4Jf3NaRUNA/nDOAKeYJXg/u6QfwxNrBc+u3l0lWTtTUXVaRKGwIdQ+lDp/fD1iE7R7uChfkiGOS4j1dyYHoN+zGZqMfWWiXs0WewDSXQ4qS4855AmKi80TDKH9Die87GuP5akLrO8X+CsgLRyEytkrTPcYZqY+0a0AVi7E9SPWatifffJV1zakFyZViPiCef7iKhd5fqMxsMtW5Po28T+Rs5jVZtrmt+zPY4vgXwIDAQAB",
   "action": {
-    "default_title": "Capturar seção para o Mockup Studio",
+    "default_title": "Capture section to Mockup Studio",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon.png",

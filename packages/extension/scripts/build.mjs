@@ -1,7 +1,7 @@
 /* global console */
 /**
- * Build da extensão: bundla content/background/popup com esbuild e monta `dist/` (carregável em
- * "Carregar sem compactação"). `@mockup/snapshot-core` é resolvido para os fontes, sem depender do dist.
+ * Extension build: bundles content/background/popup with esbuild and assembles `dist/` (loadable via
+ * "Load unpacked"). `@mockup/snapshot-core` is resolved to the sources, without depending on dist.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -61,4 +61,4 @@ for (const file of ['manifest.json', 'popup.html', 'popup.css']) {
   fs.copyFileSync(path.join(root, file), path.join(dist, file));
 }
 fs.copyFileSync(path.resolve(root, '../desktop/build/icon.png'), path.join(dist, 'icons/icon.png'));
-console.log(`extensão montada em ${dist}`);
+console.log(`extension assembled in ${dist}`);

@@ -1,4 +1,4 @@
-/** Popup: escolhe destino e porta, mostra se o app está no ar e inicia o seletor na aba ativa. */
+/** Popup: picks destination and port, shows whether the app is up and starts the picker on the active tab. */
 const DEFAULT_PORT = 4747;
 
 const startBtn = document.getElementById('start') as HTMLButtonElement;
@@ -24,10 +24,10 @@ async function ping(): Promise<void> {
   const seq = ++pingSeq;
   const port = currentPort();
   statusEl.dataset.state = 'checking';
-  statusEl.textContent = 'Verificando o app…';
+  statusEl.textContent = 'Checking the app…';
   let up = false;
   try {
-    // Resposta opaca (no-cors) já indica que há algo ouvindo na porta.
+    // An opaque response (no-cors) already indicates that something is listening on the port.
     await fetch(`http://127.0.0.1:${port}/api/health`, {
       mode: 'no-cors',
       signal: AbortSignal.timeout(1500),
@@ -39,8 +39,8 @@ async function ping(): Promise<void> {
   if (seq !== pingSeq) return;
   statusEl.dataset.state = up ? 'up' : 'down';
   statusEl.textContent = up
-    ? 'Mockup Studio no ar'
-    : 'Mockup Studio não encontrado (a captura será copiada)';
+    ? 'Mockup Studio is running'
+    : 'Mockup Studio not found (the capture will be copied)';
 }
 
 portInput.addEventListener('change', () => {
@@ -64,7 +64,7 @@ startBtn.addEventListener('click', async () => {
   });
   if (res?.ok === false) {
     statusEl.dataset.state = 'down';
-    statusEl.textContent = 'Não foi possível iniciar nesta página.';
+    statusEl.textContent = 'Could not start on this page.';
     return;
   }
   window.close();
