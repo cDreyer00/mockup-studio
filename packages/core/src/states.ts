@@ -28,6 +28,21 @@ export const BREAKPOINT_PX: Record<Breakpoint, number> = {
   '2xl': 1536,
 };
 
+/**
+ * Larguras dos breakpoints do documento: `--breakpoint-<bp>` em `doc.tokens` (px ou rem, o mesmo
+ * que o motor Tailwind compila em `md:`), com o padrão do Tailwind para os que faltam.
+ */
+export function breakpointsOf(doc: {
+  tokens?: Record<string, string>;
+}): Record<Breakpoint, number> {
+  const out = { ...BREAKPOINT_PX };
+  for (const bp of BREAKPOINTS) {
+    const px = fixedWidthPx(doc.tokens?.[`--breakpoint-${bp}`]);
+    if (px !== undefined) out[bp] = px;
+  }
+  return out;
+}
+
 export const PSEUDO_STATES = [
   'hover',
   'focus',

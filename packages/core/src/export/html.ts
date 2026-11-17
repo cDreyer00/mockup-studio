@@ -1,6 +1,7 @@
 import { documentBaseCssFor } from '../base.js';
 import { escapeCssText } from '../html.js';
 import { fontFaceCss } from '../fonts.js';
+import { breakpointsOf } from '../states.js';
 import { themeRulesCss } from '../tokens.js';
 import type { Document } from '../types.js';
 import {
@@ -41,6 +42,7 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   const roots = resolveRoots(doc, options);
 
   const namer = new ClassNamer();
+  const breakpoints = breakpointsOf(doc);
   const rules: string[] = [];
   const markup = renderHtmlTree(roots, {
     styleOf: (node) => {
@@ -53,12 +55,12 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
           .join('; ');
         if (!hasStates) return { style };
         const cls = namer.next(node.name);
-        rules.push(...stateRulesCss(`.${cls}`, node.states, { important: true }));
+        rules.push(...stateRulesCss(`.${cls}`, node.states, { important: true, breakpoints }));
         return hasStyle ? { cls, style } : { cls };
       }
       const cls = namer.next(node.name);
       if (hasStyle) rules.push(`.${cls} {\n${cssBody(node.style)}\n}`);
-      rules.push(...stateRulesCss(`.${cls}`, node.states));
+      rules.push(...stateRulesCss(`.${cls}`, node.states, { breakpoints }));
       return { cls };
     },
   });

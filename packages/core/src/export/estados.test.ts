@@ -39,14 +39,14 @@ function button(): Node {
   return btn;
 }
 
-function withButton(): Document {
+function withButton(tokens: Record<string, string> = {}): Document {
   const frame = createNodeFromTag('div', {
     name: 'Tela',
     isRoot: true,
     styles: { width: '800px' },
   });
   frame.children = [button()];
-  return docWith(frame);
+  return docWith(frame, tokens);
 }
 
 function textNode(name: string, styles: Record<string, string>): Node {
@@ -132,6 +132,18 @@ describe('exportTailwind: estados sem o motor', () => {
     const html = exportTailwind(withButton());
     expect(html).toContain('@custom-variant dark');
     expect(html).not.toContain('@import "tailwindcss"');
+  });
+});
+
+describe('exportHtml: breakpoints customizados', () => {
+  it('usa --breakpoint-* do documento na @media', () => {
+    const custom = exportHtml(withButton({ '--breakpoint-md': '900px' }));
+    expect(custom).toContain('@media (min-width: 900px)');
+    expect(custom).not.toContain('@media (min-width: 768px)');
+    expect(exportHtml(withButton({ '--breakpoint-md': '900px' }), { mode: 'inline' })).toContain(
+      '@media (min-width: 900px)',
+    );
+    expect(exportHtml(withButton())).toContain('@media (min-width: 768px)');
   });
 });
 

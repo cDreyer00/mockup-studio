@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
   createNodeFromTag,
   findNode,
-  BREAKPOINT_PX,
+  breakpointsOf,
   PSEUDO_STATES,
   fixedWidthPx,
   getComputedLike,
@@ -134,15 +134,17 @@ function withResolvedStates(doc: Document, state?: string): { doc: Document; dar
   });
   if (!any) return { doc, dark: !!parts.dark };
   const clone = structuredClone(doc);
+  const breakpoints = breakpointsOf(doc);
   for (const page of clone.pages) {
     for (const frame of page.frames) {
       const width = fixedWidthPx(frame.style['width']);
       const frameWidth = parts.breakpoint
-        ? Math.max(width ?? 0, BREAKPOINT_PX[parts.breakpoint])
+        ? Math.max(width ?? 0, breakpoints[parts.breakpoint])
         : width;
       walk(frame, (n) => {
         n.style = resolveStateStyle(n, {
           frameWidth,
+          breakpoints,
           dark: parts.dark,
           pseudo: parts.pseudo ?? null,
         });

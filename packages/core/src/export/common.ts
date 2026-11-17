@@ -8,6 +8,7 @@ import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
 import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss, documentRootDeclarations } from '../base.js';
 import { BREAKPOINT_PX, parseStateKey, sortStateKeys } from '../states.js';
+import type { Breakpoint } from '../states.js';
 
 /** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
@@ -321,7 +322,7 @@ export function usesDarkState(node: Node): boolean {
 export function stateRulesCss(
   selector: string,
   states: Record<string, Record<string, string>> | undefined,
-  opts: { important?: boolean } = {},
+  opts: { important?: boolean; breakpoints?: Partial<Record<Breakpoint, number>> } = {},
 ): string[] {
   if (!states) return [];
   const out: string[] = [];
@@ -341,7 +342,7 @@ export function stateRulesCss(
         )
       : style;
     if (parts.breakpoint) {
-      const min = BREAKPOINT_PX[parts.breakpoint];
+      const min = opts.breakpoints?.[parts.breakpoint] ?? BREAKPOINT_PX[parts.breakpoint];
       out.push(`@media (min-width: ${min}px) {\n  ${sel} {\n${cssBody(decls, '    ')}\n  }\n}`);
     } else out.push(`${sel} {\n${cssBody(decls)}\n}`);
   }
