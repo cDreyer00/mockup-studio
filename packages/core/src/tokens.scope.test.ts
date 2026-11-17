@@ -151,7 +151,8 @@ describe('inlineSvgVars', () => {
   });
 
   it('mantém var() sem valor nem fallback e as declaradas dentro do próprio SVG', () => {
-    const svg = '<svg style="--brand: green"><path fill="var(--brand, blue)" stroke="var(--x)"/></svg>';
+    const svg =
+      '<svg style="--brand: green"><path fill="var(--brand, blue)" stroke="var(--x)"/></svg>';
     expect(inlineSvgVars(svg, vars)).toBe(svg);
   });
 

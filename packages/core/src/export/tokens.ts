@@ -520,7 +520,8 @@ export function parseTokensJson(input: string | object): TokenSet {
       };
       const descs = [node.$description, node.description].filter((d) => d !== undefined);
       const description = descs.find((d): d is string => typeof d === 'string');
-      if (description === undefined && descs.length > 0) wrongType('$description', descs[0], 'texto');
+      if (description === undefined && descs.length > 0)
+        wrongType('$description', descs[0], 'texto');
       if (ext.group !== undefined && typeof ext.group !== 'string')
         wrongType(`$extensions["${DTCG_EXTENSION}"].group`, ext.group, 'texto');
       const group = typeof ext.group === 'string' ? ext.group : t ? GROUP_BY_TYPE[t] : undefined;

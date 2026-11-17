@@ -44,11 +44,7 @@ export function tokenGroupLabel(group: string): string {
 }
 
 const foldGroup = (g: string): string =>
-  g
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .trim()
-    .toLowerCase();
+  g.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 
 /**
  * Grupo canônico: um grupo livre com o rótulo (ou o id) de um grupo embutido, sem diferenciar
@@ -225,9 +221,7 @@ export function renameTokenInClasses(
   const b = themeNamespace(to);
   const short =
     a && b && a.ns === b.ns
-      ? new RegExp(
-          `^(!?)(-?)(${NS_ROOTS[a.ns]})-${escapeRe(a.short)}(/[^\\s]+)?(!?)$`,
-        )
+      ? new RegExp(`^(!?)(-?)(${NS_ROOTS[a.ns]})-${escapeRe(a.short)}(/[^\\s]+)?(!?)$`)
       : null;
   const parenRe = new RegExp(`(\\((?:[a-z-]+:)?)${escapeRe(from)}(?=[),])`, 'g');
   let changed = 0;

@@ -467,7 +467,9 @@ describe('MCP Tailwind', () => {
     expect(await info(id)).toContain('hover {');
 
     const before = await ok('get_tailwind_config');
-    await ok('set_css_base', { base: before.includes('cssBase: default') ? 'tailwind' : 'default' });
+    await ok('set_css_base', {
+      base: before.includes('cssBase: default') ? 'tailwind' : 'default',
+    });
     expect(await ok('get_tailwind_config')).not.toBe(before);
     await ok('undo');
     expect(await ok('get_tailwind_config')).toBe(before);

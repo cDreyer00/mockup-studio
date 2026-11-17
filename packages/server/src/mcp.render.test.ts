@@ -309,12 +309,19 @@ describe('MCP render, export e guias', () => {
     it('export de vários frames não repete todo o código na resposta (orçamento de contexto)', async () => {
       const ids: string[] = [];
       for (let i = 0; i < 4; i++) {
-        const f = textOf(await call('create_frame', { name: `Tela ${i}`, width: 400, height: 300 }));
+        const f = textOf(
+          await call('create_frame', { name: `Tela ${i}`, width: 400, height: 300 }),
+        );
         const id = f.match(/fr_\w+/)![0];
         ids.push(id);
         // ~12 KB de HTML por frame: dois cabem no orçamento, o resto não
-        const items = Array.from({ length: 120 }, (_, k) => `<p class="l${k}">Linha ${k}</p>`).join('');
-        const css = Array.from({ length: 120 }, (_, k) => `.l${k}{margin:${k}px;color:#0f172a}`).join('');
+        const items = Array.from({ length: 120 }, (_, k) => `<p class="l${k}">Linha ${k}</p>`).join(
+          '',
+        );
+        const css = Array.from(
+          { length: 120 },
+          (_, k) => `.l${k}{margin:${k}px;color:#0f172a}`,
+        ).join('');
         await call('write_html', { html: `<section>${items}</section>`, css, parentId: id });
       }
       const out = path.join(ws.dir, 'multi');
@@ -339,7 +346,9 @@ describe('MCP render, export e guias', () => {
       expect(r.isError, textOf(r)).toBeFalsy();
       const tsx = fs.readdirSync(out).find((f) => f.endsWith('.tsx'))!;
       expect(fs.readFileSync(path.join(out, tsx), 'utf8')).toContain('src="/assets/foto.png"');
-      const code = textOf(await call('get_code', { nodeId: ws.frameId, format: 'react', assetsBase: '/img/' }));
+      const code = textOf(
+        await call('get_code', { nodeId: ws.frameId, format: 'react', assetsBase: '/img/' }),
+      );
       expect(code).toContain('/img/foto.png');
     });
 

@@ -78,7 +78,9 @@ function reportText(report: TokenReport, group?: string, theme?: string): string
   }
   const out: string[] = [];
   const wanted = group
-    ? report.tokens.filter((t) => t.group === canonicalTokenGroup(group) || tokenGroupLabel(t.group) === group)
+    ? report.tokens.filter(
+        (t) => t.group === canonicalTokenGroup(group) || tokenGroupLabel(t.group) === group,
+      )
     : report.tokens;
   const order = [...new Set(report.tokens.map((t) => t.group))].sort((a, b) => {
     const ia = TOKEN_GROUPS.findIndex((g) => g.id === a);
@@ -156,7 +158,9 @@ export function registerTokenTools(ctx: ToolContext): void {
       const report = getTokenReport(doc);
       if (format === 'json') {
         const tokens = group
-          ? report.tokens.filter((t) => t.group === canonicalTokenGroup(group) || tokenGroupLabel(t.group) === group)
+          ? report.tokens.filter(
+              (t) => t.group === canonicalTokenGroup(group) || tokenGroupLabel(t.group) === group,
+            )
           : report.tokens;
         return JSON.stringify({ ...report, tokens }, null, 2);
       }

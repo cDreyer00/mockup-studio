@@ -26,7 +26,10 @@ export function resolveSrc(docId: string, src: string): string {
  * imagem o SVG é lido como XML: sem `xmlns` na raiz ele não carrega (sai 0x0), então é acrescentado.
  */
 export function svgToDataUri(svg: string): string {
-  const s = svg.replace(/^(\s*<svg)(?![^>]*\sxmlns\s*=)(?=[\s/>])/i, '$1 xmlns="http://www.w3.org/2000/svg"');
+  const s = svg.replace(
+    /^(\s*<svg)(?![^>]*\sxmlns\s*=)(?=[\s/>])/i,
+    '$1 xmlns="http://www.w3.org/2000/svg"',
+  );
   return `data:image/svg+xml;utf8,${encodeURIComponent(s)}`;
 }
 

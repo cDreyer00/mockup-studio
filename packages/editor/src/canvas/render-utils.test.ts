@@ -56,7 +56,9 @@ describe('svgToDataUri', () => {
     expect(dec(svgToDataUri('<svg width="4"><circle/></svg>'))).toBe(
       '<svg xmlns="http://www.w3.org/2000/svg" width="4"><circle/></svg>',
     );
-    expect(dec(svgToDataUri('<svg>x</svg>'))).toBe('<svg xmlns="http://www.w3.org/2000/svg">x</svg>');
+    expect(dec(svgToDataUri('<svg>x</svg>'))).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg">x</svg>',
+    );
     const ok = '<svg viewBox="0 0 1 1" xmlns="http://www.w3.org/2000/svg"/>';
     expect(dec(svgToDataUri(ok))).toBe(ok);
   });
