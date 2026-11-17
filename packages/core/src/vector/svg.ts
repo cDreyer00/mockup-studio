@@ -1,7 +1,7 @@
 /** Importar SVG para o modelo `Vector` e gerar o markup a partir dele. */
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import type { Element } from 'domhandler';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, svgRootAttrs } from '../svg.js';
 import type {
   Node,
   Vector,
@@ -446,8 +446,11 @@ export function svgToVector(markup: string): Vector {
   }
 
   const v: Vector = { viewBox, paths, raw };
-  const attrs = extraRootAttrs(root);
-  if (attrs) v.attrs = attrs;
+  const attrs = extraRootAttrs(root) ?? {};
+  // Sem preserveAspectRatio no original, o navegador usa "xMidYMid meet": gravamos para que o
+  // markup regenerado (que por padrão usa "none") mantenha o mesmo desenho.
+  if (attrs.preserveAspectRatio === undefined) attrs.preserveAspectRatio = 'xMidYMid meet';
+  v.attrs = attrs;
   return v;
 }
 
@@ -530,9 +533,33 @@ export function generateVectorSvg(v: Vector): string {
     extra += ` ${k}="${esc(v.attrs![k]!)}"`;
   }
 
+  if (v.attrs?.preserveAspectRatio === undefined) extra += ' preserveAspectRatio="none"';
   const head = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(vb.x)} ${n(vb.y)} ${n(vb.width)} ${n(vb.height)}" width="100%" height="100%"${extra}>`;
   const defsMarkup = defs.length > 0 ? `<defs>${defs.join('')}</defs>` : '';
   return sanitizeSvg(`${head}${defsMarkup}${body.join('')}</svg>`);
+}
+
+/** Interpreta um valor de `preserveAspectRatio` (`defer` ignorado). */
+function parsePreserveAspectRatio(value: string): { align: string; slice: boolean } | 'none' {
+  const parts = value.trim().split(/\s+/).filter((t) => t && t !== 'defer');
+  const align = parts[0] ?? 'xMidYMid';
+  if (align === 'none') return 'none';
+  return { align, slice: parts[1] === 'slice' };
+}
+
+/**
+ * Como o vetor é desenhado dentro do nó: `'none'` (estica até preencher) ou `{ align, slice }`
+ * (ex. `{ align: 'xMidYMid', slice: false }` = `meet`). Lê `preserveAspectRatio` do `<svg>` raiz de
+ * `raw` (ausente = padrão do navegador, `xMidYMid meet`); sem `raw`, de `attrs`; sem nenhum dos
+ * dois, `'none'` (markup gerado).
+ */
+export function vectorPreserveAspectRatio(v: Vector): { align: string; slice: boolean } | 'none' {
+  if (v.raw !== undefined) {
+    const par = svgRootAttrs(v.raw).preserveAspectRatio;
+    return par === undefined ? { align: 'xMidYMid', slice: false } : parsePreserveAspectRatio(par);
+  }
+  const par = v.attrs?.preserveAspectRatio;
+  return par === undefined ? 'none' : parsePreserveAspectRatio(par);
 }
 
 /** `node.vector`, ou o vetor importado de `node.svg` (nós svg sem modelo); `null` se não há markup. */
