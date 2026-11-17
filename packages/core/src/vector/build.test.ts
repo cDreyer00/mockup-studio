@@ -163,6 +163,148 @@ describe('buildFlattenOps', () => {
   });
 });
 
+describe('posição, escala do traço e preserveAspectRatio', () => {
+  /** Dois ícones 24x24 (traço 2, tracejado "2 1") exibidos em 48px, um ao lado do outro. */
+  function icons(extra: Record<string, string> = {}): { doc: Document; frame: Node } {
+    const doc = createDocument('Teste', { id: 'doc_test0002' });
+    const frame = createNodeFromTag('div', { isRoot: true, position: { x: 0, y: 0 } });
+    frame.id = 'fr_bbbbbbbb';
+    const mk = (id: string, left: number): Node =>
+      createVectorNode(
+        {
+          viewBox: { x: 0, y: 0, width: 24, height: 24 },
+          paths: [
+            {
+              id: 'p1',
+              d: 'M 4 4 L 20 4 L 20 20 L 4 20 Z',
+              fill: 'none',
+              stroke: '#111',
+              strokeWidth: 2,
+              strokeDasharray: '2 1',
+            },
+          ],
+        },
+        {
+          id,
+          style: { position: 'absolute', left: px(left), top: '0px', width: '48px', height: '48px', ...extra },
+        },
+      );
+    frame.children = [mk('sv_icon0001', 0), mk('sv_icon0002', 20)];
+    doc.pages[0]!.frames.push(frame);
+    return { doc, frame };
+  }
+
+  it('achatar escala strokeWidth e strokeDasharray pela matriz', () => {
+    const { doc, frame } = icons();
+    const { ops } = buildFlattenOps(doc, ['sv_icon0001', 'sv_icon0002']);
+    const n = findNode(applyOps(doc, ops).doc, frame.id)!.node.children[0]!;
+    expect(n.vector!.paths[0]!.strokeWidth).toBe(4);
+    expect(n.vector!.paths[0]!.strokeDasharray).toBe('4 2');
+    // o pad usa o traço escalado: caixa do desenho (8..40) + 2 de cada lado
+    expect(n.style).toMatchObject({ left: '6px', top: '6px' });
+  });
+
+  it('booleana escala a tinta do primeiro path', () => {
+    const { doc, frame } = icons();
+    const { ops } = buildBooleanOps(doc, ['sv_icon0001', 'sv_icon0002'], 'union');
+    const p = findNode(applyOps(doc, ops).doc, frame.id)!.node.children[0]!.vector!.paths[0]!;
+    expect(p.strokeWidth).toBe(4);
+    expect(p.strokeDasharray).toBe('4 2');
+  });
+
+  it('um nó achatado no próprio nó não escala o traço', () => {
+    const { doc } = icons();
+    const { ops } = buildFlattenOps(doc, ['sv_icon0001']);
+    const r = applyOps(doc, ops);
+    expect(findNode(r.doc, 'sv_icon0001')!.node.vector!.paths[0]!.strokeWidth).toBe(2);
+  });
+
+  it('nó em fluxo sem caixa medida lança erro claro', () => {
+    const { doc } = icons();
+    const n = findNode(doc, 'sv_icon0002')!.node;
+    delete n.style['position'];
+    expect(() => buildBooleanOps(doc, ['sv_icon0001', 'sv_icon0002'], 'union')).toThrow(
+      /em fluxo.*antes da booleana/,
+    );
+    expect(() => buildFlattenOps(doc, ['sv_icon0001', 'sv_icon0002'])).toThrow(
+      /em fluxo.*antes de achatar/,
+    );
+  });
+
+  it('nó em fluxo com caixa medida usa a caixa e põe o pai relative', () => {
+    const { doc, frame } = icons();
+    const n = findNode(doc, 'sv_icon0002')!.node;
+    delete n.style['position'];
+    delete n.style['left'];
+    const { ops } = buildFlattenOps(doc, ['sv_icon0001', 'sv_icon0002'], {
+      boxes: { sv_icon0002: { x: 100, y: 50, width: 24, height: 24 } },
+    });
+    const r = applyOps(doc, ops);
+    const out = findNode(r.doc, frame.id)!.node;
+    expect(out.style['position']).toBe('relative');
+    const res = out.children[0]!;
+    expect(res.style).toMatchObject({ position: 'absolute', left: '6px', top: '6px', width: '116px' });
+    expect(strip(applyOps(r.doc, r.inverse).doc)).toStrictEqual(strip(doc));
+  });
+
+  it('raiz da página: usa node.position e não left/top/position', () => {
+    const doc = createDocument('Teste', { id: 'doc_test0003' });
+    const mk = (id: string, x: number): Node => {
+      const n = createVectorNode(createShapeVector({ kind: 'rect', width: 10, height: 10 }), {
+        id,
+        style: { width: '10px', height: '10px' },
+      });
+      n.position = { x, y: 7 };
+      return n;
+    };
+    doc.pages[0]!.frames.push(mk('sv_root0001', 100), mk('sv_root0002', 105));
+    const { ops, nodeId } = buildBooleanOps(doc, ['sv_root0001', 'sv_root0002'], 'union');
+    const n = findNode(applyOps(doc, ops).doc, nodeId)!.node;
+    expect(n.position).toEqual({ x: 100, y: 7 });
+    expect(n.style['position']).toBeUndefined();
+    expect(n.style['left']).toBeUndefined();
+    expect(n.style).toMatchObject({ width: '15px', height: '10px' });
+  });
+
+  it('none estica; meet/slice usam escala uniforme e o alinhamento', () => {
+    const run = (par: string | null): { x: number; y: number; width: number; height: number } => {
+      const doc = createDocument('Teste', { id: 'doc_test0004' });
+      const frame = createNodeFromTag('div', { isRoot: true, position: { x: 0, y: 0 } });
+      frame.id = 'fr_cccccccc';
+      const mk = (id: string, left: number): Node =>
+        createVectorNode(
+          {
+            viewBox: { x: 0, y: 0, width: 10, height: 10 },
+            paths: [{ id: 'p1', d: 'M 0 0 L 10 0 L 10 10 L 0 10 Z', fill: '#000' }],
+            ...(par ? { attrs: { preserveAspectRatio: par } } : {}),
+          },
+          {
+            id,
+            style: { position: 'absolute', left: px(left), top: '0px', width: '40px', height: '20px' },
+          },
+        );
+      frame.children = [mk('sv_par00001', 0), mk('sv_par00002', 0)];
+      doc.pages[0]!.frames.push(frame);
+      const { ops } = buildFlattenOps(doc, ['sv_par00001', 'sv_par00002']);
+      const n = findNode(applyOps(doc, ops).doc, frame.id)!.node.children[0]!;
+      return {
+        x: parseFloat(n.style['left']!),
+        y: parseFloat(n.style['top']!),
+        width: parseFloat(n.style['width']!),
+        height: parseFloat(n.style['height']!),
+      };
+    };
+    expect(run(null)).toEqual({ x: 0, y: 0, width: 40, height: 20 });
+    expect(run('none')).toEqual({ x: 0, y: 0, width: 40, height: 20 });
+    // meet: escala 2, desenho 20x20 centralizado na caixa 40x20
+    expect(run('xMidYMid meet')).toEqual({ x: 10, y: 0, width: 20, height: 20 });
+    expect(run('xMinYMid meet')).toEqual({ x: 0, y: 0, width: 20, height: 20 });
+    expect(run('xMaxYMid meet')).toEqual({ x: 20, y: 0, width: 20, height: 20 });
+    // slice: escala 4, desenho 40x40, centralizado em y (sobra de 10 para cima)
+    expect(run('xMidYMid slice')).toEqual({ x: 0, y: -10, width: 40, height: 40 });
+  });
+});
+
 describe('fitVectorToContent', () => {
   it('ajusta o viewBox ao desenho mantendo-o parado na tela', () => {
     const v = {
