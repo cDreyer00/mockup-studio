@@ -513,15 +513,21 @@ export function parseTokensJson(input: string | object): TokenSet {
         themes?: unknown;
         themeOnly?: unknown;
       };
-      const description =
-        typeof node.$description === 'string'
-          ? node.$description
-          : typeof node.description === 'string'
-            ? node.description
-            : undefined;
+      // Meta com tipo errado: descarta só o meta, com aviso (o token entra).
+      const wrongType = (what: string, v: unknown, expected: string): void => {
+        const shown = (JSON.stringify(v) ?? String(v)).slice(0, 40);
+        set.warnings.push(`${name}: ${what} ignorado (deve ser ${expected}; veio ${shown})`);
+      };
+      const descs = [node.$description, node.description].filter((d) => d !== undefined);
+      const description = descs.find((d): d is string => typeof d === 'string');
+      if (description === undefined && descs.length > 0) wrongType('$description', descs[0], 'texto');
+      if (ext.group !== undefined && typeof ext.group !== 'string')
+        wrongType(`$extensions["${DTCG_EXTENSION}"].group`, ext.group, 'texto');
       const group = typeof ext.group === 'string' ? ext.group : t ? GROUP_BY_TYPE[t] : undefined;
-      const themes =
-        ext.themes && typeof ext.themes === 'object' ? (ext.themes as Record<string, unknown>) : {};
+      const themesOk = !!ext.themes && typeof ext.themes === 'object' && !Array.isArray(ext.themes);
+      if (ext.themes !== undefined && !themesOk)
+        wrongType(`$extensions["${DTCG_EXTENSION}"].themes`, ext.themes, 'um objeto tema → valor');
+      const themes = themesOk ? (ext.themes as Record<string, unknown>) : {};
       if ((raw === '' || ext.themeOnly === true) && Object.keys(themes).length > 0) {
         // Token só de tema (sem valor base): mantém as sobrescritas e o meta.
         const meta: TokenMeta = {};

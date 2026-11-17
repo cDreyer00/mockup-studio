@@ -342,6 +342,25 @@ describe('revisão de import/export', () => {
     expect(() => planImportTokens(docWith({}), set, 'merge')).not.toThrow();
   });
 
+  it('json: meta com tipo errado descarta só o meta, com aviso', () => {
+    const set = parseTokensJson({
+      a: { $value: '1px', $extensions: { 'mockup-studio': { group: 123 } } },
+      b: { $value: '2px', $description: { x: 1 } },
+      c: { $value: '#fff', $extensions: { 'mockup-studio': { themes: ['#000'] } } },
+      d: { $value: '4px', $description: 'ok' },
+    });
+    expect(set.tokens).toEqual({ '--a': '1px', '--b': '2px', '--c': '#fff', '--d': '4px' });
+    expect(set.tokenMeta['--a']).toBeUndefined();
+    expect(set.tokenMeta['--b']).toBeUndefined();
+    expect(set.tokenMeta['--d']?.description).toBe('ok');
+    expect(set.themes).toEqual([]);
+    expect(set.warnings).toEqual([
+      '--a: $extensions["mockup-studio"].group ignorado (deve ser texto; veio 123)',
+      '--b: $description ignorado (deve ser texto; veio {"x":1})',
+      '--c: $extensions["mockup-studio"].themes ignorado (deve ser um objeto tema → valor; veio ["#000"])',
+    ]);
+  });
+
   it('css: lê @layer base (formato shadcn), com @media aninhado', () => {
     const set = parseTokensCss(`@layer base {
       :root { --background: 0 0% 100%; }

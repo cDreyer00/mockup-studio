@@ -137,7 +137,7 @@ Regras do `set_tokens`: nomes sem `--` ganham o prefixo; `unset` sem `theme` rem
 | `json`     | W3C Design Tokens (DTCG): grupos aninhados, `$value`, `$type`, `$description`, aliases `{a.b}`.                                                         | Os mesmos campos; o grupo do Mockup Studio e os valores por tema ficam em `$extensions["mockup-studio"]`.                                                                   |
 | `tailwind` | (use `css`; `@theme` é lido)                                                                                                                            | Tailwind v4: `@theme { ... }` para os namespaces de tema, `:root` para o resto, regras de tema e `@custom-variant theme-<nome>` (mais `dark` quando existe um tema `dark`). |
 
-`import_tokens` com `mode: "merge"` (padrão) mantém o que existe e sobrescreve nomes repetidos (temas são mesclados por nome); `replace` troca tokens, metadados e temas. O resultado traz `warnings` (regras ignoradas, valores descartados).
+`import_tokens` com `mode: "merge"` (padrão) mantém o que existe e sobrescreve nomes repetidos (temas são mesclados por nome); `replace` troca tokens, metadados e temas. O resultado traz `warnings` (regras ignoradas, valores descartados, metadados com tipo errado: `$description` ou grupo/temas em `$extensions` que não sejam texto/objeto são descartados, e o token entra).
 
 ## Exportadores de código
 
