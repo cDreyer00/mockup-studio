@@ -15,6 +15,7 @@ import {
   LockOpen,
   Plus,
   RectangleHorizontal,
+  Repeat,
   Shapes,
   Square,
   TextCursorInput,
@@ -55,6 +56,7 @@ function iconFor(node: Node): LucideIcon {
   if (node.type === 'text') return Type;
   if (node.type === 'image') return ImageIcon;
   if (node.type === 'svg') return Shapes;
+  if (node.type === 'repeater') return Repeat;
   return TAG_ICONS[node.tag] ?? Square;
 }
 

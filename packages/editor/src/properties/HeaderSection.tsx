@@ -1,4 +1,4 @@
-import { Frame, Image as ImageIcon, Lock, Shapes, Square, Type } from 'lucide-react';
+import { Frame, Image as ImageIcon, Lock, Repeat, Shapes, Square, Type } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Node, NodeType } from '@mockup/core';
 import { Section } from '../ui/controls';
@@ -10,6 +10,7 @@ const ICONS: Record<NodeType, ReactNode> = {
   text: <Type size={14} />,
   image: <ImageIcon size={14} />,
   svg: <Shapes size={14} />,
+  repeater: <Repeat size={14} />,
 };
 
 const TYPE_NAMES: Record<NodeType, string> = {
@@ -18,6 +19,7 @@ const TYPE_NAMES: Record<NodeType, string> = {
   text: 'Texto',
   image: 'Imagem',
   svg: 'SVG',
+  repeater: 'Repetidor',
 };
 
 export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locked: boolean }) {

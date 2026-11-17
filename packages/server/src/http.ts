@@ -8,6 +8,7 @@ import { renderUnavailableMessage, type RenderProvider, type RenderScale } from 
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
+import { registerFeatureRoutes } from './routes/index.js';
 import { isAllowedOrigin } from './ws.js';
 
 export const SERVER_NAME = 'mockup-studio';
@@ -398,6 +399,15 @@ export function createApp(
     }),
   );
 
+  // Assets/CDN (/cdn, /api/assets, /api/library), dados de repetidores e organização de arquivos.
+  registerFeatureRoutes(app, {
+    store,
+    dataDir: ctx.dataDir,
+    render: ctx.render,
+    getPort: ctx.getPort,
+    maxAssetBytes: maxAsset,
+  });
+
   app.all('/mcp', (req, res) => {
     if (!['POST', 'GET', 'DELETE'].includes(req.method)) {
       res.status(405).json({ error: 'Método não permitido' });
@@ -411,7 +421,7 @@ export function createApp(
     const editorDir = path.resolve(ctx.editorDir);
     app.use(express.static(editorDir, { index: 'index.html', fallthrough: true }));
     // Fallback de SPA: GET sem extensão fora das rotas do daemon devolve o index.html.
-    const reserved = /^\/(api|assets|mcp|ws|render)(\/|$)/i;
+    const reserved = /^\/(api|assets|cdn|mcp|ws|render)(\/|$)/i;
     app.use((req, res, next) => {
       if (req.method !== 'GET' || reserved.test(req.path) || path.extname(req.path)) return next();
       res.sendFile(path.join(editorDir, 'index.html'));
