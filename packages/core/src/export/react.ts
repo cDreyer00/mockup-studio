@@ -944,7 +944,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     usedNames: new Set([componentName, 'CSSProperties', ...REACT_MEDIA_NAMES]),
     media: {
       effectImages: options.effectImages ?? {},
-      slug: slugify(root.name),
+      slug: componentName.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
       helpers: new Set(),
       imports: [],
       files: [],

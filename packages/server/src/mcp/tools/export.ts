@@ -206,6 +206,7 @@ export function registerExportTools(ctx: ToolContext): void {
       await fs.promises.mkdir(dir, { recursive: true });
 
       const used = new Set<string>();
+      const usedComponents = new Set<string>();
       const uniq = (base: string, ext: string): string => {
         let name = `${base}${ext}`;
         for (let i = 2; used.has(name); i++) name = `${base}-${i}${ext}`;
@@ -314,7 +315,10 @@ export function registerExportTools(ctx: ToolContext): void {
             true,
           );
         } else {
-          const name = pascalOf(slug);
+          // nome do componente único na exportação: também deriva os arquivos das ilhas Three.js
+          let name = pascalOf(slug);
+          for (let i = 2; usedComponents.has(name); i++) name = `${pascalOf(slug)}${i}`;
+          usedComponents.add(name);
           const effectImages: Record<string, string> = {};
           if (effects === 'static') {
             if (!opts.render)

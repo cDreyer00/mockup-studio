@@ -742,6 +742,29 @@ describe('exportReact com mídia', () => {
     expect(r.files![0].code).toContain('const scene = new THREE.Scene();');
   });
 
+  it('ilhas Three.js de raízes com o mesmo nome ganham arquivos distintos pelo componentName', () => {
+    const doc = docWith([createEmbedNode({ provider: 'three', code: 'return { a: 1 };' })]);
+    const a = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Tela' });
+    const b = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Tela2' });
+    expect((a.files ?? []).map((f) => f.name)).toEqual(['tela-three-1.js', 'tela-three-1.d.ts']);
+    expect((b.files ?? []).map((f) => f.name)).toEqual(['tela2-three-1.js', 'tela2-three-1.d.ts']);
+    expect(b.code).toContain("from './tela2-three-1.js';");
+  });
+
+  it('dois embeds three com o mesmo nome no mesmo componente geram arquivos distintos', () => {
+    const r = exportReact(
+      docWith([
+        createEmbedNode({ provider: 'three', code: 'return 1;' }, { name: 'Cena' }),
+        createEmbedNode({ provider: 'three', code: 'return 2;' }, { name: 'Cena' }),
+      ]),
+      { nodeId: 'fr_test0001' },
+    );
+    const js = (r.files ?? []).map((f) => f.name).filter((n) => n.endsWith('.js'));
+    expect(js).toEqual(['tela-three-1.js', 'tela-three-2.js']);
+    expect(r.code).toContain("from './tela-three-1.js';");
+    expect(r.code).toContain("from './tela-three-2.js';");
+  });
+
   it('sem mídia o cabeçalho não muda', () => {
     const { code, files } = exportReact(docWith([]), { nodeId: 'fr_test0001' });
     expect(code).not.toContain('useEffect');
