@@ -53,6 +53,7 @@ Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
 - **Tipografia**: família, peso, tamanho, altura de linha, espaçamento, alinhamento, cor, decoração, transformação e o conteúdo do texto.
 - **Aparência**: opacidade, fundo (cor, gradiente ou imagem), borda, raio (único ou por canto), sombras múltiplas, `mix-blend-mode` e `background-blend-mode`.
 - **Efeitos**: blur do `filter` e do `backdrop-filter` (preservando outras funções).
+- **Classes** (Tailwind): ver [Tailwind](#tailwind).
 - **Tag e atributos**: tag (op `setTag`), id, href, alt, placeholder, type e atributos livres.
 - **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
 
@@ -83,7 +84,22 @@ A linha **Tema** do painel de propriedades (frames e qualquer elemento) define o
 
 ### Sem seleção
 
-O painel direito mostra o resumo (nº de tokens e temas, não usados, com problema) e o botão "Abrir painel de tokens".
+O painel direito mostra o resumo (nº de tokens e temas, não usados, com problema), o seletor **CSS base** (Padrão / Tailwind (preflight), op `setCssBase`) e o botão "Abrir painel de tokens".
+
+## Tailwind
+
+O Tailwind é nativo no modelo: `node.classes` (classes como escritas), `node.states` (estilos por variante: `hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` e combinações como `md:hover`) e `Document.cssBase`. O motor (compilador oficial do Tailwind v4, ~260 kB) é carregado **sob demanda**, em chunk separado, só quando a seção Classes aparece ou quando se cola HTML com classes; enquanto carrega a seção mostra "Carregando Tailwind…" e, se o import falhar, mostra o erro sem quebrar o painel.
+
+- **Render com estados**: o canvas e a página de render (`window.__mockupRender.render({ ..., state })`) aplicam `resolveStateStyle` a cada nó. O frame raiz fornece o contexto: um breakpoint vale quando a **largura do frame** (o frame é o viewport; vale a prévia de redimensionamento) é maior ou igual a ele; `dark` vale dentro de um nó com `data-theme="dark"` (para a subárvore) ou na prévia "dark"; pseudo-estados valem na prévia. O contexto só muda ao cruzar um breakpoint, e só nós com `states` reprocessam o estilo.
+- **Prévia de estado**: seletor "Prévia" na barra superior (Nenhum, hover, focus, active, focus-visible, focus-within, disabled, dark; `previewState` no `uiStore`). Vale para todos os nós do canvas e não altera o documento.
+- **CSS base**: o canvas e o render usam `documentBaseCssFor(doc, ...)`; com `cssBase: 'tailwind'` entra o preflight do Tailwind. Escolha em "CSS base" no painel do documento (sem seleção).
+- **Seção Classes**:
+  - Campo de classes (Enter ou perder o foco aplica; Shift+Enter quebra a linha; Esc descarta). Aplicar usa `planSetClasses(..., 'replace')`: as classes passam a ser **todo o estilo** do nó (`style`, `states` e `classes` mudam numa só chamada, um undo). Multisseleção mostra "Misto" e aplica a todos.
+  - Autocomplete (`engine.suggest`) para a classe sob o cursor, inclusive com prefixo de variante (`hover:bg-`): ↑/↓ navegam, Enter ou Tab aceitam, Esc fecha; o CSS da classe destacada aparece no rodapé da lista.
+  - Classes desconhecidas ou sem equivalente no modelo aparecem como aviso discreto abaixo do campo.
+  - **Mostrar como Tailwind** (lembrado no `uiStore`): as classes idiomáticas do estilo atual do nó, com variantes (`engine.nodeClasses`), somente leitura, com botão Copiar, mais o CSS que não tem classe equivalente. Serve também para nós gerados por CSS, sem `classes`.
+  - **Estados**: lista os `states` do nó com o CSS de cada um e um botão para remover (op `setStates`).
+- **Colar HTML**: se o HTML colado parece Tailwind (`detectTailwind`), o editor mantém as classes (`htmlToNodes(html, { keepClasses: true })`), compila-as (`applyTailwindToNodes`) e, se o documento ainda não usa o preflight, acrescenta `setCssBase` na mesma chamada (um undo). Sem Tailwind, o comportamento é o de sempre.
 
 ## Atalhos
 
@@ -113,7 +129,7 @@ Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo
 ## Clipboard
 
 - **Copiar** grava o HTML dos nós (`nodesToHtml`) no clipboard do sistema, com um marcador, e guarda uma cópia interna fiel.
-- **Colar**: o conteúdo copiado no próprio editor volta com fidelidade total e **ids novos**; HTML externo (de um navegador, de um agente ou texto que pareça HTML) passa por `htmlToNodes` do core; imagens viram upload para `assets/`; texto puro vira um nó de texto.
+- **Colar**: o conteúdo copiado no próprio editor volta com fidelidade total e **ids novos**; HTML externo (de um navegador, de um agente ou texto que pareça HTML) passa por `htmlToNodes` do core (HTML que parece Tailwind: ver [Tailwind](#tailwind)); imagens viram upload para `assets/`; texto puro vira um nó de texto.
 - **Destino**: dentro do nó selecionado (se aceitar filhos), depois dele (se for folha) ou na raiz da página (como frame, no centro da tela).
 
 ## Arquitetura interna
@@ -122,7 +138,8 @@ Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes. |
 | `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo, histórico (`canUndo`/`canRedo`), atividade do agente.                                          |
-| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, pedidos de foco, toasts.                     |
+| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts.   |
+| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                     |
 | `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                   |
 | `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                       |
 | `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                  |
@@ -169,7 +186,7 @@ Com esses números, a clonagem por JSON no core e o documento completo no `doc:c
 ## Testes
 
 - Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
-- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
+- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
 - `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
 - Portas e pasta do e2e por variável de ambiente: `MOCKUP_E2E_DAEMON_PORT` (padrão 4848), `MOCKUP_E2E_EDITOR_PORT` (padrão 5273) e `MOCKUP_E2E_DIR` (padrão: pasta temporária nova por execução, com os documentos e o `MOCKUP_DATA_DIR` do daemon). `MOCKUP_E2E_DAEMON` é derivada da porta e lida pelos helpers. Mude as portas se o daemon de uso (4747) ou outro processo ocupar as padrão.
 
