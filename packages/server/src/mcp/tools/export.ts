@@ -220,7 +220,10 @@ export function registerExportTools(ctx: ToolContext): void {
           const name = pascalOf(slug);
           const r = exportReact(doc, {
             nodeId: node.id,
-            tailwind: await getTailwindEngine(doc),
+            // O motor só serve ao Tailwind: com estilos inline nem é carregado.
+            ...((styles ?? 'tailwind') === 'tailwind'
+              ? { tailwind: await getTailwindEngine(doc) }
+              : {}),
             styles: styles ?? 'tailwind',
             componentName: name,
             ...(assetsBase ? { assetsBase } : {}),
@@ -328,7 +331,10 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       const r = exportReact(doc, {
         nodeId,
-        tailwind: await getTailwindEngine(doc),
+        // O motor só serve ao Tailwind: com estilos inline nem é carregado.
+        ...((styles ?? 'tailwind') === 'tailwind'
+          ? { tailwind: await getTailwindEngine(doc) }
+          : {}),
         styles: styles ?? 'tailwind',
         componentName: pascalOf(slugOf(node.name, node.id)),
         ...(assetsBase ? { assetsBase } : {}),

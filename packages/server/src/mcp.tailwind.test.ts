@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import fs from 'node:fs';
+import { parseDocument } from '@mockup/core';
+import { clearTailwindEngines, peekTailwindEngine } from '@mockup/core/tailwind';
 import { startDaemon, type DaemonHandle } from './index.js';
 import type { CaptureRequest, RenderProvider } from './render.js';
 import { makeWorkspace } from './test-utils.js';
@@ -190,6 +193,19 @@ describe('MCP Tailwind', () => {
       tokens: 'none',
     });
     expect(await ok('get_tokens', { format: 'json' })).not.toContain('--color-primary"');
+  });
+
+  it('get_code com styles inline não carrega o motor Tailwind', async () => {
+    const doc = parseDocument(fs.readFileSync(ws.file, 'utf8'));
+    clearTailwindEngines();
+    const id = created(
+      await ok('write_html', { parentId: ws.frameId, tailwind: 'off', html: '<div>x</div>' }),
+    )[0]!;
+    clearTailwindEngines();
+    await ok('get_code', { nodeId: id, format: 'react', styles: 'inline' });
+    expect(peekTailwindEngine(doc)).toBeUndefined();
+    await ok('get_code', { nodeId: id, format: 'react' });
+    expect(peekTailwindEngine(doc)).toBeDefined();
   });
 
   it('set_classes: replace, add e remove com undo', async () => {
