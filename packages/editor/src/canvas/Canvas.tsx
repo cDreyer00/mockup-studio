@@ -14,6 +14,7 @@ import type { Rect, Viewport } from './geometry';
 import { measureWorldRect } from './dom';
 import { attachInteractions } from './interactions';
 import { DocIdContext } from './NodeView';
+import { breakpointsOf } from '@mockup/core';
 import { BASE_STATE_CTX, StateCtxContext } from './stateContext';
 import { Overlay } from './Overlay';
 import './canvas.css';
@@ -47,7 +48,12 @@ export function Canvas() {
   const fonts = useDoc((s) => s.doc?.fonts);
   const cssBase = useDoc((s) => s.doc?.cssBase);
   const previewState = useUi((s) => s.previewState);
-  const stateCtx = useMemo(() => ({ ...BASE_STATE_CTX, preview: previewState }), [previewState]);
+  const breakpoints = useMemo(() => breakpointsOf({ tokens }), [tokens]);
+  const darkTheme = !!themes?.some((t) => t.name === 'dark');
+  const stateCtx = useMemo(
+    () => ({ ...BASE_STATE_CTX, preview: previewState, breakpoints, darkTheme }),
+    [previewState, breakpoints, darkTheme],
+  );
   const page = useActivePage();
   const focusRequest = useUi((s) => s.focusRequest);
   const pageRef = useRef(page);

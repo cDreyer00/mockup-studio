@@ -195,7 +195,11 @@ function useStableCtx(
   const theme = node.attrs?.['data-theme'];
   if (theme !== undefined) next = themedStateCtx(next, theme);
   const same = (a: StateCtx): boolean =>
-    a.preview === next.preview && a.bpWidth === next.bpWidth && a.dark === next.dark;
+    a.preview === next.preview &&
+    a.bpWidth === next.bpWidth &&
+    a.dark === next.dark &&
+    a.breakpoints === next.breakpoints &&
+    a.darkTheme === next.darkTheme;
   if (same(base)) next = base;
   else if (prev.current && same(prev.current)) next = prev.current;
   prev.current = next;
@@ -243,6 +247,8 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   }
 
   const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': node.id };
+  // Prévia dark: o frame raiz assume o tema `dark` do documento (só no DOM).
+  if (root && baseCtx.preview === 'dark' && baseCtx.darkTheme) props['data-theme'] = 'dark';
   if (tag === 'form') props.onSubmit = (e: { preventDefault(): void }) => e.preventDefault();
 
   if (node.type === 'image') {

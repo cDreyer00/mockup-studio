@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { Document, Node } from '@mockup/core';
+import { breakpointsOf } from '@mockup/core';
 import type { PreviewState } from '@mockup/core';
 import { DocIdContext, NodeView, RenderDocContext } from '../canvas/NodeView';
 import { BASE_STATE_CTX, StateCtxContext } from '../canvas/stateContext';
@@ -32,7 +33,15 @@ export function renderFrameOf(frame: Node): Node {
 
 /** Mesma árvore do canvas (`NodeView`), tokens no wrapper e fontes embutidas; sem rótulo/overlay. */
 export function RenderApp({ doc, docId, frame, state }: RenderAppProps) {
-  const stateCtx = useMemo(() => ({ ...BASE_STATE_CTX, preview: state ?? null }), [state]);
+  const stateCtx = useMemo(
+    () => ({
+      ...BASE_STATE_CTX,
+      preview: state ?? null,
+      breakpoints: breakpointsOf(doc),
+      darkTheme: !!doc.themes?.some((t) => t.name === 'dark'),
+    }),
+    [state, doc],
+  );
   return (
     <div
       className="cv-world"

@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createNodeFromTag } from '@mockup/core';
+import { breakpointsOf, createNodeFromTag } from '@mockup/core';
 import type { Node, PreviewState } from '@mockup/core';
 import { BASE_STATE_CTX, StateCtxContext, quantizeWidth, toCoreContext } from './stateContext';
+import type { StateCtx } from './stateContext';
 import { NodeView, buildNodeStyle } from './NodeView';
 
 afterEach(cleanup);
@@ -34,9 +35,13 @@ function frameWith(width: string, child: Node, attrs: Record<string, string> = {
 const el = (node: Node): HTMLElement =>
   document.querySelector<HTMLElement>(`[data-node-id="${node.id}"]`)!;
 
-function renderTree(frame: Node, preview: PreviewState | null = null) {
+function renderTree(
+  frame: Node,
+  preview: PreviewState | null = null,
+  extra: Partial<StateCtx> = {},
+) {
   return render(
-    <StateCtxContext.Provider value={{ ...BASE_STATE_CTX, preview }}>
+    <StateCtxContext.Provider value={{ ...BASE_STATE_CTX, preview, ...extra }}>
       <NodeView node={frame} root />
     </StateCtxContext.Provider>,
   );
@@ -81,6 +86,9 @@ describe('buildNodeStyle com estados', () => {
     expect(quantizeWidth(639)).toBe(0);
     expect(quantizeWidth(768)).toBe(768);
     expect(quantizeWidth(1100)).toBe(1024);
+    const custom = breakpointsOf({ tokens: { '--breakpoint-md': '900px' } });
+    expect(quantizeWidth(800, custom)).toBe(640);
+    expect(quantizeWidth(900, custom)).toBe(900);
   });
 });
 
@@ -137,5 +145,46 @@ describe('NodeView com estados', () => {
     );
     expect(el(inner).style.color).toBe('white');
     expect(el(outside).style.color).toBe('');
+  });
+
+  it('breakpoint customizado do documento vale no lugar do padrão', () => {
+    const breakpoints = breakpointsOf({ tokens: { '--breakpoint-md': '900px' } });
+    const b = button();
+    renderTree(frameWith('800px', b), null, { breakpoints });
+    expect(el(b).style.padding).toBe('8px');
+    cleanup();
+    const c = button();
+    renderTree(frameWith('900px', c), null, { breakpoints });
+    expect(el(c).style.padding).toBe('32px');
+  });
+
+  it('prévia dark põe data-theme="dark" no frame raiz só se o tema existe', () => {
+    const b = button();
+    const frame = frameWith('400px', b);
+    renderTree(frame, 'dark', { darkTheme: true });
+    expect(el(frame).getAttribute('data-theme')).toBe('dark');
+    expect(el(b).getAttribute('data-theme')).toBeNull();
+    cleanup();
+    const f2 = frameWith('400px', button());
+    renderTree(f2, 'dark');
+    expect(el(f2).getAttribute('data-theme')).toBeNull();
+    cleanup();
+    const f3 = frameWith('400px', button());
+    renderTree(f3, 'hover', { darkTheme: true });
+    expect(el(f3).getAttribute('data-theme')).toBeNull();
+  });
+
+  it('dark continua ligado num tema claro aninhado, como no CSS exportado', () => {
+    const inner = button();
+    const light = createNodeFromTag('div', { attrs: { 'data-theme': 'light' }, children: [inner] });
+    renderTree(
+      createNodeFromTag('div', {
+        isRoot: true,
+        styles: { width: '300px' },
+        attrs: { 'data-theme': 'dark' },
+        children: [light],
+      }),
+    );
+    expect(el(inner).style.color).toBe('white');
   });
 });
