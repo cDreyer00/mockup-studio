@@ -1,12 +1,54 @@
 export const GUIDE_TOPICS = [
   'getting-started',
+  'design-system',
   'layout',
   'responsive',
-  'tokens',
   'screenshot-loop',
   'export',
+  'troubleshooting',
+  'setup',
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
+
+/** Título e descrição curta de cada guia (usados nos resources `guide://<topic>`). */
+export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string }> = {
+  'getting-started': {
+    title: 'Guia: começando',
+    description: 'Fluxo em 6 passos para criar um mockup do zero, dicas e lista de guias.',
+  },
+  'design-system': {
+    title: 'Guia: design system e tokens',
+    description: 'Tokens como variáveis CSS, escalas de espaço e tipografia, cores com contraste.',
+  },
+  layout: {
+    title: 'Guia: layout',
+    description: 'Flexbox, tamanhos, posição absoluta e boas práticas de espaçamento.',
+  },
+  responsive: {
+    title: 'Guia: responsivo',
+    description:
+      'Um frame por breakpoint (Mobile, Tablet, Desktop): duplicar, adaptar e posicionar.',
+  },
+  'screenshot-loop': {
+    title: 'Guia: ciclo de screenshot',
+    description:
+      'Criar, conferir com get_screenshot, corrigir; checklist visual e economia de contexto.',
+  },
+  export: {
+    title: 'Guia: exportação',
+    description:
+      'get_code x export, formatos (png, svg, html, tailwind, react), pasta de saída e assets.',
+  },
+  troubleshooting: {
+    title: 'Guia: solução de problemas',
+    description:
+      'Render indisponível, nó não encontrado, porta ocupada, overflow, logs e erros de parâmetro.',
+  },
+  setup: {
+    title: 'Guia: instalação e registro do MCP',
+    description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
+  },
+};
 
 export const GUIDES: Record<GuideTopic, string> = {
   'getting-started': `# Começando com o Mockup Studio
@@ -14,24 +56,86 @@ export const GUIDES: Record<GuideTopic, string> = {
 O documento é uma árvore de nós HTML/CSS reais: páginas > frames (artboards) > elementos.
 Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
-## Fluxo típico
+## Fluxo em 6 passos
 
-1. \`open_document(path)\` ou \`create_document(path, name)\` — abre ou cria o arquivo \`.mockup.json\`.
-2. \`get_basic_info\` — veja páginas, frames, documentos abertos e a seleção atual.
-3. \`create_frame(name, width, height)\` — cria um frame raiz (ex.: "Desktop", 1440x900).
-4. \`write_html(html, css?, parentId?)\` — crie conteúdo inteiro de uma vez com HTML + CSS.
-5. \`get_screenshot(nodeId?)\` — VEJA o resultado e corrija o que estiver errado (veja \`get_guide('screenshot-loop')\`).
-6. \`get_tree_summary(nodeId?, depth?)\` — confira a estrutura; use \`get_html\` para ver o código.
-7. Refine com \`update_styles\`, \`set_text\`, \`move_nodes\`, \`duplicate_nodes\`; use \`undo\` se errar.
-8. Ao terminar, chame \`finish_working\` para limpar o indicador "IA" no editor.
+1. \`create_document(path, name)\` ou \`open_document(path)\`, depois \`get_basic_info\` — veja páginas, frames, documentos abertos e seleção.
+2. \`set_tokens({...})\` — defina o design system primeiro: cores, espaçamentos, raios, fontes (veja \`get_guide('design-system')\`).
+3. \`create_frame(name, width, height)\` — crie o artboard raiz (ex.: "Desktop", 1440x900).
+4. \`write_html(html, css?, parentId?)\` — escreva HTML + CSS de uma vez, seção por seção (header, hero, features, rodapé), usando \`var(--...)\` dos tokens.
+5. \`get_screenshot(nodeId)\` — VEJA o resultado e corrija com \`update_styles\`, \`set_text\` ou \`undo\`; repita até ficar bom (veja \`get_guide('screenshot-loop')\`).
+6. \`export\` (arquivos) ou \`get_code\` (código na resposta) e, por fim, \`finish_working\` para limpar o indicador "IA" no editor.
 
 ## Dicas
 
 - Prefira \`write_html\` a muitas chamadas \`create_node\`: é mais rápido e mais legível.
-- Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame.
+- Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame; passe \`parentId\` para ter certeza.
+- \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`), \`add_font\` (\`list_fonts\`).
-- Veja também: \`get_guide('layout')\`, \`get_guide('responsive')\`, \`get_guide('tokens')\`, \`get_guide('screenshot-loop')\`, \`get_guide('export')\`.
+- \`docId\` é opcional em todas as ferramentas (vale o documento ativo).
+
+## Guias
+
+\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+`,
+  'design-system': `# Design system e tokens
+
+Defina os tokens ANTES de desenhar. Tokens são variáveis CSS do documento; mudar um valor atualiza todos os nós que o usam.
+
+## Uso
+
+- Defina: \`set_tokens({ "--color-primary": "#2563eb", "--space-4": "16px" })\` (o prefixo \`--\` é acrescentado se faltar).
+- Remova: \`set_tokens({}, ["--old"])\` (segundo parâmetro \`unset\`).
+- Consulte: \`get_tokens\`. \`get_styles\` devolve os valores já resolvidos.
+- Aplique no CSS: \`var(--color-primary)\`, tanto em \`write_html\` quanto em \`update_styles\`.
+
+## Nomes
+
+\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`. Nomeie pelo papel (\`--color-surface\`), não pelo valor (\`--color-gray-100\`).
+
+## Espaçamento
+
+Escala múltipla de 4/8: 4, 8, 12, 16, 24, 32, 48, 64. Use só esses valores em \`gap\`, \`padding\` e margens.
+
+## Tipografia
+
+- Escala: 12, 14, 16, 20, 24, 32, 48 px, com line-height ~1.5 no texto corrido e ~1.2 em títulos.
+- Use 1–2 famílias no máximo (ex.: uma para títulos, uma para texto). \`list_fonts\` mostra as disponíveis; \`add_font\` registra/embute outra (ex.: Google Fonts).
+- Pesos: 400 (texto), 600/700 (títulos e botões).
+
+## Cores e contraste (WCAG AA)
+
+- Texto normal: contraste mínimo 4.5:1 com o fundo. Texto grande (>= 24px, ou 19px em negrito) e ícones: 3:1.
+- Paleta pequena: primária, superfície (fundo), texto, texto secundário, borda e estados (sucesso, erro).
+- Não use cor como única indicação de estado.
+
+## Raio e sombra
+
+Escolha 2–3 raios (ex.: 4, 8, 16, 999) e 2–3 sombras e reaproveite; evite valores soltos por componente.
+
+## Exemplo completo
+
+\`\`\`js
+set_tokens({
+  tokens: {
+    "--color-primary": "#2563eb",
+    "--color-primary-contrast": "#ffffff",
+    "--color-surface": "#ffffff",
+    "--color-surface-alt": "#f1f5f9",
+    "--color-text": "#0f172a",
+    "--color-text-muted": "#475569",
+    "--color-border": "#cbd5e1",
+    "--color-success": "#15803d",
+    "--color-danger": "#b91c1c",
+    "--space-1": "4px", "--space-2": "8px", "--space-3": "12px", "--space-4": "16px",
+    "--space-6": "24px", "--space-8": "32px", "--space-12": "48px", "--space-16": "64px",
+    "--radius-sm": "4px", "--radius-md": "8px", "--radius-lg": "16px",
+    "--font-sans": "Inter, system-ui, sans-serif",
+    "--shadow-sm": "0 1px 2px rgba(15,23,42,0.08)",
+    "--shadow-md": "0 4px 12px rgba(15,23,42,0.12)"
+  }
+})
+\`\`\`
 `,
   layout: `# Layout
 
@@ -47,59 +151,44 @@ Os nós usam CSS real. Use flexbox para quase tudo.
 
 - \`auto\`: ajusta ao conteúdo (padrão).
 - \`100%\`: ocupa toda a largura/altura do pai (ex.: \`width:100%\`).
-- \`fill\`: use \`flex:1\` (ou \`flex-grow:1\`) para preencher o eixo principal.
+- Preencher o eixo principal: \`flex:1\` (ou \`flex-grow:1\`).
 - Limites: \`max-width:1200px; min-height:400px\`.
 
 ## Posição absoluta
 
-- No filho: \`position:absolute; top:..; left:..\` e o pai com \`position:relative\`.
-- Para posicionar no canvas, \`set_position(nodeId, x, y)\` (frames raiz e filhos absolutos).
+- No filho: \`position:absolute; top:..; left:..\`, com o pai em \`position:relative\`.
+- Para posicionar frames no canvas, use \`set_position(nodeId, x, y)\` (frames raiz e filhos absolutos).
 
 ## Boas práticas
 
-- Espaçamento com \`gap\` e \`padding\`, evite margens soltas.
-- Frames raiz têm largura/altura fixas (ex.: 1440x900); o conteúdo interno deve fluir.
-- Use \`get_styles([ids])\` para ver os estilos efetivos de um nó.
+- Espaçamento com \`gap\` e \`padding\` (valores dos tokens \`--space-*\`); evite margens soltas.
+- Frames raiz têm largura/altura fixas (ex.: 1440x900); o conteúdo interno deve fluir (\`width:100%\`, \`max-width\`).
+- Monte por seções: um \`write_html\` por bloco, cada um com um container flex próprio.
+- \`get_styles(nodeIds)\` mostra os estilos efetivos; \`get_layout(nodeId)\` mostra posição e tamanho reais (precisa de render).
 `,
   responsive: `# Responsivo com frames
 
-No Mockup Studio, cada frame raiz é um breakpoint/artboard na mesma página.
+No Mockup Studio, cada frame raiz é um breakpoint (artboard) na mesma página. Use estes nomes e tamanhos:
+
+- \`Mobile\` — 390x844
+- \`Tablet\` — 768x1024
+- \`Desktop\` — 1440x900
 
 ## Fluxo
 
-1. Crie o frame desktop: \`create_frame("Desktop", 1440, 900)\` e monte o conteúdo.
-2. Duplique o frame: \`duplicate_nodes([frameId])\` — o clone aparece no canvas.
-3. Renomeie e redimensione: \`rename_nodes\` e \`update_styles({ width: "390px" })\`.
-4. Adapte o clone: troque \`flex-direction:row\` por \`column\`, reduza \`padding\` e fontes.
-5. Posicione com \`set_position(frameId, x, y)\` para não sobrepor frames.
-
-## Larguras comuns
-
-- Desktop 1440, Tablet 768, Mobile 390.
+1. Monte primeiro o \`Desktop\`: \`create_frame("Desktop", 1440, 900)\` e o conteúdo com \`write_html\`.
+2. \`duplicate_nodes([desktopId])\` — o clone aparece no canvas; o resultado traz o id novo.
+3. \`rename_nodes([cloneId], ["Tablet"])\` e \`update_styles([cloneId], { width: "768px", height: "1024px" })\`. Repita para \`Mobile\` (390x844).
+4. Adapte cada clone: \`flex-direction: column\` no lugar de \`row\`, \`padding\` e fontes menores, grades com menos colunas (use \`update_styles\` nos containers).
+5. \`set_position(frameId, x, y)\` para dispor lado a lado sem sobrepor: x do próximo = x anterior + largura + 100.
+6. \`get_screenshot\` de cada frame e corrija.
 
 ## Dicas
 
-- Mantenha os mesmos nomes de camadas entre frames para facilitar comparações.
+- Mantenha os mesmos nomes de camadas entre frames: facilita comparar e editar.
 - Prefira \`width:100%\` e \`max-width\` dentro dos frames em vez de larguras fixas.
-- Use \`get_basic_info\` para listar frames com tamanho e posição.
-`,
-  tokens: `# Tokens (variáveis CSS)
-
-Tokens são variáveis CSS do documento, guardadas em \`tokens\` (ex.: \`--color-primary\`).
-
-## Uso
-
-- Defina: \`set_tokens({ "--color-primary": "#6c5ce7", "--space-4": "16px" })\`.
-- Remova: \`set_tokens({}, ["--old"])\` (segundo parâmetro \`unset\`).
-- Consulte: \`get_tokens\`.
-- Aplique em estilos: \`update_styles(["el_x"], { background: "var(--color-primary)", padding: "var(--space-4)" })\`.
-- Também funciona no HTML: \`<button style="background:var(--color-primary)">\`.
-
-## Convenções
-
-- Nomes com prefixo \`--\`: \`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`.
-- Alterar o valor de um token atualiza todos os nós que o usam.
-- \`get_styles\` devolve os valores resolvidos (com os tokens substituídos).
+- Alvos de toque no Mobile com pelo menos 44px de altura.
+- \`get_basic_info\` lista frames com tamanho e posição.
 `,
   'screenshot-loop': `# Ciclo de screenshot
 
@@ -109,16 +198,16 @@ Não confie só na estrutura: depois de cada conjunto de mudanças, olhe o resul
 
 1. Crie ou edite (\`write_html\`, \`update_styles\`, \`insert_image\`...).
 2. \`get_screenshot(nodeId)\` — confira a imagem.
-3. Corrija o que estiver errado e repita o 2.
+3. Corrija o que estiver errado (\`update_styles\`, \`set_text\`, \`undo\`) e repita o 2.
 4. Ao terminar, \`finish_working\` para limpar o indicador "IA" no editor.
 
 ## Checklist visual
 
-- Alinhamento e espaçamento consistentes (gap, padding, margens).
+- Alinhamento e espaçamento consistentes (gap, padding).
 - Nada cortado nem vazando do frame (overflow); imagens com proporção correta.
-- Contraste suficiente entre texto e fundo.
+- Contraste suficiente entre texto e fundo (4.5:1 no texto normal).
 - Textos quebrando em lugares ruins (títulos em muitas linhas, botões com texto em duas linhas).
-- Hierarquia: tamanhos e pesos de fonte coerentes; elementos repetidos idênticos.
+- Hierarquia: tamanhos e pesos coerentes; elementos repetidos idênticos.
 
 ## Economize contexto
 
@@ -133,15 +222,15 @@ Use para verificar alinhamento, espaçamento e overflow com números.
 
 ## Disponibilidade
 
-Screenshot e \`get_layout\` exigem o motor de render (app desktop ou Electron headless). Num daemon Node puro,
-as ferramentas avisam; use \`get_tree_summary\` e \`get_html\` para conferir a estrutura.
+Screenshot e \`get_layout\` exigem o motor de render (app desktop ou Electron headless). Num daemon Node puro
+as ferramentas avisam como habilitar (veja \`get_guide('troubleshooting')\`); enquanto isso use \`get_tree_summary\` e \`get_html\`.
 `,
   export: `# Exportação
 
 ## get_code x export
 
 - \`get_code(nodeId, format)\` — devolve o código na resposta, sem gravar arquivos. Bom para ler/colar.
-- \`export(nodeIds, format, outputDir?)\` — grava arquivos, um por nó, e copia os assets usados.
+- \`export(nodeIds, format, outputDir?)\` — grava um arquivo por nó e copia os assets usados.
 
 ## Formatos
 
@@ -155,11 +244,96 @@ as ferramentas avisam; use \`get_tree_summary\` e \`get_html\` para conferir a e
 
 - Padrão: \`<pasta do documento>/exports/\`. Documento sem caminho exige \`outputDir\` (absoluto).
 - Os arquivos usam o nome do nó em slug (\`Desktop 1440\` vira \`desktop-1440.png\`).
+- Arquivos de mesmo nome são SOBRESCRITOS (marcados "(substituído)"); use outro \`outputDir\` para preservar versões.
 - Para html/tailwind/react, imagens e fontes usadas são copiadas para \`<outputDir>/assets/\`.
 
 ## Dicas
 
 - Dê nomes claros às camadas (\`rename_nodes\`): viram nomes de arquivo e de componente.
 - Exporte um nó por componente; use \`get_screenshot\` antes para conferir o visual.
+`,
+  troubleshooting: `# Solução de problemas
+
+## "Render indisponível" / get_screenshot falha
+
+O daemon está rodando em Node puro, sem o Electron que desenha os nós. Rode \`mockup doctor\` para ver o diagnóstico.
+Opções: abra o app desktop; ou \`mockup stop\` e reconecte o cliente MCP (o CLI sobe um daemon com render); ou \`mockup serve --render\`.
+Se o executável do app não for achado, defina \`MOCKUP_DESKTOP_EXE\` com o caminho dele. Sem render, siga com \`get_tree_summary\` e \`get_html\`.
+
+## "Nó não encontrado"
+
+O id não existe (ou foi removido/regerado, ex.: após \`write_html\` com mode "replace"). Use \`get_tree_summary\` para listar ids atuais.
+
+## "Nenhum documento aberto"
+
+Use \`list_documents\`; se vazio, \`open_document(path)\` ou \`create_document(path, name)\`.
+
+## Porta 4747 ocupada
+
+Outro processo usa a porta. Libere-a ou escolha outra com a variável \`MOCKUP_PORT\` (ex.: \`MOCKUP_PORT=4848\`) e ajuste a URL do cliente HTTP.
+
+## O conteúdo foi parar no lugar errado
+
+Sem \`parentId\`, \`write_html\` usa o nó selecionado (\`get_selection\`) ou o primeiro frame. Passe sempre \`parentId\` e confira com \`get_tree_summary\`. Use \`undo\` para desfazer e \`move_nodes\` para reposicionar.
+
+## Texto cortado ou overflow
+
+Rode \`get_layout(nodeId)\` e compare tamanhos: um filho maior que o pai indica overflow. Ajuste \`width:100%\`, \`flex-wrap:wrap\`, \`min-width:0\` ou aumente a altura do frame.
+
+## Erros de parâmetro
+
+A mensagem lista o campo com problema (obrigatório ausente, tipo errado, valor fora das opções) e termina com "Exemplo: ferramenta({...})". Corrija o campo e chame de novo.
+
+## Logs
+
+O daemon grava em \`<pasta de dados>/daemon.log\` (\`mockup doctor\` mostra o caminho).
+`,
+  setup: `# Instalação e registro do MCP
+
+## Instalar o CLI
+
+- No repositório: \`npm run build\` e \`npm link -w @mockup/cli\`.
+- Ou use o instalador do app, que coloca \`mockup.cmd\` em \`%LOCALAPPDATA%\\MockupStudio\\bin\` no PATH do usuário.
+
+## Verificar e registrar
+
+- \`mockup doctor\` — confere instalação, daemon e render.
+- Registro automático: \`mockup setup claude\`, \`mockup setup codex\` ou \`mockup setup all\` (com \`--skill\` instala também a skill do Claude Code).
+
+## Claude Code
+
+- stdio: \`claude mcp add --scope user mockup-studio -- mockup mcp\`
+- HTTP: \`claude mcp add --scope user --transport http mockup-studio http://127.0.0.1:4747/mcp\`
+- Conferir: \`claude mcp list\` ou \`/mcp\`.
+
+## Codex
+
+\`codex mcp add mockup-studio -- mockup mcp\`, ou em \`~/.codex/config.toml\`:
+
+\`\`\`toml
+[mcp_servers.mockup-studio]
+command = "mockup"
+args = ["mcp"]
+\`\`\`
+
+## Outros clientes
+
+Cursor, Claude Desktop:
+
+\`\`\`json
+{ "mcpServers": { "mockup-studio": { "command": "mockup", "args": ["mcp"] } } }
+\`\`\`
+
+VS Code (\`.vscode/mcp.json\`):
+
+\`\`\`json
+{ "servers": { "mockup-studio": { "type": "stdio", "command": "mockup", "args": ["mcp"] } } }
+\`\`\`
+
+## Windows
+
+Se o cliente não achar \`mockup\` (shim \`.cmd\`), use o caminho absoluto impresso por \`mockup doctor\`.
+
+Detalhes em \`docs/INTEGRACAO.md\`.
 `,
 };

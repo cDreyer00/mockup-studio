@@ -141,7 +141,7 @@ describe('QA: MCP + daemon', () => {
     const cls = textOf(await call('get_html', { nodeId: ws.frameId, mode: 'classes' }));
     expect(inl).toContain('color');
     expect(cls).toContain('<style');
-    for (const topic of ['getting-started', 'layout', 'responsive', 'tokens']) {
+    for (const topic of ['getting-started', 'layout', 'responsive', 'design-system']) {
       const g = await call('get_guide', { topic });
       expect(isErr(g)).toBe(false);
       expect(textOf(g).length).toBeGreaterThan(100);
