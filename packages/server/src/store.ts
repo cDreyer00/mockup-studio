@@ -73,6 +73,8 @@ export interface ApplyOutcome {
 }
 
 export const AUTOSAVE_MS = 800;
+/** Grupos de undo com estatística guardada por documento. */
+const GROUP_STATS_LIMIT = 64;
 
 /**
  * Erro causado pelo pedido do usuário (arquivo inexistente, já existe, documento desconhecido).
@@ -166,6 +168,11 @@ export class StoreError extends Error {
 export class DocumentStore extends EventEmitter<StoreEvents> {
   private docs = new Map<string, OpenDoc>();
   private selection = new Map<string, string[]>();
+  /**
+   * Estatística por grupo de undo e documento: ops aplicadas e ids criados. Independe da pilha de
+   * undo (uma edição do usuário no meio do turno divide o undo, mas a contagem segue certa).
+   */
+  private groups = new Map<string, Map<string, { ops: number; created: Set<string> }>>();
   activeDocId: string | null = null;
 
   constructor(private readonly opts: { dataDir?: string; autosaveMs?: number } = {}) {
@@ -282,6 +289,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     if (d.dirty && d.path) await this.save(docId);
     this.docs.delete(docId);
     this.selection.delete(docId);
+    this.groups.delete(docId);
     this.emit('doc:closed', { type: 'doc:closed', docId });
     if (this.activeDocId === docId) {
       const next = [...this.docs.keys()].pop() ?? null;
@@ -467,6 +475,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     // Entrada pública (editor pelo WS, ferramentas do MCP): sem campos internos (ex. `force`).
     assertPublicOps(ops);
     const r = d.history.apply(ops, opts.label, { group: opts.group });
+    if (opts.group !== undefined) this.recordGroup(docId, opts.group, r.appliedOps, r.results);
     this.markChanged(d, r.appliedOps, opts.source);
     return {
       doc: r.doc,
@@ -504,9 +513,35 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
   }
 
   /** Nº de ops da entrada do topo da pilha de undo se ela for do grupo (0 caso contrário). */
+  private recordGroup(
+    docId: string,
+    group: string,
+    ops: Op[],
+    results: (Record<string, unknown> | undefined)[],
+  ): void {
+    let byGroup = this.groups.get(docId);
+    if (!byGroup) this.groups.set(docId, (byGroup = new Map()));
+    let st = byGroup.get(group);
+    if (!st) {
+      byGroup.set(group, (st = { ops: 0, created: new Set() }));
+      // Só os grupos recentes interessam (fim de turno, remix): limita a memória.
+      if (byGroup.size > GROUP_STATS_LIMIT) byGroup.delete(byGroup.keys().next().value!);
+    }
+    st.ops += ops.length;
+    for (const res of results) {
+      const ids = res?.['nodeIds'];
+      if (Array.isArray(ids)) for (const id of ids) if (typeof id === 'string') st.created.add(id);
+    }
+  }
+
+  /** Ops aplicadas com o grupo, somando todas as entradas de undo dele. */
   groupOpsCount(docId: string, group: string): number {
-    const top = this.docs.get(docId)?.history.top;
-    return top?.group === group ? top.ops.length : 0;
+    return this.groups.get(docId)?.get(group)?.ops ?? 0;
+  }
+
+  /** Ids dos nós criados (createNode, duplicateNodes...) por ops do grupo. */
+  groupCreatedIds(docId: string, group: string): ReadonlySet<string> {
+    return this.groups.get(docId)?.get(group)?.created ?? new Set();
   }
 
   getSelection(docId: string): string[] {

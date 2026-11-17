@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNode, parseDocument } from '@mockup/core';
@@ -245,5 +246,49 @@ describe('DocumentStore', () => {
     const b = await store.create(path.join(ws.dir, 'b'), 'B');
     await expect(store.saveAs(b.docId, ws.file)).rejects.toThrow(/outro documento aberto/);
     await expect(store.saveAs(a.docId, ws.file)).resolves.toMatchObject({ path: ws.file });
+  });
+
+  it('groupOpsCount e groupCreatedIds somam o grupo mesmo com op do usuário intercalada', async () => {
+    const store = new DocumentStore({ autosaveMs: 60_000 });
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-grp-')), 'g.mockup.json');
+    const { docId, doc } = await store.create(file, 'G');
+    const pageId = doc.pages[0]!.id;
+    const frame = (id: string) => ({
+      id,
+      type: 'frame' as const,
+      name: id,
+      tag: 'div',
+      attrs: {},
+      style: { width: '10px', height: '10px' },
+      children: [],
+    });
+    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_agente01') }], {
+      source: 'mcp',
+      group: 'turno',
+    });
+    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_usuari01') }], {
+      source: 'editor',
+    });
+    store.applyOps(
+      docId,
+      [
+        { type: 'createNode', pageId, node: frame('fr_agente02') },
+        { type: 'renameNodes', changes: [{ nodeId: 'fr_agente02', name: 'B' }] },
+      ],
+      { source: 'mcp', group: 'turno' },
+    );
+    expect(store.groupOpsCount(docId, 'turno')).toBe(3);
+    expect([...store.groupCreatedIds(docId, 'turno')].sort()).toEqual([
+      'fr_agente01',
+      'fr_agente02',
+    ]);
+    expect(store.groupOpsCount(docId, 'outro')).toBe(0);
+    // a edição do usuário dividiu o undo do turno em duas entradas (comportamento documentado)
+    store.undo(docId, 'editor');
+    expect(store.get(docId).pages[0]!.frames.map((f) => f.id)).toEqual([
+      'fr_agente01',
+      'fr_usuari01',
+    ]);
+    await store.closeAll();
   });
 });
