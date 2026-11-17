@@ -397,6 +397,8 @@ export interface EffectMount {
   kind: string;
   category: 'shader' | 'particles';
   params: Record<string, EffectParamValue>;
+  /** Opções dos parâmetros \`select\` (o shader recebe o índice da opção). */
+  selects?: Record<string, string[]>;
 }
 
 export interface EffectStop {
