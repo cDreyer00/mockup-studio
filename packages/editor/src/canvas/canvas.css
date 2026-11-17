@@ -203,3 +203,53 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* Overlay de grid: trilhas, célula de destino e alças de span */
+.cv-grid-track {
+  box-sizing: border-box;
+  border: 1px dashed rgba(236, 72, 153, 0.7);
+  background: rgba(236, 72, 153, 0.05);
+}
+.cv-grid-row {
+  border-color: rgba(168, 85, 247, 0.7);
+  background: rgba(168, 85, 247, 0.04);
+}
+.cv-grid-label {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-size: 9px;
+  line-height: 12px;
+  color: #fff;
+  background: rgba(236, 72, 153, 0.85);
+}
+.cv-grid-row > .cv-grid-label {
+  background: rgba(168, 85, 247, 0.85);
+}
+.cv-grid-drop {
+  box-sizing: border-box;
+  background: rgba(14, 165, 233, 0.22);
+  outline: 2px solid #0ea5e9;
+  outline-offset: -2px;
+}
+.cv-grid-handle {
+  width: 8px;
+  height: 18px;
+  margin: -9px 0 0 -4px;
+  border-radius: 3px;
+  background: #ec4899;
+  border: 1px solid #fff;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+.cv-grid-handle-e {
+  cursor: ew-resize;
+}
+.cv-grid-handle-s {
+  width: 18px;
+  height: 8px;
+  margin: -4px 0 0 -9px;
+  cursor: ns-resize;
+}

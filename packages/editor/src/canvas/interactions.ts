@@ -3,6 +3,7 @@
  * imperativo: os handlers leem `useUi/useDoc.getState()` e nunca causam re-render da árvore.
  * Toda mutação do documento vira `Op`s numa única chamada `daemon.applySafe` por gesto.
  */
+import { isGridContainer } from '@mockup/core';
 import type { Node, Op } from '@mockup/core';
 import { buildPositionOps, isFreelyPositioned, nodeXY } from '../actions';
 import { daemon } from '../client/daemon';
@@ -23,6 +24,7 @@ import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
 import { openContextMenu } from '../ui/overlays';
 import { clientToWorld, findNodeEl, measureWorldRect } from './dom';
+import { planGridMove } from './gridDrag';
 import { clearFx, useFx } from './fx';
 import {
   isNoopReorder,
@@ -262,6 +264,8 @@ export function attachInteractions(root: HTMLElement): () => void {
       return null;
     const parent = getParent(doc, nodes[0]!.id);
     if (!parent) return null;
+    // Pai grid: o arrasto escolhe a célula (grid-column/grid-row) em vez de reordenar.
+    if (isGridContainer(parent.style)) return planGridMove(root, parent, nodes);
     const axis = flowAxis(parent);
     const siblings = siblingWorldRects(root, parent);
     const movingReal = nodes.map((n) => getEntry(doc, n.id)!.index);
@@ -504,6 +508,8 @@ export function attachInteractions(root: HTMLElement): () => void {
     const target = e.target;
     if (!(target instanceof Element)) return;
     if (target.closest('[data-testid="text-editor"]')) return;
+    // Alças de span do grid têm gesto próprio (canvas/gridDrag.ts).
+    if (target.closest('[data-grid-span]')) return;
     // Edição de pontos: o overlay trata o que é dele; clicar fora sai do modo e segue normalmente.
     if (st().editingVectorId) {
       if (target.closest('[data-vector-overlay]')) return;

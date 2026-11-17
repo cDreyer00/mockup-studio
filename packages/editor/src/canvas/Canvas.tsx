@@ -11,6 +11,7 @@ import { FrameView } from './FrameView';
 import { fitRect, rectInside, rectToScreen, unionRects, zoomAtPoint } from './geometry';
 import type { Rect, Viewport } from './geometry';
 import { measureWorldRect } from './dom';
+import { GridOverlay } from './GridOverlay';
 import { attachInteractions } from './interactions';
 import { DocIdContext } from './NodeView';
 import { Overlay } from './Overlay';
@@ -215,6 +216,7 @@ export function Canvas() {
       </div>
       <DocumentBase />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
+      <GridOverlay rootRef={rootRef} />
       <Overlay rootRef={rootRef} />
       <PenOverlay />
       <VectorEditOverlay rootRef={rootRef} />

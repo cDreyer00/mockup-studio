@@ -6,6 +6,7 @@ import { AttrsSection } from './AttrsSection';
 import { CssSection } from './CssSection';
 import { DocumentInfo } from './DocumentInfo';
 import { EffectsSection } from './EffectsSection';
+import { GridCellSection } from './GridEditor';
 import { HeaderSection } from './HeaderSection';
 import { LayoutSection } from './LayoutSection';
 import { SizeSection } from './SizeSection';
@@ -40,6 +41,7 @@ export function PropertiesPanel() {
         <HeaderSection nodes={nodes} locked={locked} />
         <SizeSection ctxs={ctxs} />
         {container && <LayoutSection ctxs={ctxs} />}
+        <GridCellSection ctxs={ctxs} />
         <TypographySection nodes={nodes} />
         {nodes.every((n) => n.type === 'svg') && <VectorSection nodes={nodes} />}
         <AppearanceSection nodes={nodes} />
