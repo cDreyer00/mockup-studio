@@ -113,14 +113,18 @@ describe('mergeIdenticalFiles: normal e itálico', () => {
     ]);
   });
 
-  it('não junta o grupo cujos arquivos diferem', () => {
-    const out = mergeIdenticalFiles([
+  it('não junta nada se um grupo tem arquivos diferentes (weights ficaria misturado)', () => {
+    const files = [
       f(400, 'normal', 'N'),
       f(700, 'normal', 'N'),
       f(400, 'italic', 'I1'),
       f(700, 'italic', 'I2'),
-    ]);
-    expect(out).toHaveLength(3);
-    expect(out[0]).toMatchObject({ style: 'normal', weight: 400, weightMax: 700 });
+    ];
+    expect(mergeIdenticalFiles(files)).toEqual(files);
+  });
+
+  it('não junta nada se um estilo tem um arquivo só', () => {
+    const files = [f(400, 'normal', 'N'), f(700, 'normal', 'N'), f(400, 'italic', 'I')];
+    expect(mergeIdenticalFiles(files)).toEqual(files);
   });
 });

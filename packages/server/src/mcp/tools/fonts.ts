@@ -40,9 +40,9 @@ export function dedupeFormats(files: FontFile[]): FontFile[] {
 }
 
 /**
- * Fonte variável: o Google devolve o mesmo arquivo para cada peso pedido. Se todos os arquivos têm
- * o mesmo conteúdo (e estilo), vira um só, cobrindo a faixa do menor ao maior peso. Com conteúdos
- * diferentes (fontes estáticas) nada muda.
+ * Fonte variável: o Google devolve o mesmo arquivo para cada peso pedido. Se, em cada estilo, todos
+ * os arquivos têm o mesmo conteúdo, cada estilo vira um só, cobrindo a faixa do menor ao maior peso.
+ * Se algum estilo não puder ser juntado (fontes estáticas ou um peso só), nada muda.
  */
 export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
   if (files.length < 2) return files;
@@ -51,10 +51,11 @@ export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
     const group = files.filter((f) => f.style === style);
     const first = group[0];
     if (!first) continue;
-    if (group.length > 1 && group.every((f) => f.bytes.equals(first.bytes))) {
-      const ws = group.map((f) => f.weight);
-      out.push({ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) });
-    } else out.push(...group);
+    // Junta só se todos os estilos presentes puderem ser juntados: a lista `weights` do documento
+    // precisa ser uma faixa por arquivo ou um peso por arquivo, nunca uma mistura das duas.
+    if (group.length < 2 || !group.every((f) => f.bytes.equals(first.bytes))) return files;
+    const ws = group.map((f) => f.weight);
+    out.push({ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) });
   }
   return out;
 }
