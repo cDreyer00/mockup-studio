@@ -244,9 +244,24 @@ export function registerExportTools(ctx: ToolContext): void {
       const lines = [`Exportado(s) ${written.length} arquivo(s) (${format}):`];
       for (const w of written) lines.push(`- ${w.file}${w.replaced ? ' (substituído)' : ''}`);
       if (assetsNote) lines.push(assetsNote.trim());
+      // O código só vai na resposta enquanto o total couber no orçamento: exportar vários frames
+      // não pode despejar centenas de KB no contexto do agente (use get_code por nó ou leia os arquivos).
+      let budget = MAX_INLINE_BYTES;
+      let omitted = 0;
       for (const w of written) {
-        if (w.content) lines.push(`\n--- ${path.basename(w.file)} ---\n${w.content}`);
+        if (!w.content) continue;
+        const size = Buffer.byteLength(w.content);
+        if (size > budget) {
+          omitted++;
+          continue;
+        }
+        budget -= size;
+        lines.push(`\n--- ${path.basename(w.file)} ---\n${w.content}`);
       }
+      if (omitted)
+        lines.push(
+          `\n(${omitted} arquivo(s) de código não foram repetidos na resposta; leia-os na pasta ou use get_code(nodeId, format).)`,
+        );
       return lines.join('\n');
     },
   );

@@ -306,6 +306,25 @@ describe('MCP render, export e guias', () => {
       expect(fs.readFileSync(path.join(out, 'desktop.tailwind.html'), 'utf8')).toContain('Olá');
     });
 
+    it('export de vários frames não repete todo o código na resposta (orçamento de contexto)', async () => {
+      const ids: string[] = [];
+      for (let i = 0; i < 4; i++) {
+        const f = textOf(await call('create_frame', { name: `Tela ${i}`, width: 400, height: 300 }));
+        const id = f.match(/fr_\w+/)![0];
+        ids.push(id);
+        // ~12 KB de HTML por frame: dois cabem no orçamento, o resto não
+        const items = Array.from({ length: 120 }, (_, k) => `<p class="l${k}">Linha ${k}</p>`).join('');
+        const css = Array.from({ length: 120 }, (_, k) => `.l${k}{margin:${k}px;color:#0f172a}`).join('');
+        await call('write_html', { html: `<section>${items}</section>`, css, parentId: id });
+      }
+      const out = path.join(ws.dir, 'multi');
+      const r = textOf(await call('export', { nodeIds: ids, format: 'html', outputDir: out }));
+      expect(fs.readdirSync(out).filter((f) => f.endsWith('.html'))).toHaveLength(4);
+      expect(r).toContain('Exportado(s) 4 arquivo(s)');
+      expect(r).toMatch(/arquivo\(s\) de código não foram repetidos na resposta/);
+      expect(Buffer.byteLength(r)).toBeLessThan(40 * 1024);
+    });
+
     it('export react grava o componente', async () => {
       await prepare();
       const out = path.join(ws.dir, 'react');
