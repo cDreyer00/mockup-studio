@@ -133,7 +133,7 @@ Arquivo `*.mockup.json`: JSON com 2 espaços e chaves em ordem estável. Imagens
 | Campo      | Tipo                                                 | Descrição                                                                                              |
 | ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `id`       | string                                               | Id com prefixo por tipo.                                                                               |
-| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Tipo do nó.                                                                                            |
+| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Tipo do nó; também `'repeater'` (ver [DADOS.md](DADOS.md)).                                            |
 | `name`     | string                                               | Nome legível (camada).                                                                                 |
 | `tag`      | string                                               | Tag HTML: `div`, `section`, `button`, `img`, `h1`, `p`, `span`...                                      |
 | `attrs`    | `Record<string,string>`                              | Atributos HTML, sem `style` e sem `class`.                                                             |
@@ -147,6 +147,8 @@ Arquivo `*.mockup.json`: JSON com 2 espaços e chaves em ordem estável. Imagens
 | `position` | `{ x, y }` (opcional)                                | Posição no canvas (frames raiz) ou x/y de filhos com `position: absolute`.                             |
 
 Frames são os nós raiz da página: têm `width` e `height` em `style` e `position` no canvas. Servem como artboards e como breakpoints.
+
+Repetidores (`type: 'repeater'`) têm ainda `data` (lista de itens, até 1000 e 2 MB) e `dataSource` (origem `inline`, `json`, `csv` ou `url`, com `path`/`url`, `select`, `mapping`, `limit` e `fetchedAt`); os filhos são o template repetido por item. Ver [DADOS.md](DADOS.md).
 
 ### FontRef
 
@@ -171,6 +173,7 @@ Frames são os nós raiz da página: têm `width` e `height` em `style` e `posit
 | `tx_`   | text      |
 | `im_`   | image     |
 | `sv_`   | svg       |
+| `rp_`   | repetidor |
 | `pg_`   | página    |
 | `doc_`  | documento |
 
@@ -199,6 +202,7 @@ Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `
 | `setTag`         | `changes[{ nodeId, tag }]`                                               | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
 | `setFonts`       | `fonts[]` (`FontRef`; substitui a lista inteira, sem famílias repetidas) | `setFonts` com a lista anterior                                                                                     |
 | `setSrc`         | `changes[{ nodeId, src }]` (só nós `image`)                              | `setSrc` com os `src` anteriores                                                                                    |
+| `setData`        | `changes[{ nodeId, data?, source? }]` (só nós `repeater`)                | `setData` com os dados e a origem anteriores (`source: null` remove a origem)                                       |
 
 Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
 
@@ -268,6 +272,12 @@ O header `Host` é validado antes de qualquer rota (`isAllowedHost`, proteção 
 | `/mcp`                                       | MCP Streamable HTTP.                                                                                                                                                                                                                                                                                              |
 | `GET /` e demais caminhos do editor          | Editor estático (SPA), só quando o daemon recebe `editorDir` com `index.html`. Arquivos estáticos primeiro; `GET` sem extensão fora de `/api`, `/assets`, `/mcp`, `/ws` e `/render` devolve `index.html`. Mesma origem que a API, os assets e o WS.                                                               |
 
+Rotas de assets, dados e arquivos (montadas por `routes/index.ts`):
+
+- `GET /cdn/:hash.:ext`, `GET|DELETE /api/assets/:docId`, `POST /api/assets/:docId/link|remove-unused|optimize` e `/api/library`: CDN local por conteúdo, assets com usos e biblioteca ([ASSETS.md](ASSETS.md#http)).
+- `POST /api/data/:docId/:nodeId/bind|refresh` e `POST /api/placeholder/:docId`: dados de repetidores ([DADOS.md](DADOS.md)) e placeholders.
+- `GET /api/files`, `POST /api/files/meta|folders|add|forget`, `GET /api/files/thumbnail` e `GET /api/search/nodes`: índice de arquivos, miniaturas e busca de nós (ver [Índice de arquivos](#índice-de-arquivos-e-miniaturas)).
+
 Respostas de `/render`:
 
 | Código | Quando                                                                                                  |
@@ -298,8 +308,20 @@ O SVG sai com a mesma CSP dos assets (`ASSET_CSP`: `default-src 'none'; img-src 
 | `config.json` | `{ port? }`                                                                                  |
 | `recent.json` | Caminhos de documentos recentes.                                                             |
 | `daemon.json` | `{ port, pid, startedAt, url, mcpUrl, wsUrl }`. Escrito ao subir o daemon, removido ao sair. |
+| `files.json`  | Índice de arquivos: pastas virtuais, tags e favoritos (ver abaixo).                          |
+| `cdn/`        | CDN local e biblioteca: `<hash>.<ext>` e `index.json` (ver [ASSETS.md](ASSETS.md)).          |
+| `thumbs/`     | Miniaturas da tela inicial: `<sha1(caminho)>-<largura>.png`.                                 |
 
 `daemon.json` só é removido pelo próprio pid (`removeDaemonInfo(dir, process.pid)`): um daemon antigo que encerra não apaga o arquivo de um mais novo.
+
+### Índice de arquivos e miniaturas
+
+`files.json`: `{ version: 1, folders: string[], files: { [caminho]: { folder?, tags, favorite?, addedAt, lastOpenedAt? } } }`, com pastas virtuais aninhadas por `/` (`Clientes/Acme`). `files.ts` mantém um índice por `DocumentStore`: arquivos abertos, criados e salvos entram sozinhos (eventos do store); a gravação é atômica e em fila.
+
+- `GET /api/files?folder=&tag=&query=&favorites=1&recursive=1`: junta o índice, os recentes (`recent`: posição em `recent.json`) e os abertos (`open`, `docId`). `folder` lista só os arquivos diretamente na pasta (`recursive=1` inclui subpastas; `/` = sem pasta); `query` busca em nome, tags e no texto dos nós (`documentText`, cache por mtime), sem acento.
+- `POST /api/files/meta` (`{ path, folder?, tags?, addTags?, removeTags?, favorite? }`), `/folders` (`create`, `rename` move subpastas e arquivos, `delete` sobe os arquivos para a pasta-mãe), `/add` (arquivo ou pasta, até 2 níveis) e `/forget` (só tira do índice).
+- `GET /api/files/thumbnail?path=&w=480`: primeiro frame visível da primeira página com frames, pelo `RenderProvider` (`maxWidth` até 1024), em cache em `thumbs/` invalidado pelo mtime. Documento fechado: as imagens de `assets/` entram como data URL num clone (até 20 MB); as fontes embutidas ainda não. 503 sem render, 404 sem arquivo ou sem frames.
+- `GET /api/search/nodes?query=&docId=`: `searchNodes` do core nos documentos abertos.
 
 ### Gravação
 
