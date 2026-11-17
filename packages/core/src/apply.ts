@@ -5,8 +5,9 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
+import { normalizeTokenName, replaceVarRefs } from './tokens.js';
 import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
-import type { Document, Node, NodePath, Page } from './types.js';
+import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -422,23 +423,160 @@ function doRenamePage(d: Document, op: Extract<Op, { type: 'renamePage' }>): App
   return { inverse: [{ type: 'renamePage', pageId: op.pageId, name: prev }] };
 }
 
-function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Applied {
-  const set = normalizeTokenNames(op.set ?? {});
-  const unset = (op.unset ?? []).map((k) => (k.startsWith('--') ? k : `--${k}`));
+function checkTokenValues(set: Record<string, string>): void {
   for (const [k, v] of Object.entries(set)) {
     if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
     const problem = cssValueProblem(v);
     if (problem) fail(`Valor inválido para o token "${k}": ${problem}`);
   }
-  const prevSet: Record<string, string> = {};
+}
+
+/** Aplica set/unset num mapa e devolve o par (set, unset) que desfaz. */
+function patchMap<T>(
+  target: Record<string, T>,
+  set: Record<string, T>,
+  unset: string[],
+): { prevSet: Record<string, T>; prevUnset: string[] } {
+  const prevSet: Record<string, T> = {};
   const prevUnset: string[] = [];
   for (const k of unique([...unset, ...Object.keys(set)])) {
-    if (k in d.tokens) prevSet[k] = d.tokens[k];
+    if (k in target) prevSet[k] = target[k]!;
     else prevUnset.push(k);
   }
-  for (const k of unset) delete d.tokens[k];
-  Object.assign(d.tokens, set);
-  return { inverse: [{ type: 'setTokens', set: prevSet, unset: prevUnset }] };
+  for (const k of unset) delete target[k];
+  Object.assign(target, set);
+  return { prevSet, prevUnset };
+}
+
+/** Remove `tokenMeta`/`themes` vazios: documentos sem temas continuam sem os campos. */
+function tidyTokenFields(d: Document): void {
+  if (d.tokenMeta && Object.keys(d.tokenMeta).length === 0) delete d.tokenMeta;
+  if (d.themes && d.themes.length === 0) delete d.themes;
+}
+
+function requireTheme(d: Document, name: string): Theme {
+  const theme = d.themes?.find((t) => t.name === name);
+  if (!theme) fail(`Tema "${name}" não encontrado`);
+  return theme;
+}
+
+function doSetTokens(d: Document, op: Extract<Op, { type: 'setTokens' }>): Applied {
+  const set = normalizeTokenNames(op.set ?? {});
+  const unset = (op.unset ?? []).map(normalizeTokenName);
+  checkTokenValues(set);
+  const target = op.theme === undefined ? d.tokens : requireTheme(d, op.theme).overrides;
+  const { prevSet, prevUnset } = patchMap(target, set, unset);
+  const inv: Op = { type: 'setTokens', set: prevSet, unset: prevUnset };
+  if (op.theme !== undefined) inv.theme = op.theme;
+  return { inverse: [inv] };
+}
+
+function doSetTokenMeta(d: Document, op: Extract<Op, { type: 'setTokenMeta' }>): Applied {
+  const set = normalizeTokenNames(op.set ?? {});
+  const unset = (op.unset ?? []).map(normalizeTokenName);
+  for (const k of Object.keys(set)) {
+    if (!TOKEN_NAME_RE.test(k)) fail(`Nome de token inválido: "${k}" (use o formato --nome)`);
+  }
+  const meta: Record<string, TokenMeta> = (d.tokenMeta ??= {});
+  const clean: Record<string, TokenMeta> = {};
+  const drop = [...unset];
+  for (const [k, m] of Object.entries(set)) {
+    const entry: TokenMeta = {};
+    if (m.group) entry.group = m.group;
+    if (m.description) entry.description = m.description;
+    if (entry.group || entry.description) clean[k] = entry;
+    else drop.push(k);
+  }
+  const { prevSet, prevUnset } = patchMap(meta, clean, unique(drop));
+  tidyTokenFields(d);
+  return { inverse: [{ type: 'setTokenMeta', set: prevSet, unset: prevUnset }] };
+}
+
+function doSetThemes(d: Document, op: Extract<Op, { type: 'setThemes' }>): Applied {
+  const prev = deepClone(d.themes ?? []);
+  d.themes = op.themes.map((t) => ({ name: t.name, overrides: normalizeTokenNames(t.overrides) }));
+  for (const t of d.themes) checkTokenValues(t.overrides);
+  tidyTokenFields(d);
+  return { inverse: [{ type: 'setThemes', themes: prev }] };
+}
+
+function snapshotTokens(d: Document): Extract<Op, { type: 'replaceTokens' }> {
+  return {
+    type: 'replaceTokens',
+    tokens: deepClone(d.tokens),
+    tokenMeta: deepClone(d.tokenMeta ?? {}),
+    themes: deepClone(d.themes ?? []),
+  };
+}
+
+function doReplaceTokens(d: Document, op: Extract<Op, { type: 'replaceTokens' }>): Applied {
+  const inverse = snapshotTokens(d);
+  const tokens = normalizeTokenNames(op.tokens);
+  checkTokenValues(tokens);
+  const themes = (op.themes ?? []).map((t) => ({
+    name: t.name,
+    overrides: normalizeTokenNames(t.overrides),
+  }));
+  for (const t of themes) checkTokenValues(t.overrides);
+  d.tokens = tokens;
+  d.tokenMeta = deepClone(normalizeTokenNames(op.tokenMeta ?? {}));
+  d.themes = themes;
+  tidyTokenFields(d);
+  return { inverse: [inverse] };
+}
+
+/** Troca a chave `from` por `to` mantendo a ordem das chaves. */
+function renameKey<T>(map: Record<string, T>, from: string, to: string): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, v] of Object.entries(map)) out[k === from ? to : k] = v;
+  return out;
+}
+
+function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): Applied {
+  const from = normalizeTokenName(op.from);
+  const to = normalizeTokenName(op.to);
+  if (!TOKEN_NAME_RE.test(to)) fail(`Nome de token inválido: "${to}" (use o formato --nome)`);
+  if (from === to) fail('O nome novo é igual ao atual');
+  const defined = (name: string): boolean =>
+    name in d.tokens || (d.themes ?? []).some((t) => name in t.overrides);
+  if (!defined(from)) fail(`Token "${from}" não encontrado`);
+  if (defined(to)) fail(`Já existe um token "${to}"`);
+  const inverse: Op[] = [snapshotTokens(d)];
+
+  const renameValues = (map: Record<string, string>): Record<string, string> => {
+    const out = renameKey(map, from, to);
+    for (const k of Object.keys(out)) out[k] = replaceVarRefs(out[k]!, from, to);
+    return out;
+  };
+  d.tokens = renameValues(d.tokens);
+  if (d.tokenMeta) d.tokenMeta = renameKey(d.tokenMeta, from, to);
+  for (const t of d.themes ?? []) t.overrides = renameValues(t.overrides);
+
+  // Estilos dos nós: referências var() e declarações locais da própria variável.
+  const styleInv: StyleChange[] = [];
+  let refs = 0;
+  for (const page of d.pages) {
+    walk(page, (node) => {
+      let changed = false;
+      const next: Record<string, string> = {};
+      for (const [k, v] of Object.entries(node.style)) {
+        const key = k === from ? to : k;
+        const value = replaceVarRefs(v, from, to);
+        if (key !== k || value !== v) changed = true;
+        if (value !== v) refs++;
+        next[key] = value;
+      }
+      if (!changed) return;
+      const set: Record<string, string> = {};
+      const unset: string[] = [];
+      for (const [k, v] of Object.entries(node.style)) if (next[k] !== v) set[k] = v;
+      for (const k of Object.keys(next)) if (!(k in node.style)) unset.push(k);
+      styleInv.push({ nodeId: node.id, set, unset });
+      node.style = next;
+    });
+  }
+  if (styleInv.length > 0) inverse.push({ type: 'updateStyles', changes: styleInv });
+  return { inverse, result: { from, to, nodes: styleInv.length, references: refs } };
 }
 
 function doSetFonts(d: Document, op: Extract<Op, { type: 'setFonts' }>): Applied {
@@ -512,6 +650,18 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setTokens':
       applied = doSetTokens(d, op);
+      break;
+    case 'setTokenMeta':
+      applied = doSetTokenMeta(d, op);
+      break;
+    case 'setThemes':
+      applied = doSetThemes(d, op);
+      break;
+    case 'replaceTokens':
+      applied = doReplaceTokens(d, op);
+      break;
+    case 'renameToken':
+      applied = doRenameToken(d, op);
       break;
     case 'setNodeFlags':
       applied = doSetFlags(d, op);

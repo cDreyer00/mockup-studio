@@ -106,7 +106,11 @@ describe('exportReact', () => {
     doc.fonts = [{ family: 'Inter', source: 'file', files: ['fonts/i.woff2'], weights: [400] }];
     const tw = exportReact(doc, { nodeId: 'fr_d3sk1440', assetsBase: '/assets/' });
     expect(tw.css).toContain('src:url("/assets/fonts/i.woff2")');
-    const inline = exportReact(doc, { nodeId: 'fr_d3sk1440', styles: 'inline', assetsBase: '/assets/' });
+    const inline = exportReact(doc, {
+      nodeId: 'fr_d3sk1440',
+      styles: 'inline',
+      assetsBase: '/assets/',
+    });
     expect(inline.css).toContain('src:url("/assets/fonts/i.woff2")');
     const padrao = exportReact(doc, { nodeId: 'fr_d3sk1440' });
     expect(padrao.css).toContain('src:url("assets/fonts/i.woff2")');

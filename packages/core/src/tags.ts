@@ -55,6 +55,12 @@ export const VOID_TAGS = new Set([
 export const ATTR_NAME_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
 export const TOKEN_NAME_RE = /^--[a-zA-Z0-9_-]+$/;
 
+/** Nome de tema: vai para `data-theme="..."` e para o seletor `[data-theme="..."]`. */
+export const THEME_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
+
+/** Atributo HTML que aplica um tema a um nó (frame) e aos descendentes. */
+export const THEME_ATTR = 'data-theme';
+
 export function isValidTag(tag: string): boolean {
   if (typeof tag !== 'string') return false;
   const t = tag.trim().toLowerCase();

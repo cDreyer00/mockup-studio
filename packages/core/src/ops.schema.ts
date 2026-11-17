@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import type { Op } from './ops.js';
-import { FontRefSchema, NodeSchema, TokensSchema } from './schema.js';
+import {
+  FontRefSchema,
+  NodeSchema,
+  ThemeNameSchema,
+  ThemesSchema,
+  TokenMetaMapSchema,
+  TokensSchema,
+} from './schema.js';
 
 const strMap = z.record(z.string(), z.string());
 const id = z.string().min(1);
@@ -74,6 +81,24 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
     type: z.literal('setTokens'),
     set: TokensSchema.optional(),
     unset: z.array(z.string()).optional(),
+    theme: ThemeNameSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('setTokenMeta'),
+    set: TokenMetaMapSchema.optional(),
+    unset: z.array(z.string()).optional(),
+  }),
+  z.object({ type: z.literal('setThemes'), themes: ThemesSchema }),
+  z.object({
+    type: z.literal('replaceTokens'),
+    tokens: TokensSchema,
+    tokenMeta: TokenMetaMapSchema.optional(),
+    themes: ThemesSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('renameToken'),
+    from: z.string().min(1),
+    to: z.string().min(1),
   }),
   z.object({
     type: z.literal('setNodeFlags'),
@@ -112,6 +137,10 @@ const OP_TYPES = [
   'deletePage',
   'renamePage',
   'setTokens',
+  'setTokenMeta',
+  'setThemes',
+  'replaceTokens',
+  'renameToken',
   'setNodeFlags',
   'setTag',
   'setFonts',

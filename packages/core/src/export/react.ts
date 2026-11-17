@@ -5,6 +5,7 @@ import { isUnsafeUrl, slugify } from '../html.js';
 import { toCamelCase } from '../styles.js';
 import { sanitizeSvg } from '../svg.js';
 import { VOID_TAGS } from '../tags.js';
+import { nodeTheme, themeDeclarations } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import {
   BASE_CSS,
@@ -627,6 +628,9 @@ function commonName(nodes: Node[], parentName: string): string {
 
 interface RenderCtx {
   mode: 'tailwind' | 'inline';
+  doc: Document;
+  /** Tema do nó (`data-theme`), para redeclarar as variáveis no modo inline. */
+  themeOf: (node: Node) => string | undefined;
   tokens: Record<string, string>;
   assetsBase: string;
   extractRepeats: boolean;
@@ -645,7 +649,12 @@ function uniqueName(base: string, ctx: RenderCtx): string {
 
 function styleProps(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
   if (ctx.mode === 'inline') {
-    const style = isRoot ? { ...ctx.tokens, ...node.style } : node.style;
+    const theme = ctx.themeOf(node);
+    const style = {
+      ...(isRoot ? ctx.tokens : {}),
+      ...(theme ? themeDeclarations(ctx.doc, theme) : {}),
+      ...node.style,
+    };
     return Object.keys(style).length > 0 ? [styleProp(style, ctx.usage)] : [];
   }
   const { classes, rest } = cssToTailwind(node.style, { tokens: ctx.tokens });
@@ -769,6 +778,8 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   const usage: Usage = { cssProperties: false };
   const ctx: RenderCtx = {
     mode,
+    doc,
+    themeOf: (node) => nodeTheme(doc, node),
     tokens: cleanTokens(doc.tokens),
     assetsBase: options.assetsBase ?? 'assets/',
     extractRepeats: options.extractRepeats ?? true,

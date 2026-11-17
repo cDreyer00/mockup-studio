@@ -1,4 +1,6 @@
 import { findNode } from './document.js';
+import { evaluateCss } from './cssEval.js';
+import { scopeVarsFor, substituteVars } from './tokens.js';
 import type { Document } from './types.js';
 
 export const INHERITED_PROPS = [
@@ -57,22 +59,30 @@ export function resolveVars(value: string, tokens: Record<string, string>): stri
   return resolve(value, tokens, 0);
 }
 
-/** Estilos próprios + propriedades herdadas dos ancestrais, com `var()` resolvido. */
-export function getComputedLike(doc: Document, nodeId: string): Record<string, string> {
+/**
+ * Estilos próprios + propriedades herdadas dos ancestrais, com `var()` resolvido no escopo do nó
+ * (tokens base, tema do frame via `data-theme` e custom properties dos ancestrais) e `calc()`/
+ * `color-mix()` avaliados quando possível. `theme` força um tema para o nó (como se o frame o usasse);
+ * `evaluate: false` mantém `calc()`/`color-mix()` como texto.
+ */
+export function getComputedLike(
+  doc: Document,
+  nodeId: string,
+  opts: { theme?: string; evaluate?: boolean } = {},
+): Record<string, string> {
   const path = findNode(doc, nodeId);
   if (!path) throw new Error(`Nó "${nodeId}" não encontrado`);
-  const vars: Record<string, string> = { ...doc.tokens };
+  const vars = scopeVarsFor(doc, nodeId, { theme: opts.theme });
   const result: Record<string, string> = {};
   for (const ancestor of path.ancestors) {
     for (const [k, v] of Object.entries(ancestor.style)) {
-      if (k.startsWith('--')) vars[k] = v;
-      else if ((INHERITED_PROPS as readonly string[]).includes(k)) result[k] = v;
+      if ((INHERITED_PROPS as readonly string[]).includes(k)) result[k] = v;
     }
   }
-  for (const [k, v] of Object.entries(path.node.style)) {
-    if (k.startsWith('--')) vars[k] = v;
-    result[k] = v;
+  for (const [k, v] of Object.entries(path.node.style)) result[k] = v;
+  for (const k of Object.keys(result)) {
+    const v = substituteVars(result[k]!, (n) => vars[n]).value;
+    result[k] = opts.evaluate === false ? v : evaluateCss(v);
   }
-  for (const k of Object.keys(result)) result[k] = resolveVars(result[k], vars);
   return result;
 }

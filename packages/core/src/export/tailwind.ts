@@ -1,6 +1,7 @@
 import { fontFaceCss } from '../fonts.js';
 import { escapeCssText } from '../html.js';
 import { isValidCssPropertyName } from '../styles.js';
+import { themeRulesCss, themeVariantsCss } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import {
   cleanTokens,
@@ -1088,6 +1089,10 @@ export function tailwindThemeCss(
   if (opts.import !== false) blocks.push('@import "tailwindcss";');
   if (theme.length > 0) blocks.push(`@theme {\n${theme.join('\n')}\n}`);
   if (root.length > 0) blocks.push(`:root {\n${root.join('\n')}\n}`);
+  const themeRules = themeRulesCss(doc);
+  if (themeRules) blocks.push(themeRules);
+  const variants = themeVariantsCss(doc);
+  if (variants) blocks.push(variants);
   blocks.push(TAILWIND_BASE_CSS);
   const assetsBase = opts.assetsBase ?? 'assets/';
   const faces = fontFaceCss(doc, (f) => `${assetsBase}${f}`, 'swap');

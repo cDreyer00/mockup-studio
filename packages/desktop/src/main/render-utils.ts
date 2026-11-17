@@ -66,13 +66,14 @@ export interface CacheKeyInput {
   assets?: string[];
 }
 
-/** sha256 do que influencia a imagem: frame do nó, tokens, fontes, fundo da página e parâmetros. */
+/** sha256 do que influencia a imagem: frame do nó, tokens, temas, fontes, fundo da página e parâmetros. */
 export function cacheKey(i: CacheKeyInput): string {
   return createHash('sha256')
     .update(
       JSON.stringify({
         frame: getFrameOf(i.doc, i.nodeId) ?? null,
         tokens: i.doc.tokens,
+        themes: i.doc.themes ?? [],
         fonts: i.doc.fonts,
         background: getPageOfNode(i.doc, i.nodeId)?.background ?? null,
         docId: i.docId,

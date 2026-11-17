@@ -2,8 +2,15 @@ import { z } from 'zod';
 import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { sanitizeSvg } from './svg.js';
-import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
-import type { Document, FontRef, Node, Page } from './types.js';
+import {
+  BLOCKED_TAGS,
+  TAG_RE,
+  THEME_NAME_RE,
+  TOKEN_NAME_RE,
+  VOID_TAGS,
+  attrNameProblem,
+} from './tags.js';
+import type { Document, FontRef, Node, Page, Theme, TokenMeta } from './types.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -26,10 +33,9 @@ const AttrsSchema = z
   })
   .default({});
 
-/** Mapa de tokens CSS: as chaves precisam casar `--nome`. */
 /** Tokens sem o prefixo `--` (ex.: `primary`) ganham o prefixo; chaves já corretas ficam como estão. */
-export function normalizeTokenNames(tokens: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
+export function normalizeTokenNames<T = string>(tokens: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
   for (const [k, v] of Object.entries(tokens)) {
     const name = k.trim();
     out[name.startsWith('--') || name === '' ? name : `--${name}`] = v;
@@ -71,6 +77,87 @@ const FileTokensSchema = z
     Object.fromEntries(Object.entries(tokens).filter(([, v]) => cssValueProblem(v) === null)),
   )
   .pipe(TokensSchema);
+
+// Texto livre dos metadados: sem caracteres de controle (exceto quebra de linha) e com limite.
+// eslint-disable-next-line no-control-regex
+const META_TEXT = /^[^\u0000-\u0009\u000b-\u001f\u007f]*$/;
+
+export const TokenMetaSchema: z.ZodType<TokenMeta, unknown> = z.object({
+  group: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[\p{L}\p{N} _-]+$/u, { error: 'grupo com caracteres inválidos' })
+    .optional(),
+  description: z.string().max(500).regex(META_TEXT).optional(),
+});
+
+export const ThemeNameSchema = z.string().trim().regex(THEME_NAME_RE, {
+  error: 'nome de tema inválido (letras, dígitos, "-" e "_", começando por letra ou dígito)',
+});
+
+export const ThemeSchema: z.ZodType<Theme, unknown> = z.object({
+  name: ThemeNameSchema,
+  overrides: TokensSchema.default({}),
+});
+
+/** Mapa nome do token → metadados (nomes normalizados com `--`). */
+export const TokenMetaMapSchema = z
+  .record(z.string(), TokenMetaSchema)
+  .transform((m) => normalizeTokenNames(m))
+  .superRefine((m, ctx) => {
+    for (const k of Object.keys(m)) {
+      if (!TOKEN_NAME_RE.test(k)) {
+        ctx.addIssue({ code: 'custom', message: `nome de token inválido: "${k}"`, path: [k] });
+      }
+    }
+  });
+
+/** Lista de temas com nomes únicos. */
+export const ThemesSchema = z.array(ThemeSchema).superRefine((list, ctx) => {
+  const seen = new Set<string>();
+  list.forEach((t, i) => {
+    if (seen.has(t.name)) {
+      ctx.addIssue({ code: 'custom', message: `tema duplicado: "${t.name}"`, path: [i, 'name'] });
+    }
+    seen.add(t.name);
+  });
+});
+
+/** Leitura de arquivo: metadados e temas inválidos são descartados em vez de recusar o documento. */
+const FileTokenMetaSchema = z
+  .record(z.string(), z.unknown())
+  .optional()
+  .transform((m) => {
+    if (!m) return undefined;
+    const out: Record<string, TokenMeta> = {};
+    for (const [k, v] of Object.entries(m)) {
+      const r = TokenMetaSchema.safeParse(v);
+      if (TOKEN_NAME_RE.test(k) && r.success && (r.data.group || r.data.description)) {
+        out[k] = r.data;
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  });
+
+const FileThemesSchema = z
+  .array(z.unknown())
+  .optional()
+  .transform((list) => {
+    if (!list) return undefined;
+    const seen = new Set<string>();
+    const out: Theme[] = [];
+    for (const raw of list) {
+      const t = raw as { name?: unknown; overrides?: unknown } | null;
+      const name = ThemeNameSchema.safeParse(t?.name);
+      if (!name.success || seen.has(name.data)) continue;
+      const ov = FileTokensSchema.safeParse(t?.overrides ?? {});
+      seen.add(name.data);
+      out.push({ name: name.data, overrides: ov.success ? ov.data : {} });
+    }
+    return out.length > 0 ? out : undefined;
+  });
 
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
@@ -136,6 +223,8 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   name: z.string(),
   pages: z.array(PageSchema).min(1, { error: 'o documento precisa de ao menos uma página' }),
   tokens: FileTokensSchema.default({}),
+  tokenMeta: FileTokenMetaSchema,
+  themes: FileThemesSchema,
   // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo
   // ruins) em vez de recusar o documento inteiro; a op `setFonts` continua estrita.
   fonts: z
@@ -227,6 +316,8 @@ export function serializeDocument(doc: Document): string {
     id: doc.id,
     name: doc.name,
     tokens: doc.tokens,
+    ...(doc.tokenMeta && Object.keys(doc.tokenMeta).length > 0 && { tokenMeta: doc.tokenMeta }),
+    ...(doc.themes && doc.themes.length > 0 && { themes: doc.themes }),
     fonts: doc.fonts.map((f) => {
       const o: Record<string, unknown> = { family: f.family };
       if (f.source !== undefined) o.source = f.source;

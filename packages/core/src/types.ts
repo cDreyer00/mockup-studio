@@ -59,6 +59,22 @@ export interface FontRef {
   styles?: string[];
 }
 
+/** Metadados de um token: grupo (cores, tipografia...) e descrição. Ver `tokens.ts`. */
+export interface TokenMeta {
+  /** Grupo do token: `color`, `typography`, `spacing`, `radius`, `shadow`, `other` ou um nome livre. Ausente = inferido pelo nome/valor. */
+  group?: string;
+  description?: string;
+}
+
+/**
+ * Tema: sobrescreve valores de tokens dentro de nós com `data-theme="<name>"` (CSS real:
+ * `[data-theme="dark"] { --color-bg: #0b0b0b }`). Os tokens base valem fora de qualquer tema.
+ */
+export interface Theme {
+  name: string;
+  overrides: Record<string, string>;
+}
+
 export interface DocumentMeta {
   createdAt: string;
   updatedAt: string;
@@ -72,6 +88,10 @@ export interface Document {
   pages: Page[];
   /** Variáveis CSS do documento, ex. { '--color-primary': '#6c5ce7' }. */
   tokens: Record<string, string>;
+  /** Grupo/descrição por token (chave = nome do token). Ausente quando vazio. */
+  tokenMeta?: Record<string, TokenMeta>;
+  /** Temas do documento, na ordem de exibição. Ausente quando vazio. */
+  themes?: Theme[];
   fonts: FontRef[];
   meta: DocumentMeta;
 }

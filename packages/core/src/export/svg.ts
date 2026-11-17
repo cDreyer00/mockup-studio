@@ -4,6 +4,7 @@ import { findNode } from '../document.js';
 import { fontFaceCss } from '../fonts.js';
 import type { LayoutNode, LayoutRect } from '../layout.js';
 import { sanitizeSvg } from '../svg.js';
+import { themeRulesCss } from '../tokens.js';
 import type { Document, FontRef } from '../types.js';
 import {
   BASE_CSS,
@@ -585,7 +586,8 @@ function fallbackSvg(doc: Document, options: SvgExportOptions): string {
     .map(([k, v]) => `${k}: ${v}`)
     .join('; ');
   const faces = fontFaceCss(doc, (f) => options.resolveImage?.(f) ?? `assets/${f}`, 'swap');
-  const css = `${BASE_CSS}${faces ? '\n' + faces : ''}`;
+  const themes = themeRulesCss(doc);
+  const css = `${BASE_CSS}${themes ? '\n' + themes : ''}${faces ? '\n' + faces : ''}`;
   const wrapper = `<div xmlns="http://www.w3.org/1999/xhtml"${tokenStyle ? ` style="${escapeHtmlAttr(tokenStyle)}"` : ''}>`;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}">`,

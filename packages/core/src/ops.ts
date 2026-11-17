@@ -2,7 +2,7 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { Document, FontRef, Node, Position } from './types.js';
+import type { Document, FontRef, Node, Position, Theme, TokenMeta } from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -103,6 +103,39 @@ export interface SetTokensOp {
   type: 'setTokens';
   set?: Record<string, string>;
   unset?: string[];
+  /** Tema alvo: os valores vão para `overrides` desse tema (que precisa existir) em vez dos tokens base. */
+  theme?: string;
+}
+
+/** Define (substitui por inteiro) ou remove os metadados (grupo, descrição) de tokens. */
+export interface SetTokenMetaOp {
+  type: 'setTokenMeta';
+  set?: Record<string, TokenMeta>;
+  unset?: string[];
+}
+
+/** Substitui a lista de temas (criar, remover, renomear, reordenar); nomes únicos. */
+export interface SetThemesOp {
+  type: 'setThemes';
+  themes: Theme[];
+}
+
+/** Substitui o sistema de tokens inteiro (tokens base, metadados e temas). Usado por importação e inversos. */
+export interface ReplaceTokensOp {
+  type: 'replaceTokens';
+  tokens: Record<string, string>;
+  tokenMeta?: Record<string, TokenMeta>;
+  themes?: Theme[];
+}
+
+/**
+ * Renomeia um token: chave nos tokens base, nos metadados e nos temas, e todas as referências
+ * `var(--antigo)` (estilos dos nós, valores de tokens e de temas). O destino não pode existir.
+ */
+export interface RenameTokenOp {
+  type: 'renameToken';
+  from: string;
+  to: string;
 }
 
 /** Toggle de `locked`/`hidden`. */
@@ -143,6 +176,10 @@ export type Op =
   | DeletePageOp
   | RenamePageOp
   | SetTokensOp
+  | SetTokenMetaOp
+  | SetThemesOp
+  | ReplaceTokensOp
+  | RenameTokenOp
   | SetNodeFlagsOp
   | SetTagOp
   | SetFontsOp

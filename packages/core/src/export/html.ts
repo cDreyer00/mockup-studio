@@ -1,5 +1,6 @@
 import { escapeCssText } from '../html.js';
 import { fontFaceCss } from '../fonts.js';
+import { themeRulesCss } from '../tokens.js';
 import type { Document } from '../types.js';
 import {
   BASE_CSS,
@@ -53,6 +54,8 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   const css: string[] = [];
   const tokens = rootTokensCss(doc.tokens);
   if (tokens) css.push(tokens);
+  const themes = themeRulesCss(doc, { indent: '  ' });
+  if (themes) css.push(themes);
   css.push(`  ${BASE_CSS}`);
   const faces = fontFaceCss(doc, (f) => `assets/${f}`, 'swap');
   if (faces) css.push(indentLines(faces, 1));
