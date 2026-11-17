@@ -4,7 +4,7 @@
  * não re-renderizem a árvore inteira.
  */
 import { create } from 'zustand';
-import type { Position } from '@mockup/core';
+import type { ImageCrop, Position } from '@mockup/core';
 
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image';
 
@@ -44,12 +44,18 @@ export interface UiState {
   editingTextId: string | null;
   preview: Record<string, NodePreview>;
   focusRequest: FocusRequest | null;
+  /** Imagem em modo de recorte visual (null = fora do modo). */
+  cropNodeId: string | null;
+  /** Recorte em edição (% de cada lado) enquanto `cropNodeId` está ativo. */
+  cropDraft: ImageCrop | null;
   /** Espaço pressionado (pan temporário). */
   spaceDown: boolean;
   /** Alt pressionado (régua de distância / redimensionar pelo centro). */
   altDown: boolean;
   /** Mensagem transitória para o usuário (erros de op, avisos). */
   toast: { text: string; kind: 'info' | 'error'; at: number } | null;
+  /** Tela inicial (arquivos) exibida no lugar do canvas. */
+  homeOpen: boolean;
 }
 
 export const useUi = create<UiState>(() => ({
@@ -60,10 +66,13 @@ export const useUi = create<UiState>(() => ({
   viewport: { x: 0, y: 0, z: 1 },
   editingTextId: null,
   preview: {},
+  cropNodeId: null,
+  cropDraft: null,
   focusRequest: null,
   spaceDown: false,
   altDown: false,
   toast: null,
+  homeOpen: false,
 }));
 
 let focusNonce = 0;
@@ -113,8 +122,22 @@ export const ui = {
     for (const id of owned) delete next[id];
     useUi.setState({ preview: next });
   },
+  /** Entra no modo de recorte da imagem `id` com o recorte inicial `initial`. */
+  startCrop(id: string, initial: ImageCrop): void {
+    useUi.setState({ cropNodeId: id, cropDraft: initial, editingTextId: null });
+  },
+  setCropDraft(crop: ImageCrop): void {
+    useUi.setState({ cropDraft: crop });
+  },
+  /** Sai do modo de recorte (a prévia é limpa por quem chama `endCrop`). */
+  endCrop(): void {
+    useUi.setState({ cropNodeId: null, cropDraft: null });
+  },
   editText(id: string | null): void {
     useUi.setState({ editingTextId: id });
+  },
+  setHome(open: boolean): void {
+    if (useUi.getState().homeOpen !== open) useUi.setState({ homeOpen: open });
   },
   toast(text: string, kind: 'info' | 'error' = 'info'): void {
     useUi.setState({ toast: { text, kind, at: Date.now() } });

@@ -36,6 +36,7 @@ import { computeDropOps, flattenTree, nextPageName, rangeBetween, zoneFor } from
 import type { DropTarget } from './layersLogic';
 import { layers, useLayers } from './layersStore';
 import { buildNodeMenu } from './nodeMenu';
+import { NodeSearch } from './NodeSearch';
 import './layers.css';
 
 const TAG_ICONS: Record<string, LucideIcon> = {
@@ -437,6 +438,7 @@ function LayerTree() {
 export function LayersPanel() {
   return (
     <aside className="panel panel-left layers-panel" data-testid="layers-panel">
+      <NodeSearch />
       <PagesList />
       <div className="layers-heading">
         <span>Camadas</span>

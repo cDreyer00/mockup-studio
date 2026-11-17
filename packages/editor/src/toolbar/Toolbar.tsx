@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Frame,
   Hand,
+  Home,
   Image as ImageIcon,
   MousePointer2,
   Redo2,
@@ -152,7 +153,8 @@ function FileMenu() {
   const [recent, setRecent] = useState<string[]>([]);
   const activeDocId = useDoc((s) => s.activeDocId);
   const items: DropItem[] = [
-    { label: 'Novo…', testId: 'file-new', onSelect: () => void newDocument() },
+    { label: 'Início', testId: 'file-home', onSelect: () => ui.setHome(true) },
+    { label: 'Novo…', testId: 'file-new', separator: true, onSelect: () => void newDocument() },
     { label: 'Abrir…', testId: 'file-open', onSelect: () => void openDocument() },
     ...recent.slice(0, 8).map<DropItem>((path, i) => ({
       label: fileNameOf(path) || path,
@@ -286,6 +288,7 @@ export function Toolbar() {
   const canUndo = useDoc((s) => s.history.canUndo);
   const canRedo = useDoc((s) => s.history.canRedo);
   const status = useDoc((s) => s.status);
+  const homeOpen = useUi((s) => s.homeOpen);
 
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -294,6 +297,14 @@ export function Toolbar() {
         <span>Mockup Studio</span>
       </div>
       <FileMenu />
+      <IconButton
+        title="Início (arquivos)"
+        active={homeOpen}
+        data-testid="home-button"
+        onClick={() => ui.setHome(!homeOpen)}
+      >
+        <Home size={ICON} />
+      </IconButton>
       <span className="tb-sep" />
       <div className="tb-group" role="toolbar" aria-label="Ferramentas">
         {TOOLS.map((t) => (
