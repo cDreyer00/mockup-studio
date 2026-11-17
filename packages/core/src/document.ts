@@ -66,6 +66,8 @@ export function createNode(init: Partial<Node> & { tag: string }): Node {
   if (init.src !== undefined) node.src = init.src;
   if (init.svg !== undefined) node.svg = init.svg;
   if (init.position !== undefined) node.position = init.position;
+  if (init.data !== undefined) node.data = init.data;
+  if (init.dataSource !== undefined) node.dataSource = init.dataSource;
   return node;
 }
 

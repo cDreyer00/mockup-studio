@@ -8,7 +8,7 @@
 
 export const DOCUMENT_VERSION = 1 as const;
 
-export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg';
+export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg' | 'repeater';
 
 export interface Position {
   x: number;
@@ -37,6 +37,31 @@ export interface Node {
   hidden: boolean;
   /** Posição no canvas (frames raiz) ou x/y de filhos com `position: absolute`. */
   position?: Position;
+  /**
+   * Repetidor (type 'repeater'): itens de dados. Os filhos são o template, repetido uma vez por
+   * item, com bindings `{{campo}}` resolvidos em textos, `src` e atributos (ver `data.ts`).
+   */
+  data?: unknown[];
+  /** Repetidor: origem dos dados (para atualizar) e mapeamento de campos. */
+  dataSource?: DataSource;
+}
+
+/** Origem dos dados de um repetidor. */
+export interface DataSource {
+  /** `inline`: dados colados/editados; `json`/`csv`: arquivo local; `url`: HTTP(S) (JSON ou CSV). */
+  kind: 'inline' | 'json' | 'csv' | 'url';
+  /** Caminho absoluto do arquivo (`json`/`csv`). */
+  path?: string;
+  /** URL http(s) (`url`). */
+  url?: string;
+  /** Caminho até a lista dentro do JSON, ex.: `data.items`. */
+  select?: string;
+  /** Campo do template → caminho no item, ex.: `{ "nome": "user.fullName" }`. */
+  mapping?: Record<string, string>;
+  /** Máximo de itens lidos da origem. */
+  limit?: number;
+  /** Quando os dados foram lidos da origem (ISO 8601). */
+  fetchedAt?: string;
 }
 
 export interface Page {

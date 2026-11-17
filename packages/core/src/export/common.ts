@@ -1,5 +1,6 @@
 /** Peças compartilhadas pelos exportadores (html, tailwind, react, svg). */
 import { deepClone } from '../clone.js';
+import { expandRepeaters } from '../data.js';
 import { findNode, findPage } from '../document.js';
 import { isUnsafeUrl, slugify } from '../html.js';
 import { cssValueProblem, dropUnsafeStyles, isValidCssPropertyName } from '../styles.js';
@@ -74,7 +75,8 @@ export function resolveRoots(
     if (!page) throw new Error(`Página "${selection.pageId ?? ''}" não encontrada`);
     nodes = page.frames;
   }
-  const copies = deepClone(nodes);
+  // Repetidores viram contêineres com os itens expandidos (dados reais no código exportado).
+  const copies = deepClone(nodes).map((n) => expandRepeaters(n));
   for (const n of copies) prepareNode(n, true, opts);
   return copies;
 }

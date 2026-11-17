@@ -20,3 +20,8 @@ export * from './export/svg.js';
 export * from './layout.js';
 export * from './fonts.js';
 export * from './base.js';
+export * from './data.js';
+export * from './search.js';
+export * from './image.js';
+export * from './placeholders.js';
+export * from './assetRefs.js';
