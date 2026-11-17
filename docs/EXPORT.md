@@ -24,6 +24,11 @@ Regras comuns a todos os formatos:
   de arquivo (`parseDocument`) só a declaração ruim é descartada.
 - Atributos `on*`, `style`, `class`, `srcdoc` e URLs `javascript:`/`data:` não-imagem são removidos.
   SVG inline passa por `sanitizeSvg`.
+- Fontes (`doc.fonts`): família e arquivos têm charset restrito (sem `< > { } ; " \`, quebras, `..`), estilos só `normal|italic|oblique` e pesos inteiros de 1 a 1000; o schema recusa o resto e `fontFaceCss` descarta entradas inválidas.
+
+## Fontes no SVG
+
+O SVG embute as fontes registradas em `doc.fonts` como `@font-face` com `src:url("data:font/woff2;base64,...")` num `<style>` (escapado para XML), para o arquivo abrir com a tipografia correta sem `assets/`. O servidor resolve cada arquivo de `assets/` para data URL (`resolveImage`); fontes sem arquivo resolvível (ou `local`) não geram regra.
 
 ## CSS base do documento
 
