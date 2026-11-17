@@ -161,6 +161,17 @@ export function installCli(
   opts: { binDir?: string } = {},
   deps: InstallDeps = defaultInstallDeps(),
 ): InstallResult {
+  // O executável portátil (electron-builder `portable`) se extrai numa pasta temporária a cada
+  // execução: um shim apontando para ela quebra assim que o app fecha.
+  if (deps.env.PORTABLE_EXECUTABLE_DIR)
+    return {
+      code: 1,
+      lines: [
+        'erro: a versão portátil roda de uma pasta temporária que some quando o app fecha; o comando',
+        '`mockup` instalado por ela pararia de funcionar. Use o instalador (MockupStudio-Setup) ou',
+        'instale o CLI pelo Node (`npm link` no repositório).',
+      ],
+    };
   const lines: string[] = [];
   const binDir = path.resolve(opts.binDir ?? defaultBinDir(deps.env, deps.platform, deps.home));
   const file = shimPath(binDir, deps.platform);

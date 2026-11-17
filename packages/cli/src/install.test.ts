@@ -102,6 +102,16 @@ describe('install-cli / uninstall-cli', () => {
     expect(fs.readFileSync(path.join(bin, 'mockup.cmd'), 'utf8')).toBe('@echo outro');
   });
 
+  it('recusa instalar a partir do executável portátil', () => {
+    const bin = path.join(tmp, 'bin');
+    const env = { PORTABLE_EXECUTABLE_DIR: 'C:\\Downloads' };
+    const r = installCli({ binDir: bin }, { ...deps(), env });
+    expect(r.code).toBe(1);
+    expect(r.lines.join(' ')).toContain('portátil');
+    expect(fs.existsSync(bin)).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
   it('falha do PowerShell devolve código 1', () => {
     fail = true;
     expect(installCli({ binDir: path.join(tmp, 'bin') }, deps()).code).toBe(1);

@@ -42,9 +42,10 @@ try {
 }
 
 /**
- * `--install-cli` / `--uninstall-cli` (portátil, reparo): roda o bundle do CLI embutido com o próprio
- * Electron como Node, herdando o stdio, e sai com o código dele. Roda antes de qualquer userData,
- * lock de instância única, daemon ou janela.
+ * `--install-cli` / `--uninstall-cli` (reparo da instalação): roda o bundle do CLI embutido com o
+ * próprio Electron como Node, herdando o stdio, e sai com o código dele. Roda antes de qualquer
+ * userData, lock de instância única, daemon ou janela. No executável portátil o `install-cli` recusa
+ * (o CLI vê `PORTABLE_EXECUTABLE_DIR`): ele roda de uma pasta temporária.
  */
 if (args.cliAction) {
   const script = app.isPackaged
