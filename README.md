@@ -47,7 +47,7 @@ Codex: `codex mcp add mockup-studio -- mockup mcp`. Detalhes, HTTP, Cursor, VS C
 
 - Peça ao agente: "crie um mockup de uma landing page para um app de finanças, com versões desktop e mobile". Ele cria os frames, confere os screenshots e itera.
 - Abra o editor para ver e ajustar: o app desktop ou `npm run dev` (editor em http://localhost:5173, daemon em `http://127.0.0.1:4747`). Use **Arquivo › Abrir…** ou, no terminal, `mockup open examples/landing.mockup.json`.
-- Comandos do CLI: `mockup mcp` (stdio para agentes), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup --version`.
+- Comandos do CLI: `mockup mcp` (stdio para agentes), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup install-cli`, `mockup uninstall-cli`, `mockup --version`.
 
 Guia do editor, atalhos e medições de desempenho em [docs/EDITOR.md](docs/EDITOR.md).
 
@@ -96,7 +96,7 @@ npm run lint
 packages/
   core/      @mockup/core    modelo, ops, History, HTML <-> nós, exportadores, schema zod
   server/    @mockup/server  daemon: documentos, HTTP, WebSocket, MCP
-  cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new, stop, doctor, setup)
+  cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new, stop, doctor, setup, install-cli, uninstall-cli)
   editor/    @mockup/editor  Vite + React 19 + zustand: editor visual (e2e em editor/e2e)
   desktop/   @mockup/desktop shell Electron, motor de render e empacotamento
 docs/        PLANO, ARQUITETURA, MCP, EDITOR, EXPORT, INTEGRACAO

@@ -59,7 +59,7 @@ Flags:
 - `--command path|shim|absolute`: forma do comando registrado.
   - `path`: `mockup`, resolvido pelo PATH.
   - `shim`: caminho absoluto de `%LOCALAPPDATA%\MockupStudio\bin\mockup.cmd`.
-  - `absolute`: caminho absoluto do `node.exe` mais o script do CLI.
+  - `absolute`: caminho absoluto, sem depender do PATH. No app empacotado é o executável do app com `ELECTRON_RUN_AS_NODE=1`; a partir do repositório, o `node.exe` mais o script do CLI.
 
 O setup lê o registro atual direto de `~/.claude.json` (ou `$CLAUDE_CONFIG_DIR/.claude.json`) e de `~/.codex/config.toml` (ou `$CODEX_HOME/config.toml`), sem rodar `mcp get` (que sobe o servidor e é lento). É idempotente e não destrói a sua config:
 
@@ -153,7 +153,7 @@ default_tools_approval_mode = "approve"
 
 Ou só numa execução: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. O `mockup setup codex` não liga isso por conta própria (é uma decisão de permissão do usuário): use `mockup setup codex --approve` para gravar a chave.
 
-**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. `mockup setup codex --agents` instala o trecho no `~/.codex/AGENTS.md` (veja abaixo).
+**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. `mockup setup codex --agents` instala o trecho no `~/.codex/AGENTS.md`, entre marcadores e sem duplicar.
 
 **HTTP** (daemon rodando):
 
@@ -175,7 +175,7 @@ codex mcp get mockup-studio
 
 **Windows:** se algum ambiente não achar `mockup`, registre o comando absoluto: `mockup setup codex --command absolute`.
 
-**AGENTS.md.** `mockup setup codex --agents` acrescenta [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) ao `~/.codex/AGENTS.md` entre marcadores (sem duplicar). À mão, cole o conteúdo no `~/.codex/AGENTS.md` (global) ou no `AGENTS.md` do projeto.
+**AGENTS.md (à mão).** Em vez do `--agents`, cole o conteúdo de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) no `~/.codex/AGENTS.md` (global) ou no `AGENTS.md` do projeto.
 
 ## 5. Outros clientes
 
