@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from '../schema.js';
 import type { Document, Node } from '../types.js';
 import {
+  MAX_EXPANDED_NODES,
+  TOO_LARGE_COMPONENT_TEXT,
   expandDocument,
   expandInstance,
+  expandedSize,
   expandNodeTree,
   findComponentCycle,
   isVirtualId,
@@ -343,6 +346,54 @@ describe('expandInstance', () => {
     expandInstance(doc, inst(doc, 'in_x'), { warnings });
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatch(/profundidade/);
+  });
+
+  it('DAG exponencial (10 níveis × 4 instâncias) vira aviso "Componente grande demais" rápido', () => {
+    const doc = fixture([
+      n('in_big', 'instance', 'div', { componentId: 'cp_w1' }),
+      n('in_ok', 'instance', 'div', { componentId: 'cp_w4' }),
+    ]);
+    // C1 tem 4 instâncias de C2, C2 tem 4 de C3... C10 é uma folha: ~4^10 nós se expandisse tudo.
+    doc.components = Array.from({ length: 10 }, (_, k) => {
+      const i = k + 1;
+      const kids =
+        i < 10
+          ? Array.from(
+              { length: 4 },
+              (_, j) =>
+                n(`in_w${i}x${j}`, 'instance', 'div', { componentId: `cp_w${i + 1}` }) as Node,
+            )
+          : [n('tx_leaf', 'text', 'span', { text: 'folha' }) as Node];
+      return {
+        id: `cp_w${i}`,
+        name: `W${i}`,
+        props: [],
+        variants: [],
+        root: n(`el_w${i}`, 'element', 'div', { children: kids }) as Node,
+      };
+    });
+    expect(expandedSize(doc, 'cp_w10')).toBe(2);
+    expect(expandedSize(doc, 'cp_w4')).toBe(9557);
+    expect(expandedSize(doc, 'cp_w1')).toBeGreaterThan(MAX_EXPANDED_NODES);
+    const t0 = performance.now();
+    const warnings: string[] = [];
+    const big = expandInstance(doc, inst(doc, 'in_big'), { warnings });
+    expect(big.attrs['data-missing-component']).toBe('cp_w1');
+    expect(big.children[0]!.text).toBe(TOO_LARGE_COMPONENT_TEXT);
+    expect(warnings).toEqual([expect.stringMatching(/in_big: componente "W1" grande demais/)]);
+    // Abaixo do limite expande normalmente.
+    const ok = expandInstance(doc, inst(doc, 'in_ok'));
+    let count = 0;
+    const visit = (x: Node): void => {
+      count++;
+      x.children.forEach(visit);
+    };
+    visit(ok);
+    expect(count).toBe(9557);
+    // O documento inteiro também termina rápido.
+    const page = expandDocument(doc).pages[0]!.frames[0]!;
+    expect(page.children[0]!.children[0]!.text).toBe(TOO_LARGE_COMPONENT_TEXT);
+    expect(performance.now() - t0).toBeLessThan(2000);
   });
 
   it('deep:false mantém as aninhadas como instâncias com os overrides herdados', () => {

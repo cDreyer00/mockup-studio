@@ -20,8 +20,18 @@ import type {
 /** Profundidade máxima de instâncias aninhadas na expansão. */
 export const MAX_INSTANCE_DEPTH = 16;
 
+/**
+ * Máximo de nós que a expansão de uma instância pode gerar. A profundidade sozinha não limita um
+ * DAG largo (C1 com 4 instâncias de C2, C2 com 4 de C3...: 4^10 nós com 10 níveis); acima disso a
+ * instância vira o aviso "Componente grande demais".
+ */
+export const MAX_EXPANDED_NODES = 50_000;
+
 /** Texto do contêiner de aviso (componente ausente, ciclo ou profundidade excessiva). */
 export const MISSING_COMPONENT_TEXT = 'Componente ausente';
+
+/** Texto do contêiner de aviso quando a expansão passaria de `MAX_EXPANDED_NODES`. */
+export const TOO_LARGE_COMPONENT_TEXT = 'Componente grande demais';
 
 /** Atributo de marcação dos contêineres de slot (no principal e na instância). */
 export const SLOT_ATTR = 'data-slot';
@@ -53,6 +63,7 @@ export function splitVirtualId(
 const EMPTY: ComponentDef[] = [];
 const byIdCache = new WeakMap<ComponentDef[], Map<string, ComponentDef>>();
 const nodeOwnerCache = new WeakMap<ComponentDef[], Map<string, string>>();
+const sizeCache = new WeakMap<ComponentDef[], Map<string, number>>();
 
 function componentMap(doc: Document): Map<string, ComponentDef> {
   const list = doc.components ?? EMPTY;
@@ -101,6 +112,37 @@ function eachNode(
 ): void {
   visit(node, parent);
   for (const c of node.children) eachNode(c, visit, node);
+}
+
+/**
+ * Nós que a expansão de uma instância do componente gera (limite superior: conta o conteúdo
+ * padrão dos slots e também os contêineres de slot das instâncias aninhadas; ciclos e
+ * componentes ausentes contam 1, como o aviso). Memoizado por array de componentes, então é
+ * linear no tamanho da biblioteca mesmo num DAG exponencial.
+ */
+export function expandedSize(doc: Document, componentId: string): number {
+  const list = doc.components ?? EMPTY;
+  let memo = sizeCache.get(list);
+  if (!memo) {
+    memo = new Map();
+    sizeCache.set(list, memo);
+  }
+  const visiting = new Set<string>();
+  const size = (id: string): number => {
+    const hit = memo!.get(id);
+    if (hit !== undefined) return hit;
+    const def = getComponent(doc, id);
+    if (!def || visiting.has(id)) return 1;
+    visiting.add(id);
+    let total = 0;
+    eachNode(def.root, (n) => {
+      total += n.type === 'instance' && n.componentId ? size(n.componentId) : 1;
+    });
+    visiting.delete(id);
+    memo!.set(id, total);
+    return total;
+  };
+  return size(componentId);
 }
 
 /** Busca por id numa árvore (pré-ordem). */
@@ -389,7 +431,7 @@ function variantMatches(v: ComponentVariant, props: Record<string, PropValue>): 
 export interface ExpandOptions {
   /** `false` mantém as instâncias aninhadas como instâncias (overrides herdados mesclados). Padrão `true`. */
   deep?: boolean;
-  /** Recebe os avisos (componente ausente, ciclo, profundidade). Desliga o cache. */
+  /** Recebe os avisos (componente ausente, ciclo, profundidade, tamanho). Desliga o cache. */
   warnings?: string[];
 }
 
@@ -408,7 +450,13 @@ function copyNode(m: Node): Node {
   return out;
 }
 
-function placeholder(ctx: Ctx, inst: Node, rootId: string, reason: string): Node {
+function placeholder(
+  ctx: Ctx,
+  inst: Node,
+  rootId: string,
+  reason: string,
+  text = MISSING_COMPONENT_TEXT,
+): Node {
   ctx.warnings?.push(`${inst.id}: ${reason}`);
   const node: Node = {
     id: rootId,
@@ -432,7 +480,7 @@ function placeholder(ctx: Ctx, inst: Node, rootId: string, reason: string): Node
         tag: 'span',
         attrs: {},
         style: {},
-        text: MISSING_COMPONENT_TEXT,
+        text,
         children: [],
         locked: true,
         hidden: false,
@@ -485,6 +533,18 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
       rootId,
       `profundidade de instâncias maior que ${MAX_INSTANCE_DEPTH}`,
     );
+  }
+  if (ctx.deep) {
+    const size = expandedSize(ctx.doc, def.id);
+    if (size > MAX_EXPANDED_NODES) {
+      return placeholder(
+        ctx,
+        inst,
+        rootId,
+        `componente "${def.name}" grande demais (${size > 1e9 ? 'mais de 1 bilhão de' : `cerca de ${size}`} nós expandidos; limite ${MAX_EXPANDED_NODES})`,
+        TOO_LARGE_COMPONENT_TEXT,
+      );
+    }
   }
   const inner: Ctx = { ...ctx, stack: [...ctx.stack, def.id] };
   const props = resolveProps(def, inst.props);
