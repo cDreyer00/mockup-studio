@@ -17,12 +17,33 @@ async function centerOfNode(page: Page, id: string) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Ctrl+clique: seleciona o filho em vez do contêiner. */
+/**
+ * Ctrl+clique: seleciona o filho em vez do contêiner. Repete até a camada ficar selecionada: logo após
+ * um commit o grid ainda pode estar reposicionando os filhos e o clique cairia em outro nó.
+ */
 async function selectDeep(page: Page, id: string) {
-  const c = await centerOfNode(page, id);
-  await page.keyboard.down('Control');
-  await page.mouse.click(c.x, c.y);
-  await page.keyboard.up('Control');
+  await expect(async () => {
+    const c = await centerOfNode(page, id);
+    await page.keyboard.down('Control');
+    await page.mouse.click(c.x, c.y);
+    await page.keyboard.up('Control');
+    await expect(page.getByTestId(`layer-row-${id}`)).toHaveAttribute('aria-selected', 'true', {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 10_000 });
+}
+
+/** Espera a caixa do nó parar de se mover (o grid reposiciona os filhos depois de cada commit). */
+async function waitStable(page: Page, id: string) {
+  let last = '';
+  await expect
+    .poll(async () => {
+      const cur = JSON.stringify(await nodeEl(page, id).boundingBox());
+      const same = cur === last;
+      last = cur;
+      return same;
+    }, { intervals: [150] })
+    .toBe(true);
 }
 
 async function fillCommit(page: Page, testId: string, value: string) {
@@ -72,7 +93,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect
     .poll(async () => parseTrackList((await container()).style['grid-template-rows']).length)
     .toBe(2);
-  expect((await container()).style.gap).toBe('16px');
+  await expect.poll(async () => (await container()).style.gap).toBe('16px');
 
   // Trocar a unidade de uma trilha: a coluna 1 passa a 200px.
   await page.getByTestId('grid-col-0-unit').selectOption('px');
@@ -92,25 +113,35 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await fillCommit(page, 'grid-cell-column', '3');
   await fillCommit(page, 'grid-cell-row', '2');
   await expect.poll(async () => (await style(a))['grid-column']).toBe('3');
-  expect((await style(a))['grid-row']).toBe('2');
+  await expect.poll(async () => (await style(a))['grid-row']).toBe('2');
 
   // B: arrastado para a célula (coluna 3, linha 1).
-  await selectDeep(page, b);
-  await expect(page.getByTestId(`layer-row-${b}`)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByTestId('grid-track-col-2')).toBeVisible();
-  const col3 = await boxOf(page, 'grid-track-col-2');
-  const row1 = await boxOf(page, 'grid-track-row-0');
-  const from = await centerOfNode(page, b);
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(col3.x + col3.width / 2, row1.y + row1.height / 2, { steps: 12 });
-  await expect(page.getByTestId('grid-drop-cell')).toBeVisible();
+  // O layout pode ainda estar se acomodando após o commit de A: refaz o gesto até a célula de destino aparecer.
+  await expect(async () => {
+    await selectDeep(page, b);
+    await expect(page.getByTestId('grid-track-col-2')).toBeVisible();
+    await waitStable(page, b);
+    const col3 = await boxOf(page, 'grid-track-col-2');
+    const row1 = await boxOf(page, 'grid-track-row-0');
+    const from = await centerOfNode(page, b);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(col3.x + col3.width / 2, row1.y + row1.height / 2, { steps: 12 });
+    try {
+      await expect(page.getByTestId('grid-drop-cell')).toBeVisible({ timeout: 1500 });
+    } catch (e) {
+      await page.mouse.up();
+      throw e;
+    }
+  }).toPass({ timeout: 15_000 });
   await page.mouse.up();
   await expect.poll(async () => (await style(b))['grid-column']).toBe('3');
-  expect((await style(b))['grid-row']).toBe('1');
+  await expect.poll(async () => (await style(b))['grid-row']).toBe('1');
   await expect(page.getByTestId('grid-drop-cell')).toHaveCount(0);
   // Continua sendo filho do mesmo pai, na mesma ordem (não foi reordenado).
-  expect((await container()).children.map((k) => k.id)).toEqual([a, b, c, d]);
+  await expect
+    .poll(async () => (await container()).children.map((k) => k.id))
+    .toEqual([a, b, c, d]);
 
   // C: span de 2 colunas a partir da coluna 1, linha 1.
   await selectDeep(page, c);
@@ -118,7 +149,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await fillCommit(page, 'grid-cell-column', '1');
   await fillCommit(page, 'grid-cell-row', '1');
   await expect.poll(async () => (await style(c))['grid-column']).toBe('1 / span 2');
-  expect((await style(c))['grid-row']).toBe('1');
+  await expect.poll(async () => (await style(c))['grid-row']).toBe('1');
 
   // D: coluna 1, linha 2 e esticado até a coluna 2 pela alça de span.
   await selectDeep(page, d);
@@ -137,26 +168,46 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect.poll(async () => (await style(d))['grid-column']).toBe('1 / span 2');
 
   // Estilos finais do contêiner e dos filhos.
-  const st = (await container()).style;
-  expect(st.display).toBe('grid');
-  expect(parseTrackList(st['grid-template-columns'])).toHaveLength(3);
-  expect(parseTrackList(st['grid-template-rows'])).toHaveLength(2);
+  await expect
+    .poll(async () => {
+      const st = (await container()).style;
+      return [
+        st.display,
+        parseTrackList(st['grid-template-columns']).length,
+        parseTrackList(st['grid-template-rows']).length,
+      ];
+    })
+    .toEqual(['grid', 3, 2]);
 
   // Caixas renderizadas: A na coluna 3 / linha 2; B na coluna 3 / linha 1; C e D cobrem 2 colunas.
   await page.keyboard.press('Escape');
-  const colCss = await nodeEl(page, (await container()).id).evaluate((el) => {
-    const cs = getComputedStyle(el);
-    return { cols: cs.gridTemplateColumns.split(' ').length, rows: cs.gridTemplateRows.split(' ').length };
-  });
-  expect(colCss).toEqual({ cols: 3, rows: 2 });
-  const boxes = Object.fromEntries(
-    await Promise.all(
-      [a, b, c, d].map(async (id) => [id, (await nodeEl(page, id).boundingBox())!] as const),
-    ),
-  );
-  expect(boxes[a]!.x).toBeGreaterThan(boxes[c]!.x + boxes[c]!.width - 1);
-  expect(boxes[a]!.y).toBeGreaterThan(boxes[b]!.y);
-  expect(Math.abs(boxes[a]!.x - boxes[b]!.x)).toBeLessThan(1);
-  expect(boxes[c]!.width).toBeGreaterThan(boxes[b]!.width);
-  expect(Math.abs(boxes[c]!.width - boxes[d]!.width)).toBeLessThan(1);
+  await expect
+    .poll(async () =>
+      nodeEl(page, (await container()).id).evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return {
+          cols: cs.gridTemplateColumns.split(' ').length,
+          rows: cs.gridTemplateRows.split(' ').length,
+        };
+      }),
+    )
+    .toEqual({ cols: 3, rows: 2 });
+  const measure = async () =>
+    Object.fromEntries(
+      await Promise.all(
+        [a, b, c, d].map(async (id) => [id, (await nodeEl(page, id).boundingBox())!] as const),
+      ),
+    );
+  await expect
+    .poll(async () => {
+      const boxes = await measure();
+      return [
+        boxes[a]!.x > boxes[c]!.x + boxes[c]!.width - 1,
+        boxes[a]!.y > boxes[b]!.y,
+        Math.abs(boxes[a]!.x - boxes[b]!.x) < 1,
+        boxes[c]!.width > boxes[b]!.width,
+        Math.abs(boxes[c]!.width - boxes[d]!.width) < 1,
+      ];
+    })
+    .toEqual([true, true, true, true, true]);
 });
