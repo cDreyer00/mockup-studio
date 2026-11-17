@@ -6,7 +6,9 @@ import {
   EffectSpecSchema,
   MediaParamsSchema,
   createEffectNode,
+  createEmbedNode,
   createVideoNode,
+  EmbedSpecSchema,
   mediaRefProblem,
 } from './media.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
@@ -307,6 +309,8 @@ function convertVideo(el: Element, ctx: Ctx): Node | null {
 
 /** `<div data-mockup-effect="kind" data-params='json'>` → nó effect; `null` se o JSON ou o kind são inválidos. */
 function convertMediaDiv(el: Element, ctx: Ctx): Node | null {
+  if (el.name.toLowerCase() === 'div' && el.attribs['data-mockup-embed'] !== undefined)
+    return convertEmbedDiv(el, ctx);
   const kind = el.attribs['data-mockup-effect'];
   if (el.name.toLowerCase() !== 'div' || kind === undefined) return null;
   let params: Record<string, MediaParamValue> = {};
@@ -324,6 +328,35 @@ function convertMediaDiv(el: Element, ctx: Ctx): Node | null {
   if (!spec.success) return null;
   return createEffectNode(spec.data.kind, spec.data.params, {
     name: el.attribs['data-name']?.trim() || 'Efeito',
+    styles: elementStyle(el, ctx),
+  });
+}
+
+/** `<div data-mockup-embed="provider" data-src|data-url|data-code data-params='json'>` → nó embed. */
+function convertEmbedDiv(el: Element, ctx: Ctx): Node | null {
+  const raw: Record<string, unknown> = { provider: el.attribs['data-mockup-embed'] };
+  for (const [attr, key] of [
+    ['data-src', 'src'],
+    ['data-url', 'url'],
+    ['data-code', 'code'],
+  ] as const) {
+    const v = el.attribs[attr];
+    if (v !== undefined) raw[key] = v;
+  }
+  if (typeof raw.src === 'string' && isUnsafeUrl(raw.src)) return null;
+  if (typeof raw.url === 'string' && isUnsafeUrl(raw.url)) return null;
+  const rawParams = el.attribs['data-params'];
+  if (rawParams) {
+    try {
+      raw.params = JSON.parse(rawParams) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  const spec = EmbedSpecSchema.safeParse(raw);
+  if (!spec.success) return null;
+  return createEmbedNode(spec.data, {
+    name: el.attribs['data-name']?.trim() || undefined,
     styles: elementStyle(el, ctx),
   });
 }
@@ -468,6 +501,7 @@ export function nodesToHtml(
       node.type === 'effect' || node.type === 'video' || node.type === 'embed'
         ? mediaElement(node, {
             mode: 'static',
+            roundtrip: true,
             url: (ref) => (isUnsafeUrl(ref) ? null : ref),
           })
         : null;

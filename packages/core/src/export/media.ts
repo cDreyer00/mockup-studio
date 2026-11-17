@@ -130,6 +130,11 @@ export interface MediaElementOptions {
    */
   mode: 'live' | 'static';
   collector?: MediaCollector;
+  /**
+   * Só em `static`: embeds viram `<div data-mockup-embed>` com src/url/código/parâmetros em
+   * atributos `data-*`, para o parser de HTML reconstruir o nó (get_html → write_html).
+   */
+  roundtrip?: boolean;
 }
 
 /** Elemento HTML de um nó effect/video/embed; `null` se o nó não tem a especificação ou ela não serve. */
@@ -168,6 +173,25 @@ export function mediaElement(node: Node, o: MediaElementOptions): MediaElement |
     if (v.controls) attrs.push(['controls', true]);
     attrs.push(['playsinline', true]);
     return { tag: 'video', attrs };
+  }
+
+  if (node.type === 'embed' && node.embed && !live && o.roundtrip) {
+    const e = node.embed;
+    const attrs: MediaAttr[] = [['data-mockup-embed', e.provider]];
+    if (e.src) {
+      const src = o.url(e.src, 'file');
+      if (!src) return null;
+      attrs.push(['data-src', src]);
+    }
+    if (e.url) {
+      const url = httpUrl(e.url);
+      if (!url) return null;
+      attrs.push(['data-url', url]);
+    }
+    if (typeof e.code === 'string') attrs.push(['data-code', e.code]);
+    if (e.params && Object.keys(e.params).length)
+      attrs.push(['data-params', JSON.stringify(e.params), "'"]);
+    return { tag: 'div', attrs };
   }
 
   if (node.type === 'embed' && node.embed) {

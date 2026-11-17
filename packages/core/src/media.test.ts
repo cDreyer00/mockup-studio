@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, applyOps } from './apply.js';
 import { createDocument, createNode, findNode } from './document.js';
+import { htmlToNodes, nodesToHtml } from './html.js';
 import { History } from './history.js';
 import {
   DEFAULT_THREE_CODE,
@@ -21,7 +22,7 @@ import {
 import { OpSchema } from './ops.schema.js';
 import { parseDocument, serializeDocument, validateDocument } from './schema.js';
 import { getDocumentSummary, summarizeNode } from './summary.js';
-import type { Document, Node } from './types.js';
+import type { Document, EmbedSpec, Node } from './types.js';
 
 function strip(doc: Document): unknown {
   const c = structuredClone(doc);
@@ -470,5 +471,32 @@ describe('loopbackUrlProblem', () => {
     expect(
       EmbedSpecSchema.safeParse({ provider: 'iframe', url: 'https://example.com' }).success,
     ).toBe(true);
+  });
+});
+
+describe('ida e volta de embeds por HTML', () => {
+  const specs: EmbedSpec[] = [
+    { provider: 'lottie', src: 'lottie/anim.json', params: { loop: false } },
+    { provider: 'rive', src: 'rive/a.riv', params: { artboard: 'Main', stateMachine: 'SM' } },
+    { provider: 'three', code: 'const s = "a & b";\nreturn { scene: s, update(t) {} };' },
+    { provider: 'iframe', url: 'https://example.com/page?a=1&b=2' },
+    { provider: 'youtube', url: 'https://youtu.be/dQw4w9WgXcQ?t=42', params: { start: 42 } },
+  ];
+
+  it.each(specs)('nó embed $provider → html → nó com a mesma spec', (spec) => {
+    const node = createEmbedNode(spec, { styles: { width: '300px', height: '200px' } });
+    const { html, css } = nodesToHtml([node], { mode: 'inline' });
+    expect(html).not.toContain('<iframe');
+    const [back] = htmlToNodes(html, { css });
+    expect(back!.type).toBe('embed');
+    expect(back!.embed).toEqual(spec);
+    expect(back!.style).toMatchObject({ width: '300px', height: '200px' });
+  });
+
+  it('embed com url de loopback ou inválida no HTML é ignorado como embed', () => {
+    const [n] = htmlToNodes(
+      '<div data-mockup-embed="iframe" data-url="http://127.0.0.1:4747/"></div>',
+    );
+    expect(n!.type).not.toBe('embed');
   });
 });
