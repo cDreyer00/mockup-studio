@@ -96,4 +96,11 @@ describe('health.mode e POST /api/shutdown', () => {
     expect(r.ok).toBe(false);
     expect(await checkHealth(d.url)).not.toBeNull();
   });
+
+  it('porta ocupada rejeita com mensagem clara (sem erro não tratado do ws)', async () => {
+    const a = await start();
+    await expect(startDaemon({ port: a.port, writeInfo: false, dataDir: tmp() })).rejects.toThrow(
+      /já está em uso/,
+    );
+  });
 });

@@ -77,7 +77,6 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       : undefined,
   });
   const server = http.createServer(app);
-  const ws = attachWebSocket(server, store);
 
   await new Promise<void>((resolve, reject) => {
     const onError = (err: Error): void => {
@@ -96,6 +95,9 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     });
   });
 
+  // O ws repassa os erros do servidor (EADDRINUSE) como `error` sem ouvinte, o que derrubaria o
+  // processo antes da mensagem clara abaixo: só se anexa depois que a porta foi obtida.
+  const ws = attachWebSocket(server, store);
   actualPort = (server.address() as AddressInfo).port;
   const origin = `${host === '::1' ? '[::1]' : host}:${actualPort}`;
   const url = `http://${origin}`;
