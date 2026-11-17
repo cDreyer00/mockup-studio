@@ -127,7 +127,7 @@ Pendências:
 
 ## Fases seguintes
 
-Após o MVP, uma branch por fase.
+Após o MVP, uma branch por fase. Status em 17/11/2026: **as fases 1 a 9 estão integradas** na branch `chore/integracao-fases` (merge de `feature/design-system`, com as fases 2, 3, 4 e 9, e de `feature/revisao-fases-paralelas`, com as fases 5 a 8; ver "Integração das fases" no fim).
 
 ### Fase 2 — Tokens e temas em CSS real (`feature/design-system`, concluída)
 
@@ -178,9 +178,13 @@ Resultado (ver [COMPONENTES.md](COMPONENTES.md)):
 
 Pendências: overrides não removem atributos/estados do principal (sem `unsetAttrs`/`unsetStates`); `update_component_html` gera ids novos (overrides antigos perdem efeito); renomear prop no painel não reescreve os `{{placeholders}}`; inserir um componente de kit importa o kit inteiro; o React não exporta variantes que mudam atributos, visibilidade ou props de aninhadas, nem extrai `.map` dentro dos componentes; "Restaurar"/"Enviar ao principal" não valem para instâncias aninhadas.
 
-### Fase 5 — Snapshots e versões
+### Fase 5 — Snapshots e versões (`feature/snapshot-web`, concluída como snapshot de sites)
 
 - Versões nomeadas, diff visual, restaurar.
+
+Entregue como **snapshot de sites** (ver [SNAPSHOT.md](SNAPSHOT.md)): seções de sites reais viram nós editáveis (HTML/CSS reais) pelo pacote `@mockup/snapshot-core` (captura no navegador com `getComputedStyle` curado, pseudo-elementos como nós, imagens e fontes baixadas para `assets/`), pela extensão MV3 (`packages/extension`, Chrome e Edge), por colar no editor e pelo app desktop (captura headless isolada, com `netguard` contra rede privada). MCP: `import_url`, `import_html`, `cleanup_imported`; guia `import`.
+
+Pendências: versões nomeadas, diff visual e restaurar continuam abertos; páginas atrás de login só pela extensão; `canvas`/`video`/`iframe` capturados viram placeholders; valores ficam resolvidos no viewport da captura; animações e estados não entram.
 
 ### Fase 6 — Assets
 
@@ -198,15 +202,27 @@ Entregue na branch `feature/assets-dados` (assets com link direto, imagem, dados
 
 Pendências: no app empacotado o sharp vem em `resources/native` só para a plataforma em que o pacote foi gerado (Windows x64); recorte com `object-view-box` só aparece no Chromium (o código exportado mostra a imagem inteira em Firefox/Safari); miniaturas de documentos fechados sem as fontes embutidas; estilos não aceitam bindings; importação em lote e SVG inline editável seguem abertos; a validação dos dados serializa a lista inteira (`JSON.stringify` no `DataSchema`) a cada `setData`; `fetchBytes` (imagens e dados por URL) não filtra endereços de rede privada.
 
-### Fase 7 — Vetores e grid
+### Fase 7 — Vetores e grid (`feature/vetores-grid`, concluída)
 
 - Desenho vetorial básico: pen, formas, operações booleanas.
 - Grids e colunas, guias e snapping.
 
-### Fase 8 — Efeitos e embeds
+Resultado (ver [VETORES.md](VETORES.md) e [GRID.md](GRID.md)):
+
+- Core: `Node.vector` (paths, viewBox, tinta e gradientes; `raw` preserva o SVG importado), op `setVector`, formas (`rect`, `ellipse`, `line`, `polygon`, `star`), booleanas com `polygon-clipping`, achatar, ids do SVG escopados por nó no export; CSS Grid de primeira classe (trilhas, áreas, spans) com leitura e resumo.
+- Editor: pen, ferramenta de formas, edição de pontos, seção Vetor, overlay de grid com trilhas, célula de destino e alças de span.
+- MCP: `create_shape`, `set_path`, `insert_svg`, `get_svg`, `set_vector_paint`, `boolean_op`, `flatten`, `text_to_outlines`, `set_grid`, `place_in_grid`, trilhas medidas em `get_layout`; guias `vectors` e `grid`.
+
+### Fase 8 — Efeitos e embeds (`feature/efeitos-embeds`, concluída)
 
 - Filtros, máscaras, blend modes.
 - Embeds (vídeo, iframe, Lottie) e animações simples.
+
+Resultado (ver [EFEITOS.md](EFEITOS.md) e [EMBEDS.md](EMBEDS.md)):
+
+- Core: nós `effect` (sete efeitos: seis shaders GLSL próprios e partículas, com parâmetros e presets), `video` e `embed` (Lottie, Rive, YouTube, iframe e ilhas Three.js), op `setMedia`, runtime dos efeitos compartilhado entre editor, render e export.
+- Render com `time` determinístico (espera cada mídia desenhar o instante); export HTML/Tailwind/React com os nós de mídia (React com helpers e arquivos extras; efeitos estáticos em PNG) e export animado mp4, webm e gif com ffmpeg empacotado.
+- MCP: `list_effects`, `add_effect`, `update_effect`, `insert_video`, `insert_embed`, `insert_three`, `update_media`, `time` em `get_screenshot`, formatos animados em `export`; guia `effects`.
 
 ### Fase 9 — Assistente de IA no editor (`feature/design-system`, concluída)
 
@@ -225,3 +241,13 @@ Resultado (ver [ASSISTENTE.md](ASSISTENTE.md) e [SCRIPTS.md](SCRIPTS.md)):
 - Verificado com as CLIs reais nesta máquina (Claude Code 2.1.319 e Codex 0.163.0): "deixe o botão primário mais destacado" altera o botão selecionado e um único undo desfaz o turno.
 
 Pendências: edição do usuário no meio de um turno quebra a fusão do grupo (o turno vira mais de um passo de undo); o Codex não permite desligar o shell embutido (roda em sandbox `read-only`); scripts recusam a palavra `import` em qualquer lugar do texto (defesa contra `import()` na vm); sem `save_script` no MCP; o chunk do CodeMirror tem ~507 kB.
+
+## Integração das fases (`chore/integracao-fases`, 17/11/2026)
+
+Merge de `feature/revisao-fases-paralelas` (fases 5 a 8, já juntas a partir da main) sobre `feature/design-system` (fases 2, 3, 4 e 9), com as funcionalidades dos dois lados mantidas. Decisões e ajustes:
+
+- Componentes × fases 6 a 8: `setVector`, `setMedia` e `setData` miram nós de instância e de principal (`targetIds`) e, num id virtual, viram override; `NodeOverride` ganhou `vector`, `effect`, `video`, `embed`, `data` e `dataSource` (schema de arquivo, validação estrita e expansão). As ferramentas e rotas que leem o nó para montar ops (`bind_data`, `refresh_data`, `get_data`, `generate_placeholder`, `boolean_op`, `flatten`, `text_to_outlines`) leem pela visão expandida (`docWithNodes`). Ver [COMPONENTES.md](COMPONENTES.md#overrides-nodeoverride).
+- `write_html` com Tailwind (fase 3) e a ida e volta de repetidores pelo `data-mockup-repeat` (fase 6) valem juntos; `get_html` de instâncias marca os repetidores expandidos.
+- Exportadores: preâmbulo React único (helpers de mídia, `ReactNode` dos slots e `safeUrl`), com os componentes renderizados antes do preâmbulo para registrar a mídia de dentro deles; `export` usa a árvore expandida para render, vídeo e efeitos estáticos (inclusive dentro de instâncias) e para a cópia de assets.
+- Editor: painel esquerdo único com as abas Camadas, Assets, Componentes e Tokens (só a ativa mostra o nome); tela inicial de arquivos no lugar do canvas; screenshot com `state` (prévia de estado) e `time` (animações).
+- Corrigidos no merge: regras CSS sem fechar herdadas da branch paralela (`.data-error` em `properties.css`, que aninhava o CSS do vetor e quebrava o layout do editor no Electron, e `.cv-crop-bar` em `canvas.css`, que escondia o overlay de grid); `ExpandOptions` duplicado no core (o do repetidor virou `RepeaterExpandOptions`).

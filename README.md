@@ -17,7 +17,9 @@ Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via 
 
 ## Status
 
-MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas foi feito em 16/11/2026 (relatório em [docs/qa/mvp-e2e.md](docs/qa/mvp-e2e.md)). Plano em [docs/PLANO.md](docs/PLANO.md).
+MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas foi feito em 16/11/2026 (relatório em [docs/qa/mvp-e2e.md](docs/qa/mvp-e2e.md)).
+
+Fases 1 a 9 integradas (17/11/2026): tokens e temas, Tailwind nativo, componentes, snapshot de sites, assets e dados reais, vetores e grid, efeitos e embeds, assistente de IA, scripts e remix. Detalhes e pendências em [docs/PLANO.md](docs/PLANO.md).
 
 ## Instalação
 
@@ -119,16 +121,16 @@ examples/    documentos de exemplo
 
 ## Roadmap
 
-Fases seguintes em [docs/PLANO.md](docs/PLANO.md), uma branch por fase:
+Fases em [docs/PLANO.md](docs/PLANO.md), todas integradas:
 
-- Fase 2: tokens com grupos e temas em CSS real.
-- Fase 3: classes Tailwind no modelo.
-- Fase 4: componentes.
-- Fase 5: snapshots e versões.
-- Fase 6: assets.
-- Fase 7: vetores e grid.
-- Fase 8: efeitos e embeds.
-- Fase 9: assistente de IA no editor.
+- Fase 2: tokens com grupos e temas em CSS real ([TOKENS.md](docs/TOKENS.md)).
+- Fase 3: classes Tailwind no modelo ([TAILWIND.md](docs/TAILWIND.md)).
+- Fase 4: componentes ([COMPONENTES.md](docs/COMPONENTES.md)).
+- Fase 5: snapshot de sites ([SNAPSHOT.md](docs/SNAPSHOT.md)); versões nomeadas seguem abertas.
+- Fase 6: assets e dados reais ([ASSETS.md](docs/ASSETS.md), [DADOS.md](docs/DADOS.md)).
+- Fase 7: vetores e grid ([VETORES.md](docs/VETORES.md), [GRID.md](docs/GRID.md)).
+- Fase 8: efeitos e embeds ([EFEITOS.md](docs/EFEITOS.md), [EMBEDS.md](docs/EMBEDS.md)).
+- Fase 9: assistente de IA, scripts e remix ([ASSISTENTE.md](docs/ASSISTENTE.md), [SCRIPTS.md](docs/SCRIPTS.md)).
 
 ## Licença
 

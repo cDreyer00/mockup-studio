@@ -88,8 +88,16 @@ interface NodeOverride {
   src?: string;
   svg?: string;
   props?: Record<string, PropValue>; // props de instância aninhada
+  vector?: Vector; // nó svg: com ele, svg é o markup gerado (ou o informado)
+  effect?: EffectSpec; // nó effect (objeto inteiro, como setMedia)
+  video?: VideoSpec; // nó video
+  embed?: EmbedSpec; // nó embed
+  data?: unknown[]; // repetidor: itens (`[]` vale como lista vazia)
+  dataSource?: DataSource; // repetidor: origem dos dados
 }
 ```
+
+Cada campo só vale no tipo de nó dele (`src` em imagem, `svg`/`vector` em svg, `effect`/`video`/`embed` no nó do mesmo tipo, `data`/`dataSource` em repetidor). Um `svg` sem `vector` descarta o vetor do principal na visão (o desenho deixou de ser o do vetor). Os placeholders `{{prop}}` não valem dentro de `effect`, `video`, `embed` nem `data`; num repetidor dentro de um principal, os bindings `{{campo}}` do template que coincidem com o nome de uma prop são resolvidos pela prop (os demais ficam para o repetidor).
 
 **Caminho**: ids dos nós do principal separados por `/`. Um nó direto do principal é `el_label01`; um nó dentro de uma instância aninhada no principal é `<id da instância aninhada no principal>/<id do nó no principal dela>` (ex. `in_okbtn001/tx_label01`). Ids são estáveis: inserir ou reordenar nós no principal não invalida overrides (overrides de nós que deixaram de existir são ignorados).
 
@@ -121,7 +129,7 @@ Ordem de aplicação, para a instância `I` do componente `C`:
 
 `applyOp` roteia ops cujos alvos não são nós reais das páginas:
 
-- **Id virtual de instância** (`in_x/caminho`): `updateStyles`, `setText`, `setAttrs`, `setNodeFlags` (`hidden`), `setClasses`, `setStates`, `setSrc`, `setSvg` e `setInstanceProps` (instância aninhada) viram `setInstanceOverrides` na instância dona. Estrutura (`createNode` fora de slot, `deleteNodes`, `moveNodes`, `duplicateNodes`, `setTag`) é recusada com mensagem pedindo para editar o principal ou destacar.
+- **Id virtual de instância** (`in_x/caminho`): `updateStyles`, `setText`, `setAttrs`, `setNodeFlags` (`hidden`), `setClasses`, `setStates`, `setSrc`, `setSvg`, `setVector`, `setMedia`, `setData` e `setInstanceProps` (instância aninhada) viram `setInstanceOverrides` na instância dona. Por isso as ferramentas e painéis das fases 6 a 8 (`bind_data`, `refresh_data`, `update_effect`, `update_media`, `set_path`, `set_vector_paint`, `set_image`, seções Dados, Imagem, Efeito e Vetor) funcionam com o id virtual; as que mudam estrutura (`boolean_op`, `flatten`, `text_to_outlines`, converter em repetidor) são recusadas dentro da instância, como as demais. Estrutura (`createNode` fora de slot, `deleteNodes`, `moveNodes`, `duplicateNodes`, `setTag`) é recusada com mensagem pedindo para editar o principal ou destacar.
 - **Nó da árvore de um principal** (id real dentro de `doc.components[].root`): qualquer op de nó é aplicada a um documento temporário com a raiz do principal e vira `updateComponent { root }`. É assim que o editor (modo de edição do principal) e o MCP (`update_styles` com ids do principal) editam o principal.
 - Inverso exato (o da op roteada), então undo/redo funcionam igual.
 - Op que o roteador não conhece (fora de `targetIds`) mirando um id virtual falha com `Operação "X" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)`; mirando um nó de principal, com `Operação "X" não é suportada em nós de um principal; ...` (em vez de "Nó não encontrado"). Os alvos dessas ops são deduzidos dos campos usuais (`nodeId`, `nodeIds`, `parentId`, `changes[].nodeId`).
