@@ -16,6 +16,8 @@ import type {
   Node,
   RenderBox,
 } from '@mockup/core';
+import { fxClock } from '../fx/clock';
+import { fxRenderInfo, fxSettled } from '../fx/ready';
 import { RenderApp, renderFrameOf } from './RenderApp';
 import {
   LAYOUT_STYLE_PROPS,
@@ -31,11 +33,15 @@ export interface RenderPayload {
   docId: string;
   nodeId: string;
   transparent?: boolean;
+  /** Instante da animação (s). Sem isso: tempo 0 (e vídeo com poster mostra o poster). */
+  time?: number;
 }
 
 export interface MockupRenderApi {
   render(payload: RenderPayload): Promise<RenderBox>;
   measure(nodeId: string): LayoutNode;
+  /** Muda o tempo do frame já renderizado e espera as animações desenharem (captura de N quadros). */
+  setTime(t: number): Promise<void>;
 }
 
 declare global {
@@ -49,6 +55,7 @@ const ASSET_TIMEOUT_MS = 5000;
 const DEFAULT_PAGE_BG = '#0f1115';
 
 const raf = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
+const FX_TIMEOUT_MS = 10000;
 const timeout = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const esc = (id: string): string => `[data-node-id="${id.replace(/["\\]/g, '\\$&')}"]`;
 
@@ -201,7 +208,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
   let last: Last | null = null;
 
   const api: MockupRenderApi = {
-    async render({ doc, docId, nodeId, transparent }) {
+    async render({ doc, docId, nodeId, transparent, time }) {
       const picked = pickFrame(doc, nodeId);
       if (!picked) throw new Error(`Nó não encontrado no documento: ${nodeId}`);
       const frame = renderFrameOf(picked.frame);
@@ -216,6 +223,10 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       // Sem fundo: evita que o `color-scheme: dark` do tema pinte a tela por baixo do frame.
       document.documentElement.style.colorScheme = transparent ? 'normal' : '';
 
+      // Animações em tempo manual (determinístico); `time` explícito é lembrado (regra do poster).
+      fxRenderInfo.explicitTime = time !== undefined;
+      fxClock.setManual(time ?? 0);
+
       root ??= createRoot(container);
       flushSync(() => root!.render(createElement(RenderApp, { doc, docId, frame })));
 
@@ -228,6 +239,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       await document.fonts?.ready;
       await Promise.all(Array.from(world.querySelectorAll('img')).map(imageReady));
       await document.fonts?.ready;
+      await fxSettled(FX_TIMEOUT_MS);
       await raf();
       await raf();
 
@@ -240,6 +252,16 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         frameHeight: Math.ceil(fr.height),
         ...box,
       };
+    },
+
+    async setTime(t) {
+      if (!last) throw new Error('Nada foi renderizado ainda: chame render() antes de setTime().');
+      fxRenderInfo.explicitTime = true;
+      fxClock.setManual(t);
+      await raf(); // deixa as views reagirem ao novo tempo e registrarem pendências
+      await fxSettled(FX_TIMEOUT_MS);
+      await raf();
+      await raf();
     },
 
     measure(nodeId) {
@@ -266,6 +288,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         const grid = gridOf(el, out);
         if (grid) out.grid = grid;
         if (n.type === 'image' && n.src) out.src = n.src;
+        // effect/video/embed são caixas: sem linhas de texto.
         for (const c of n.children ?? []) {
           if (c.hidden) continue;
           const m = build(c);

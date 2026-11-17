@@ -5,6 +5,7 @@ import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile, pickImageFile } from '../canvas/imageTool';
 import { saveDocumentAs } from '../desktop/fileFlows';
 import { textToOutlines } from '../vector/vectorActions';
+import { fxClock } from '../fx/clock';
 import { useClipboard } from '../clipboard/useClipboard';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
@@ -108,6 +109,11 @@ export function useShortcuts(): void {
 
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
+        // Shift+Espaço: play/pausa das animações (Espaço sozinho continua sendo o pan).
+        if (e.shiftKey) {
+          if (!e.repeat) fxClock.toggle();
+          return;
+        }
         if (!e.repeat && !useUi.getState().spaceDown) useUi.setState({ spaceDown: true });
         return;
       }

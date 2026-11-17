@@ -91,6 +91,8 @@ Abreviações: `flex-col`/`flex-row` (direção), `gap:`, `p:` (padding), `bg:` 
 
 `get_guide` também tem os tópicos `assets` (assets, link `/cdn`, biblioteca, imagem e placeholders) e `data` (repetidor e dados reais).
 
+O tópico `effects` de `get_guide` cobre efeitos, vídeo, embeds, Three.js e export animado (veja [EFEITOS.md](EFEITOS.md) e [EMBEDS.md](EMBEDS.md)).
+
 ### Escrita
 
 | Ferramenta        | Parâmetros                                                                                                                                                  | Descrição                                                                                                                                                                                                                                                                                                                                      |
@@ -186,6 +188,8 @@ O agente precisa **ver** o que criou. O ciclo recomendado (`get_guide('screensho
 
 Prefira `scale` 1 e `maxWidth` (ex.: 800) para gastar menos contexto; `get_layout` dá as medidas exatas em números.
 
+`get_screenshot` também aceita `time` (number, segundos, a partir de 0): renderiza o quadro de todas as animações naquele instante (efeitos, partículas, Lottie, Rive, Three.js e vídeo). Sem `time`, o render usa 0, e um vídeo com `poster` mostra o poster. Compare `time: 0` e `time: 2` para conferir a animação. Detalhes em [EFEITOS.md](EFEITOS.md#como-o-render-captura) e [EMBEDS.md](EMBEDS.md#poster-e-screenshot).
+
 **Quando o render está disponível:** `get_screenshot`, `get_layout`, `export` png/jpg e o SVG medido dependem do motor de render (Electron): no app desktop ou no Electron headless que o `mockup mcp` sobe quando o Electron está instalado. Num daemon Node puro essas ferramentas devolvem `isError` explicando como habilitar (`export` svg/html/tailwind/react e `get_code` continuam funcionando; o SVG usa um fallback sem medidas).
 
 ### Render e finalização
@@ -204,6 +208,8 @@ Prefira `scale` 1 e `maxWidth` (ex.: 800) para gastar menos contexto; `get_layou
 | `get_code` | `nodeId` (string, obrig.), `format` (`html` \| `tailwind` \| `react`, obrig.), `styles` (`tailwind` \| `inline`, react), `assetsBase` (só react), `docId`                                                                                | Devolve o código sem gravar: fragmento + CSS necessário (html/tailwind) ou o `.tsx` e o CSS do componente (react).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Use `get_code` para ler ou colar um trecho; use `export` para entregar arquivos (com assets). Detalhes em `get_guide('export')`.
+
+`export` também aceita os formatos animados `mp4`, `webm` e `gif` (com `fps` 1 a 60, `duration` até 30 s, `start`, `scale` e `maxWidth`; exigem o render com captura de quadros e o ffmpeg) e, no formato `react`, a opção `effects` (`live` ou `static`). Veja [EFEITOS.md](EFEITOS.md#export-animado-mp4-webm-e-gif) e [EXPORT.md](EXPORT.md).
 
 ## Imagens, ícones e fontes
 
@@ -298,6 +304,20 @@ Formas, SVG, booleanas e CSS Grid (veja `docs/VETORES.md` e `docs/GRID.md`; guia
 
 Medir as trilhas reais: `get_layout(nodeId)` (precisa de render) lista as linhas de coluna e de linha dos contêineres grid.
 
+## Efeitos, vídeo e embeds
+
+| Ferramenta      | Parâmetros                                                                                                               | Descrição                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_effects`  | nenhum                                                                                                                   | Efeitos (shaders WebGL e partículas) com categoria, parâmetros (tipo, faixa, padrão) e presets.                                                                                            |
+| `add_effect`    | `nodeId`, `kind` (obrig.), `params`, `preset`, `placement` (`background` \| `child`), `name`, `styles`, `index`, `docId` | Cria um efeito. `background` (padrão): primeiro filho de `nodeId`, atrás do conteúdo (o pai ganha `position: relative` e `isolation: isolate`). `child`: filho comum, padrão 100% x 240px. |
+| `update_effect` | `nodeId` (obrig.), `params`, `kind`, `preset`, `reset`, `docId`                                                          | Mescla `params`, aplica `preset`, troca `kind` ou, com `reset`, volta aos padrões. Parâmetros inválidos voltam com a lista de problemas.                                                   |
+| `insert_video`  | `parentId`, `source` (obrig.), `poster`, `autoplay`, `loop`, `muted`, `controls`, `styles`, `name`, `index`, `docId`     | `source`: caminho absoluto (mp4, m4v, mov, webm, ogg; até 500 MB; copiado para `assets/videos/`) ou URL http(s). Padrões: mudo, em loop, autoplay, sem controles, 640x360.                 |
+| `insert_embed`  | `parentId`, `url`, `provider`, `src`, `params`, `styles`, `name`, `index`, `docId`                                       | Detecta o provedor: YouTube, `.json`/`.lottie` (Lottie), `.riv` (Rive) ou iframe. Lottie e Rive são copiados para `assets/lottie/` e `assets/rive/` (até 50 MB).                           |
+| `insert_three`  | `parentId`, `code`, `params`, `styles`, `name`, `index`, `docId`                                                         | Ilha Three.js: `code` é o corpo de uma função com `THREE, renderer, canvas, width, height, params` que devolve `{ scene, camera, update(t) }`. Sem `code`, usa um exemplo.                 |
+| `update_media`  | `nodeId` (obrig.), `autoplay`, `loop`, `muted`, `controls`, `poster`, `time`, `url`, `src`, `code`, `params`, `docId`    | Altera um nó `video` ou `embed` (`params` são mesclados). Não troca o arquivo de um vídeo.                                                                                                 |
+
+Guia: `get_guide('effects')`. Referência completa dos efeitos em [EFEITOS.md](EFEITOS.md) e de vídeo, embeds, Three.js e comportamento offline em [EMBEDS.md](EMBEDS.md).
+
 ## Erros
 
 Falhas de uso voltam como resultado de ferramenta com `isError: true` (não como erro de protocolo). Erros de parâmetro são reformatados em português: um item por campo (obrigatório ausente, tipo esperado x recebido, valor fora das opções, mínimo/máximo) e uma chamada de exemplo.
@@ -323,6 +343,7 @@ Os guias também são publicados como resources (`text/markdown`), um por tópic
 | `guide://responsive`      | Frames `Mobile`, `Tablet` e `Desktop` como breakpoints.                  |
 | `guide://screenshot-loop` | Ciclo criar, conferir com screenshot, corrigir.                          |
 | `guide://export`          | Formatos de exportação, pasta de saída e assets.                         |
+| `guide://effects`         | Efeitos, vídeo, embeds, Three.js e export animado.                       |
 | `guide://troubleshooting` | Render indisponível, nó não encontrado, porta ocupada, overflow e logs.  |
 | `guide://setup`           | Instalar o CLI e registrar o MCP (Claude Code, Codex, Cursor, VS Code).  |
 | `guide://import`          | Importar sites: extensão, `import_url`, `import_html` e limpeza.         |

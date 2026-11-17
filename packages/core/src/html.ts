@@ -1,10 +1,20 @@
 import { DomUtils, parseDocument as parseHtml } from 'htmlparser2';
 import type { AnyNode, Element } from 'domhandler';
 import { createNodeFromTag } from './document.js';
+import { mediaElement, renderMediaAttrs } from './export/media.js';
+import {
+  EffectSpecSchema,
+  MediaParamsSchema,
+  createEffectNode,
+  createEmbedNode,
+  createVideoNode,
+  EmbedSpecSchema,
+  mediaRefProblem,
+} from './media.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { sanitizeSvg } from './svg.js';
 import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
-import type { Node } from './types.js';
+import type { MediaParamValue, Node, VideoSpec } from './types.js';
 
 /* ====================================================================== */
 /* CSS: parser mínimo de regras + resolvedor de seletores simples          */
@@ -266,7 +276,10 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
       const name = c.name.toLowerCase();
       if (SKIP_TAGS.has(name) || BLOCKED_TAGS.has(name) || !TAG_RE.test(name)) continue;
       if (UNWRAP_TAGS.has(name)) out.push(...convertChildren(c.children, ctx));
-      else out.push(convertElement(c, ctx));
+      else if (name === 'video') {
+        const video = convertVideo(c, ctx);
+        if (video) out.push(video);
+      } else out.push(convertMediaDiv(c, ctx) ?? convertElement(c, ctx));
     } else if (DomUtils.isText(c)) {
       const text = cleanText(c.data);
       if (text) {
@@ -275,6 +288,77 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
     }
   }
   return out;
+}
+
+/** `<video src|<source src>`: nó video (src/poster/autoplay/loop/muted/controls); `null` sem src válido. */
+function convertVideo(el: Element, ctx: Ctx): Node | null {
+  const source = DomUtils.findOne((e) => e.name === 'source' && !!e.attribs.src, el.children);
+  const src = (el.attribs.src || source?.attribs.src || '').trim();
+  if (!src || mediaRefProblem(src) !== null || isUnsafeUrl(src)) return null;
+  const spec: VideoSpec = { src };
+  const poster = (el.attribs.poster ?? '').trim();
+  if (poster && mediaRefProblem(poster, { allowDataImage: true }) === null) spec.poster = poster;
+  for (const flag of ['autoplay', 'loop', 'muted', 'controls'] as const) {
+    if (el.attribs[flag] !== undefined) spec[flag] = true;
+  }
+  return createVideoNode(spec, {
+    name: el.attribs['data-name']?.trim() || 'Vídeo',
+    styles: elementStyle(el, ctx),
+  });
+}
+
+/** `<div data-mockup-effect="kind" data-params='json'>` → nó effect; `null` se o JSON ou o kind são inválidos. */
+function convertMediaDiv(el: Element, ctx: Ctx): Node | null {
+  if (el.name.toLowerCase() === 'div' && el.attribs['data-mockup-embed'] !== undefined)
+    return convertEmbedDiv(el, ctx);
+  const kind = el.attribs['data-mockup-effect'];
+  if (el.name.toLowerCase() !== 'div' || kind === undefined) return null;
+  let params: Record<string, MediaParamValue> = {};
+  const raw = el.attribs['data-params'];
+  if (raw) {
+    try {
+      const parsed = MediaParamsSchema.safeParse(JSON.parse(raw) as unknown);
+      if (!parsed.success) return null;
+      params = parsed.data;
+    } catch {
+      return null;
+    }
+  }
+  const spec = EffectSpecSchema.safeParse({ kind, params });
+  if (!spec.success) return null;
+  return createEffectNode(spec.data.kind, spec.data.params, {
+    name: el.attribs['data-name']?.trim() || 'Efeito',
+    styles: elementStyle(el, ctx),
+  });
+}
+
+/** `<div data-mockup-embed="provider" data-src|data-url|data-code data-params='json'>` → nó embed. */
+function convertEmbedDiv(el: Element, ctx: Ctx): Node | null {
+  const raw: Record<string, unknown> = { provider: el.attribs['data-mockup-embed'] };
+  for (const [attr, key] of [
+    ['data-src', 'src'],
+    ['data-url', 'url'],
+    ['data-code', 'code'],
+  ] as const) {
+    const v = el.attribs[attr];
+    if (v !== undefined) raw[key] = v;
+  }
+  if (typeof raw.src === 'string' && isUnsafeUrl(raw.src)) return null;
+  if (typeof raw.url === 'string' && isUnsafeUrl(raw.url)) return null;
+  const rawParams = el.attribs['data-params'];
+  if (rawParams) {
+    try {
+      raw.params = JSON.parse(rawParams) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  const spec = EmbedSpecSchema.safeParse(raw);
+  if (!spec.success) return null;
+  return createEmbedNode(spec.data, {
+    name: el.attribs['data-name']?.trim() || undefined,
+    styles: elementStyle(el, ctx),
+  });
 }
 
 function convertElement(el: Element, ctx: Ctx): Node {
@@ -410,6 +494,21 @@ export function nodesToHtml(
     if (node.type === 'svg') {
       const markup = node.svg ?? '<svg></svg>';
       lines.push(pad(depth) + (extra ? markup.replace(/^(\s*<svg)/i, `$1 ${extra}`) : markup));
+      return;
+    }
+
+    const media =
+      node.type === 'effect' || node.type === 'video' || node.type === 'embed'
+        ? mediaElement(node, {
+            mode: 'static',
+            roundtrip: true,
+            url: (ref) => (isUnsafeUrl(ref) ? null : ref),
+          })
+        : null;
+    if (media) {
+      const attrs = renderMediaAttrs(media.attrs);
+      if (extra) attrs.push(extra);
+      lines.push(`${pad(depth)}<${media.tag} ${attrs.join(' ')}></${media.tag}>`);
       return;
     }
 

@@ -6,6 +6,7 @@ import { AttrsSection } from './AttrsSection';
 import { CssSection } from './CssSection';
 import { ConvertToRepeater, DataSection } from './DataSection';
 import { DocumentInfo } from './DocumentInfo';
+import { EffectSection } from './EffectSection';
 import { EffectsSection } from './EffectsSection';
 import { GridCellSection } from './GridEditor';
 import { HeaderSection } from './HeaderSection';
@@ -54,6 +55,7 @@ export function PropertiesPanel() {
         <TypographySection nodes={nodes} />
         {nodes.every((n) => n.type === 'svg') && <VectorSection nodes={nodes} />}
         <AppearanceSection nodes={nodes} />
+        <EffectSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
         <AttrsSection ctxs={ctxs} />
         {nodes.length === 1 && <CssSection node={nodes[0]!} />}

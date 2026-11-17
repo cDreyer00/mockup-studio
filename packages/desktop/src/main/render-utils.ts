@@ -62,6 +62,8 @@ export interface CacheKeyInput {
   quality?: number;
   maxWidth?: number;
   transparent: boolean;
+  /** Tempo (s) das animações; ausente ≠ 0 (sem tempo o vídeo com poster mostra o poster). */
+  time?: number;
   /** Impressão digital dos arquivos referenciados (ver `assetFingerprints`). */
   assets?: string[];
 }
@@ -82,6 +84,7 @@ export function cacheKey(i: CacheKeyInput): string {
         quality: i.quality ?? null,
         maxWidth: i.maxWidth ?? null,
         transparent: i.transparent,
+        time: i.time ?? null,
         assets: i.assets ?? [],
       }),
     )

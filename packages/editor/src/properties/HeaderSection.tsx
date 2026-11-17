@@ -1,4 +1,15 @@
-import { Frame, Image as ImageIcon, Lock, Repeat, Shapes, Square, Type } from 'lucide-react';
+import {
+  Box,
+  Clapperboard,
+  Frame,
+  Image as ImageIcon,
+  Lock,
+  Repeat,
+  Shapes,
+  Sparkles,
+  Square,
+  Type,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Node, NodeType } from '@mockup/core';
 import { Section } from '../ui/controls';
@@ -11,6 +22,9 @@ const ICONS: Record<NodeType, ReactNode> = {
   image: <ImageIcon size={14} />,
   svg: <Shapes size={14} />,
   repeater: <Repeat size={14} />,
+  effect: <Sparkles size={14} />,
+  video: <Clapperboard size={14} />,
+  embed: <Box size={14} />,
 };
 
 const TYPE_NAMES: Record<NodeType, string> = {
@@ -20,6 +34,9 @@ const TYPE_NAMES: Record<NodeType, string> = {
   image: 'Imagem',
   svg: 'SVG',
   repeater: 'Repetidor',
+  effect: 'Efeito',
+  video: 'Vídeo',
+  embed: 'Embed',
 };
 
 export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locked: boolean }) {

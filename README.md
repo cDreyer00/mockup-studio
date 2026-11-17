@@ -85,7 +85,8 @@ Detalhes de arquitetura em [packages/desktop/README.md](packages/desktop/README.
 ```bash
 npm test                     # unitários (Vitest) de todos os pacotes
 npx playwright install chromium   # uma vez
-npm run test:e2e             # e2e do editor (Playwright)
+npm run test:e2e             # e2e do editor (Playwright) + integração de mídia no Electron
+npm run test:e2e:desktop     # só a integração de efeitos/vídeo/embeds no Electron real
 npm run screenshot           # regenera docs/img/editor.png
 npm run lint
 ```
@@ -111,6 +112,8 @@ examples/    documentos de exemplo
 - [docs/MCP.md](docs/MCP.md): conexão, convenções e ferramentas
 - [docs/EDITOR.md](docs/EDITOR.md): uso do editor, atalhos, painéis e desempenho
 - [docs/EXPORT.md](docs/EXPORT.md): exportadores html, tailwind, react e svg
+- [docs/EFEITOS.md](docs/EFEITOS.md): efeitos animados (shaders e partículas), render com `time` e export mp4, webm e gif
+- [docs/EMBEDS.md](docs/EMBEDS.md): vídeo, Lottie, Rive, YouTube, iframe, ilhas Three.js e uso offline
 - [docs/INTEGRACAO.md](docs/INTEGRACAO.md): registro no Claude Code, Codex e outros clientes
 - [packages/desktop/README.md](packages/desktop/README.md): app Electron, render e empacotamento
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Op } from './ops.js';
 import { DataSchema, DataSourceSchema, FontRefSchema, NodeSchema, TokensSchema } from './schema.js';
+import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
 import { VectorSchema } from './vector/schema.js';
 
 const strMap = z.record(z.string(), z.string());
@@ -111,6 +112,17 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
       z.object({ nodeId: id, vector: VectorSchema.nullable(), svg: z.string().optional() }),
     ),
   }),
+  z.object({
+    type: z.literal('setMedia'),
+    changes: z.array(
+      z.object({
+        nodeId: id,
+        effect: EffectSpecSchema.optional(),
+        video: VideoSpecSchema.optional(),
+        embed: EmbedSpecSchema.optional(),
+      }),
+    ),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -135,6 +147,7 @@ const OP_TYPES = [
   'setSrc',
   'setData',
   'setVector',
+  'setMedia',
 ];
 
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */

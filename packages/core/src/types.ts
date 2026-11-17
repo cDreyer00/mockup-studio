@@ -8,7 +8,56 @@
 
 export const DOCUMENT_VERSION = 1 as const;
 
-export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg' | 'repeater';
+export type NodeType =
+  | 'frame'
+  | 'element'
+  | 'text'
+  | 'image'
+  | 'svg'
+  | 'repeater'
+  | 'effect'
+  | 'video'
+  | 'embed';
+
+/** Valor de parâmetro de efeito/embed: número, texto (cor, opção) ou booleano. */
+export type MediaParamValue = number | string | boolean;
+
+/** Efeito visual (shader WebGL ou partículas) de um nó `type: 'effect'` (ver `effects/catalog.ts`). */
+export interface EffectSpec {
+  /** Tipo do efeito, ex.: `mesh-gradient`, `grain`, `particles` (ver `list_effects`). */
+  kind: string;
+  /** Parâmetros do efeito; os ausentes usam o padrão do catálogo. */
+  params: Record<string, MediaParamValue>;
+}
+
+/** Vídeo de um nó `type: 'video'`. */
+export interface VideoSpec {
+  /** Caminho relativo a `assets/` ou URL http(s). */
+  src: string;
+  /** Imagem de capa (relativa a `assets/` ou URL http(s)). */
+  poster?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  controls?: boolean;
+  /** Momento (s) mostrado no screenshot quando não há `poster` (padrão 0). */
+  time?: number;
+}
+
+export type EmbedProvider = 'lottie' | 'rive' | 'youtube' | 'three' | 'iframe';
+
+/** Conteúdo incorporado de um nó `type: 'embed'`. */
+export interface EmbedSpec {
+  provider: EmbedProvider;
+  /** Arquivo local relativo a `assets/` ou URL http(s) (lottie `.json`, rive `.riv`). */
+  src?: string;
+  /** URL http(s) (youtube, iframe). */
+  url?: string;
+  /** Código JavaScript da ilha Three.js (corpo de função; ver docs/EMBEDS.md). */
+  code?: string;
+  /** Opções do provedor (ex.: `autoplay`, `loop`, `artboard`, `stateMachine`, `start`). */
+  params?: Record<string, MediaParamValue>;
+}
 
 export interface Position {
   x: number;
@@ -37,6 +86,12 @@ export interface Node {
    * (`vectorToSvg`): `raw` intacto enquanto não houver edição, senão regenerado dos `paths`.
    */
   vector?: Vector;
+  /** Efeito (type 'effect'). */
+  effect?: EffectSpec;
+  /** Vídeo (type 'video'). */
+  video?: VideoSpec;
+  /** Embed: Lottie, Rive, YouTube, Three.js ou iframe (type 'embed'). */
+  embed?: EmbedSpec;
   children: Node[];
   locked: boolean;
   hidden: boolean;

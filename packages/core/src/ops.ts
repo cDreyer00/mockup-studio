@@ -2,7 +2,17 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { DataSource, Document, FontRef, Node, Position, Vector } from './types.js';
+import type {
+  DataSource,
+  Document,
+  EffectSpec,
+  EmbedSpec,
+  FontRef,
+  Node,
+  Position,
+  Vector,
+  VideoSpec,
+} from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -148,6 +158,15 @@ export interface SetVectorOp {
   changes: { nodeId: string; vector: Vector | null; svg?: string }[];
 }
 
+/**
+ * Troca a especificação de mídia de nós: `effect` em nós effect, `video` em nós video e `embed`
+ * em nós embed (substitui o objeto inteiro; o campo precisa casar com o tipo do nó).
+ */
+export interface SetMediaOp {
+  type: 'setMedia';
+  changes: { nodeId: string; effect?: EffectSpec; video?: VideoSpec; embed?: EmbedSpec }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -167,7 +186,8 @@ export type Op =
   | SetFontsOp
   | SetSrcOp
   | SetDataOp
-  | SetVectorOp;
+  | SetVectorOp
+  | SetMediaOp;
 
 export type OpType = Op['type'];
 

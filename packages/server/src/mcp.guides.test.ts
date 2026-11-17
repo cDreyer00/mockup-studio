@@ -33,7 +33,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos são os 13 esperados, sem tokens', () => {
+  it('os tópicos são os 14 esperados, sem tokens', () => {
     expect([...GUIDE_TOPICS]).toEqual([
       'getting-started',
       'design-system',
@@ -43,6 +43,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
       'responsive',
       'screenshot-loop',
       'export',
+      'effects',
       'troubleshooting',
       'setup',
       'import',

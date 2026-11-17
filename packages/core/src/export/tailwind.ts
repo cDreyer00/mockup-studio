@@ -2,6 +2,7 @@ import { fontFaceCss } from '../fonts.js';
 import { escapeCssText } from '../html.js';
 import { isValidCssPropertyName } from '../styles.js';
 import type { Document, Node } from '../types.js';
+import { mediaScripts, newMediaCollector } from './media.js';
 import {
   cleanTokens,
   escapeHtmlText,
@@ -24,6 +25,8 @@ export interface TailwindExportOptions {
    * `<style type="text/tailwindcss">`. `false` remove o script (o tema continua no `<style>`).
    */
   cdn?: boolean;
+  /** Lê um arquivo de `assets/`: embute no HTML o JSON de animações Lottie de até 512 KB. */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 export interface TailwindMapping {
@@ -1170,8 +1173,15 @@ export function exportTailwind(doc: Document, options: TailwindExportOptions = {
   const selection: RootSelection = { pageId: options.pageId, nodeIds: options.nodeIds };
   const roots = resolveRoots(doc, selection);
   const tokens = cleanTokens(doc.tokens);
-  const markup = renderHtmlTree(roots, { styleOf: (node) => tailwindAttrs(node, tokens) });
-  if (options.fragment) return markup + '\n';
+  const media = newMediaCollector();
+  const markup = renderHtmlTree(roots, {
+    styleOf: (node) => tailwindAttrs(node, tokens),
+    media,
+    readAsset: options.readAsset,
+  });
+  const scripts = mediaScripts(media);
+  // nós de mídia: os scripts (runtime dos efeitos, CDNs) vão também no fragmento, logo após o markup
+  if (options.fragment) return markup + '\n' + (scripts ? scripts + '\n' : '');
 
   const head = [
     '  <meta charset="utf-8">',
@@ -1193,6 +1203,7 @@ export function exportTailwind(doc: Document, options: TailwindExportOptions = {
     '</head>',
     '<body>',
     indentLines(markup, 1),
+    ...(scripts ? [scripts] : []),
     '</body>',
     '</html>',
     '',

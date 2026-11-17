@@ -31,6 +31,32 @@ export interface CaptureRequest extends RenderTarget {
   maxWidth?: number;
   /** Fundo transparente fora do conteúdo (PNG). Padrão `false`. */
   transparent?: boolean;
+  /**
+   * Tempo (s) das animações no quadro capturado: efeitos, partículas, vídeo, Lottie, Rive e
+   * Three.js. Padrão 0 (vídeo com `poster` mostra o poster quando `time` não é informado).
+   */
+  time?: number;
+}
+
+/** Captura de N quadros PNG de um nó animado (para exportar mp4, webm ou gif). */
+export interface FramesRequest extends RenderTarget {
+  scale?: RenderScale;
+  /** Largura máxima de cada quadro em px (reduz mantendo a proporção). */
+  maxWidth?: number;
+  /** Quadros por segundo (1 a 60). */
+  fps: number;
+  /** Duração em segundos (> 0). */
+  duration: number;
+  /** Tempo inicial (s), padrão 0. */
+  start?: number;
+}
+
+export interface FramesInfo {
+  /** Quantidade de quadros entregues. */
+  frames: number;
+  /** Tamanho de cada quadro em px. */
+  pixelWidth: number;
+  pixelHeight: number;
 }
 
 export interface CaptureResult {
@@ -54,6 +80,15 @@ export interface RenderProvider {
    * fica indisponível e a de HTML cai na conversão do core.
    */
   snapshot?(req: PageSnapshotRequest): Promise<PageSnapshotResult>;
+  /**
+   * Renderiza o nó em `round(duration × fps)` quadros, com o relógio das animações em
+   * `start + i / fps`, e entrega cada PNG em ordem a `onFrame` (que pode ser assíncrono: o
+   * próximo quadro espera). Opcional: motores sem animação não implementam.
+   */
+  captureFrames?(
+    req: FramesRequest,
+    onFrame: (png: Buffer, index: number) => Promise<void> | void,
+  ): Promise<FramesInfo>;
   close?(): Promise<void>;
 }
 

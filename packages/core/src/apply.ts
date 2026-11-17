@@ -1,8 +1,16 @@
 import { deepClone } from './clone.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
-import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag } from './tags.js';
-import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
+import { effectKinds, getEffect } from './effects/catalog.js';
+import {
+  LEAF_TYPES,
+  TOKEN_NAME_RE,
+  VOID_TAGS,
+  attrNameProblem,
+  nodeTagProblem,
+  normalizeTag,
+} from './tags.js';
+import type { ApplyResult, DuplicateNodesOp, Op, SetMediaOp, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
 import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
@@ -47,12 +55,7 @@ function containerArray(path: NodePath): Node[] {
 }
 
 function assertCanHaveChildren(parent: Node): void {
-  if (
-    parent.type === 'text' ||
-    parent.type === 'image' ||
-    parent.type === 'svg' ||
-    VOID_TAGS.has(parent.tag)
-  ) {
+  if (LEAF_TYPES.has(parent.type) || VOID_TAGS.has(parent.tag)) {
     fail(`O nó "${parent.id}" (${parent.tag}, tipo ${parent.type}) não pode ter filhos`);
   }
 }
@@ -525,6 +528,29 @@ function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Appli
   return { inverse: [{ type: 'setVector', changes: prev.reverse() }] };
 }
 
+function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied {
+  const prev: SetMediaOp['changes'] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    const n = p.node;
+    const given = (['effect', 'video', 'embed'] as const).filter((k) => c[k] !== undefined);
+    if (given.length !== 1)
+      fail(`setMedia em "${c.nodeId}": informe exatamente um de effect, video ou embed`);
+    const field = given[0]!;
+    if (n.type !== field) fail(`O nó "${c.nodeId}" é ${n.type}; ${field} só vale em nós ${field}`);
+    if (field === 'effect' && c.effect && !getEffect(c.effect.kind)) {
+      const kinds = effectKinds();
+      fail(
+        `Efeito desconhecido "${c.effect.kind}" em "${c.nodeId}". Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? `… (${kinds.length} no total; veja list_effects)` : ''}`,
+      );
+    }
+    prev.push({ nodeId: c.nodeId, [field]: deepClone(n[field]) });
+    (n as unknown as Record<string, unknown>)[field] = deepClone(c[field]);
+  }
+  return { inverse: [{ type: 'setMedia', changes: prev.reverse() }] };
+}
+
 /* ---------------- API pública ---------------- */
 
 /* ---------------- setData ---------------- */
@@ -616,6 +642,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setVector':
       applied = doSetVector(d, op);
+      break;
+    case 'setMedia':
+      applied = doSetMedia(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

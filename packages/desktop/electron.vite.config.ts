@@ -16,7 +16,8 @@ export default defineConfig({
       minify: false,
       rollupOptions: {
         input: { index: 'src/main/index.ts' },
-        external: ['electron', 'sharp'],
+        // sharp (nativo, opcional) e ffmpeg-static (binário) são resolvidos em runtime
+        external: ['electron', 'sharp', 'ffmpeg-static'],
         output: { format: 'es', entryFileNames: '[name].js' },
       },
     },

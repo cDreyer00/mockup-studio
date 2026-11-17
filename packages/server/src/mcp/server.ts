@@ -29,6 +29,8 @@ import {
 import { formatToolInputError, notFoundToolMessage } from './errors.js';
 import { GUIDES, GUIDE_INFO, GUIDE_TOPICS } from './guides.js';
 import { lostRepeaters, markRepeaters, restoreRepeaters } from './repeaterHtml.js';
+import { registerEffectTools } from './tools/effects.js';
+import { registerEmbedTools } from './tools/embeds.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerGridTools } from './tools/grid.js';
@@ -442,6 +444,12 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       if (n.position) lines.push(`posição: ${n.position.x}, ${n.position.y}`);
       if (n.text !== undefined) lines.push(`texto: ${JSON.stringify(n.text)}`);
       if (n.src) lines.push(`src: ${n.src.length > 120 ? `${n.src.slice(0, 120)}…` : n.src}`);
+      if (n.effect) lines.push(`effect: ${JSON.stringify(n.effect)}`);
+      if (n.video) lines.push(`video: ${JSON.stringify(n.video)}`);
+      if (n.embed)
+        lines.push(
+          `embed: ${JSON.stringify(n.embed.code ? { ...n.embed, code: `(${n.embed.code.length} caracteres)` } : n.embed)}`,
+        );
       lines.push(
         `filhos: ${n.children.length}${n.locked ? ' | bloqueado' : ''}${n.hidden ? ' | oculto' : ''}`,
       );
@@ -1292,6 +1300,8 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerFilesTools(ctx);
   registerVectorTools(ctx);
   registerGridTools(ctx);
+  registerEffectTools(ctx);
+  registerEmbedTools(ctx);
 
   /* ---------- resources ---------- */
 

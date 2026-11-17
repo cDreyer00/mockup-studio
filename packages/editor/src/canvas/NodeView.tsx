@@ -11,6 +11,9 @@ import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { VOID_TAGS, baseNodeId, expandRepeaterChildren } from '@mockup/core';
 import type { Node, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
+import { EffectView } from '../fx/EffectView';
+import { EmbedView } from '../fx/EmbedView';
+import { VideoView } from '../fx/VideoView';
 import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
 import { convertStyle, resolveSrc, resolveTag, safeAttrs, svgToDataUri } from './render-utils';
@@ -183,6 +186,10 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   if (node.hidden) return null;
 
   const tag = resolveTag(node.tag);
+
+  if (node.type === 'effect') return <EffectView node={node} style={style} docId={docId} />;
+  if (node.type === 'video') return <VideoView node={node} style={style} docId={docId} />;
+  if (node.type === 'embed') return <EmbedView node={node} style={style} docId={docId} />;
 
   if (node.type === 'svg') {
     // Nunca injeta HTML: o SVG é isolado em um <img> (sem scripts; `currentColor` não herda).
