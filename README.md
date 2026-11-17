@@ -85,7 +85,8 @@ Detalhes de arquitetura em [packages/desktop/README.md](packages/desktop/README.
 ```bash
 npm test                     # unitários (Vitest) de todos os pacotes
 npx playwright install chromium   # uma vez
-npm run test:e2e             # e2e do editor (Playwright)
+npm run test:e2e             # e2e do editor (Playwright) + integração de mídia no Electron
+npm run test:e2e:desktop     # só a integração de efeitos/vídeo/embeds no Electron real
 npm run screenshot           # regenera docs/img/editor.png
 npm run lint
 ```
