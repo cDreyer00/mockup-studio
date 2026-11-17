@@ -60,7 +60,7 @@ export function registerFilesTools(ctx: ToolContext): void {
     {
       title: 'Listar arquivos',
       description:
-        'Lista os arquivos .mockup.json conhecidos (abertos, recentes e registrados), uma linha por arquivo com pasta, tags, favorito, páginas/frames, se está aberto e o trecho que casou. No topo vêm as pastas e tags existentes. Sem folder lista todos; com folder só os diretamente nela (recursive inclui subpastas; "/" = sem pasta). query busca em nome, tags e conteúdo (sem acento).',
+        'Lista os .mockup.json conhecidos (abertos, recentes e registrados): pasta, tags, favorito, páginas/frames e trecho que casou; no topo, pastas e tags. folder filtra (recursive inclui subpastas; "/" = sem pasta); query busca em nome, tags e conteúdo.',
       example: { folder: 'Clientes', recursive: true, query: 'plano mensal' },
       inputSchema: {
         folder: z
@@ -93,7 +93,7 @@ export function registerFilesTools(ctx: ToolContext): void {
     {
       title: 'Buscar nós',
       description:
-        'Busca nós por texto, nome, tag, classe, id, atributo e dados de repetidor nos documentos abertos (ou só em docId). Termos livres precisam aparecer todos; filtros: tag:button, name:hero, text:"fale conosco", class:card, id:tx_, attr:href, data:preço. Sem acento e sem diferenciar caixa. Uma linha por nó: docId nodeId "nome" tag campo: trecho.',
+        'Busca nós (texto, nome, tag, classe, id, atributo, dados) nos documentos abertos ou em docId; todos os termos precisam casar. Filtros: tag:button, name:hero, text:"fale conosco", class:card, id:tx_, attr:href, data:preço. Sem acento e sem caixa.',
       example: { query: 'tag:button text:"Comprar"', limit: 10 },
       inputSchema: {
         query: z.string().describe('Consulta, ex.: "tag:button text:comprar" ou "preço".'),
