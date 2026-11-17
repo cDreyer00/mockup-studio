@@ -25,6 +25,11 @@ function pathKey(entry: string): string {
     .toLowerCase();
 }
 
+/** Diz se `dir` já consta na lista (comparando por `pathKey`). */
+function hasInPathList(list: string, dir: string): boolean {
+  return splitPath(list).some((e) => pathKey(e) === pathKey(dir));
+}
+
 /** Acrescenta `dir` ao fim da lista (separada por `;`) se ainda não estiver nela. */
 export function addToPathList(list: string, dir: string): string {
   const entries = splitPath(list);
@@ -186,10 +191,9 @@ export function installCli(
 
     if (deps.platform === 'win32') {
       const current = readUserPath(deps.ps);
-      const next = addToPathList(current, binDir);
-      if (next === current) lines.push(`${binDir} já está no PATH do usuário.`);
+      if (hasInPathList(current, binDir)) lines.push(`${binDir} já está no PATH do usuário.`);
       else {
-        writeUserPath(deps.ps, next);
+        writeUserPath(deps.ps, addToPathList(current, binDir));
         lines.push(`${binDir} adicionado ao PATH do usuário.`);
       }
       lines.push('Abra um terminal novo para o comando `mockup` ficar disponível.');
@@ -234,10 +238,9 @@ export function uninstallCli(
     }
     if (deps.platform === 'win32') {
       const current = readUserPath(deps.ps);
-      const next = removeFromPathList(current, binDir);
-      if (next === current) lines.push(`${binDir} não estava no PATH do usuário.`);
+      if (!hasInPathList(current, binDir)) lines.push(`${binDir} não estava no PATH do usuário.`);
       else {
-        writeUserPath(deps.ps, next);
+        writeUserPath(deps.ps, removeFromPathList(current, binDir));
         lines.push(`${binDir} removido do PATH do usuário.`);
       }
       lines.push('Abra um terminal novo para o PATH atualizado valer.');

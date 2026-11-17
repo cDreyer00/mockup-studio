@@ -94,6 +94,24 @@ describe('install-cli / uninstall-cli', () => {
     expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
   });
 
+  it('PATH com ; sobrando e a pasta já presente: não grava e diz que já está', () => {
+    const bin = path.join(tmp, 'bin');
+    userPath = `C:\\a;${bin};`;
+    const r = installCli({ binDir: bin }, deps());
+    expect(r.lines.join('\n')).toContain('já está');
+    expect(r.lines.join('\n')).not.toContain('adicionado');
+    expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
+
+    const u = uninstallCli({ binDir: bin }, deps());
+    expect(u.lines.join('\n')).toContain('removido do PATH');
+    expect(userPath).toBe('C:\\a');
+    calls = [];
+    userPath = 'C:\\a;;';
+    const again = uninstallCli({ binDir: bin }, deps());
+    expect(again.lines.join('\n')).toContain('não estava');
+    expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
+  });
+
   it('recusa sobrescrever um mockup.cmd que não é nosso', () => {
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(bin);
