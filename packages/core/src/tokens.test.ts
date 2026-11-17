@@ -216,6 +216,32 @@ describe('renameToken', () => {
     expect(out.pages[1].frames[0].children[0].style.color).toBe('var(--novo )');
   });
 
+  it('atualiza node.classes (nome curto, variantes, opacidade, arbitrárias) e o undo restaura', () => {
+    const n = el('el_k0000001');
+    n.classes =
+      'bg-brand hover:bg-brand/90 md:dark:!text-brand border-x-brand bg-brand-500 bg-[var(--color-brand)] bg-(--color-brand) hover:[&:not(:first-child)]:ring-brand! p-4 bg-hov';
+    const doc = docWith([n], { tokens: { '--color-brand': '#111', '--color-hov': '#222' } });
+    const ops: Op[] = [{ type: 'renameToken', from: '--color-brand', to: '--color-accent' }];
+    const { doc: out, results } = applyOps(doc, ops);
+    expect(out.pages[0].frames[0].children[0].classes).toBe(
+      'bg-accent hover:bg-accent/90 md:dark:!text-accent border-x-accent bg-brand-500 bg-[var(--color-accent)] bg-(--color-accent) hover:[&:not(:first-child)]:ring-accent! p-4 bg-hov',
+    );
+    expect(JSON.stringify(results)).toContain('"references":7');
+    applyAndUndo(doc, ops);
+  });
+
+  it('namespaces diferentes só mexem nas formas var() das classes', () => {
+    const n = el('el_k0000002');
+    n.classes = 'bg-brand bg-[var(--color-brand)] text-brand';
+    const doc = docWith([n], { tokens: { '--color-brand': '#111' } });
+    const { doc: out } = applyOps(doc, [
+      { type: 'renameToken', from: '--color-brand', to: '--spacing-brand' },
+    ]);
+    expect(out.pages[0].frames[0].children[0].classes).toBe(
+      'bg-brand bg-[var(--spacing-brand)] text-brand',
+    );
+  });
+
   it('erros: destino existe, origem não existe, nome inválido', () => {
     const doc = rich();
     expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--keep' }])).toThrow(
@@ -478,6 +504,21 @@ describe('planejadores', () => {
 });
 
 describe('getTokenReport', () => {
+  it('considera node.states: uso só em hover não é unused e referência quebrada aponta o estado', () => {
+    const n = el('el_st000001');
+    n.states = {
+      hover: { 'background-color': 'var(--hov)', color: 'var(--nada)' },
+      dark: { '--loc': '1px', margin: 'var(--loc)' },
+    };
+    const doc = docWith([n], { tokens: { '--hov': '#222' } });
+    const r = getTokenReport(doc);
+    expect(r.unused).not.toContain('--hov');
+    expect(r.tokens.find((t) => t.name === '--hov')!.usage.nodeIds).toEqual(['el_st000001']);
+    expect(r.broken).toEqual([
+      { nodeId: 'el_st000001', property: 'state:hover:color', missing: '--nada' },
+    ]);
+  });
+
   it('conta uso e referências quebradas em attrs e em markup SVG', () => {
     const doc = docWith(
       [

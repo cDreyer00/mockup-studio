@@ -11,6 +11,7 @@
 import { evaluateCss } from './cssEval.js';
 import { lexer, parse } from './csstree.js';
 import { findNode, walk } from './document.js';
+import { themeNamespace } from './export/tailwind.js';
 import type { Op, StyleChange } from './ops.js';
 import { cssValueProblem, toKebabCase } from './styles.js';
 import { THEME_ATTR, THEME_NAME_RE, TOKEN_NAME_RE } from './tags.js';
@@ -175,6 +176,76 @@ export function replaceVarRefs(value: string, from: string, to: string): string 
   if (!value.includes(from)) return value;
   const re = new RegExp(`([vV][aA][rR]\\()\\s*${from.replace(/[-]/g, '\\-')}(?=\\s*[,)])`, 'g');
   return value.replace(re, (_m, open: string) => `${open}${to}`);
+}
+
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+
+/** Raízes de utilidade Tailwind que aceitam cor. */
+const COLOR_ROOTS =
+  'bg|text|border(?:-[xytblrse])?|ring|ring-offset|outline|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|decoration|accent|caret|divide|placeholder';
+
+/** Raízes de utilidade de cada namespace de tema (`null`: qualquer raiz, o caso do spacing). */
+const NS_ROOTS: Record<string, string> = {
+  color: COLOR_ROOTS,
+  radius: 'rounded(?:-(?:[xytblrse]|[st][se]|[be][se]))?',
+  shadow: 'shadow|inset-shadow',
+  font: 'font',
+  weight: 'font',
+  text: 'text',
+  leading: 'leading',
+  tracking: 'tracking',
+  spacing: '[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*)*',
+};
+
+/** Parte a classe em variantes e base nos `:` fora de `[]` e `()`. */
+function splitVariants(cls: string): { variants: string; base: string } {
+  let depth = 0;
+  let cut = -1;
+  for (let i = 0; i < cls.length; i++) {
+    const c = cls[i]!;
+    if (c === '[' || c === '(') depth++;
+    else if (c === ']' || c === ')') depth = Math.max(0, depth - 1);
+    else if (c === ':' && depth === 0) cut = i;
+  }
+  return { variants: cls.slice(0, cut + 1), base: cls.slice(cut + 1) };
+}
+
+/**
+ * Reescreve em uma lista de classes Tailwind (`node.classes`) as referências ao token `from`:
+ * formas arbitrárias (`bg-[var(--from)]`, `bg-(--from)`), sempre; e utilidades com o nome curto de
+ * tema (`bg-brand`, `hover:bg-brand/90`, `!-mt-gutter`), só quando `from` e `to` são do mesmo
+ * namespace de tema. Devolve o texto novo e quantas classes mudaram.
+ */
+export function renameTokenInClasses(
+  classes: string,
+  from: string,
+  to: string,
+): { classes: string; changed: number } {
+  const a = themeNamespace(from);
+  const b = themeNamespace(to);
+  const short =
+    a && b && a.ns === b.ns
+      ? new RegExp(
+          `^(!?)(-?)(${NS_ROOTS[a.ns]})-${escapeRe(a.short)}(/[^\\s]+)?(!?)$`,
+        )
+      : null;
+  const parenRe = new RegExp(`(\\((?:[a-z-]+:)?)${escapeRe(from)}(?=[),])`, 'g');
+  let changed = 0;
+  const out = classes
+    .split(/(\s+)/)
+    .map((tok) => {
+      if (!tok || /^\s+$/.test(tok)) return tok;
+      let next = replaceVarRefs(tok, from, to).replace(parenRe, `$1${to}`);
+      if (short) {
+        const { variants, base } = splitVariants(next);
+        const m = short.exec(base);
+        if (m) next = `${variants}${m[1]}${m[2]}${m[3]}-${b!.short}${m[4] ?? ''}${m[5]}`;
+      }
+      if (next !== tok) changed++;
+      return next;
+    })
+    .join('');
+  return { classes: out, changed };
 }
 
 /**
@@ -734,6 +805,14 @@ export function getTokenReport(doc: Document): TokenReport {
       checkValue(v, { nodeId: node.id, property: `attr:${attr}` }, local);
     }
     if (node.svg) checkValue(node.svg, { nodeId: node.id, property: 'svg' }, local);
+    // Estados (hover, dark, md...): custom properties declaradas no estado valem só para ele.
+    for (const [key, st] of Object.entries(node.states ?? {})) {
+      const stLocal = new Set(local);
+      for (const k of Object.keys(st)) if (k.startsWith('--')) stLocal.add(k);
+      for (const [prop, v] of Object.entries(st)) {
+        checkValue(v, { nodeId: node.id, property: `state:${key}:${prop}` }, stLocal);
+      }
+    }
     for (const c of node.children) visit(c, local);
   };
   for (const page of doc.pages) for (const f of page.frames) visit(f, defined);

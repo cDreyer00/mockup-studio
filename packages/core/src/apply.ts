@@ -5,7 +5,13 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
-import { findVarRefs, normalizeTokenName, renameTokenProblem, replaceVarRefs } from './tokens.js';
+import {
+  findVarRefs,
+  normalizeTokenName,
+  renameTokenInClasses,
+  renameTokenProblem,
+  replaceVarRefs,
+} from './tokens.js';
 import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
 import { normalizeStateKey } from './states.js';
 import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
@@ -557,6 +563,7 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
   const statesInv: { nodeId: string; states: Record<string, Record<string, string>> }[] = [];
   const attrsInv: { nodeId: string; set: Record<string, string>; unset: string[] }[] = [];
   const svgInv: { nodeId: string; svg: string; attrs?: Record<string, string> }[] = [];
+  const classesInv: { nodeId: string; classes: string | null }[] = [];
   const touched = new Set<string>();
   let refs = 0;
   for (const page of d.pages) {
@@ -632,8 +639,20 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
         else attrsInv.push({ nodeId: node.id, set: prevAttrValues, unset: [] });
       }
       if (attrsChanged || svgChanged) touched.add(node.id);
+
+      // Dica de classes Tailwind do nó: acompanha o rename (nome curto do tema e formas var()).
+      if (node.classes) {
+        const r = renameTokenInClasses(node.classes, from, to);
+        if (r.changed > 0) {
+          classesInv.push({ nodeId: node.id, classes: node.classes });
+          node.classes = r.classes;
+          refs += r.changed;
+          touched.add(node.id);
+        }
+      }
     });
   }
+  if (classesInv.length > 0) inverse.push({ type: 'setClasses', changes: classesInv });
   if (styleInv.length > 0) inverse.push({ type: 'updateStyles', changes: styleInv });
   if (statesInv.length > 0) inverse.push({ type: 'setStates', changes: statesInv });
   if (attrsInv.length > 0) inverse.push({ type: 'setAttrs', changes: attrsInv });
