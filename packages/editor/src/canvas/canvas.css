@@ -203,3 +203,32 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------- recorte visual de imagens ---------------- */
+.cv-overlay > .cv-crop {
+  inset: 0;
+  pointer-events: none;
+}
+.cv-crop > * {
+  position: absolute;
+}
+.cv-crop-ghost {
+  outline: 1px dashed rgba(255, 255, 255, 0.7);
+  outline-offset: -1px;
+  pointer-events: none;
+}
+.cv-crop-rect {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  cursor: move;
+  pointer-events: auto;
+  touch-action: none;
+}
+.cv-crop-bar {
+  display: flex;
+  gap: 6px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: auto;
+}

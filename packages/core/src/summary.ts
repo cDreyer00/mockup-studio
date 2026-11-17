@@ -92,6 +92,11 @@ export function summarizeNode(node: Node): string {
 
   const size = sizeToken(s);
   if (size) parts.push(size);
+  if (node.type === 'repeater') {
+    const src =
+      node.dataSource && node.dataSource.kind !== 'inline' ? `<${node.dataSource.kind}` : '';
+    parts.push(`repeat:${node.data?.length ?? 0}${src}`);
+  }
   parts.push(...layoutTokens(node));
   if (s.gap) parts.push(`gap:${shorten(s.gap)}`);
   const p = sides(s, 'padding', 'p');

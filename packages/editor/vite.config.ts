@@ -6,10 +6,11 @@ import react from '@vitejs/plugin-react';
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = process.env.VITE_DAEMON_PORT ?? '4747';
 const http = `http://127.0.0.1:${port}`;
-// O editor fala com o daemon pela mesma origem (dev e preview): /api, /assets e /ws vão por proxy.
+// O editor fala com o daemon pela mesma origem (dev e preview): /api, /assets, /cdn e /ws vão por proxy.
 const proxy = {
   '/api': http,
   '/assets': http,
+  '/cdn': http,
   '/ws': { target: `ws://127.0.0.1:${port}`, ws: true },
 };
 

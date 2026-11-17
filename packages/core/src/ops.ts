@@ -2,7 +2,7 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { Document, FontRef, Node, Position } from './types.js';
+import type { DataSource, Document, FontRef, Node, Position } from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -129,6 +129,16 @@ export interface SetSrcOp {
   changes: { nodeId: string; src: string }[];
 }
 
+/**
+ * Dados de nós repeater: `data` substitui a lista (omitido = mantém); `source` define a origem
+ * (omitido = mantém, `null` = remove).
+ */
+export interface SetDataOp {
+  type: 'setData';
+  /** `data: null` apaga a lista (usado pelo undo quando o nó não tinha dados). */
+  changes: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -146,7 +156,8 @@ export type Op =
   | SetNodeFlagsOp
   | SetTagOp
   | SetFontsOp
-  | SetSrcOp;
+  | SetSrcOp
+  | SetDataOp;
 
 export type OpType = Op['type'];
 

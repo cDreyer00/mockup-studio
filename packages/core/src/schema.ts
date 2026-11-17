@@ -3,7 +3,7 @@ import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { sanitizeSvg } from './svg.js';
 import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
-import type { Document, FontRef, Node, Page } from './types.js';
+import type { DataSource, Document, FontRef, Node, Page } from './types.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -72,11 +72,40 @@ const FileTokensSchema = z
   )
   .pipe(TokensSchema);
 
+/** Limites dos dados de um repetidor (itens e tamanho serializado). */
+export const MAX_DATA_ITEMS = 1000;
+export const MAX_DATA_BYTES = 2 * 1024 * 1024;
+
+export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
+  kind: z.enum(['inline', 'json', 'csv', 'url']),
+  path: z.string().max(2000).optional(),
+  url: z
+    .string()
+    .max(4000)
+    .refine((u) => /^https?:\/\//i.test(u), { error: 'a URL deve ser http(s)' })
+    .optional(),
+  select: z.string().max(500).optional(),
+  mapping: z.record(z.string(), z.string()).optional(),
+  limit: z.number().int().min(1).max(MAX_DATA_ITEMS).optional(),
+  fetchedAt: z.string().optional(),
+});
+
+export const DataSchema = z
+  .array(z.unknown())
+  .max(MAX_DATA_ITEMS, { error: `no máximo ${MAX_DATA_ITEMS} itens` })
+  .refine((list) => JSON.stringify(list).length <= MAX_DATA_BYTES, {
+    error: `os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB`,
+  });
+
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
-      id: z.string().min(1),
-      type: z.enum(['frame', 'element', 'text', 'image', 'svg']),
+      // `~` separa o índice nos clones dos repetidores (`REPEAT_ID_SEP` em data.ts).
+      id: z
+        .string()
+        .min(1)
+        .refine((v) => !v.includes('~'), { error: 'o id não pode conter "~"' }),
+      type: z.enum(['frame', 'element', 'text', 'image', 'svg', 'repeater']),
       name: z.string(),
       tag: TagSchema,
       attrs: AttrsSchema,
@@ -88,6 +117,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       locked: z.boolean().default(false),
       hidden: z.boolean().default(false),
       position: PositionSchema.optional(),
+      data: DataSchema.optional(),
+      dataSource: DataSourceSchema.optional(),
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
       error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
@@ -215,6 +246,8 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.svg !== undefined) out.svg = n.svg;
   out.locked = n.locked;
   out.hidden = n.hidden;
+  if (n.dataSource !== undefined) out.dataSource = n.dataSource;
+  if (n.data !== undefined) out.data = n.data;
   out.children = n.children.map(orderNode);
   return out;
 }

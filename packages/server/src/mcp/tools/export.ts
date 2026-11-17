@@ -5,6 +5,7 @@ import {
   exportHtml,
   exportReact,
   exportSvg,
+  expandRepeaters,
   exportTailwind,
   tailwindThemeCss,
   type Document,
@@ -12,7 +13,9 @@ import {
   type Node,
 } from '@mockup/core';
 import { assetDataUrl, safeJoin } from '../../assets.js';
+import { getLibrary } from '../../library.js';
 import { renderUnavailableMessage } from '../../render.js';
+import { copyCdnFiles, localizeCdnLinks } from '../cdnExport.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
@@ -50,7 +53,8 @@ function collect(node: Node, out: Set<string>): void {
 /** Arquivos de `assets/` usados pelos nós (imagens, fundos) e pelas fontes embutidas do documento. */
 export function usedAssets(doc: Document, nodes: Node[]): string[] {
   const out = new Set<string>();
-  for (const n of nodes) collect(n, out);
+  // repetidores expandem antes: srcs vindos dos dados também entram
+  for (const n of nodes) collect(expandRepeaters(n), out);
   for (const f of doc.fonts) for (const file of f.files ?? []) out.add(file);
   return [...out];
 }
@@ -142,6 +146,10 @@ export function registerExportTools(ctx: ToolContext): void {
       if (isImage && !opts.render)
         throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
       await fs.promises.mkdir(dir, { recursive: true });
+      // Código (html, tailwind, react): links /cdn do daemon viram cópias locais em assets/cdn/.
+      const cdn =
+        !isImage && format !== 'svg' ? localizeCdnLinks(doc, getLibrary(opts.dataDir)) : null;
+      const code = cdn?.doc ?? doc;
 
       const used = new Set<string>();
       const uniq = (base: string, ext: string): string => {
@@ -202,18 +210,18 @@ export function registerExportTools(ctx: ToolContext): void {
         } else if (format === 'html') {
           await write(
             uniq(slug, '.html'),
-            exportHtml(doc, { nodeIds: [node.id], title: node.name, mode: 'classes' }),
+            exportHtml(code, { nodeIds: [node.id], title: node.name, mode: 'classes' }),
             true,
           );
         } else if (format === 'tailwind') {
           await write(
             uniq(slug, '.tailwind.html'),
-            exportTailwind(doc, { nodeIds: [node.id], title: node.name }),
+            exportTailwind(code, { nodeIds: [node.id], title: node.name }),
             true,
           );
         } else {
           const name = pascalOf(slug);
-          const r = exportReact(doc, {
+          const r = exportReact(code, {
             nodeId: node.id,
             styles: styles ?? 'tailwind',
             componentName: name,
@@ -236,14 +244,21 @@ export function registerExportTools(ctx: ToolContext): void {
 
       let assetsNote = '';
       if (!isImage && format !== 'svg') {
-        const copied = await copyAssets(
-          store.assetsDir(id),
-          dir,
-          usedAssets(
-            doc,
-            paths.map((p) => p.node),
-          ),
+        const rels = usedAssets(
+          code,
+          paths.map((p) => requireNode(code, p.node.id).node),
         );
+        const fromCdn = new Map(
+          [...(cdn?.files ?? [])].filter(([name]) => rels.includes(`cdn/${name}`)),
+        );
+        const copied = [
+          ...(await copyAssets(
+            store.assetsDir(id),
+            dir,
+            rels.filter((r) => !fromCdn.has(r.slice(4))),
+          )),
+          ...(await copyCdnFiles(fromCdn, dir)),
+        ];
         if (copied.length)
           assetsNote = `\nAssets copiados para ${path.join(dir, 'assets')}: ${copied.join(', ')}`;
       }

@@ -46,6 +46,9 @@ await build({
   target: 'node22',
   minify: false,
   legalComments: 'none',
+  // sharp é nativo e opcional (import dinâmico em optimize_assets): fica fora do bundle; no app
+  // empacotado vem em resources/native/node_modules.
+  external: ['sharp'],
   banner: { js: banner },
   logLevel: 'info',
 });

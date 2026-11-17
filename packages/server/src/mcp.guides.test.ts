@@ -33,20 +33,20 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos incluem os esperados, sem tokens', () => {
-    expect([...GUIDE_TOPICS]).toEqual(
-      expect.arrayContaining([
-        'getting-started',
-        'design-system',
-        'layout',
-        'responsive',
-        'screenshot-loop',
-        'export',
-        'troubleshooting',
-        'setup',
-        'import',
-      ]),
-    );
+  it('os tópicos são os 11 esperados, sem tokens', () => {
+    expect([...GUIDE_TOPICS]).toEqual([
+      'getting-started',
+      'design-system',
+      'layout',
+      'responsive',
+      'screenshot-loop',
+      'export',
+      'troubleshooting',
+      'setup',
+      'import',
+      'assets',
+      'data',
+    ]);
   });
 
   it('get_guide devolve cada tópico com título', async () => {

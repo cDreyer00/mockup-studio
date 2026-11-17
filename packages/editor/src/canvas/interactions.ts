@@ -22,6 +22,7 @@ import { currentPageId, selectPage } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
 import { openContextMenu } from '../ui/overlays';
+import { commitCrop, startCrop } from './cropActions';
 import { clientToWorld, findNodeEl, measureWorldRect } from './dom';
 import { clearFx, useFx } from './fx';
 import {
@@ -492,6 +493,13 @@ export function attachInteractions(root: HTMLElement): () => void {
     const target = e.target;
     if (!(target instanceof Element)) return;
     if (target.closest('[data-testid="text-editor"]')) return;
+    if (st().cropNodeId) {
+      // Modo de recorte: a interface de recorte cuida dos próprios gestos; clicar fora confirma.
+      if (target.closest('[data-crop-ui]')) return;
+      e.preventDefault();
+      void commitCrop();
+      return;
+    }
     // O que estava focado (inputs de propriedades, texto em edição) perde o foco ao clicar no canvas.
     if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
       document.activeElement.blur();
@@ -569,9 +577,21 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (target.closest('[data-testid="text-editor"]')) return;
     const { id, label } = nodeIdOf(target);
     if (!id || label || !getEntry(doc, id)) return;
+    if (st().cropNodeId) return;
     const r = resolveDoubleClick(doc, id, st().selection);
     if (r.select) ui.select([r.select]);
     if (r.edit) ui.editText(r.edit);
+    // Imagem já selecionada: duplo clique entra no recorte visual.
+    const sel = st().selection;
+    if (
+      !r.select &&
+      !r.edit &&
+      sel.length === 1 &&
+      sel[0] === id &&
+      getNode(doc, id)?.type === 'image'
+    ) {
+      startCrop(id);
+    }
   }
 
   function onContextMenu(e: MouseEvent): void {

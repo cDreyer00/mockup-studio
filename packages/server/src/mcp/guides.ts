@@ -10,6 +10,8 @@ export const GUIDE_TOPICS = [
   'troubleshooting',
   'setup',
   'import',
+  'assets',
+  'data',
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
@@ -52,6 +54,16 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
   },
   import: IMPORT_GUIDE_INFO,
+  assets: {
+    title: 'Guia: assets, imagens e placeholders',
+    description:
+      'Assets do documento x biblioteca/CDN, upload, links estáveis, otimizar, set_image e generate_placeholder.',
+  },
+  data: {
+    title: 'Guia: dados reais e repetidores',
+    description:
+      'Template com {{campo}}, bind_data com JSON/CSV/URL, select, mapping, refresh_data e limites.',
+  },
 };
 
 export const GUIDES: Record<GuideTopic, string> = {
@@ -80,7 +92,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
 ## Guias
 
-\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\`, \`import\` — use \`get_guide(topic)\`.
+\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -351,4 +363,84 @@ Se o cliente não achar \`mockup\` (shim \`.cmd\`), use o caminho absoluto impre
 Detalhes em \`docs/INTEGRACAO.md\`.
 `,
   import: IMPORT_GUIDE,
+  assets: `# Assets, imagens e placeholders
+
+## Onde ficam os arquivos
+
+- **Assets do documento**: a pasta \`assets/\` ao lado do \`.mockup.json\`. É o que o mockup realmente usa (\`src\` das imagens, fundos, fontes). Documento sem caminho em disco embute imagens como data URL.
+- **Biblioteca / CDN**: arquivos guardados por conteúdo, fora de qualquer documento, reaproveitáveis em vários mockups.
+
+## Ferramentas
+
+- \`upload_asset(source, name?, library?)\` — traz um arquivo (caminho absoluto, URL ou data URL) para os assets do documento ou para a biblioteca.
+- \`list_assets(scope?, query?, unused?)\` — lista os arquivos com tamanho, dimensões e quantos nós usam cada um.
+- \`get_asset_url(id)\` — link direto \`/cdn/<hash>.<ext>\`, estável por conteúdo: o mesmo arquivo dá sempre o mesmo link.
+- \`optimize_assets(paths?, maxWidth?, format?, quality?)\` — reduz e converte imagens (webp) e atualiza as referências.
+- \`remove_unused_assets(dryRun?)\` — remove o que nenhum nó usa; rode antes com \`dryRun: true\`.
+- \`insert_image(parentId, source)\` — cria um nó img a partir de uma imagem.
+
+## Ajustar uma imagem: \`set_image\`
+
+Uma chamada, um undo:
+
+\`\`\`
+set_image({ nodeId, fit: 'cover', position: 'top-left',
+  filters: { grayscale: 100, blur: 2 },   // null volta ao neutro; drop-shadow existente é preservado
+  crop: { top: 10, bottom: 10 },           // % de cada lado (object-view-box)
+  clipPath: 'circle' })                    // circle, ellipse, rounded, triangle, diamond, pentagon, hexagon, star, arrow ou 'none'
+\`\`\`
+
+Também troca a imagem (\`source\`: caminho, URL, data URL ou um arquivo já em \`assets/\`) e o \`alt\`.
+
+## Imagens de exemplo: \`generate_placeholder\`
+
+\`generate_placeholder(nodeId, kind, seed?)\` com kind \`avatar\`, \`product\`, \`landscape\` ou \`logo\`. Em um nó image troca o src; em um contêiner cria uma imagem filha. É offline e determinístico: a mesma seed dá o mesmo arquivo (\`assets/placeholders/\`). Varie a seed (nome da pessoa, id do produto) para listas com imagens diferentes.
+
+## Dicas
+
+- Prefira imagens reais do usuário quando existirem; placeholders são para preencher.
+- Em \`src\`, prefira o caminho relativo de \`assets/\` ao link \`/cdn\`: o link só funciona com o daemon rodando (o \`export\` de código copia os links \`/cdn\` do daemon para \`assets/cdn/\`).
+- Confira o resultado com \`get_screenshot\`.
+`,
+  data: `# Dados reais e repetidores
+
+Um **repetidor** repete o seu conteúdo (o template) uma vez por item de uma lista. Render, screenshot e export (html, tailwind, react, svg) já saem com os dados.
+
+## Fluxo
+
+1. Escreva UM item de exemplo com \`write_html\`, dentro de um contêiner, usando \`{{campo}}\`:
+   \`<div class="lista"><article class="card"><img src="{{foto}}" alt="{{nome}}"><h3>{{nome}}</h3><p>{{preco | a combinar}}</p></article></div>\`
+2. \`bind_data(nodeId: <id da div .lista>, ...)\` com UMA origem. O contêiner vira um repetidor (o id muda, os filhos mantêm os ids).
+3. \`get_screenshot\` para conferir; ajuste o template com as ferramentas de sempre e use \`get_data\` para ver colunas e linhas.
+
+## Bindings
+
+\`{{campo}}\`, \`{{a.b}}\` (caminho aninhado, \`{{itens.0.nome}}\`), \`{{campo | padrão}}\` (usa o padrão se faltar) e especiais: \`{{$index}}\` (0, 1, ...), \`{{$number}}\` (1, 2, ...), \`{{$item}}\` (o item inteiro, para lista de textos). Valem em textos, \`src\` e atributos.
+
+## Origens de \`bind_data\`
+
+- \`data\`: lista direta (\`[{ "nome": "Ana" }]\`).
+- \`text\` + \`format\` (\`json\` ou \`csv\`): conteúdo colado.
+- \`path\`: arquivo absoluto \`.json\`, \`.csv\` ou \`.tsv\` (até 5 MB; o separador do CSV é detectado: vírgula, ponto e vírgula, tab).
+- \`url\`: http(s) que devolve JSON ou CSV (até 5 MB, 20 s).
+- \`select\`: caminho da lista dentro do JSON (\`data.items\`); sem ele o servidor acha a primeira lista.
+- \`mapping\`: \`{ "nome": "user.fullName" }\` liga o campo do template a outro caminho do item sem reescrever o template.
+- \`limit\`: só os primeiros N itens.
+
+A resposta lista as colunas, os campos do template e avisa de campos sem coluna correspondente.
+
+## Atualizar e conferir
+
+- \`refresh_data(nodeId)\` relê o arquivo ou a URL de origem (dados colados não têm origem para reler).
+- \`get_data(nodeId, limit?)\` mostra origem, colunas, campos do template e as primeiras linhas.
+- Rodar \`bind_data\` de novo no repetidor só troca os dados. Um \`undo\` desfaz a conversão.
+
+## Reescrever um repetidor com HTML
+
+\`get_html\` devolve só o template do repetidor, marcado com \`data-mockup-repeat="<id>"\` (e \`data-repeat="<itens>"\`, informativo). Mantenha esse atributo no HTML enviado a \`write_html\` (ex.: \`mode: "replace"\`): o elemento volta como repetidor com os dados e a origem do original (id novo). Sem a marca ele vira um contêiner comum e a resposta avisa que os dados foram perdidos (\`undo\` restaura). Para mudar só o card, prefira editar os nós do template.
+
+## Limites
+
+Até 1000 itens e 2 MB de dados por repetidor; passou disso, use \`limit\` ou \`select\`. Contêiner sem filhos não vira repetidor (crie o template antes); frame raiz também não (coloque o template numa div dentro dele).
+`,
 };

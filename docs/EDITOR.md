@@ -19,7 +19,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 ## Layout
 
 - **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
-- **Painel esquerdo**: páginas (criar, renomear com duplo clique, excluir pelo menu de contexto, trocar) e a árvore de camadas da página ativa.
+- **Painel esquerdo**: abas **Camadas** (páginas — criar, renomear com duplo clique, excluir pelo menu de contexto, trocar —, busca de nós e a árvore de camadas da página ativa) e **Assets**.
 - **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
 - **Painel direito**: propriedades da seleção (ou dados do documento e tokens quando nada está selecionado).
 
@@ -57,6 +57,18 @@ Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
 - **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
 
 Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+
+## Assets, imagens, dados e arquivos
+
+Detalhes em [ASSETS.md](ASSETS.md) e [DADOS.md](DADOS.md).
+
+- **Tela inicial**: aparece no lugar do canvas quando nada está aberto e pelo botão **Início** (casa) da barra ou **Arquivo › Início**. Barra lateral com Recentes, Favoritos, Todos, pastas virtuais aninhadas (criar, renomear e excluir pelo menu de contexto; arrastar um cartão para a pasta move o arquivo) e tags. Busca por nome, tag e conteúdo (texto dos nós). Cartões com miniatura do primeiro frame (sem motor de render, um cartão neutro com nome e nº de frames), pasta, tags, estrela de favorito e selo "aberto"; clicar abre. Menu do cartão: favoritar, editar tags, mover para pasta, remover do índice. **Novo documento** e **Adicionar arquivo ou pasta** (diálogo nativo no desktop).
+- **Abas Camadas | Assets** no painel esquerdo. A aba Assets lista os arquivos de `assets/` com miniatura, busca, filtro "Não usados", contador de usos (clicar seleciona os nós), envio por arrastar ou **Enviar**, **Inserir** e arrastar para o canvas, **Copiar link** (URL `/cdn` estável), **Remover**, **Remover não usados**, **Otimizar** (WebP) e a **Biblioteca** global.
+- **Busca de nós** no topo de Camadas (Ctrl+F): `searchNodes` do core no documento ativo, com os filtros `tag:`, `name:`, `text:`, `class:`, `id:`, `attr:`, `data:`; clicar num resultado troca de página, seleciona e enquadra.
+- **Seção Imagem** (seleção só de imagens): trocar imagem, `object-fit`, `object-position` (grade 3×3 e campo livre), filtros com slider e campo (prévia ao vivo, uma entrada de undo ao soltar; preserva funções desconhecidas, como o blur da seção Efeitos), máscara `clip-path` (formas prontas ou CSS), **Recortar** e **Gerar placeholder** (tipo e semente).
+- **Recorte visual** (botão Recortar ou duplo clique na imagem selecionada): mostra a imagem inteira com a área de fora escurecida e um retângulo com 8 alças; arrastar dentro move. Enter/**Aplicar**/clique fora confirma (`object-view-box`), Esc cancela.
+- **Repetidores no canvas**: o repetidor mostra um item por linha de `data`; todas as cópias usam o `data-node-id` do nó do template, então clicar em qualquer item seleciona (e editar muda) o template. Na edição inline, o item 0 mostra o texto cru (`{{campo}}`).
+- **Seção Dados** (repetidor selecionado): origem e data da leitura, **Atualizar**, **Vincular…** (colar JSON/CSV, caminho ou URL, `select`, limite), tabela editável (célula, linha e coluna; cada edição é uma op `setData`; até 500 linhas desenhadas) e mapeamento de campos do template sem coluna. Contêineres com filhos ganham **Converter em repetidor** (seção e menu de contexto).
 
 ## Atalhos
 

@@ -15,6 +15,7 @@ import {
   LockOpen,
   Plus,
   RectangleHorizontal,
+  Repeat,
   Shapes,
   Square,
   TextCursorInput,
@@ -35,6 +36,7 @@ import { computeDropOps, flattenTree, nextPageName, rangeBetween, zoneFor } from
 import type { DropTarget } from './layersLogic';
 import { layers, useLayers } from './layersStore';
 import { buildNodeMenu } from './nodeMenu';
+import { NodeSearch } from './NodeSearch';
 import './layers.css';
 
 const TAG_ICONS: Record<string, LucideIcon> = {
@@ -55,6 +57,7 @@ function iconFor(node: Node): LucideIcon {
   if (node.type === 'text') return Type;
   if (node.type === 'image') return ImageIcon;
   if (node.type === 'svg') return Shapes;
+  if (node.type === 'repeater') return Repeat;
   return TAG_ICONS[node.tag] ?? Square;
 }
 
@@ -435,6 +438,7 @@ function LayerTree() {
 export function LayersPanel() {
   return (
     <aside className="panel panel-left layers-panel" data-testid="layers-panel">
+      <NodeSearch />
       <PagesList />
       <div className="layers-heading">
         <span>Camadas</span>

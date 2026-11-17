@@ -6,7 +6,7 @@ import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
 import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
-import type { Document, Node, NodePath, Page } from './types.js';
+import type { DataSource, Document, Node, NodePath, Page } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -468,6 +468,33 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
 
 /* ---------------- API pública ---------------- */
 
+/* ---------------- setData ---------------- */
+
+function doSetData(d: Document, op: Extract<Op, { type: 'setData' }>): Applied {
+  const prev: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[] = [];
+  for (const ch of op.changes) {
+    const node = requireNode(d, ch.nodeId).node;
+    if (node.type !== 'repeater') {
+      fail(`O nó "${ch.nodeId}" não é um repetidor (tipo ${node.type}); só nós repeater têm dados`);
+    }
+    const before: { nodeId: string; data?: unknown[] | null; source?: DataSource | null } = {
+      nodeId: ch.nodeId,
+    };
+    if (ch.data !== undefined) {
+      before.data = node.data ?? null;
+      if (ch.data === null) delete node.data;
+      else node.data = ch.data;
+    }
+    if (ch.source !== undefined) {
+      before.source = node.dataSource ?? null;
+      if (ch.source === null) delete node.dataSource;
+      else node.dataSource = ch.source;
+    }
+    prev.push(before);
+  }
+  return { inverse: [{ type: 'setData', changes: prev.reverse() }] };
+}
+
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
 export function applyOp(doc: Document, rawOp: Op): ApplyResult {
   const op = parseOp(rawOp);
@@ -524,6 +551,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setSrc':
       applied = doSetSrc(d, op);
+      break;
+    case 'setData':
+      applied = doSetData(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);
