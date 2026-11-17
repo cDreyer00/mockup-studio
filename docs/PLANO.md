@@ -129,7 +129,7 @@ Pendências:
 
 Após o MVP, uma branch por fase.
 
-### Fase 2 — Tokens e temas em CSS real (`feature/tokens-temas`)
+### Fase 2 — Tokens e temas em CSS real (`feature/design-system`, concluída)
 
 - Tokens com grupos (cores, tipografia, espaçamento, raio, sombra).
 - Temas: `themes: { name, overrides }`; frame com `theme`.
@@ -138,6 +138,15 @@ Após o MVP, uma branch por fase.
 - Painel de tokens no editor, com seletor de token nos inputs.
 - MCP: `get_tokens` ampliado, `rename_token`, `apply_token`, `create_theme`, `set_frame_theme`, `import_tokens` (CSS `:root` e W3C Design Tokens JSON), `export_tokens(css|json|tailwind)`.
 - `docs/TOKENS.md`.
+
+Resultado (branch `feature/design-system`; ver [TOKENS.md](TOKENS.md)):
+
+- Core: `tokenMeta` (grupo, descrição) e `themes` opcionais no documento (arquivos antigos continuam iguais); tema do frame no atributo `data-theme`; ops `setTokens` com `theme`, `setTokenMeta`, `setThemes`, `replaceTokens` e `renameToken` (atualiza todas as referências, undo exato). Resolução com a semântica do CSS (aliases redeclarados dentro do tema, ciclos sem valor), `calc()`/`min()`/`max()`/`clamp()` e `color-mix()` avaliados em `getComputedLike`; validação com css-tree (bundle `dist/csstree.esm`); import/export CSS, W3C Design Tokens e Tailwind v4.
+- Exportadores: HTML com `:root` e `[data-theme]`, Tailwind com regras de tema e `@custom-variant theme-<nome>`, React inline com as variáveis do tema; cache de render chaveado também pelos temas.
+- Editor: aba Tokens (busca, grupos, edição inline, temas, importar/exportar, avisos), "ligar a token" nos inputs, tema por frame, `background-blend-mode`.
+- MCP: `get_tokens`/`set_tokens` ampliados, `rename_token`, `apply_token`, `create_theme`, `rename_theme`, `delete_theme`, `set_frame_theme`, `import_tokens`, `export_tokens`, `theme` em `get_styles` e o guia `tokens`.
+
+Pendências: seletor de token em gradientes, `transform`, `filter` e `flex`; reordenar tokens por arrasto; o chunk do canvas cresceu (~650 kB) com css-tree e zod.
 
 ### Fase 3 — Tailwind no modelo
 

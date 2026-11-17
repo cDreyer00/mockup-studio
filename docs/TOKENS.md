@@ -148,4 +148,18 @@ Os exportadores de projeto (ver [EXPORT.md](EXPORT.md)) usam o mesmo sistema:
 
 ## Editor
 
-Painel de tokens: ver EDITOR.md.
+Detalhes e gestos em [EDITOR.md](EDITOR.md#tokens-e-temas). Toda ação do painel gera as mesmas ops das ferramentas MCP (mesmo undo).
+
+| No editor                                              | Ferramenta MCP                                    |
+| ------------------------------------------------------ | ------------------------------------------------- |
+| Aba **Tokens**: criar, editar valor, grupo e descrição | `set_tokens` (`tokens`, `groups`, `descriptions`) |
+| Renomear (duplo clique no nome)                        | `rename_token`                                    |
+| Excluir token                                          | `set_tokens` com `unset`                          |
+| Tema em edição + editar valor / remover sobrescrita    | `set_tokens` com `theme` (e `unset`)              |
+| Criar, renomear e excluir tema                         | `create_theme`, `rename_theme`, `delete_theme`    |
+| Importar (colar CSS ou JSON) e Exportar                | `import_tokens`, `export_tokens`                  |
+| Ícone "ligar a token" nos inputs de propriedades       | `apply_token`                                     |
+| Linha **Tema** do frame no painel de propriedades      | `set_frame_theme`                                 |
+| Avisos de não usado e de quebrado                      | `get_tokens` (`unused`, `broken`, `problem`)      |
+
+O canvas e a página de render (screenshot) injetam as regras de tema com o escopo `.cv-world `, então o que o agente vê em `get_screenshot` é o mesmo CSS do HTML exportado.
