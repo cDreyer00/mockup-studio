@@ -18,8 +18,6 @@ describe('htmlToPasteNodes', () => {
     expect(card.style['border-top-width'] ?? card.style['border-width']).toBe('1px');
     const button = card.children[0]!;
     expect(button.style.height).toMatch(/spacing|2\.25rem/);
-      'calc(var(--spacing) * 9)'.replace(/^.*$/, button.style.height),
-    );
     expect(button.states?.hover).toBeTruthy();
   }, 20_000);
 
