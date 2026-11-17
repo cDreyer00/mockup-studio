@@ -1,6 +1,7 @@
 import { escapeCssText } from '../html.js';
 import { fontFaceCss } from '../fonts.js';
 import type { Document } from '../types.js';
+import { mediaScripts, newMediaCollector } from './media.js';
 import {
   BASE_CSS,
   ClassNamer,
@@ -27,6 +28,12 @@ export interface HtmlExportOptions {
 /**
  * Exporta HTML standalone (frames da página ou nós selecionados). Tokens em `:root`, `@font-face`
  * das fontes embutidas (`assets/<arquivo>`), frame raiz com `min-height` no lugar de `height`.
+ *
+ * Nós de mídia: efeitos viram `<canvas data-mockup-effect='{json}'>` com o fundo de fallback do
+ * catálogo (visível sem JS) e UM `<script>` no fim do corpo com o runtime e a auto-montagem;
+ * vídeo vira `<video>`, YouTube/iframe viram `<iframe>`, Lottie/Rive/Three.js carregam a
+ * biblioteca de CDN. Os scripts só existem se houver nós de mídia e vão também com
+ * `fragment: true` (logo após o markup).
  */
 export function exportHtml(doc: Document, options: HtmlExportOptions = {}): string {
   const mode = options.mode ?? 'classes';
@@ -34,7 +41,9 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
 
   const namer = new ClassNamer();
   const rules: string[] = [];
+  const media = newMediaCollector();
   const markup = renderHtmlTree(roots, {
+    media,
     styleOf: (node) => {
       if (Object.keys(node.style).length === 0) return {};
       if (mode === 'inline') {
@@ -58,8 +67,11 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   if (faces) css.push(indentLines(faces, 1));
   if (rules.length > 0) css.push(indentLines(rules.join('\n'), 1));
   const style = escapeCssText(css.join('\n'));
+  const scripts = mediaScripts(media);
 
-  if (options.fragment) return `<style>\n${style}\n</style>\n${markup}\n`;
+  if (options.fragment) {
+    return `<style>\n${style}\n</style>\n${markup}\n${scripts ? scripts + '\n' : ''}`;
+  }
 
   return [
     '<!doctype html>',
@@ -74,6 +86,7 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
     '</head>',
     '<body>',
     indentLines(markup, 1),
+    ...(scripts ? [scripts] : []),
     '</body>',
     '</html>',
     '',

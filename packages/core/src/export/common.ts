@@ -7,6 +7,12 @@ import { sanitizeSvg } from '../svg.js';
 import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
 import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss } from '../base.js';
+import {
+  mediaElement,
+  mediaStyleDefaults,
+  renderMediaAttrs,
+  type MediaCollector,
+} from './media.js';
 
 /** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
@@ -36,6 +42,10 @@ export interface PrepareOptions {
  */
 function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   node.style = dropUnsafeStyles(node.style);
+  if (node.type === 'effect' || node.type === 'embed') {
+    // fundo de fallback do efeito (visível sem JS) e `border:0` em iframes; o estilo do nó vence
+    node.style = { ...mediaStyleDefaults(node), ...node.style };
+  }
   if (!isRoot && node.style.position === 'absolute' && node.position) {
     if (!node.style.left) node.style.left = `${node.position.x}px`;
     if (!node.style.top) node.style.top = `${node.position.y}px`;
@@ -208,6 +218,13 @@ export interface HtmlRenderOptions {
   xhtml?: boolean;
   /** Recuo inicial em níveis (padrão 0). */
   depth?: number;
+  /**
+   * Nós de mídia: `live` (padrão) gera canvas/iframe/video prontos para os scripts de
+   * `mediaScripts(media)`; `static` gera markup inerte (`data-mockup-*`), sem scripts.
+   */
+  mediaMode?: 'live' | 'static';
+  /** Recebe o que os nós de mídia `live` precisam carregar (scripts, fragments). */
+  media?: MediaCollector;
 }
 
 /** Texto do nó: `\n` fica literal (o CSS decide se vira quebra); apenas escapa. */
@@ -244,6 +261,24 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
 
     const parts: string[] = [];
     if (sa.cls) parts.push(`class="${escapeHtmlAttr(sa.cls)}"`);
+    if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
+      const m = mediaElement(node, {
+        mode: opts.mediaMode ?? 'live',
+        collector: opts.media,
+        url: (ref, kind) => {
+          const url =
+            (kind === 'poster' ? opts.resolveSrc?.(ref) : undefined) ??
+            assetUrl(ref, opts.assetsBase);
+          return isUnsafeUrl(url) ? null : url;
+        },
+      });
+      if (m) {
+        parts.push(...renderMediaAttrs(m.attrs, xhtml));
+        if (sa.style) parts.push(`style="${escapeHtmlAttr(sa.style)}"`);
+        lines.push(`${pad(depth)}<${m.tag} ${parts.join(' ')}></${m.tag}>`);
+        return;
+      }
+    }
     const isImg = node.type === 'image' || node.tag === 'img';
     if (isImg && node.src !== undefined) {
       const url = opts.resolveSrc?.(node.src) ?? assetUrl(node.src, opts.assetsBase);
