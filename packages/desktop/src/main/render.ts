@@ -7,11 +7,15 @@ import { BrowserWindow, nativeImage } from 'electron';
 import type { CaptureRequest, CaptureResult, RenderProvider, RenderTarget } from '@mockup/server';
 import { getFrameOf, type LayoutNode, type RenderBox } from '@mockup/core';
 import {
+  CACHE_MAX_BYTES,
   LruCache,
   assertSize,
+  assertViewport,
+  assetFingerprints,
   cacheKey,
   declaredSize,
   pngSize,
+  referencedAssets,
   withTimeout,
 } from './render-utils.js';
 
@@ -20,8 +24,8 @@ export interface RenderServiceOptions {
   baseUrl: () => string;
   /** Timeout por operação (padrão 30 s). */
   timeoutMs?: number;
-  /** Entradas do cache LRU (padrão 64). */
-  cacheSize?: number;
+  /** Limite do cache LRU em bytes (padrão 256 MB). */
+  cacheBytes?: number;
 }
 
 const log = (...a: unknown[]): void => console.error('[mockup-render]', ...a);
@@ -37,7 +41,7 @@ export class RenderService implements RenderProvider {
   private closed = false;
 
   constructor(private opts: RenderServiceOptions) {
-    this.cache = new LruCache(opts.cacheSize ?? 64);
+    this.cache = new LruCache(opts.cacheBytes ?? CACHE_MAX_BYTES, (r) => r.data.length);
     this.timeoutMs = opts.timeoutMs ?? 30000;
   }
 
@@ -86,6 +90,9 @@ export class RenderService implements RenderProvider {
       },
     });
     this.win = win;
+    // a página de render nunca navega nem abre janelas: tudo que não for o próprio render é negado
+    win.webContents.on('will-navigate', (ev) => ev.preventDefault());
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     // Em janela realmente oculta o renderer cai no Page.captureScreenshot (Windows): a janela é
     // "mostrada" sem moldura, transparente, fora da tela, sem foco e fora da barra de tarefas.
     win.setIgnoreMouseEvents(true);
@@ -144,6 +151,7 @@ export class RenderService implements RenderProvider {
     })})`;
     let box!: RenderBox;
     for (let i = 0; i < 3; i++) {
+      assertViewport(vw, vh, scale);
       await this.cdp(win, 'Emulation.setDeviceMetricsOverride', {
         width: vw,
         height: vh,
@@ -181,6 +189,7 @@ export class RenderService implements RenderProvider {
       quality: req.quality,
       maxWidth: req.maxWidth,
       transparent,
+      assets: assetFingerprints(req.assetsDir, referencedAssets(req.doc, req.nodeId)),
     });
     const hit = this.cache.get(key);
     if (hit) return hit;
