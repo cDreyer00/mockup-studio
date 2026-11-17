@@ -20,6 +20,8 @@ interface FontFile {
   bytes: Buffer;
   ext: string;
   weight: number;
+  /** Maior peso coberto quando o arquivo é de fonte variável (faixa `weight`..`weightMax`). */
+  weightMax?: number;
   style: 'normal' | 'italic';
 }
 
@@ -37,6 +39,20 @@ export function dedupeFormats(files: FontFile[]): FontFile[] {
   return [...best.values()];
 }
 
+/**
+ * Fonte variável: o Google devolve o mesmo arquivo para cada peso pedido. Se todos os arquivos têm
+ * o mesmo conteúdo (e estilo), vira um só, cobrindo a faixa do menor ao maior peso. Com conteúdos
+ * diferentes (fontes estáticas) nada muda.
+ */
+export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
+  const first = files[0];
+  if (!first || files.length < 2) return files;
+  const same = files.every((f) => f.style === first.style && f.bytes.equals(first.bytes));
+  if (!same) return files;
+  const ws = files.map((f) => f.weight);
+  return [{ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) }];
+}
+
 /** Slug da família; se outra família do documento gera o mesmo slug, acrescenta um sufixo estável. */
 export function uniqueSlug(family: string, otherFamilies: string[]): string {
   const slug = fontSlug(family);
@@ -50,7 +66,8 @@ export function uniqueSlug(family: string, otherFamilies: string[]): string {
  */
 async function writeFontFile(dir: string, slug: string, f: FontFile): Promise<string> {
   const hash = createHash('sha256').update(f.bytes).digest('hex').slice(0, 8);
-  const name = `${slug}-${f.weight}-${f.style}-${hash}.${f.ext}`;
+  const range = f.weightMax && f.weightMax !== f.weight ? `${f.weight}-${f.weightMax}` : f.weight;
+  const name = `${slug}-${range}-${f.style}-${hash}.${f.ext}`;
   const file = path.join(dir, name);
   try {
     if ((await fs.promises.readFile(file)).equals(f.bytes)) return name;
@@ -321,7 +338,11 @@ export function registerFontTools(ctx: ToolContext): void {
             `source inválido: "${src}". Use "google", "local", um caminho absoluto ou uma URL http(s).`,
           );
         files = dedupeFormats(files);
+        // Pesos pedidos de um arquivo só (fonte variável): o documento guarda a lista completa de
+        // pesos com um único arquivo, e o @font-face sai com a faixa "min max".
+        const requested = files.map((f) => f.weight).sort((a, b) => a - b);
         files.sort((a, b) => a.weight - b.weight || a.style.localeCompare(b.style));
+        files = mergeIdenticalFiles(files);
         const slug = uniqueSlug(
           fam,
           doc.fonts
@@ -335,7 +356,8 @@ export function registerFontTools(ctx: ToolContext): void {
           family: fam,
           source: 'file',
           files: names,
-          weights: files.map((f) => f.weight),
+          weights:
+            files.length === 1 && requested.length > 1 ? requested : files.map((f) => f.weight),
           styles: files.map((f) => f.style),
         };
       }
@@ -351,7 +373,14 @@ export function registerFontTools(ctx: ToolContext): void {
       const reg =
         ref.source === 'local'
           ? 'fonte local (sem arquivos)'
-          : ref.files!.map((f, i) => `${f} (${ref.weights![i]} ${ref.styles![i]})`).join(', ');
+          : ref
+              .files!.map((f, i) => {
+                const ws = ref.weights!;
+                const w =
+                  ref.files!.length === ws.length ? String(ws[i]) : `${ws[0]}-${ws[ws.length - 1]}`;
+                return `${f} (${w} ${ref.styles![i]})`;
+              })
+              .join(', ');
       return [
         `Fonte "${fam}" registrada: ${reg}.`,
         ...notes,
