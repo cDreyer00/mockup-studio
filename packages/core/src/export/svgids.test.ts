@@ -121,10 +121,7 @@ describe('ids de gradiente no export svg', () => {
     check(exportSvg(doc, { nodeId: 'fr_test0001' }));
   });
 
-  // Falha conhecida (QA fase 7): o export com layout embute cada svg sem prefixar os ids; dois vetores
-  // com gradiente ficam com o mesmo `id="g-p1-fill"` e o segundo é pintado com o gradiente do primeiro.
-  // Remova o `.fails` quando corrigido.
-  it.fails('com layout (render): ids únicos entre vetores', () => {
+  it('com layout (render): ids únicos entre vetores', () => {
     check(exportSvg(doc, { nodeId: 'fr_test0001', layout }));
   });
 });
