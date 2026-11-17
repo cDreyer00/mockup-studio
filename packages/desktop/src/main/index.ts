@@ -2,6 +2,7 @@
  * Processo principal do Mockup Studio desktop: daemon embutido (HTTP + WS + MCP), motor de render,
  * janela do editor, menu nativo e modo `--headless` (sem janela, usado por `mockup mcp`).
  */
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +39,27 @@ try {
 } catch (e) {
   console.error('[mockup-desktop] erro:', e instanceof Error ? e.message : e);
   process.exit(2);
+}
+
+/**
+ * `--install-cli` / `--uninstall-cli` (portátil, reparo): roda o bundle do CLI embutido com o próprio
+ * Electron como Node, herdando o stdio, e sai com o código dele. Roda antes de qualquer userData,
+ * lock de instância única, daemon ou janela.
+ */
+if (args.cliAction) {
+  const script = app.isPackaged
+    ? path.join(process.resourcesPath, 'cli', 'mockup.mjs')
+    : path.resolve(app.getAppPath(), 'out', 'cli', 'mockup.mjs');
+  if (!fs.existsSync(script)) {
+    console.error(`[mockup-desktop] CLI embutido não encontrado: ${script}`);
+    process.exit(1);
+  }
+  const r = spawnSync(process.execPath, [script, args.cliAction, ...args.cliArgs], {
+    stdio: 'inherit',
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  });
+  if (r.error) console.error('[mockup-desktop] erro ao rodar o CLI:', r.error.message);
+  process.exit(r.status ?? 1);
 }
 
 // userData próprio só quando o usuário pediu (--data-dir ou MOCKUP_DATA_DIR definida antes de
@@ -373,7 +395,7 @@ if (!app.requestSingleInstanceLock()) {
     try {
       second = parseArgs(userArgs(argv, process.defaultApp));
     } catch {
-      second = { headless: false, files: [] as string[] };
+      second = { headless: false, files: [] as string[], cliArgs: [] as string[] };
     }
     void (async () => {
       await openFiles(resolveFiles(second.files, cwd));

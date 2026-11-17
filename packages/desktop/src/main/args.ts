@@ -4,6 +4,10 @@ export interface AppArgs {
   port?: number;
   dataDir?: string;
   files: string[];
+  /** `--install-cli` / `--uninstall-cli`: roda o CLI embutido e sai, sem janela nem daemon. */
+  cliAction?: 'install-cli' | 'uninstall-cli';
+  /** Demais argumentos repassados ao CLI nessa ação (ex.: `--bin-dir D`, `--quiet`). */
+  cliArgs: string[];
 }
 
 const DOC_FILE = /\.json$/i;
@@ -13,10 +17,12 @@ const DOC_FILE = /\.json$/i;
  * (`--inspect`, `--no-sandbox`...) e desconhecidas são ignoradas; só arquivos `.json` entram em `files`.
  */
 export function parseArgs(args: string[]): AppArgs {
-  const out: AppArgs = { headless: false, files: [] };
+  const out: AppArgs = { headless: false, files: [], cliArgs: [] };
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
     if (a === '--headless') out.headless = true;
+    else if (a === '--install-cli' || a === '--uninstall-cli')
+      out.cliAction = a.slice(2) as AppArgs['cliAction'];
     else if (a === '--port' || a.startsWith('--port=')) {
       const raw = a.includes('=') ? a.slice(a.indexOf('=') + 1) : args[++i];
       const n = raw !== undefined && raw.trim() !== '' ? Number(raw) : NaN;
@@ -28,6 +34,10 @@ export function parseArgs(args: string[]): AppArgs {
       if (!raw) throw new Error('--data-dir exige um caminho.');
       out.dataDir = raw;
     } else if (!a.startsWith('-') && DOC_FILE.test(a)) out.files.push(a);
+  }
+  if (out.cliAction) {
+    const flag = `--${out.cliAction}`;
+    out.cliArgs = args.filter((x) => x !== flag);
   }
   return out;
 }

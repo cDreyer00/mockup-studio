@@ -5,7 +5,13 @@ describe('parseArgs', () => {
   it('interpreta headless, porta, data-dir e arquivos', () => {
     expect(
       parseArgs(['--headless', '--port', '5000', '--data-dir', 'D:\\dados', 'a.mockup.json']),
-    ).toEqual({ headless: true, port: 5000, dataDir: 'D:\\dados', files: ['a.mockup.json'] });
+    ).toEqual({
+      headless: true,
+      cliArgs: [],
+      port: 5000,
+      dataDir: 'D:\\dados',
+      files: ['a.mockup.json'],
+    });
   });
 
   it('aceita --port=N e ignora opções do Chromium', () => {
@@ -19,6 +25,16 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--port', 'abc'])).toThrow(/--port/);
     expect(() => parseArgs(['--port', '70000'])).toThrow(/--port/);
     expect(() => parseArgs(['--data-dir'])).toThrow(/--data-dir/);
+  });
+
+  it('--install-cli e --uninstall-cli repassam os demais argumentos ao CLI', () => {
+    const a = parseArgs(['--install-cli', '--bin-dir', 'D:\bin', '--quiet']);
+    expect(a.cliAction).toBe('install-cli');
+    expect(a.cliArgs).toEqual(['--bin-dir', 'D:\bin', '--quiet']);
+    const b = parseArgs(['--quiet', '--uninstall-cli']);
+    expect(b.cliAction).toBe('uninstall-cli');
+    expect(b.cliArgs).toEqual(['--quiet']);
+    expect(parseArgs(['x.json']).cliAction).toBeUndefined();
   });
 
   it('userArgs corta o executável e, em dev, o caminho do app', () => {

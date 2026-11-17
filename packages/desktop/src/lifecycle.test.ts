@@ -8,7 +8,7 @@ import {
   shouldQuitAfterSessions,
 } from './main/lifecycle.js';
 
-const noArgs = { headless: false, files: [] as string[] };
+const noArgs = { headless: false, files: [] as string[], cliArgs: [] as string[] };
 
 describe('dataDirOverride', () => {
   it('sem --data-dir nem MOCKUP_DATA_DIR não troca o userData', () => {

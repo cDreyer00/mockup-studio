@@ -52,6 +52,14 @@ Saída em `dist/` na raiz do repositório. Alvos Windows: `nsis` (assistente, po
 
 **Associação de arquivo:** o Windows só enxerga a última extensão de `*.mockup.json` (`.json`). Registrar `.json` como padrão sequestraria todos os JSON, então `build/installer.nsh` cria o ProgID `MockupStudio.Document` (comando `"<exe>" "%1"`) e o inclui em `HKCU\Software\Classes\.json\OpenWithProgids`, o que o faz aparecer em "Abrir com". O desinstalador remove as chaves. O app abre o arquivo recebido no argv.
 
+## CLI embutido
+
+O pacote leva o CLI `mockup` para quem não tem Node. O `scripts/build-cli.mjs` (esbuild, parte de `npm run build -w @mockup/desktop`) gera `out/cli/mockup.mjs` e `out/cli/daemon.mjs` (ESM, alvo node22, tudo embutido) a partir de `packages/cli/dist/bin.js` e `packages/server/dist/bin.js`; por isso cli e server precisam estar buildados antes. Eles vão para `resources/cli/` (`extraResources`, fora do asar), junto de `resources/integrations/`. Rodam com o próprio executável como Node: `ELECTRON_RUN_AS_NODE=1 "Mockup Studio.exe" resources\cli\mockup.mjs help`.
+
+- **Instalador NSIS** (`build/installer.nsh`): ao instalar roda `install-cli --quiet`, que cria `%LOCALAPPDATA%\MockupStudio\bin\mockup.cmd` e acrescenta a pasta ao PATH do usuário (vale em terminais novos). Ao desinstalar roda `uninstall-cli --quiet` (antes de apagar os arquivos); numa atualização por cima o CLI é só reinstalado. `ELECTRON_RUN_AS_NODE` é definida apenas durante cada chamada.
+- **Portátil ou reparo:** `"Mockup Studio.exe" --install-cli [--bin-dir D] [--quiet]` e `--uninstall-cli` rodam o mesmo comando e saem com o código dele, sem janela nem daemon.
+- **Desfazer manualmente:** `--uninstall-cli` (ou `mockup uninstall-cli`); se o desinstalador não conseguir limpar o PATH, a entrada fica apontando para uma pasta inexistente (inofensiva).
+
 ## Referências
 
 - [docs/PLANO.md](../../docs/PLANO.md) (tarefa 3)
