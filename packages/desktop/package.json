@@ -2,7 +2,7 @@
   "name": "@mockup/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "App desktop (Electron) do Mockup Studio: janela do editor, daemon embutido, render/screenshot e modo headless.",
+  "description": "Mockup Studio desktop app (Electron): editor window, embedded daemon, render/screenshot and headless mode.",
   "license": "MIT",
   "author": "Mockup Studio",
   "type": "module",

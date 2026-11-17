@@ -2,7 +2,7 @@
   "name": "@mockup/core",
   "version": "0.1.0",
   "private": true,
-  "description": "Modelo de documento, operações, histórico, HTML e exportadores do Mockup Studio.",
+  "description": "Mockup Studio document model, ops, history, HTML and exporters.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

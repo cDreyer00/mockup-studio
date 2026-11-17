@@ -8,10 +8,10 @@ coverage/
 Thumbs.db
 .env
 .env.local
-# dados locais de teste
+# local test data
 .mockup-data/
 tmp/
-# artefatos do Playwright
+# Playwright artifacts
 test-results/
 playwright-report/
 out/

@@ -2,7 +2,7 @@
   "name": "mockup-studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Editor de design em canvas voltado para IA, com servidor MCP completo.",
+  "description": "AI-oriented canvas design editor with a full MCP server.",
   "license": "MIT",
   "author": "Cristian",
   "repository": {
