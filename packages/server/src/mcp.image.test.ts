@@ -94,6 +94,23 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(s2['filter']).toBe('drop-shadow(0 0 2px rgba(0,0,0,.5))');
     });
 
+    it('clipPath com url() externa é recusado; url(#id) é aceito', async () => {
+      const id = await makeImage();
+      for (const bad of [
+        'url(http://evil.test/x.svg#m)',
+        "url( 'https://x.test/m' )",
+        'url(m.svg)',
+      ]) {
+        const r = await call('set_image', { nodeId: id, clipPath: bad });
+        expect(r.isError, bad).toBe(true);
+        expect(textOf(r)).toContain('url(#id)');
+      }
+      expect(imgNode().style['clip-path']).toBeUndefined();
+      const ok = await call('set_image', { nodeId: id, clipPath: 'url(#mascara)' });
+      expect(ok.isError, textOf(ok)).toBeFalsy();
+      expect(imgNode().style['clip-path']).toBe('url(#mascara)');
+    });
+
     it('é uma única entrada de undo', async () => {
       const id = await makeImage();
       const before = JSON.stringify(imgNode());

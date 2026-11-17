@@ -184,6 +184,11 @@ export function registerImageEditTools(ctx: ToolContext): void {
       }
       if (clipPath !== undefined) {
         if (!clipPath.trim()) throw new ToolError('clipPath vazio. Use "circle" ou "none".');
+        if (/url\(\s*(?!['"]?#)/i.test(clipPath)) {
+          throw new ToolError(
+            'clipPath com url() só aceita referência interna (url(#id)); use uma forma ou polygon()/inset()/circle().',
+          );
+        }
         put('clip-path', resolveClipPath(clipPath));
       }
       if (Object.keys(set).length || unset.length) {
