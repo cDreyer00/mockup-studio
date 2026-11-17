@@ -3,6 +3,7 @@ import { escapeCssText } from '../html.js';
 import { isValidCssPropertyName } from '../styles.js';
 import { themeRulesCss, themeVariantsCss } from '../tokens.js';
 import type { Document, Node } from '../types.js';
+import type { TailwindEngine } from '../tailwind/engine.js';
 import {
   cleanTokens,
   escapeHtmlText,
@@ -25,6 +26,12 @@ export interface TailwindExportOptions {
    * `<style type="text/tailwindcss">`. `false` remove o script (o tema continua no `<style>`).
    */
   cdn?: boolean;
+  /**
+   * Motor Tailwind do documento (`getTailwindEngine(doc)` de `@mockup/core/tailwind`). Com ele as
+   * classes saem canonicalizadas, conferidas contra o compilador e reaproveitando `node.classes`;
+   * sem ele, o mapeamento estático (`cssToTailwind`).
+   */
+  tailwind?: TailwindEngine;
 }
 
 export interface TailwindMapping {

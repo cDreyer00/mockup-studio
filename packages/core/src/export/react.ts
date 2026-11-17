@@ -1,4 +1,5 @@
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
+import type { TailwindEngine } from '../tailwind/engine.js';
 import type { AnyNode, Element } from 'domhandler';
 import { fontFaceCss } from '../fonts.js';
 import { isUnsafeUrl, slugify } from '../html.js';
@@ -29,6 +30,8 @@ export interface ReactExportOptions {
   extractRepeats?: boolean;
   /** Prefixo do `src` de imagens relativas (padrão `assets/`). */
   assetsBase?: string;
+  /** Motor Tailwind do documento (ver `TailwindExportOptions.tailwind`). */
+  tailwind?: TailwindEngine;
 }
 
 export interface ReactExport {
