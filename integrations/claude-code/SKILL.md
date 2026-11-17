@@ -18,7 +18,7 @@ Cria mockups no Mockup Studio pelo servidor MCP `mockup-studio`, vê o resultado
 1. Entenda o pedido: objetivo da tela, público, seções, tom visual. Pergunte só o que bloqueia.
 2. Chame `get_guide('getting-started')` na primeira vez da sessão.
 3. Crie ou abra o documento num caminho sensato do projeto do usuário, por exemplo `design/<nome>.mockup.json`: `create_document(path, name)` ou `open_document(path)`.
-4. Defina os tokens antes do conteúdo com `set_tokens`: cores (`--color-primary`, `--color-bg`, `--color-text`), espaçamento (`--space-4`), raio (`--radius-md`), fonte (`--font-sans`).
+4. Defina os tokens antes do conteúdo com `set_tokens`: cores (`--color-primary`, `--color-bg`, `--color-text`), espaçamento (`--space-4`), raio (`--radius-md`), fonte (`--font-sans`). Para tema escuro: `create_theme` + `set_frame_theme` (veja `get_guide('tokens')`).
 5. Crie um frame por breakpoint com `create_frame`:
    - `Desktop` 1440x900
    - `Tablet` 768x1024

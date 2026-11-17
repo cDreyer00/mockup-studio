@@ -109,15 +109,17 @@ Arquivo `*.mockup.json`: JSON com 2 espaços e chaves em ordem estável. Imagens
 
 ### Document
 
-| Campo     | Tipo                    | Descrição                                                           |
-| --------- | ----------------------- | ------------------------------------------------------------------- |
-| `version` | `1`                     | Versão do esquema.                                                  |
-| `id`      | string                  | Id do documento (`doc_xxxxxxxx`).                                   |
-| `name`    | string                  | Nome do documento.                                                  |
-| `pages`   | `Page[]`                | Páginas.                                                            |
-| `tokens`  | `Record<string,string>` | Variáveis CSS do documento, ex. `{ "--color-primary": "#6c5ce7" }`. |
-| `fonts`   | `FontRef[]`             | Fontes usadas.                                                      |
-| `meta`    | `DocumentMeta`          | `createdAt`, `updatedAt` (ISO 8601) e chaves extras livres.         |
+| Campo       | Tipo                                      | Descrição                                                                                |
+| ----------- | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `version`   | `1`                                       | Versão do esquema.                                                                       |
+| `id`        | string                                    | Id do documento (`doc_xxxxxxxx`).                                                        |
+| `name`      | string                                    | Nome do documento.                                                                       |
+| `pages`     | `Page[]`                                  | Páginas.                                                                                 |
+| `tokens`    | `Record<string,string>`                   | Variáveis CSS do documento, ex. `{ "--color-primary": "#6c5ce7" }`.                      |
+| `tokenMeta` | `Record<string,{ group?, description? }>` | Opcional. Grupo e descrição por token (ver [TOKENS.md](TOKENS.md)).                      |
+| `themes`    | `{ name, overrides }[]`                   | Opcional. Temas que sobrescrevem tokens; o frame usa um tema pelo atributo `data-theme`. |
+| `fonts`     | `FontRef[]`                               | Fontes usadas.                                                                           |
+| `meta`      | `DocumentMeta`                            | `createdAt`, `updatedAt` (ISO 8601) e chaves extras livres.                              |
 
 ### Page
 
@@ -180,25 +182,29 @@ Funções em `ids.ts`: `newId`, `newNodeId(type)`, `newPageId`, `newDocumentId`,
 
 Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `applyOp` devolve `{ doc, inverse, result? }`; `inverse` é a lista de ops que desfaz exatamente a aplicação.
 
-| Op (`type`)      | Campos                                                                   | Inverso                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `createNode`     | `node`, `parentId?` (null = frame raiz), `pageId?`, `index?`             | `deleteNodes` do nó criado                                                                                          |
-| `deleteNodes`    | `nodeIds[]`                                                              | `createNode` de cada nó removido, na posição original                                                               |
-| `moveNodes`      | `nodeIds[]`, `parentId?` (null = frame raiz), `pageId?`, `index?`        | `moveNodes` de volta ao pai e índice anteriores                                                                     |
-| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` ou `nodeIds[]` + `styles` + `unset?` | `updateStyles` restaurando valores e chaves anteriores                                                              |
-| `setText`        | `changes[{ nodeId, text }]`                                              | `setText` com o texto anterior                                                                                      |
-| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                      | `setAttrs` restaurando atributos anteriores                                                                         |
-| `renameNodes`    | `changes[{ nodeId, name }]`                                              | `renameNodes` com os nomes anteriores                                                                               |
-| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId para newId, inclui descendentes)            | `deleteNodes` dos clones; o `idMap` é devolvido em `result.idMap`                                                   |
-| `setPosition`    | `changes[{ nodeId, position }]`                                          | `setPosition` com as posições anteriores                                                                            |
-| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                     | `deletePage`                                                                                                        |
-| `deletePage`     | `pageId`                                                                 | `createPage` com nome, índice, fundo e `frames` da página removida                                                  |
-| `renamePage`     | `pageId`, `name`                                                         | `renamePage` com o nome anterior                                                                                    |
-| `setTokens`      | `set?`, `unset?`                                                         | `setTokens` restaurando valores e removendo os criados                                                              |
-| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                  | `setNodeFlags` com os valores anteriores                                                                            |
-| `setTag`         | `changes[{ nodeId, tag }]`                                               | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
-| `setFonts`       | `fonts[]` (`FontRef`; substitui a lista inteira, sem famílias repetidas) | `setFonts` com a lista anterior                                                                                     |
-| `setSrc`         | `changes[{ nodeId, src }]` (só nós `image`)                              | `setSrc` com os `src` anteriores                                                                                    |
+| Op (`type`)      | Campos                                                                              | Inverso                                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `createNode`     | `node`, `parentId?` (null = frame raiz), `pageId?`, `index?`                        | `deleteNodes` do nó criado                                                                                          |
+| `deleteNodes`    | `nodeIds[]`                                                                         | `createNode` de cada nó removido, na posição original                                                               |
+| `moveNodes`      | `nodeIds[]`, `parentId?` (null = frame raiz), `pageId?`, `index?`                   | `moveNodes` de volta ao pai e índice anteriores                                                                     |
+| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` ou `nodeIds[]` + `styles` + `unset?`            | `updateStyles` restaurando valores e chaves anteriores                                                              |
+| `setText`        | `changes[{ nodeId, text }]`                                                         | `setText` com o texto anterior                                                                                      |
+| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                                 | `setAttrs` restaurando atributos anteriores                                                                         |
+| `renameNodes`    | `changes[{ nodeId, name }]`                                                         | `renameNodes` com os nomes anteriores                                                                               |
+| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId para newId, inclui descendentes)                       | `deleteNodes` dos clones; o `idMap` é devolvido em `result.idMap`                                                   |
+| `setPosition`    | `changes[{ nodeId, position }]`                                                     | `setPosition` com as posições anteriores                                                                            |
+| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                                | `deletePage`                                                                                                        |
+| `deletePage`     | `pageId`                                                                            | `createPage` com nome, índice, fundo e `frames` da página removida                                                  |
+| `renamePage`     | `pageId`, `name`                                                                    | `renamePage` com o nome anterior                                                                                    |
+| `setTokens`      | `set?`, `unset?`, `theme?` (sobrescritas do tema)                                   | `setTokens` restaurando valores e removendo os criados                                                              |
+| `setTokenMeta`   | `set?`, `unset?`                                                                    | `setTokenMeta` restaurando os metadados anteriores                                                                  |
+| `setThemes`      | `themes[]`                                                                          | `setThemes` com a lista anterior                                                                                    |
+| `replaceTokens`  | `tokens`, `tokenMeta?`, `themes?`                                                   | `replaceTokens` com o sistema anterior                                                                              |
+| `renameToken`    | `from`, `to` (atualiza todas as `var()`; `result: { from, to, nodes, references }`) | `renameToken` de volta e restauração dos valores alterados                                                          |
+| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                             | `setNodeFlags` com os valores anteriores                                                                            |
+| `setTag`         | `changes[{ nodeId, tag }]`                                                          | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
+| `setFonts`       | `fonts[]` (`FontRef`; substitui a lista inteira, sem famílias repetidas)            | `setFonts` com a lista anterior                                                                                     |
+| `setSrc`         | `changes[{ nodeId, src }]` (só nós `image`)                                         | `setSrc` com os `src` anteriores                                                                                    |
 
 Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
 

@@ -8,7 +8,7 @@ Use o servidor MCP `mockup-studio` quando o usuário pedir mockup, wireframe, pr
 
 1. `get_guide('getting-started')` na primeira vez da sessão.
 2. `create_document` (ou `open_document`) num caminho do projeto, como `design/<nome>.mockup.json`.
-3. `set_tokens` primeiro: cores, espaçamento, raio, fonte.
+3. `set_tokens` primeiro: cores, espaçamento, raio, fonte (temas com `create_theme`; veja `get_guide('tokens')`).
 4. `create_frame` por breakpoint: `Desktop` 1440x900, `Tablet` 768x1024, `Mobile` 390x844.
 5. `write_html(html, css, parentId)` uma seção por vez, com CSS real (flex e `gap`).
 6. `get_screenshot(nodeId)` depois de cada seção. Confira alinhamento, cortes, contraste e quebras de texto.
