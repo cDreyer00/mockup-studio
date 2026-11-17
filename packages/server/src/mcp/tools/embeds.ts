@@ -17,10 +17,13 @@ import {
   type MediaParamValue,
   type VideoSpec,
 } from '@mockup/core';
-import { detectImage, fetchBytes, writeAsset } from '../../assets.js';
+import { detectImage, writeAsset } from '../../assets.js';
 import { MAX_ANIMATION_BYTES, MAX_VIDEO_BYTES, sanitizeAssetName } from '../../http.js';
+import { detectVideo, fetchAnimation, validateAnimation } from '../../mediaBytes.js';
 import { ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
 import { MAX_DATA_URL_BYTES, loadSource } from './images.js';
+
+export { detectVideo, lottieKind } from '../../mediaBytes.js';
 
 const kb = (n: number): string => `${Math.max(1, Math.round(n / 1024))} KB`;
 const isUrl = (s: string): boolean => /^https?:\/\//i.test(s);
@@ -41,46 +44,6 @@ const indexField = z
   .min(0)
   .optional()
   .describe('Posição entre os filhos, ex.: 0 (padrão: final).');
-
-type VideoKind = { ext: '.mp4' | '.m4v' | '.mov' | '.webm' | '.ogv'; mime: string };
-
-/** Detecta vídeo pelos primeiros bytes: mp4/m4v/mov (ftyp), webm/mkv (EBML) e ogg. */
-export function detectVideo(head: Buffer): VideoKind | null {
-  if (head.length >= 12 && head.toString('ascii', 4, 8) === 'ftyp') {
-    const brand = head.toString('ascii', 8, 12);
-    if (/^(avif|avis|heic|heix|hevc|mif1|msf1)/.test(brand)) return null;
-    if (brand === 'qt  ') return { ext: '.mov', mime: 'video/quicktime' };
-    if (brand === 'M4V ' || brand === 'M4VH' || brand === 'M4VP')
-      return { ext: '.m4v', mime: 'video/x-m4v' };
-    return { ext: '.mp4', mime: 'video/mp4' };
-  }
-  if (
-    head.length >= 4 &&
-    head[0] === 0x1a &&
-    head[1] === 0x45 &&
-    head[2] === 0xdf &&
-    head[3] === 0xa3
-  )
-    return { ext: '.webm', mime: 'video/webm' };
-  if (head.length >= 4 && head.toString('ascii', 0, 4) === 'OggS')
-    return { ext: '.ogv', mime: 'video/ogg' };
-  return null;
-}
-
-/** Valida um arquivo Lottie (JSON com v, fr, layers, ou .lottie zip). */
-export function lottieKind(bytes: Buffer): '.json' | '.lottie' | string {
-  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) return '.lottie';
-  let json: unknown;
-  try {
-    json = JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, ''));
-  } catch {
-    return 'O arquivo não é um JSON válido de Lottie.';
-  }
-  const o = json as Record<string, unknown> | null;
-  if (!o || typeof o !== 'object' || !('v' in o) || !('fr' in o) || !Array.isArray(o['layers']))
-    return 'O JSON não parece uma animação Lottie (esperado: campos "v", "fr" e "layers").';
-  return '.json';
-}
 
 /** Grava `src` em `dir/name` sem sobrescrever (copiando em disco, sem carregar o arquivo). */
 async function copyUnique(dir: string, name: string, src: string): Promise<string> {
@@ -202,11 +165,10 @@ export function registerEmbedTools(ctx: ToolContext): void {
     }
     let bytes: Buffer;
     let hint: string;
+    let ext: string;
     if (isUrl(s)) {
       try {
-        const r = await fetchBytes(s, { maxBytes: MAX_ANIMATION_BYTES, timeoutMs: 20_000 });
-        bytes = r.bytes;
-        hint = path.basename(new URL(r.finalUrl).pathname) || provider;
+        ({ bytes, hint, ext } = await fetchAnimation(s, provider));
       } catch (e) {
         throw new ToolError(e instanceof Error ? e.message : String(e));
       }
@@ -214,18 +176,9 @@ export function registerEmbedTools(ctx: ToolContext): void {
       await statFile(s, MAX_ANIMATION_BYTES, 'O arquivo');
       bytes = await fs.promises.readFile(s);
       hint = path.basename(s);
-    }
-    let ext: string;
-    if (provider === 'rive') {
-      if (bytes.toString('ascii', 0, 4) !== 'RIVE')
-        throw new ToolError(
-          'O arquivo não é um Rive válido (deve começar com "RIVE"). Use um .riv exportado do Rive.',
-        );
-      ext = '.riv';
-    } else {
-      const k = lottieKind(bytes);
-      if (k !== '.json' && k !== '.lottie') throw new ToolError(k);
-      ext = k;
+      const v = validateAnimation(bytes, provider);
+      if (!v.startsWith('.')) throw new ToolError(v);
+      ext = v;
     }
     const assets = needAssets(id, provider === 'rive' ? 'a animação Rive' : 'a animação Lottie');
     const stem = hint.replace(/\.[^.]*$/, '') || provider;
@@ -504,7 +457,18 @@ export function registerEmbedTools(ctx: ToolContext): void {
       }
       if (node.type === 'embed' && node.embed) {
         const next: EmbedSpec = { ...node.embed };
-        if (url !== undefined) next.url = url;
+        if (url !== undefined) {
+          next.url = url;
+          if (next.provider === 'youtube') {
+            // o início vem da nova URL (?t=/start=); sem ele, o antigo não vale mais
+            const p: Record<string, MediaParamValue> = { ...(next.params ?? {}) };
+            delete p['start'];
+            const start = youtubeStart(url);
+            if (start !== undefined) p['start'] = start;
+            if (Object.keys(p).length) next.params = p;
+            else delete next.params;
+          }
+        }
         if (code !== undefined) {
           if (code.length > MAX_THREE_CODE)
             throw new ToolError(`O código passa do limite de ${MAX_THREE_CODE} caracteres.`);
