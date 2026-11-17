@@ -8,7 +8,9 @@ import {
   createShapeVector,
   createVectorNode,
   ensureVector,
+  findNode,
   fitVectorToContent,
+  isFreeNode,
   nodeBoxInParent,
   normalizePathData,
   setVectorPaint,
@@ -16,6 +18,8 @@ import {
   svgToVector,
   vectorToSvg,
   editVector,
+  type Box,
+  type LayoutNode,
   type Op,
   type ShapeKind,
   type ShapeSpec,
@@ -555,12 +559,52 @@ export function registerVectorTools(ctx: ToolContext): void {
     },
   );
 
+  /**
+   * Caixas medidas (px, no padding box do pai) dos nós em fluxo, via motor de render: mede o pai e
+   * subtrai a posição e a borda dele. Sem render ou com falha devolve só o que conseguiu; o core
+   * então recusa o nó em fluxo com a mensagem clara.
+   */
+  async function flowBoxes(
+    doc: Parameters<typeof findNode>[0],
+    docId: string,
+    nodeIds: string[],
+  ): Promise<Record<string, Box>> {
+    const boxes: Record<string, Box> = {};
+    if (!opts.render) return boxes;
+    const byParent = new Map<string, string[]>();
+    for (const nid of nodeIds) {
+      const f = findNode(doc, nid);
+      if (!f?.parent || isFreeNode(f.node, false)) continue;
+      byParent.set(f.parent.id, [...(byParent.get(f.parent.id) ?? []), nid]);
+    }
+    const px0 = (v: string | undefined): number => parseFloat(v ?? '') || 0;
+    for (const [parentId, ids] of byParent) {
+      let layout: LayoutNode;
+      try {
+        layout = await opts.render.measure({
+          doc,
+          docId,
+          nodeId: parentId,
+          assetsDir: store.assetsDir(docId),
+        });
+      } catch {
+        continue;
+      }
+      const ox = layout.x + px0(layout.style['border-left-width']);
+      const oy = layout.y + px0(layout.style['border-top-width']);
+      for (const c of layout.children) {
+        if (ids.includes(c.id)) boxes[c.id] = { x: c.x - ox, y: c.y - oy, width: c.width, height: c.height };
+      }
+    }
+    return boxes;
+  }
+
   tool(
     'boolean_op',
     {
       title: 'Operação booleana entre vetores',
       description:
-        'Combina 2+ nós svg irmãos: union, subtract (o de baixo menos os de cima), intersect ou exclude. Curvas são achatadas. O resultado substitui o primeiro nó e os originais somem. Desfaça com undo.',
+        'Combina 2+ nós svg irmãos: union, subtract (o de baixo menos os de cima), intersect ou exclude. Curvas são achatadas. O resultado substitui o primeiro nó e os originais somem. Nós em fluxo precisam de render para medir a posição; sem ele, use position:absolute. Desfaça com undo.',
       example: { nodeIds: ['sv_aaaa1111', 'sv_bbbb2222'], op: 'subtract', name: 'Furo' },
       inputSchema: {
         nodeIds: z
@@ -575,12 +619,13 @@ export function registerVectorTools(ctx: ToolContext): void {
       },
       annotations: WRITE,
     },
-    ({ nodeIds, op, name, docId }) => {
+    async ({ nodeIds, op, name, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       for (const n of nodeIds) requireNode(doc, n);
+      const boxes = await flowBoxes(doc, id, nodeIds);
       const built = guard(() =>
-        buildBooleanOps(doc, nodeIds, op as (typeof BOOLEAN_OPS)[number], { name }),
+        buildBooleanOps(doc, nodeIds, op as (typeof BOOLEAN_OPS)[number], { name, boxes }),
       );
       const r = apply(id, built.ops, 'boolean_op');
       return `Booleana "${op}" aplicada em ${nodeIds.length} nós: resultado ${built.nodeId} (originais removidos; curvas achatadas). Tinta do resultado: a do primeiro path do nó mais ao fundo; ajuste com set_vector_paint.\n${summaryOf(r.doc, [built.nodeId])}`;
@@ -592,7 +637,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Achatar vetores',
       description:
-        'Achata vetores. Um nó: junta os paths num só. Vários svgs irmãos: um nó só com os paths de todos (cada um com sua tinta). Desfaça com undo.',
+        'Achata vetores. Um nó: junta os paths num só. Vários svgs irmãos: um nó só com os paths de todos (cada um com sua tinta). Nós em fluxo precisam de render para medir a posição; sem ele, use position:absolute. Desfaça com undo.',
       example: { nodeIds: ['sv_aaaa1111', 'sv_bbbb2222'] },
       inputSchema: {
         nodeIds: z
@@ -604,11 +649,12 @@ export function registerVectorTools(ctx: ToolContext): void {
       },
       annotations: WRITE,
     },
-    ({ nodeIds, name, docId }) => {
+    async ({ nodeIds, name, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       for (const n of nodeIds) requireNode(doc, n);
-      const built = guard(() => buildFlattenOps(doc, nodeIds, { name }));
+      const boxes = await flowBoxes(doc, id, nodeIds);
+      const built = guard(() => buildFlattenOps(doc, nodeIds, { name, boxes }));
       const r = apply(id, built.ops, 'flatten');
       return `${nodeIds.length} nó(s) achatado(s) em ${built.nodeId}.\n${summaryOf(r.doc, [built.nodeId])}`;
     },

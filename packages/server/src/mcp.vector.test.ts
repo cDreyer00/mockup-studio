@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { Node } from '@mockup/core';
+import type { LayoutNode, Node } from '@mockup/core';
 import { startDaemon, type DaemonHandle } from './index.js';
+import type { RenderProvider } from './render.js';
 import { makeWorkspace } from './test-utils.js';
 
 type Ws = ReturnType<typeof makeWorkspace>;
@@ -196,7 +197,7 @@ describe('MCP vetores', () => {
   });
 
   it('flatten de um nó junta os paths num só', async () => {
-    const a = await shape({ shape: 'rect', width: 20, height: 20 });
+    const a = await shape({ shape: 'rect', width: 20, height: 20, x: 0, y: 0 });
     const b = await shape({ shape: 'rect', width: 20, height: 20, x: 30, y: 0 });
     const f = await call('flatten', { nodeIds: [a, b] });
     expect(f.isError, textOf(f)).toBeFalsy();
@@ -205,6 +206,19 @@ describe('MCP vetores', () => {
     const g = await call('flatten', { nodeIds: [flat.id] });
     expect(g.isError, textOf(g)).toBeFalsy();
     expect(children().find((n) => n.id === flat.id)!.vector!.paths).toHaveLength(1);
+  });
+
+  it('boolean_op e flatten recusam nó em fluxo sem render, com mensagem clara', async () => {
+    const a = await shape({ shape: 'rect', x: 0, y: 0, width: 20, height: 20 });
+    const b = await shape({ shape: 'rect', width: 20, height: 20 }); // em fluxo
+    const before = children().length;
+    const r = await call('boolean_op', { nodeIds: [a, b], op: 'union' });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toMatch(/em fluxo.*position: absolute.*antes da booleana/);
+    const f = await call('flatten', { nodeIds: [a, b] });
+    expect(f.isError).toBe(true);
+    expect(textOf(f)).toMatch(/em fluxo.*antes de achatar/);
+    expect(children()).toHaveLength(before);
   });
 
   it('get_svg em nó não svg dá erro acionável', async () => {
@@ -247,5 +261,73 @@ describe('MCP vetores', () => {
       body: JSON.stringify({ nodeIds: ['a'] }),
     });
     expect(nodoc.status).toBe(404);
+  });
+});
+
+describe('MCP vetores: nós em fluxo medidos pelo render', () => {
+  let ws: Ws;
+  let daemon: DaemonHandle;
+  let client: Client;
+
+  const rect = (id: string, x: number, y: number, width: number, height: number): LayoutNode => ({
+    id,
+    name: id,
+    type: 'svg',
+    tag: 'svg',
+    x,
+    y,
+    width,
+    height,
+    style: {},
+    children: [],
+  });
+
+  // o pai fica em (10, 10) no frame, com borda de 2px; o filho em fluxo em (12, 12)+(40, 0)
+  const render: RenderProvider = {
+    async capture() {
+      throw new Error('sem captura');
+    },
+    async measure({ doc, nodeId }): Promise<LayoutNode> {
+      const kids = doc.pages[0]!.frames[0]!.children.filter((n) => n.type === 'svg');
+      return {
+        ...rect(nodeId, 10, 10, 400, 300),
+        type: 'frame',
+        tag: 'div',
+        style: { 'border-left-width': '2px', 'border-top-width': '2px' },
+        children: kids.map((k, i) => rect(k.id, 12 + i * 40, 12 + i * 5, 20, 20)),
+      };
+    },
+  };
+
+  beforeEach(async () => {
+    ws = makeWorkspace();
+    daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
+    client = new Client({ name: 'teste', version: '0.0.0' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
+    await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
+  });
+  afterEach(async () => {
+    await client.close();
+    await daemon.close();
+    ws.cleanup();
+  });
+
+  it('flatten de dois nós em fluxo usa as caixas medidas (padding box do pai)', async () => {
+    const make = async (): Promise<string> => {
+      const r = await client.callTool({
+        name: 'create_shape',
+        arguments: { parentId: ws.frameId, shape: 'rect', width: 20, height: 20 },
+      });
+      return /(sv_[0-9a-z]+)/.exec(textOf(r))![1]!;
+    };
+    const a = await make();
+    const b = await make();
+    const f = await client.callTool({ name: 'flatten', arguments: { nodeIds: [a, b], name: 'Junto' } });
+    expect(f.isError, textOf(f)).toBeFalsy();
+    const frame = daemon.store.get(daemon.store.resolveDocId()).pages[0]!.frames[0]!;
+    const res = frame.children.find((n) => n.name === 'Junto')!;
+    // a em (12-10-2, 12-10-2) = (0, 0); b em (40, 5), ambos 20x20
+    expect(res.style).toMatchObject({ position: 'absolute', left: '0px', top: '0px', width: '60px', height: '25px' });
+    expect(frame.children.some((n) => n.id === a || n.id === b)).toBe(false);
   });
 });
