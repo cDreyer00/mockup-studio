@@ -80,13 +80,13 @@ A conferência de tipo resolve as `var()` e usa o lexer do css-tree por propried
 
 Em `packages/core/src/ops.ts`, todas com inverso exato (um undo cada):
 
-| Op              | Campos                            | Efeito                                                                                                         |
-| --------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `setTokens`     | `set?`, `unset?`, `theme?`        | Define/remove tokens da base ou, com `theme`, das sobrescritas daquele tema (que precisa existir).             |
-| `setTokenMeta`  | `set?`, `unset?`                  | Define (substitui por inteiro) ou remove grupo/descrição.                                                      |
-| `setThemes`     | `themes`                          | Substitui a lista de temas (criar, remover, renomear, reordenar).                                              |
-| `replaceTokens` | `tokens`, `tokenMeta?`, `themes?` | Troca o sistema inteiro; usado por importação e pelos inversos.                                                |
-| `renameToken`   | `from`, `to`                      | Renomeia a chave (base, meta, temas) e todas as `var(--antigo)`. Resultado: `{ from, to, nodes, references }`. |
+| Op              | Campos                            | Efeito                                                                                                                                                                                                                                                          |
+| --------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setTokens`     | `set?`, `unset?`, `theme?`        | Define/remove tokens da base ou, com `theme`, das sobrescritas daquele tema (que precisa existir).                                                                                                                                                              |
+| `setTokenMeta`  | `set?`, `unset?`                  | Define (substitui por inteiro) ou remove grupo/descrição.                                                                                                                                                                                                       |
+| `setThemes`     | `themes`                          | Substitui a lista de temas (criar, remover, renomear, reordenar).                                                                                                                                                                                               |
+| `replaceTokens` | `tokens`, `tokenMeta?`, `themes?` | Troca o sistema inteiro; usado por importação e pelos inversos.                                                                                                                                                                                                 |
+| `renameToken`   | `from`, `to`                      | Renomeia a chave (base, meta, temas) e todas as `var(--antigo)` (estilos, valores de `attrs`, markup de SVG inline, tokens e temas). Recusa destino que já existe ou que já está declarado no estilo de algum nó. Resultado: `{ from, to, nodes, references }`. |
 
 Os planejadores `planDeleteTokens`, `planApplyToken`, `planCreateTheme`, `planDeleteTheme`, `planRenameTheme`, `planSetFrameTheme` e `planImportTokens` montam as ops compostas (por exemplo, apagar um tema também tira o `data-theme` dos nós). `getTokenReport(doc)` devolve tokens com grupo, valor, valor resolvido (base e por tema), usos, problema, mais temas com seus frames, tokens não usados e referências quebradas.
 
@@ -98,7 +98,7 @@ Toda ferramenta de escrita gera ops e aplica numa única chamada (uma entrada de
 | ----------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `get_tokens`      | `group?`, `theme?`, `format?` (`text`/`json`), `docId?`                    | Tokens por grupo (valor, resolvido, descrição, usos, não usado, problema), temas e referências quebradas. |
 | `set_tokens`      | `tokens?`, `unset?`, `theme?`, `groups?`, `descriptions?`, `docId?`        | Define/remove tokens, na base ou num tema; grava grupo e descrição.                                       |
-| `rename_token`    | `from`, `to`, `docId?`                                                     | Renomeia e atualiza todas as referências.                                                                 |
+| `rename_token`    | `from`, `to`, `docId?`                                                     | Renomeia e atualiza as referências (estilos, `attrs`, SVG).                                               |
 | `apply_token`     | `nodeIds`, `property`, `token`, `docId?`                                   | Grava `propriedade: var(--token)` nos nós.                                                                |
 | `create_theme`    | `name`, `overrides?`, `copyFrom?`, `docId?`                                | Cria um tema.                                                                                             |
 | `delete_theme`    | `name`, `docId?`                                                           | Remove o tema e o `data-theme` dos frames.                                                                |
@@ -107,7 +107,7 @@ Toda ferramenta de escrita gera ops e aplica numa única chamada (uma entrada de
 | `import_tokens`   | `content`, `format?` (`css`/`json`), `mode?` (`merge`/`replace`), `docId?` | Importa CSS ou DTCG; devolve contagens e avisos.                                                          |
 | `export_tokens`   | `format` (`css`/`json`/`tailwind`), `docId?`                               | Devolve o texto.                                                                                          |
 
-`get_styles` aceita `theme` para mostrar os valores como se o nó estivesse naquele tema.
+`get_styles` aceita `theme` para mostrar os valores como se o próprio nó tivesse `data-theme` com aquele tema (no lugar do que tiver). Como no CSS, propriedades herdadas (cor, fonte...) chegam já calculadas no ancestral que as declara: um tema no filho não muda a `color: var(--fg)` herdada do frame. Para ver um frame inteiro no tema, consulte o frame ou troque o tema dele com `set_frame_theme`.
 
 ```js
 set_tokens({
@@ -130,11 +130,11 @@ Regras do `set_tokens`: nomes sem `--` ganham o prefixo; `unset` sem `theme` rem
 
 ## Importar e exportar
 
-| Formato    | Importação                                                                                      | Exportação                                                                                                                                                                  |
-| ---------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `css`      | `:root { ... }` para a base e `[data-theme="x"] { ... }` para temas; também lê `@theme`.        | `:root` e um `[data-theme="x"]` por tema (com os aliases dependentes redeclarados).                                                                                         |
-| `json`     | W3C Design Tokens (DTCG): grupos aninhados, `$value`, `$type`, `$description`, aliases `{a.b}`. | Os mesmos campos; o grupo do Mockup Studio e os valores por tema ficam em `$extensions["mockup-studio"]`.                                                                   |
-| `tailwind` | (use `css`; `@theme` é lido)                                                                    | Tailwind v4: `@theme { ... }` para os namespaces de tema, `:root` para o resto, regras de tema e `@custom-variant theme-<nome>` (mais `dark` quando existe um tema `dark`). |
+| Formato    | Importação                                                                                                                                              | Exportação                                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `css`      | `:root { ... }` para a base; temas só por `[data-theme="x"]`, `.dark`, `.light` ou `.theme-x`; lê `@theme`, `@media (prefers-color-scheme)` e `@layer`. | `:root` e um `[data-theme="x"]` por tema (com os aliases dependentes redeclarados).                                                                                         |
+| `json`     | W3C Design Tokens (DTCG): grupos aninhados, `$value`, `$type`, `$description`, aliases `{a.b}`.                                                         | Os mesmos campos; o grupo do Mockup Studio e os valores por tema ficam em `$extensions["mockup-studio"]`.                                                                   |
+| `tailwind` | (use `css`; `@theme` é lido)                                                                                                                            | Tailwind v4: `@theme { ... }` para os namespaces de tema, `:root` para o resto, regras de tema e `@custom-variant theme-<nome>` (mais `dark` quando existe um tema `dark`). |
 
 `import_tokens` com `mode: "merge"` (padrão) mantém o que existe e sobrescreve nomes repetidos (temas são mesclados por nome); `replace` troca tokens, metadados e temas. O resultado traz `warnings` (regras ignoradas, valores descartados).
 
