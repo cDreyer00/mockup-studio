@@ -292,8 +292,7 @@ export async function optimizeDocAssets(
       `Otimização indisponível: o módulo sharp não carregou (${e instanceof Error ? e.message.split('\n')[0] : String(e)}). Instale com \`npm install sharp -w @mockup/server\`.`,
     );
   }
-  const doc = ctx.store.get(docId);
-  const refs = collectAssetRefs(doc);
+  const refs = collectAssetRefs(ctx.store.get(docId));
   const quality = Math.min(100, Math.max(1, Math.round(opts.quality ?? 82)));
   const format = opts.format ?? 'webp';
 
@@ -365,7 +364,7 @@ export async function optimizeDocAssets(
       );
       const newPath = relDir === '.' ? finalName : `${relDir}/${finalName}`;
       results.push({ path: rel, newPath, before: input.length, after: output.length });
-      if (refs.has(rel)) renamed.set(rel, newPath);
+      renamed.set(rel, newPath);
     } catch (e) {
       skipped.push({
         path: rel,
@@ -373,7 +372,12 @@ export async function optimizeDocAssets(
       });
     }
   }
-  const ops = rewriteAssetRefsOps(doc, renamed);
+  // O processamento com sharp é assíncrono e pode demorar: relê o documento agora para que as ops
+  // (setData/setFonts gravam listas inteiras) partam do estado atual e não desfaçam edições feitas
+  // enquanto as imagens eram processadas.
+  const current = ctx.store.get(docId);
+  const currentRefs = collectAssetRefs(current);
+  const ops = rewriteAssetRefsOps(current, renamed);
   if (ops.length) applyOps(ops);
-  return { results, skipped, rewritten: renamed.size };
+  return { results, skipped, rewritten: [...renamed.keys()].filter((r) => currentRefs.has(r)).length };
 }

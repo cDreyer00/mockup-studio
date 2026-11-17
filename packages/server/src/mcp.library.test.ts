@@ -5,7 +5,9 @@ import zlib from 'node:zlib';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { optimizeDocAssets } from './assetsService.js';
 import { startDaemon, type DaemonHandle } from './index.js';
+import type { DocumentStore } from './store.js';
 import { makeWorkspace } from './test-utils.js';
 
 type Ws = ReturnType<typeof makeWorkspace>;
@@ -376,6 +378,79 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(fs.existsSync(path.join(ws.dir, 'assets', 'ruido.png'))).toBe(false);
       expect(fs.existsSync(out)).toBe(true);
       expect(textOf(await call('remove_unused_assets'))).toContain('Nenhum asset sem uso');
+    });
+
+    it('optimize_assets relê o documento antes de reescrever (não desfaz edições feitas durante o processamento)', async () => {
+      const sharp = (await import('sharp')).default;
+      const noise = await sharp(crypto.randomBytes(300 * 200 * 3), {
+        raw: { width: 300, height: 200, channels: 3 },
+      })
+        .png()
+        .toBuffer();
+      fs.mkdirSync(path.join(ws.dir, 'assets'), { recursive: true });
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'foto.png'), noise);
+      const w = await call('write_html', {
+        parentId: ws.frameId,
+        html: '<div class="lista"><article><img src="{{foto}}"><h3>{{nome}}</h3></article></div>',
+      });
+      expect(w.isError, textOf(w)).toBeFalsy();
+      const b = await call('bind_data', {
+        nodeId: frame().children[0]!.id,
+        data: [{ foto: 'foto.png', nome: 'A' }],
+      });
+      expect(b.isError, textOf(b)).toBeFalsy();
+      const repId = frame().children[0]!.id;
+
+      // Simula uma edição concorrente: logo depois da primeira leitura do documento pelo serviço,
+      // outro cliente acrescenta um item aos dados.
+      const real = daemon.store;
+      let edited = false;
+      const racing = new Proxy(real, {
+        get(t, k) {
+          if (k === 'get') {
+            return (id: string) => {
+              const d = t.get(id);
+              if (!edited) {
+                edited = true;
+                t.applyOps(
+                  id,
+                  [
+                    {
+                      type: 'setData',
+                      changes: [
+                        {
+                          nodeId: repId,
+                          data: [
+                            { foto: 'foto.png', nome: 'A' },
+                            { foto: 'foto.png', nome: 'B' },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                  { source: 'editor' },
+                );
+              }
+              return d;
+            };
+          }
+          const v = Reflect.get(t, k, t) as unknown;
+          return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+        },
+      }) as DocumentStore;
+      const r = await optimizeDocAssets(
+        { store: racing, dataDir: ws.dataDir },
+        docId(),
+        { format: 'webp' },
+        (ops) => real.applyOps(docId(), ops, { source: 'mcp', label: 'optimize_assets' }),
+      );
+      expect(edited).toBe(true);
+      expect(r.results.map((x) => x.newPath)).toEqual(['foto.webp']);
+      expect(r.rewritten).toBe(1);
+      expect(frame().children[0]!.data).toEqual([
+        { foto: 'foto.webp', nome: 'A' },
+        { foto: 'foto.webp', nome: 'B' },
+      ]);
     });
 
     it('optimize_assets mantém imagens que não ficam menores e ignora SVG', async () => {
