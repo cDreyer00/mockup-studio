@@ -115,6 +115,11 @@ export interface TailwindEngine {
   ): { classes: string[]; rest: Record<string, string> };
   /** Canonicaliza classes (`p-[16px]` → `p-4`, `mt-2 mb-2` → `my-2`). */
   canonicalize(classes: string[]): string[];
+  /**
+   * Prepara os caches da canonicalização (assinaturas de todas as classes, ~1 s na primeira vez).
+   * Opcional: sem ela, o custo cai na primeira exportação/conversão com o motor.
+   */
+  warmup(): void;
   /** Sugestões para autocomplete (aceita prefixo de variante, ex.: `hover:bg-`). */
   suggest(query: string, limit?: number): string[];
   /** Todas as classes conhecidas (sem valores arbitrários). */
@@ -642,27 +647,60 @@ const POPULAR = [
   'transition',
 ];
 
+/**
+ * Grupos de classes (primeiro segmento do nome) que a canonicalização "leve" deixa de fora. Na
+ * primeira chamada, `canonicalizeCandidates` calcula a assinatura de TODAS as classes do
+ * `getClassList()` (~23 mil, 1,5–2 s); só `mask-*` são ~6 mil e metade desse tempo. Essas classes
+ * só declaram propriedades que casam com `CANON_HEAVY_PROP`, então nunca têm a mesma assinatura
+ * (nem entram no índice propriedade → classe do `collapse`) de uma entrada que não use essas
+ * propriedades: para essas entradas o resultado é idêntico ao da lista completa. Entradas que
+ * usam (raras) vão para o design system com a lista completa.
+ */
+const CANON_HEAVY_GROUPS = new Set(['mask', 'scroll', 'scrollbar']);
+/** Todas as propriedades (e variáveis) declaradas pelas classes de `CANON_HEAVY_GROUPS`. */
+export const CANON_HEAVY_PROP = /^(--tw-)?(mask|scroll)/;
+
+/** Grupo da classe para `CANON_HEAVY_GROUPS` (`-scroll-mt-2` → `scroll`). */
+export function canonGroupOf(cls: string): string {
+  return cls.replace(/^-/, '').split('-')[0];
+}
+
 export async function createTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
 ): Promise<TailwindEngine> {
   const inputCss = tailwindInputCss(doc);
-  // Dois design systems: `canonicalizeCandidates` altera as opções do tema do design system que
-  // o executa (os valores deixam de sair inline), então a canonicalização usa uma cópia própria.
-  const [ds, canon] = await Promise.all([
+  // Design systems separados: `canonicalizeCandidates` altera as opções do tema do design system
+  // que o executa (os valores deixam de sair inline), então a canonicalização usa cópias próprias:
+  // a leve (sem `CANON_HEAVY_GROUPS`) e a completa (só para entradas que tocam nesses grupos).
+  // Carregar um design system custa ~10 ms; o caro é o aquecimento da canonicalização.
+  const [ds, canonLite, canonFull] = await Promise.all([
+    __unstable__loadDesignSystem(inputCss, { base: '/' }),
     __unstable__loadDesignSystem(inputCss, { base: '/' }),
     __unstable__loadDesignSystem(inputCss, { base: '/' }),
   ]);
-  return new Engine(ds, canon, tailwindEngineKey(doc), inputCss, doc.tokens ?? {});
+  const light = (name: string): boolean => !CANON_HEAVY_GROUPS.has(canonGroupOf(name));
+  // A busca por equivalentes de valores arbitrários e o `collapse` também percorrem todas as
+  // raízes funcionais (`mask-linear-from`, `scroll-m`...): as pesadas saem pelo mesmo motivo.
+  const utilities = canonLite.utilities;
+  const keys = utilities.keys.bind(utilities);
+  utilities.keys = ((kind: Parameters<typeof keys>[0]) =>
+    kind === 'functional' ? Array.from(keys(kind)).filter(light) : keys(kind)) as typeof keys;
+  const fullList = canonLite.getClassList.bind(canonLite);
+  let liteList: ReturnType<DesignSystem['getClassList']> | null = null;
+  canonLite.getClassList = () => (liteList ??= fullList().filter(([name]) => light(name)));
+  return new Engine(ds, canonLite, canonFull, tailwindEngineKey(doc), inputCss, doc.tokens ?? {});
 }
 
 class Engine implements TailwindEngine {
   private utilCache = new Map<string, CompiledUtility | null>();
   private infoCache = new Map<string, ClassInfo>();
   private list: string[] | null = null;
+  private canonCache = new Map<string, string[]>();
 
   constructor(
     private ds: DesignSystem,
-    private canon: DesignSystem,
+    private canonLite: DesignSystem,
+    private canonFull: DesignSystem,
     readonly key: string,
     readonly inputCss: string,
     private tokens: Record<string, string>,
@@ -857,11 +895,37 @@ class Engine implements TailwindEngine {
 
   canonicalize(classes: string[]): string[] {
     if (classes.length === 0) return [];
+    const key = classes.join(' ');
+    const hit = this.canonCache.get(key);
+    if (hit) return [...hit];
+    const canon = classes.some((c) => this.needsFullCanon(c)) ? this.canonFull : this.canonLite;
+    let out: string[];
     try {
-      return this.canon.canonicalizeCandidates(classes, { rem: 16, collapse: true });
+      out = canon.canonicalizeCandidates(classes, { rem: 16, collapse: true });
     } catch {
-      return classes;
+      out = classes;
     }
+    if (this.canonCache.size >= 5000) this.canonCache.clear();
+    this.canonCache.set(key, [...out]);
+    return out;
+  }
+
+  warmup(): void {
+    // Uma classe arbitrária e uma nomeada montam os índices de assinatura da canonicalização leve.
+    this.canonicalize(['p-[16px]', 'm-4']);
+  }
+
+  /** A classe pode casar com alguma de `CANON_HEAVY_GROUPS`? (na dúvida, sim) */
+  private needsFullCanon(cls: string): boolean {
+    const info = this.info(cls);
+    // Sem CSS no Tailwind não há assinatura: a canonicalização devolve a classe como está.
+    if (info.status === 'unknown') return false;
+    const u = info.utility;
+    if (info.status !== 'applied' || !u) return true;
+    if (u.decls.some((d) => CANON_HEAVY_PROP.test(d.prop))) return true;
+    for (const name of Object.keys(u.vars)) if (CANON_HEAVY_PROP.test(name)) return true;
+    for (const name of Object.keys(u.initials)) if (CANON_HEAVY_PROP.test(name)) return true;
+    return false;
   }
 
   /**
