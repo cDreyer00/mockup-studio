@@ -17,7 +17,7 @@ Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via 
 
 ## Status
 
-MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas (`docs/qa/mvp-e2e.md`) ainda não foi feito. Plano em [docs/PLANO.md](docs/PLANO.md).
+MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas foi feito em 16/11/2026 (relatório em [docs/qa/mvp-e2e.md](docs/qa/mvp-e2e.md)). Plano em [docs/PLANO.md](docs/PLANO.md).
 
 ## Instalação
 

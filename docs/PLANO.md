@@ -108,10 +108,10 @@ Pendências herdadas para a tarefa 4:
 - **Guias no MCP**: `getting-started` (6 passos), `design-system`, `responsive`, `screenshot-loop`, `export`, `troubleshooting`, `setup`.
 - Revisão das descrições de todas as ferramentas.
 - `integrations/claude-code/SKILL.md` e `integrations/codex/AGENTS.snippet.md`.
-- **QA e2e** com mockup real de 3 telas, registrado em `docs/qa/mvp-e2e.md`.
+- **QA e2e** com mockup real de 3 telas, registrado em [qa/mvp-e2e.md](qa/mvp-e2e.md) (concluído em 16/11/2026).
 - README final com licença MIT.
 
-Resultado (integração; o QA e2e é a etapa seguinte):
+Resultado (integração; o QA e2e foi feito depois, veja [qa/mvp-e2e.md](qa/mvp-e2e.md)):
 
 - CLI: `npm link -w @mockup/cli` expõe `mockup`; `mockup doctor [--json]` (Node, pasta de dados, daemon, modo e render, porta, Electron, fontes, `mockup`/`claude`/`codex` no PATH e registro) com os comandos de registro preenchidos; `mockup setup claude|codex|all [--http] [--skill] [--print] [--command path|shim|absolute]`, idempotente; `mockup install-cli`/`uninstall-cli` (shim `mockup.cmd` e PATH do usuário pelo registro, preservando `%VAR%`); `mockup --version`.
 - App empacotado: CLI e daemon Node em `resources/cli` (bundle esbuild, rodam com `ELECTRON_RUN_AS_NODE=1`), `integrations/` em `resources/integrations`; o NSIS roda `install-cli` na instalação e `uninstall-cli` na desinstalação (não na atualização); `--install-cli`/`--uninstall-cli` no próprio exe.
@@ -121,7 +121,7 @@ Resultado (integração; o QA e2e é a etapa seguinte):
 
 Pendências:
 
-- QA e2e com mockup real de 3 telas (`docs/qa/mvp-e2e.md`).
+- ~~QA e2e com mockup real de 3 telas~~: concluído em 16/11/2026, relatório em [qa/mvp-e2e.md](qa/mvp-e2e.md).
 - O instalador NSIS não foi executado numa máquina (só compilado); hooks de PATH testados pelo `--install-cli`/`--uninstall-cli` do `win-unpacked` com pasta temporária.
 - Se o `uninstall-cli` falhar na desinstalação, o fallback em NSIS apaga o shim mas a entrada no PATH fica (inofensiva).
 
