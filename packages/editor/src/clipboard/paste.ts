@@ -2,8 +2,9 @@
  * Lógica pura do clipboard: serialização com marcador, detecção de HTML, alvo da colagem e
  * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
  */
-import { cloneNodeWithNewIds, nodesToHtml } from '@mockup/core';
-import type { Document, Node } from '@mockup/core';
+import { cloneNodeWithNewIds, htmlToNodes, nodesToHtml } from '@mockup/core';
+import type { Document, Node, Op } from '@mockup/core';
+import { loadTailwindEngine } from '../tailwind/loader';
 import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
 import {
   canHaveChildren,
@@ -46,6 +47,39 @@ export function looksLikeHtml(text: string | null | undefined): boolean {
   if (!t.startsWith('<')) return false;
   if (t.startsWith('<!--') && MARKER_RE.test(t)) return true;
   return new RegExp(`</[a-z][\\w-]*\\s*>|<(?:${KNOWN_TAGS})(?:[\\s>/])`, 'i').test(t);
+}
+
+/** HTML com atributo class (só então vale a pena carregar o motor Tailwind). */
+const HAS_CLASS_RE = /\bclass\s*=\s*["']/i;
+
+export interface HtmlPaste {
+  nodes: Node[];
+  /** Ops extras aplicadas junto com a criação (ex.: setCssBase para 	ailwind). */
+  ops: Op[];
+  tailwind: boolean;
+}
+
+/**
+ * HTML colado → nós. Se parece Tailwind (detectTailwind), carrega o motor sob demanda, mantém as
+ * classes (
+ode.classes), compila-as em style/states e pede o preflight (setCssBase) se o
+ * documento ainda não o usa. Sem Tailwind (ou se o motor falhar), é o htmlToNodes de sempre.
+ */
+export async function htmlToPasteNodes(html: string, doc: Document): Promise<HtmlPaste> {
+  const plain = (): HtmlPaste => ({ nodes: htmlToNodes(html), ops: [], tailwind: false });
+  if (!HAS_CLASS_RE.test(html)) return plain();
+  let loaded: Awaited<ReturnType<typeof loadTailwindEngine>>;
+  try {
+    loaded = await loadTailwindEngine(doc);
+  } catch {
+    return plain();
+  }
+  const { mod, engine } = loaded;
+  if (!mod.detectTailwind(html, engine).tailwind) return plain();
+  const nodes = htmlToNodes(html, { keepClasses: true });
+  mod.applyTailwindToNodes(nodes, engine);
+  const ops: Op[] = doc.cssBase === 'tailwind' ? [] : [{ type: 'setCssBase', base: 'tailwind' }];
+  return { nodes, ops, tailwind: true };
 }
 
 export type PasteKind = 'internal' | 'images' | 'html' | 'text' | 'none';

@@ -1,7 +1,6 @@
 /** Copiar, recortar e colar nós via eventos `copy`/`cut`/`paste` do documento. */
 import { useEffect } from 'react';
-import { htmlToNodes } from '@mockup/core';
-import type { Node } from '@mockup/core';
+import type { Node, Op } from '@mockup/core';
 import { actions } from '../actions';
 import { daemon } from '../client/daemon';
 import { canvasApi } from '../canvas/canvasApi';
@@ -14,6 +13,7 @@ import { ui, useUi } from '../state/uiStore';
 import { isEditableTarget, isInteractionBlocked } from '../shortcuts/guards';
 import {
   classifyPaste,
+  htmlToPasteNodes,
   looksLikeHtml,
   prepareNodesForPaste,
   resolvePasteTarget,
@@ -70,7 +70,7 @@ export function copySelection(e: ClipboardEvent, editableOnly = false): boolean 
 }
 
 /** Cola `nodes` (já com ids originais) no alvo derivado da seleção; seleciona os colados. */
-async function pasteNodes(nodes: Node[], pasteCount: number): Promise<void> {
+async function pasteNodes(nodes: Node[], pasteCount: number, extraOps: Op[] = []): Promise<void> {
   const { doc } = useDoc.getState();
   if (!doc || !nodes.length) return;
   const target = resolvePasteTarget(doc, useUi.getState().selection, currentPageId());
@@ -83,7 +83,7 @@ async function pasteNodes(nodes: Node[], pasteCount: number): Promise<void> {
       return r ? { w: r.w, h: r.h } : null;
     },
   });
-  const ops = prepared.map((node, i) => ({
+  const ops: Op[] = prepared.map((node, i) => ({
     type: 'createNode' as const,
     node,
     ...(target.parentId
@@ -91,7 +91,7 @@ async function pasteNodes(nodes: Node[], pasteCount: number): Promise<void> {
       : { parentId: null, pageId: target.pageId }),
     ...(target.index !== undefined ? { index: target.index + i } : {}),
   }));
-  if (await daemon.applySafe(ops)) ui.select(prepared.map((n) => n.id));
+  if (await daemon.applySafe([...extraOps, ...ops])) ui.select(prepared.map((n) => n.id));
 }
 
 async function handlePaste(data: DataTransfer): Promise<void> {
@@ -108,7 +108,10 @@ async function handlePaste(data: DataTransfer): Promise<void> {
         for (const file of images) await insertImageFile(file);
         return;
       case 'html': {
-        await pasteNodes(htmlToNodes(looksLikeHtml(html) ? html : text), 0);
+        const { doc } = useDoc.getState();
+        if (!doc) return;
+        const pasted = await htmlToPasteNodes(looksLikeHtml(html) ? html : text, doc);
+        await pasteNodes(pasted.nodes, 0, pasted.ops);
         return;
       }
       case 'text':
