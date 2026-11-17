@@ -15,6 +15,20 @@ export const SNAPSHOT_ROUTES = {
 } as const;
 
 export const DEFAULT_IMPORT_VIEWPORT: SnapshotViewport = { width: 1440, height: 900 };
+/** Limites do viewport de import_url/import_html (px CSS), iguais no daemon, no MCP e no editor. */
+export const IMPORT_VIEWPORT_LIMITS = {
+  minWidth: 320,
+  maxWidth: 3840,
+  minHeight: 200,
+  maxHeight: 4000,
+} as const;
+
+/**
+ * Id fixo da extensão "Capturar seção" (`packages/extension`), derivado da `key` do manifest.json:
+ * a cópia descompactada tem sempre este id, e o daemon só aceita a Origin
+ * `chrome-extension://<este id>` (mais os ids extras de `MOCKUP_EXTENSION_IDS`).
+ */
+export const MOCKUP_EXTENSION_ID = 'agjagmcpikghnfnnapjbicplkmommmkn';
 /** Tempo máximo padrão de um import_url/import_html no motor de render (ms). */
 export const DEFAULT_IMPORT_TIMEOUT_MS = 20_000;
 export const MAX_IMPORT_TIMEOUT_MS = 60_000;
