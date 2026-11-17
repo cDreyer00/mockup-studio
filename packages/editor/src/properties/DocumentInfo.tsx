@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { daemon } from '../client/daemon';
 import { useDoc } from '../state/docStore';
 import { useActivePage } from '../state/hooks';
 import { ui } from '../state/uiStore';
@@ -9,6 +10,7 @@ import { summarizeTokens } from '../tokens/tokensLogic';
 export function DocumentInfo() {
   const name = useDoc((s) => s.doc?.name);
   const doc = useDoc((s) => s.doc);
+  const cssBase = useDoc((s) => s.doc?.cssBase ?? 'default');
   const page = useActivePage();
   const summary = useMemo(() => (doc ? summarizeTokens(tokenReportFor(doc)) : null), [doc]);
   return (
@@ -36,6 +38,21 @@ export function DocumentInfo() {
           {summary.tokens === 0 && <div className="prop-subtitle">Nenhum token definido.</div>}
         </div>
       )}
+      <div className="prop-subhead">CSS base</div>
+      <select
+        className="select-input"
+        data-testid="css-base"
+        value={cssBase}
+        title="Base de CSS do documento (canvas, screenshots e código exportado)"
+        onChange={(e) =>
+          void daemon.applySafe([
+            { type: 'setCssBase', base: e.target.value === 'tailwind' ? 'tailwind' : 'default' },
+          ])
+        }
+      >
+        <option value="default">Padrão</option>
+        <option value="tailwind">Tailwind (preflight)</option>
+      </select>
       <button
         type="button"
         className="btn"

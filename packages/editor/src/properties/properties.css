@@ -222,3 +222,99 @@
 .prop-token-val {
   color: var(--muted);
 }
+
+/* Classes Tailwind */
+.prop-classes {
+  position: relative;
+}
+.prop-classes-input {
+  min-height: 56px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.prop-classes-pop {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.prop-classes-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.prop-classes-item {
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.prop-classes-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+.prop-classes-css {
+  margin: 0;
+  padding: 4px 6px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  white-space: pre-wrap;
+  max-height: 96px;
+  overflow: auto;
+}
+.prop-classes-warn {
+  margin-top: 4px;
+  color: var(--warning);
+  font-size: 10px;
+}
+.prop-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.prop-classes-as,
+.prop-states {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prop-classes-as-head,
+.prop-state-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.prop-classes-out {
+  margin: 0;
+  padding: 4px 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+.prop-state {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prop-state-key {
+  color: var(--accent);
+  font-size: 11px;
+}

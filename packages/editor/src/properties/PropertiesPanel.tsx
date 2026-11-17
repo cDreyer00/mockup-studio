@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { canHaveChildren } from '../model/tree';
 import { AppearanceSection } from './AppearanceSection';
 import { AttrsSection } from './AttrsSection';
+import { ClassesSection } from './ClassesSection';
 import { CssSection } from './CssSection';
 import { DocumentInfo } from './DocumentInfo';
 import { EffectsSection } from './EffectsSection';
@@ -42,6 +43,7 @@ export function PropertiesPanel() {
         <TypographySection nodes={nodes} />
         <AppearanceSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
+        <ClassesSection ctxs={ctxs} />
         <AttrsSection ctxs={ctxs} />
         {nodes.length === 1 && <CssSection node={nodes[0]!} />}
       </aside>
