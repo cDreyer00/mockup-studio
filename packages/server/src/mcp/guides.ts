@@ -398,8 +398,8 @@ devolver o mesmo código. O CSS base do documento passa a ser o preflight do Tai
 ## Estados e breakpoints
 
 - \`hover:\`, \`focus:\`, \`focus-visible:\`, \`focus-within:\`, \`active:\`, \`disabled:\`, \`dark:\` e \`sm:\`/\`md:\`/\`lg:\`/\`xl:\`/\`2xl:\` (combináveis: \`md:hover:\`, \`dark:hover:\`) viram \`states\` do nó. Para editar um estado direto: \`update_styles(nodeIds, styles, state: "hover")\`.
-- Breakpoints valem pela LARGURA DO FRAME raiz (mobile first): \`md:\` vale quando o frame tem 768px ou mais (sm 640, lg 1024, xl 1280, 2xl 1536). Um frame de 390px mostra só o base. Para ver o desktop, crie ou duplique um frame de 1280px (um frame por breakpoint; veja \`get_guide('responsive')\`).
-- \`dark:\` vale em frames/nós com tema "dark" (\`data-theme\`) e na prévia \`state: "dark"\`.
+- Breakpoints valem pela LARGURA DO FRAME raiz (mobile first): \`md:\` vale quando o frame tem 768px ou mais (sm 640, lg 1024, xl 1280, 2xl 1536; tokens \`--breakpoint-md\` etc. do documento mudam essas larguras). Um frame de 390px mostra só o base. Para ver o desktop, crie ou duplique um frame de 1280px (um frame por breakpoint; veja \`get_guide('responsive')\`).
+- \`dark:\` vale em frames/nós com tema "dark" (\`data-theme\`) e na prévia \`state: "dark"\`, que também troca os tokens pelo tema "dark" se o documento o tiver.
 - \`get_styles(nodeIds, state?)\` e \`get_node_info\` mostram estilo, classes e states.
 
 ## Limitações
