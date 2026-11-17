@@ -43,6 +43,19 @@ describe('ImportUrlDialog', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('largura fora dos limites compartilhados mostra erro e não chama o daemon', async () => {
+    render(<ImportUrlDialog onClose={() => undefined} />);
+    type('URL', 'https://exemplo.com');
+    for (const w of ['250', '4000', 'abc']) {
+      type('Largura do viewport', w);
+      submit();
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'Largura do viewport entre 320 e 3840',
+      );
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('503 mostra a mensagem do motor de render', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

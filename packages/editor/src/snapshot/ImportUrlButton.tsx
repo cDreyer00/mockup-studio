@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Globe } from 'lucide-react';
-import { DEFAULT_IMPORT_VIEWPORT } from '@mockup/snapshot-core';
+import { DEFAULT_IMPORT_VIEWPORT, IMPORT_VIEWPORT_LIMITS } from '@mockup/snapshot-core';
 import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui } from '../state/uiStore';
@@ -39,8 +39,9 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
     const invalid = validateImportUrl(url);
     const w = Number(width);
     if (invalid) return setError(invalid);
-    if (!Number.isFinite(w) || w < 200 || w > 4000) {
-      return setError('Largura do viewport entre 200 e 4000');
+    const { minWidth, maxWidth } = IMPORT_VIEWPORT_LIMITS;
+    if (!Number.isFinite(w) || w < minWidth || w > maxWidth) {
+      return setError(`Largura do viewport entre ${minWidth} e ${maxWidth}`);
     }
     setError(null);
     setLoading(true);

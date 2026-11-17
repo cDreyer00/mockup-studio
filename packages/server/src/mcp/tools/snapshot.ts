@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { findNode } from '@mockup/core';
-import { planCleanup } from '@mockup/snapshot-core';
+import { IMPORT_VIEWPORT_LIMITS, planCleanup } from '@mockup/snapshot-core';
 import type { SnapshotImportResult } from '@mockup/snapshot-core';
 import {
   importFromHtml,
@@ -43,18 +43,20 @@ const captureFields = {
     ),
   width: z
     .number()
-    .min(320)
-    .max(3840)
+    .min(IMPORT_VIEWPORT_LIMITS.minWidth)
+    .max(IMPORT_VIEWPORT_LIMITS.maxWidth)
     .optional()
     .describe(
-      'Largura do viewport em px, de 320 a 3840, ex.: 1440 (padrão 1440); escolhe o breakpoint do site.',
+      `Largura do viewport em px, de ${IMPORT_VIEWPORT_LIMITS.minWidth} a ${IMPORT_VIEWPORT_LIMITS.maxWidth}, ex.: 1440 (padrão 1440); escolhe o breakpoint do site.`,
     ),
   height: z
     .number()
-    .min(200)
-    .max(4000)
+    .min(IMPORT_VIEWPORT_LIMITS.minHeight)
+    .max(IMPORT_VIEWPORT_LIMITS.maxHeight)
     .optional()
-    .describe('Altura do viewport em px, de 200 a 4000, ex.: 900 (padrão 900).'),
+    .describe(
+      `Altura do viewport em px, de ${IMPORT_VIEWPORT_LIMITS.minHeight} a ${IMPORT_VIEWPORT_LIMITS.maxHeight}, ex.: 900 (padrão 900).`,
+    ),
   timeout_ms: z
     .number()
     .positive()

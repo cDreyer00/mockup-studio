@@ -7,6 +7,7 @@ import {
   MAX_IMPORT_TIMEOUT_MS,
   DEFAULT_IMPORT_TIMEOUT_MS,
   DEFAULT_IMPORT_VIEWPORT,
+  IMPORT_VIEWPORT_LIMITS,
   SNAPSHOT_FORMAT,
   SNAPSHOT_VERSION,
   type ImportPlacement,
@@ -200,7 +201,7 @@ export interface CaptureParams {
   selector?: string;
 }
 
-/** Viewport (largura 320–3840, altura 200–4000), timeout (limitado) e seletor. */
+/** Viewport (largura e altura dentro de `IMPORT_VIEWPORT_LIMITS`), timeout (limitado) e seletor. */
 export function parseCaptureParams(input: {
   viewport?: Partial<SnapshotViewport>;
   timeoutMs?: unknown;
@@ -208,16 +209,27 @@ export function parseCaptureParams(input: {
 }): CaptureParams {
   const width = input.viewport?.width ?? DEFAULT_IMPORT_VIEWPORT.width;
   const height = input.viewport?.height ?? DEFAULT_IMPORT_VIEWPORT.height;
-  if (typeof width !== 'number' || !Number.isFinite(width) || width < 320 || width > 3840) {
+  const lim = IMPORT_VIEWPORT_LIMITS;
+  if (
+    typeof width !== 'number' ||
+    !Number.isFinite(width) ||
+    width < lim.minWidth ||
+    width > lim.maxWidth
+  ) {
     throw new SnapshotImportError(
       400,
-      `Largura do viewport inválida (${String(width)}): use de 320 a 3840 px.`,
+      `Largura do viewport inválida (${String(width)}): use de ${lim.minWidth} a ${lim.maxWidth} px.`,
     );
   }
-  if (typeof height !== 'number' || !Number.isFinite(height) || height < 200 || height > 4000) {
+  if (
+    typeof height !== 'number' ||
+    !Number.isFinite(height) ||
+    height < lim.minHeight ||
+    height > lim.maxHeight
+  ) {
     throw new SnapshotImportError(
       400,
-      `Altura do viewport inválida (${String(height)}): use de 200 a 4000 px.`,
+      `Altura do viewport inválida (${String(height)}): use de ${lim.minHeight} a ${lim.maxHeight} px.`,
     );
   }
   let timeoutMs = DEFAULT_IMPORT_TIMEOUT_MS;
