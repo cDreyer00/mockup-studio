@@ -28,6 +28,15 @@ interface Vector {
 
 `union`, `subtract` (o nó mais ao fundo menos os de cima), `intersect` e `exclude` (xor), entre 2 ou mais svgs irmãos. As curvas são achatadas em segmentos antes da operação (tolerância 0,25), então o resultado é poligonal. O resultado fica no lugar do primeiro nó, com a tinta do primeiro path dele, e os originais são removidos. `flatten` junta os paths de um nó num só, ou combina vários svgs irmãos num nó que mantém a tinta de cada path.
 
+### Posição, escala e preserveAspectRatio
+
+Cada path é levado ao espaço do pai pela caixa do nó e pelo viewBox, como o navegador desenha:
+
+- **Posição.** Nós livres, isto é, frames raiz da página ou com `position: absolute|fixed`, usam o estilo (`left`/`top`; na raiz, `node.position`; filho absoluto sem left/top cai em `node.position`). Nós em fluxo (sem position absoluto) não têm posição no estilo: o editor mede a caixa no DOM (relativa ao padding box do pai, corrigida pelo zoom) e o MCP mede o pai com o motor de render (`get_layout`). Sem medição (sem render no MCP, ou nó fora do canvas) a operação é recusada com "O nó X está em fluxo (sem position: absolute); posicione-o livremente antes ...".
+- **Resultado.** Num pai comum o nó novo é `position: absolute` em left/top/width/height; se algum nó em fluxo foi usado e o pai é estático, o pai passa a `position: relative` (na mesma entrada de undo). Os irmãos restantes refluem, pois o resultado sai do fluxo. Na raiz da página o resultado usa `node.position`, como qualquer frame raiz.
+- **preserveAspectRatio.** Vetor gerado (formas, booleanas) é esticado (`none`): escalas x e y independentes. Vetor importado segue o `preserveAspectRatio` do SVG (padrão `xMidYMid meet`): escala uniforme (menor no `meet`, maior no `slice`) e deslocamento do alinhamento (`xMin|xMid|xMax` e `YMin|YMid|YMax`). O recorte do `slice` não é aplicado.
+- **Traço.** `strokeWidth` e `strokeDasharray` são multiplicados pela escala da matriz (`hypot(a, b)`): um ícone 24x24 exibido em 48px com traço 2 sai com traço 4, e o tracejado `2 1` vira `4 2`. Achatar um nó só (`setVector` no próprio nó) não muda a escala. O espaço extra do resultado usa o traço já escalado.
+
 ## Texto em contornos
 
 Converte nós de texto em svg com os glifos como paths (opentype.js; WOFF2 via `woff2-encoder`). A fonte vem primeiro das fontes do documento (`assets/fonts`), depois das fontes instaladas no sistema; fontes variáveis respeitam o peso. O texto deixa de ser editável como texto. O resultado traz notas (fonte usada, quebras de linha, glifos ausentes). Desfazer devolve o texto.
