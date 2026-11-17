@@ -49,20 +49,21 @@ export function registerRenderTools(ctx: ToolContext): void {
     {
       title: 'Screenshot de um nó',
       description:
-        'Renderiza um nó (frame, seção, componente) e devolve a IMAGEM. Chame depois de cada conjunto de mudanças para conferir visualmente ' +
-        '(alinhamento, cortes, overflow, contraste, textos quebrando) antes de seguir; corrija o que estiver errado e repita. ' +
-        'Para economizar contexto prefira scale 1 e use maxWidth (ex.: 800) em frames grandes; use scale 2 só para checar detalhes. ' +
-        'Sem nodeId usa o primeiro nó selecionado ou o primeiro frame da página. Exige o motor de render (app desktop ou Electron headless).',
+        'Renderiza um nó e devolve a IMAGEM; use após cada conjunto de mudanças para conferir. Dica: scale 1 e maxWidth 800 gastam menos contexto. Sem nodeId usa a seleção ou o primeiro frame. Exige render.',
+      example: { nodeId: 'fr_ab12cd34', scale: 1, format: 'png', maxWidth: 800 },
       inputSchema: {
         nodeId: z
           .string()
           .optional()
-          .describe('Id do nó (padrão: seleção atual ou primeiro frame).'),
+          .describe('Id do nó, ex.: "fr_ab12cd34" (padrão: seleção atual ou primeiro frame).'),
         scale: z
           .union([z.literal(1), z.literal(2), z.literal(3)])
           .optional()
-          .describe('Escala de pixels: 1 (padrão), 2 ou 3.'),
-        format: z.enum(['png', 'jpg']).optional().describe('Formato (padrão png; jpg é menor).'),
+          .describe('Escala de pixels: 1 (padrão), 2 ou 3. Ex.: 2 para checar detalhes.'),
+        format: z
+          .enum(['png', 'jpg'])
+          .optional()
+          .describe('"png" (padrão) ou "jpg" (arquivo menor), ex.: "png".'),
         maxWidth: z
           .number()
           .int()
@@ -72,7 +73,7 @@ export function registerRenderTools(ctx: ToolContext): void {
         transparent: z
           .boolean()
           .optional()
-          .describe('Fundo transparente fora do conteúdo (só png). Padrão false.'),
+          .describe('true deixa o fundo transparente fora do conteúdo (só png). Padrão false.'),
         docId: docIdField,
       },
       annotations: READ,
@@ -114,9 +115,8 @@ export function registerRenderTools(ctx: ToolContext): void {
     {
       title: 'Medidas reais do layout',
       description:
-        'Posição e tamanho reais (renderizados) de um nó e seus descendentes, relativos ao frame, uma linha por nó: `id "nome" tag x,y wxh`. ' +
-        'Nós de texto trazem o texto das linhas. Use para checar alinhamentos, espaçamentos e overflow com números, depois do get_screenshot. ' +
-        'Exige o motor de render (app desktop ou Electron headless).',
+        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas. Para checar alinhamento e overflow. Exige render.',
+      example: { nodeId: 'fr_ab12cd34', depth: 3 },
       inputSchema: {
         nodeId: z.string().describe('Id do nó raiz da medição, ex.: "fr_ab12cd34".'),
         depth: z
@@ -125,7 +125,9 @@ export function registerRenderTools(ctx: ToolContext): void {
           .min(0)
           .max(10)
           .optional()
-          .describe('Níveis de descendentes exibidos (padrão 3); o resto vira contagem.'),
+          .describe(
+            'Níveis de descendentes exibidos, de 0 a 10, ex.: 3 (padrão 3); o resto vira contagem.',
+          ),
         docId: docIdField,
       },
       annotations: READ,

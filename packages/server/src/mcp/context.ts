@@ -17,7 +17,7 @@ export const DESTRUCTIVE: Annotations = { readOnlyHint: false, destructiveHint: 
 export const docIdField = z
   .string()
   .optional()
-  .describe('Id do documento (padrão: documento ativo).');
+  .describe('Id do documento, ex.: "doc_ab12cd34" (padrão: documento ativo; veja list_documents).');
 
 /** Erro de uso (mensagem em português dizendo o que fazer); vira `isError` na resposta. */
 export class ToolError extends Error {}
@@ -36,13 +36,22 @@ export interface McpServerOptions {
   getPort?: () => number;
 }
 
+/** Configuração de uma ferramenta. `example` é uma chamada correta, citada nos erros de parâmetro. */
+export interface ToolConfig<S extends z.ZodRawShape> {
+  title: string;
+  description: string;
+  inputSchema: S;
+  annotations?: Annotations;
+  example: Record<string, unknown>;
+}
+
 export interface ToolContext {
   server: McpServer;
   store: DocumentStore;
   opts: McpServerOptions;
   tool<S extends z.ZodRawShape>(
     name: string,
-    cfg: { title: string; description: string; inputSchema: S; annotations?: Annotations },
+    cfg: ToolConfig<S>,
     handler: (args: z.infer<z.ZodObject<S>>) => Promise<string | RichResult> | string | RichResult,
   ): void;
   requireNode(doc: Document, id: string): NodePath;

@@ -38,7 +38,12 @@ O transporte é Streamable HTTP; as sessões usam o header `mcp-session-id`.
 - `docId` é sempre opcional; quando omitido, vale o documento ativo.
 - Estilos são CSS real em kebab-case (`"padding": "24px"`). Tokens são variáveis CSS usadas via `var(--color-primary)`.
 - Ids têm prefixo por tipo: `fr_`, `el_`, `tx_`, `im_`, `sv_`, `pg_`, `doc_`.
-- Erros voltam como resultado de ferramenta com `isError` e mensagem em texto.
+- Erros voltam como resultado de ferramenta com `isError` e mensagem em texto (veja [Erros](#erros)).
+- O servidor envia `instructions` no handshake (ver [Instruções do servidor](#instruções-do-servidor)).
+
+## Instruções do servidor
+
+No `initialize`, o servidor devolve `instructions` curtas para o cliente colocar no contexto do agente: o que é o app, começar com `get_guide('getting-started')` e `get_basic_info`, definir tokens antes de desenhar, preferir `write_html`, conferir sempre com `get_screenshot`, `docId` opcional e chamar `finish_working` ao terminar. O proxy stdio do CLI (`mockup mcp`) repassa essas instruções ao cliente.
 
 ## Fluxo típico
 
@@ -67,22 +72,22 @@ Abreviações: `flex-col`/`flex-row` (direção), `gap:`, `p:` (padding), `bg:` 
 
 ### Leitura
 
-| Ferramenta         | Parâmetros                                                                                                        | Descrição                                                                                                  |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `get_basic_info`   | nenhum                                                                                                            | Arquivo, id, alterado, revisão, páginas/frames (id, nome, tamanho, posição), documentos abertos e seleção. |
-| `list_documents`   | nenhum                                                                                                            | Documentos abertos (`docId`, nome, caminho, `dirty`).                                                      |
-| `open_document`    | `path` (string, obrigatório)                                                                                      | Abre um `*.mockup.json` e o torna ativo.                                                                   |
-| `create_document`  | `path` (string, obrigatório), `name` (string, obrigatório)                                                        | Cria um documento novo no caminho dado e o torna ativo.                                                    |
-| `save_document`    | `docId` (string)                                                                                                  | Salva em disco.                                                                                            |
-| `close_document`   | `docId` (string, obrigatório)                                                                                     | Fecha o documento.                                                                                         |
-| `get_selection`    | `docId` (string)                                                                                                  | Ids selecionados no editor.                                                                                |
-| `get_node_info`    | `nodeId` (string, obrigatório), `docId` (string)                                                                  | Tipo, tag, nome, atributos, estilos, texto, flags e posição.                                               |
-| `get_children`     | `nodeId` (string, obrigatório), `docId` (string)                                                                  | Filhos diretos (resumo).                                                                                   |
-| `get_tree_summary` | `nodeId` (string), `depth` (number, padrão 2), `docId` (string)                                                   | Resumo da árvore a partir do nó. Sem `nodeId`, resume o documento inteiro (todas as páginas).              |
-| `get_styles`       | `nodeIds` (string[], obrigatório), `docId` (string)                                                               | Estilos efetivos de cada nó (herdados, com `var()` resolvido).                                             |
-| `get_html`         | `nodeId` (string, obrigatório), `mode` (`'inline'` \| `'classes'`, padrão `inline`), `docId` (string)             | HTML do nó; `classes` separa o CSS em classes.                                                             |
-| `get_tokens`       | `docId` (string)                                                                                                  | Tokens (variáveis CSS) do documento.                                                                       |
-| `get_guide`        | `topic` (`getting-started` \| `layout` \| `responsive` \| `tokens` \| `screenshot-loop` \| `export`, obrigatório) | Texto de orientação para o agente.                                                                         |
+| Ferramenta         | Parâmetros                                                                                                                                               | Descrição                                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_basic_info`   | nenhum                                                                                                                                                   | Arquivo, id, alterado, revisão, páginas/frames (id, nome, tamanho, posição), documentos abertos e seleção.                                         |
+| `list_documents`   | nenhum                                                                                                                                                   | Documentos abertos (`docId`, nome, caminho, `dirty`).                                                                                              |
+| `open_document`    | `path` (string, obrigatório)                                                                                                                             | Abre um `*.mockup.json` e o torna ativo.                                                                                                           |
+| `create_document`  | `path` (string, obrigatório), `name` (string, obrigatório)                                                                                               | Cria um documento novo no caminho dado e o torna ativo.                                                                                            |
+| `save_document`    | `docId` (string)                                                                                                                                         | Salva em disco.                                                                                                                                    |
+| `close_document`   | `docId` (string, obrigatório)                                                                                                                            | Fecha o documento.                                                                                                                                 |
+| `get_selection`    | `docId` (string)                                                                                                                                         | Ids selecionados no editor.                                                                                                                        |
+| `get_node_info`    | `nodeId` (string, obrigatório), `docId` (string)                                                                                                         | Tipo, tag, nome, atributos, estilos, texto, flags e posição.                                                                                       |
+| `get_children`     | `nodeId` (string, obrigatório), `docId` (string)                                                                                                         | Filhos diretos (resumo).                                                                                                                           |
+| `get_tree_summary` | `nodeId` (string), `depth` (number, padrão 2), `docId` (string)                                                                                          | Resumo da árvore a partir do nó. Sem `nodeId`, resume o documento inteiro (todas as páginas).                                                      |
+| `get_styles`       | `nodeIds` (string[], obrigatório), `docId` (string)                                                                                                      | Estilos efetivos de cada nó (herdados, com `var()` resolvido).                                                                                     |
+| `get_html`         | `nodeId` (string, obrigatório), `mode` (`'inline'` \| `'classes'`, padrão `inline`), `docId` (string)                                                    | HTML do nó; `classes` separa o CSS em classes.                                                                                                     |
+| `get_tokens`       | `docId` (string)                                                                                                                                         | Tokens (variáveis CSS) do documento.                                                                                                               |
+| `get_guide`        | `topic` (`getting-started` \| `design-system` \| `layout` \| `responsive` \| `screenshot-loop` \| `export` \| `troubleshooting` \| `setup`, obrigatório) | Guia em markdown para o agente (fluxo em 6 passos, design system, layout, breakpoints, screenshot, exportação, problemas comuns, registro do MCP). |
 
 ### Escrita
 
@@ -209,17 +214,32 @@ Use `get_code` para ler ou colar um trecho; use `export` para entregar arquivos 
 | `get_font_info` | `family` (obrig.), `docId`                                                                                     | Instalada no sistema (estilos e arquivos)? Embutida no documento (arquivos e pesos)? Como usar em `font-family`, com fallback.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `add_font`      | `family` (obrig.), `source` (obrig.), `weights`, `docId`                                                       | `source`: `google` (baixa agora da API CSS2 o subconjunto latin; pesos padrão 400 e 700), `local` (fonte instalada; só registra), caminho de arquivo ou pasta (`.woff2`, `.woff`, `.ttf`, `.otf`) ou URL http(s) de um arquivo. Arquivos vão para `assets/fonts/<familia>-<peso>-<estilo>-<hash8>.<ext>` (nome único pelo conteúdo, nunca sobrescreve; a URL muda sozinha quando a fonte muda). Com vários formatos do mesmo peso/estilo fica um só (woff2 > woff > ttf/otf). Re-adicionar a família troca a entrada em `doc.fonts` (undo funciona) e mantém os arquivos antigos. Sem CDN em runtime. |
 
+## Erros
+
+Falhas de uso voltam como resultado de ferramenta com `isError: true` (não como erro de protocolo). Erros de parâmetro são reformatados em português: um item por campo (obrigatório ausente, tipo esperado x recebido, valor fora das opções, mínimo/máximo) e uma chamada de exemplo.
+
+```
+Parâmetros inválidos em create_frame:
+- width: obrigatório e ausente (esperado: número (number)).
+- height: tipo incorreto: esperado número (number), recebido texto (string) "900px".
+Exemplo: create_frame({"name":"Desktop","width":1440,"height":900})
+```
+
+Ferramenta inexistente: `Ferramenta "write_htm" não existe. Ferramentas parecidas: write_html, ...`. Erros de ids e de estado (nó não encontrado, nenhum documento aberto, render indisponível) dizem qual ferramenta usar em seguida; `get_guide('troubleshooting')` reúne as soluções.
+
 ## Resources
 
-Os guias também são publicados como resources:
+Os guias também são publicados como resources (`text/markdown`), um por tópico de `get_guide`:
 
-| URI                       | Conteúdo                                         |
-| ------------------------- | ------------------------------------------------ |
-| `guide://getting-started` | Como começar.                                    |
-| `guide://layout`          | Layout com flex e frames.                        |
-| `guide://responsive`      | Frames como breakpoints.                         |
-| `guide://tokens`          | Tokens como variáveis CSS.                       |
-| `guide://screenshot-loop` | Ciclo criar, conferir com screenshot, corrigir.  |
-| `guide://export`          | Formatos de exportação, pasta de saída e assets. |
+| URI                       | Conteúdo                                                                 |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `guide://getting-started` | Fluxo em 6 passos, dicas e lista de guias.                               |
+| `guide://design-system`   | Tokens como variáveis CSS, escalas de espaço e tipografia, contraste AA. |
+| `guide://layout`          | Layout com flex, tamanhos e posição absoluta.                            |
+| `guide://responsive`      | Frames `Mobile`, `Tablet` e `Desktop` como breakpoints.                  |
+| `guide://screenshot-loop` | Ciclo criar, conferir com screenshot, corrigir.                          |
+| `guide://export`          | Formatos de exportação, pasta de saída e assets.                         |
+| `guide://troubleshooting` | Render indisponível, nó não encontrado, porta ocupada, overflow e logs.  |
+| `guide://setup`           | Instalar o CLI e registrar o MCP (Claude Code, Codex, Cursor, VS Code).  |
 
 Veja o plano completo em [PLANO.md](PLANO.md).

@@ -172,17 +172,20 @@ export function registerFontTools(ctx: ToolContext): void {
     {
       title: 'Listar fontes',
       description:
-        'Lista as fontes disponíveis: embutidas no documento (assets/fonts) e instaladas no sistema. Filtre por nome com query. ' +
-        'Para usar uma fonte fora dessas, use add_font.',
+        'Lista as fontes embutidas no documento e as instaladas no sistema, com filtro por nome. Para outra fonte use add_font.',
+      example: { query: 'inter' },
       inputSchema: {
-        query: z.string().optional().describe('Filtro por nome (contém), ex.: "inter".'),
+        query: z
+          .string()
+          .optional()
+          .describe('Filtro por nome (contém, sem diferenciar maiúsculas), ex.: "inter".'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(500)
           .optional()
-          .describe('Máximo de fontes do sistema (padrão 50).'),
+          .describe('Máximo de fontes do sistema listadas, de 1 a 500, ex.: 20 (padrão 50).'),
         docId: docIdField,
       },
       annotations: READ,
@@ -220,7 +223,8 @@ export function registerFontTools(ctx: ToolContext): void {
     {
       title: 'Informações de uma fonte',
       description:
-        'Diz se a fonte está instalada no sistema (arquivos e estilos), se está embutida no documento (arquivos e pesos) e como usá-la em font-family.',
+        'Diz se a fonte está instalada no sistema, embutida no documento e como usá-la em font-family.',
+      example: { family: 'Inter' },
       inputSchema: {
         family: z.string().describe('Nome da família, ex.: "Inter".'),
         docId: docIdField,
@@ -267,9 +271,8 @@ export function registerFontTools(ctx: ToolContext): void {
     {
       title: 'Adicionar fonte ao documento',
       description:
-        'Registra uma fonte no documento. source: "google" (baixa agora do Google Fonts, subconjunto latin, e embute em assets/fonts), "local" (fonte já instalada; só registra), ' +
-        'caminho de arquivo (.woff2/.woff/.ttf/.otf) ou pasta com os arquivos da família, ou URL http(s) de um arquivo de fonte. ' +
-        'weights: pesos desejados (padrão 400 e 700 no google). O documento precisa ter caminho (exceto "local"). Nada é carregado de CDN em runtime.',
+        'Registra uma fonte no documento: source "google" (baixa e embute), "local" (instalada), caminho de arquivo/pasta ou URL http(s). Exceto "local", o documento precisa ter caminho.',
+      example: { family: 'Inter', source: 'google', weights: [400, 700] },
       inputSchema: {
         family: z.string().min(1).describe('Nome da família, ex.: "Inter".'),
         source: z
@@ -280,7 +283,7 @@ export function registerFontTools(ctx: ToolContext): void {
         weights: z
           .array(z.number().int().min(100).max(900))
           .optional()
-          .describe('Pesos, ex.: [400, 600, 700].'),
+          .describe('Pesos de 100 a 900, ex.: [400, 600, 700] (padrão no google: 400 e 700).'),
         docId: docIdField,
       },
       annotations: WRITE,

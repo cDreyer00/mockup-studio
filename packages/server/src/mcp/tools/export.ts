@@ -88,27 +88,30 @@ export function registerExportTools(ctx: ToolContext): void {
     {
       title: 'Exportar nós para arquivos',
       description:
-        'Grava um arquivo por nó em outputDir (padrão: <pasta do documento>/exports/). Formatos: png, jpg (exigem render), svg, html (CSS em classes), ' +
-        'tailwind (HTML com classes Tailwind v4) e react (componente .tsx; styles "tailwind" ou "inline"). Para html/tailwind/react copia as imagens e fontes ' +
-        'usadas para <outputDir>/assets/. Arquivos de mesmo nome em outputDir são SOBRESCRITOS (a resposta marca os substituídos com "(substituído)"); use outro outputDir para preservar versões anteriores. Devolve os caminhos gravados e, para código, o conteúdo (se pequeno). Para só ler o código sem gravar, use get_code.',
+        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg (exigem render), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
+      example: { nodeIds: ['fr_ab12cd34'], format: 'png', scale: 2 },
       inputSchema: {
         nodeIds: z
           .array(z.string())
           .min(1)
           .describe('Ids dos nós a exportar, ex.: ["fr_ab12cd34"].'),
-        format: z.enum(['png', 'jpg', 'svg', 'html', 'tailwind', 'react']).describe('Formato.'),
+        format: z
+          .enum(['png', 'jpg', 'svg', 'html', 'tailwind', 'react'])
+          .describe('Formato de saída: "png", "jpg", "svg", "html", "tailwind" ou "react".'),
         scale: z
           .union([z.literal(1), z.literal(2), z.literal(3)])
           .optional()
-          .describe('Escala para png/jpg (padrão 1).'),
+          .describe('Escala para png/jpg: 1 (padrão), 2 ou 3, ex.: 2.'),
         outputDir: z
           .string()
           .optional()
-          .describe('Pasta de saída absoluta (padrão: <pasta do documento>/exports/).'),
+          .describe(
+            'Pasta de saída absoluta, ex.: "C:/projetos/site/exports" (padrão: <pasta do documento>/exports/).',
+          ),
         styles: z
           .enum(['tailwind', 'inline'])
           .optional()
-          .describe('Estilos do componente react (padrão tailwind).'),
+          .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -253,15 +256,17 @@ export function registerExportTools(ctx: ToolContext): void {
     {
       title: 'Código de um nó (HTML, Tailwind ou React)',
       description:
-        'Devolve o código do nó sem gravar arquivos. html: fragmento com o CSS necessário; tailwind: fragmento com classes Tailwind v4; ' +
-        'react: componente .tsx (styles "tailwind" ou "inline") e o CSS, se houver. Para gravar arquivos e copiar assets use export.',
+        'Devolve na resposta o código de um nó (html, tailwind ou react) sem gravar arquivos. Para gravar arquivos e copiar assets use export.',
+      example: { nodeId: 'fr_ab12cd34', format: 'react', styles: 'tailwind' },
       inputSchema: {
         nodeId: z.string().describe('Id do nó, ex.: "fr_ab12cd34".'),
-        format: z.enum(['html', 'tailwind', 'react']).describe('Formato do código.'),
+        format: z
+          .enum(['html', 'tailwind', 'react'])
+          .describe('Formato do código: "html", "tailwind" ou "react".'),
         styles: z
           .enum(['tailwind', 'inline'])
           .optional()
-          .describe('Estilos do componente react (padrão tailwind).'),
+          .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
         docId: docIdField,
       },
       annotations: READ,

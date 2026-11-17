@@ -77,9 +77,13 @@ export function registerImageTools(ctx: ToolContext): void {
     {
       title: 'Inserir imagem',
       description:
-        'Insere uma imagem (nó img) em parentId. source: caminho local absoluto, URL http(s) ou data URL. A imagem é validada pelos bytes ' +
-        '(PNG, JPEG, GIF, WebP, SVG, AVIF), copiada para assets/ ao lado do documento e referenciada por caminho relativo. ' +
-        'Sem width em styles usa o tamanho intrínseco. Documento sem caminho: embute como data URL (até 2 MB).',
+        'Insere uma imagem (nó img) em parentId a partir de caminho absoluto, URL http(s) ou data URL; valida os bytes e copia para assets/. Sem width usa o tamanho intrínseco.',
+      example: {
+        parentId: 'fr_ab12cd34',
+        source: 'C:/fotos/capa.png',
+        alt: 'Capa',
+        styles: { width: '320px' },
+      },
       inputSchema: {
         parentId: z.string().describe('Id do pai, ex.: "fr_ab12cd34".'),
         source: z
@@ -87,20 +91,23 @@ export function registerImageTools(ctx: ToolContext): void {
           .describe(
             'Caminho absoluto, URL http(s) ou data URL da imagem. Ex.: "C:/fotos/capa.png".',
           ),
-        alt: z.string().optional().describe('Texto alternativo.'),
+        alt: z
+          .string()
+          .optional()
+          .describe('Texto alternativo (atributo alt), ex.: "Foto de capa".'),
         styles: z
           .record(z.string(), z.string())
           .optional()
           .describe(
             'Estilos CSS, ex.: { "width": "320px", "border-radius": "12px", "object-fit": "cover" }.',
           ),
-        name: z.string().optional().describe('Nome da camada.'),
+        name: z.string().optional().describe('Nome da camada, ex.: "Foto de capa".'),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos (padrão: final).'),
+          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -155,28 +162,28 @@ export function registerImageTools(ctx: ToolContext): void {
     {
       title: 'Inserir ícone Lucide',
       description:
-        'Insere um ícone Lucide como nó svg. name em kebab-case (ex.: "arrow-right"; PascalCase também vale). Sem color usa a cor de texto do pai ' +
-        '(fallback #111111), pois o canvas desenha SVG isolado e currentColor não herda. Use search_icons para descobrir nomes.',
+        'Insere um ícone Lucide (nó svg). name em kebab-case; sem color usa a cor de texto do pai. Use search_icons para achar nomes.',
+      example: { parentId: 'el_ab12cd34', name: 'arrow-right', size: 24, color: '#0f172a' },
       inputSchema: {
         parentId: z.string().describe('Id do pai, ex.: "el_ab12cd34".'),
         name: z.string().describe('Nome do ícone Lucide, ex.: "arrow-right", "search", "user".'),
-        size: z.number().positive().optional().describe('Tamanho em px (padrão 24).'),
+        size: z.number().positive().optional().describe('Tamanho em px, ex.: 24 (padrão 24).'),
         color: z
           .string()
           .optional()
-          .describe('Cor do traço, ex.: "#6c5ce7" (padrão: cor do texto do pai).'),
+          .describe('Cor do traço, ex.: "#0f172a" (padrão: cor do texto do pai).'),
         stroke_width: z
           .number()
           .positive()
           .max(6)
           .optional()
-          .describe('Espessura do traço (padrão 2).'),
+          .describe('Espessura do traço, de 0 a 6, ex.: 1.5 (padrão 2).'),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos (padrão: final).'),
+          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -225,7 +232,8 @@ export function registerImageTools(ctx: ToolContext): void {
     {
       title: 'Buscar ícones Lucide',
       description:
-        'Busca ícones Lucide por nome ou tag (em inglês, ex.: "arrow", "user", "cart"). Devolve nomes kebab-case para usar em insert_icon.',
+        'Busca ícones Lucide por nome ou tag (em inglês). Devolve nomes kebab-case para usar em insert_icon.',
+      example: { query: 'cart', limit: 10 },
       inputSchema: {
         query: z.string().min(1).describe('Termo de busca, ex.: "cart".'),
         limit: z
@@ -234,7 +242,7 @@ export function registerImageTools(ctx: ToolContext): void {
           .min(1)
           .max(100)
           .optional()
-          .describe('Máximo de resultados (padrão 20).'),
+          .describe('Máximo de resultados, de 1 a 100, ex.: 10 (padrão 20).'),
       },
       annotations: READ,
     },
