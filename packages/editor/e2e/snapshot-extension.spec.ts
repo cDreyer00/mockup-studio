@@ -664,6 +664,11 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
       return out.result.value;
     };
 
+    // O alvo aparece antes de o popup.js rodar: espera o ping inicial (porta salva no localStorage,
+    // que um teste anterior deixou numa porta sem ninguém), senão o script sobrescreve a porta.
+    await expect
+      .poll(() => run(`document.getElementById('status')?.dataset.state ?? ''`))
+      .toMatch(/^(up|down)$/);
     // Aponta o popup para o daemon de teste e espera o ping.
     await run(
       `(() => { const i = document.getElementById('port'); i.value = '${daemonPort}';` +
