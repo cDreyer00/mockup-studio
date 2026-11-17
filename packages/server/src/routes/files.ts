@@ -110,6 +110,13 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     '/api/files/thumbnail',
     wrap(async (req, res) => {
       const p = FileIndex.requireDocPath(optStr(req.query.path));
+      // GET de <img> não manda Origin: só renderiza o que a tela inicial lista, não qualquer arquivo.
+      if (!index().isKnown(p)) {
+        throw new RouteError(
+          404,
+          'Arquivo fora da lista (índice, recentes ou abertos). Adicione com POST /api/files/add ou abra o documento.',
+        );
+      }
       let w = 480;
       if (req.query.w !== undefined) {
         w = Number(req.query.w);

@@ -459,6 +459,14 @@ export class FileIndex {
 
   /* ---------- leitura ---------- */
 
+  /** Se o caminho está no índice, nos recentes ou aberto (o que a tela inicial mostra). */
+  isKnown(p: string): boolean {
+    const abs = path.resolve(p);
+    if (this.find(abs)) return true;
+    if (readRecent(this.dataDir).some((r) => sameKey(path.resolve(r), abs))) return true;
+    return !!this.openDocFor(abs);
+  }
+
   /** Entrada do arquivo, se o caminho estiver no índice, aberto ou nos recentes. */
   async get(p: string): Promise<FileEntry | undefined> {
     const [e] = await this.entries([path.resolve(p)]);

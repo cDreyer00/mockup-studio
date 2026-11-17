@@ -240,13 +240,21 @@ describe('arquivos e busca (HTTP e MCP)', () => {
     ).toBe(404);
     const empty = path.join(ws.dir, 'vazio.mockup.json');
     fs.writeFileSync(empty, serializeDocument(createDocument('Vazio')), 'utf8');
+    await post('/api/files/add', { path: empty });
     expect((await get('/api/files/thumbnail?path=' + encodeURIComponent(empty))).status).toBe(404);
   });
 
   it('miniatura de documento fechado embute imagens como data URL', async () => {
     await start(fakeRender(calls));
     const { file, bytes } = makeImageDoc(ws.dir);
-    const r = await get(`/api/files/thumbnail?path=${encodeURIComponent(file)}&w=200`);
+    const thumb = `/api/files/thumbnail?path=${encodeURIComponent(file)}&w=200`;
+    // fora do índice, dos recentes e dos abertos: não renderiza
+    const unknown = await get(thumb);
+    expect(unknown.status).toBe(404);
+    expect((await unknown.json()).error).toContain('fora da lista');
+    expect(calls).toHaveLength(0);
+    expect((await post('/api/files/add', { path: file })).status).toBe(200);
+    const r = await get(thumb);
     expect(r.status).toBe(200);
     expect(calls).toHaveLength(1);
     const req = calls[0]!;

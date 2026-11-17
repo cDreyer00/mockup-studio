@@ -320,7 +320,7 @@ O SVG sai com a mesma CSP dos assets (`ASSET_CSP`: `default-src 'none'; img-src 
 
 - `GET /api/files?folder=&tag=&query=&favorites=1&recursive=1`: junta o índice, os recentes (`recent`: posição em `recent.json`) e os abertos (`open`, `docId`). `folder` lista só os arquivos diretamente na pasta (`recursive=1` inclui subpastas; `/` = sem pasta); `query` busca em nome, tags e no texto dos nós (`documentText`, cache por mtime), sem acento.
 - `POST /api/files/meta` (`{ path, folder?, tags?, addTags?, removeTags?, favorite? }`), `/folders` (`create`, `rename` move subpastas e arquivos, `delete` sobe os arquivos para a pasta-mãe), `/add` (arquivo ou pasta, até 2 níveis) e `/forget` (só tira do índice).
-- `GET /api/files/thumbnail?path=&w=480`: primeiro frame visível da primeira página com frames, pelo `RenderProvider` (`maxWidth` até 1024), em cache em `thumbs/` invalidado pelo mtime. Documento fechado: as imagens de `assets/` entram como data URL num clone (até 20 MB); as fontes embutidas ainda não. 503 sem render, 404 sem arquivo ou sem frames.
+- `GET /api/files/thumbnail?path=&w=480`: primeiro frame visível da primeira página com frames, pelo `RenderProvider` (`maxWidth` até 1024), em cache em `thumbs/` invalidado pelo mtime. Documento fechado: as imagens de `assets/` entram como data URL num clone (até 20 MB); as fontes embutidas ainda não. Só para arquivos do índice, dos recentes ou abertos (um `<img>` não manda Origin; qualquer outro caminho dá 404). 503 sem render, 404 sem arquivo ou sem frames.
 - `GET /api/search/nodes?query=&docId=`: `searchNodes` do core nos documentos abertos.
 
 ### Gravação
