@@ -172,7 +172,8 @@ Componentes do shadcn/ui usam cores semânticas (`bg-primary`, `text-muted-foreg
   `--radius` e `--radius-sm..xl` relativos, etc.) e o tema `dark` com as sobrescritas
   (`planShadcnTokens`); tokens já definidos não são tocados;
 - aplica a regra base do shadcn `* { border-color: var(--color-border) }` como `border-color` nos
-  nós com borda e sem cor;
+  nós com borda e sem cor (em qualquer escrita Tailwind, quando o documento tem os tokens
+  `--color-border` e `--color-primary` do preset);
 - nomeia as camadas pelo `data-slot` (`Card header`, `Card title`...).
 
 ## Ferramentas e interface
@@ -184,7 +185,8 @@ Componentes do shadcn/ui usam cores semânticas (`bg-primary`, `text-muted-foreg
 | Autocomplete do campo de classes                 | `suggest_classes(query)`                                                                    |
 | "Mostrar como Tailwind"                          | `get_classes(nodeIds)`, `get_code(format: 'tailwind')`                                      |
 | Prévia de estado (hover, focus, active, dark...) | `get_screenshot(state)`, `get_styles(state)`                                                |
-| Editar com a prévia ativa / remover estado       | `update_styles(state)`, `set_classes`                                                       |
+| Lista de estados do nó (remover um estado)       | `get_node_info`, `update_styles(state, unset)`, `set_classes(mode: 'remove')`               |
+| Classes `hover:`/`md:`/`dark:` no campo          | `set_classes`, `update_styles(state)` (grava o CSS direto no estado)                        |
 | Seletor "CSS base" do documento                  | `set_css_base`, `get_tailwind_config`                                                       |
 | Exportar Tailwind/React                          | `export`, `get_code`                                                                        |
 
@@ -196,8 +198,18 @@ interface em [EDITOR.md](EDITOR.md) e da exportação em [EXPORT.md](EXPORT.md).
 - Variantes de grupo/irmão/atributo (`group-hover:`, `peer-*`, `aria-*`, `data-*`, `has-*`),
   pseudo-elementos (`before:`, `after:`, `placeholder:`), variantes arbitrárias (`[&_svg]:`) e
   `max-*:` não afetam o render; ficam preservadas na classe.
-- Estados não são editados por campo no painel de propriedades fora da prévia; o caminho é o
-  campo de classes (`hover:...`) ou `update_styles(state)`.
+- No editor, os estados são editados pelo campo de classes (`hover:bg-...`); os campos de estilo
+  do painel (tamanho, tipografia...) editam sempre o estilo base, mesmo com a prévia ativa. O MCP
+  grava CSS direto num estado com `update_styles(state)`.
+- O campo de classes aplica em modo `replace`: as classes passam a ser todo o estilo do nó
+  (apagar as classes de um nó limpa o estilo gerado por elas).
+- A prévia de estado do editor é global (vale para todos os nós e não muda ao trocar de
+  documento).
+- Sem a dica `node.classes`, alguns valores saem como classe arbitrária equivalente em vez da forma
+  idiomática (`shadow-sm`, `ring-*`, `bg-blue-500/50`, gradientes `bg-linear-*`): a saída recompila
+  para o mesmo estilo, só é menos legível.
+- HTML e React inline não levam o CSS das classes que o modelo não representa (`aria-*:`,
+  `has-[...]:`, `[&_svg]:`, `group-hover:`); a exportação Tailwind as devolve como estão.
 - `animate-*` não anima no canvas; transições não são simuladas na prévia.
 - A exportação React com `styles: 'inline'` e o SVG não levam os estados.
 - Breakpoints personalizados (`--breakpoint-*` nos tokens) entram no compilador, mas os estados do
