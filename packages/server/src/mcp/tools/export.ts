@@ -112,11 +112,17 @@ export function registerExportTools(ctx: ToolContext): void {
           .enum(['tailwind', 'inline'])
           .optional()
           .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
+        assetsBase: z
+          .string()
+          .optional()
+          .describe(
+            'Só react: prefixo das URLs de imagens e fontes (padrão "assets/"). Num projeto Vite com a pasta assets em public/, use "/assets/".',
+          ),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ nodeIds, format, scale, outputDir, styles, docId }) => {
+    async ({ nodeIds, format, scale, outputDir, styles, assetsBase, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const info = store.getInfo(id);
@@ -211,6 +217,7 @@ export function registerExportTools(ctx: ToolContext): void {
             nodeId: node.id,
             styles: styles ?? 'tailwind',
             componentName: name,
+            ...(assetsBase ? { assetsBase } : {}),
           });
           await write(uniq(r.componentName, '.tsx'), r.code, true);
           if (r.css) {
@@ -282,11 +289,17 @@ export function registerExportTools(ctx: ToolContext): void {
           .enum(['tailwind', 'inline'])
           .optional()
           .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
+        assetsBase: z
+          .string()
+          .optional()
+          .describe(
+            'Só react: prefixo das URLs de imagens e fontes (padrão "assets/"). Num projeto Vite com a pasta assets em public/, use "/assets/".',
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
-    ({ nodeId, format, styles, docId }) => {
+    ({ nodeId, format, styles, assetsBase, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       const node = nodeSubtree(doc, nodeId);
       if (format === 'html') {
@@ -306,6 +319,7 @@ export function registerExportTools(ctx: ToolContext): void {
         nodeId,
         styles: styles ?? 'tailwind',
         componentName: pascalOf(slugOf(node.name, node.id)),
+        ...(assetsBase ? { assetsBase } : {}),
       });
       return r.css
         ? `// ${r.componentName}.tsx\n${r.code}\n\n/* ${(styles ?? 'tailwind') === 'tailwind' ? 'theme.css' : `${r.componentName}.css`} */\n${r.css}`

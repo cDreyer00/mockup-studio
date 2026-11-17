@@ -325,6 +325,24 @@ describe('MCP render, export e guias', () => {
       expect(Buffer.byteLength(r)).toBeLessThan(40 * 1024);
     });
 
+    it('export react e get_code aceitam assetsBase para projetos Vite (public/assets)', async () => {
+      await prepare();
+      fs.writeFileSync(path.join(ws.dir, 'foto.png'), fakePng(4, 4));
+      await call('insert_image', { parentId: ws.frameId, source: path.join(ws.dir, 'foto.png') });
+      const out = path.join(ws.dir, 'react-base');
+      const r = await call('export', {
+        nodeIds: [ws.frameId],
+        format: 'react',
+        outputDir: out,
+        assetsBase: '/assets/',
+      });
+      expect(r.isError, textOf(r)).toBeFalsy();
+      const tsx = fs.readdirSync(out).find((f) => f.endsWith('.tsx'))!;
+      expect(fs.readFileSync(path.join(out, tsx), 'utf8')).toContain('src="/assets/foto.png"');
+      const code = textOf(await call('get_code', { nodeId: ws.frameId, format: 'react', assetsBase: '/img/' }));
+      expect(code).toContain('/img/foto.png');
+    });
+
     it('export react grava o componente', async () => {
       await prepare();
       const out = path.join(ws.dir, 'react');
