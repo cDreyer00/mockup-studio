@@ -135,7 +135,6 @@ export interface Node {
   dataSource?: DataSource;
 }
 
-
 /** Origem dos dados de um repetidor. */
 export interface DataSource {
   /** `inline`: dados colados/editados; `json`/`csv`: arquivo local; `url`: HTTP(S) (JSON ou CSV). */
@@ -153,7 +152,6 @@ export interface DataSource {
   /** Quando os dados foram lidos da origem (ISO 8601). */
   fetchedAt?: string;
 }
-
 
 /* ---------------- Componentes ---------------- */
 
@@ -188,6 +186,18 @@ export interface NodeOverride {
   svg?: string;
   /** Props de uma instância aninhada no principal. */
   props?: Record<string, PropValue>;
+  /** Modelo vetorial (só nó svg); o markup vem de `svg` ou é gerado do vetor. */
+  vector?: Vector;
+  /** Efeito inteiro (só nó effect; substitui o do principal). */
+  effect?: EffectSpec;
+  /** Vídeo inteiro (só nó video). */
+  video?: VideoSpec;
+  /** Embed inteiro (só nó embed). */
+  embed?: EmbedSpec;
+  /** Itens do repetidor (só nó repeater; substituem os do principal). */
+  data?: unknown[];
+  /** Origem dos dados do repetidor (só nó repeater). */
+  dataSource?: DataSource;
 }
 
 /** Variante: quando as props batem com `when`, aplica `overrides` (chave `''` = nó raiz). */

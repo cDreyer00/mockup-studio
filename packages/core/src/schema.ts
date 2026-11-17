@@ -212,6 +212,31 @@ const FileThemesSchema = z
     return out.length > 0 ? out : undefined;
   });
 
+/** Limites dos dados de um repetidor (itens e tamanho serializado). */
+export const MAX_DATA_ITEMS = 1000;
+export const MAX_DATA_BYTES = 2 * 1024 * 1024;
+
+export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
+  kind: z.enum(['inline', 'json', 'csv', 'url']),
+  path: z.string().max(2000).optional(),
+  url: z
+    .string()
+    .max(4000)
+    .refine((u) => /^https?:\/\//i.test(u), { error: 'a URL deve ser http(s)' })
+    .optional(),
+  select: z.string().max(500).optional(),
+  mapping: z.record(z.string(), z.string()).optional(),
+  limit: z.number().int().min(1).max(MAX_DATA_ITEMS).optional(),
+  fetchedAt: z.string().optional(),
+});
+
+export const DataSchema = z
+  .array(z.unknown())
+  .max(MAX_DATA_ITEMS, { error: `no máximo ${MAX_DATA_ITEMS} itens` })
+  .refine((list) => JSON.stringify(list).length <= MAX_DATA_BYTES, {
+    error: `os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB`,
+  });
+
 /* ---------------- Componentes (ver docs/COMPONENTES.md) ---------------- */
 
 export const PropValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -230,7 +255,8 @@ function dropEmpty<T extends object>(o: T): T {
   for (const [k, v] of Object.entries(out)) {
     if (
       v === undefined ||
-      (Array.isArray(v) && v.length === 0) ||
+      // `data: []` é um valor (repetidor sem itens), não ausência
+      (k !== 'data' && Array.isArray(v) && v.length === 0) ||
       (v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
     ) {
       delete out[k];
@@ -269,6 +295,13 @@ export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
       .transform((s) => (s === '' ? undefined : s))
       .optional(),
     props: PropsMapSchema,
+    // Vetor inválido é descartado (como em `NodeSchema`).
+    vector: z.unknown().optional().transform(parseVectorLoose),
+    effect: EffectSpecSchema.optional(),
+    video: VideoSpecSchema.optional(),
+    embed: EmbedSpecSchema.optional(),
+    data: DataSchema.optional(),
+    dataSource: DataSourceSchema.optional(),
   })
   .transform((o) => dropEmpty(o) as NodeOverride);
 
@@ -334,31 +367,6 @@ const FileVariantsSchema = z
   .array(VariantShapeSchema)
   .default([])
   .transform((list) => list.filter(hasVariantCondition));
-
-/** Limites dos dados de um repetidor (itens e tamanho serializado). */
-export const MAX_DATA_ITEMS = 1000;
-export const MAX_DATA_BYTES = 2 * 1024 * 1024;
-
-export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
-  kind: z.enum(['inline', 'json', 'csv', 'url']),
-  path: z.string().max(2000).optional(),
-  url: z
-    .string()
-    .max(4000)
-    .refine((u) => /^https?:\/\//i.test(u), { error: 'a URL deve ser http(s)' })
-    .optional(),
-  select: z.string().max(500).optional(),
-  mapping: z.record(z.string(), z.string()).optional(),
-  limit: z.number().int().min(1).max(MAX_DATA_ITEMS).optional(),
-  fetchedAt: z.string().optional(),
-});
-
-export const DataSchema = z
-  .array(z.unknown())
-  .max(MAX_DATA_ITEMS, { error: `no máximo ${MAX_DATA_ITEMS} itens` })
-  .refine((list) => JSON.stringify(list).length <= MAX_DATA_BYTES, {
-    error: `os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB`,
-  });
 
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
@@ -621,6 +629,12 @@ const OVERRIDE_KEYS = [
   'src',
   'svg',
   'props',
+  'vector',
+  'effect',
+  'video',
+  'embed',
+  'dataSource',
+  'data',
 ] as const;
 
 function orderOverrides(map: Record<string, NodeOverride>): Record<string, unknown> {

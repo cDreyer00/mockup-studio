@@ -7,6 +7,7 @@
  * como imutáveis (clone antes de mutar).
  */
 import { cssValueProblem } from '../styles.js';
+import { vectorToSvg } from '../vector/svg.js';
 import type {
   ComponentDef,
   ComponentVariant,
@@ -382,7 +383,9 @@ function mergeStates(
 
 /**
  * Aplica uma sobrescrita ao nó (mutando). `unsetStyle` remove antes de mesclar `style`; `src`
- * só vale em imagem, `svg` em nó svg e `props` em instância.
+ * só vale em imagem, `svg`/`vector` em nó svg, `effect`/`video`/`embed` no nó do mesmo tipo,
+ * `data`/`dataSource` em repetidor e `props` em instância. Os objetos das sobrescritas são
+ * compartilhados com a árvore expandida (imutável, como o resto do cache).
  */
 export function applyOverride(n: Node, ov: NodeOverride): void {
   if (ov.unsetStyle || ov.style) {
@@ -397,7 +400,23 @@ export function applyOverride(n: Node, ov: NodeOverride): void {
   if (ov.classes !== undefined) n.classes = ov.classes;
   if (ov.states) n.states = mergeStates(n.states, ov.states);
   if (ov.src !== undefined && n.type === 'image') n.src = ov.src;
-  if (ov.svg !== undefined && n.type === 'svg') n.svg = ov.svg;
+  if (n.type === 'svg') {
+    if (ov.vector) {
+      n.vector = ov.vector;
+      n.svg = ov.svg ?? vectorToSvg(ov.vector);
+    } else if (ov.svg !== undefined) {
+      // markup sobrescrito sem vetor: o vetor do principal não descreve mais o desenho
+      n.svg = ov.svg;
+      delete n.vector;
+    }
+  }
+  if (ov.effect && n.type === 'effect') n.effect = ov.effect;
+  if (ov.video && n.type === 'video') n.video = ov.video;
+  if (ov.embed && n.type === 'embed') n.embed = ov.embed;
+  if (n.type === 'repeater') {
+    if (ov.data) n.data = ov.data;
+    if (ov.dataSource) n.dataSource = ov.dataSource;
+  }
   if (ov.props && n.type === 'instance') n.props = { ...(n.props ?? {}), ...ov.props };
 }
 
@@ -417,6 +436,8 @@ export function mergeOverride(a: NodeOverride, b: NodeOverride): NodeOverride {
   if (a.attrs || b.attrs) out.attrs = { ...(a.attrs ?? {}), ...(b.attrs ?? {}) };
   if (a.states || b.states) out.states = mergeStates(a.states, b.states ?? {});
   if (a.props || b.props) out.props = { ...(a.props ?? {}), ...(b.props ?? {}) };
+  // vetor e markup andam juntos: um `svg` posterior sem vetor descarta o vetor anterior
+  if (b.svg !== undefined && !b.vector) delete out.vector;
   return out;
 }
 

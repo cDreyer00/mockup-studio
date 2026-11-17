@@ -32,6 +32,12 @@ const RawOverrideSchema = z.object({
   src: z.string().optional(),
   svg: z.string().optional(),
   props: z.record(z.string(), PropValueSchema).optional(),
+  vector: VectorSchema.optional(),
+  effect: EffectSpecSchema.optional(),
+  video: VideoSpecSchema.optional(),
+  embed: EmbedSpecSchema.optional(),
+  data: DataSchema.optional(),
+  dataSource: DataSourceSchema.optional(),
 });
 
 export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [

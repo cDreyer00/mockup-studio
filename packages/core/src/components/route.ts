@@ -14,6 +14,7 @@
 import { deepClone } from '../clone.js';
 import type { ApplyResult, Op, StyleChange } from '../ops.js';
 import { normalizeStyles } from '../styles.js';
+import { vectorToSvg } from '../vector/svg.js';
 import type { Document, Node, NodeOverride, PropValue } from '../types.js';
 import {
   SLOT_ATTR,
@@ -161,6 +162,9 @@ function targetIds(op: Op): string[] | null {
     case 'setStates':
     case 'setInstanceProps':
     case 'setInstanceOverrides':
+    case 'setData':
+    case 'setVector':
+    case 'setMedia':
       return op.changes.map((c) => c.nodeId);
     default:
       return null;
@@ -297,10 +301,11 @@ function splitSet(
 }
 
 function isEmptyOverride(ov: NodeOverride): boolean {
-  return Object.values(ov).every(
-    (v) =>
+  return Object.entries(ov).every(
+    ([k, v]) =>
       v === undefined ||
-      (Array.isArray(v) && v.length === 0) ||
+      // `data: []` é um valor (repetidor sem itens), não ausência
+      (k !== 'data' && Array.isArray(v) && v.length === 0) ||
       (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0),
   );
 }
@@ -407,6 +412,50 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
             ...(ov.attrs ?? {}),
             ...(normalizeOverride({ attrs: ch.attrs }).attrs ?? {}),
           };
+      }
+      break;
+    case 'setVector':
+      for (const ch of op.changes) {
+        const { node, path } = target(ch.nodeId);
+        if (node.type !== 'svg') fail(`O nó "${ch.nodeId}" não é um svg`);
+        const ov = edit(path);
+        if (ch.vector) {
+          const n = normalizeOverride(
+            { vector: ch.vector, ...(ch.svg ? { svg: ch.svg } : {}) },
+            `"${ch.nodeId}"`,
+          );
+          ov.vector = n.vector;
+          ov.svg = n.svg ?? vectorToSvg(n.vector!);
+        } else {
+          delete ov.vector;
+          if (ch.svg) ov.svg = normalizeOverride({ svg: ch.svg }, `"${ch.nodeId}"`).svg;
+          else delete ov.svg;
+        }
+      }
+      break;
+    case 'setMedia':
+      for (const ch of op.changes) {
+        const { node, path } = target(ch.nodeId);
+        const given = (['effect', 'video', 'embed'] as const).filter((k) => ch[k] !== undefined);
+        if (given.length !== 1)
+          fail(`setMedia em "${ch.nodeId}": informe exatamente um de effect, video ou embed`);
+        const field = given[0]!;
+        if (node.type !== field)
+          fail(`O nó "${ch.nodeId}" é ${node.type}; ${field} só vale em nós ${field}`);
+        Object.assign(edit(path), normalizeOverride({ [field]: ch[field] }, `"${ch.nodeId}"`));
+      }
+      break;
+    case 'setData':
+      for (const ch of op.changes) {
+        const { node, path } = target(ch.nodeId);
+        if (node.type !== 'repeater') fail(`O nó "${ch.nodeId}" não é um repetidor`);
+        const ov = edit(path);
+        if (ch.data === null) delete ov.data;
+        else if (ch.data !== undefined)
+          ov.data = normalizeOverride({ data: ch.data }, `"${ch.nodeId}"`).data;
+        if (ch.source === null) delete ov.dataSource;
+        else if (ch.source !== undefined)
+          ov.dataSource = normalizeOverride({ dataSource: ch.source }, `"${ch.nodeId}"`).dataSource;
       }
       break;
     case 'setInstanceProps':

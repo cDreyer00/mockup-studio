@@ -6,6 +6,7 @@
  * exato. Toda mudança em `doc.components` troca o array por um novo: os índices de
  * `expand.ts` são cacheados pela identidade do array.
  */
+import type { z } from 'zod';
 import { deepClone } from '../clone.js';
 import { collectIds, findNode, walk } from '../document.js';
 import type {
@@ -17,7 +18,15 @@ import type {
   SetInstancePropsOp,
   UpdateComponentOp,
 } from '../ops.js';
-import { EMPTY_VARIANT_MESSAGE, hasVariantCondition } from '../schema.js';
+import { effectKinds, getEffect } from '../effects/catalog.js';
+import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from '../media.js';
+import {
+  DataSchema,
+  DataSourceSchema,
+  EMPTY_VARIANT_MESSAGE,
+  hasVariantCondition,
+} from '../schema.js';
+import { VectorSchema } from '../vector/schema.js';
 import { normalizeStateKey } from '../states.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from '../styles.js';
 import { sanitizeSvg } from '../svg.js';
@@ -297,7 +306,35 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
     out.svg = svg;
   }
   if (ov.props && Object.keys(ov.props).length > 0) out.props = { ...ov.props };
+  if (ov.vector !== undefined) out.vector = strict(VectorSchema, ov.vector, 'vector', where);
+  if (ov.effect !== undefined) {
+    const effect = strict(EffectSpecSchema, ov.effect, 'effect', where);
+    if (!getEffect(effect.kind)) {
+      const kinds = effectKinds();
+      fail(
+        `Efeito desconhecido "${effect.kind}" em ${where}. Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? '… (veja list_effects)' : ''}`,
+      );
+    }
+    out.effect = effect;
+  }
+  if (ov.video !== undefined) out.video = strict(VideoSpecSchema, ov.video, 'video', where);
+  if (ov.embed !== undefined) out.embed = strict(EmbedSpecSchema, ov.embed, 'embed', where);
+  if (ov.data !== undefined) out.data = strict(DataSchema, ov.data, 'data', where);
+  if (ov.dataSource !== undefined) {
+    out.dataSource = strict(DataSourceSchema, ov.dataSource, 'dataSource', where);
+  }
   return out;
+}
+
+/** Valida `value` com o schema do campo do nó (o mesmo das ops); lança com as mensagens legíveis. */
+function strict<T>(schema: z.ZodType<T, unknown>, value: unknown, field: string, where: string): T {
+  const r = schema.safeParse(value);
+  if (r.success) return r.data;
+  const issues = r.error.issues.map((i) => {
+    const path = i.path.map(String).join('.');
+    return path ? `${path}: ${i.message}` : i.message;
+  });
+  fail(`${field} inválido em ${where}: ${issues.join('; ')}`);
 }
 
 /** Normaliza um mapa caminho → override; overrides vazios somem; `null` quando vazio. */
