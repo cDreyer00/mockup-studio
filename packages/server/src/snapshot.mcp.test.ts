@@ -228,6 +228,17 @@ describe('MCP: importação de sites', () => {
       expect(frame.style).toMatchObject({ width: '800px', height: '600px' });
       expect(t).toContain(frame.id);
     });
+
+    it('import_html vazio ou só com espaços dá a mesma mensagem clara', async () => {
+      const frames = (): number => daemon.store.get(docId()).pages[0]!.frames.length;
+      const before = frames();
+      for (const html of ['', '   \n\t ']) {
+        const r = await call('import_html', { html });
+        expect(r.isError, JSON.stringify(html)).toBe(true);
+        expect(textOf(r)).toContain('HTML vazio');
+      }
+      expect(frames()).toBe(before);
+    });
   });
 
   describe('guia', () => {

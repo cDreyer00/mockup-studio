@@ -142,9 +142,9 @@ export function registerSnapshotTools(ctx: ToolContext): void {
         width: 1280,
       },
       inputSchema: {
+        // sem `.min(1)`: vazio e só espaços caem na mesma mensagem clara do serviço
         html: z
           .string()
-          .min(1)
           .describe('HTML completo ou fragmento, ex.: "<section><h1>Olá</h1></section>".'),
         css: z
           .string()

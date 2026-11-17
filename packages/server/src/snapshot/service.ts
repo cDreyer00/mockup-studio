@@ -114,8 +114,10 @@ export async function importFromHtml(
   ctx: SnapshotServiceCtx,
   req: ImportHtmlRequest,
 ): Promise<SnapshotImportResult> {
-  if (typeof req.html !== 'string' || !req.html.trim())
+  if (typeof req.html !== 'string')
     throw new SnapshotImportError(400, 'Campo obrigatório ausente: html.');
+  if (!req.html.trim())
+    throw new SnapshotImportError(400, 'HTML vazio: informe em html o conteúdo a importar.');
   if (req.html.length > MAX_HTML_CHARS)
     throw new SnapshotImportError(400, 'O HTML passa do limite de 20 milhões de caracteres.');
   if (req.css !== undefined && (typeof req.css !== 'string' || req.css.length > MAX_CSS_CHARS))
