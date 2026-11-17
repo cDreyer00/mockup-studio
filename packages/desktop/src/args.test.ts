@@ -28,9 +28,9 @@ describe('parseArgs', () => {
   });
 
   it('--install-cli e --uninstall-cli repassam os demais argumentos ao CLI', () => {
-    const a = parseArgs(['--install-cli', '--bin-dir', 'D:\bin', '--quiet']);
+    const a = parseArgs(['--install-cli', '--bin-dir', 'D:\\bin', '--quiet']);
     expect(a.cliAction).toBe('install-cli');
-    expect(a.cliArgs).toEqual(['--bin-dir', 'D:\bin', '--quiet']);
+    expect(a.cliArgs).toEqual(['--bin-dir', 'D:\\bin', '--quiet']);
     const b = parseArgs(['--quiet', '--uninstall-cli']);
     expect(b.cliAction).toBe('uninstall-cli');
     expect(b.cliArgs).toEqual(['--quiet']);
