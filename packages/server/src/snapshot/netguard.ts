@@ -1,9 +1,9 @@
 /**
- * Proteção contra SSRF no download de assets da importação: o daemon baixa URLs vindas do payload
- * (extensão, clipboard, janela de captura), então destinos da rede local são recusados, exceto os da
- * mesma origem da página importada (`trustedOrigin`, ex.: um dev server em localhost).
- * A checagem acontece na resolução de DNS da própria conexão (opção `lookup`), sem janela para
- * DNS rebinding, e a cada redirecionamento.
+ * SSRF protection for asset downloads during import: the daemon downloads URLs coming from the payload
+ * (extension, clipboard, capture window), so local-network destinations are rejected, except those of
+ * the same origin as the imported page (`trustedOrigin`, e.g. a dev server on localhost).
+ * The check happens at the connection's own DNS resolution (`lookup` option), leaving no window for
+ * DNS rebinding, and at every redirect.
  */
 import dns from 'node:dns';
 import http from 'node:http';
@@ -12,7 +12,7 @@ import net from 'node:net';
 
 export const MAX_REDIRECTS = 5;
 
-/** Endereço IPv4 em 4 octetos, ou `null` se o texto não for IPv4 válido. */
+/** IPv4 address as 4 octets, or `null` if the text is not a valid IPv4. */
 function parseV4(ip: string): number[] | null {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
   if (!m) return null;
@@ -31,15 +31,15 @@ function isPrivateV4(o: number[]): boolean {
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
     (a === 192 && b === 0 && c === 0) || // 192.0.0.0/24
-    (a === 192 && b === 0 && c === 2) || // documentação
-    (a === 198 && (b === 18 || b === 19)) || // benchmark
+    (a === 192 && b === 0 && c === 2) || // documentation
+    (a === 198 && (b === 18 || b === 19)) || // benchmarking
     (a === 198 && b === 51 && c === 100) ||
     (a === 203 && b === 0 && c === 113) ||
-    a >= 224 // multicast e reservados (inclui 255.255.255.255)
+    a >= 224 // multicast and reserved (includes 255.255.255.255)
   );
 }
 
-/** Expande um IPv6 em 8 grupos de 16 bits (aceita `::` e IPv4 no final); `null` se inválido. */
+/** Expands an IPv6 into 8 groups of 16 bits (accepts `::` and trailing IPv4); `null` if invalid. */
 function parseV6(ip: string): number[] | null {
   let s = ip.toLowerCase();
   const zone = s.indexOf('%');
@@ -68,32 +68,32 @@ function isPrivateV6(g: number[]): boolean {
   const embeddedV4 = (hi: number, lo: number): number[] => [hi >> 8, hi & 255, lo >> 8, lo & 255];
   if (g.slice(0, 5).every((x) => x === 0)) {
     if (g[5] === 0xffff) return isPrivateV4(embeddedV4(g[6]!, g[7]!)); // ::ffff:a.b.c.d
-    if (g[5] === 0) return true; // :: , ::1 e IPv4 compatível (obsoleto)
+    if (g[5] === 0) return true; // :: , ::1 and IPv4-compatible (obsolete)
   }
-  // NAT64 (64:ff9b::/96): vale o IPv4 embutido
+  // NAT64 (64:ff9b::/96): the embedded IPv4 applies
   if (g0 === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) {
     return isPrivateV4(embeddedV4(g[6]!, g[7]!));
   }
   return (
     (g0 & 0xfe00) === 0xfc00 || // fc00::/7 (ULA)
     (g0 & 0xffc0) === 0xfe80 || // fe80::/10 (link-local)
-    (g0 & 0xffc0) === 0xfec0 || // fec0::/10 (site-local, obsoleto)
+    (g0 & 0xffc0) === 0xfec0 || // fec0::/10 (site-local, obsolete)
     (g0 & 0xff00) === 0xff00 || // multicast
-    (g0 === 0x2001 && g[1] === 0x0db8) // documentação
+    (g0 === 0x2001 && g[1] === 0x0db8) // documentation
   );
 }
 
-/** `true` para loopback, redes privadas, link-local, CGNAT, multicast, reservados e IPv4 mapeado. */
+/** `true` for loopback, private networks, link-local, CGNAT, multicast, reserved and mapped IPv4. */
 export function isPrivateAddress(ip: string): boolean {
   const host = ip.startsWith('[') && ip.endsWith(']') ? ip.slice(1, -1) : ip;
   const v4 = parseV4(host);
   if (v4) return isPrivateV4(v4);
   const v6 = parseV6(host);
-  // texto que não é IP: por segurança, tratado como bloqueado
+  // text that is not an IP: treated as blocked for safety
   return v6 ? isPrivateV6(v6) : true;
 }
 
-const blockedMessage = (host: string): string => `destino na rede local bloqueado: ${host}`;
+const blockedMessage = (host: string): string => `local-network destination blocked: ${host}`;
 
 const hostnameOf = (u: URL): string =>
   u.hostname.startsWith('[') ? u.hostname.slice(1, -1) : u.hostname;
@@ -107,7 +107,7 @@ function originOf(url: string): string | null {
   }
 }
 
-/** `lookup` do `net.connect`: resolve todos os endereços e recusa se algum for privado. */
+/** `lookup` for `net.connect`: resolves all addresses and rejects if any is private. */
 function guardedLookup(
   hostname: string,
   options: dns.LookupOptions,
@@ -123,7 +123,7 @@ function guardedLookup(
     if (bad) return cb(new Error(blockedMessage(hostname)), '', 0);
     if (options.all) return cb(null, addresses);
     const first = addresses[0];
-    if (!first) return cb(new Error(`sem endereço para ${hostname}`), '', 0);
+    if (!first) return cb(new Error(`no address for ${hostname}`), '', 0);
     cb(null, first.address, first.family);
   });
 }
@@ -131,7 +131,7 @@ function guardedLookup(
 export interface GuardedFetchOptions {
   maxBytes: number;
   timeoutMs?: number;
-  /** Origem (protocolo+host+porta) que pode apontar para a rede local, ex.: a da página importada. */
+  /** Origin (protocol+host+port) allowed to point to the local network, e.g. the imported page's. */
   trustedOrigin?: string;
 }
 
@@ -156,7 +156,7 @@ function requestOnce(
     const lib = url.protocol === 'https:' ? https : http;
     const remaining = Math.max(1, opts.deadline - Date.now());
     const tooBig = new Error(
-      `o arquivo passa do limite de ${Math.round(opts.maxBytes / 1024 / 1024)} MB`,
+      `the file exceeds the limit of ${Math.round(opts.maxBytes / 1024 / 1024)} MB`,
     );
     const req = lib.request(
       url,
@@ -201,18 +201,18 @@ function requestOnce(
           }),
         );
         res.on('error', reject);
-        res.on('aborted', () => reject(new Error('conexão interrompida')));
+        res.on('aborted', () => reject(new Error('connection interrupted')));
       },
     );
-    req.on('timeout', () => req.destroy(new Error('tempo esgotado ao baixar')));
+    req.on('timeout', () => req.destroy(new Error('download timed out')));
     req.on('error', reject);
     req.end();
   });
 }
 
 /**
- * Baixa uma URL http(s) recusando destinos da rede local (salvo a origem confiável), seguindo até
- * `MAX_REDIRECTS` redirecionamentos (cada salto é checado de novo), com limite de bytes e timeout.
+ * Downloads an http(s) URL rejecting local-network destinations (except the trusted origin), following up to
+ * `MAX_REDIRECTS` redirects (each hop is checked again), with a byte limit and timeout.
  */
 export async function guardedFetchBytes(
   rawUrl: string,
@@ -224,14 +224,14 @@ export async function guardedFetchBytes(
   try {
     current = new URL(rawUrl);
   } catch {
-    throw new Error(`URL inválida: ${rawUrl}`);
+    throw new Error(`Invalid URL: ${rawUrl}`);
   }
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (current.protocol !== 'http:' && current.protocol !== 'https:')
-      throw new Error('só http(s) pode ser baixado');
+      throw new Error('only http(s) can be downloaded');
     const isTrusted = trusted !== null && current.origin === trusted;
     const host = hostnameOf(current);
-    // IP literal não passa pelo `lookup`: checa aqui
+    // A literal IP does not go through `lookup`: check it here
     if (!isTrusted && net.isIP(host) && isPrivateAddress(host)) {
       throw new Error(blockedMessage(host));
     }
@@ -240,11 +240,11 @@ export async function guardedFetchBytes(
       try {
         current = new URL(r.location, current);
       } catch {
-        throw new Error('redirecionamento com URL inválida');
+        throw new Error('redirect with invalid URL');
       }
       continue;
     }
     return { bytes: r.body, contentType: r.contentType };
   }
-  throw new Error(`redirecionamentos demais (máx. ${MAX_REDIRECTS})`);
+  throw new Error(`too many redirects (max ${MAX_REDIRECTS})`);
 }

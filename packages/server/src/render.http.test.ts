@@ -15,7 +15,7 @@ function fakeRender(calls: CaptureRequest[]): RenderProvider {
   return {
     async capture(req) {
       calls.push(req);
-      if (req.nodeId === 'quebra') throw new Error('falhou de propósito');
+      if (req.nodeId === 'broken') throw new Error('failed on purpose');
       const jpg = req.format === 'jpg';
       return {
         data: jpg ? Buffer.from([0xff, 0xd8, 0xff]) : PNG,
@@ -27,12 +27,12 @@ function fakeRender(calls: CaptureRequest[]): RenderProvider {
       };
     },
     async measure() {
-      throw new Error('sem layout');
+      throw new Error('no layout');
     },
   };
 }
 
-describe('rotas /render', () => {
+describe('/render routes', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
   let calls: CaptureRequest[];
@@ -57,7 +57,7 @@ describe('rotas /render', () => {
     ws.cleanup();
   });
 
-  it('PNG com scale e transparent, sem cache', async () => {
+  it('PNG with scale and transparent, no cache', async () => {
     await start(fakeRender(calls));
     const r = await fetch(
       `${daemon.url}/render/${docId()}/${ws.frameId}.png?scale=2&transparent=1`,
@@ -69,31 +69,31 @@ describe('rotas /render', () => {
     expect(calls[0]).toMatchObject({ nodeId: ws.frameId, scale: 2, transparent: true });
   });
 
-  it('JPG com quality', async () => {
+  it('JPG with quality', async () => {
     await start(fakeRender(calls));
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.jpg?quality=70`);
     expect(r.headers.get('content-type')).toBe('image/jpeg');
     expect(calls[0]).toMatchObject({ format: 'jpg', quality: 70, scale: 1 });
   });
 
-  it('404 para documento ou nó inexistente e 400 para parâmetros inválidos', async () => {
+  it('404 for a nonexistent document or node and 400 for invalid parameters', async () => {
     await start(fakeRender(calls));
-    expect((await fetch(`${daemon.url}/render/nao/${ws.frameId}.png`)).status).toBe(404);
-    expect((await fetch(`${daemon.url}/render/${docId()}/nao.png`)).status).toBe(404);
+    expect((await fetch(`${daemon.url}/render/missing/${ws.frameId}.png`)).status).toBe(404);
+    expect((await fetch(`${daemon.url}/render/${docId()}/missing.png`)).status).toBe(404);
     expect((await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.png?scale=5`)).status).toBe(
       400,
     );
     expect((await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.gif`)).status).toBe(404);
   });
 
-  it('erro do motor vira 500 com mensagem', async () => {
+  it('engine error becomes 500 with a message', async () => {
     await start({ ...fakeRender(calls), capture: () => Promise.reject(new Error('boom')) });
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.png`);
     expect(r.status).toBe(500);
     expect(((await r.json()) as { error: string }).error).toBe('boom');
   });
 
-  it('503 sem motor de render', async () => {
+  it('503 without a render engine', async () => {
     await start();
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.png`);
     expect(r.status).toBe(503);
@@ -102,14 +102,14 @@ describe('rotas /render', () => {
     expect(err).toContain(`pid ${process.pid}`);
   });
 
-  it('SVG com layout medido; falha do measure vira 500 (não derruba o daemon)', async () => {
+  it('SVG with measured layout; a measure failure becomes 500 (does not bring the daemon down)', async () => {
     await start(fakeRender(calls));
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.svg`);
     expect(r.status).toBe(500);
     expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
   });
 
-  it('SVG sem motor de render cai no foreignObject, com CSP restritiva', async () => {
+  it('SVG without a render engine falls back to foreignObject, with a restrictive CSP', async () => {
     await start();
     const r = await fetch(`${daemon.url}/render/${docId()}/${ws.frameId}.svg`);
     expect(r.status).toBe(200);

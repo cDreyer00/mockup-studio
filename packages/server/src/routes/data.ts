@@ -14,7 +14,7 @@ import { PlaceholderError, buildPlaceholder } from '../placeholder.js';
 import { RouteError, requireDoc, wrap, type RouteContext } from './shared.js';
 import { docWithNodes } from '../component-view.js';
 
-/** Converte os erros de uso em 400 (os demais seguem para o middleware de erro). */
+/** Converts usage errors into 400 (the others go on to the error middleware). */
 async function guard<T>(fn: () => Promise<T> | T): Promise<T> {
   try {
     return await fn();
@@ -31,7 +31,7 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v 
 function inputOf(body: Record<string, unknown>): DataInput {
   const input: DataInput = {};
   if (body['data'] !== undefined) {
-    if (!Array.isArray(body['data'])) throw new RouteError(400, 'data deve ser uma lista.');
+    if (!Array.isArray(body['data'])) throw new RouteError(400, 'data must be a list.');
     input.data = body['data'];
   }
   const text = str(body['text']);
@@ -43,7 +43,7 @@ function inputOf(body: Record<string, unknown>): DataInput {
   const format = body['format'];
   if (format !== undefined) {
     if (format !== 'json' && format !== 'csv')
-      throw new RouteError(400, 'format deve ser "json" ou "csv".');
+      throw new RouteError(400, 'format must be "json" or "csv".');
     input.format = format;
   }
   const select = str(body['select']);
@@ -51,7 +51,7 @@ function inputOf(body: Record<string, unknown>): DataInput {
   const mapping = body['mapping'];
   if (mapping !== undefined && mapping !== null) {
     if (typeof mapping !== 'object' || Array.isArray(mapping))
-      throw new RouteError(400, 'mapping deve ser um objeto campo -> caminho.');
+      throw new RouteError(400, 'mapping must be an object of field -> path.');
     input.mapping = mapping as Record<string, string>;
   }
   const limit = body['limit'];
@@ -62,13 +62,13 @@ function inputOf(body: Record<string, unknown>): DataInput {
       limit < 1 ||
       limit > MAX_DATA_ITEMS
     )
-      throw new RouteError(400, `limit deve ser um inteiro de 1 a ${MAX_DATA_ITEMS}.`);
+      throw new RouteError(400, `limit must be an integer from 1 to ${MAX_DATA_ITEMS}.`);
     input.limit = limit;
   }
   return input;
 }
 
-/** Rotas de dados de repetidores e de placeholders (o editor consome). */
+/** Repeater data and placeholder routes (consumed by the editor). */
 export function registerDataRoutes(app: Express, ctx: RouteContext): void {
   const { store } = ctx;
 
@@ -79,8 +79,8 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
         const docId = String(req.params['docId']);
         requireDoc(ctx, docId);
         const body = (req.body ?? {}) as Record<string, unknown>;
-        // Pelo editor, `path` só lê da pasta do documento ou do home (pastas ocultas são recusadas
-        // em qualquer caso); o conteúdo colado vai em `text`.
+        // From the editor, `path` only reads from the document's folder or the home folder (hidden
+        // folders are refused in any case); pasted content goes in `text`.
         const docPath = store.getInfo(docId).path;
         const roots = [os.homedir(), ...(docPath ? [path.dirname(docPath)] : [])];
         const loaded = await loadData(inputOf(body), { roots });
@@ -128,14 +128,14 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
         requireDoc(ctx, docId);
         const b = (req.body ?? {}) as Record<string, unknown>;
         const nodeId = str(b['nodeId']);
-        if (!nodeId) throw new RouteError(400, 'Informe nodeId.');
+        if (!nodeId) throw new RouteError(400, 'Pass nodeId.');
         const kind = b['kind'];
         if (typeof kind !== 'string' || !PLACEHOLDER_KINDS.includes(kind as PlaceholderKind))
-          throw new RouteError(400, `kind deve ser ${PLACEHOLDER_KINDS.join(', ')}.`);
+          throw new RouteError(400, `kind must be ${PLACEHOLDER_KINDS.join(', ')}.`);
         const num = (v: unknown, name: string): number | undefined => {
           if (v === undefined || v === null) return undefined;
           if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0)
-            throw new RouteError(400, `${name} deve ser um número positivo.`);
+            throw new RouteError(400, `${name} must be a positive number.`);
           return v;
         };
         const seed = b['seed'];

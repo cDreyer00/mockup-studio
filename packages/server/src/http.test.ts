@@ -13,8 +13,8 @@ describe('HTTP', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     fs.mkdirSync(path.join(ws.dir, 'assets'));
-    fs.writeFileSync(path.join(ws.dir, 'assets', 'a.txt'), 'olá asset');
-    fs.writeFileSync(path.join(ws.dir, 'segredo.txt'), 'segredo');
+    fs.writeFileSync(path.join(ws.dir, 'assets', 'a.txt'), 'hello asset');
+    fs.writeFileSync(path.join(ws.dir, 'secret.txt'), 'secret');
     daemon = await startDaemon({
       port: 0,
       dataDir: ws.dataDir,
@@ -27,7 +27,7 @@ describe('HTTP', () => {
     ws.cleanup();
   });
 
-  it('/api/health e checkHealth', async () => {
+  it('/api/health and checkHealth', async () => {
     const h = (await (await fetch(`${daemon.url}/api/health`)).json()) as Record<string, unknown>;
     expect(h.ok).toBe(true);
     expect(h.docs).toBe(1);
@@ -37,7 +37,7 @@ describe('HTTP', () => {
     expect(await checkHealth('http://127.0.0.1:1', 300)).toBeNull();
   });
 
-  it('/api/docs e /api/docs/:id', async () => {
+  it('/api/docs and /api/docs/:id', async () => {
     const list = (await (await fetch(`${daemon.url}/api/docs`)).json()) as {
       documents: Array<{ docId: string }>;
     };
@@ -47,11 +47,11 @@ describe('HTTP', () => {
     expect(((await full.json()) as { doc: { pages: unknown[] } }).doc.pages.length).toBeGreaterThan(
       0,
     );
-    const missing = await fetch(`${daemon.url}/api/docs/nao-existe`);
+    const missing = await fetch(`${daemon.url}/api/docs/does-not-exist`);
     expect(missing.status).toBe(404);
   });
 
-  it('erros viram JSON', async () => {
+  it('errors become JSON', async () => {
     const r = await fetch(`${daemon.url}/api/open`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -61,17 +61,17 @@ describe('HTTP', () => {
     expect(((await r.json()) as { error: string }).error).toContain('path');
   });
 
-  it('/api/open com arquivo inexistente dá 404 e /api/new repetido dá 409 com mensagem', async () => {
+  it('/api/open with a missing file gives 404 and a repeated /api/new gives 409 with a message', async () => {
     const missing = await fetch(`${daemon.url}/api/open`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path: path.join(ws.dir, 'nao-existe.mockup.json') }),
+      body: JSON.stringify({ path: path.join(ws.dir, 'does-not-exist.mockup.json') }),
     });
     expect(missing.status).toBe(404);
-    expect(((await missing.json()) as { error: string }).error).toContain('nao-existe');
+    expect(((await missing.json()) as { error: string }).error).toContain('does-not-exist');
 
-    const file = path.join(ws.dir, 'novo.mockup.json');
-    const body = JSON.stringify({ path: file, name: 'Novo' });
+    const file = path.join(ws.dir, 'new.mockup.json');
+    const body = JSON.stringify({ path: file, name: 'New' });
     const first = await fetch(`${daemon.url}/api/new`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -84,11 +84,11 @@ describe('HTTP', () => {
       body,
     });
     expect(again.status).toBe(409);
-    expect(((await again.json()) as { error: string }).error).toContain('já existe');
+    expect(((await again.json()) as { error: string }).error).toContain('already exists');
   });
 
-  it('/api/open com .mockup.json inválido dá 400 com a mensagem do schema', async () => {
-    const bad = path.join(ws.dir, 'quebrado.mockup.json');
+  it('/api/open with an invalid .mockup.json gives 400 with the schema message', async () => {
+    const bad = path.join(ws.dir, 'broken.mockup.json');
     fs.writeFileSync(bad, JSON.stringify({ version: 99, id: 'x' }));
     const r = await fetch(`${daemon.url}/api/open`, {
       method: 'POST',
@@ -96,10 +96,10 @@ describe('HTTP', () => {
       body: JSON.stringify({ path: bad }),
     });
     expect(r.status).toBe(400);
-    expect(((await r.json()) as { error: string }).error).toMatch(/inválido|version/i);
+    expect(((await r.json()) as { error: string }).error).toMatch(/invalid|version/i);
   });
 
-  it('CORS aceita localhost e bloqueia outras origens', async () => {
+  it('CORS accepts localhost and blocks other origins', async () => {
     const ok = await fetch(`${daemon.url}/api/health`, {
       headers: { Origin: 'http://localhost:5173' },
     });
@@ -108,13 +108,13 @@ describe('HTTP', () => {
     expect(bad.headers.get('access-control-allow-origin')).toBeNull();
   });
 
-  it('/assets serve arquivos e bloqueia ..', async () => {
+  it('/assets serves files and blocks ..', async () => {
     const id = daemon.store.list()[0]!.docId;
     const ok = await fetch(`${daemon.url}/assets/${id}/a.txt`);
     expect(ok.status).toBe(200);
-    expect(await ok.text()).toBe('olá asset');
+    expect(await ok.text()).toBe('hello asset');
 
-    // caminho cru, sem normalização do cliente
+    // raw path, without client normalization
     const raw = (p: string) =>
       new Promise<{ status: number; body: string }>((resolve, reject) => {
         http
@@ -126,13 +126,13 @@ describe('HTTP', () => {
           .on('error', reject);
       });
     for (const p of [
-      `/assets/${id}/../segredo.txt`,
-      `/assets/${id}/%2e%2e/segredo.txt`,
-      `/assets/${id}/..%2fsegredo.txt`,
+      `/assets/${id}/../secret.txt`,
+      `/assets/${id}/%2e%2e/secret.txt`,
+      `/assets/${id}/..%2fsecret.txt`,
     ]) {
       const r = await raw(p);
       expect(r.status).not.toBe(200);
-      expect(r.body).not.toContain('segredo');
+      expect(r.body).not.toContain('secret');
     }
   });
 
@@ -156,39 +156,39 @@ describe('HTTP', () => {
     expect(isAllowedHost('[::1]:80')).toBe(true);
     expect(isAllowedHost('evil.com')).toBe(false);
     expect(isAllowedHost(undefined)).toBe(false);
-    expect(isAllowedHost('meu-host:1', ['meu-host'])).toBe(true);
+    expect(isAllowedHost('my-host:1', ['my-host'])).toBe(true);
   });
 
-  it('valida o header Host (DNS rebinding)', async () => {
+  it('validates the Host header (DNS rebinding)', async () => {
     const bad = await rawReq('GET', '/api/health', { Host: 'evil.com' });
     expect(bad.status).toBe(403);
-    expect(JSON.parse(bad.body)).toEqual({ error: 'Host não permitido' });
+    expect(JSON.parse(bad.body)).toEqual({ error: 'Host not allowed' });
     const ok = await rawReq('GET', '/api/health', {});
     expect(ok.status).toBe(200);
     expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
   });
 
-  it('erro inesperado vira 500 genérico e JSON malformado vira 400', async () => {
+  it('an unexpected error becomes a generic 500 and malformed JSON becomes 400', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const spy = vi.spyOn(daemon.store, 'list').mockImplementation(() => {
       throw new Error('boom');
     });
     const r = await fetch(`${daemon.url}/api/docs`);
     expect(r.status).toBe(500);
-    expect(await r.json()).toEqual({ error: 'Erro interno' });
+    expect(await r.json()).toEqual({ error: 'Internal error' });
     expect(err).toHaveBeenCalled();
     spy.mockRestore();
     err.mockRestore();
     const bad = await fetch(`${daemon.url}/api/open`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: '{ malformado',
+      body: '{ malformed',
     });
     expect(bad.status).toBe(400);
   });
 
-  it('GET /api/recent lista recentes existentes e ignora os removidos', async () => {
-    const gone = path.join(ws.dir, 'sumiu.mockup.json');
+  it('GET /api/recent lists existing recents and ignores the removed ones', async () => {
+    const gone = path.join(ws.dir, 'gone.mockup.json');
     fs.writeFileSync(path.join(ws.dataDir, 'recent.json'), JSON.stringify([gone, ws.file]));
     const r = await fetch(`${daemon.url}/api/recent`);
     expect(r.status).toBe(200);
@@ -204,19 +204,19 @@ describe('HTTP', () => {
       });
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 
-    it('grava, serve por GET e evita colisão com sufixo', async () => {
+    it('writes, serves via GET and avoids collisions with a suffix', async () => {
       const id = daemon.store.list()[0]!.docId;
-      const r = await post(id, 'foto.png', png);
+      const r = await post(id, 'photo.png', png);
       expect(r.status).toBe(200);
-      expect(await r.json()).toEqual({ src: 'foto.png' });
-      expect(fs.readFileSync(path.join(ws.dir, 'assets', 'foto.png'))).toEqual(png);
-      const got = await fetch(`${daemon.url}/assets/${id}/foto.png`);
+      expect(await r.json()).toEqual({ src: 'photo.png' });
+      expect(fs.readFileSync(path.join(ws.dir, 'assets', 'photo.png'))).toEqual(png);
+      const got = await fetch(`${daemon.url}/assets/${id}/photo.png`);
       expect(Buffer.from(await got.arrayBuffer())).toEqual(png);
-      expect(await (await post(id, 'foto.png', png)).json()).toEqual({ src: 'foto-1.png' });
-      expect(await (await post(id, 'foto.png', png)).json()).toEqual({ src: 'foto-2.png' });
+      expect(await (await post(id, 'photo.png', png)).json()).toEqual({ src: 'photo-1.png' });
+      expect(await (await post(id, 'photo.png', png)).json()).toEqual({ src: 'photo-2.png' });
     });
 
-    it('sanitiza o nome e impede path traversal', async () => {
+    it('sanitizes the name and prevents path traversal', async () => {
       const id = daemon.store.list()[0]!.docId;
       const r = await post(id, '../../x.png', png);
       expect(((await r.json()) as { src: string }).src).toBe('x.png');
@@ -224,11 +224,11 @@ describe('HTTP', () => {
       expect(fs.existsSync(path.join(ws.dir, '..', 'x.png'))).toBe(false);
       const win = await post(id, String.raw`C:\dir\w.png`, png);
       expect(((await win.json()) as { src: string }).src).toBe('w.png');
-      const odd = await post(id, '.meu arquivo!.JPG', png);
-      expect(((await odd.json()) as { src: string }).src).toBe('meu-arquivo-.jpg');
+      const odd = await post(id, '.my file!.JPG', png);
+      expect(((await odd.json()) as { src: string }).src).toBe('my-file-.jpg');
     });
 
-    it('recusa upload e demais POST de outra origem; aceita origem local e sem Origin', async () => {
+    it('rejects upload and other POSTs from another origin; accepts a local origin and no Origin', async () => {
       const id = daemon.store.list()[0]!.docId;
       const evil = await fetch(`${daemon.url}/api/assets/${id}?name=x.svg`, {
         method: 'POST',
@@ -257,7 +257,7 @@ describe('HTTP', () => {
         body: new Uint8Array(png),
       });
       expect(local.status).toBe(200);
-      expect((await post(id, 'sem-origin.png', png)).status).toBe(200);
+      expect((await post(id, 'no-origin.png', png)).status).toBe(200);
       const read = await fetch(`${daemon.url}/api/docs`, {
         headers: { origin: 'http://evil.com' },
       });
@@ -265,7 +265,7 @@ describe('HTTP', () => {
       expect(read.headers.get('access-control-allow-origin')).toBeNull();
     });
 
-    it('serve assets com CSP restritiva, nosniff e SVG como anexo', async () => {
+    it('serves assets with a restrictive CSP, nosniff and SVG as an attachment', async () => {
       const id = daemon.store.list()[0]!.docId;
       const svg = Buffer.from(
         '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
@@ -279,21 +279,21 @@ describe('HTTP', () => {
       );
       expect(got.headers.get('x-content-type-options')).toBe('nosniff');
       expect(got.headers.get('content-disposition')).toBe('attachment');
-      await post(id, 'foto.png', png);
-      const pngRes = await fetch(`${daemon.url}/assets/${id}/foto.png`);
+      await post(id, 'photo.png', png);
+      const pngRes = await fetch(`${daemon.url}/assets/${id}/photo.png`);
       expect(pngRes.headers.get('content-security-policy')).toContain("default-src 'none'");
       expect(pngRes.headers.get('x-content-type-options')).toBe('nosniff');
       expect(pngRes.headers.get('content-disposition')).toBeNull();
     });
 
-    it('nomes reservados do Windows ganham sufixo', async () => {
+    it('Windows reserved names get a suffix', async () => {
       const id = daemon.store.list()[0]!.docId;
       const cases: Array<[string, string]> = [
-        ['CON.png', 'CON-arquivo.png'],
-        ['nul.jpg', 'nul-arquivo.jpg'],
-        ['COM1.png', 'COM1-arquivo.png'],
-        ['lpt9.gif', 'lpt9-arquivo.gif'],
-        ['aux.tar.png', 'aux-arquivo.tar.png'],
+        ['CON.png', 'CON-file.png'],
+        ['nul.jpg', 'nul-file.jpg'],
+        ['COM1.png', 'COM1-file.png'],
+        ['lpt9.gif', 'lpt9-file.gif'],
+        ['aux.tar.png', 'aux-file.tar.png'],
         ['console.png', 'console.png'],
         ['com10.png', 'com10.png'],
       ];
@@ -301,19 +301,19 @@ describe('HTTP', () => {
         const r = await post(id, name, png);
         expect(((await r.json()) as { src: string }).src, name).toBe(expected);
       }
-      expect(sanitizeAssetName('PRN.svg')).toEqual({ base: 'PRN-arquivo', ext: '.svg' });
+      expect(sanitizeAssetName('PRN.svg')).toEqual({ base: 'PRN-file', ext: '.svg' });
       expect(sanitizeAssetName('a...png')).toEqual({ base: 'a', ext: '.png' });
     });
 
-    it('erros: 404, 400 e 413', async () => {
+    it('errors: 404, 400 and 413', async () => {
       const id = daemon.store.list()[0]!.docId;
-      expect((await post('doc_inexistente', 'a.png', png)).status).toBe(404);
+      expect((await post('doc_missing', 'a.png', png)).status).toBe(404);
       expect((await post(id, 'a.exe', png)).status).toBe(400);
       expect((await post(id, 'a', png)).status).toBe(400);
       expect((await post(id, 'a.png', Buffer.alloc(0))).status).toBe(400);
-      const big = await post(id, 'grande.png', Buffer.alloc(21 * 1024 * 1024, 1));
+      const big = await post(id, 'big.png', Buffer.alloc(21 * 1024 * 1024, 1));
       expect(big.status).toBe(413);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'grande.png'))).toBe(false);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'big.png'))).toBe(false);
     });
   });
 });

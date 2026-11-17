@@ -1,6 +1,6 @@
 /**
- * Serviço de assets de um documento: listagem com hash/uso, link no CDN, remoção, limpeza de não
- * usados e otimização (sharp). Compartilhado pelas rotas HTTP e pelas ferramentas MCP.
+ * Asset service for a document: listing with hash/usage, CDN link, removal, cleanup of unused
+ * assets and optimization (sharp). Shared by the HTTP routes and the MCP tools.
  */
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -35,10 +35,10 @@ export interface AssetsServiceCtx {
 }
 
 export interface AssetInfo {
-  /** Relativo a `assets/`, com barras normais. */
+  /** Relative to `assets/`, with forward slashes. */
   path: string;
   name: string;
-  /** Com ponto, minúscula (".png"). */
+  /** With leading dot, lowercase (".png"). */
   ext: string;
   kind: AssetKind;
   mime: string;
@@ -46,11 +46,11 @@ export interface AssetInfo {
   width?: number;
   height?: number;
   mtime: number;
-  /** Hash do conteúdo (vazio para arquivos que não são imagem/fonte). */
+  /** Content hash (empty for files that are not images/fonts). */
   hash: string;
   /**
-   * Link direto absoluto no CDN local. Vazio para arquivos que não são imagem/fonte e para os ainda
-   * não registrados no CDN (a listagem não registra; use o link, `get_asset_url` ou o upload).
+   * Absolute direct link on the local CDN. Empty for files that are not images/fonts and for those
+   * not yet registered on the CDN (listing does not register; use the link, `get_asset_url` or the upload).
    */
   cdnUrl: string;
   uses: number;
@@ -68,11 +68,11 @@ export interface OptimizeOptions {
 export interface OptimizeResult {
   results: { path: string; newPath: string; before: number; after: number }[];
   skipped: { path: string; reason: string }[];
-  /** Quantas referências (nós, estilos, dados, fontes) foram reescritas. */
+  /** How many references (nodes, styles, data, fonts) were rewritten. */
   rewritten: number;
 }
 
-/** Origem (`http://127.0.0.1:<porta>`) usada nos links diretos. */
+/** Origin (`http://127.0.0.1:<port>`) used in direct links. */
 export function baseUrl(ctx: Pick<AssetsServiceCtx, 'getPort'>): string {
   return `http://127.0.0.1:${ctx.getPort?.() || DEFAULT_PORT}`;
 }
@@ -87,7 +87,7 @@ export function cdnUrlOf(
 
 function requireAssetsDir(ctx: AssetsServiceCtx, docId: string): string | null {
   if (!ctx.store.list().some((d) => d.docId === docId)) {
-    throw new RouteError(404, `Documento não encontrado: ${docId}`);
+    throw new RouteError(404, `Document not found: ${docId}`);
   }
   return ctx.store.assetsDir(docId);
 }
@@ -118,7 +118,7 @@ interface HashEntry {
   hash: string;
   info: DetectedAsset | null;
 }
-/** Cache de hash por caminho (validado por mtime e tamanho), com teto: descarta o menos usado. */
+/** Hash cache by path (validated by mtime and size), capped: evicts the least recently used. */
 const HASH_CACHE_MAX = 2000;
 const hashCache = new Map<string, HashEntry>();
 
@@ -139,7 +139,7 @@ function rememberHash(abs: string, entry: HashEntry): void {
   }
 }
 
-/** Caminhos de `assets/` usados por `dataSource.path` dos repetidores (não podem ser apagados). */
+/** `assets/` paths used by repeaters' `dataSource.path` (cannot be deleted). */
 function dataSourcePaths(doc: Document): Set<string> {
   const out = new Set<string>();
   walk(doc, (n) => {
@@ -149,7 +149,7 @@ function dataSourcePaths(doc: Document): Set<string> {
   return out;
 }
 
-/** Lista recursivamente `assets/` com hash, dimensões, link no CDN e uso no documento. */
+/** Recursively lists `assets/` with hash, dimensions, CDN link and usage in the document. */
 export async function listDocAssets(ctx: AssetsServiceCtx, docId: string): Promise<AssetInfo[]> {
   const dir = requireAssetsDir(ctx, docId);
   if (!dir) return [];
@@ -184,7 +184,7 @@ export async function listDocAssets(ctx: AssetsServiceCtx, docId: string): Promi
       info = c.info;
       if (c.info) {
         hash = c.hash;
-        // Só lê: o link aparece se o arquivo já foi registrado no CDN.
+        // Read-only: the link appears only if the file was already registered on the CDN.
         if (lib.has(hash)) cdnUrl = cdnUrlOf(ctx, hash, c.info.ext);
       }
     }
@@ -214,14 +214,14 @@ function resolveRel(
   rel: string,
 ): { dir: string; rel: string; abs: string } {
   const dir = requireAssetsDir(ctx, docId);
-  if (!dir) throw new RouteError(409, 'O documento ainda não tem caminho em disco; salve-o antes.');
+  if (!dir) throw new RouteError(409, 'The document has no path on disk yet; save it first.');
   const clean = assetPathOf(rel) ?? assetPathOf(`assets/${rel}`);
   const abs = clean ? safeJoin(dir, clean) : null;
-  if (!clean || !abs) throw new RouteError(400, `Caminho de asset inválido: "${rel}".`);
+  if (!clean || !abs) throw new RouteError(400, `Invalid asset path: "${rel}".`);
   return { dir, rel: clean, abs };
 }
 
-/** Remove um arquivo de `assets/`; 409 se estiver em uso e sem `force`. */
+/** Removes a file from `assets/`; 409 if in use and `force` is not set. */
 export async function removeDocAsset(
   ctx: AssetsServiceCtx,
   docId: string,
@@ -229,12 +229,12 @@ export async function removeDocAsset(
   force: boolean,
 ): Promise<string[]> {
   const r = resolveRel(ctx, docId, rel);
-  if (!fs.existsSync(r.abs)) throw new RouteError(404, `Asset não encontrado: ${r.rel}`);
+  if (!fs.existsSync(r.abs)) throw new RouteError(404, `Asset not found: ${r.rel}`);
   const ref = collectAssetRefs(ctx.store.get(docId)).get(r.rel);
   if (ref && !force) {
     throw new RouteError(
       409,
-      `"${r.rel}" está em uso por ${ref.nodeIds.length} nó(s)${ref.kinds.includes('font') ? ' e pelas fontes do documento' : ''}. Troque as referências ou use force para remover mesmo assim.`,
+      `"${r.rel}" is in use by ${ref.nodeIds.length} node(s)${ref.kinds.includes('font') ? ' and by the document fonts' : ''}. Replace the references or use force to remove it anyway.`,
     );
   }
   await fs.promises.rm(r.abs, { force: true });
@@ -242,7 +242,7 @@ export async function removeDocAsset(
   return [r.rel];
 }
 
-/** Remove os arquivos de imagem/fonte de `assets/` que nenhum nó, estilo, dado ou fonte referencia. */
+/** Removes image/font files from `assets/` that no node, style, data or font references. */
 export async function removeUnusedAssets(
   ctx: AssetsServiceCtx,
   docId: string,
@@ -270,7 +270,7 @@ export async function removeUnusedAssets(
   return { removed, kept };
 }
 
-/** Registra o asset no CDN e devolve o link direto. */
+/** Registers the asset on the CDN and returns the direct link. */
 export async function linkDocAsset(
   ctx: AssetsServiceCtx,
   docId: string,
@@ -281,10 +281,10 @@ export async function linkDocAsset(
   try {
     bytes = await fs.promises.readFile(r.abs);
   } catch {
-    throw new RouteError(404, `Asset não encontrado: ${r.rel}`);
+    throw new RouteError(404, `Asset not found: ${r.rel}`);
   }
   const info = detectAsset(bytes);
-  if (!info) throw new RouteError(400, `"${r.rel}" não é uma imagem nem uma fonte reconhecida.`);
+  if (!info) throw new RouteError(400, `"${r.rel}" is not a recognized image or font.`);
   const a = getLibrary(ctx.dataDir).add(bytes, { name: path.basename(r.rel), info });
   return { hash: a.hash, url: cdnUrlOf(ctx, a.hash, a.ext), cdnPath: a.url };
 }
@@ -292,9 +292,9 @@ export async function linkDocAsset(
 const OPTIMIZABLE = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
 
 /**
- * Pastas `node_modules` extras onde procurar o sharp quando o import normal falha. No app
- * empacotado o processo principal e o daemon do CLI são bundles sem node_modules; o sharp (nativo)
- * vai em `resources/native/node_modules` (ver `electron-builder.yml`).
+ * Extra `node_modules` folders to look for sharp in when the normal import fails. In the packaged
+ * app the main process and the CLI daemon are bundles without node_modules; sharp (native) lives
+ * in `resources/native/node_modules` (see `electron-builder.yml`).
  */
 function sharpFallbackDirs(): string[] {
   const dirs: string[] = [];
@@ -302,14 +302,14 @@ function sharpFallbackDirs(): string[] {
   if (env) dirs.push(env);
   const resources = (process as { resourcesPath?: string }).resourcesPath;
   if (resources) dirs.push(path.join(resources, 'native', 'node_modules'));
-  // daemon do CLI empacotado: resources/cli/daemon.mjs
+  // packaged CLI daemon: resources/cli/daemon.mjs
   if (process.argv[1]) {
     dirs.push(path.join(path.dirname(process.argv[1]), '..', 'native', 'node_modules'));
   }
   return dirs;
 }
 
-/** Carrega o sharp (import normal ou, no app empacotado, de `resources/native/node_modules`). */
+/** Loads sharp (normal import or, in the packaged app, from `resources/native/node_modules`). */
 export async function loadSharp(): Promise<typeof Sharp> {
   try {
     return (await import('sharp')).default;
@@ -324,9 +324,9 @@ export async function loadSharp(): Promise<typeof Sharp> {
 }
 
 /**
- * Otimiza imagens de `assets/` com sharp: reduz para `maxWidth` (sem ampliar), converte para WebP
- * (ou mantém o formato) e só adota o resultado se ficar menor. Grava arquivos novos (não apaga os
- * originais) e reescreve as referências numa única chamada de `applyOps` (um undo).
+ * Optimizes `assets/` images with sharp: downscales to `maxWidth` (never upscales), converts to WebP
+ * (or keeps the format) and only adopts the result if it is smaller. Writes new files (does not
+ * delete the originals) and rewrites references in a single `applyOps` call (one undo).
  */
 export async function optimizeDocAssets(
   ctx: AssetsServiceCtx,
@@ -335,14 +335,14 @@ export async function optimizeDocAssets(
   applyOps: (ops: Op[]) => void,
 ): Promise<OptimizeResult> {
   const dir = requireAssetsDir(ctx, docId);
-  if (!dir) throw new RouteError(409, 'O documento ainda não tem caminho em disco; salve-o antes.');
+  if (!dir) throw new RouteError(409, 'The document has no path on disk yet; save it first.');
   let sharp: typeof Sharp;
   try {
     sharp = await loadSharp();
   } catch (e) {
     throw new RouteError(
       501,
-      `Otimização indisponível: o módulo sharp não carregou (${e instanceof Error ? e.message.split('\n')[0] : String(e)}). No app instalado ele vem em resources/native (só Windows x64); reinstale o app. Em desenvolvimento: \`npm install sharp -w @mockup/server\`.`,
+      `Optimization unavailable: the sharp module failed to load (${e instanceof Error ? e.message.split('\n')[0] : String(e)}). In the installed app it ships in resources/native (Windows x64 only); reinstall the app. In development: \`npm install sharp -w @mockup/server\`.`,
     );
   }
   const refs = collectAssetRefs(ctx.store.get(docId));
@@ -355,7 +355,7 @@ export async function optimizeDocAssets(
     targets = [];
     for (const p of opts.paths) {
       const r = resolveRel(ctx, docId, p);
-      if (!fs.existsSync(r.abs)) skipped.push({ path: r.rel, reason: 'arquivo não encontrado' });
+      if (!fs.existsSync(r.abs)) skipped.push({ path: r.rel, reason: 'file not found' });
       else targets.push(r.rel);
     }
   } else {
@@ -372,10 +372,10 @@ export async function optimizeDocAssets(
         path: rel,
         reason:
           ext === '.svg'
-            ? 'SVG é vetorial'
+            ? 'SVG is vector'
             : ext === '.gif'
-              ? 'GIF (pode ser animado)'
-              : 'não é uma imagem otimizável',
+              ? 'GIF (may be animated)'
+              : 'not an optimizable image',
       });
       continue;
     }
@@ -384,7 +384,7 @@ export async function optimizeDocAssets(
     try {
       const meta = await sharp(input, { animated: true }).metadata();
       if ((meta.pages ?? 1) > 1) {
-        skipped.push({ path: rel, reason: 'imagem animada' });
+        skipped.push({ path: rel, reason: 'animated image' });
         continue;
       }
       let pipe = sharp(input).rotate();
@@ -400,7 +400,7 @@ export async function optimizeDocAssets(
       if (output.length >= input.length) {
         skipped.push({
           path: rel,
-          reason: `mantido (${input.length} B; o resultado não ficou menor)`,
+          reason: `kept (${input.length} B; the result was not smaller)`,
         });
         continue;
       }
@@ -408,7 +408,7 @@ export async function optimizeDocAssets(
       const stem = path.posix.basename(rel, path.extname(rel));
       const name =
         outExt === (ext === '.jpeg' ? '.jpg' : ext)
-          ? `${stem}-otimizado${outExt}`
+          ? `${stem}-optimized${outExt}`
           : `${stem}${outExt}`;
       const finalName = await writeAsset(
         path.join(dir, relDir === '.' ? '' : relDir),
@@ -423,13 +423,13 @@ export async function optimizeDocAssets(
     } catch (e) {
       skipped.push({
         path: rel,
-        reason: `falha ao processar (${e instanceof Error ? e.message : String(e)})`,
+        reason: `processing failed (${e instanceof Error ? e.message : String(e)})`,
       });
     }
   }
-  // O processamento com sharp é assíncrono e pode demorar: relê o documento agora para que as ops
-  // (setData/setFonts gravam listas inteiras) partam do estado atual e não desfaçam edições feitas
-  // enquanto as imagens eram processadas.
+  // sharp processing is async and can take a while: re-read the document now so the ops
+  // (setData/setFonts write whole lists) start from the current state and do not undo edits made
+  // while the images were being processed.
   const current = ctx.store.get(docId);
   const currentRefs = collectAssetRefs(current);
   const ops = rewriteAssetRefsOps(current, renamed);

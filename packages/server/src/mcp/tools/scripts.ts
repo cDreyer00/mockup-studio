@@ -8,23 +8,23 @@ const MAX_RESULT_CHARS = 4000;
 const MAX_SUMMARY_NODES = 6;
 
 const clip = (s: string, max: number): string =>
-  s.length > max ? `${s.slice(0, max)}\n… (cortado: ${s.length} caracteres)` : s;
+  s.length > max ? `${s.slice(0, max)}\n… (truncated: ${s.length} characters)` : s;
 
 export function registerScriptTools(ctx: ToolContext): void {
   const { tool, store, opts } = ctx;
 
   const needScripts = () => {
     const s = opts.services?.scripts;
-    if (!s) throw new ToolError('Scripts indisponíveis neste daemon.');
+    if (!s) throw new ToolError('Scripts are unavailable in this daemon.');
     return s;
   };
 
   tool(
     'run_script',
     {
-      title: 'Executar script',
+      title: 'Run script',
       description:
-        'Roda JavaScript numa sandbox com a API doc (select, get, apply, screenshot, tokens; node.style/text/name) para edições em lote; um undo desfaz tudo. Informe code ou name (scripts/*.js). Veja get_guide("scripts").',
+        'Runs JavaScript in a sandbox with the doc API (select, get, apply, screenshot, tokens; node.style/text/name) for batch edits; one undo reverts everything. Provide code or name (scripts/*.js). See get_guide("scripts").',
       example: {
         code: "doc.select('button').forEach(b => { b.style.background = '#2563eb'; }); return doc.select('button').length;",
       },
@@ -33,19 +33,19 @@ export function registerScriptTools(ctx: ToolContext): void {
           .string()
           .optional()
           .describe(
-            'Código JavaScript (corpo de async function, com await e return), ex.: "return doc.select(\'h1\').map(n => n.text);".',
+            'JavaScript code (async function body, with await and return), e.g. "return doc.select(\'h1\').map(n => n.text);".',
           ),
         name: z
           .string()
           .optional()
-          .describe('Nome de um script salvo em scripts/ (veja list_scripts), ex.: "renomear".'),
+          .describe('Name of a script saved in scripts/ (see list_scripts), e.g. "rename".'),
         timeoutMs: z
           .number()
           .int()
           .min(100)
           .max(60_000)
           .optional()
-          .describe('Tempo máximo em ms, de 100 a 60000 (padrão 10000), ex.: 20000.'),
+          .describe('Maximum time in ms, from 100 to 60000 (default 10000), e.g. 20000.'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -55,14 +55,14 @@ export function registerScriptTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       if ((code === undefined) === (name === undefined)) {
         throw new ToolError(
-          'Informe code (JavaScript) OU name (script salvo em scripts/), não os dois. Ex.: code "return doc.select(\'button\').length;".',
+          'Provide code (JavaScript) OR name (script saved in scripts/), not both. E.g. code "return doc.select(\'button\').length;".',
         );
       }
       const source = code ?? (await scripts.read(id, name!)).code;
-      // Dentro de um turno do assistente o script entra no mesmo grupo de undo do turno.
+      // Inside an assistant turn the script joins the turn's undo group.
       const group = ctx.group();
-      // Se o turno terminar (ou for cancelado) com o script rodando, o host recusa novas escritas e a
-      // sandbox encerra o worker: o agente cancelado não continua gravando.
+      // If the turn ends (or is cancelled) while the script runs, the host refuses new writes and the
+      // sandbox terminates the worker: a cancelled agent does not keep writing.
       const alive = (): boolean => {
         try {
           ctx.group();
@@ -88,26 +88,26 @@ export function registerScriptTools(ctx: ToolContext): void {
       if (r.logs.length)
         lines.push('Logs:', clip(r.logs.map((l) => `  ${l}`).join('\n'), MAX_LOG_CHARS));
       if (!r.ok) {
-        const head = `Script falhou: ${r.error ?? 'erro desconhecido'}`;
+        const head = `Script failed: ${r.error ?? 'unknown error'}`;
         const applied = r.opsCount
-          ? `${r.opsCount} op(s) já foram aplicadas antes do erro (um undo as desfaz); confira com get_tree_summary.`
-          : 'Nenhuma op foi aplicada.';
+          ? `${r.opsCount} op(s) were already applied before the error (one undo reverts them); check with get_tree_summary.`
+          : 'No ops were applied.';
         throw new ToolError([head, ...lines, applied].join('\n'));
       }
-      lines.unshift(`Script ok: ${r.opsCount} op(s) aplicada(s) em ${r.durationMs} ms.`);
+      lines.unshift(`Script ok: ${r.opsCount} op(s) applied in ${r.durationMs} ms.`);
       if (r.result !== undefined) {
         lines.push(
-          `Resultado: ${clip(JSON.stringify(r.result, null, 2) ?? 'undefined', MAX_RESULT_CHARS)}`,
+          `Result: ${clip(JSON.stringify(r.result, null, 2) ?? 'undefined', MAX_RESULT_CHARS)}`,
         );
       }
       if (r.images.length) {
         lines.push(
-          `Imagens: ${r.images.length} (${r.images.map((i) => `${i.nodeId} ${i.width}x${i.height}`).join(', ')}).`,
+          `Images: ${r.images.length} (${r.images.map((i) => `${i.nodeId} ${i.width}x${i.height}`).join(', ')}).`,
         );
       }
       if (r.opsCount) {
         const doc = store.get(id);
-        // só as raízes dos nós tocados: o resumo de um nó já mostra os descendentes
+        // only the roots of touched nodes: a node's summary already shows its descendants
         const live = [...touched].filter((t) => findNode(doc, t));
         const roots = live.filter((t) => {
           const anc = findNode(doc, t)!.ancestors;
@@ -116,10 +116,10 @@ export function registerScriptTools(ctx: ToolContext): void {
         const shown = roots.slice(0, MAX_SUMMARY_NODES);
         const fallback = doc.pages.flatMap((p) => p.frames).map((f) => f.id);
         lines.push(
-          'Resumo:',
+          'Summary:',
           ctx.summaryOf(doc, shown, fallback),
           ...(roots.length > shown.length
-            ? [`… e mais ${roots.length - shown.length} nó(s).`]
+            ? [`… and ${roots.length - shown.length} more node(s).`]
             : []),
         );
       }
@@ -133,9 +133,9 @@ export function registerScriptTools(ctx: ToolContext): void {
   tool(
     'list_scripts',
     {
-      title: 'Listar scripts',
+      title: 'List scripts',
       description:
-        'Lista a biblioteca de scripts do documento (pasta scripts/ ao lado do .mockup.json): nome, tamanho e data. Rode um deles com run_script({ name }).',
+        "Lists the document's script library (scripts/ folder next to the .mockup.json): name, size and date. Run one with run_script({ name }).",
       example: {},
       inputSchema: { docId: docIdField },
       annotations: READ,
@@ -145,15 +145,15 @@ export function registerScriptTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       const { dir, scripts: list } = await scripts.list(id);
       if (!dir) {
-        return 'O documento ainda não tem arquivo, então não há biblioteca de scripts. Salve-o (save_document) e crie arquivos .js na pasta scripts/ ao lado dele.';
+        return 'The document has no file yet, so there is no script library. Save it (save_document) and create .js files in the scripts/ folder next to it.';
       }
       if (!list.length) {
-        return `Nenhum script em ${dir}. Crie arquivos .js nessa pasta (corpo de async function com a API doc; veja get_guide("scripts")) ou use run_script({ code }).`;
+        return `No scripts in ${dir}. Create .js files in that folder (async function body with the doc API; see get_guide("scripts")) or use run_script({ code }).`;
       }
       return [
-        `${list.length} script(s) em ${dir}:`,
+        `${list.length} script(s) in ${dir}:`,
         ...list.map((s) => `- ${s.name} (${s.size} B, ${s.updatedAt})`),
-        'Execute com run_script({ name: "<nome>" }).',
+        'Run with run_script({ name: "<name>" }).',
       ].join('\n');
     },
   );

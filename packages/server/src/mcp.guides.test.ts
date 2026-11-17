@@ -12,7 +12,7 @@ function textOf(r: unknown): string {
   return c.map((x) => x.text).join('\n');
 }
 
-describe('MCP: guias, instruções e erros de parâmetro', () => {
+describe('MCP: guides, instructions and parameter errors', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -20,7 +20,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
   });
 
@@ -33,7 +33,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos são os 19 esperados', () => {
+  it('the topics are the 19 expected ones', () => {
     expect([...GUIDE_TOPICS]).toEqual([
       'getting-started',
       'design-system',
@@ -57,7 +57,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     ]);
   });
 
-  it('get_guide devolve cada tópico com título', async () => {
+  it('get_guide returns each topic with a title', async () => {
     for (const topic of GUIDE_TOPICS) {
       const r = await call('get_guide', { topic });
       expect(r.isError).toBeFalsy();
@@ -67,7 +67,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     }
   });
 
-  it('getting-started tem exatamente os passos 1 a 6', async () => {
+  it('getting-started has exactly steps 1 to 6', async () => {
     const t = textOf(await call('get_guide', { topic: 'getting-started' }));
     const steps = [...t.matchAll(/^(\d+)\. /gm)].map((m) => Number(m[1]));
     expect(steps).toEqual([1, 2, 3, 4, 5, 6]);
@@ -82,7 +82,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     }
   });
 
-  it('responsive cita Mobile, Tablet e Desktop; setup traz os comandos de registro', async () => {
+  it('responsive cites Mobile, Tablet and Desktop; setup has the registration commands', async () => {
     const r = textOf(await call('get_guide', { topic: 'responsive' }));
     for (const n of ['Mobile', 'Tablet', 'Desktop', '390x844', '768x1024', '1440x900']) {
       expect(r).toContain(n);
@@ -96,7 +96,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     expect(d).toContain('4.5:1');
   });
 
-  it('resources guide://<topic> para todos os guias', async () => {
+  it('guide://<topic> resources for all guides', async () => {
     const { resources } = await client.listResources();
     const uris = resources.map((x) => x.uri);
     for (const topic of GUIDE_TOPICS) {
@@ -108,23 +108,23 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     }
   });
 
-  it('get_guide com tópico inválido lista os válidos e traz exemplo', async () => {
-    const r = await call('get_guide', { topic: 'inexistente' });
+  it('get_guide with an invalid topic lists the valid ones and gives an example', async () => {
+    const r = await call('get_guide', { topic: 'nonexistent' });
     expect(r.isError).toBe(true);
     const t = textOf(r);
     expect(t).toContain('topic');
     for (const topic of GUIDE_TOPICS) expect(t).toContain(topic);
-    expect(t).toContain('Exemplo: get_guide(');
+    expect(t).toContain('Example: get_guide(');
     expect(t).not.toContain('-32602');
   });
 
-  it('create_frame sem width e com width inválido: mensagem acionável', async () => {
+  it('create_frame without width and with an invalid width: actionable message', async () => {
     const missing = await call('create_frame', { name: 'Desktop', height: 900 });
     expect(missing.isError).toBe(true);
     const t = textOf(missing);
     expect(t).toContain('width');
-    expect(t).toContain('número');
-    expect(t).toContain('Exemplo: create_frame(');
+    expect(t).toContain('number');
+    expect(t).toContain('Example: create_frame(');
     expect(t).not.toContain('-32602');
     expect(t).not.toContain('"code"');
 
@@ -132,32 +132,32 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
       await call('create_frame', { name: 'Desktop', width: 'abc', height: 900 }),
     );
     expect(wrong).toContain('width');
-    expect(wrong).toContain('número');
+    expect(wrong).toContain('number');
     expect(wrong).toContain('"abc"');
-    expect(wrong).toContain('Exemplo: create_frame(');
+    expect(wrong).toContain('Example: create_frame(');
     expect(wrong).not.toContain('-32602');
     expect(wrong).not.toContain('"expected"');
   });
 
-  it('erros de ferramentas de tools/*.ts também são formatados', async () => {
+  it('errors from tools/*.ts tools are formatted too', async () => {
     const e = await call('export', { nodeIds: ['fr_x'], format: 'pdf' });
     expect(e.isError).toBe(true);
     const t = textOf(e);
     expect(t).toContain('format');
     for (const f of ['png', 'jpg', 'svg', 'html', 'tailwind', 'react']) expect(t).toContain(f);
-    expect(t).toContain('Exemplo: export(');
+    expect(t).toContain('Example: export(');
 
     const s = textOf(await call('get_screenshot', { scale: 5 }));
     expect(s).toContain('scale');
     expect(s).toContain('1, 2, 3');
-    expect(s).toContain('Exemplo: get_screenshot(');
+    expect(s).toContain('Example: get_screenshot(');
 
     const n = textOf(await call('update_styles', { nodeIds: [] }));
     expect(n).toContain('nodeIds');
-    expect(n).toContain('pelo menos 1');
+    expect(n).toContain('at least 1');
   });
 
-  it('ferramenta inexistente sugere parecidas', async () => {
+  it('nonexistent tool suggests similar ones', async () => {
     const r = await call('write_htm', { html: '<p>x</p>' });
     expect(r.isError).toBe(true);
     const t = textOf(r);
@@ -166,7 +166,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     expect(t).not.toContain('-32602');
   });
 
-  it('todas as ferramentas têm descrição curta e parâmetros descritos', async () => {
+  it('all tools have a short description and described parameters', async () => {
     const { tools } = await client.listTools();
     expect(tools.length).toBeGreaterThan(40);
     for (const tool of tools) {
@@ -179,7 +179,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     }
   });
 
-  it('o servidor envia instructions citando getting-started', () => {
+  it('the server sends instructions citing getting-started', () => {
     const ins = client.getInstructions();
     expect(ins).toBeTruthy();
     expect(ins).toContain('getting-started');

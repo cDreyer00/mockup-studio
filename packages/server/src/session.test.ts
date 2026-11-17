@@ -11,13 +11,13 @@ const INIT = {
   params: {
     protocolVersion: '2025-03-26',
     capabilities: {},
-    clientInfo: { name: 'teste', version: '0' },
+    clientInfo: { name: 'test', version: '0' },
   },
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-describe('Sessões MCP', () => {
+describe('MCP sessions', () => {
   let daemon: DaemonHandle;
 
   beforeEach(async () => {
@@ -51,22 +51,22 @@ describe('Sessões MCP', () => {
       req.end(JSON.stringify(body));
     });
 
-  it('sessão desconhecida responde 404 JSON-RPC; sem sessão e sem initialize, 400', async () => {
+  it('unknown session responds 404 JSON-RPC; without a session and without initialize, 400', async () => {
     const r = await post(
-      { 'mcp-session-id': 'nao-existe' },
+      { 'mcp-session-id': 'does-not-exist' },
       { jsonrpc: '2.0', id: 2, method: 'ping' },
     );
     expect(r.status).toBe(404);
     expect(JSON.parse(r.body)).toEqual({
       jsonrpc: '2.0',
-      error: { code: -32001, message: 'Sessão não encontrada' },
+      error: { code: -32001, message: 'Session not found' },
       id: null,
     });
     const r2 = await post({}, { jsonrpc: '2.0', id: 2, method: 'ping' });
     expect(r2.status).toBe(400);
   });
 
-  it('initialize com Host externo é rejeitado e com Host local funciona', async () => {
+  it('initialize with an external Host is rejected and with a local Host works', async () => {
     const bad = await post({ Host: 'evil.com' }, INIT);
     expect(bad.status).toBe(403);
     expect(daemon.sessionCount()).toBe(0);
@@ -75,11 +75,11 @@ describe('Sessões MCP', () => {
     expect(daemon.sessionCount()).toBe(1);
   });
 
-  it('sessão do cliente SDK: conta 1 e volta a 0 após terminateSession', async () => {
+  it('SDK client session: counts 1 and returns to 0 after terminateSession', async () => {
     const longLived = await startDaemon({ port: 0, writeInfo: false, sessionTtlMs: 60_000 });
     try {
       const transport = new StreamableHTTPClientTransport(new URL(longLived.mcpUrl));
-      const client = new Client({ name: 'teste', version: '0' });
+      const client = new Client({ name: 'test', version: '0' });
       await client.connect(transport);
       expect(longLived.sessionCount()).toBe(1);
       await transport.terminateSession();
@@ -90,7 +90,7 @@ describe('Sessões MCP', () => {
     }
   });
 
-  it('sessão ociosa além do TTL é fechada', async () => {
+  it('session idle beyond the TTL is closed', async () => {
     const ok = await post({}, INIT);
     expect(ok.status).toBe(200);
     expect(daemon.sessionCount()).toBe(1);

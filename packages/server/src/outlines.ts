@@ -1,16 +1,16 @@
 /**
- * Texto em contornos: converte nós `text` em nós `svg` com os glifos desenhados como paths.
+ * Text to outlines: converts `text` nodes into `svg` nodes with the glyphs drawn as paths.
  *
- * Usado pela ferramenta MCP `text_to_outlines` e pela rota HTTP do editor
- * (`POST /api/docs/:docId/text-to-outlines`), que chamam `buildTextOutlineOps`.
+ * Used by the MCP tool `text_to_outlines` and by the editor HTTP route
+ * (`POST /api/docs/:docId/text-to-outlines`), which call `buildTextOutlineOps`.
  *
- * - Fonte: família efetiva (primeira da pilha de `font-family` que existir), peso e estilo. Procura
- *   primeiro nos arquivos embutidos no documento (`doc.fonts`, em `assets/`) e depois nas fontes
- *   instaladas no sistema (`listSystemFonts`). `opentype.js` não lê WOFF2: os `.woff2` são
- *   descomprimidos com `woff2-encoder` (WASM, sem dependências nativas) antes de ler.
- * - Layout: com motor de render, usa as linhas medidas no DOM (`LayoutNode.lines`); sem ele, quebra
- *   por largura (greedy por palavras) com o avanço da fonte, `line-height`, `letter-spacing` e
- *   `text-align`.
+ * - Font: effective family (the first one in the `font-family` stack that exists), weight and style.
+ *   Looks first in the files embedded in the document (`doc.fonts`, under `assets/`) and then in the
+ *   fonts installed on the system (`listSystemFonts`). `opentype.js` does not read WOFF2: `.woff2`
+ *   files are decompressed with `woff2-encoder` (WASM, no native dependencies) before reading.
+ * - Layout: with a render engine, uses the lines measured in the DOM (`LayoutNode.lines`); without
+ *   one, wraps by width (greedy, by words) using the font advance, `line-height`, `letter-spacing`
+ *   and `text-align`.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -31,7 +31,7 @@ import {
 import { listSystemFonts, type SystemFont } from './fonts.js';
 import type { RenderProvider } from './render.js';
 
-/** Erro de uso com o status HTTP correspondente (400 entrada inválida, 404 não encontrado). */
+/** Usage error with the matching HTTP status (400 invalid input, 404 not found). */
 export class OutlineError extends Error {
   constructor(
     message: string,
@@ -45,30 +45,30 @@ export interface OutlineRequest {
   doc: Document;
   docId: string;
   nodeIds: string[];
-  /** Pasta `assets/` do documento (null se ele ainda não foi salvo). */
+  /** The document's `assets/` folder (null if it has not been saved yet). */
   assetsDir: string | null;
   render?: RenderProvider;
 }
 
 export interface OutlineResult {
-  /** Ops de uma única entrada de undo. */
+  /** Ops for a single undo entry. */
   ops: Op[];
-  /** Ids dos nós svg novos, na ordem de `nodeIds`. */
+  /** Ids of the new svg nodes, in the order of `nodeIds`. */
   nodeIds: string[];
-  /** Observações para o agente (fonte usada, layout, glifos ausentes). */
+  /** Notes for the agent (font used, layout, missing glyphs). */
   notes: string[];
 }
 
-/* ---------------------------------------------------------------- carga de fontes */
+/* ---------------------------------------------------------------- font loading */
 
 const otParse: (buf: ArrayBuffer) => OTFont = (() => {
-  // O pacote é UMD (CJS no Node) ou ESM só com exports nomeados (bundlers): cobre os dois.
+  // The package is UMD (CJS in Node) or ESM with named exports only (bundlers): this covers both.
   const ns = opentypeNs as unknown as {
     parse?: (b: ArrayBuffer) => OTFont;
     default?: { parse: (b: ArrayBuffer) => OTFont };
   };
   const fn = ns.parse ?? ns.default?.parse;
-  if (!fn) throw new Error('opentype.js não expõe parse');
+  if (!fn) throw new Error('opentype.js does not expose parse');
   return fn;
 })();
 
@@ -80,11 +80,10 @@ const fontCache = new Map<string, Promise<OTFont>>();
 const toArrayBuffer = (b: Uint8Array): ArrayBuffer =>
   b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 
-/** Lê e interpreta um arquivo de fonte (ttf, otf, woff e woff2), com cache por caminho, tamanho e data. */
+/** Reads and parses a font file (ttf, otf, woff and woff2), cached by path, size and mtime. */
 async function loadFontFile(file: string): Promise<OTFont> {
   const st = await fs.promises.stat(file);
-  if (!st.isFile() || st.size > MAX_FONT_BYTES)
-    throw new Error(`Arquivo de fonte inválido: ${file}`);
+  if (!st.isFile() || st.size > MAX_FONT_BYTES) throw new Error(`Invalid font file: ${file}`);
   const key = `${file}|${st.size}|${st.mtimeMs}`;
   const hit = fontCache.get(key);
   if (hit) return hit;
@@ -102,11 +101,11 @@ async function loadFontFile(file: string): Promise<OTFont> {
   return p;
 }
 
-/** Fonte pronta para desenhar: arquivo lido e, se variável, as coordenadas dos eixos. */
+/** Font ready to draw: file read and, if variable, the axis coordinates. */
 interface LoadedFont {
   font: OTFont;
   coords?: Record<string, number>;
-  /** Descrição para o agente, ex.: `Inter 700 (inter-700-normal-3100e775.woff2)`. */
+  /** Description for the agent, e.g.: `Inter 700 (inter-700-normal-3100e775.woff2)`. */
   label: string;
 }
 
@@ -134,7 +133,7 @@ function pickCandidate(list: Candidate[], weight: number, italic: boolean): Cand
   return best;
 }
 
-/** Candidatos de uma fonte embutida (convenção de `FontRef`: listas paralelas ou faixa de pesos). */
+/** Candidates of an embedded font (`FontRef` convention: parallel lists or a weight range). */
 function docCandidates(ref: FontRef, assetsDir: string): Candidate[] {
   const files = ref.files ?? [];
   const same = (a?: unknown[]): boolean => !!a && a.length === files.length;
@@ -144,7 +143,7 @@ function docCandidates(ref: FontRef, assetsDir: string): Candidate[] {
   files.forEach((rel, i) => {
     if (!FONT_FILE_EXTS.has(path.extname(rel).toLowerCase())) return;
     const abs = path.resolve(root, rel);
-    if (!abs.startsWith(root + path.sep)) return; // arquivo fora de assets/
+    if (!abs.startsWith(root + path.sep)) return; // file outside assets/
     const lo = same(ws) ? ws![i]! : ws?.length ? Math.min(...ws) : 100;
     const hi = same(ws) ? ws![i]! : ws?.length ? Math.max(...ws) : 900;
     out.push({
@@ -157,7 +156,7 @@ function docCandidates(ref: FontRef, assetsDir: string): Candidate[] {
   return out;
 }
 
-/** Caminho absoluto de um arquivo listado pelo sistema (no Windows, o registro traz só o nome). */
+/** Absolute path of a file listed by the system (on Windows, the registry gives only the name). */
 function systemFilePath(file: string): string {
   if (path.isAbsolute(file)) return file;
   if (process.platform === 'win32')
@@ -172,7 +171,7 @@ function describeFile(font: OTFont): { weight: number; italic: boolean } {
   return { weight: os2?.usWeightClass ?? 400, italic };
 }
 
-/** Lê todos os arquivos da família (ttc e formatos ignorados são pulados) e descreve cada um. */
+/** Reads all the family's files (ttc and unsupported formats are skipped) and describes each one. */
 async function systemCandidates(sys: SystemFont): Promise<{ cand: Candidate; font: OTFont }[]> {
   const files = sys.files
     .map(systemFilePath)
@@ -189,7 +188,7 @@ async function systemCandidates(sys: SystemFont): Promise<{ cand: Candidate; fon
           font,
         });
       } catch {
-        // formato ilegível: tenta os outros arquivos da família
+        // unreadable format: try the family's other files
       }
     }),
   );
@@ -235,7 +234,7 @@ const GENERIC_ALIAS: Record<string, string> = {
   fantasy: 'sans-serif',
 };
 
-/** Divide `font-family` em nomes (sem aspas), respeitando aspas e vírgulas dentro delas. */
+/** Splits `font-family` into names (without quotes), honoring quotes and commas inside them. */
 export function parseFontFamilies(value: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -255,8 +254,8 @@ export function parseFontFamilies(value: string): string[] {
 }
 
 /**
- * Resolve a fonte do texto: documento, depois sistema, na ordem da pilha; por fim os genéricos
- * (`sans-serif`, `serif`, `monospace`, `system-ui`...) mapeados para fontes comuns do sistema.
+ * Resolves the text font: document, then system, in stack order; finally the generics
+ * (`sans-serif`, `serif`, `monospace`, `system-ui`...) mapped to common system fonts.
  */
 export async function resolveTextFont(
   doc: Pick<Document, 'fonts'>,
@@ -278,7 +277,7 @@ export async function resolveTextFont(
     );
     if (!c) return undefined;
     const font = list.find((x) => x.cand.file === c.file)!.font;
-    return withCoords(font, weight, `${sys.family} ${weight} (${path.basename(c.file)}, sistema)`);
+    return withCoords(font, weight, `${sys.family} ${weight} (${path.basename(c.file)}, system)`);
   };
 
   const tryName = async (name: string): Promise<LoadedFont | undefined> => {
@@ -290,7 +289,7 @@ export async function resolveTextFont(
           const font = await loadFontFile(c.file);
           return withCoords(font, weight, `${ref.family} ${weight} (${path.basename(c.file)})`);
         } catch {
-          // arquivo ausente ou corrompido: tenta o sistema
+          // missing or corrupt file: try the system
         }
       }
     }
@@ -313,16 +312,16 @@ export async function resolveTextFont(
   for (const g of generics) {
     for (const name of GENERIC_FALLBACKS[g]!) {
       const hit = await tryName(name);
-      if (hit) return { ...hit, label: `${hit.label}, no lugar de ${g}` };
+      if (hit) return { ...hit, label: `${hit.label}, in place of ${g}` };
     }
   }
   throw new OutlineError(
-    `Nenhuma fonte encontrada para "${families.join(', ')}" (peso ${weight}). ` +
-      'Embuta o arquivo no documento com add_font (google, caminho ou URL) ou use uma fonte instalada (list_fonts); depois tente de novo.',
+    `No font found for "${families.join(', ')}" (weight ${weight}). ` +
+      'Embed the file in the document with add_font (google, path or URL) or use an installed font (list_fonts); then try again.',
   );
 }
 
-/* ---------------------------------------------------------------- estilo do texto */
+/* ---------------------------------------------------------------- text style */
 
 interface TextStyle {
   families: string[];
@@ -347,7 +346,7 @@ const HEADING_SIZE: Record<string, number> = {
   h6: 10.72,
 };
 
-/** Número em px de um valor CSS (`px`, `em`, `rem`, `%` sobre `base`, número puro como fator). */
+/** Number in px of a CSS value (`px`, `em`, `rem`, `%` of `base`, bare number as a factor). */
 function cssPx(value: string | undefined, base: number, unitless: 'factor' | 'px'): number | null {
   const m = /^\s*(-?\d*\.?\d+)\s*(px|rem|em|%|pt)?\s*$/i.exec(value ?? '');
   if (!m) return null;
@@ -392,7 +391,7 @@ function textStyleOf(node: Node, computed: Record<string, string | undefined>): 
     letterSpacing: cssPx(computed['letter-spacing'], size, 'px') ?? 0,
     align: align === 'center' ? 'center' : align === 'right' || align === 'end' ? 'right' : 'left',
     transform: (computed['text-transform'] ?? 'none').trim().toLowerCase(),
-    // `currentcolor`, `inherit` e `var()` sem valor não servem como preenchimento do path
+    // `currentcolor`, `inherit` and `var()` without a value are not usable as the path fill
     color:
       color &&
       !/currentcolor|inherit|initial|unset|var\(/i.test(color) &&
@@ -411,7 +410,7 @@ function applyTransform(text: string, transform: string): string {
   return text;
 }
 
-/* ---------------------------------------------------------------- layout e desenho */
+/* ---------------------------------------------------------------- layout and drawing */
 
 interface PlacedLine {
   text: string;
@@ -435,20 +434,20 @@ function glyphOptions(
   return {
     kerning: true,
     variation: lf.coords,
-    // `letterSpacing` do opentype.js é fração do corpo da fonte (em)
+    // opentype.js `letterSpacing` is a fraction of the font size (em)
     letterSpacing: letterSpacing ? letterSpacing / size : 0,
   };
 }
 
-/** Avanço horizontal de `text` em px (com kerning e `letter-spacing`). */
+/** Horizontal advance of `text` in px (with kerning and `letter-spacing`). */
 function advance(lf: LoadedFont, text: string, size: number, letterSpacing: number): number {
   return lf.font.forEachGlyph(text, 0, 0, size, glyphOptions(lf, size, letterSpacing), (g) => {
-    // aplica as coordenadas variáveis (ajusta `advanceWidth` pelo HVAR) antes de o avanço ser lido
+    // apply the variable coordinates (adjusts `advanceWidth` via HVAR) before the advance is read
     lf.font.variation?.getTransform(g, lf.coords);
   });
 }
 
-/** Path data (px, sem inverter Y) da linha, com a baseline em `y`. */
+/** Path data (px, Y not flipped) of the line, with the baseline at `y`. */
 function linePathData(lf: LoadedFont, text: string, x: number, y: number, st: TextStyle): string {
   const parts: string[] = [];
   const opts = glyphOptions(lf, st.size, st.letterSpacing);
@@ -459,7 +458,7 @@ function linePathData(lf: LoadedFont, text: string, x: number, y: number, st: Te
   return parts.join(' ');
 }
 
-/** Quebra por largura (greedy por palavras); uma palavra maior que a largura fica sozinha na linha. */
+/** Wraps by width (greedy, by words); a word wider than the width stays alone on its line. */
 function wrapParagraph(
   words: string[],
   maxWidth: number | undefined,
@@ -484,7 +483,7 @@ const px = (v: string | undefined): number | undefined => {
   return m ? Number(m[1]) : undefined;
 };
 
-/** Padding em px (só valores em px; o resto conta como 0). */
+/** Padding in px (px values only; anything else counts as 0). */
 function paddingOf(style: Record<string, string>): { t: number; r: number; b: number; l: number } {
   const parts = (style['padding'] ?? '')
     .trim()
@@ -500,7 +499,7 @@ function paddingOf(style: Record<string, string>): { t: number; r: number; b: nu
   };
 }
 
-/** Layout sem motor de render: `\n` (se `white-space` preserva), largura px do nó, line-height e alinhamento. */
+/** Layout without a render engine: `\n` (if `white-space` preserves it), the node's px width, line-height and alignment. */
 function layoutWithoutRender(node: Node, lf: LoadedFont, st: TextStyle, text: string): Layout {
   const pad = paddingOf(node.style);
   const boxWidth = px(node.style['width']);
@@ -542,7 +541,7 @@ function layoutWithoutRender(node: Node, lf: LoadedFont, st: TextStyle, text: st
   return { width, height, lines: placed };
 }
 
-/** Layout a partir das linhas medidas no DOM (relativas ao frame): vira relativo ao nó. */
+/** Layout from the lines measured in the DOM (relative to the frame): made relative to the node. */
 function layoutFromMeasure(l: LayoutNode): Layout | null {
   const lines = (l.lines ?? [])
     .map((ln) => ({
@@ -554,7 +553,7 @@ function layoutFromMeasure(l: LayoutNode): Layout | null {
   return lines.length ? { width: l.width, height: l.height, lines } : null;
 }
 
-/** Propriedades de posição e composição que o svg de contornos herda do texto. */
+/** Position and compositing properties that the outline svg inherits from the text. */
 const INHERIT_PROPS = new Set([
   'position',
   'left',
@@ -585,7 +584,7 @@ const INHERIT_PROPS = new Set([
   'filter',
 ]);
 
-/* ---------------------------------------------------------------- conversão */
+/* ---------------------------------------------------------------- conversion */
 
 async function outlineOne(
   req: OutlineRequest,
@@ -593,17 +592,17 @@ async function outlineOne(
   notes: string[],
 ): Promise<{ node: Node; parentId: string; index: number }> {
   const found = findNode(req.doc, nodeId);
-  if (!found) throw new OutlineError(`Nó não encontrado: "${nodeId}".`, 404);
+  if (!found) throw new OutlineError(`Node not found: "${nodeId}".`, 404);
   const { node } = found;
   if (node.type !== 'text' || node.text === undefined)
     throw new OutlineError(
-      `"${nodeId}" é ${node.type}, não um nó de texto: text_to_outlines só converte texto (veja get_tree_summary).`,
+      `"${nodeId}" is ${node.type}, not a text node: text_to_outlines only converts text (see get_tree_summary).`,
     );
   if (!found.parent)
     throw new OutlineError(
-      `"${nodeId}" não tem pai: só nós dentro de um frame podem ser convertidos.`,
+      `"${nodeId}" has no parent: only nodes inside a frame can be converted.`,
     );
-  if (!node.text.trim()) throw new OutlineError(`"${nodeId}" não tem texto para converter.`);
+  if (!node.text.trim()) throw new OutlineError(`"${nodeId}" has no text to convert.`);
 
   let measured: LayoutNode | undefined;
   if (req.render) {
@@ -616,7 +615,7 @@ async function outlineOne(
       });
     } catch (e) {
       notes.push(
-        `Medição no render falhou (${e instanceof Error ? e.message : String(e)}): layout calculado pela fonte.`,
+        `Render measurement failed (${e instanceof Error ? e.message : String(e)}): layout computed from the font.`,
       );
     }
   }
@@ -629,11 +628,11 @@ async function outlineOne(
   let layout = measured ? layoutFromMeasure(measured) : null;
   if (layout) {
     layout.lines = layout.lines.map((l) => ({ ...l, text: applyTransform(l.text, st.transform) }));
-    notes.push('Layout: linhas medidas no render.');
+    notes.push('Layout: lines measured in the render.');
   } else {
     layout = layoutWithoutRender(node, lf, st, text);
     if (!measured)
-      notes.push('Layout: calculado pela fonte (sem motor de render); confira com get_screenshot.');
+      notes.push('Layout: computed from the font (no render engine); check with get_screenshot.');
   }
 
   const missing = new Set<string>();
@@ -645,7 +644,7 @@ async function outlineOne(
     })
     .filter(Boolean);
   if (!paths.length)
-    throw new OutlineError(`A fonte "${lf.label}" não tem glifos para o texto de "${nodeId}".`);
+    throw new OutlineError(`The font "${lf.label}" has no glyphs for the text of "${nodeId}".`);
 
   const width = round2(Math.max(layout.width, 1));
   const height = round2(Math.max(layout.height, 1));
@@ -657,22 +656,22 @@ async function outlineOne(
   for (const [k, v] of Object.entries(node.style)) if (INHERIT_PROPS.has(k)) style[k] = v;
   style['width'] = `${width}px`;
   style['height'] = `${height}px`;
-  const svgNode = createVectorNode(vector, { name: `${node.name} (contornos)`, style });
+  const svgNode = createVectorNode(vector, { name: `${node.name} (outlines)`, style });
 
-  notes.push(`${nodeId}: fonte ${lf.label}, ${st.size}px, ${paths.length} linha(s).`);
+  notes.push(`${nodeId}: font ${lf.label}, ${st.size}px, ${paths.length} line(s).`);
   if (missing.size)
     notes.push(
-      `Atenção: a fonte não tem os caracteres ${[...missing].slice(0, 12).join(' ')}; saíram como glifo vazio (.notdef).`,
+      `Warning: the font lacks the characters ${[...missing].slice(0, 12).join(' ')}; they came out as an empty glyph (.notdef).`,
     );
   return { node: svgNode, parentId: found.parent.id, index: found.index };
 }
 
 /**
- * Ops que trocam cada nó de texto por um nó svg de contornos, no mesmo pai e índice (uma entrada
- * de undo). Lança `OutlineError` (400/404) em entrada inválida ou sem fonte.
+ * Ops that replace each text node with an outline svg node, in the same parent and index (one undo
+ * entry). Throws `OutlineError` (400/404) on invalid input or when no font is found.
  */
 export async function buildTextOutlineOps(req: OutlineRequest): Promise<OutlineResult> {
-  if (!req.nodeIds.length) throw new OutlineError('Informe ao menos um nó de texto.');
+  if (!req.nodeIds.length) throw new OutlineError('Provide at least one text node.');
   const ops: Op[] = [];
   const nodeIds: string[] = [];
   const notes: string[] = [];

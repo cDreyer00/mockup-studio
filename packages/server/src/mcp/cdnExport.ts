@@ -1,8 +1,8 @@
 /**
- * Export de código (html, tailwind, react) com links diretos do próprio daemon
- * (`http://127.0.0.1:<porta>/cdn/<hash>.<ext>` ou `/cdn/<hash>.<ext>`): troca cada link por
- * `cdn/<hash>.<ext>` (relativo a `assets/`) numa cópia do documento e copia os arquivos da
- * biblioteca para `<saída>/assets/cdn/`, para o código exportado não depender do daemon rodando.
+ * Code export (html, tailwind, react) with direct links to the daemon itself
+ * (`http://127.0.0.1:<port>/cdn/<hash>.<ext>` or `/cdn/<hash>.<ext>`): replaces each link with
+ * `cdn/<hash>.<ext>` (relative to `assets/`) in a copy of the document and copies the library
+ * files to `<output>/assets/cdn/`, so the exported code does not depend on the daemon running.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,11 +16,11 @@ const STYLE_CDN_RE =
 
 export interface LocalizedDoc {
   doc: Document;
-  /** Nome no CDN (`<hash>.<ext>`) → arquivo da biblioteca. */
+  /** CDN name (`<hash>.<ext>`) → library file. */
   files: Map<string, string>;
 }
 
-/** Cópia do documento com os links `/cdn` conhecidos pela biblioteca trocados por `cdn/<nome>`. */
+/** Copy of the document with the `/cdn` links known to the library replaced by `cdn/<name>`. */
 export function localizeCdnLinks(doc: Document, lib: Library): LocalizedDoc {
   const files = new Map<string, string>();
   const known = (name: string): boolean => {
@@ -55,7 +55,7 @@ export function localizeCdnLinks(doc: Document, lib: Library): LocalizedDoc {
   return { doc: files.size ? out : doc, files };
 }
 
-/** Copia os arquivos da biblioteca para `<outputDir>/assets/cdn/`; devolve os relativos copiados. */
+/** Copies the library files to `<outputDir>/assets/cdn/`; returns the relative paths copied. */
 export async function copyCdnFiles(
   files: Map<string, string>,
   outputDir: string,
@@ -68,7 +68,7 @@ export async function copyCdnFiles(
       await fs.promises.copyFile(file, path.join(dir, name));
       copied.push(`cdn/${name}`);
     } catch {
-      // arquivo sumiu da biblioteca: o link fica como estava no documento
+      // file disappeared from the library: the link stays as it was in the document
     }
   }
   return copied;

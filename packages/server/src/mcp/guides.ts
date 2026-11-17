@@ -26,167 +26,167 @@ export const GUIDE_TOPICS = [
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
-/** Título e descrição curta de cada guia (usados nos resources `guide://<topic>`). */
+/** Title and short description of each guide (used by the `guide://<topic>` resources). */
 export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string }> = {
   'getting-started': {
-    title: 'Guia: começando',
-    description: 'Fluxo em 6 passos para criar um mockup do zero, dicas e lista de guias.',
+    title: 'Guide: getting started',
+    description: '6-step flow to create a mockup from scratch, tips and the list of guides.',
   },
   'design-system': {
-    title: 'Guia: design system e tokens',
-    description: 'Tokens como variáveis CSS, escalas de espaço e tipografia, cores com contraste.',
+    title: 'Guide: design system and tokens',
+    description: 'Tokens as CSS variables, spacing and typography scales, colors with contrast.',
   },
   tokens: {
-    title: 'Guia: tokens e temas',
+    title: 'Guide: tokens and themes',
     description:
-      'Montar o design system antes dos frames: grupos, aliases, temas claro/escuro, calc/color-mix, import e export.',
+      'Build the design system before the frames: groups, aliases, light/dark themes, calc/color-mix, import and export.',
   },
   layout: {
-    title: 'Guia: layout',
-    description: 'Flexbox, tamanhos, posição absoluta e boas práticas de espaçamento.',
+    title: 'Guide: layout',
+    description: 'Flexbox, sizes, absolute positioning and spacing best practices.',
   },
   grid: {
-    title: 'Guia: CSS Grid',
+    title: 'Guide: CSS Grid',
     description:
-      'Grid com write_html ou set_grid, posicionar filhos com place_in_grid, áreas nomeadas e get_layout.',
+      'Grid with write_html or set_grid, placing children with place_in_grid, named areas and get_layout.',
   },
   vectors: {
-    title: 'Guia: vetores e formas',
+    title: 'Guide: vectors and shapes',
     description:
-      'create_shape, insert_svg, set_path, set_vector_paint, boolean_op, flatten e text_to_outlines.',
+      'create_shape, insert_svg, set_path, set_vector_paint, boolean_op, flatten and text_to_outlines.',
   },
   responsive: {
-    title: 'Guia: responsivo',
+    title: 'Guide: responsive',
     description:
-      'Um frame por breakpoint (Mobile, Tablet, Desktop): duplicar, adaptar e posicionar.',
+      'One frame per breakpoint (Mobile, Tablet, Desktop): duplicate, adapt and position.',
   },
   'screenshot-loop': {
-    title: 'Guia: ciclo de screenshot',
-    description:
-      'Criar, conferir com get_screenshot, corrigir; checklist visual e economia de contexto.',
+    title: 'Guide: screenshot loop',
+    description: 'Create, check with get_screenshot, fix; visual checklist and saving context.',
   },
   export: {
-    title: 'Guia: exportação',
+    title: 'Guide: export',
     description:
-      'get_code x export, formatos (png, svg, html, tailwind, react), pasta de saída e assets.',
+      'get_code vs export, formats (png, svg, html, tailwind, react), output folder and assets.',
   },
   effects: {
-    title: 'Guia: efeitos, vídeo, embeds e export animado',
+    title: 'Guide: effects, video, embeds and animated export',
     description:
-      'add_effect como fundo, presets, screenshot com time, vídeo, Lottie/Rive/YouTube, Three.js e export mp4/webm/gif.',
+      'add_effect as a background, presets, screenshot with time, video, Lottie/Rive/YouTube, Three.js and mp4/webm/gif export.',
   },
   troubleshooting: {
-    title: 'Guia: solução de problemas',
+    title: 'Guide: troubleshooting',
     description:
-      'Render indisponível, nó não encontrado, porta ocupada, overflow, logs e erros de parâmetro.',
+      'Render unavailable, node not found, port in use, overflow, logs and parameter errors.',
   },
   tailwind: {
-    title: 'Guia: Tailwind nativo',
+    title: 'Guide: native Tailwind',
     description:
-      'Classes Tailwind em write_html e import_component (shadcn), set_classes, estados hover/dark/md, screenshot por estado e limitações.',
+      'Tailwind classes in write_html and import_component (shadcn), set_classes, hover/dark/md states, screenshot per state and limitations.',
   },
   components: {
-    title: 'Guia: componentes',
+    title: 'Guide: components',
     description:
-      'Kit shadcn-like, insert_component com props e slots, criar componentes com bind, editar o principal, overrides, destacar e exportar React.',
+      'shadcn-like kit, insert_component with props and slots, creating components with bind, editing the main component, overrides, detaching and React export.',
   },
   setup: {
-    title: 'Guia: instalação e registro do MCP',
-    description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
+    title: 'Guide: installing and registering the MCP',
+    description:
+      'Install the mockup CLI and register the MCP in Claude Code, Codex, Cursor and VS Code.',
   },
   assistant: {
-    title: 'Guia: assistente no editor e remix',
+    title: 'Guide: editor assistant and remix',
     description:
-      'Turnos do assistente (Claude Code/Codex por subprocesso), grupo de undo por turno, contexto da seleção e remix (color-scale, font-pairs, spacing, layout, ai).',
+      'Assistant turns (Claude Code/Codex via subprocess), per-turn undo group, selection context and remix (color-scale, font-pairs, spacing, layout, ai).',
   },
   scripts: {
-    title: 'Guia: scripts',
+    title: 'Guide: scripts',
     description:
-      'run_script: API JavaScript do documento (doc.select, node.style, doc.apply, doc.screenshot), sandbox, timeout e biblioteca scripts/*.js.',
+      'run_script: document JavaScript API (doc.select, node.style, doc.apply, doc.screenshot), sandbox, timeout and the scripts/*.js library.',
   },
   import: IMPORT_GUIDE_INFO,
   assets: {
-    title: 'Guia: assets, imagens e placeholders',
+    title: 'Guide: assets, images and placeholders',
     description:
-      'Assets do documento x biblioteca/CDN, upload, links estáveis, otimizar, set_image e generate_placeholder.',
+      'Document assets vs library/CDN, upload, stable links, optimize, set_image and generate_placeholder.',
   },
   data: {
-    title: 'Guia: dados reais e repetidores',
+    title: 'Guide: real data and repeaters',
     description:
-      'Template com {{campo}}, bind_data com JSON/CSV/URL, select, mapping, refresh_data e limites.',
+      'Template with {{field}}, bind_data with JSON/CSV/URL, select, mapping, refresh_data and limits.',
   },
 };
 
 export const GUIDES: Record<GuideTopic, string> = {
   assistant: ASSISTANT_GUIDE,
   scripts: SCRIPTS_GUIDE,
-  'getting-started': `# Começando com o Mockup Studio
+  'getting-started': `# Getting started with Mockup Studio
 
-O documento é uma árvore de nós HTML/CSS reais: páginas > frames (artboards) > elementos.
-Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
+The document is a tree of real HTML/CSS nodes: pages > frames (artboards) > elements.
+Every node has a stable id (e.g. \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
-## Fluxo em 6 passos
+## 6-step flow
 
-1. \`create_document(path, name)\` ou \`open_document(path)\`, depois \`get_basic_info\` — veja páginas, frames, documentos abertos e seleção.
-2. \`set_tokens({...})\` — defina o design system primeiro: cores, espaçamentos, raios, fontes (veja \`get_guide('design-system')\` e \`get_guide('tokens')\`).
-3. \`create_frame(name, width, height)\` — crie o artboard raiz (ex.: "Desktop", 1440x900).
-4. \`write_html(html, css?, parentId?)\` — escreva HTML + CSS de uma vez, seção por seção (header, hero, features, rodapé), usando \`var(--...)\` dos tokens.
-5. \`get_screenshot(nodeId)\` — VEJA o resultado e corrija com \`update_styles\`, \`set_text\` ou \`undo\`; repita até ficar bom (veja \`get_guide('screenshot-loop')\`).
-6. \`export\` (arquivos) ou \`get_code\` (código na resposta) e, por fim, \`finish_working\` para limpar o indicador "IA" no editor.
+1. \`create_document(path, name)\` or \`open_document(path)\`, then \`get_basic_info\` — see pages, frames, open documents and the selection.
+2. \`set_tokens({...})\` — define the design system first: colors, spacings, radii, fonts (see \`get_guide('design-system')\` and \`get_guide('tokens')\`).
+3. \`create_frame(name, width, height)\` — create the root artboard (e.g. "Desktop", 1440x900).
+4. \`write_html(html, css?, parentId?)\` — write HTML + CSS in one go, section by section (header, hero, features, footer), using \`var(--...)\` from the tokens.
+5. \`get_screenshot(nodeId)\` — LOOK at the result and fix it with \`update_styles\`, \`set_text\` or \`undo\`; repeat until it looks right (see \`get_guide('screenshot-loop')\`).
+6. \`export\` (files) or \`get_code\` (code in the response) and, finally, \`finish_working\` to clear the "AI" badge in the editor.
 
-## Dicas
+## Tips
 
-- Prefira \`write_html\` a muitas chamadas \`create_node\`: é mais rápido e mais legível.
-- Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame; passe \`parentId\` para ter certeza.
-- \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
-- O salvamento em disco é automático; \`save_document\` força a gravação.
-- HTML com classes Tailwind (shadcn/ui, Tailwind UI): \`write_html\` detecta sozinho e \`import_component\` cria os tokens shadcn; veja \`get_guide('tailwind')\`.
-- Componentes reutilizáveis (Button, Card, Navbar...): \`insert_component('shadcn-like/Button', parentId, props)\`; veja \`get_guide('components')\`.
-- Efeitos, vídeo e embeds: \`add_effect\`, \`insert_video\`, \`insert_embed\`, \`insert_three\` (veja \`get_guide('effects')\`).
-- Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`; kits Lucide e Heroicons, nomes \`kit/nome\`), \`add_font\` (\`list_fonts\`).
-- \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
+- Prefer \`write_html\` over many \`create_node\` calls: it is faster and more readable.
+- Without \`parentId\`, the content goes to the selected node or to the first frame; pass \`parentId\` to be sure.
+- \`get_tree_summary\` shows the structure; \`get_html\` and \`get_styles\` show the code and the effective styles.
+- Saving to disk is automatic; \`save_document\` forces a write.
+- HTML with Tailwind classes (shadcn/ui, Tailwind UI): \`write_html\` detects it on its own and \`import_component\` creates the shadcn tokens; see \`get_guide('tailwind')\`.
+- Reusable components (Button, Card, Navbar...): \`insert_component('shadcn-like/Button', parentId, props)\`; see \`get_guide('components')\`.
+- Effects, video and embeds: \`add_effect\`, \`insert_video\`, \`insert_embed\`, \`insert_three\` (see \`get_guide('effects')\`).
+- Images, icons and fonts: \`insert_image\`, \`insert_icon\` (\`search_icons\`; Lucide and Heroicons kits, names \`kit/name\`), \`add_font\` (\`list_fonts\`).
+- \`docId\` is optional (the active document is used), except in \`close_document\`.
 
-## Guias
+## Guides
 
 \`design-system\`, \`tokens\`, \`layout\`, \`grid\`, \`vectors\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`effects\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
 `,
-  'design-system': `# Design system e tokens
+  'design-system': `# Design system and tokens
 
-Defina os tokens ANTES de desenhar. Tokens são variáveis CSS do documento; mudar um valor atualiza todos os nós que o usam.
+Define the tokens BEFORE drawing. Tokens are CSS variables of the document; changing a value updates every node that uses it.
 
-## Uso
+## Usage
 
-- Defina: \`set_tokens({ tokens: { "--color-primary": "#2563eb", "--space-4": "16px" } })\` (o prefixo \`--\` é acrescentado se faltar).
-- Remova: \`set_tokens({ tokens: {}, unset: ["--old"] })\`.
-- Consulte: \`get_tokens\`. \`get_styles\` devolve os valores já resolvidos.
-- Temas (claro/escuro), aliases semânticos, grupos, \`calc()\`/\`color-mix()\`, renomear, importar e exportar: \`get_guide('tokens')\`.
-- Aplique no CSS: \`var(--color-primary)\`, tanto em \`write_html\` quanto em \`update_styles\`.
+- Define: \`set_tokens({ tokens: { "--color-primary": "#2563eb", "--space-4": "16px" } })\` (the \`--\` prefix is added if missing).
+- Remove: \`set_tokens({ tokens: {}, unset: ["--old"] })\`.
+- Read: \`get_tokens\`. \`get_styles\` returns the already resolved values.
+- Themes (light/dark), semantic aliases, groups, \`calc()\`/\`color-mix()\`, renaming, importing and exporting: \`get_guide('tokens')\`.
+- Apply in CSS: \`var(--color-primary)\`, in both \`write_html\` and \`update_styles\`.
 
-## Nomes
+## Names
 
-\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`. Nomeie pelo papel (\`--color-surface\`), não pelo valor (\`--color-gray-100\`).
+\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`. Name by role (\`--color-surface\`), not by value (\`--color-gray-100\`).
 
-## Espaçamento
+## Spacing
 
-Escala múltipla de 4/8: 4, 8, 12, 16, 24, 32, 48, 64. Use só esses valores em \`gap\`, \`padding\` e margens.
+A scale of multiples of 4/8: 4, 8, 12, 16, 24, 32, 48, 64. Use only these values in \`gap\`, \`padding\` and margins.
 
-## Tipografia
+## Typography
 
-- Escala: 12, 14, 16, 20, 24, 32, 48 px, com line-height ~1.5 no texto corrido e ~1.2 em títulos.
-- Use 1–2 famílias no máximo (ex.: uma para títulos, uma para texto). \`list_fonts\` mostra as disponíveis; \`add_font\` registra/embute outra (ex.: Google Fonts).
-- Pesos: 400 (texto), 600/700 (títulos e botões).
+- Scale: 12, 14, 16, 20, 24, 32, 48 px, with line-height ~1.5 for body text and ~1.2 for headings.
+- Use 1–2 families at most (e.g. one for headings, one for text). \`list_fonts\` shows the available ones; \`add_font\` registers/embeds another (e.g. Google Fonts).
+- Weights: 400 (text), 600/700 (headings and buttons).
 
-## Cores e contraste (WCAG AA)
+## Colors and contrast (WCAG AA)
 
-- Texto normal: contraste mínimo 4.5:1 com o fundo. Texto grande (>= 24px, ou 19px em negrito) e ícones: 3:1.
-- Paleta pequena: primária, superfície (fundo), texto, texto secundário, borda e estados (sucesso, erro).
-- Não use cor como única indicação de estado.
+- Normal text: minimum contrast 4.5:1 against the background. Large text (>= 24px, or 19px bold) and icons: 3:1.
+- Small palette: primary, surface (background), text, secondary text, border and states (success, error).
+- Do not use color as the only indication of state.
 
-## Raio e sombra
+## Radius and shadow
 
-Escolha 2–3 raios (ex.: 4, 8, 16, 999) e 2–3 sombras e reaproveite; evite valores soltos por componente.
+Pick 2–3 radii (e.g. 4, 8, 16, 999) and 2–3 shadows and reuse them; avoid one-off values per component.
 
-## Exemplo completo
+## Full example
 
 \`\`\`js
 set_tokens({
@@ -210,20 +210,20 @@ set_tokens({
 })
 \`\`\`
 `,
-  tokens: `# Tokens e temas
+  tokens: `# Tokens and themes
 
-Monte o design system ANTES dos frames. Tokens são variáveis CSS do documento; temas sobrescrevem alguns deles em frames inteiros.
+Build the design system BEFORE the frames. Tokens are CSS variables of the document; themes override some of them on whole frames.
 
-## Fluxo recomendado
+## Recommended flow
 
-1. \`set_tokens\` com grupos: cores primitivas, cores semânticas como alias das primitivas, tipografia, espaçamento, raio e sombra.
-2. \`create_theme("dark", overrides)\` sobrescrevendo primitivas ou semânticas.
-3. Use \`var(--...)\` em \`write_html\` e \`update_styles\`, ou ligue uma propriedade existente com \`apply_token\`.
-4. \`set_frame_theme\` em frames duplicados para ter claro e escuro lado a lado.
-5. \`get_screenshot\` de cada frame para conferir.
-6. \`get_tokens\` para achar tokens não usados e referências quebradas; \`rename_token\` para renomear sem quebrar nada; \`import_tokens\`/\`export_tokens\` para trocar com CSS, W3C Design Tokens (JSON) e Tailwind.
+1. \`set_tokens\` with groups: primitive colors, semantic colors as aliases of the primitives, typography, spacing, radius and shadow.
+2. \`create_theme("dark", overrides)\` overriding primitives or semantics.
+3. Use \`var(--...)\` in \`write_html\` and \`update_styles\`, or bind an existing prop with \`apply_token\`.
+4. \`set_frame_theme\` on duplicated frames to get light and dark side by side.
+5. \`get_screenshot\` of each frame to check.
+6. \`get_tokens\` to find unused tokens and broken references; \`rename_token\` to rename without breaking anything; \`import_tokens\`/\`export_tokens\` to exchange with CSS, W3C Design Tokens (JSON) and Tailwind.
 
-## 1. Tokens base, com grupos
+## 1. Base tokens, with groups
 
 \`\`\`js
 set_tokens({
@@ -241,14 +241,14 @@ set_tokens({
     "--font-sans": "Inter, system-ui, sans-serif",
     "--shadow-md": "0 4px 12px rgba(15,23,42,0.12)"
   },
-  descriptions: { "--color-primary": "Ação principal" }
+  descriptions: { "--color-primary": "Primary action" }
 })
 \`\`\`
 
-- O grupo (Cores, Tipografia, Espaçamento, Raio, Sombra, Outros) é deduzido do prefixo do nome (\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`) e, sem prefixo conhecido, do valor. Force com \`groups: { "--blue-600": "color" }\`.
-- Valor inválido (parênteses, aspas) recusa a chamada; tipo suspeito (ex.: cor num token de espaçamento) entra como aviso.
+- The group (Colors, Typography, Spacing, Radius, Shadow, Other) is inferred from the name prefix (\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`) and, with no known prefix, from the value. Force it with \`groups: { "--blue-600": "color" }\`.
+- An invalid value (parentheses, quotes) rejects the call; a suspicious type (e.g. a color in a spacing token) is accepted with a warning.
 
-## 2. Temas
+## 2. Themes
 
 \`\`\`js
 create_theme({ name: "dark", overrides: {
@@ -258,62 +258,62 @@ create_theme({ name: "dark", overrides: {
 }})
 \`\`\`
 
-Um tema só lista o que muda. Para ajustar depois: \`set_tokens({ theme: "dark", tokens: {...} })\`. \`create_theme\` aceita \`copyFrom\` para partir de outro tema. \`delete_theme\` e \`rename_theme\` atualizam os frames que o usam.
+A theme lists only what changes. To adjust it later: \`set_tokens({ theme: "dark", tokens: {...} })\`. \`create_theme\` accepts \`copyFrom\` to start from another theme. \`delete_theme\` and \`rename_theme\` update the frames that use it.
 
-## 3. Aliases acompanham o tema
+## 3. Aliases follow the theme
 
-Um alias (\`--color-primary: var(--blue-600)\`) é resolvido no escopo do frame: se o tema sobrescreve \`--blue-600\`, \`--color-primary\` e tudo que depende dele mudam junto, sem redeclarar. Sobrescrever o alias no tema também vale. Ciclos e referências inexistentes aparecem como problema em \`get_tokens\`.
+An alias (\`--color-primary: var(--blue-600)\`) is resolved in the frame's scope: if the theme overrides \`--blue-600\`, \`--color-primary\` and everything that depends on it change together, with no redeclaration. Overriding the alias in the theme works too. Cycles and nonexistent references show up as a problem in \`get_tokens\`.
 
-## 4. Frames claro/escuro
+## 4. Light/dark frames
 
-Duplique o frame e aplique o tema: \`set_frame_theme({ nodeIds: ["fr_..."], theme: "dark" })\`. Com \`theme: null\` o frame volta aos tokens base. O tema vale para o frame e todos os descendentes. \`get_styles({ nodeIds, theme: "dark" })\` mostra os valores efetivos como se o nó estivesse nesse tema.
+Duplicate the frame and apply the theme: \`set_frame_theme({ nodeIds: ["fr_..."], theme: "dark" })\`. With \`theme: null\` the frame goes back to the base tokens. The theme applies to the frame and all its descendants. \`get_styles({ nodeIds, theme: "dark" })\` shows the effective values as if the node were in that theme.
 
-## calc() e color-mix()
+## calc() and color-mix()
 
-Valem como CSS normal (\`calc(var(--space-4) * 2)\`, \`color-mix(in oklch, var(--color-primary), black 15%)\`). \`get_tokens\` e \`get_styles\` mostram o resultado avaliado quando possível; no HTML/CSS exportado o texto é mantido.
+They work as normal CSS (\`calc(var(--space-4) * 2)\`, \`color-mix(in oklch, var(--color-primary), black 15%)\`). \`get_tokens\` and \`get_styles\` show the evaluated result when possible; in the exported HTML/CSS the text is kept as is.
 
-## Manutenção
+## Maintenance
 
-- \`get_tokens\` (\`format: "json"\` para o relatório completo): usos, não usados, referências quebradas, temas e frames que os usam.
-- \`rename_token({ from: "--color-brand", to: "--color-primary" })\` atualiza estilos de todos os nós, outros tokens e temas.
-- \`import_tokens({ content, format?, mode: "merge" | "replace" })\` lê CSS (\`:root\`, \`[data-theme]\`, \`@theme\` do Tailwind v4) ou JSON W3C Design Tokens. \`export_tokens({ format: "css" | "json" | "tailwind" })\` devolve o texto.
-- Tudo é desfeito com \`undo\`, uma chamada por entrada.
+- \`get_tokens\` (\`format: "json"\` for the full report): usages, unused, broken references, themes and the frames that use them.
+- \`rename_token({ from: "--color-brand", to: "--color-primary" })\` updates the styles of all nodes, other tokens and themes.
+- \`import_tokens({ content, format?, mode: "merge" | "replace" })\` reads CSS (\`:root\`, \`[data-theme]\`, Tailwind v4 \`@theme\`) or W3C Design Tokens JSON. \`export_tokens({ format: "css" | "json" | "tailwind" })\` returns the text.
+- Everything is undone with \`undo\`, one call per entry.
 `,
   layout: `# Layout
 
-Os nós usam CSS real. Use flexbox para quase tudo.
+Nodes use real CSS. Use flexbox for almost everything.
 
 ## Flex
 
 - Container: \`display:flex; flex-direction:column; gap:16px; padding:24px;\`
-- Alinhamento: \`align-items:center; justify-content:space-between;\`
-- Quebra de linha: \`flex-wrap:wrap\`. Filho que ocupa o espaço restante: \`flex:1\`.
+- Alignment: \`align-items:center; justify-content:space-between;\`
+- Line wrapping: \`flex-wrap:wrap\`. Child that takes the remaining space: \`flex:1\`.
 
-## Tamanhos
+## Sizes
 
-- \`auto\`: ajusta ao conteúdo (padrão).
-- \`100%\`: ocupa toda a largura/altura do pai (ex.: \`width:100%\`).
-- Preencher o eixo principal: \`flex:1\` (ou \`flex-grow:1\`).
-- Limites: \`max-width:1200px; min-height:400px\`.
+- \`auto\`: fits the content (default).
+- \`100%\`: fills the full width/height of the parent (e.g. \`width:100%\`).
+- Fill the main axis: \`flex:1\` (or \`flex-grow:1\`).
+- Limits: \`max-width:1200px; min-height:400px\`.
 
-## Posição absoluta
+## Absolute position
 
-- No filho: \`position:absolute; top:..; left:..\`, com o pai em \`position:relative\`.
-- Para posicionar frames no canvas, use \`set_position(nodeId, x, y)\` (frames raiz e filhos absolutos).
+- On the child: \`position:absolute; top:..; left:..\`, with the parent at \`position:relative\`.
+- To position frames on the canvas, use \`set_position(nodeId, x, y)\` (root frames and absolute children).
 
-## Boas práticas
+## Best practices
 
-- Espaçamento com \`gap\` e \`padding\` (valores dos tokens \`--space-*\`); evite margens soltas.
-- Frames raiz têm largura/altura fixas (ex.: 1440x900); o conteúdo interno deve fluir (\`width:100%\`, \`max-width\`).
-- Monte por seções: um \`write_html\` por bloco, cada um com um container flex próprio.
-- \`get_styles(nodeIds)\` mostra os estilos efetivos; \`get_layout(nodeId)\` mostra posição e tamanho reais (precisa de render).
-- Grades em duas dimensões: \`get_guide('grid')\` (\`set_grid\`, \`place_in_grid\`). Formas e SVG: \`get_guide('vectors')\`.
+- Spacing with \`gap\` and \`padding\` (values from the \`--space-*\` tokens); avoid loose margins.
+- Root frames have fixed width/height (e.g. 1440x900); the inner content should flow (\`width:100%\`, \`max-width\`).
+- Build by sections: one \`write_html\` per block, each with its own flex container.
+- \`get_styles(nodeIds)\` shows the effective styles; \`get_layout(nodeId)\` shows real position and size (needs render).
+- Two-dimensional grids: \`get_guide('grid')\` (\`set_grid\`, \`place_in_grid\`). Shapes and SVG: \`get_guide('vectors')\`.
 `,
   grid: `# CSS Grid
 
-Use grid para layouts em duas dimensões (cards, dashboards, galerias, formulários); flex continua melhor para uma linha ou coluna só.
+Use grid for two-dimensional layouts (cards, dashboards, galleries, forms); flex is still better for a single row or column.
 
-## Com write_html
+## With write_html
 
 \`\`\`html
 <section class="cards">
@@ -325,12 +325,12 @@ Use grid para layouts em duas dimensões (cards, dashboards, galerias, formulár
 
 css: \`.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.wide{grid-column:span 2}\`
 
-## Com ferramentas
+## With tools
 
-- \`set_grid(nodeId, columns, rows?, gap?, columnGap?, rowGap?, areas?, placeItems?, justifyItems?, alignItems?)\` — \`columns\` aceita número (\`3\` = três colunas 1fr), texto CSS (\`"1fr 200px minmax(100px, 1fr)"\`, \`"repeat(auto-fill, minmax(200px, 1fr))"\`) ou lista (\`["200px", "1fr"]\`).
-- \`place_in_grid(nodeIds, column, row, span?)\` — célula (começa em 1); \`span\` é número (colunas) ou \`{ columns: 2, rows: 1 }\`; \`area: "header"\` usa uma área nomeada. O pai precisa ser grid.
+- \`set_grid(nodeId, columns, rows?, gap?, columnGap?, rowGap?, areas?, placeItems?, justifyItems?, alignItems?)\` — \`columns\` accepts a number (\`3\` = three 1fr columns), CSS text (\`"1fr 200px minmax(100px, 1fr)"\`, \`"repeat(auto-fill, minmax(200px, 1fr))"\`) or a list (\`["200px", "1fr"]\`).
+- \`place_in_grid(nodeIds, column, row, span?)\` — cell (starts at 1); \`span\` is a number (columns) or \`{ columns: 2, rows: 1 }\`; \`area: "header"\` uses a named area. The parent must be a grid.
 
-Exemplo de dashboard:
+Dashboard example:
 
 \`\`\`
 set_grid({ nodeId: "el_main", columns: "240px 1fr", rows: "64px 1fr", gap: 16, areas: ["side top", "side content"] })
@@ -338,246 +338,246 @@ place_in_grid({ nodeIds: ["el_sidebar"], area: "side" })
 place_in_grid({ nodeIds: ["el_topbar"], area: "top" })
 \`\`\`
 
-## Dicas
+## Tips
 
-- Prefira \`fr\` e \`minmax()\` a larguras fixas; \`repeat(auto-fill, minmax(220px, 1fr))\` cria grades responsivas sem breakpoint.
-- Cada nome em \`areas\` precisa formar um retângulo; use \`.\` para célula vazia.
-- \`get_layout(nodeId)\` mostra as trilhas medidas (tamanhos e linhas de coluna/linha) quando há render; use para conferir se os filhos caíram nas células certas.
-- Filho com \`position:absolute\` sai do grid. Itens fora das trilhas declaradas criam trilhas implícitas (\`grid-auto-rows\` controla a altura).
-- O código exportado (html, tailwind, react) mantém \`display:grid\`, as trilhas e o posicionamento.
+- Prefer \`fr\` and \`minmax()\` over fixed widths; \`repeat(auto-fill, minmax(220px, 1fr))\` creates responsive grids with no breakpoint.
+- Each name in \`areas\` must form a rectangle; use \`.\` for an empty cell.
+- \`get_layout(nodeId)\` shows the measured tracks (sizes and column/row lines) when there is render; use it to check that the children landed in the right cells.
+- A child with \`position:absolute\` leaves the grid. Items outside the declared tracks create implicit tracks (\`grid-auto-rows\` controls the height).
+- The exported code (html, tailwind, react) keeps \`display:grid\`, the tracks and the placement.
 `,
-  vectors: `# Vetores e formas
+  vectors: `# Vectors and shapes
 
-Formas e ícones são nós \`svg\`. Os criados por estas ferramentas têm um modelo vetorial editável (paths, viewBox, tinta); \`get_svg(nodeId)\` mostra o markup e os paths.
+Shapes and icons are \`svg\` nodes. Those created by these tools have an editable vector model (paths, viewBox, paint); \`get_svg(nodeId)\` shows the markup and the paths.
 
-## Criar
+## Create
 
-- \`create_shape({ parentId, shape: "rect"|"ellipse"|"line"|"polygon"|"star", x?, y?, width?, height?, sides?, points?, styles? })\` — estilos de tinta (\`fill\`, \`stroke\`, \`stroke-width\`...) vão para o vetor. Com x/y fica absoluto (o pai precisa ser frame ou position:relative).
-- \`insert_svg({ parentId, svg, width?, height? })\` — importa markup SVG; o original é preservado até a primeira edição. Se o SVG usa filtros, máscaras, texto ou opacidade parcial, ele aparece mas não é editável (a resposta avisa).
-- \`insert_icon\` (Lucide) também gera nós svg; \`set_vector_paint\` e \`get_svg\` funcionam neles.
+- \`create_shape({ parentId, shape: "rect"|"ellipse"|"line"|"polygon"|"star", x?, y?, width?, height?, sides?, points?, styles? })\` — paint styles (\`fill\`, \`stroke\`, \`stroke-width\`...) go to the vector. With x/y it is absolute (the parent must be a frame or position:relative).
+- \`insert_svg({ parentId, svg, width?, height? })\` — imports SVG markup; the original is preserved until the first edit. If the SVG uses filters, masks, text or partial opacity, it shows up but is not editable (the response warns about it).
+- \`insert_icon\` (Lucide) also generates svg nodes; \`set_vector_paint\` and \`get_svg\` work on them.
 
-## Editar
+## Edit
 
-- \`set_path({ nodeId, d, pathId?, fit? })\` — troca o \`d\` (ex.: \`"M 0 0 L 100 0 L 50 80 Z"\`); \`fit: true\` ajusta o viewBox e a caixa do nó.
-- \`set_vector_paint({ nodeId, pathIds?, fill?, stroke?, strokeWidth?, linecap?, linejoin?, dasharray?, opacity? })\` — \`fill\`/\`stroke\` aceitam cor ou gradiente: \`{ type: "linear", stops: [{ offset: 0, color: "#f00" }, { offset: 1, color: "#00f" }], x1: 0, y1: 0, x2: 1, y2: 0 }\`.
-- \`boolean_op({ nodeIds, op: "union"|"subtract"|"intersect"|"exclude" })\` — entre 2+ svgs irmãos; o de baixo é o "primeiro" do subtract; curvas são achatadas.
-- \`flatten({ nodeIds })\` — junta os paths num só nó/path.
-- \`text_to_outlines({ nodeIds })\` — texto vira contornos com a fonte do documento ou do sistema; deixa de ser editável como texto.
+- \`set_path({ nodeId, d, pathId?, fit? })\` — replaces the \`d\` (e.g. \`"M 0 0 L 100 0 L 50 80 Z"\`); \`fit: true\` adjusts the viewBox and the node box.
+- \`set_vector_paint({ nodeId, pathIds?, fill?, stroke?, strokeWidth?, linecap?, linejoin?, dasharray?, opacity? })\` — \`fill\`/\`stroke\` accept a color or gradient: \`{ type: "linear", stops: [{ offset: 0, color: "#f00" }, { offset: 1, color: "#00f" }], x1: 0, y1: 0, x2: 1, y2: 0 }\`.
+- \`boolean_op({ nodeIds, op: "union"|"subtract"|"intersect"|"exclude" })\` — between 2+ sibling svgs; the bottom one is the "first" of subtract; curves are flattened.
+- \`flatten({ nodeIds })\` — merges the paths into a single node/path.
+- \`text_to_outlines({ nodeIds })\` — text becomes outlines using the document or system font; it stops being editable as text.
 
-## Dicas
+## Tips
 
-- Em ícones simples a cor sai do \`stroke\`/\`fill\` dos paths (\`currentColor\` acompanha a cor de texto do pai).
-- Confira com \`get_screenshot\`; tudo se desfaz com \`undo\`.
-- Um svg vindo de \`write_html\` é legado: \`get_svg\` infere os paths e a primeira edição cria o vetor.
+- In simple icons the color comes from the paths' \`stroke\`/\`fill\` (\`currentColor\` follows the parent's text color).
+- Check with \`get_screenshot\`; everything is undone with \`undo\`.
+- An svg coming from \`write_html\` is legacy: \`get_svg\` infers the paths and the first edit creates the vector.
 `,
-  responsive: `# Responsivo com frames
+  responsive: `# Responsive with frames
 
-No Mockup Studio, cada frame raiz é um breakpoint (artboard) na mesma página. Use estes nomes e tamanhos:
+In Mockup Studio, each root frame is a breakpoint (artboard) on the same page. Use these names and sizes:
 
 - \`Mobile\` — 390x844
 - \`Tablet\` — 768x1024
 - \`Desktop\` — 1440x900
 
-Com várias telas no mesmo documento (login, painel, detalhe...), nomeie \`<Tela> - <Breakpoint>\`: \`Login - Desktop\`, \`Login - Mobile\`, \`Painel - Desktop\`. Coloque cada tela numa linha (mesmo \`y\`) e os breakpoints lado a lado (\`set_position\`).
+With several screens in the same document (login, dashboard, detail...), name them \`<Screen> - <Breakpoint>\`: \`Login - Desktop\`, \`Login - Mobile\`, \`Dashboard - Desktop\`. Put each screen on a row (same \`y\`) and the breakpoints side by side (\`set_position\`).
 
-## Fluxo
+## Flow
 
-1. Monte primeiro o \`Desktop\`: \`create_frame({ name: "Desktop", width: 1440, height: 900 })\` e o conteúdo com \`write_html\`.
-2. \`duplicate_nodes({ nodeIds: [desktopId] })\` — o clone aparece no canvas; o resultado traz o id novo.
-3. \`rename_nodes({ nodeIds: [cloneId], names: ["Tablet"] })\` e \`update_styles({ nodeIds: [cloneId], styles: { width: "768px", height: "1024px" } })\`. Repita para \`Mobile\` (390x844).
-   Se o layout do Mobile for muito diferente (barra de abas, cards empilhados), é mais rápido criar o frame e escrever o HTML dele com \`write_html\` do que adaptar o clone.
-4. Adapte cada clone: \`flex-direction: column\` no lugar de \`row\`, \`padding\` e fontes menores, grades com menos colunas (use \`update_styles\` nos containers).
-5. \`set_position(frameId, x, y)\` para dispor lado a lado sem sobrepor: x do próximo = x anterior + largura + 100.
-6. \`get_screenshot\` de cada frame e corrija.
+1. Build \`Desktop\` first: \`create_frame({ name: "Desktop", width: 1440, height: 900 })\` and the content with \`write_html\`.
+2. \`duplicate_nodes({ nodeIds: [desktopId] })\` — the clone appears on the canvas; the result carries the new id.
+3. \`rename_nodes({ nodeIds: [cloneId], names: ["Tablet"] })\` and \`update_styles({ nodeIds: [cloneId], styles: { width: "768px", height: "1024px" } })\`. Repeat for \`Mobile\` (390x844).
+   If the Mobile layout is very different (tab bar, stacked cards), it is faster to create the frame and write its HTML with \`write_html\` than to adapt the clone.
+4. Adapt each clone: \`flex-direction: column\` instead of \`row\`, smaller \`padding\` and fonts, grids with fewer columns (use \`update_styles\` on the containers).
+5. \`set_position(frameId, x, y)\` to lay them out side by side without overlap: next x = previous x + width + 100.
+6. \`get_screenshot\` of each frame and fix.
 
-## Dicas
+## Tips
 
-- Mantenha os mesmos nomes de camadas entre frames: facilita comparar e editar.
-- Prefira \`width:100%\` e \`max-width\` dentro dos frames em vez de larguras fixas.
-- Alvos de toque no Mobile com pelo menos 44px de altura.
-- \`get_basic_info\` lista frames com tamanho e posição.
+- Keep the same layer names across frames: it makes comparing and editing easier.
+- Prefer \`width:100%\` and \`max-width\` inside the frames over fixed widths.
+- Touch targets on Mobile at least 44px tall.
+- \`get_basic_info\` lists frames with size and position.
 `,
-  'screenshot-loop': `# Ciclo de screenshot
+  'screenshot-loop': `# Screenshot loop
 
-Não confie só na estrutura: depois de cada conjunto de mudanças, olhe o resultado.
+Do not rely on structure alone: after each set of changes, look at the result.
 
-## Ciclo
+## Loop
 
-1. Crie ou edite (\`write_html\`, \`update_styles\`, \`insert_image\`...).
-2. \`get_screenshot(nodeId)\` — confira a imagem.
-3. Corrija o que estiver errado (\`update_styles\`, \`set_text\`, \`undo\`) e repita o 2.
-4. Ao terminar, \`finish_working\` para limpar o indicador "IA" no editor.
+1. Create or edit (\`write_html\`, \`update_styles\`, \`insert_image\`...).
+2. \`get_screenshot(nodeId)\` — check the image.
+3. Fix whatever is wrong (\`update_styles\`, \`set_text\`, \`undo\`) and repeat step 2.
+4. When done, \`finish_working\` to clear the "AI" badge in the editor.
 
-## Checklist visual
+## Visual checklist
 
-- Alinhamento e espaçamento consistentes (gap, padding).
-- Nada cortado nem vazando do frame (overflow); imagens com proporção correta.
-- Conteúdo mais alto que o frame: com altura fixa o flexbox espreme os blocos (\`flex-shrink\`) e o screenshot parece caber, mas o código exportado (altura mínima) fica maior. Some as alturas com \`get_layout\` ou dê altura explícita aos blocos (num \`<svg>\` use \`set_attrs\` com \`height\` ou \`update_styles\`).
-- Contraste suficiente entre texto e fundo (4.5:1 no texto normal).
-- Textos quebrando em lugares ruins (títulos em muitas linhas, botões com texto em duas linhas).
-- Hierarquia: tamanhos e pesos coerentes; elementos repetidos idênticos.
+- Consistent alignment and spacing (gap, padding).
+- Nothing cut off or spilling out of the frame (overflow); images with the correct aspect ratio.
+- Content taller than the frame: with a fixed height, flexbox squeezes the blocks (\`flex-shrink\`) and the screenshot looks like it fits, but the exported code (minimum height) ends up taller. Add up the heights with \`get_layout\` or give the blocks an explicit height (on an \`<svg>\` use \`set_attrs\` with \`height\` or \`update_styles\`).
+- Enough contrast between text and background (4.5:1 for normal text).
+- Text wrapping in bad places (headings over many lines, buttons with two-line text).
+- Hierarchy: consistent sizes and weights; repeated elements identical.
 
-## Economize contexto
+## Save context
 
-- Prefira \`scale: 1\` e use \`maxWidth\` (ex.: 800) em frames grandes; \`scale: 2\` só para detalhes.
-- Capture o nó que mudou (uma seção), não o frame inteiro, quando possível.
-- \`format: "jpg"\` gera imagens menores.
+- Prefer \`scale: 1\` and use \`maxWidth\` (e.g. 800) on large frames; \`scale: 2\` only for details.
+- Capture the node that changed (one section), not the whole frame, when possible.
+- \`format: "jpg"\` produces smaller images.
 
-## Medidas exatas
+## Exact measurements
 
-\`get_layout(nodeId, depth?)\` lista \`id "nome" tag x,y wxh\` (px, relativos ao frame) e o texto das linhas.
-Use para verificar alinhamento, espaçamento e overflow com números.
+\`get_layout(nodeId, depth?)\` lists \`id "name" tag x,y wxh\` (px, relative to the frame) and the text of the lines.
+Use it to check alignment, spacing and overflow with numbers.
 
-## Disponibilidade
+## Availability
 
-Screenshot e \`get_layout\` exigem o motor de render (app desktop ou Electron headless). Num daemon Node puro
-as ferramentas avisam como habilitar (veja \`get_guide('troubleshooting')\`); enquanto isso use \`get_tree_summary\` e \`get_html\`.
+Screenshot and \`get_layout\` require the render engine (desktop app or headless Electron). On a plain Node daemon
+the tools tell you how to enable it (see \`get_guide('troubleshooting')\`); meanwhile use \`get_tree_summary\` and \`get_html\`.
 `,
-  export: `# Exportação
+  export: `# Export
 
-## get_code x export
+## get_code vs export
 
-- \`get_code(nodeId, format)\` — devolve o código na resposta, sem gravar arquivos. Bom para ler/colar.
-- \`export(nodeIds, format, outputDir?)\` — grava um arquivo por nó e copia os assets usados.
+- \`get_code(nodeId, format)\` — returns the code in the response, without writing files. Good for reading/pasting.
+- \`export(nodeIds, format, outputDir?)\` — writes one file per node and copies the assets used.
 
-## Formatos
+## Formats
 
-- \`png\` / \`jpg\` (\`scale\` 1-3): imagem do nó; exige render.
-- \`svg\`: vetor do nó (com render usa as medidas reais; sem render, um fallback com foreignObject).
-- \`html\`: documento HTML com CSS em classes.
-- \`tailwind\`: HTML com classes Tailwind v4 (\`<nome>.tailwind.html\`).
-- \`react\`: componente \`<Nome>.tsx\` (\`styles\`: "tailwind" ou "inline"); se houver CSS, \`theme.css\` ou \`<Nome>.css\`.
+- \`png\` / \`jpg\` (\`scale\` 1-3): image of the node; requires render.
+- \`svg\`: vector of the node (with render it uses the real measurements; without render, a fallback with foreignObject).
+- \`html\`: HTML document with CSS in classes.
+- \`tailwind\`: HTML with Tailwind v4 classes (\`<name>.tailwind.html\`).
+- \`react\`: component \`<Name>.tsx\` (\`styles\`: "tailwind" or "inline"); if there is CSS, \`theme.css\` or \`<Name>.css\`.
 
-## Pasta de saída
+## Output folder
 
-- Padrão: \`<pasta do documento>/exports/\`. Documento sem caminho exige \`outputDir\` (absoluto).
-- Os arquivos usam o nome do nó em slug (\`Desktop 1440\` vira \`desktop-1440.png\`).
-- Arquivos de mesmo nome são SOBRESCRITOS (marcados "(substituído)"); use outro \`outputDir\` para preservar versões.
-- Para html/tailwind/react, imagens e fontes usadas são copiadas para \`<outputDir>/assets/\`.
-- A resposta do \`export\` lista os arquivos e só repete o código até 20 KB no total; para ler o código de um nó use \`get_code\`.
-- React num projeto Vite: copie \`assets/\` para \`public/assets/\` e exporte com \`assetsBase: "/assets/"\` (imagens e fontes passam a usar caminhos absolutos que o bundler resolve).
+- Default: \`<document folder>/exports/\`. A document with no path requires \`outputDir\` (absolute).
+- Files use the node name as a slug (\`Desktop 1440\` becomes \`desktop-1440.png\`).
+- Files with the same name are OVERWRITTEN (marked "(replaced)"); use another \`outputDir\` to preserve versions.
+- For html/tailwind/react, the images and fonts used are copied to \`<outputDir>/assets/\`.
+- The \`export\` response lists the files and only repeats the code up to 20 KB in total; to read a node's code use \`get_code\`.
+- React in a Vite project: copy \`assets/\` to \`public/assets/\` and export with \`assetsBase: "/assets/"\` (images and fonts then use absolute paths that the bundler resolves).
 
-## Dicas
+## Tips
 
-- Dê nomes claros às camadas (\`rename_nodes\`): viram nomes de arquivo e de componente.
-- Exporte um nó por componente; use \`get_screenshot\` antes para conferir o visual.
+- Give layers clear names (\`rename_nodes\`): they become file and component names.
+- Export one node per component; use \`get_screenshot\` first to check the visuals.
 `,
   effects: EFFECTS_GUIDE,
-  troubleshooting: `# Solução de problemas
+  troubleshooting: `# Troubleshooting
 
-## "Render indisponível" / get_screenshot falha
+## "Render unavailable" / get_screenshot fails
 
-O daemon está rodando em Node puro, sem o Electron que desenha os nós. Rode \`mockup doctor\` para ver o diagnóstico.
-Opções: abra o app desktop; ou \`mockup stop\` e reconecte o cliente MCP (o CLI sobe um daemon com render); ou \`mockup serve --render\`.
-Se o executável do app não for achado, defina \`MOCKUP_DESKTOP_EXE\` com o caminho dele. Sem render, siga com \`get_tree_summary\` e \`get_html\`.
+The daemon is running on plain Node, without the Electron that draws the nodes. Run \`mockup doctor\` for the diagnosis.
+Options: open the desktop app; or \`mockup stop\` and reconnect the MCP client (the CLI starts a daemon with render); or \`mockup serve --render\`.
+If the app executable is not found, set \`MOCKUP_DESKTOP_EXE\` to its path. Without render, carry on with \`get_tree_summary\` and \`get_html\`.
 
-## "Nó não encontrado"
+## "Node not found"
 
-O id não existe (ou foi removido/regerado, ex.: após \`write_html\` com mode "replace"). Use \`get_tree_summary\` para listar ids atuais.
+The id does not exist (or was removed/regenerated, e.g. after \`write_html\` with mode "replace"). Use \`get_tree_summary\` to list the current ids.
 
-## "Nenhum documento aberto"
+## "No document open"
 
-Use \`list_documents\`; se vazio, \`open_document(path)\` ou \`create_document(path, name)\`.
+Use \`list_documents\`; if empty, \`open_document(path)\` or \`create_document(path, name)\`.
 
 ## "MCP tool call requires approval, but approval policy is never" (Codex)
 
-O Codex bloqueia as ferramentas que gravam quando roda sem aprovação interativa (\`codex exec\`). O usuário precisa liberar o servidor no \`~/.codex/config.toml\` (\`[mcp_servers.mockup-studio]\` com \`default_tools_approval_mode = "approve"\`) ou rodar com \`-c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"'\`. Avise o usuário em vez de contornar escrevendo o HTML à mão.
+Codex blocks the tools that write when it runs without interactive approval (\`codex exec\`). The user must allow the server in \`~/.codex/config.toml\` (\`[mcp_servers.mockup-studio]\` with \`default_tools_approval_mode = "approve"\`) or run with \`-c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"'\`. Tell the user instead of working around it by writing the HTML by hand.
 
-## Porta 4747 ocupada
+## Port 4747 in use
 
-Outro processo usa a porta. Libere-a ou escolha outra com a variável \`MOCKUP_PORT\` (ex.: \`MOCKUP_PORT=4848\`) e ajuste a URL do cliente HTTP.
+Another process is using the port. Free it or pick another with the \`MOCKUP_PORT\` variable (e.g. \`MOCKUP_PORT=4848\`) and adjust the HTTP client URL.
 
-## O conteúdo foi parar no lugar errado
+## The content ended up in the wrong place
 
-Sem \`parentId\`, \`write_html\` usa o nó selecionado (\`get_selection\`) ou o primeiro frame. Passe sempre \`parentId\` e confira com \`get_tree_summary\`. Use \`undo\` para desfazer e \`move_nodes\` para reposicionar.
+Without \`parentId\`, \`write_html\` uses the selected node (\`get_selection\`) or the first frame. Always pass \`parentId\` and check with \`get_tree_summary\`. Use \`undo\` to revert and \`move_nodes\` to reposition.
 
-## Texto cortado ou overflow
+## Cut-off text or overflow
 
-Rode \`get_layout(nodeId)\` e compare tamanhos: um filho maior que o pai indica overflow. Ajuste \`width:100%\`, \`flex-wrap:wrap\`, \`min-width:0\` ou aumente a altura do frame.
+Run \`get_layout(nodeId)\` and compare sizes: a child larger than its parent indicates overflow. Adjust \`width:100%\`, \`flex-wrap:wrap\`, \`min-width:0\` or increase the frame height.
 
-## Erros de parâmetro
+## Parameter errors
 
-A mensagem lista o campo com problema (obrigatório ausente, tipo errado, valor fora das opções) e termina com "Exemplo: ferramenta({...})". Corrija o campo e chame de novo.
+The message lists the problem field (required missing, wrong type, value outside the options) and ends with "Example: tool({...})". Fix the field and call again.
 
 ## Logs
 
-O daemon grava em \`<pasta de dados>/daemon.log\` (\`mockup doctor\` mostra o caminho).
+The daemon writes to \`<data folder>/daemon.log\` (\`mockup doctor\` shows the path).
 `,
-  tailwind: `# Tailwind nativo
+  tailwind: `# Native Tailwind
 
-O Mockup Studio entende classes Tailwind v4 (o mesmo compilador do editor): as classes viram CSS real do nó
-(\`style\`, e \`states\` para hover/dark/md), e as classes que você escreveu ficam em \`node.classes\` para o export
-devolver o mesmo código. O CSS base do documento passa a ser o preflight do Tailwind (\`set_css_base\`).
+Mockup Studio understands Tailwind v4 classes (the same compiler as the editor): the classes become real CSS on the node
+(\`style\`, and \`states\` for hover/dark/md), and the classes you wrote are kept in \`node.classes\` so the export
+returns the same code. The document's base CSS becomes the Tailwind preflight (\`set_css_base\`).
 
-## Fluxo recomendado
+## Recommended flow
 
-1. \`write_html(html)\` com \`class="..."\`: o Tailwind é detectado sozinho (\`tailwind: "auto"\`); force com \`tailwind: "on"\` ou \`css: "tailwind"\`, desligue com \`"off"\`. Tokens viram classes (\`--color-brand\` → \`bg-brand\`): defina com \`set_tokens\` antes.
-2. shadcn/ui ou Tailwind UI colados: \`import_component(html)\` cria os tokens do preset shadcn que faltam (\`--color-primary\`, \`--radius\`... e o tema "dark") na mesma chamada (um undo só). \`tokens: "none"\` não cria.
-3. Ajustes: \`set_classes(nodeIds, classes, mode)\` — \`replace\` (padrão), \`add\` ou \`remove\`. \`get_classes(nodeIds)\` mostra o nó como Tailwind; \`suggest_classes(query)\` completa nomes (\`hover:bg-\`, \`bg-pri\`).
-4. Confira: \`get_screenshot(nodeId, state?)\` com \`state\` = hover, focus, focus-visible, focus-within, active, disabled ou dark.
-5. Código: \`get_code(nodeId, 'tailwind')\` / \`'react'\` (as classes do autor são reaproveitadas); \`get_tailwind_config\` mostra o \`@theme\` gerado dos tokens.
+1. \`write_html(html)\` with \`class="..."\`: Tailwind is detected automatically (\`tailwind: "auto"\`); force it with \`tailwind: "on"\` or \`css: "tailwind"\`, turn it off with \`"off"\`. Tokens become classes (\`--color-brand\` → \`bg-brand\`): define them with \`set_tokens\` first.
+2. Pasted shadcn/ui or Tailwind UI: \`import_component(html)\` creates the missing shadcn preset tokens (\`--color-primary\`, \`--radius\`... and the "dark" theme) in the same call (a single undo). \`tokens: "none"\` does not create them.
+3. Adjustments: \`set_classes(nodeIds, classes, mode)\` — \`replace\` (default), \`add\` or \`remove\`. \`get_classes(nodeIds)\` shows the node as Tailwind; \`suggest_classes(query)\` completes names (\`hover:bg-\`, \`bg-pri\`).
+4. Check: \`get_screenshot(nodeId, state?)\` with \`state\` = hover, focus, focus-visible, focus-within, active, disabled or dark.
+5. Code: \`get_code(nodeId, 'tailwind')\` / \`'react'\` (the author's classes are reused); \`get_tailwind_config\` shows the \`@theme\` generated from the tokens.
 
-## Estados e breakpoints
+## States and breakpoints
 
-- \`hover:\`, \`focus:\`, \`focus-visible:\`, \`focus-within:\`, \`active:\`, \`disabled:\`, \`dark:\` e \`sm:\`/\`md:\`/\`lg:\`/\`xl:\`/\`2xl:\` (combináveis: \`md:hover:\`, \`dark:hover:\`) viram \`states\` do nó. Para editar um estado direto: \`update_styles(nodeIds, styles, state: "hover")\`.
-- Breakpoints valem pela LARGURA DO FRAME raiz (mobile first): \`md:\` vale quando o frame tem 768px ou mais (sm 640, lg 1024, xl 1280, 2xl 1536; tokens \`--breakpoint-md\` etc. do documento mudam essas larguras). Um frame de 390px mostra só o base. Para ver o desktop, crie ou duplique um frame de 1280px (um frame por breakpoint; veja \`get_guide('responsive')\`).
-- \`dark:\` vale em frames/nós com tema "dark" (\`data-theme\`) e na prévia \`state: "dark"\`, que também troca os tokens pelo tema "dark" se o documento o tiver.
-- \`get_styles(nodeIds, state?)\` e \`get_node_info\` mostram estilo, classes e states.
+- \`hover:\`, \`focus:\`, \`focus-visible:\`, \`focus-within:\`, \`active:\`, \`disabled:\`, \`dark:\` and \`sm:\`/\`md:\`/\`lg:\`/\`xl:\`/\`2xl:\` (combinable: \`md:hover:\`, \`dark:hover:\`) become the node's \`states\`. To edit a state directly: \`update_styles(nodeIds, styles, state: "hover")\`.
+- Breakpoints apply by the ROOT FRAME'S WIDTH (mobile first): \`md:\` applies when the frame is 768px or wider (sm 640, lg 1024, xl 1280, 2xl 1536; the document's \`--breakpoint-md\` etc. tokens change these widths). A 390px frame shows only the base. To see the desktop, create or duplicate a 1280px frame (one frame per breakpoint; see \`get_guide('responsive')\`).
+- \`dark:\` applies in frames/nodes with the "dark" theme (\`data-theme\`) and in the \`state: "dark"\` preview, which also swaps the tokens for the "dark" theme if the document has one.
+- \`get_styles(nodeIds, state?)\` and \`get_node_info\` show style, classes and states.
 
-## Limitações
+## Limitations
 
-- Variantes sem equivalente ficam só em \`node.classes\` (e no código exportado), sem efeito no render: \`group-*\`, \`peer-*\`, \`aria-*\`, \`data-*\`, \`before:\`/\`after:\`, \`has-*\`, \`[&_svg]:\` e seletores arbitrários. A resposta de write_html/set_classes lista essas classes com o motivo.
-- Classes desconhecidas (\`foo-bar\`) são mantidas, sem efeito.
-- Os valores do tema padrão entram inline (\`p-4\` → \`padding: 1rem\`); os tokens do documento entram como \`var(--...)\`.
+- Variants with no equivalent stay only in \`node.classes\` (and in the exported code), with no effect on the render: \`group-*\`, \`peer-*\`, \`aria-*\`, \`data-*\`, \`before:\`/\`after:\`, \`has-*\`, \`[&_svg]:\` and arbitrary selectors. The write_html/set_classes response lists these classes with the reason.
+- Unknown classes (\`foo-bar\`) are kept, with no effect.
+- Default theme values are inlined (\`p-4\` → \`padding: 1rem\`); the document's tokens come in as \`var(--...)\`.
 `,
-  components: `# Componentes
+  components: `# Components
 
-Componente = **principal** (na biblioteca do documento) + **instâncias** (nós \`◆Nome\` espalhados). Editar o principal muda todas as instâncias; cada instância tem props, slots e overrides próprios.
+Component = **main component** (in the document's library) + **instances** (\`◆Name\` nodes scattered around). Editing the main component changes all instances; each instance has its own props, slots and overrides.
 
-## Usar o kit
+## Using the kit
 
-- \`list_components\` mostra a biblioteca e os kits; \`get_component('shadcn-like/Button')\` mostra props, opções e a árvore.
-- Kit \`shadcn-like\`: Button, Input, Card, Navbar, Tabs, Dialog, Table, List (usa os tokens shadcn; \`import_kit\` cria os que faltam).
-- \`insert_component('shadcn-like/Button', parentId, { variant: 'outline', label: 'Salvar' })\` importa do kit o que falta (sem mexer nos principais já importados) e insere a instância. \`import_kit\` não sobrescreve principais editados (lista os divergentes); \`overwrite: true\` substitui.
-- Slots recebem HTML (Tailwind aceito): \`insert_component('shadcn-like/Card', parentId, { title: 'Plano' }, slots: { content: '<p>…</p>' })\`. A resposta traz os ids dos slots (use como parentId de write_html).
-- Props: \`set_instance_props(nodeIds, { variant: 'ghost' })\`. Props inválidas listam as válidas; enum lista as opções.
+- \`list_components\` shows the library and the kits; \`get_component('shadcn-like/Button')\` shows props, options and the tree.
+- \`shadcn-like\` kit: Button, Input, Card, Navbar, Tabs, Dialog, Table, List (uses the shadcn tokens; \`import_kit\` creates the missing ones).
+- \`insert_component('shadcn-like/Button', parentId, { variant: 'outline', label: 'Save' })\` imports from the kit what is missing (without touching main components already imported) and inserts the instance. \`import_kit\` does not overwrite edited main components (it lists the diverging ones); \`overwrite: true\` replaces them.
+- Slots receive HTML (Tailwind accepted): \`insert_component('shadcn-like/Card', parentId, { title: 'Plan' }, slots: { content: '<p>…</p>' })\`. The response carries the slot ids (use them as parentId of write_html).
+- Props: \`set_instance_props(nodeIds, { variant: 'ghost' })\`. Invalid props list the valid ones; an enum lists the options.
 
-## Criar um componente
+## Creating a component
 
-\`create_component(nodeId, name, props: [{ name: 'label', type: 'string', bind: { nodeId: 'tx_…', target: 'text' } }])\`: o nó vira a primeira instância e o texto vira \`{{label}}\`. \`bind.target\`: \`text\`, \`attr:href\` ou \`style:color\`. Um contêiner com \`data-slot="content"\` vira slot. Props enum/boolean mudam a aparência por variantes (\`update_component\`: \`variants: [{ when: { variant: 'outline' }, overrides: { '': { style: {...} } } }]\`).
+\`create_component(nodeId, name, props: [{ name: 'label', type: 'string', bind: { nodeId: 'tx_…', target: 'text' } }])\`: the node becomes the first instance and the text becomes \`{{label}}\`. \`bind.target\`: \`text\`, \`attr:href\` or \`style:color\`. A container with \`data-slot="content"\` becomes a slot. Enum/boolean props change the appearance through variants (\`update_component\`: \`variants: [{ when: { variant: 'outline' }, overrides: { '': { style: {...} } } }]\`).
 
-## Editar
+## Editing
 
-- O principal (afeta todas): \`update_styles\`/\`set_text\`/\`set_attrs\` nos ids do \`get_component\` (ou \`go_to_main\`), ou \`update_component_html(componentId, html)\` (um elemento raiz; mantenha \`{{prop}}\` e \`data-slot\`).
-- Uma instância: \`set_instance_override(nodeId, path, { style, text, ... })\`, ou \`update_styles\` no id virtual \`in_x/tx_y\` (vira override). \`reset_instance\` descarta, \`push_overrides_to_main\` promove ao principal.
-- Soltar do componente: \`detach_instance(nodeId)\` (devolve o novo id). \`delete_component(id, detach_instances)\`.
-- Estrutura interna (criar/mover/excluir nós) só no principal ou depois de destacar; dentro de slots vale tudo (write_html, create_node).
+- The main component (affects all): \`update_styles\`/\`set_text\`/\`set_attrs\` on the ids from \`get_component\` (or \`go_to_main\`), or \`update_component_html(componentId, html)\` (one root element; keep \`{{prop}}\` and \`data-slot\`).
+- One instance: \`set_instance_override(nodeId, path, { style, text, ... })\`, or \`update_styles\` on the virtual id \`in_x/tx_y\` (becomes an override). \`reset_instance\` discards it, \`push_overrides_to_main\` promotes it to the main component.
+- Detach from the component: \`detach_instance(nodeId)\` (returns the new id). \`delete_component(id, detach_instances)\`.
+- Internal structure (creating/moving/deleting nodes) only on the main component or after detaching; inside slots anything goes (write_html, create_node).
 
-## Ler e conferir
+## Reading and checking
 
-\`get_tree_summary\`, \`get_html\`, \`get_styles\` e \`get_screenshot\` aceitam o id da instância e ids virtuais (\`in_x/...\`) e leem a versão expandida. \`get_screenshot('cp_…')\` renderiza o principal numa instância padrão. \`get_code(nodeId, 'react')\` gera um componente React por principal (props tipadas, instâncias como \`<Button variant="outline" />\`).
+\`get_tree_summary\`, \`get_html\`, \`get_styles\` and \`get_screenshot\` accept the instance id and virtual ids (\`in_x/...\`) and read the expanded version. \`get_screenshot('cp_…')\` renders the main component in a default instance. \`get_code(nodeId, 'react')\` generates one React component per main component (typed props, instances as \`<Button variant="outline" />\`).
 `,
-  setup: `# Instalação e registro do MCP
+  setup: `# Installing and registering the MCP
 
-## Instalar o CLI
+## Install the CLI
 
-- No repositório: \`npm run build\` e \`npm link -w @mockup/cli\`.
-- Ou use o instalador do app, que coloca \`mockup.cmd\` em \`%LOCALAPPDATA%\\MockupStudio\\bin\` no PATH do usuário.
+- In the repository: \`npm run build\` and \`npm link -w @mockup/cli\`.
+- Or use the app installer, which puts \`mockup.cmd\` in \`%LOCALAPPDATA%\\MockupStudio\\bin\` on the user's PATH.
 
-## Verificar e registrar
+## Verify and register
 
-- \`mockup doctor\` — confere instalação, daemon e render.
-- Registro automático: \`mockup setup claude\`, \`mockup setup codex\` ou \`mockup setup all\` (com \`--skill\` instala também a skill do Claude Code). Não recria registro igual e preserva a config do Codex; \`--force\` recria do zero. No Codex, \`--approve\` libera as ferramentas que gravam (necessário no \`codex exec\`) e \`--agents\` instala o trecho no \`~/.codex/AGENTS.md\`.
+- \`mockup doctor\` — checks the installation, daemon and render.
+- Automatic registration: \`mockup setup claude\`, \`mockup setup codex\` or \`mockup setup all\` (with \`--skill\` it also installs the Claude Code skill). It does not recreate an identical registration and preserves the Codex config; \`--force\` recreates from scratch. On Codex, \`--approve\` allows the tools that write (required with \`codex exec\`) and \`--agents\` installs the snippet in \`~/.codex/AGENTS.md\`.
 
 ## Claude Code
 
 - stdio: \`claude mcp add --scope user mockup-studio -- mockup mcp\`
 - HTTP: \`claude mcp add --scope user --transport http mockup-studio http://127.0.0.1:4747/mcp\`
-- Conferir: \`claude mcp list\` ou \`/mcp\`.
+- Check: \`claude mcp list\` or \`/mcp\`.
 
 ## Codex
 
-\`codex mcp add mockup-studio -- mockup mcp\`, ou em \`~/.codex/config.toml\`:
+\`codex mcp add mockup-studio -- mockup mcp\`, or in \`~/.codex/config.toml\`:
 
 \`\`\`toml
 [mcp_servers.mockup-studio]
@@ -585,7 +585,7 @@ command = "mockup"
 args = ["mcp"]
 \`\`\`
 
-## Outros clientes
+## Other clients
 
 Cursor, Claude Desktop:
 
@@ -601,89 +601,89 @@ VS Code (\`.vscode/mcp.json\`):
 
 ## Windows
 
-Se o cliente não achar \`mockup\` (shim \`.cmd\`), use o caminho absoluto impresso por \`mockup doctor\`.
+If the client cannot find \`mockup\` (\`.cmd\` shim), use the absolute path printed by \`mockup doctor\`.
 
-Detalhes em \`docs/INTEGRACAO.md\`.
+Details in \`docs/INTEGRATION.md\`.
 `,
   import: IMPORT_GUIDE,
-  assets: `# Assets, imagens e placeholders
+  assets: `# Assets, images and placeholders
 
-## Onde ficam os arquivos
+## Where files live
 
-- **Assets do documento**: a pasta \`assets/\` ao lado do \`.mockup.json\`. É o que o mockup realmente usa (\`src\` das imagens, fundos, fontes). Documento sem caminho em disco embute imagens como data URL.
-- **Biblioteca / CDN**: arquivos guardados por conteúdo, fora de qualquer documento, reaproveitáveis em vários mockups.
+- **Document assets**: the \`assets/\` folder next to the \`.mockup.json\`. This is what the mockup actually uses (image \`src\`, backgrounds, fonts). A document with no path on disk embeds images as a data URL.
+- **Library / CDN**: files stored by content, outside any document, reusable across several mockups.
 
-## Ferramentas
+## Tools
 
-- \`upload_asset(source, name?, library?)\` — traz um arquivo (caminho absoluto, URL ou data URL) para os assets do documento ou para a biblioteca.
-- \`list_assets(scope?, query?, unused?)\` — lista os arquivos com tamanho, dimensões e quantos nós usam cada um.
-- \`get_asset_url(id)\` — link direto \`/cdn/<hash>.<ext>\`, estável por conteúdo: o mesmo arquivo dá sempre o mesmo link.
-- \`optimize_assets(paths?, maxWidth?, format?, quality?)\` — reduz e converte imagens (webp) e atualiza as referências.
-- \`remove_unused_assets(dryRun?)\` — remove o que nenhum nó usa; rode antes com \`dryRun: true\`.
-- \`insert_image(parentId, source)\` — cria um nó img a partir de uma imagem.
+- \`upload_asset(source, name?, library?)\` — brings a file (absolute path, URL or data URL) into the document assets or the library.
+- \`list_assets(scope?, query?, unused?)\` — lists the files with size, dimensions and how many nodes use each one.
+- \`get_asset_url(id)\` — direct link \`/cdn/<hash>.<ext>\`, stable by content: the same file always gives the same link.
+- \`optimize_assets(paths?, maxWidth?, format?, quality?)\` — shrinks and converts images (webp) and updates the references.
+- \`remove_unused_assets(dryRun?)\` — removes what no node uses; run it first with \`dryRun: true\`.
+- \`insert_image(parentId, source)\` — creates an img node from an image.
 
-## Ajustar uma imagem: \`set_image\`
+## Adjusting an image: \`set_image\`
 
-Uma chamada, um undo:
+One call, one undo:
 
 \`\`\`
 set_image({ nodeId, fit: 'cover', position: 'top-left',
-  filters: { grayscale: 100, blur: 2 },   // null volta ao neutro; drop-shadow existente é preservado
-  crop: { top: 10, bottom: 10 },           // % de cada lado (object-view-box)
-  clipPath: 'circle' })                    // circle, ellipse, rounded, triangle, diamond, pentagon, hexagon, star, arrow ou 'none'
+  filters: { grayscale: 100, blur: 2 },   // null resets to neutral; an existing drop-shadow is preserved
+  crop: { top: 10, bottom: 10 },           // % of each side (object-view-box)
+  clipPath: 'circle' })                    // circle, ellipse, rounded, triangle, diamond, pentagon, hexagon, star, arrow or 'none'
 \`\`\`
 
-Também troca a imagem (\`source\`: caminho, URL, data URL ou um arquivo já em \`assets/\`) e o \`alt\`.
+It also swaps the image (\`source\`: path, URL, data URL or a file already in \`assets/\`) and the \`alt\`.
 
-## Imagens de exemplo: \`generate_placeholder\`
+## Sample images: \`generate_placeholder\`
 
-\`generate_placeholder(nodeId, kind, seed?)\` com kind \`avatar\`, \`product\`, \`landscape\` ou \`logo\`. Em um nó image troca o src; em um contêiner cria uma imagem filha. É offline e determinístico: a mesma seed dá o mesmo arquivo (\`assets/placeholders/\`). Varie a seed (nome da pessoa, id do produto) para listas com imagens diferentes.
+\`generate_placeholder(nodeId, kind, seed?)\` with kind \`avatar\`, \`product\`, \`landscape\` or \`logo\`. On an image node it swaps the src; on a container it creates a child image. It is offline and deterministic: the same seed gives the same file (\`assets/placeholders/\`). Vary the seed (person name, product id) for lists with different images.
 
-## Dicas
+## Tips
 
-- Prefira imagens reais do usuário quando existirem; placeholders são para preencher.
-- Em \`src\`, prefira o caminho relativo de \`assets/\` ao link \`/cdn\`: o link só funciona com o daemon rodando (o \`export\` de código copia os links \`/cdn\` do daemon para \`assets/cdn/\`).
-- Confira o resultado com \`get_screenshot\`.
+- Prefer the user's real images when they exist; placeholders are for filling in.
+- In \`src\`, prefer the relative \`assets/\` path over the \`/cdn\` link: the link only works while the daemon is running (code \`export\` copies the daemon's \`/cdn\` links to \`assets/cdn/\`).
+- Check the result with \`get_screenshot\`.
 `,
-  data: `# Dados reais e repetidores
+  data: `# Real data and repeaters
 
-Um **repetidor** repete o seu conteúdo (o template) uma vez por item de uma lista. Render, screenshot e export (html, tailwind, react, svg) já saem com os dados.
+A **repeater** repeats its content (the template) once per item of a list. Render, screenshot and export (html, tailwind, react, svg) already come out with the data.
 
-## Fluxo
+## Flow
 
-1. Escreva UM item de exemplo com \`write_html\`, dentro de um contêiner, usando \`{{campo}}\`:
-   \`<div class="lista"><article class="card"><img src="{{foto}}" alt="{{nome}}"><h3>{{nome}}</h3><p>{{preco | a combinar}}</p></article></div>\`
-2. \`bind_data(nodeId: <id da div .lista>, ...)\` com UMA origem. O contêiner vira um repetidor (o id muda, os filhos mantêm os ids).
-3. \`get_screenshot\` para conferir; ajuste o template com as ferramentas de sempre e use \`get_data\` para ver colunas e linhas.
+1. Write ONE sample item with \`write_html\`, inside a container, using \`{{field}}\`:
+   \`<div class="list"><article class="card"><img src="{{photo}}" alt="{{name}}"><h3>{{name}}</h3><p>{{price | negotiable}}</p></article></div>\`
+2. \`bind_data(nodeId: <id of the .list div>, ...)\` with ONE source. The container becomes a repeater (the id changes, the children keep their ids).
+3. \`get_screenshot\` to check; adjust the template with the usual tools and use \`get_data\` to see columns and rows.
 
 ## Bindings
 
-\`{{campo}}\`, \`{{a.b}}\` (caminho aninhado, \`{{itens.0.nome}}\`), \`{{campo | padrão}}\` (usa o padrão se faltar) e especiais: \`{{$index}}\` (0, 1, ...), \`{{$number}}\` (1, 2, ...), \`{{$item}}\` (o item inteiro, para lista de textos). Valem em textos, \`src\` e atributos.
+\`{{field}}\`, \`{{a.b}}\` (nested path, \`{{items.0.name}}\`), \`{{field | default}}\` (uses the default if missing) and specials: \`{{$index}}\` (0, 1, ...), \`{{$number}}\` (1, 2, ...), \`{{$item}}\` (the whole item, for a list of strings). They work in text, \`src\` and attributes.
 
-## Origens de \`bind_data\`
+## \`bind_data\` sources
 
-- \`data\`: lista direta (\`[{ "nome": "Ana" }]\`).
-- \`text\` + \`format\` (\`json\` ou \`csv\`): conteúdo colado.
-- \`path\`: arquivo absoluto \`.json\`, \`.csv\` ou \`.tsv\` (até 5 MB; o separador do CSV é detectado: vírgula, ponto e vírgula, tab).
-- \`url\`: http(s) que devolve JSON ou CSV (até 5 MB, 20 s).
-- \`select\`: caminho da lista dentro do JSON (\`data.items\`); sem ele o servidor acha a primeira lista.
-- \`mapping\`: \`{ "nome": "user.fullName" }\` liga o campo do template a outro caminho do item sem reescrever o template.
-- \`limit\`: só os primeiros N itens.
+- \`data\`: a direct list (\`[{ "name": "Ana" }]\`).
+- \`text\` + \`format\` (\`json\` or \`csv\`): pasted content.
+- \`path\`: absolute \`.json\`, \`.csv\` or \`.tsv\` file (up to 5 MB; the CSV separator is detected: comma, semicolon, tab).
+- \`url\`: http(s) that returns JSON or CSV (up to 5 MB, 20 s).
+- \`select\`: path of the list inside the JSON (\`data.items\`); without it the server finds the first list.
+- \`mapping\`: \`{ "name": "user.fullName" }\` binds the template field to another path of the item without rewriting the template.
+- \`limit\`: only the first N items.
 
-A resposta lista as colunas, os campos do template e avisa de campos sem coluna correspondente.
+The response lists the columns and the template fields and warns about fields with no matching column.
 
-## Atualizar e conferir
+## Refreshing and checking
 
-- \`refresh_data(nodeId)\` relê o arquivo ou a URL de origem (dados colados não têm origem para reler).
-- \`get_data(nodeId, limit?)\` mostra origem, colunas, campos do template e as primeiras linhas.
-- Rodar \`bind_data\` de novo no repetidor só troca os dados. Um \`undo\` desfaz a conversão.
+- \`refresh_data(nodeId)\` rereads the source file or URL (pasted data has no source to reread).
+- \`get_data(nodeId, limit?)\` shows the source, columns, template fields and the first rows.
+- Running \`bind_data\` again on the repeater only swaps the data. One \`undo\` reverts the conversion.
 
-## Reescrever um repetidor com HTML
+## Rewriting a repeater with HTML
 
-\`get_html\` devolve só o template do repetidor, marcado com \`data-mockup-repeat="<id>"\` (e \`data-repeat="<itens>"\`, informativo). Mantenha esse atributo no HTML enviado a \`write_html\` (ex.: \`mode: "replace"\`): o elemento volta como repetidor com os dados e a origem do original (id novo). Sem a marca ele vira um contêiner comum e a resposta avisa que os dados foram perdidos (\`undo\` restaura). Para mudar só o card, prefira editar os nós do template.
+\`get_html\` returns only the repeater's template, marked with \`data-mockup-repeat="<id>"\` (and \`data-repeat="<items>"\`, informational). Keep that attribute in the HTML sent to \`write_html\` (e.g. \`mode: "replace"\`): the element comes back as a repeater with the data and source of the original (new id). Without the mark it becomes a plain container and the response warns that the data was lost (\`undo\` restores it). To change only the card, prefer editing the template nodes.
 
-## Limites
+## Limits
 
-Até 1000 itens e 2 MB de dados por repetidor; passou disso, use \`limit\` ou \`select\`. Contêiner sem filhos não vira repetidor (crie o template antes); frame raiz também não (coloque o template numa div dentro dele).
+Up to 1000 items and 2 MB of data per repeater; beyond that, use \`limit\` or \`select\`. A container with no children does not become a repeater (create the template first); a root frame does not either (put the template in a div inside it).
 `,
 };

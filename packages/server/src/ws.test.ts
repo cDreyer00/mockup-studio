@@ -65,14 +65,14 @@ describe('WebSocket', () => {
     sock.close();
   });
 
-  it('doc:saveAs grava no novo caminho e responde com o info', async () => {
+  it('doc:saveAs writes to the new path and responds with the info', async () => {
     const { sock, waitFor } = connect();
     const hello = await waitFor((m) => m.type === 'hello');
     const docId = hello.activeDocId as string;
-    const dest = path.join(ws.dir, 'copia');
+    const dest = path.join(ws.dir, 'copy');
     sock.send(JSON.stringify({ type: 'doc:saveAs', reqId: 's1', docId, path: dest }));
     const ack = await waitFor((m) => m.type === 'ack' && m.reqId === 's1');
-    const target = path.join(ws.dir, 'copia.mockup.json');
+    const target = path.join(ws.dir, 'copy.mockup.json');
     expect((ack.result as { path: string }).path).toBe(target);
     expect((await waitFor((m) => m.type === 'doc:saved')).path).toBe(target);
     expect(fs.existsSync(target)).toBe(true);
@@ -81,14 +81,16 @@ describe('WebSocket', () => {
     sock.close();
   });
 
-  it('JSON inválido e erro com reqId', async () => {
+  it('invalid JSON and error with reqId', async () => {
     const { sock, waitFor } = connect();
     await waitFor((m) => m.type === 'hello');
-    sock.send('não é json');
+    sock.send('not json');
     expect(await waitFor((m) => m.type === 'error' && m.reqId === undefined)).toBeTruthy();
-    sock.send(JSON.stringify({ type: 'doc:open', reqId: 'r2', path: '/nao/existe.mockup.json' }));
+    sock.send(
+      JSON.stringify({ type: 'doc:open', reqId: 'r2', path: '/does/not/exist.mockup.json' }),
+    );
     const err = await waitFor((m) => m.type === 'error' && m.reqId === 'r2');
-    expect(String(err.message)).toContain('arquivo');
+    expect(String(err.message)).toContain('file');
     sock.close();
   });
 
@@ -107,16 +109,16 @@ describe('WebSocket', () => {
       'http://localhost.evil.com',
       'http://127.0.0.1.nip.io',
       'ftp://localhost',
-      'lixo',
+      'garbage',
     ])
       expect(isAllowedOrigin(o), o).toBe(false);
   });
 
-  it('rejeita Origin externo com 403 e aceita localhost', async () => {
+  it('rejects an external Origin with 403 and accepts localhost', async () => {
     const bad = new WebSocket(daemon.wsUrl, { headers: { Origin: 'http://evil.com' } });
     const status = await new Promise<number>((resolve, reject) => {
       bad.on('unexpected-response', (_req, res) => resolve(res.statusCode ?? 0));
-      bad.on('open', () => reject(new Error('não deveria conectar')));
+      bad.on('open', () => reject(new Error('should not connect')));
       bad.on('error', () => undefined);
     });
     expect(status).toBe(403);
@@ -129,7 +131,7 @@ describe('WebSocket', () => {
     good.close();
   });
 
-  it('op:apply inválido vira error e não altera o documento', async () => {
+  it('invalid op:apply becomes an error and does not change the document', async () => {
     const { sock, waitFor } = connect();
     const hello = await waitFor((m) => m.type === 'hello');
     const docId = hello.activeDocId as string;
@@ -143,12 +145,12 @@ describe('WebSocket', () => {
       }),
     );
     const err = await waitFor((m) => m.type === 'error' && m.reqId === 'bad1');
-    expect(String(err.message)).toContain('Operação inválida');
+    expect(String(err.message)).toContain('Invalid operation');
     sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad2', docId, ops: 'x' }));
     expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad2')).toBeTruthy();
     sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad3', ops: [] }));
     expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad3')).toBeTruthy();
-    // `force` em deleteComponent é interno (só o desfazer usa): recusado na entrada pública.
+    // `force` in deleteComponent is internal (only undo uses it): rejected at the public entry point.
     sock.send(
       JSON.stringify({
         type: 'op:apply',
@@ -158,12 +160,12 @@ describe('WebSocket', () => {
       }),
     );
     const forced = await waitFor((m) => m.type === 'error' && m.reqId === 'bad4');
-    expect(String(forced.message)).toContain('"force" em deleteComponent é interno');
+    expect(String(forced.message)).toContain('"force" in deleteComponent is internal');
     expect(daemon.store.getRevision(docId)).toBe(rev);
     sock.close();
   });
 
-  it('hello e eventos trazem history; doc:new e doc:close', async () => {
+  it('hello and events carry history; doc:new and doc:close', async () => {
     const { sock, waitFor } = connect();
     const hello = await waitFor((m) => m.type === 'hello');
     const docId = hello.activeDocId as string;
@@ -180,8 +182,8 @@ describe('WebSocket', () => {
     const changed = await waitFor((m) => m.type === 'doc:changed');
     expect(changed.history).toEqual({ canUndo: true, canRedo: false });
 
-    const file = path.join(ws.dir, 'criado.mockup.json');
-    sock.send(JSON.stringify({ type: 'doc:new', reqId: 'n1', path: file, name: 'Criado' }));
+    const file = path.join(ws.dir, 'created.mockup.json');
+    sock.send(JSON.stringify({ type: 'doc:new', reqId: 'n1', path: file, name: 'Created' }));
     const ack = await waitFor((m) => m.type === 'ack' && m.reqId === 'n1');
     const info = ack.result as { docId: string; path: string; doc?: unknown };
     expect(info.path).toBe(file);

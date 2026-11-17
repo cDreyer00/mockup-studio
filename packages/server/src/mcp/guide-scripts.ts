@@ -1,65 +1,65 @@
-/** Guia `get_guide('scripts')`: API de scripts do documento (run_script, painel de scripts). */
-export const SCRIPTS_GUIDE = `# Scripts: automatizar edições em lote
+/** Guide `get_guide('scripts')`: the document scripting API (run_script, scripts panel). */
+export const SCRIPTS_GUIDE = `# Scripts: automating batch edits
 
-\`run_script\` executa JavaScript numa sandbox com acesso SÓ à API do documento (\`doc\`). Use para edições repetitivas ou em lote (renomear 10 nós, trocar a cor de todos os botões, ajustar espaçamentos) em vez de dezenas de chamadas de ferramentas. Tudo o que o script muda entra num único undo.
+\`run_script\` runs JavaScript in a sandbox with access ONLY to the document API (\`doc\`). Use it for repetitive or batch edits (rename 10 nodes, change the color of all buttons, adjust spacings) instead of dozens of tool calls. Everything the script changes goes into a single undo.
 
 \`\`\`
 run_script({ code: "doc.select('button').forEach(b => b.style.background = '#2563eb'); return doc.select('button').length;" })
 \`\`\`
 
-O código roda como o corpo de uma \`async function\` em strict mode: \`await\` e \`return\` funcionam; o valor devolvido (JSON) volta no resultado. Também há \`run_script({ name: "meu-script" })\` para um script salvo em \`scripts/\` ao lado do documento (veja \`list_scripts\`).
+The code runs as the body of an \`async function\` in strict mode: \`await\` and \`return\` work; the returned value (JSON) comes back in the result. There is also \`run_script({ name: "my-script" })\` for a script saved in \`scripts/\` next to the document (see \`list_scripts\`).
 
 ## API
 
 \`\`\`
 doc.id, doc.name
 doc.pages()                 -> [{ id, name, frameIds }]
-doc.frames(pageId?)         -> nós dos frames raiz
-doc.get(id)                 -> nó ou null
-doc.select(consulta)        -> nós (ordem do documento)
-doc.selectOne(consulta)     -> primeiro nó ou null
-doc.selection()             -> nós selecionados no editor
-doc.apply(op | op[])        -> resultados (aplica já; op inválida lança Error)
-doc.create(pai | null, { tag, name, text, style, attrs, children })  -> nó criado (pai null = novo frame)
+doc.frames(pageId?)         -> root frame nodes
+doc.get(id)                 -> node or null
+doc.select(query)           -> nodes (document order)
+doc.selectOne(query)        -> first node or null
+doc.selection()             -> nodes selected in the editor
+doc.apply(op | op[])        -> results (applies immediately; an invalid op throws Error)
+doc.create(parent | null, { tag, name, text, style, attrs, children })  -> created node (parent null = new frame)
 doc.screenshot(nodeId?, { scale?: 1|2|3, format?: 'png'|'jpg' })     -> { nodeId, width, height, mime }
-doc.tokens()                -> { "--nome": "valor" }
-doc.setTokens({ "--nome": "valor" })   -> tokens atuais (null remove um token)
-console.log / info / warn / error      -> linhas de log devolvidas ao final
+doc.tokens()                -> { "--name": "value" }
+doc.setTokens({ "--name": "value" })   -> current tokens (null removes a token)
+console.log / info / warn / error      -> log lines returned at the end
 \`\`\`
 
-### Consultas (select, selectOne, node.select)
+### Queries (select, selectOne, node.select)
 
-- **string** (mini-seletor CSS): \`*\`, tipos (\`frame\`, \`element\`, \`text\`, \`image\`, \`svg\`, \`instance\`), tags (\`button\`, \`h1\`), \`#id\`, \`.classe\`, atributos \`[name="x"]\`, \`[name^=x]\`, \`[name*=x]\`, \`[name$=x]\`, \`[text*=x]\`, \`[tag=x]\`, \`[style.color]\`, \`[style.color="red"]\`, \`[attrs.href^=http]\`, combinadores descendente (espaço) e filho (\`>\`), lista com vírgula. Ex.: \`"section.hero > button, h1"\`.
-- **função** \`(node) => boolean\`: recebe o snapshot JSON do nó ({ id, type, tag, name, text, attrs, style, classes, position, parentId, childIds, frameId, hidden, locked }).
-- **objeto** \`{ type?, tag?, name?, text?, within? }\`: \`name\` e \`text\` aceitam string (igualdade exata) ou RegExp; \`within\` é o id de um nó (só descendentes).
+- **string** (mini CSS selector): \`*\`, types (\`frame\`, \`element\`, \`text\`, \`image\`, \`svg\`, \`instance\`), tags (\`button\`, \`h1\`), \`#id\`, \`.class\`, attributes \`[name="x"]\`, \`[name^=x]\`, \`[name*=x]\`, \`[name$=x]\`, \`[text*=x]\`, \`[tag=x]\`, \`[style.color]\`, \`[style.color="red"]\`, \`[attrs.href^=http]\`, descendant (space) and child (\`>\`) combinators, comma-separated list. E.g.: \`"section.hero > button, h1"\`.
+- **function** \`(node) => boolean\`: receives the node's JSON snapshot ({ id, type, tag, name, text, attrs, style, classes, position, parentId, childIds, frameId, hidden, locked }).
+- **object** \`{ type?, tag?, name?, text?, within? }\`: \`name\` and \`text\` accept a string (exact match) or RegExp; \`within\` is a node id (descendants only).
 
-Instâncias de componente NÃO são expandidas: uma instância é um nó \`instance\`; para mudar o texto de dentro dela use \`set_instance_override\` ou edite o principal (get_guide('components')).
+Component instances are NOT expanded: an instance is an \`instance\` node; to change the text inside one use \`set_instance_override\` or edit the main component (get_guide('components')).
 
-### Nó (NodeHandle)
+### Node (NodeHandle)
 
-Cada leitura busca o estado atual; cada escrita aplica uma op.
+Each read fetches the current state; each write applies an op.
 
 \`\`\`
-node.id, node.type, node.tag, node.classes (leitura)
-node.name = "Novo"                     // renameNodes
-node.text = "Olá"                      // setText
-node.style.color = "red"               // updateStyles; ler: node.style.color; apagar: delete node.style.color
-node.style.backgroundColor = "#fff"    // camelCase ou kebab-case (node.style['background-color'])
-node.setStyle({ padding: "8px", margin: null })   // vários de uma vez (null ou "" remove)
-node.attrs.href = "/contato"           // setAttrs; delete node.attrs.title remove
-node.position                          // { x, y } (atribuível)
-node.parent, node.children, node.frame // nós (parent é null num frame raiz)
-node.select(consulta)                  // só descendentes
+node.id, node.type, node.tag, node.classes (read-only)
+node.name = "New"                      // renameNodes
+node.text = "Hello"                    // setText
+node.style.color = "red"               // updateStyles; read: node.style.color; delete: delete node.style.color
+node.style.backgroundColor = "#fff"    // camelCase or kebab-case (node.style['background-color'])
+node.setStyle({ padding: "8px", margin: null })   // several at once (null or "" removes)
+node.attrs.href = "/contact"           // setAttrs; delete node.attrs.title removes
+node.position                          // { x, y } (assignable)
+node.parent, node.children, node.frame // nodes (parent is null on a root frame)
+node.select(query)                     // descendants only
 node.remove()                          // deleteNodes
-node.duplicate()                       // devolve o clone
-node.toJSON()                          // snapshot (JSON.stringify(node) usa)
+node.duplicate()                       // returns the clone
+node.toJSON()                          // snapshot (used by JSON.stringify(node))
 \`\`\`
 
-Compare nós pelo \`id\` (\`a.id === b.id\`). Depois de \`remove()\`, ler o nó lança "não existe mais".
+Compare nodes by \`id\` (\`a.id === b.id\`). After \`remove()\`, reading the node throws "no longer exists".
 
 ### Ops (doc.apply)
 
-Aceita qualquer op do editor, por exemplo:
+Accepts any editor op, for example:
 
 \`\`\`
 { type: "updateStyles", nodeIds: [id], styles: { gap: "16px" }, unset: ["margin"] }
@@ -69,29 +69,29 @@ Aceita qualquer op do editor, por exemplo:
 { type: "setNodeFlags", changes: [{ nodeId, hidden: true }] }
 \`\`\`
 
-Um array é aplicado de forma atômica (tudo ou nada); op inválida lança Error com o motivo.
+An array is applied atomically (all or nothing); an invalid op throws Error with the reason.
 
-## Exemplos
+## Examples
 
-Renomear os 10 primeiros itens de uma lista:
-
-\`\`\`js
-const itens = doc.select("section.lista > div").slice(0, 10);
-itens.forEach((n, i) => { n.name = "Item " + (i + 1); });
-return itens.length;
-\`\`\`
-
-Trocar a cor de todos os botões (e avisar se não achou nenhum):
+Rename the first 10 items of a list:
 
 \`\`\`js
-const botoes = doc.select("button");
-if (!botoes.length) throw new Error("Nenhum botão encontrado");
-for (const b of botoes) { b.style.background = "var(--color-primary)"; b.style.color = "#fff"; }
-console.log(botoes.length + " botões atualizados");
-return botoes.map((b) => b.id);
+const items = doc.select("section.list > div").slice(0, 10);
+items.forEach((n, i) => { n.name = "Item " + (i + 1); });
+return items.length;
 \`\`\`
 
-Screenshot do frame (a imagem volta no resultado do run_script):
+Change the color of all buttons (and complain if none was found):
+
+\`\`\`js
+const buttons = doc.select("button");
+if (!buttons.length) throw new Error("No button found");
+for (const b of buttons) { b.style.background = "var(--color-primary)"; b.style.color = "#fff"; }
+console.log(buttons.length + " buttons updated");
+return buttons.map((b) => b.id);
+\`\`\`
+
+Screenshot of the frame (the image comes back in the run_script result):
 
 \`\`\`js
 const frame = doc.frames()[0];
@@ -99,12 +99,12 @@ const info = doc.screenshot(frame, { scale: 1 });
 return info;
 \`\`\`
 
-## Limites e comportamento
+## Limits and behavior
 
-- Sem \`require\`, \`import\`, \`process\`, \`fetch\`, \`setTimeout\`, \`eval\`/\`Function\`: só a API acima e o JavaScript padrão. A palavra "import" é recusada em qualquer lugar do código.
-- Timeout de 10 s (\`timeoutMs\` até 60000): o script é interrompido, mesmo em laços infinitos. Memória limitada (128 MB): estourar vira erro, nunca derruba o servidor.
-- Logs: até 500 linhas; resultado (\`return\`) até 1 MB em JSON; até 8 screenshots por execução (precisam do app desktop/render).
-- Todas as ops da execução formam UM grupo de undo (um \`undo\` desfaz o script inteiro; dentro de um turno do assistente, entra no undo do turno).
-- Se o script falhar no meio, as ops já feitas continuam aplicadas (e no mesmo undo); o resultado diz quantas. Confira com get_tree_summary / get_screenshot.
-- \`list_scripts\` lista a biblioteca (\`scripts/*.js\` ao lado do .mockup.json).
+- No \`require\`, \`import\`, \`process\`, \`fetch\`, \`setTimeout\`, \`eval\`/\`Function\`: only the API above and standard JavaScript. The word "import" is rejected anywhere in the code.
+- 10 s timeout (\`timeoutMs\` up to 60000): the script is interrupted, even in infinite loops. Memory is limited (128 MB): exceeding it becomes an error, never crashes the server.
+- Logs: up to 500 lines; result (\`return\`) up to 1 MB as JSON; up to 8 screenshots per run (they need the desktop app/render).
+- All ops of the run form ONE undo group (a single \`undo\` reverts the whole script; inside an assistant turn, it joins the turn's undo).
+- If the script fails midway, the ops already done stay applied (and in the same undo); the result says how many. Check with get_tree_summary / get_screenshot.
+- \`list_scripts\` lists the library (\`scripts/*.js\` next to the .mockup.json).
 `;

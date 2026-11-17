@@ -1,10 +1,10 @@
 /**
- * Serviço do assistente de IA: um chat por documento que conversa com o canvas por uma CLI de agente
- * (Claude Code ou Codex), usando o MCP do próprio daemon.
+ * AI assistant service: one chat per document that talks to the canvas through an agent CLI
+ * (Claude Code or Codex), using the daemon's own MCP.
  *
- * Cada turno é um subprocesso novo, ligado ao daemon por uma URL `/mcp?turn=<token>`. O token vale só
- * enquanto o turno roda e dá às escritas do agente um grupo de undo único (`assistant:<turnId>`).
- * Contrato público em `services.ts`; backends em `backend.ts` e `cli.ts`.
+ * Each turn is a new subprocess, linked to the daemon through a `/mcp?turn=<token>` URL. The token is
+ * only valid while the turn runs and gives the agent's writes a single undo group (`assistant:<turnId>`).
+ * Public contract in `services.ts`; backends in `backend.ts` and `cli.ts`.
  */
 import { randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -35,31 +35,31 @@ import {
 } from './cli.js';
 
 export interface AssistantServiceOptions {
-  /** Pasta de dados do daemon (onde fica `assistant.json`); sem ela a config fica só em memória. */
+  /** Daemon data folder (where `assistant.json` lives); without it the config stays in memory only. */
   dataDir?: string;
   getPort: () => number;
   host?: string;
   render?: RenderProvider;
-  /** Backends no lugar dos detectados (testes). */
+  /** Backends used instead of the detected ones (tests). */
   backends?: AgentBackend[];
 }
 
-/** Mensagens do histórico guardadas por documento. */
+/** History messages kept per document. */
 export const MAX_HISTORY_MESSAGES = 200;
-/** Limite do resumo da árvore enviado como contexto. */
+/** Limit of the tree summary sent as context. */
 export const MAX_CONTEXT_CHARS = 6000;
 const SCREENSHOT_TIMEOUT_MS = 20_000;
 const HISTORY_FILE_VERSION = 1;
 const MODEL_RE = /^[\w.:/[\]-]+$/;
-/** Gerações de texto simultâneas sem `docId` (com `docId` vale 1 por documento). */
+/** Concurrent text generations without `docId` (with `docId` the limit is 1 per document). */
 const MAX_TEXT_WITHOUT_DOC = 4;
 
 const log = (...args: unknown[]): void => console.error('[mockup-assistant]', ...args);
 
 /**
- * Arquivo lateral do histórico, ao lado do documento: `a.mockup.json` → `a.assistant.json`; qualquer
- * outro nome só ganha o sufixo (`a.json` → `a.json.assistant.json`), para que dois documentos
- * diferentes na mesma pasta nunca dividam o mesmo arquivo.
+ * History sidecar file, next to the document: `a.mockup.json` → `a.assistant.json`; any
+ * other name just gets the suffix (`a.json` → `a.json.assistant.json`), so two different
+ * documents in the same folder never share the same file.
  */
 export function assistantSidecarPath(docPath: string): string {
   const dir = path.dirname(docPath);
@@ -68,7 +68,7 @@ export function assistantSidecarPath(docPath: string): string {
   return path.join(dir, `${base}.assistant.json`);
 }
 
-/** Id de sessão aceito pelo serviço; o resto é descartado (ver `isValidSessionId`). */
+/** Session ids accepted by the service; the rest is discarded (see `isValidSessionId`). */
 function cleanSessions(raw: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
@@ -83,14 +83,14 @@ let tmpCounter = 0;
 interface SidecarFile {
   version: number;
   messages: AssistantMessage[];
-  /** sessionId do backend por id de backend (continuação da conversa com `--resume`). */
+  /** Backend sessionId per backend id (conversation continuation with `--resume`). */
   sessions: Record<string, string>;
 }
 
 interface DocChat {
   messages: AssistantMessage[];
   sessions: Record<string, string>;
-  /** Arquivo lateral já carregado (ou tentado). */
+  /** Sidecar file already loaded (or attempted). */
   loadedFrom: string | null;
 }
 
@@ -99,7 +99,7 @@ interface Turn {
   docId: string;
   token: string;
   group: string;
-  /** O serviço é dono do grupo (fecha no fim); falso se o chamador passou `opts.group`. */
+  /** The service owns the group (closes it at the end); false if the caller passed `opts.group`. */
   ownGroup: boolean;
   controller: AbortController;
   backend?: AgentBackend;
@@ -107,45 +107,45 @@ interface Turn {
   text: string;
   tools: AssistantToolCall[];
   sessionId?: string;
-  /** Mensagem final do assistente (resolve sempre; erros viram `status: 'error'`). */
+  /** Final assistant message (always resolves; errors become `status: 'error'`). */
   result: Promise<AssistantMessage>;
-  /** Registro do token ativo (só depois do backend resolvido). */
+  /** Active token registration (only after the backend is resolved). */
   active: boolean;
 }
 
 const NO_BACKEND =
-  'Nenhum agente de IA disponível. Instale e faça login no Claude Code (`claude`) ou no Codex (`codex`) e tente de novo.';
+  'No AI agent available. Install and sign in to Claude Code (`claude`) or Codex (`codex`) and try again.';
 
 const SYSTEM_TEXT_ONLY =
-  'Responda apenas com o texto pedido, em português do Brasil, sem usar ferramentas e sem explicações extras.';
+  "Reply only with the requested text, in the user's language, without using tools and without extra explanations.";
 
 function systemPrompt(docId: string, selection: string[], extra?: string): string {
   const lines = [
-    'Você é o assistente de design embutido no Mockup Studio, um editor visual de mockups em HTML/CSS. O usuário conversa com você num painel do editor e você edita o documento dele pelas ferramentas MCP do servidor "mockup-studio".',
+    'You are the design assistant built into Mockup Studio, a visual HTML/CSS mockup editor. The user talks to you in an editor panel and you edit their document through the MCP tools of the "mockup-studio" server.',
     '',
-    'Regras:',
-    '- Use SOMENTE as ferramentas MCP do mockup-studio. Não use shell, arquivos nem web.',
-    `- O documento do turno é ${docId}: passe sempre docId="${docId}" nas ferramentas.`,
+    'Rules:',
+    '- Use ONLY the mockup-studio MCP tools. Do not use shell, files or the web.',
+    `- The turn's document is ${docId}: always pass docId="${docId}" to the tools.`,
     selection.length
-      ? `- Trabalhe sobre a seleção do usuário (${selection.join(', ')}); só mexa fora dela se o pedido exigir.`
-      : '- Não há seleção: o pedido vale para o documento; confira os frames antes de editar.',
-    '- Em dúvida sobre ferramentas, estilos ou layout, leia get_guide (ex.: get_guide("getting-started")).',
-    '- Depois de editar, confira o resultado com get_screenshot (quando houver render) e corrija com as ferramentas de edição.',
-    '- Não chame undo nem redo: todas as suas alterações neste turno formam um único passo de desfazer, que o usuário aciona no editor.',
-    '- Quando terminar, chame finish_working.',
-    '- Responda em português do Brasil, curto: diga em 1 a 3 frases o que fez (sem repetir o código).',
+      ? `- Work on the user's selection (${selection.join(', ')}); only touch anything outside it if the request requires it.`
+      : '- There is no selection: the request applies to the document; check the frames before editing.',
+    '- If in doubt about tools, styles or layout, read get_guide (e.g. get_guide("getting-started")).',
+    '- After editing, check the result with get_screenshot (when there is a render) and fix it with the editing tools.',
+    '- Do not call undo or redo: all your changes in this turn form a single undo step, which the user triggers in the editor.',
+    '- When you are done, call finish_working.',
+    "- Reply and write design content in the user's language; keep the reply short: say in 1 to 3 sentences what you did (without repeating the code).",
   ];
   if (extra?.trim()) lines.push('', extra.trim());
   return lines.join('\n');
 }
 
 function clip(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 20) + '\n...(truncado)' : text;
+  return text.length > max ? text.slice(0, max - 20) + '\n...(truncated)' : text;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${what}: tempo esgotado`)), ms);
+    const t = setTimeout(() => reject(new Error(`${what}: timed out`)), ms);
     p.then(
       (v) => {
         clearTimeout(t);
@@ -161,7 +161,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
 
 function requireDocId(docId: unknown, type: string): string {
   if (typeof docId !== 'string' || !docId)
-    throw new Error(`${type} exige "docId" (string não vazia).`);
+    throw new Error(`${type} requires "docId" (non-empty string).`);
   return docId;
 }
 
@@ -172,10 +172,10 @@ export class AssistantService implements AssistantServiceApi {
   private readonly turnsByDoc = new Map<string, Turn>();
   private readonly byToken = new Map<string, Turn>();
   private readonly listeners = new Set<(docId: string, event: AssistantEvent) => void>();
-  /** Gerações de texto em andamento por documento (no máximo uma) e as sem documento. */
+  /** Text generations in progress per document (at most one) and those without a document. */
   private readonly textsByDoc = new Map<string, AbortController>();
   private readonly textsNoDoc = new Set<AbortController>();
-  /** Gravações do histórico em curso, por arquivo (para serializar). */
+  /** History writes in progress, per file (to serialize them). */
   private readonly writes = new Map<string, Promise<void>>();
   private closed = false;
 
@@ -187,7 +187,7 @@ export class AssistantService implements AssistantServiceApi {
     this.loadConfig();
   }
 
-  /* ---------- configuração ---------- */
+  /* ---------- configuration ---------- */
 
   private get configFile(): string | undefined {
     return this.opts.dataDir ? path.join(this.opts.dataDir, 'assistant.json') : undefined;
@@ -208,8 +208,8 @@ export class AssistantService implements AssistantServiceApi {
             if (typeof v === 'string' && MODEL_RE.test(v)) models[k] = v;
           }
         }
-        // Arquivo antigo (`model` único): vale para o backend configurado; em `auto`, para o claude
-        // (o primeiro que o `auto` escolhe).
+        // Old file (single `model`): applies to the configured backend; in `auto`, to claude
+        // (the first one `auto` picks).
         const legacy = r['model'];
         if (typeof legacy === 'string' && MODEL_RE.test(legacy) && rawModels === undefined) {
           models[this.config.backend === 'auto' ? 'claude' : this.config.backend] = legacy;
@@ -217,7 +217,7 @@ export class AssistantService implements AssistantServiceApi {
         if (Object.keys(models).length) this.config.models = models;
       }
     } catch {
-      /* sem arquivo ou inválido: padrão */
+      /* no file or invalid: default */
     }
   }
 
@@ -228,11 +228,11 @@ export class AssistantService implements AssistantServiceApi {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(this.config, null, 2) + '\n', 'utf8');
     } catch (e) {
-      log('não foi possível gravar a configuração:', e instanceof Error ? e.message : e);
+      log('could not write the configuration:', e instanceof Error ? e.message : e);
     }
   }
 
-  /** `model` é o modelo do backend configurado (atalho de leitura); o dado real fica em `models`. */
+  /** `model` is the configured backend's model (read shortcut); the real data lives in `models`. */
   getConfig(): AssistantConfig {
     const { backend, models } = this.config;
     const model = backend === 'auto' ? undefined : models?.[backend];
@@ -243,7 +243,7 @@ export class AssistantService implements AssistantServiceApi {
     };
   }
 
-  /** Modelo do backend (cada um tem o seu: um id de modelo do Claude não serve ao Codex). */
+  /** Backend model (each has its own: a Claude model id does not work for Codex). */
   private modelFor(backendId: string): string | undefined {
     return this.config.models?.[backendId];
   }
@@ -252,10 +252,10 @@ export class AssistantService implements AssistantServiceApi {
     const next: AssistantConfig = { ...this.config };
     if (patch.backend !== undefined) {
       if (typeof patch.backend !== 'string' || !patch.backend)
-        throw new Error('backend deve ser "auto" ou o id de um backend.');
+        throw new Error('backend must be "auto" or a backend id.');
       if (patch.backend !== 'auto' && !this.list.some((b) => b.id === patch.backend)) {
         throw new Error(
-          `Backend desconhecido: ${patch.backend}. Use "auto" ou ${this.list.map((b) => b.id).join(', ')}.`,
+          `Unknown backend: ${patch.backend}. Use "auto" or ${this.list.map((b) => b.id).join(', ')}.`,
         );
       }
       next.backend = patch.backend;
@@ -263,29 +263,29 @@ export class AssistantService implements AssistantServiceApi {
     const models: Record<string, string> = { ...next.models };
     const setModel = (id: string, value: unknown): void => {
       const m = typeof value === 'string' ? value.trim() : '';
-      if (m && !MODEL_RE.test(m)) throw new Error(`Nome de modelo inválido: ${m}`);
+      if (m && !MODEL_RE.test(m)) throw new Error(`Invalid model name: ${m}`);
       if (m) models[id] = m;
       else delete models[id];
     };
     if (patch.models !== undefined) {
       if (!patch.models || typeof patch.models !== 'object' || Array.isArray(patch.models))
-        throw new Error('models deve ser um objeto { <backend>: <modelo> }.');
+        throw new Error('models must be an object { <backend>: <model> }.');
       for (const [id, value] of Object.entries(patch.models)) {
         if (!this.list.some((b) => b.id === id)) {
           throw new Error(
-            `Backend desconhecido em models: ${id}. Use ${this.list.map((b) => b.id).join(', ')}.`,
+            `Unknown backend in models: ${id}. Use ${this.list.map((b) => b.id).join(', ')}.`,
           );
         }
         setModel(id, value);
       }
     }
     if (patch.model !== undefined) {
-      // Atalho: o modelo do backend configurado (já com o `backend` deste mesmo patch).
+      // Shortcut: the configured backend's model (already with the `backend` from this same patch).
       const typed = typeof patch.model === 'string' ? patch.model.trim() : '';
       if (next.backend === 'auto') {
         if (typed) {
           throw new Error(
-            'Com backend "auto" use models: { <backend>: <modelo> } ou escolha um backend.',
+            'With backend "auto" use models: { <backend>: <model> } or pick a backend.',
           );
         }
       } else {
@@ -314,25 +314,25 @@ export class AssistantService implements AssistantServiceApi {
         if (info.available) return b;
         infos.push(info);
       }
-      const why = infos.map((i) => `${i.name}: ${i.detail ?? 'indisponível'}`).join('\n');
+      const why = infos.map((i) => `${i.name}: ${i.detail ?? 'unavailable'}`).join('\n');
       throw new Error(why ? `${NO_BACKEND}\n${why}` : NO_BACKEND);
     }
     const b = this.list.find((x) => x.id === want);
     if (!b) {
       throw new Error(
-        `Backend desconhecido: ${want}. Disponíveis: ${this.list.map((x) => x.id).join(', ') || '(nenhum)'}.`,
+        `Unknown backend: ${want}. Available: ${this.list.map((x) => x.id).join(', ') || '(none)'}.`,
       );
     }
     const info = await b.info();
     if (!info.available) {
       throw new Error(
-        `${info.name} indisponível${info.detail ? `: ${info.detail}` : '.'}\n${NO_BACKEND}`,
+        `${info.name} unavailable${info.detail ? `: ${info.detail}` : '.'}\n${NO_BACKEND}`,
       );
     }
     return b;
   }
 
-  /* ---------- eventos ---------- */
+  /* ---------- events ---------- */
 
   onEvent(fn: (docId: string, event: AssistantEvent) => void): () => void {
     this.listeners.add(fn);
@@ -344,19 +344,19 @@ export class AssistantService implements AssistantServiceApi {
       try {
         fn(docId, event);
       } catch (e) {
-        log('erro num ouvinte de evento:', e instanceof Error ? e.message : e);
+        log('error in an event listener:', e instanceof Error ? e.message : e);
       }
     }
   }
 
-  /* ---------- histórico ---------- */
+  /* ---------- history ---------- */
 
   private sidecar(docId: string): string | null {
     try {
       const p = this.store.getInfo(docId).path;
       if (!p) return null;
       const side = assistantSidecarPath(p);
-      // Um documento aberto com esse nome (ex.: `a.assistant.json`) nunca vira arquivo de histórico.
+      // A document open under that name (e.g. `a.assistant.json`) never becomes a history file.
       const norm = (x: string): string => path.resolve(x).toLowerCase();
       const clash = this.store.list().some((d) => d.path && norm(d.path) === norm(side));
       return clash ? null : side;
@@ -378,17 +378,17 @@ export class AssistantService implements AssistantServiceApi {
         try {
           const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<SidecarFile>;
           if (Array.isArray(raw.messages)) c.messages = raw.messages.slice(-MAX_HISTORY_MESSAGES);
-          // O id vira argumento da CLI (`--resume`): ids fora do formato esperado são descartados.
+          // The id becomes a CLI argument (`--resume`): ids outside the expected format are discarded.
           c.sessions = cleanSessions(raw.sessions);
         } catch {
-          /* sem arquivo lateral ou ilegível: histórico vazio */
+          /* no sidecar file or unreadable: empty history */
         }
       }
     }
     return c;
   }
 
-  /** Grava o histórico do documento; gravações do mesmo arquivo rodam uma de cada vez, em ordem. */
+  /** Writes the document history; writes to the same file run one at a time, in order. */
   private persist(docId: string): Promise<void> {
     const file = this.sidecar(docId);
     if (!file) return Promise.resolve();
@@ -404,7 +404,7 @@ export class AssistantService implements AssistantServiceApi {
   private async writeSidecar(docId: string, file: string): Promise<void> {
     const c = this.chats.get(docId);
     if (!c) return;
-    // Nome único por gravação: nada de dois escritores no mesmo temporário.
+    // Unique name per write: never two writers on the same temp file.
     const tmp = `${file}.${process.pid}.${++tmpCounter}.${randomBytes(4).toString('hex')}.tmp`;
     try {
       if (c.messages.length === 0 && Object.keys(c.sessions).length === 0) {
@@ -420,7 +420,7 @@ export class AssistantService implements AssistantServiceApi {
       await fs.promises.rename(tmp, file);
     } catch (e) {
       await fs.promises.rm(tmp, { force: true }).catch(() => undefined);
-      log('não foi possível gravar o histórico do assistente:', e instanceof Error ? e.message : e);
+      log('could not write the assistant history:', e instanceof Error ? e.message : e);
     }
   }
 
@@ -430,7 +430,7 @@ export class AssistantService implements AssistantServiceApi {
     const out = [...c.messages];
     const t = this.turnsByDoc.get(docId);
     if (t) {
-      // Turno em andamento: mensagem do usuário e o que o assistente já produziu.
+      // Turn in progress: the user message and what the assistant has produced so far.
       out.push(t.user, {
         id: `${t.id}-running`,
         role: 'assistant',
@@ -449,7 +449,7 @@ export class AssistantService implements AssistantServiceApi {
     this.store.getInfo(docId);
     if (this.turnsByDoc.has(docId)) {
       throw new Error(
-        'Há um turno em andamento neste documento. Cancele-o antes de limpar a conversa.',
+        'A turn is in progress in this document. Cancel it before clearing the conversation.',
       );
     }
     const c = this.chatOf(docId);
@@ -459,14 +459,14 @@ export class AssistantService implements AssistantServiceApi {
     this.emit(docId, { kind: 'cleared' });
   }
 
-  /* ---------- turnos ---------- */
+  /* ---------- turns ---------- */
 
   resolveTurn(token: string): TurnBinding | null {
     const t = this.byToken.get(token);
     return t ? { turnId: t.id, docId: t.docId, group: t.group } : null;
   }
 
-  /** Cancela o turno e a geração de texto em andamento do documento. */
+  /** Cancels the document's turn and any text generation in progress. */
   cancel(docId: string): boolean {
     const t = this.turnsByDoc.get(docId);
     const g = this.textsByDoc.get(docId);
@@ -494,13 +494,13 @@ export class AssistantService implements AssistantServiceApi {
   }
 
   private async start(docId: string, prompt: string, opts: RunTurnOptions): Promise<Turn> {
-    if (this.closed) throw new Error('O assistente foi encerrado.');
+    if (this.closed) throw new Error('The assistant was shut down.');
     if (typeof prompt !== 'string' || !prompt.trim())
-      throw new Error('Escreva um pedido para o assistente.');
-    this.store.getInfo(docId); // 404 se o documento não existe
+      throw new Error('Write a request for the assistant.');
+    this.store.getInfo(docId); // 404 if the document does not exist
     if (this.turnsByDoc.has(docId)) {
       throw new Error(
-        'Já existe um turno do assistente em andamento neste documento. Aguarde o fim ou cancele.',
+        'An assistant turn is already in progress in this document. Wait for it to finish or cancel it.',
       );
     }
     const id = `turn_${randomUUID().slice(0, 8)}`;
@@ -530,14 +530,14 @@ export class AssistantService implements AssistantServiceApi {
       result,
       active: false,
     };
-    // Reserva o documento já (antes de qualquer await) para recusar um segundo `send` concorrente.
+    // Reserve the document right away (before any await) to reject a second concurrent `send`.
     this.turnsByDoc.set(docId, turn);
     try {
       turn.backend = await this.resolveBackend(opts.backend);
     } catch (e) {
       this.turnsByDoc.delete(docId);
-      // Libera quem já esperava o turno (ex.: `close()` durante a resolução do backend).
-      finish({ ...user, id: `${id}-erro`, role: 'assistant', text: '', status: 'error' });
+      // Release whoever was already waiting on the turn (e.g. `close()` during backend resolution).
+      finish({ ...user, id: `${id}-error`, role: 'assistant', text: '', status: 'error' });
       throw e;
     }
     this.byToken.set(turn.token, turn);
@@ -552,12 +552,12 @@ export class AssistantService implements AssistantServiceApi {
     return `http://${host}:${this.opts.getPort()}/mcp?turn=${token}`;
   }
 
-  /** Pasta de trabalho estável por documento (a CLI guarda a sessão por pasta; `--resume` precisa dela). */
+  /** Stable working folder per document (the CLI keeps the session per folder; `--resume` needs it). */
   private cwdFor(key: string): string {
     return path.join(os.tmpdir(), 'mockup-studio-assistant', key.replace(/[^\w.-]/g, '_'));
   }
 
-  /** Roda o turno inteiro; nunca rejeita. */
+  /** Runs the whole turn; never rejects. */
   private async execute(
     turn: Turn,
     prompt: string,
@@ -572,11 +572,9 @@ export class AssistantService implements AssistantServiceApi {
     let finalText = '';
     try {
       const signal = turn.controller.signal;
-      if (signal.aborted)
-        throw Object.assign(new Error('Turno cancelado.'), { name: 'AbortError' });
+      if (signal.aborted) throw Object.assign(new Error('Turn cancelled.'), { name: 'AbortError' });
       const ctx = await this.buildContext(docId, selection, signal);
-      if (signal.aborted)
-        throw Object.assign(new Error('Turno cancelado.'), { name: 'AbortError' });
+      if (signal.aborted) throw Object.assign(new Error('Turn cancelled.'), { name: 'AbortError' });
       const chat = this.chatOf(docId);
       const model = this.modelFor(backend.id);
       const base: AgentRunInput = {
@@ -592,7 +590,7 @@ export class AssistantService implements AssistantServiceApi {
       const resumeId = isValidSessionId(stored) ? stored : undefined;
       const withPrompt = (resume: string | undefined): AgentRunInput => ({
         ...base,
-        // Sem sessão para continuar, o histórico recente vai resumido no prompt.
+        // With no session to continue, the recent history goes summarized in the prompt.
         prompt: this.composePrompt(ctx.header, prompt, resume ? [] : chat.messages),
         resumeSession: resume,
       });
@@ -600,7 +598,7 @@ export class AssistantService implements AssistantServiceApi {
       try {
         res = await backend.run(withPrompt(resumeId), handler, signal);
       } catch (e) {
-        // Resume falhou antes de qualquer ferramenta ou texto: tenta de novo sem continuar a sessão.
+        // Resume failed before any tool or text: try again without continuing the session.
         if (
           resumeId &&
           !signal.aborted &&
@@ -609,7 +607,7 @@ export class AssistantService implements AssistantServiceApi {
           turn.text === ''
         ) {
           log(
-            `resume da sessão falhou (${e instanceof Error ? e.message : e}); tentando sem resume`,
+            `session resume failed (${e instanceof Error ? e.message : e}); retrying without resume`,
           );
           delete chat.sessions[backend.id];
           res = await backend.run(withPrompt(undefined), handler, signal);
@@ -618,7 +616,7 @@ export class AssistantService implements AssistantServiceApi {
         }
       }
       if (isValidSessionId(res.sessionId)) turn.sessionId = res.sessionId;
-      finalText = res.text?.trim() || turn.text.trim() || 'Pronto.';
+      finalText = res.text?.trim() || turn.text.trim() || 'Done.';
     } catch (e) {
       if (turn.controller.signal.aborted || isAbortError(e)) {
         status = 'cancelled';
@@ -667,7 +665,7 @@ export class AssistantService implements AssistantServiceApi {
     try {
       return fn();
     } catch {
-      return undefined; // ex.: o documento foi fechado durante o turno
+      return undefined; // e.g. the document was closed during the turn
     }
   }
 
@@ -704,12 +702,12 @@ export class AssistantService implements AssistantServiceApi {
       }
       case 'session':
         if (isValidSessionId(ev.sessionId)) turn.sessionId = ev.sessionId;
-        else log('id de sessão inválido do backend ignorado');
+        else log('invalid backend session id ignored');
         break;
     }
   }
 
-  /* ---------- contexto ---------- */
+  /* ---------- context ---------- */
 
   private async buildContext(
     docId: string,
@@ -718,15 +716,15 @@ export class AssistantService implements AssistantServiceApi {
   ): Promise<{ header: string; selection: string[]; images: AgentImage[] }> {
     const doc: Document = this.store.get(docId);
     const valid = selection.filter((id) => findNode(doc, id));
-    const lines = [`Documento: ${doc.name} (docId: ${docId})`];
+    const lines = [`Document: ${doc.name} (docId: ${docId})`];
     let body: string;
     if (valid.length) {
-      lines.push(`Seleção: ${valid.join(', ')}`);
+      lines.push(`Selection: ${valid.join(', ')}`);
       const parts = valid.map((id) => getTreeSummary(findNode(doc, id)!.node, 3, { doc }));
       body = clip(parts.join('\n'), MAX_CONTEXT_CHARS);
     } else {
-      lines.push('Seleção: (nenhuma)');
-      body = clip(`Frames do documento:\n${getDocumentSummary(doc, 1)}`, MAX_CONTEXT_CHARS);
+      lines.push('Selection: (none)');
+      body = clip(`Document frames:\n${getDocumentSummary(doc, 1)}`, MAX_CONTEXT_CHARS);
     }
     lines.push(body);
 
@@ -750,9 +748,9 @@ export class AssistantService implements AssistantServiceApi {
             'screenshot',
           );
           images.push({ mime: shot.mime, data: shot.data.toString('base64') });
-          lines.push(`(Screenshot anexo: ${target})`);
+          lines.push(`(Screenshot attached: ${target})`);
         } catch (e) {
-          log('screenshot de contexto indisponível:', e instanceof Error ? e.message : e);
+          log('context screenshot unavailable:', e instanceof Error ? e.message : e);
         }
       }
     }
@@ -764,40 +762,39 @@ export class AssistantService implements AssistantServiceApi {
     const recent = previous.slice(-6);
     if (recent.length) {
       parts.push(
-        'Conversa anterior (resumo):\n' +
+        'Previous conversation (summary):\n' +
           recent
-            .map((m) => `- ${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${clip(m.text, 300)}`)
+            .map((m) => `- ${m.role === 'user' ? 'User' : 'Assistant'}: ${clip(m.text, 300)}`)
             .join('\n'),
       );
     }
-    parts.push(`Pedido do usuário:\n${prompt}`);
+    parts.push(`User request:\n${prompt}`);
     return parts.join('\n\n');
   }
 
-  /* ---------- texto puro ---------- */
+  /* ---------- plain text ---------- */
 
   /**
-   * Pergunta só de texto. Com `docId`: no máximo uma geração por documento, cancelável por
-   * `cancel(docId)`. Sem `docId`: até `MAX_TEXT_WITHOUT_DOC` ao mesmo tempo. `signal` cancela também.
+   * Text-only question. With `docId`: at most one generation per document, cancellable by
+   * `cancel(docId)`. Without `docId`: up to `MAX_TEXT_WITHOUT_DOC` at the same time. `signal` cancels too.
    */
   async generateText(
     prompt: string,
     opts: { backend?: string; system?: string; docId?: string; signal?: AbortSignal } = {},
   ): Promise<string> {
-    if (this.closed) throw new Error('O assistente foi encerrado.');
+    if (this.closed) throw new Error('The assistant was shut down.');
     const { docId, signal } = opts;
     if (docId !== undefined) {
-      if (typeof docId !== 'string' || !docId)
-        throw new Error('docId deve ser uma string não vazia.');
-      this.store.getInfo(docId); // erro claro se o documento não está aberto
+      if (typeof docId !== 'string' || !docId) throw new Error('docId must be a non-empty string.');
+      this.store.getInfo(docId); // clear error if the document is not open
       if (this.textsByDoc.has(docId)) {
-        throw new Error('Já existe uma geração de texto em andamento neste documento.');
+        throw new Error('A text generation is already in progress in this document.');
       }
     } else if (this.textsNoDoc.size >= MAX_TEXT_WITHOUT_DOC) {
-      throw new Error('Gerações de texto demais ao mesmo tempo. Aguarde alguma terminar.');
+      throw new Error('Too many text generations at once. Wait for one to finish.');
     }
     if (signal?.aborted) throw abortError();
-    // Reserva já (antes de qualquer await) para recusar um segundo pedido concorrente.
+    // Reserve right away (before any await) to reject a second concurrent request.
     const controller = new AbortController();
     if (docId !== undefined) this.textsByDoc.set(docId, controller);
     else this.textsNoDoc.add(controller);
@@ -812,7 +809,7 @@ export class AssistantService implements AssistantServiceApi {
           prompt,
           system: opts.system ?? SYSTEM_TEXT_ONLY,
           model: this.modelFor(backend.id),
-          cwd: this.cwdFor('_texto'),
+          cwd: this.cwdFor('_text'),
         },
         (ev) => {
           if (ev.kind === 'text') streamed += ev.text;
@@ -820,7 +817,7 @@ export class AssistantService implements AssistantServiceApi {
         controller.signal,
       );
       const text = (res.text || streamed).trim();
-      if (!text) throw new Error('O agente não devolveu texto.');
+      if (!text) throw new Error('The agent returned no text.');
       return text;
     } finally {
       signal?.removeEventListener('abort', onAbort);
@@ -832,17 +829,17 @@ export class AssistantService implements AssistantServiceApi {
     }
   }
 
-  /* ---------- mensagens WS ---------- */
+  /* ---------- WS messages ---------- */
 
   async handle(msg: ClientMessage): Promise<unknown> {
     switch (msg.type) {
       case 'assistant:send': {
         if (typeof msg.docId !== 'string' || !msg.docId)
-          throw new Error('assistant:send exige "docId" (string).');
+          throw new Error('assistant:send requires "docId" (string).');
         if (typeof msg.prompt !== 'string' || !msg.prompt.trim())
-          throw new Error('assistant:send exige "prompt" (texto não vazio).');
+          throw new Error('assistant:send requires "prompt" (non-empty text).');
         if (msg.selection !== undefined && !Array.isArray(msg.selection))
-          throw new Error('"selection" deve ser uma lista de ids.');
+          throw new Error('"selection" must be a list of ids.');
         return this.send(msg.docId, msg.prompt, {
           selection: msg.selection,
           backend: typeof msg.backend === 'string' && msg.backend ? msg.backend : undefined,
@@ -850,7 +847,7 @@ export class AssistantService implements AssistantServiceApi {
       }
       case 'assistant:cancel': {
         const docId = requireDocId(msg.docId, msg.type);
-        // Um turno de documento já fechado ainda pode ser cancelado; sem turno, o documento tem de existir.
+        // A turn of an already closed document can still be cancelled; with no turn, the document must exist.
         if (!this.turnsByDoc.has(docId) && !this.textsByDoc.has(docId)) this.store.getInfo(docId);
         return { cancelled: this.cancel(docId) };
       }
@@ -872,11 +869,11 @@ export class AssistantService implements AssistantServiceApi {
         return { config: this.getConfig(), backends: await this.backends() };
       }
       default:
-        throw new Error(`Mensagem do assistente desconhecida: ${(msg as { type: string }).type}`);
+        throw new Error(`Unknown assistant message: ${(msg as { type: string }).type}`);
     }
   }
 
-  /* ---------- encerramento ---------- */
+  /* ---------- shutdown ---------- */
 
   async close(): Promise<void> {
     this.closed = true;

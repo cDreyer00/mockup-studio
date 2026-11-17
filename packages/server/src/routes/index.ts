@@ -6,7 +6,7 @@ import type { RouteContext } from './shared.js';
 
 export type { RouteContext } from './shared.js';
 
-/** Rotas de assets/CDN, dados de repetidores e organização de arquivos. */
+/** Routes for assets/CDN, repeater data and file organization. */
 export function registerFeatureRoutes(app: Express, ctx: RouteContext): void {
   registerAssetsRoutes(app, ctx);
   registerDataRoutes(app, ctx);

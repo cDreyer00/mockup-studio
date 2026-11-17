@@ -1,8 +1,8 @@
 /**
- * Tailwind nativo no MCP: `write_html` com classes, `import_component` (shadcn/ui, Tailwind UI),
- * `set_classes`/`get_classes`/`suggest_classes`, `get_tailwind_config` e `set_css_base`. O motor
- * (`@mockup/core/tailwind`) é o mesmo do editor: classes viram `style`/`states` do nó e as classes
- * escritas ficam em `node.classes` (dica de round-trip para o export).
+ * Native Tailwind in MCP: `write_html` with classes, `import_component` (shadcn/ui, Tailwind UI),
+ * `set_classes`/`get_classes`/`suggest_classes`, `get_tailwind_config` and `set_css_base`. The engine
+ * (`@mockup/core/tailwind`) is the same as the editor's: classes become the node's `style`/`states` and the
+ * written classes stay in `node.classes` (round-trip hint for export).
  */
 import { z } from 'zod';
 import {
@@ -36,7 +36,7 @@ import { lostRepeaters, restoreRepeaters } from '../repeaterHtml.js';
 
 const MAX_LISTED = 10;
 
-/** Ops que inserem `nodes` em `target` conforme o modo (a mesma lógica do `write_html` sem Tailwind). */
+/** Ops that insert `nodes` into `target` according to the mode (the same logic as `write_html` without Tailwind). */
 export function htmlInsertOps(
   target: NodePath,
   mode: 'append' | 'replace' | 'replace-children',
@@ -50,7 +50,7 @@ export function htmlInsertOps(
     if (!parent) {
       if (nodes.length !== 1) {
         throw new ToolError(
-          'mode "replace" em frame raiz exige um único elemento de topo; envolva o conteúdo em um <div> ou use mode "replace-children".',
+          'mode "replace" on a root frame requires a single top-level element; wrap the content in a <div> or use mode "replace-children".',
         );
       }
       const nn = nodes[0]!;
@@ -87,14 +87,14 @@ export function htmlInsertOps(
   return { ops, summaryParent };
 }
 
-/** Resumo curto do relatório: classes desconhecidas e sem suporte (com o motivo), até `MAX_LISTED`. */
+/** Short report summary: unknown and unsupported classes (with the reason), up to `MAX_LISTED`. */
 export function reportLines(report: TailwindReport): string[] {
   const lines: string[] = [];
   if (report.unknown.length) {
     const shown = report.unknown.slice(0, MAX_LISTED).join(', ');
     const more = report.unknown.length - MAX_LISTED;
     lines.push(
-      `Classes desconhecidas (sem efeito no estilo; ficam em node.classes): ${shown}${more > 0 ? ` e mais ${more}` : ''}.`,
+      `Unknown classes (no effect on the style; kept in node.classes): ${shown}${more > 0 ? ` and ${more} more` : ''}.`,
     );
   }
   if (report.unsupported.length) {
@@ -104,13 +104,13 @@ export function reportLines(report: TailwindReport): string[] {
       .join('; ');
     const more = report.unsupported.length - MAX_LISTED;
     lines.push(
-      `Classes sem equivalente no modelo (ficam só em node.classes e no código exportado): ${shown}${more > 0 ? `; e mais ${more}` : ''}.`,
+      `Classes with no equivalent in the model (kept only in node.classes and in the exported code): ${shown}${more > 0 ? `; and ${more} more` : ''}.`,
     );
   }
   return lines;
 }
 
-/** Nome da cor shadcn que a classe usa (`hover:bg-primary/90` → `primary`). */
+/** Name of the shadcn color the class uses (`hover:bg-primary/90` → `primary`). */
 function shadcnColorOf(cls: string): string | null {
   const utility = cls
     .slice(cls.lastIndexOf(':') + 1)
@@ -130,13 +130,13 @@ export interface WriteHtmlArgs {
   parentId?: string;
   css?: string;
   tailwind?: 'auto' | 'on' | 'off';
-  /** Só `import_component`: criar os tokens do preset shadcn (padrão `none` em write_html). */
+  /** `import_component` only: create the shadcn preset tokens (default `none` in write_html). */
   tokens?: 'auto' | 'shadcn' | 'none';
   docId?: string;
   label?: string;
 }
 
-/** Insere HTML (com ou sem Tailwind); é o miolo de `write_html` e `import_component`. */
+/** Inserts HTML (with or without Tailwind); the core of `write_html` and `import_component`. */
 export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<string> {
   const { store, requireNode, apply, summaryOf, selectedOrFirstFrame } = ctx;
   const id = store.resolveDocId(a.docId);
@@ -147,7 +147,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   if (css !== undefined && css.trim().toLowerCase() === 'tailwind') {
     if (tw === 'off')
       throw new ToolError(
-        'css: "tailwind" liga o Tailwind, mas tailwind: "off" o desliga. Remova um.',
+        'css: "tailwind" turns Tailwind on, but tailwind: "off" turns it off. Remove one.',
       );
     tw = 'on';
     css = undefined;
@@ -156,7 +156,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   const target = requireNode(doc, targetId);
   const label = a.label ?? 'write_html';
   const empty = () =>
-    new ToolError('O HTML não gerou nenhum nó. Ex.: "<div><h1>Título</h1></div>".');
+    new ToolError('The HTML produced no nodes. E.g. "<div><h1>Title</h1></div>".');
 
   let engine: TailwindEngine | undefined;
   let useTailwind = tw === 'on';
@@ -165,12 +165,12 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
     useTailwind = detectTailwind(a.html, engine, css ?? '').tailwind;
   }
 
-  // Repetidores marcados por get_html (data-mockup-repeat) voltam com os dados do original.
+  // Repeaters marked by get_html (data-mockup-repeat) come back with the original data.
   const lostWarning = (ops: Op[], restored: string[]): string => {
     const deleted = ops.flatMap((o) => (o.type === 'deleteNodes' ? o.nodeIds : []));
     const lost = lostRepeaters(doc, deleted, restored);
     return lost.length
-      ? `Aviso: repetidor(es) substituído(s) sem a marca data-mockup-repeat perderam os dados: ${lost.map((l) => `${l.id} (${l.count} itens)`).join(', ')}. Use undo e mantenha o atributo data-mockup-repeat que get_html devolve, ou ligue os dados de novo com bind_data.`
+      ? `Warning: repeater(s) replaced without the data-mockup-repeat mark lost their data: ${lost.map((l) => `${l.id} (${l.count} items)`).join(', ')}. Use undo and keep the data-mockup-repeat attribute that get_html returns, or bind the data again with bind_data.`
       : '';
   };
 
@@ -181,7 +181,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
     const warn = lostWarning(ops, restored);
     const r = apply(id, ops, label);
     const created = nodes.map((n) => n.id);
-    return `HTML aplicado (${mode}). Nós criados: ${created.join(', ')}.${warn ? `\n${warn}` : ''}\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
+    return `HTML applied (${mode}). Nodes created: ${created.join(', ')}.${warn ? `\n${warn}` : ''}\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
   }
 
   const { nodes, restored } = restoreRepeaters(
@@ -192,7 +192,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   const extra: Op[] = [];
   const notes: string[] = [];
 
-  // Tokens do preset shadcn (mesma chamada, mesmo undo) e o motor recompilado com eles.
+  // shadcn preset tokens (same call, same undo) and the engine recompiled with them.
   let tokens = doc.tokens;
   let themes = doc.themes;
   const tokensMode = a.tokens ?? 'none';
@@ -216,7 +216,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
           if (op.type === 'setThemes') themes = op.themes;
         }
         notes.push(
-          `Tokens do preset shadcn criados (${plan.created.length}, mais o tema "dark"): ${plan.created.slice(0, 6).join(', ')}${plan.created.length > 6 ? ', …' : ''}. Veja get_tokens.`,
+          `shadcn preset tokens created (${plan.created.length}, plus the "dark" theme): ${plan.created.slice(0, 6).join(', ')}${plan.created.length > 6 ? ', …' : ''}. See get_tokens.`,
         );
       }
     }
@@ -232,7 +232,7 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   if (doc.cssBase !== 'tailwind') {
     ops.push({ type: 'setCssBase', base: 'tailwind' });
     notes.push(
-      'CSS base do documento trocado para o preflight do Tailwind (set_css_base). Para voltar ao padrão: set_css_base("default") (ou undo desfaz tudo desta chamada).',
+      'Document base CSS switched to the Tailwind preflight (set_css_base). To go back to the default: set_css_base("default") (or undo reverts everything in this call).',
     );
   }
   ops.push(...extra);
@@ -242,18 +242,18 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   const r = apply(id, ops, label);
   const created = nodes.map((n) => n.id);
   const lines = [
-    `HTML com Tailwind aplicado (${mode}). Nós criados: ${created.join(', ')}.`,
+    `HTML with Tailwind applied (${mode}). Nodes created: ${created.join(', ')}.`,
     ...(warn ? [warn] : []),
-    `${report.nodes} nó(s) com classes Tailwind compiladas para estilo; as classes ficam em node.classes.`,
+    `${report.nodes} node(s) with Tailwind classes compiled to style; the classes are kept in node.classes.`,
     ...notes,
     ...reportLines(report),
     summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created),
-    'Confira com get_screenshot (use state para hover/dark; md: só vale em frames com 768px ou mais).',
+    'Check with get_screenshot (use state for hover/dark; md: only applies to frames 768px wide or more).',
   ];
   return lines.join('\n');
 }
 
-/** Ops que gravam `styles`/`unset` no estado `key` dos nós, mesclando com o que já existe. */
+/** Ops that write `styles`/`unset` to the `key` state of the nodes, merging with what already exists. */
 export function planStateStyles(
   nodes: Node[],
   key: string,
@@ -292,33 +292,33 @@ export function registerTailwindTools(ctx: ToolContext): void {
   tool(
     'import_component',
     {
-      title: 'Importar componente Tailwind/shadcn',
+      title: 'Import Tailwind/shadcn component',
       description:
-        'Cola HTML de componentes shadcn/ui ou Tailwind UI: as classes viram estilo (e ficam em node.classes), os estados hover:/focus:/dark: viram states. Com tokens "auto" cria os tokens shadcn (bg-primary...) que faltam, num undo só.',
+        'Pastes HTML of shadcn/ui or Tailwind UI components: the classes become style (and stay in node.classes), the hover:/focus:/dark: states become states. With tokens "auto" it creates the missing shadcn tokens (bg-primary...) in a single undo.',
       example: {
         parentId: 'fr_ab12cd34',
-        html: '<button data-slot="button" class="bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 rounded-md">Salvar</button>',
+        html: '<button data-slot="button" class="bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 rounded-md">Save</button>',
         tokens: 'auto',
       },
       inputSchema: {
         html: z
           .string()
           .describe(
-            'HTML do componente com as classes Tailwind, ex.: "<button class=\\"h-9 px-4\\">Ok</button>".',
+            'Component HTML with the Tailwind classes, e.g.: "<button class=\\"h-9 px-4\\">Ok</button>".',
           ),
         parentId: z
           .string()
           .optional()
-          .describe('Id do nó alvo, ex.: "fr_ab12cd34" (padrão: seleção ou primeiro frame).'),
+          .describe('Target node id, e.g. "fr_ab12cd34" (default: selection or first frame).'),
         mode: z
           .enum(['append', 'replace', 'replace-children'])
           .optional()
-          .describe('"append" (padrão), "replace-children" ou "replace" (como em write_html).'),
+          .describe('"append" (default), "replace-children" or "replace" (as in write_html).'),
         tokens: z
           .enum(['auto', 'shadcn', 'none'])
           .optional()
           .describe(
-            '"auto" (padrão): cria os tokens shadcn que faltam se o HTML usar cores como bg-primary; "shadcn": cria sempre; "none": não cria.',
+            '"auto" (default): creates the missing shadcn tokens if the HTML uses colors like bg-primary; "shadcn": always creates them; "none": does not create.',
           ),
         docId: docIdField,
       },
@@ -339,24 +339,24 @@ export function registerTailwindTools(ctx: ToolContext): void {
   tool(
     'set_classes',
     {
-      title: 'Definir classes Tailwind',
+      title: 'Set Tailwind classes',
       description:
-        'Aplica classes Tailwind em nós: viram estilo e states (hover:, dark:, md:) e ficam em node.classes. mode: replace (padrão, as classes passam a ser todo o estilo), add ou remove.',
+        'Applies Tailwind classes to nodes: they become style and states (hover:, dark:, md:) and stay in node.classes. mode: replace (default, the classes become the whole style), add or remove.',
       example: {
         nodeIds: ['el_ab12cd34'],
         classes: 'flex items-center gap-4 p-6 hover:bg-primary/90',
         mode: 'add',
       },
       inputSchema: {
-        nodeIds: z.array(z.string()).min(1).describe('Ids dos nós, ex.: ["el_ab12cd34"].'),
+        nodeIds: z.array(z.string()).min(1).describe('Node ids, e.g. ["el_ab12cd34"].'),
         classes: z
           .string()
-          .describe('Classes Tailwind separadas por espaço, ex.: "rounded-xl border shadow-sm".'),
+          .describe('Tailwind classes separated by spaces, e.g. "rounded-xl border shadow-sm".'),
         mode: z
           .enum(['replace', 'add', 'remove'])
           .optional()
           .describe(
-            '"replace" (padrão): as classes viram todo o estilo; "add": acrescenta (troca as de mesma propriedade); "remove": tira as classes.',
+            '"replace" (default): the classes become the whole style; "add": adds them (replaces those of the same property); "remove": removes the classes.',
           ),
         docId: docIdField,
       },
@@ -374,14 +374,14 @@ export function registerTailwindTools(ctx: ToolContext): void {
         mode ?? 'replace',
       );
       if (plan.ops.length === 0)
-        return `Nada mudou: os nós já têm essas classes e estilos.\n${summaryOf(doc, nodeIds)}`;
+        return `Nothing changed: the nodes already have these classes and styles.\n${summaryOf(doc, nodeIds)}`;
       const r = apply(id, plan.ops, 'set_classes');
-      const lines = [`Classes (${mode ?? 'replace'}) aplicadas em ${nodeIds.length} nó(s):`];
-      for (const nid of nodeIds) lines.push(`- ${nid}: ${plan.classes[nid] || '(nenhuma)'}`);
+      const lines = [`Classes (${mode ?? 'replace'}) applied to ${nodeIds.length} node(s):`];
+      for (const nid of nodeIds) lines.push(`- ${nid}: ${plan.classes[nid] || '(none)'}`);
       lines.push(...reportLines(plan.report));
       if (doc.cssBase !== 'tailwind')
         lines.push(
-          'O CSS base do documento não é o do Tailwind (preflight); use set_css_base("tailwind") para o render bater com o Tailwind.',
+          'The document base CSS is not the Tailwind one (preflight); use set_css_base("tailwind") so the render matches Tailwind.',
         );
       lines.push(summaryOf(r.doc, nodeIds));
       return lines.join('\n');
@@ -391,12 +391,12 @@ export function registerTailwindTools(ctx: ToolContext): void {
   tool(
     'get_classes',
     {
-      title: 'Classes Tailwind de nós',
+      title: 'Tailwind classes of nodes',
       description:
-        'Mostra cada nó como Tailwind: as classes escritas (node.classes), as classes idiomáticas geradas do estilo e estados atuais, e o resto (CSS sem classe equivalente).',
+        'Shows each node as Tailwind: the written classes (node.classes), the idiomatic classes generated from the current style and states, and the rest (CSS with no equivalent class).',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: {
-        nodeIds: z.array(z.string()).min(1).describe('Ids dos nós, ex.: ["el_ab12cd34"].'),
+        nodeIds: z.array(z.string()).min(1).describe('Node ids, e.g. ["el_ab12cd34"].'),
         docId: docIdField,
       },
       annotations: READ,
@@ -410,9 +410,9 @@ export function registerTailwindTools(ctx: ToolContext): void {
           const r = engine.nodeClasses(node);
           return [
             `${node.id} "${node.name}":`,
-            `  escritas: ${node.classes ?? '(nenhuma)'}`,
-            `  atuais: ${r.classes.join(' ') || '(nenhuma)'}`,
-            `  rest: ${Object.keys(r.rest).length ? fmtKv(r.rest) : '(nada)'}`,
+            `  written: ${node.classes ?? '(none)'}`,
+            `  current: ${r.classes.join(' ') || '(none)'}`,
+            `  rest: ${Object.keys(r.rest).length ? fmtKv(r.rest) : '(nothing)'}`,
           ].join('\n');
         })
         .join('\n');
@@ -422,19 +422,19 @@ export function registerTailwindTools(ctx: ToolContext): void {
   tool(
     'suggest_classes',
     {
-      title: 'Sugerir classes Tailwind',
+      title: 'Suggest Tailwind classes',
       description:
-        'Autocomplete de classes Tailwind (inclui tokens do documento como bg-primary e prefixos de variante como hover:bg-). Use para descobrir o nome exato de uma classe.',
+        'Tailwind class autocomplete (includes document tokens like bg-primary and variant prefixes like hover:bg-). Use it to find the exact name of a class.',
       example: { query: 'hover:bg-', limit: 10 },
       inputSchema: {
-        query: z.string().describe('Início da classe, ex.: "bg-pri", "rounded-", "md:flex".'),
+        query: z.string().describe('Start of the class, e.g. "bg-pri", "rounded-", "md:flex".'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(100)
           .optional()
-          .describe('Máximo de sugestões, de 1 a 100 (padrão 20).'),
+          .describe('Maximum suggestions, 1 to 100 (default 20).'),
         docId: docIdField,
       },
       annotations: READ,
@@ -442,16 +442,16 @@ export function registerTailwindTools(ctx: ToolContext): void {
     async ({ query, limit, docId }) => {
       const engine = await engineOf(docId);
       const list = engine.suggest(query, limit ?? 20);
-      return list.length ? list.join('\n') : `Nenhuma classe começa com "${query}".`;
+      return list.length ? list.join('\n') : `No class starts with "${query}".`;
     },
   );
 
   tool(
     'get_tailwind_config',
     {
-      title: 'Configuração Tailwind do documento',
+      title: 'Document Tailwind config',
       description:
-        'O CSS @theme gerado dos tokens (o mesmo do export), os estados/variantes suportados, os breakpoints em px e o CSS base atual (default ou tailwind).',
+        'The @theme CSS generated from the tokens (the same as the export), the supported states/variants, the breakpoints in px and the current base CSS (default or tailwind).',
       example: {},
       inputSchema: { docId: docIdField },
       annotations: READ,
@@ -465,12 +465,12 @@ export function registerTailwindTools(ctx: ToolContext): void {
       const css = Object.keys(doc.tokens).length ? tailwindThemeCss(doc) : '';
       return [
         `cssBase: ${doc.cssBase ?? 'default'}`,
-        `Breakpoints (valem quando o frame raiz tem largura >= ao valor): ${bps.join(', ')}`,
-        `Estados suportados: ${PSEUDO_STATES.join(', ')}, dark e breakpoints (sm md lg xl 2xl); combinações como md:hover e dark:hover.`,
-        'Variantes sem equivalente (ficam só na classe): group-*, peer-*, aria-*, data-*, before:, after:, [&_svg]:.',
+        `Breakpoints (apply when the root frame width is >= the value): ${bps.join(', ')}`,
+        `Supported states: ${PSEUDO_STATES.join(', ')}, dark and breakpoints (sm md lg xl 2xl); combinations like md:hover and dark:hover.`,
+        'Variants with no equivalent (kept only in the class): group-*, peer-*, aria-*, data-*, before:, after:, [&_svg]:.',
         '',
-        '@theme gerado dos tokens:',
-        css || '(sem tokens: só o tema padrão do Tailwind)',
+        '@theme generated from the tokens:',
+        css || '(no tokens: only the default Tailwind theme)',
       ].join('\n');
     },
   );
@@ -478,12 +478,12 @@ export function registerTailwindTools(ctx: ToolContext): void {
   tool(
     'set_css_base',
     {
-      title: 'CSS base do documento',
+      title: 'Document base CSS',
       description:
-        'Escolhe o CSS base do render: "tailwind" (preflight do Tailwind v4: border-box, bordas e botões resetados) ou "default". write_html liga o tailwind sozinho ao receber classes Tailwind.',
+        'Chooses the render base CSS: "tailwind" (Tailwind v4 preflight: border-box, borders and buttons reset) or "default". write_html turns tailwind on by itself when it receives Tailwind classes.',
       example: { base: 'tailwind' },
       inputSchema: {
-        base: z.enum(['default', 'tailwind']).describe('"tailwind" ou "default".'),
+        base: z.enum(['default', 'tailwind']).describe('"tailwind" or "default".'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -491,19 +491,19 @@ export function registerTailwindTools(ctx: ToolContext): void {
     ({ base, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
-      if ((doc.cssBase ?? 'default') === base) return `O CSS base já é "${base}".`;
+      if ((doc.cssBase ?? 'default') === base) return `The base CSS is already "${base}".`;
       apply(id, [{ type: 'setCssBase', base }], 'set_css_base');
-      return `CSS base definido como "${base}".`;
+      return `Base CSS set to "${base}".`;
     },
   );
 }
 
-/** Contexto de estado (`pseudo`/`dark`) lido de uma chave como `hover`, `dark:hover`. */
+/** State context (`pseudo`/`dark`) read from a key like `hover`, `dark:hover`. */
 export function parseStateOrThrow(state: string): string {
   const key = normalizeStateKey(state);
   if (!key)
     throw new ToolError(
-      `Estado inválido: "${state}". Use ${PSEUDO_STATES.join(', ')}, dark ou breakpoints (${BREAKPOINTS.join(', ')}), combináveis com ":" (ex.: "md:hover", "dark").`,
+      `Invalid state: "${state}". Use ${PSEUDO_STATES.join(', ')}, dark or breakpoints (${BREAKPOINTS.join(', ')}), combinable with ":" (e.g. "md:hover", "dark").`,
     );
   return key;
 }

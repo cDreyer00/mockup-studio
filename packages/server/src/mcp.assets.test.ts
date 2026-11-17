@@ -26,7 +26,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-/** PNG válido (IHDR com as dimensões pedidas, pixels transparentes). */
+/** Valid PNG (IHDR with the requested dimensions, transparent pixels). */
 function fakePng(w: number, h: number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const len = Buffer.alloc(4);
@@ -53,8 +53,8 @@ function fakePng(w: number, h: number): Buffer {
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32"><rect width="48" height="32"/></svg>';
 
-describe('assets e fontes (unidades)', () => {
-  it('detectImage lê tipo e dimensões', () => {
+describe('assets and fonts (units)', () => {
+  it('detectImage reads type and dimensions', () => {
     expect(detectImage(fakePng(30, 20))).toMatchObject({ ext: '.png', width: 30, height: 20 });
     expect(detectImage(Buffer.from(SVG))).toMatchObject({ ext: '.svg', width: 48, height: 32 });
     expect(detectImage(Buffer.from('GIF89a\x0a\x00\x14\x00', 'latin1'))).toMatchObject({
@@ -67,10 +67,10 @@ describe('assets e fontes (unidades)', () => {
       0x00, 0x64, 0x01, 0x01, 0x11, 0x00,
     ]);
     expect(detectImage(jpeg)).toMatchObject({ ext: '.jpg', width: 100, height: 50 });
-    expect(detectImage(Buffer.from('texto qualquer'))).toBeNull();
+    expect(detectImage(Buffer.from('any text'))).toBeNull();
   });
 
-  it('writeAsset não sobrescreve e acrescenta sufixo', async () => {
+  it('writeAsset does not overwrite and appends a suffix', async () => {
     const dir = fs.mkdtempSync(path.join(fs.realpathSync(process.env['TEMP'] ?? '/tmp'), 'wa-'));
     try {
       expect(await writeAsset(dir, 'a.png', Buffer.from('1'))).toBe('a.png');
@@ -82,7 +82,7 @@ describe('assets e fontes (unidades)', () => {
     }
   });
 
-  it('parseGoogleCss pega os blocos latin de cada peso', () => {
+  it('parseGoogleCss picks the latin blocks of each weight', () => {
     const css = `/* latin-ext */
 @font-face {
   font-family: 'Inter';
@@ -124,7 +124,7 @@ describe('assets e fontes (unidades)', () => {
     );
   });
 
-  it('parsers de fontes do sistema agrupam famílias', () => {
+  it('system font parsers group families', () => {
     const reg = [
       '    Arial (TrueType)    REG_SZ    arial.ttf',
       '    Arial Bold Italic (TrueType)    REG_SZ    arialbi.ttf',
@@ -146,7 +146,7 @@ describe('assets e fontes (unidades)', () => {
   });
 });
 
-describe('MCP imagens, ícones e fontes', () => {
+describe('MCP images, icons and fonts', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -155,7 +155,7 @@ describe('MCP imagens, ícones e fontes', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -186,18 +186,18 @@ describe('MCP imagens, ícones e fontes', () => {
   };
 
   describe('insert_image', () => {
-    it('caminho local: copia para assets/, cria o nó e usa o tamanho intrínseco', async () => {
-      const file = path.join(ws.dir, 'Minha Foto.png');
+    it('local path: copies to assets/, creates the node and uses the intrinsic size', async () => {
+      const file = path.join(ws.dir, 'My Photo.png');
       fs.writeFileSync(file, fakePng(30, 20));
-      const r = await call('insert_image', { parentId: ws.frameId, source: file, alt: 'Foto' });
+      const r = await call('insert_image', { parentId: ws.frameId, source: file, alt: 'Photo' });
       expect(r.isError, textOf(r)).toBeFalsy();
       const img = frame().children[0]!;
       expect(img.type).toBe('image');
-      expect(img.src).toBe('Minha-Foto.png');
-      expect(img.attrs['alt']).toBe('Foto');
+      expect(img.src).toBe('My-Photo.png');
+      expect(img.attrs['alt']).toBe('Photo');
       expect(img.style['width']).toBe('30px');
       expect(img.style['height']).toBe('20px');
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'Minha-Foto.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'My-Photo.png'))).toBe(true);
       expect(textOf(r)).toContain(img.id);
 
       await call('insert_image', {
@@ -206,55 +206,55 @@ describe('MCP imagens, ícones e fontes', () => {
         styles: { width: '100px' },
       });
       const second = frame().children[1]!;
-      expect(second.src).toBe('Minha-Foto-1.png');
+      expect(second.src).toBe('My-Photo-1.png');
       expect(second.style['width']).toBe('100px');
       expect(second.style['height']).toBeUndefined();
     });
 
-    it('data URL, SVG e índice', async () => {
+    it('data URL, SVG and index', async () => {
       const url = `data:image/svg+xml;base64,${Buffer.from(SVG).toString('base64')}`;
       await call('insert_image', { parentId: ws.frameId, source: url, name: 'Logo' });
-      await call('insert_image', { parentId: ws.frameId, source: url, index: 0, name: 'Primeiro' });
+      await call('insert_image', { parentId: ws.frameId, source: url, index: 0, name: 'First' });
       const kids = frame().children;
-      expect(kids.map((k) => k.name)).toEqual(['Primeiro', 'Logo']);
+      expect(kids.map((k) => k.name)).toEqual(['First', 'Logo']);
       expect(kids[0]!.src).toMatch(/\.svg$/);
       expect(kids[0]!.style['width']).toBe('48px');
     });
 
-    it('URL http com servidor local; recusa não-imagem', async () => {
+    it('http URL with a local server; rejects non-images', async () => {
       const base = await serve({
         '/a.png': { type: 'image/png', body: fakePng(8, 6) },
-        '/pagina': { type: 'text/html', body: Buffer.from('<html></html>') },
-        '/falso.png': { type: 'image/png', body: Buffer.from('não sou imagem') },
+        '/page': { type: 'text/html', body: Buffer.from('<html></html>') },
+        '/fake.png': { type: 'image/png', body: Buffer.from('not an image') },
       });
       const ok = await call('insert_image', { parentId: ws.frameId, source: `${base}/a.png` });
       expect(ok.isError, textOf(ok)).toBeFalsy();
       expect(frame().children[0]!.src).toBe('a.png');
-      const html = await call('insert_image', { parentId: ws.frameId, source: `${base}/pagina` });
+      const html = await call('insert_image', { parentId: ws.frameId, source: `${base}/page` });
       expect(html.isError).toBe(true);
       expect(textOf(html)).toContain('text/html');
       const fake = await call('insert_image', {
         parentId: ws.frameId,
-        source: `${base}/falso.png`,
+        source: `${base}/fake.png`,
       });
       expect(fake.isError).toBe(true);
-      expect(textOf(fake)).toContain('não é uma imagem');
+      expect(textOf(fake)).toContain('not a recognized image');
     });
 
-    it('erros: arquivo inexistente e caminho relativo', async () => {
+    it('errors: missing file and relative path', async () => {
       const a = await call('insert_image', {
         parentId: ws.frameId,
-        source: path.join(ws.dir, 'nao-existe.png'),
+        source: path.join(ws.dir, 'does-not-exist.png'),
       });
       expect(a.isError).toBe(true);
-      const b = await call('insert_image', { parentId: ws.frameId, source: 'relativo.png' });
+      const b = await call('insert_image', { parentId: ws.frameId, source: 'relative.png' });
       expect(b.isError).toBe(true);
-      expect(textOf(b)).toContain('absoluto');
+      expect(textOf(b)).toContain('absolute');
     });
   });
 
-  describe('ícones', () => {
-    it('insert_icon cria nó svg com cor resolvida do pai e tamanho', async () => {
+  describe('icons', () => {
+    it('insert_icon creates an svg node with the color resolved from the parent and the size', async () => {
       await call('update_styles', { nodeIds: [ws.frameId], styles: { color: '#336699' } });
       const r = await call('insert_icon', { parentId: ws.frameId, name: 'ArrowRight', size: 32 });
       expect(r.isError, textOf(r)).toBeFalsy();
@@ -264,10 +264,10 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(n.svg).toContain('width="32"');
       expect(n.svg).not.toContain('currentColor');
       expect(n.style['width']).toBe('32px');
-      expect(n.name).toBe('Ícone lucide/arrow-right');
+      expect(n.name).toBe('Icon lucide/arrow-right');
     });
 
-    it('insert_icon com cor, traço, fallback e nome inexistente', async () => {
+    it('insert_icon with color, stroke, fallback and a nonexistent name', async () => {
       await call('insert_icon', {
         parentId: ws.frameId,
         name: 'search',
@@ -283,15 +283,15 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(textOf(bad)).toContain('arrow-right');
     });
 
-    it('search_icons busca por nome e tag', async () => {
+    it('search_icons searches by name and tag', async () => {
       const r = textOf(await call('search_icons', { query: 'arrow-right', limit: 5 }));
       expect(r.split('\n')[1]).toContain('arrow-right');
       const byTag = textOf(await call('search_icons', { query: 'magnifier' }));
       expect(byTag).toContain('search');
-      expect(textOf(await call('search_icons', { query: 'zzzzqqq' }))).toContain('Nenhum');
+      expect(textOf(await call('search_icons', { query: 'zzzzqqq' }))).toContain('No icons');
     });
 
-    it('search_icons por kit e em todos', async () => {
+    it('search_icons by kit and across all', async () => {
       const luc = textOf(await call('search_icons', { query: 'arrow-right', kit: 'lucide' }));
       expect(luc).toContain('- lucide/arrow-right');
       expect(luc).not.toContain('heroicons/');
@@ -305,7 +305,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(all).toContain('- heroicons/arrow-right (outline)');
     });
 
-    it('resolveIcon com e sem prefixo de kit', async () => {
+    it('resolveIcon with and without a kit prefix', async () => {
       expect(await resolveIcon('lucide/arrow-right')).toEqual({
         kit: 'lucide',
         name: 'arrow-right',
@@ -318,7 +318,7 @@ describe('MCP imagens, ícones e fontes', () => {
         kit: 'heroicons',
         name: 'arrow-right-solid',
       });
-      // Sem kit: Lucide primeiro, depois Heroicons.
+      // Without a kit: Lucide first, then Heroicons.
       expect(await resolveIcon('arrow-right')).toEqual({ kit: 'lucide', name: 'arrow-right' });
       expect(await resolveIcon('arrow-right-solid')).toEqual({
         kit: 'heroicons',
@@ -334,7 +334,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(kits.every((k) => k.count > 100)).toBe(true);
     });
 
-    it('insert_icon de Heroicon outline: traço literal, viewBox 24 e stroke_width', async () => {
+    it('insert_icon of an outline Heroicon: literal stroke, viewBox 24 and stroke_width', async () => {
       await call('update_styles', { nodeIds: [ws.frameId], styles: { color: '#336699' } });
       const r = await call('insert_icon', {
         parentId: ws.frameId,
@@ -344,7 +344,7 @@ describe('MCP imagens, ícones e fontes', () => {
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       const n = frame().children[0]!;
-      expect(n.name).toBe('Ícone heroicons/arrow-right');
+      expect(n.name).toBe('Icon heroicons/arrow-right');
       expect(n.svg).toContain('stroke="#336699"');
       expect(n.svg).toContain('viewBox="0 0 24 24"');
       expect(n.svg).toContain('width="32"');
@@ -353,7 +353,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(n.style['width']).toBe('32px');
     });
 
-    it('insert_icon de Heroicon solid: preenchimento literal, viewBox 20/16 e sem stroke_width', async () => {
+    it('insert_icon of a solid Heroicon: literal fill, viewBox 20/16 and no stroke_width', async () => {
       const a = await call('insert_icon', {
         parentId: ws.frameId,
         name: 'heroicons:arrow-right-solid',
@@ -361,7 +361,7 @@ describe('MCP imagens, ícones e fontes', () => {
         stroke_width: 3,
       });
       expect(a.isError, textOf(a)).toBeFalsy();
-      expect(textOf(a)).toContain('stroke_width ignorado');
+      expect(textOf(a)).toContain('stroke_width ignored');
       const s = frame().children[0]!.svg!;
       expect(s).toContain('fill="#ff0000"');
       expect(s).toContain('viewBox="0 0 24 24"');
@@ -373,7 +373,7 @@ describe('MCP imagens, ícones e fontes', () => {
         color: 'blue',
       });
       expect(frame().children[1]!.svg).toContain('viewBox="0 0 20 20"');
-      expect(frame().children[1]!.name).toBe('Ícone heroicons/arrow-right-20-solid');
+      expect(frame().children[1]!.name).toBe('Icon heroicons/arrow-right-20-solid');
       await call('insert_icon', {
         parentId: ws.frameId,
         name: 'arrow-right-16-solid',
@@ -383,7 +383,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(frame().children[2]!.svg).not.toContain('currentColor');
     });
 
-    it('insert_icon com nome inexistente sugere ícones de vários kits', async () => {
+    it('insert_icon with a nonexistent name suggests icons from several kits', async () => {
       const bad = await call('insert_icon', { parentId: ws.frameId, name: 'arrow-rigth' });
       expect(bad.isError).toBe(true);
       expect(textOf(bad)).toContain('lucide/arrow-right');
@@ -393,15 +393,15 @@ describe('MCP imagens, ícones e fontes', () => {
         name: 'arrow-rigth',
         kit: 'heroicons',
       });
-      expect(textOf(only)).toContain('no kit heroicons');
+      expect(textOf(only)).toContain('in the heroicons kit');
       expect(textOf(only)).not.toContain('lucide/');
     });
   });
 
-  describe('fontes', () => {
-    it('add_font com arquivo local grava em assets/fonts, registra e desfaz', async () => {
+  describe('fonts', () => {
+    it('add_font with a local file writes to assets/fonts, registers and undoes', async () => {
       const file = path.join(ws.dir, 'Inter-Bold.woff2');
-      fs.writeFileSync(file, Buffer.from('falso'));
+      fs.writeFileSync(file, Buffer.from('fake'));
       const r = await call('add_font', { family: 'Inter', source: file });
       expect(r.isError, textOf(r)).toBeFalsy();
       const [font] = doc().fonts;
@@ -420,8 +420,8 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(doc().fonts).toEqual([]);
     });
 
-    it('add_font com pasta e filtro de pesos; re-adicionar substitui a família', async () => {
-      const dir = path.join(ws.dir, 'familia');
+    it('add_font with a folder and weight filter; re-adding replaces the family', async () => {
+      const dir = path.join(ws.dir, 'family');
       fs.mkdirSync(dir);
       for (const f of ['Lora-Regular.ttf', 'Lora-Bold.ttf', 'Lora-BoldItalic.ttf'])
         fs.writeFileSync(path.join(dir, f), f);
@@ -433,7 +433,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(doc().fonts[0]!.weights).toEqual([400]);
     });
 
-    it('add_font por URL local; erros de extensão e sem caminho', async () => {
+    it('add_font from a local URL; extension and missing-path errors', async () => {
       const base = await serve({
         '/Foo-Light.woff': { type: 'font/woff', body: Buffer.from('w') },
       });
@@ -443,24 +443,24 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(doc().fonts[0]!.files![0]).toMatch(/^fonts[/]foo-300-normal-[0-9a-f]{8}[.]woff$/);
       const bad = await call('add_font', { family: 'Foo', source: `${base}/x.exe` });
       expect(bad.isError).toBe(true);
-      expect(textOf(bad)).toContain('arquivo de fonte');
+      expect(textOf(bad)).toContain('font file');
     });
 
-    it('add_font: nome único pelo conteúdo, sem sobrescrever; re-adicionar troca a entrada no lugar', async () => {
+    it('add_font: unique name from the content, no overwrite; re-adding replaces the entry in place', async () => {
       const file = path.join(ws.dir, 'Inter-Regular.woff2');
-      fs.writeFileSync(file, 'versao-1');
+      fs.writeFileSync(file, 'version-1');
       await call('add_font', { family: 'Inter', source: file });
       await call('add_font', { family: 'Arial', source: 'local' });
       const v1 = doc().fonts[0]!.files![0]!;
-      fs.writeFileSync(file, 'versao-2');
+      fs.writeFileSync(file, 'version-2');
       await call('add_font', { family: 'Inter', source: file });
       const v2 = doc().fonts[0]!.files![0]!;
       expect(doc().fonts.map((f) => f.family)).toEqual(['Inter', 'Arial']);
       expect(v2).not.toBe(v1);
       const fontsDir = path.join(ws.dir, 'assets', 'fonts');
-      expect(fs.readFileSync(path.join(ws.dir, 'assets', v1), 'utf8')).toBe('versao-1');
+      expect(fs.readFileSync(path.join(ws.dir, 'assets', v1), 'utf8')).toBe('version-1');
       expect(fs.readdirSync(fontsDir)).toHaveLength(2);
-      // mesmo conteúdo reaproveita o arquivo
+      // same content reuses the file
       await call('add_font', { family: 'Inter', source: file });
       expect(doc().fonts[0]!.files![0]).toBe(v2);
       expect(fs.readdirSync(fontsDir)).toHaveLength(2);
@@ -469,7 +469,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(doc().fonts[0]!.files![0]).toBe(v1);
     });
 
-    it('add_font com pasta: um arquivo por peso/estilo, preferindo woff2 > woff > ttf', async () => {
+    it('add_font with a folder: one file per weight/style, preferring woff2 > woff > ttf', async () => {
       const dir = path.join(ws.dir, 'multi');
       fs.mkdirSync(dir);
       for (const f of ['Kai-Regular.ttf', 'Kai-Regular.woff', 'Kai-Regular.woff2', 'Kai-Bold.ttf'])
@@ -481,7 +481,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(font.files![1]).toMatch(/kai-700-normal-[0-9a-f]{8}[.]ttf$/);
     });
 
-    it('add_font: famílias com o mesmo slug ganham sufixo e não se misturam', async () => {
+    it('add_font: families with the same slug get a suffix and do not mix', async () => {
       const a = path.join(ws.dir, 'a');
       const b = path.join(ws.dir, 'b');
       fs.mkdirSync(a);
@@ -496,33 +496,33 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(f2!.files![0]).not.toBe(f1!.files![0]);
     });
 
-    it('add_font local só registra', async () => {
+    it('add_font local only registers', async () => {
       const r = await call('add_font', { family: 'Arial', source: 'local' });
       expect(r.isError).toBeFalsy();
       expect(doc().fonts).toEqual([{ family: 'Arial', source: 'local' }]);
     });
 
-    it('list_fonts e get_font_info', async () => {
+    it('list_fonts and get_font_info', async () => {
       const file = path.join(ws.dir, 'Zeta-Regular.woff2');
       fs.writeFileSync(file, 'x');
       await call('add_font', { family: 'Zeta Sans', source: file });
       const list = textOf(await call('list_fonts', { query: 'zeta' }));
-      expect(list).toContain('Zeta Sans [embutida]');
+      expect(list).toContain('Zeta Sans [embedded]');
       const info = textOf(await call('get_font_info', { family: 'Zeta Sans' }));
-      expect(info).toContain('Documento: embutida');
+      expect(info).toContain('Document: embedded');
       expect(info).toMatch(/fonts[/]zeta-sans-400-normal-[0-9a-f]{8}[.]woff2/);
       expect(info).toContain('font-family: "Zeta Sans", sans-serif');
       const all = textOf(await call('list_fonts', { limit: 5 }));
-      expect(all).toContain('No sistema');
+      expect(all).toContain('On the system');
     });
 
     it.skipIf(process.platform !== 'win32')(
-      'list_fonts devolve fontes do sistema no Windows',
+      'list_fonts returns system fonts on Windows',
       async () => {
         const list = textOf(await call('list_fonts', { query: 'arial' }));
         expect(list).toMatch(/- Arial/);
         const info = textOf(await call('get_font_info', { family: 'Arial' }));
-        expect(info).toContain('Sistema: instalada');
+        expect(info).toContain('System: installed');
       },
     );
   });

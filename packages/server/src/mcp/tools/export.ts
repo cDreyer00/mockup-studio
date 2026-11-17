@@ -31,7 +31,7 @@ function effectNodes(node: Node, out: Node[] = []): Node[] {
   return out;
 }
 
-/** Nome de arquivo a partir do nome do nó: `Desktop 1440` → `desktop-1440`. */
+/** File name from the node name: `Desktop 1440` → `desktop-1440`. */
 export function slugOf(name: string, fallback: string): string {
   const s = name
     .normalize('NFD')
@@ -62,16 +62,16 @@ function collect(node: Node, out: Set<string>): void {
   for (const c of node.children) collect(c, out);
 }
 
-/** Arquivos de `assets/` usados pelos nós (imagens, fundos) e pelas fontes embutidas do documento. */
+/** Files from `assets/` used by the nodes (images, backgrounds) and by the document's embedded fonts. */
 export function usedAssets(doc: Document, nodes: Node[]): string[] {
   const out = new Set<string>();
-  // repetidores expandem antes: srcs vindos dos dados também entram
+  // repeaters expand first: srcs coming from the data are included too
   for (const n of nodes) collect(expandRepeaters(n), out);
   for (const f of doc.fonts) for (const file of f.files ?? []) out.add(file);
   return [...out];
 }
 
-/** Copia os assets para `<outputDir>/assets/`; devolve os relativos copiados. */
+/** Copies the assets to `<outputDir>/assets/`; returns the relative paths copied. */
 export async function copyAssets(
   assetsDir: string | null,
   outputDir: string,
@@ -88,7 +88,7 @@ export async function copyAssets(
       await fs.promises.copyFile(src, dst);
       copied.push(rel);
     } catch {
-      // asset ausente: o export segue, a referência fica pendente
+      // missing asset: the export goes on, the reference stays pending
     }
   }
   return copied;
@@ -100,8 +100,8 @@ export function registerExportTools(ctx: ToolContext): void {
   const nodeSubtree = (doc: Document, id: string): Node => readNode(doc, id).path.node;
 
   /**
-   * Documento para exportar o nó: o expandido (instâncias concretas; ids virtuais) ou o temporário de
-   * um principal. React usa o documento original para nós reais (gera um componente por principal).
+   * Document to export the node from: the expanded one (concrete instances; virtual ids) or the temporary one of
+   * a main component. React uses the original document for real nodes (generates one component per main component).
    */
   const exportDocFor = (doc: Document, id: string, format: string): Document => {
     const r = readNode(doc, id);
@@ -112,69 +112,75 @@ export function registerExportTools(ctx: ToolContext): void {
   tool(
     'export',
     {
-      title: 'Exportar nós para arquivos',
+      title: 'Export nodes to files',
       description:
-        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg, mp4, webm, gif (exigem render; os animados usam fps/duration/start e ffmpeg), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
+        'Writes one file per node to outputDir (default <document folder>/exports/); overwrites files with the same name. Formats: png, jpg, mp4, webm, gif (need render; animated ones use fps/duration/start and ffmpeg), svg, html, tailwind, react. Copies assets. To just read the code use get_code.',
       example: { nodeIds: ['fr_ab12cd34'], format: 'mp4', fps: 30, duration: 3 },
       inputSchema: {
         nodeIds: z
           .array(z.string())
           .min(1)
-          .describe('Ids dos nós a exportar, ex.: ["fr_ab12cd34"].'),
+          .describe('Ids of the nodes to export, e.g. ["fr_ab12cd34"].'),
         format: z
           .enum(['png', 'jpg', 'mp4', 'webm', 'gif', 'svg', 'html', 'tailwind', 'react'])
           .describe(
-            'Formato de saída: "png", "jpg", "mp4", "webm", "gif" (animados), "svg", "html", "tailwind" ou "react".',
+            'Output format: "png", "jpg", "mp4", "webm", "gif" (animated), "svg", "html", "tailwind" or "react".',
           ),
         scale: z
           .union([z.literal(1), z.literal(2), z.literal(3)])
           .optional()
-          .describe('Escala para png/jpg/mp4/webm/gif: 1 (padrão), 2 ou 3, ex.: 2.'),
+          .describe('Scale for png/jpg/mp4/webm/gif: 1 (default), 2 or 3, e.g. 2.'),
         fps: z
           .number()
           .int()
           .min(1)
           .max(60)
           .optional()
-          .describe('Só mp4/webm/gif: quadros por segundo, 1 a 60 (padrão 30; gif 15, máximo 30).'),
+          .describe(
+            'mp4/webm/gif only: frames per second, 1 to 60 (default 30; gif 15, maximum 30).',
+          ),
         duration: z
           .number()
           .positive()
           .max(30)
           .optional()
-          .describe('Só mp4/webm/gif: duração em segundos, maior que 0 e até 30 (padrão 3).'),
+          .describe(
+            'mp4/webm/gif only: duration in seconds, greater than 0 and up to 30 (default 3).',
+          ),
         start: z
           .number()
           .min(0)
           .optional()
-          .describe('Só mp4/webm/gif: tempo inicial das animações em segundos (padrão 0).'),
+          .describe('mp4/webm/gif only: start time of the animations in seconds (default 0).'),
         maxWidth: z
           .number()
           .int()
           .min(16)
           .optional()
-          .describe('Só mp4/webm/gif: largura máxima em px; reduz mantendo a proporção. Ex.: 720.'),
+          .describe(
+            'mp4/webm/gif only: maximum width in px; scales down keeping the aspect ratio. E.g. 720.',
+          ),
         effects: z
           .enum(['live', 'static'])
           .optional()
           .describe(
-            'Só react: "live" (padrão) recria os efeitos animados no código; "static" grava um PNG de cada efeito em assets/effects/ (exige render).',
+            'react only: "live" (default) recreates the animated effects in code; "static" writes a PNG of each effect to assets/effects/ (needs render).',
           ),
         outputDir: z
           .string()
           .optional()
           .describe(
-            'Pasta de saída absoluta, ex.: "C:/projetos/site/exports" (padrão: <pasta do documento>/exports/).',
+            'Absolute output folder, e.g. "C:/projects/site/exports" (default: <document folder>/exports/).',
           ),
         styles: z
           .enum(['tailwind', 'inline'])
           .optional()
-          .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
+          .describe('Styles of the react component: "tailwind" (default) or "inline".'),
         assetsBase: z
           .string()
           .optional()
           .describe(
-            'Só react: prefixo das URLs de imagens e fontes (padrão "assets/"). Num projeto Vite com a pasta assets em public/, use "/assets/".',
+            'react only: prefix of the image and font URLs (default "assets/"). In a Vite project with the assets folder in public/, use "/assets/".',
           ),
         docId: docIdField,
       },
@@ -200,11 +206,11 @@ export function registerExportTools(ctx: ToolContext): void {
       let dir = outputDir;
       if (dir) {
         if (!path.isAbsolute(dir))
-          throw new ToolError(`outputDir deve ser um caminho absoluto, recebido "${dir}".`);
+          throw new ToolError(`outputDir must be an absolute path, got "${dir}".`);
       } else {
         if (!info.path)
           throw new ToolError(
-            'O documento ainda não tem caminho em disco. Informe outputDir (caminho absoluto) ou salve o documento antes.',
+            'The document has no path on disk yet. Pass outputDir (absolute path) or save the document first.',
           );
         dir = path.join(path.dirname(info.path), 'exports');
       }
@@ -215,18 +221,18 @@ export function registerExportTools(ctx: ToolContext): void {
         throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
       if (isAnimated && !opts.render!.captureFrames)
         throw new ToolError(
-          'O motor de render deste daemon não captura quadros animados, necessário para mp4, webm e gif. Use o app desktop do Mockup Studio atualizado.',
+          "This daemon's render engine does not capture animated frames, which mp4, webm and gif need. Use the updated Mockup Studio desktop app.",
         );
       const animFps = format === 'gif' ? Math.min(fps ?? 15, 30) : (fps ?? 30);
       const animDuration = duration ?? 3;
       const extraNotes: string[] = [];
       await fs.promises.mkdir(dir, { recursive: true });
-      // Código (html, tailwind, react): links /cdn do daemon viram cópias locais em assets/cdn/.
+      // Code (html, tailwind, react): the daemon's /cdn links become local copies in assets/cdn/.
       const cdn =
         !isImage && format !== 'svg' ? localizeCdnLinks(doc, getLibrary(opts.dataDir)) : null;
       const code = cdn?.doc ?? doc;
 
-      // Lottie .json pequeno vai embutido no HTML (abre por file://)
+      // A small Lottie .json is embedded in the HTML (opens over file://)
       const readAsset = (ref: string): string | undefined => {
         const root = store.assetsDir(id);
         const file = root ? safeJoin(root, ref) : null;
@@ -265,7 +271,7 @@ export function registerExportTools(ctx: ToolContext): void {
         const ref = nodeIds[pi]!;
         const slug = slugOf(node.name, node.id);
         if (isAnimated) {
-          // componentes e ids virtuais: o render recebe o documento expandido (ou a prévia do principal)
+          // components and virtual ids: the render receives the expanded document (or the main component's preview)
           const animTarget = renderTargetFor(doc, ref)!;
           const file = path.join(dir, uniq(slug, `.${format}`));
           const replaced = fs.existsSync(file);
@@ -298,13 +304,13 @@ export function registerExportTools(ctx: ToolContext): void {
           } catch (e) {
             await fs.promises.rm(file, { force: true }).catch(() => undefined);
             throw new ToolError(
-              `Falha ao exportar ${format} de ${node.id}: ${e instanceof Error ? e.message : String(e)}`,
+              `Failed to export ${format} of ${node.id}: ${e instanceof Error ? e.message : String(e)}`,
             );
           }
           const size = (await fs.promises.stat(file)).size;
           written.push({ file, replaced });
           extraNotes.push(
-            `${path.basename(file)}: ${frames} quadro(s) a ${animFps} fps, ${animDuration} s, ${Math.max(1, Math.round(size / 1024))} KB`,
+            `${path.basename(file)}: ${frames} frame(s) at ${animFps} fps, ${animDuration} s, ${Math.max(1, Math.round(size / 1024))} KB`,
           );
         } else if (isImage) {
           const rt = renderTargetFor(doc, ref)!;
@@ -361,7 +367,7 @@ export function registerExportTools(ctx: ToolContext): void {
             true,
           );
         } else {
-          // nome do componente único na exportação: também deriva os arquivos das ilhas Three.js
+          // component name unique within the export: also used to derive the Three.js island files
           let name = pascalOf(slug);
           for (let i = 2; usedComponents.has(name); i++) name = `${pascalOf(slug)}${i}`;
           usedComponents.add(name);
@@ -372,7 +378,7 @@ export function registerExportTools(ctx: ToolContext): void {
                 renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }),
               );
             for (const ef of effectNodes(node)) {
-              // efeito dentro de instância: id virtual (`in_x/fx_y`) no documento expandido
+              // effect inside an instance: virtual id (`in_x/fx_y`) in the expanded document
               const et = renderTargetFor(doc, ef.id);
               if (!et) continue;
               const cap = await opts.render.capture({
@@ -388,18 +394,18 @@ export function registerExportTools(ctx: ToolContext): void {
               await fs.promises.mkdir(path.join(dir, 'assets', 'effects'), { recursive: true });
               await fs.promises.writeFile(path.join(dir, 'assets', rel), cap.data);
               effectImages[ef.id] = rel;
-              // o corpo do componente gerado para o principal usa o id do nó no principal
+              // the body of the component generated for the main component uses the node id inside the main component
               const own = ef.id.slice(ef.id.lastIndexOf('/') + 1);
               if (own !== ef.id) effectImages[own] ??= rel;
             }
             if (Object.keys(effectImages).length)
               extraNotes.push(
-                `Efeitos estáticos: ${Object.keys(effectImages).length} PNG(s) em ${path.join(dir, 'assets', 'effects')}`,
+                `Static effects: ${Object.keys(effectImages).length} PNG(s) in ${path.join(dir, 'assets', 'effects')}`,
               );
           }
           const r = exportReact(exportDocFor(code, ref, 'react'), {
             nodeId: node.id,
-            // O motor só serve ao Tailwind: com estilos inline nem é carregado.
+            // The engine only serves Tailwind: with inline styles it is not even loaded.
             ...((styles ?? 'tailwind') === 'tailwind'
               ? { tailwind: await getTailwindEngine(doc) }
               : {}),
@@ -428,7 +434,7 @@ export function registerExportTools(ctx: ToolContext): void {
       if (!isImage && !isAnimated && format !== 'svg') {
         const rels = usedAssets(
           code,
-          // árvore expandida: imagens dentro de instâncias também entram
+          // expanded tree: images inside instances are included too
           nodeIds.map((n) => readNode(code, n).path.node),
         );
         const fromCdn = new Map(
@@ -443,15 +449,15 @@ export function registerExportTools(ctx: ToolContext): void {
           ...(await copyCdnFiles(fromCdn, dir)),
         ];
         if (copied.length)
-          assetsNote = `\nAssets copiados para ${path.join(dir, 'assets')}: ${copied.join(', ')}`;
+          assetsNote = `\nAssets copied to ${path.join(dir, 'assets')}: ${copied.join(', ')}`;
       }
 
-      const lines = [`Exportado(s) ${written.length} arquivo(s) (${format}):`];
-      for (const w of written) lines.push(`- ${w.file}${w.replaced ? ' (substituído)' : ''}`);
+      const lines = [`Exported ${written.length} file(s) (${format}):`];
+      for (const w of written) lines.push(`- ${w.file}${w.replaced ? ' (replaced)' : ''}`);
       if (assetsNote) lines.push(assetsNote.trim());
       for (const n of extraNotes) lines.push(n);
-      // O código só vai na resposta enquanto o total couber no orçamento: exportar vários frames
-      // não pode despejar centenas de KB no contexto do agente (use get_code por nó ou leia os arquivos).
+      // The code only goes in the response while the total fits the budget: exporting several frames
+      // must not dump hundreds of KB into the agent's context (use get_code per node or read the files).
       let budget = MAX_INLINE_BYTES;
       let omitted = 0;
       for (const w of written) {
@@ -466,7 +472,7 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       if (omitted)
         lines.push(
-          `\n(${omitted} arquivo(s) de código não foram repetidos na resposta; leia-os na pasta ou use get_code(nodeId, format).)`,
+          `\n(${omitted} code file(s) were not repeated in the response; read them in the folder or use get_code(nodeId, format).)`,
         );
       return lines.join('\n');
     },
@@ -475,24 +481,24 @@ export function registerExportTools(ctx: ToolContext): void {
   tool(
     'get_code',
     {
-      title: 'Código de um nó (HTML, Tailwind ou React)',
+      title: 'Code of a node (HTML, Tailwind or React)',
       description:
-        'Devolve na resposta o código de um nó (html, tailwind ou react) sem gravar arquivos. Para gravar arquivos e copiar assets use export.',
+        'Returns the code of a node (html, tailwind or react) in the response without writing files. To write files and copy assets use export.',
       example: { nodeId: 'fr_ab12cd34', format: 'react', styles: 'tailwind' },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó, ex.: "fr_ab12cd34".'),
+        nodeId: z.string().describe('Node id, e.g. "fr_ab12cd34".'),
         format: z
           .enum(['html', 'tailwind', 'react'])
-          .describe('Formato do código: "html", "tailwind" ou "react".'),
+          .describe('Code format: "html", "tailwind" or "react".'),
         styles: z
           .enum(['tailwind', 'inline'])
           .optional()
-          .describe('Estilos do componente react: "tailwind" (padrão) ou "inline".'),
+          .describe('Styles of the react component: "tailwind" (default) or "inline".'),
         assetsBase: z
           .string()
           .optional()
           .describe(
-            'Só react: prefixo das URLs de imagens e fontes (padrão "assets/"). Num projeto Vite com a pasta assets em public/, use "/assets/".',
+            'react only: prefix of the image and font URLs (default "assets/"). In a Vite project with the assets folder in public/, use "/assets/".',
           ),
         docId: docIdField,
       },
@@ -522,7 +528,7 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       const r = exportReact(codeDoc, {
         nodeId,
-        // O motor só serve ao Tailwind: com estilos inline nem é carregado.
+        // The engine only serves Tailwind: with inline styles it is not even loaded.
         ...((styles ?? 'tailwind') === 'tailwind'
           ? { tailwind: await getTailwindEngine(doc) }
           : {}),
@@ -530,11 +536,11 @@ export function registerExportTools(ctx: ToolContext): void {
         componentName: pascalOf(slugOf(node.name, node.id)),
         ...(assetsBase ? { assetsBase } : {}),
       });
-      // o runtime dos efeitos é fixo e grande: só o nome (o export grava o arquivo)
+      // the effects runtime is fixed and large: only the name (export writes the file)
       const extra = (r.files ?? [])
         .map((f) =>
           f.name.startsWith('mockup-effects.')
-            ? `\n\n// ${f.name}: runtime dos efeitos, gravado por export(format: 'react')`
+            ? `\n\n// ${f.name}: effects runtime, written by export(format: 'react')`
             : `\n\n// ${f.name}\n${f.code}`,
         )
         .join('');

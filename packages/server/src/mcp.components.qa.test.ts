@@ -16,7 +16,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-describe('MCP componentes (QA): bordas e sequências', () => {
+describe('MCP components (QA): edge cases and sequences', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -39,7 +39,7 @@ describe('MCP componentes (QA): bordas e sequências', () => {
       measures.push({ nodeId: t.nodeId, doc: t.doc });
       return {
         id: t.nodeId,
-        name: 'Medido',
+        name: 'Measured',
         tag: 'button',
         x: 0,
         y: 0,
@@ -55,7 +55,7 @@ describe('MCP componentes (QA): bordas e sequências', () => {
     captures = [];
     measures = [];
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -84,7 +84,7 @@ describe('MCP componentes (QA): bordas e sequências', () => {
     const r = await fetch(`${daemon.url}/api/docs/${activeDocId}`);
     return ((await r.json()) as { doc: Document }).doc;
   };
-  const instanceId = (t: string): string => /Instância criada: (\S+)/.exec(t)![1]!;
+  const instanceId = (t: string): string => /Instance created: (\S+)/.exec(t)![1]!;
   const insertButton = async (props: Record<string, unknown> = {}, extra = {}): Promise<string> =>
     instanceId(
       await ok('insert_component', {
@@ -105,7 +105,7 @@ describe('MCP componentes (QA): bordas e sequências', () => {
     return (d.components ?? []).length;
   };
 
-  it('sequência longa misturando ops comuns e de componente com undo/redo pelo MCP', async () => {
+  it('long sequence mixing plain and component ops with undo/redo over MCP', async () => {
     const before = JSON.stringify((await doc()).pages);
     const a = await insertButton({ variant: 'outline', label: 'A' });
     await ok('set_instance_props', { nodeIds: [a], set: { label: 'B' } });
@@ -125,36 +125,36 @@ describe('MCP componentes (QA): bordas e sequências', () => {
     expect(JSON.stringify(await pages())).toBe(afterAll);
   });
 
-  it('props de tipo errado ou inexistentes são recusadas com mensagem, sem alterar o documento', async () => {
+  it('props of the wrong type or nonexistent are refused with a message, without changing the document', async () => {
     const a = await insertButton();
     const snap = JSON.stringify(await doc());
     expect(
-      await fail('set_instance_props', { nodeIds: [a], set: { variant: 'nao-existe' } }),
-    ).toMatch(/opç|variant/i);
-    expect(await fail('set_instance_props', { nodeIds: [a], set: { fantasma: 'x' } })).toContain(
-      'fantasma',
+      await fail('set_instance_props', { nodeIds: [a], set: { variant: 'does-not-exist' } }),
+    ).toMatch(/option|variant/i);
+    expect(await fail('set_instance_props', { nodeIds: [a], set: { ghost: 'x' } })).toContain(
+      'ghost',
     );
     expect(
       await fail('set_instance_props', { nodeIds: [ws.frameId], set: { label: 'x' } }),
-    ).toMatch(/instância/);
+    ).toMatch(/instance/);
     expect(
       await fail('insert_component', { component: 'shadcn-like/Button', parentId: 'el_nope' }),
     ).toBeTruthy();
     expect(JSON.stringify(await doc())).toBe(snap);
   });
 
-  it('delete_component com instância viva é recusado e o aviso orienta; id inexistente falha', async () => {
+  it('delete_component with a live instance is refused and the message guides; a missing id fails', async () => {
     const a = await insertButton();
     const d = await doc();
     const id = d.components!.find((c) => c.name === 'Button')!.id;
-    expect(await fail('delete_component', { componentId: id })).toMatch(/instân/i);
-    expect(await fail('delete_component', { componentId: 'cp_naoexiste' })).toBeTruthy();
-    // a instância continua expandindo normalmente
+    expect(await fail('delete_component', { componentId: id })).toMatch(/instance/i);
+    expect(await fail('delete_component', { componentId: 'cp_missing' })).toBeTruthy();
+    // the instance keeps expanding normally
     expect(await ok('get_html', { nodeId: a })).toContain('<button');
     expect((await doc()).components!.some((c) => c.id === id)).toBe(true);
   });
 
-  it('force em deleteComponent não é aceito por nenhuma ferramenta MCP', async () => {
+  it('force on deleteComponent is not accepted by any MCP tool', async () => {
     await insertButton();
     const names = (await client.listTools()).tools.map((t) => t.name);
     for (const n of names) {
@@ -163,7 +163,7 @@ describe('MCP componentes (QA): bordas e sequências', () => {
     }
   });
 
-  it('documento antigo sem components: list_components e ops comuns funcionam e o arquivo não ganha a chave', async () => {
+  it('old document without components: list_components and plain ops work and the file does not gain the key', async () => {
     const t = await ok('list_components');
     expect(t).toContain('(0)');
     await ok('update_styles', { nodeIds: [ws.frameId], styles: { background: '#123456' } });

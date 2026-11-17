@@ -1,21 +1,21 @@
 /**
- * Fontes (em texto) do worker e do script de bootstrap da sandbox de scripts.
+ * Sources (as text) of the worker and of the bootstrap script of the scripts sandbox.
  *
- * O daemon é empacotado num único arquivo pelo electron-vite, então o worker NÃO pode ser um .js
- * ao lado do bundle: o código viaja como string (`new Worker(WORKER_SOURCE, { eval: true })`).
- * Por isso os dois textos são JavaScript puro em `String.raw` (sem crases e sem `${`).
+ * The daemon is bundled into a single file by electron-vite, so the worker CANNOT be a .js
+ * next to the bundle: the code travels as a string (`new Worker(WORKER_SOURCE, { eval: true })`).
+ * That is why both texts are plain JavaScript in `String.raw` (no backticks and no `${`).
  *
- * Camadas (ver docs/SCRIPTS.md):
- * 1. `WORKER_SOURCE` roda no thread do worker (realm "host" do worker), cria um contexto `node:vm`
- *    sem nada além dos builtins do JavaScript e entrega ao bootstrap UMA função-ponte.
- * 2. `BOOTSTRAP_SOURCE` roda DENTRO do contexto vm: guarda a ponte numa closure, monta `doc` e
- *    `console` só com objetos do próprio contexto e executa o código do usuário.
- * Nenhum objeto, função ou erro do realm do worker pode chegar ao código do usuário (senão
- * `x.constructor.constructor('return process')()` escapa): a ponte só troca strings JSON e todo
- * erro capturado do lado de lá é descartado e relançado como `Error` do próprio contexto.
+ * Layers (see docs/SCRIPTS.md):
+ * 1. `WORKER_SOURCE` runs on the worker thread (the worker's "host" realm), creates a `node:vm` context
+ *    with nothing but the JavaScript builtins and hands the bootstrap ONE bridge function.
+ * 2. `BOOTSTRAP_SOURCE` runs INSIDE the vm context: keeps the bridge in a closure, builds `doc` and
+ *    `console` using only the context's own objects and runs the user code.
+ * No object, function or error from the worker's realm may reach the user code (otherwise
+ * `x.constructor.constructor('return process')()` escapes): the bridge only exchanges JSON strings and every
+ * error caught on the other side is discarded and rethrown as an `Error` of the context itself.
  */
 
-/** Código do worker (strict: callsites de frames strict não expõem `getThis`/`getFunction`). */
+/** Worker code (strict: callsites of strict frames do not expose `getThis`/`getFunction`). */
 export const WORKER_SOURCE = String.raw`'use strict';
 const wt = require('node:worker_threads');
 const vm = require('node:vm');
@@ -24,18 +24,18 @@ const data = wt.workerData;
 const port = data.port;
 const i32 = new Int32Array(data.sab);
 
-// Promessa rejeitada e esquecida pelo script é problema dele: não derruba o worker.
+// A rejected promise forgotten by the script is its own problem: it does not take down the worker.
 process.on('unhandledRejection', function () {});
 
-const FALHA = '{"ok":false,"error":"Falha na ponte com o documento."}';
+const FAILURE = '{"ok":false,"error":"Failure on the document bridge."}';
 
 /**
- * Ponte worker -> thread principal. Nunca lança e só devolve string. Chamadas de documento são
- * síncronas: posta o pedido, dorme em Atomics.wait e lê a resposta com receiveMessageOnPort.
+* Worker -> main thread bridge. Never throws and only returns a string. Document calls are
+* synchronous: posts the request, sleeps in Atomics.wait and reads the reply with receiveMessageOnPort.
  */
 function bridge(method, argsJson) {
   try {
-    if (typeof method !== 'string' || typeof argsJson !== 'string') return FALHA;
+    if (typeof method !== 'string' || typeof argsJson !== 'string') return FAILURE;
     if (method === '__log') {
       port.postMessage({ t: 'log', line: argsJson });
       return 'null';
@@ -46,13 +46,13 @@ function bridge(method, argsJson) {
     }
     port.postMessage({ t: 'rpc', method: method, args: argsJson });
     while (Atomics.wait(i32, 0, 0, 1000) === 'timed-out') {
-      /* a thread principal responde ou termina este worker */
+      /* the main thread replies or terminates this worker */
     }
     Atomics.store(i32, 0, 0);
     const m = wt.receiveMessageOnPort(port);
-    return m && typeof m.message === 'string' ? m.message : FALHA;
+    return m && typeof m.message === 'string' ? m.message : FAILURE;
   } catch (_e) {
-    return FALHA;
+    return FAILURE;
   }
 }
 
@@ -69,21 +69,21 @@ try {
   );
   const execute = factory(bridge, data.limits);
   let userFn = null;
-  // 1) Validação: o código precisa ser, SOZINHO, um corpo de função async válido em modo estrito.
-  //    O construtor de AsyncFunction (deste realm, só para parsear: nada é executado) analisa o corpo
-  //    separadamente do cabeçalho, então um "}); ...; (async function(){" que fecharia o invólucro
-  //    abaixo vira SyntaxError aqui. Strings, comentários e templates com "})" continuam válidos.
+  // 1) Validation: the code must be, ON ITS OWN, a valid async function body in strict mode.
+  //    The AsyncFunction constructor (from this realm, only to parse: nothing is executed) parses the body
+  //    separately from the header, so a "}); ...; (async function(){" that would close the wrapper
+  //    below becomes a SyntaxError here. Strings, comments and templates containing "})" remain valid.
   let invalid = null;
   try {
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     new AsyncFunction('"use strict";\n' + data.code);
   } catch (e) {
-    invalid = e && typeof e.message === 'string' ? e.message : 'erro de sintaxe';
+    invalid = e && typeof e.message === 'string' ? e.message : 'syntax error';
   }
-  // 2) Compilação no contexto: o invólucro só é usado com código já validado como corpo de função.
-  //    O cabeçalho fica na mesma linha do código para que o número da linha no erro seja o do usuário.
-  //    Sem importModuleDynamically: import() não funciona (e o texto "import" é recusado antes).
-  //    O "use strict" no topo do script cobre também o que estiver fora da função (defesa extra).
+  // 2) Compilation in the context: the wrapper is only used with code already validated as a function body.
+  //    The header stays on the same line as the code so that the line number in the error is the user's.
+  //    Without importModuleDynamically: import() does not work (and the text "import" is rejected beforehand).
+  //    The "use strict" at the top of the script also covers anything outside the function (extra defense).
   try {
     const compiled = new vm.Script(
       '"use strict"; (async function () { "use strict"; ' + data.code + '\n})',
@@ -91,35 +91,35 @@ try {
     );
     if (invalid === null) userFn = compiled.runInContext(context);
   } catch (e) {
-    const msg = e && typeof e.message === 'string' ? e.message : 'erro de sintaxe';
+    const msg = e && typeof e.message === 'string' ? e.message : 'syntax error';
     const m = e && typeof e.stack === 'string' ? /script\.js:(\d+)/.exec(e.stack) : null;
     if (invalid === null) invalid = msg;
-    invalid = invalid + (m ? ' (linha ' + m[1] + ')' : '');
+    invalid = invalid + (m ? ' (line ' + m[1] + ')' : '');
   }
   if (invalid !== null) {
     finish(
-      'Erro de sintaxe: ' +
+      'Syntax error: ' +
         invalid +
-        (userFn === null && !/\(linha \d+\)$/.test(invalid)
-          ? ' (o script deve ser um corpo de função async válido por si só: confira chaves e parênteses desbalanceados)'
+        (userFn === null && !/\(line \d+\)$/.test(invalid)
+          ? ' (the script must be a valid async function body on its own: check for unbalanced braces and parentheses)'
           : ''),
     );
     userFn = null;
   }
   if (userFn) execute(userFn);
 } catch (e) {
-  finish('Falha ao preparar a sandbox: ' + (e && e.message ? e.message : String(e)));
+  finish('Failed to prepare the sandbox: ' + (e && e.message ? e.message : String(e)));
 }
 `;
 
 /**
- * Bootstrap avaliado no contexto vm: uma expressão de função `(bridge, limitsJson) => execute`.
- * Roda em strict mode e só usa builtins do próprio contexto.
+ * Bootstrap evaluated in the vm context: a function expression `(bridge, limitsJson) => execute`.
+ * Runs in strict mode and only uses the context's own builtins.
  */
 export const BOOTSTRAP_SOURCE = String.raw`(function (bridge, limitsJson) {
 'use strict';
 
-/* ---- cópias dos builtins usados (o script do usuário pode alterar os globais depois) ---- */
+/* ---- copies of the builtins used (the user script may change the globals later) ---- */
 var JSONparse = JSON.parse;
 var JSONstringify = JSON.stringify;
 var isArray = Array.isArray;
@@ -141,17 +141,17 @@ var ownKeys = Reflect.ownKeys;
 var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 var limits = JSONparse(limitsJson);
 
-/* ---- defesas do contexto ---- */
-// Sem prepareStackTrace com CallSites (getThis/getFunction) e sem como instalar um depois.
+/* ---- context defenses ---- */
+// No prepareStackTrace with CallSites (getThis/getFunction) and no way to install one later.
 defineProperty(ErrorCtor, 'prepareStackTrace', {
   value: undefined,
   writable: false,
   enumerable: false,
   configurable: false,
 });
-// Capacidades que um script de documento não usa e que dariam memória ou espera fora do heap.
+// Capabilities a document script does not use and that would give memory or waiting outside the heap.
 var globalRef = globalThis;
-// Buffers e arrays tipados alocam FORA do heap (o limite de memória do worker não os vê): removidos.
+// Buffers and typed arrays allocate OUTSIDE the heap (the worker's memory limit does not see them): removed.
 var toRemove = [
   'WebAssembly', 'SharedArrayBuffer', 'Atomics', 'eval', 'FinalizationRegistry', 'WeakRef',
   'ArrayBuffer', 'DataView', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array',
@@ -161,7 +161,7 @@ for (var r = 0; r < toRemove.length; r++) {
   try {
     deleteProperty(globalRef, toRemove[r]);
   } catch (_e) {
-    /* segue */
+    /* carry on */
   }
 }
 
@@ -169,15 +169,15 @@ function fail(message) {
   throw new ErrorCtor(message);
 }
 
-/* ---- chamada à ponte: só strings; qualquer coisa capturada do lado de lá é descartada ---- */
+/* ---- bridge call: strings only; anything caught on the other side is discarded ---- */
 function post(method, json) {
   var out;
   try {
     out = bridge(method, json);
   } catch (_e) {
-    fail('Falha na ponte com o documento.');
+    fail('Failure on the document bridge.');
   }
-  if (typeof out !== 'string') fail('Resposta inválida da ponte.');
+  if (typeof out !== 'string') fail('Invalid response from the bridge.');
   return out;
 }
 
@@ -186,18 +186,18 @@ function call(method, args) {
   try {
     s = JSONstringify(args === undefined ? null : args);
   } catch (_e) {
-    fail('Argumento não serializável em JSON (referência circular?).');
+    fail('Argument not serializable as JSON (circular reference?).');
   }
   if (typeof s !== 'string') s = 'null';
-  if (s.length > limits.maxArgsChars) fail('Argumento grande demais para a API do documento.');
+  if (s.length > limits.maxArgsChars) fail('Argument too large for the document API.');
   var parsed;
   try {
     parsed = JSONparse(post(method, s));
   } catch (_e) {
-    fail('Resposta inválida da ponte.');
+    fail('Invalid response from the bridge.');
   }
   if (!parsed || parsed.ok !== true) {
-    fail(parsed && typeof parsed.error === 'string' ? parsed.error : 'Erro desconhecido.');
+    fail(parsed && typeof parsed.error === 'string' ? parsed.error : 'Unknown error.');
   }
   return parsed.value;
 }
@@ -206,7 +206,7 @@ function call(method, args) {
 function idOf(x, what) {
   if (typeof x === 'string' && x) return x;
   if (x && typeof x === 'object' && typeof x.id === 'string' && x.id) return x.id;
-  return fail((what || 'Nó') + ': informe um id (string) ou um nó.');
+  return fail((what || 'Node') + ': provide an id (string) or a node.');
 }
 
 function kebab(p) {
@@ -231,12 +231,12 @@ function stringifySafe(v) {
     });
     if (typeof s === 'string') return s;
   } catch (_e) {
-    /* cai no String() */
+    /* falls back to String() */
   }
   try {
     return StringCtor(v);
   } catch (_e2) {
-    return '[valor não serializável]';
+    return '[value not serializable]';
   }
 }
 
@@ -247,7 +247,7 @@ function fmtLog(v) {
     try {
       return StringCtor(v);
     } catch (_e) {
-      return '[valor não serializável]';
+      return '[value not serializable]';
     }
   }
   return stringifySafe(v);
@@ -266,7 +266,7 @@ function emitLog(level, args) {
   if (level) line = '[' + level + '] ' + line;
   if (logLines >= limits.maxLogLines || logChars + line.length > limits.maxLogChars) {
     logFull = true;
-    post('__log', '… (logs truncados: limite de ' + limits.maxLogLines + ' linhas ou ' + limits.maxLogChars + ' caracteres)');
+    post('__log', '… (logs truncated: limit of ' + limits.maxLogLines + ' lines or ' + limits.maxLogChars + ' characters)');
     return;
   }
   logLines++;
@@ -281,14 +281,14 @@ var consoleApi = freeze({
   error: function () { emitLog('error', arguments); },
 });
 
-/* ---- nós ---- */
+/* ---- nodes ---- */
 var handles = new MapCtor();
 var NodeProto = {};
 
 function snap(h) {
   var id = h.id;
   var s = call('node', { id: id });
-  if (!s) fail('O nó "' + id + '" não existe mais (foi removido?).');
+  if (!s) fail('Node "' + id + '" no longer exists (was it removed?).');
   return s;
 }
 
@@ -310,7 +310,7 @@ function isRegExp(x) {
   return toStringTag.call(x) === '[object RegExp]';
 }
 
-/** Mapa de estilo/atributos como Proxy: ler devolve o valor, atribuir grava (op), delete remove. */
+/** Style/attributes map as a Proxy: reading returns the value, assigning writes (op), delete removes. */
 function makeBag(nodeId, kind) {
   var isStyle = kind === 'style';
   var norm = function (p) {
@@ -380,7 +380,7 @@ function makeBag(nodeId, kind) {
 }
 
 function setStyleMany(id, obj) {
-  if (!obj || typeof obj !== 'object') fail('setStyle espera um objeto { propriedade: valor }.');
+  if (!obj || typeof obj !== 'object') fail('setStyle expects an object { property: value }.');
   var styles = {};
   var unset = [];
   var ks = keysOf(obj);
@@ -416,7 +416,7 @@ function objectPredicate(q) {
   };
 }
 
-/** Busca por seletor (host), função predicado ou objeto (no contexto); sempre em ordem de documento. */
+/** Search by selector (host), predicate function or object (in the context); always in document order. */
 function selectIn(query, within) {
   var ids = [];
   if (typeof query === 'string') {
@@ -432,7 +432,7 @@ function selectIn(query, within) {
       if (pred(nodes[i])) ids.push(nodes[i].id);
     }
   } else {
-    fail('Consulta inválida: use um seletor (string), uma função (node) => boolean ou um objeto { type, tag, name, text, within }.');
+    fail('Invalid query: use a selector (string), a function (node) => boolean or an object { type, tag, name, text, within }.');
   }
   var out = [];
   for (var j = 0; j < ids.length; j++) out.push(makeHandle(ids[j]));
@@ -458,12 +458,12 @@ defineProperties(NodeProto, {
   },
   style: {
     get: function () { return makeBag(this.id, 'style'); },
-    set: function () { fail('Use node.style.propriedade = valor ou node.setStyle({ ... }).'); },
+    set: function () { fail('Use node.style.property = value or node.setStyle({ ... }).'); },
     enumerable: true,
   },
   attrs: {
     get: function () { return makeBag(this.id, 'attrs'); },
-    set: function () { fail('Use node.attrs.nome = valor ou doc.apply({ type: "setAttrs", ... }).'); },
+    set: function () { fail('Use node.attrs.name = value or doc.apply({ type: "setAttrs", ... }).'); },
     enumerable: true,
   },
   classes: { get: function () { return snap(this).classes || ''; }, enumerable: true },
@@ -500,7 +500,7 @@ defineProperties(NodeProto, {
       var res = writeOps([{ type: 'duplicateNodes', nodeIds: [this.id] }]);
       var map = res && res[0] && res[0].idMap;
       var id = map && map[this.id];
-      if (!id) fail('Não foi possível duplicar o nó.');
+      if (!id) fail('Could not duplicate the node.');
       return makeHandle(id);
     },
   },
@@ -523,7 +523,7 @@ defineProperties(docApi, {
   pages: { value: function () { return call('pages'); } },
   frames: {
     value: function (pageId) {
-      return handlesOf(call('frames', { pageId: pageId === undefined || pageId === null ? null : idOf(pageId, 'Página') }));
+      return handlesOf(call('frames', { pageId: pageId === undefined || pageId === null ? null : idOf(pageId, 'Page') }));
     },
   },
   get: {
@@ -542,13 +542,13 @@ defineProperties(docApi, {
   selection: { value: function () { return handlesOf(call('selection')); } },
   apply: {
     value: function (opOrOps) {
-      if (opOrOps === undefined || opOrOps === null) fail('doc.apply espera uma op ou um array de ops.');
+      if (opOrOps === undefined || opOrOps === null) fail('doc.apply expects an op or an array of ops.');
       return writeOps(isArray(opOrOps) ? opOrOps : [opOrOps]);
     },
   },
   create: {
     value: function (parent, spec) {
-      var id = call('create', { parentId: parent === null || parent === undefined ? null : idOf(parent, 'Pai'), spec: spec });
+      var id = call('create', { parentId: parent === null || parent === undefined ? null : idOf(parent, 'Parent'), spec: spec });
       return makeHandle(id);
     },
   },
@@ -573,10 +573,10 @@ function lock(name, value) {
 lock('doc', docApi);
 lock('console', consoleApi);
 
-// Depois de instalar doc e console, todos os globais restantes (Object, Function, Array, Error e subclasses, Promise, JSON, Proxy,
-// Reflect, Map, String, Number, Math...) ficam somente-leitura e não configuráveis: o script não pode
-// trocar o Error (nem nenhum outro construtor) que a API e os erros dela usam. O bootstrap só usa as
-// referências capturadas acima, nunca relê globalThis.X.
+// After installing doc and console, all remaining globals (Object, Function, Array, Error and subclasses, Promise, JSON, Proxy,
+// Reflect, Map, String, Number, Math...) become read-only and non-configurable: the script cannot
+// replace Error (or any other constructor) that the API and its errors use. The bootstrap only uses the
+// references captured above and never rereads globalThis.X.
 (function lockBuiltins() {
   var names = ownKeys(globalRef);
   for (var i = 0; i < names.length; i++) {
@@ -590,12 +590,12 @@ lock('console', consoleApi);
         configurable: false,
       });
     } catch (_e) {
-      /* segue */
+      /* carry on */
     }
   }
 })();
 
-/* ---- execução ---- */
+/* ---- execution ---- */
 function describe(e) {
   var msg;
   try {
@@ -603,14 +603,14 @@ function describe(e) {
       msg = (typeof e.name === 'string' && e.name !== 'Error' ? e.name + ': ' : '') + e.message;
       var st = typeof e.stack === 'string' ? e.stack : '';
       var m = /script\.js:(\d+):(\d+)/.exec(st);
-      if (m) msg += ' (linha ' + m[1] + ')';
+      if (m) msg += ' (line ' + m[1] + ')';
     } else if (typeof e === 'string') {
       msg = e;
     } else {
       msg = stringifySafe(e);
     }
   } catch (_x) {
-    msg = 'Erro desconhecido.';
+    msg = 'Unknown error.';
   }
   return msg.length > 4000 ? msg.slice(0, 4000) + '…' : msg;
 }
@@ -621,7 +621,7 @@ function outcome(value) {
   if (s.length > limits.maxResultChars) {
     return {
       ok: false,
-      error: 'O resultado do script é grande demais (' + s.length + ' caracteres; limite ' + limits.maxResultChars + '). Devolva menos dados. As alterações no documento já foram aplicadas.',
+      error: 'The script result is too large (' + s.length + ' characters; limit ' + limits.maxResultChars + '). Return less data. The changes to the document have already been applied.',
     };
   }
   return { ok: true, result: s };
@@ -630,7 +630,7 @@ function outcome(value) {
 return async function execute(userFn) {
   var out;
   try {
-    await null; // o código do usuário começa numa microtask: sem frames do worker na pilha
+    await null; // the user code starts in a microtask: no worker frames on the stack
     var value = await userFn();
     out = outcome(value);
   } catch (e) {
@@ -640,7 +640,7 @@ return async function execute(userFn) {
   try {
     json = JSONstringify(out);
   } catch (_e) {
-    json = '{"ok":false,"error":"Resultado inválido."}';
+    json = '{"ok":false,"error":"Invalid result."}';
   }
   post('__done', json);
 };

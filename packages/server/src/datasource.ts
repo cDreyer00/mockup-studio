@@ -1,7 +1,7 @@
 /**
- * Dados de repetidores: leitura de arquivo local, URL, texto colado ou lista direta, e as ops que
- * ligam os dados a um nó (convertendo um contêiner em repetidor quando preciso). Compartilhado pelas
- * ferramentas MCP (`bind_data`, `refresh_data`) e pelas rotas HTTP do editor.
+ * Repeater data: reading from a local file, URL, pasted text or a direct list, and the ops that
+ * bind the data to a node (converting a container into a repeater when needed). Shared by the MCP
+ * tools (`bind_data`, `refresh_data`) and the editor's HTTP routes.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,10 +22,10 @@ import {
 } from '@mockup/core';
 import { fetchBytes } from './assets.js';
 
-/** Erro de uso dos dados (mensagem em português dizendo o que fazer). */
+/** Data usage error (message saying what to do). */
 export class DataSourceError extends Error {}
 
-/** Limite de leitura de um arquivo ou URL de dados. */
+/** Read limit for a data file or URL. */
 export const MAX_DATA_FILE_BYTES = 5 * 1024 * 1024;
 
 export interface DataInput {
@@ -44,7 +44,7 @@ export interface LoadedData {
   source: DataSource;
 }
 
-/** Lista de itens de um texto JSON/CSV, sem cortar em `MAX_DATA_ITEMS` (o corte é de quem chama). */
+/** List of items from a JSON/CSV text, without cutting at `MAX_DATA_ITEMS` (the caller does the cutting). */
 function listFromText(text: string, format: 'json' | 'csv', select?: string): unknown[] {
   if (format === 'csv') return parseCsv(text);
   let json: unknown;
@@ -52,46 +52,46 @@ function listFromText(text: string, format: 'json' | 'csv', select?: string): un
     json = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (e) {
     throw new DataSourceError(
-      `JSON inválido: ${e instanceof Error ? e.message : String(e)}. Confira o conteúdo ou informe format "csv".`,
+      `Invalid JSON: ${e instanceof Error ? e.message : String(e)}. Check the content or pass format "csv".`,
     );
   }
   try {
     return selectDataList(json, select);
   } catch (e) {
     throw new DataSourceError(
-      `${e instanceof Error ? e.message : String(e)}. Informe select com o caminho da lista (ex.: "data.items").`,
+      `${e instanceof Error ? e.message : String(e)}. Pass select with the path to the list (e.g. "data.items").`,
     );
   }
 }
 
-/** Aplica `limit` e valida os limites de itens e de tamanho. */
+/** Applies `limit` and validates the item and size limits. */
 function finalizeList(list: unknown[], limit?: number): unknown[] {
   const out = limit && limit > 0 ? list.slice(0, limit) : list;
   if (out.length > MAX_DATA_ITEMS) {
     throw new DataSourceError(
-      `A origem tem ${out.length} itens e o máximo é ${MAX_DATA_ITEMS}. Use limit (até ${MAX_DATA_ITEMS}) para ler só os primeiros.`,
+      `The source has ${out.length} items and the maximum is ${MAX_DATA_ITEMS}. Use limit (up to ${MAX_DATA_ITEMS}) to read only the first ones.`,
     );
   }
   if (out.length === 0) {
     throw new DataSourceError(
-      'A origem não tem itens. Confira o conteúdo (CSV precisa de cabeçalho e ao menos uma linha) e o select.',
+      'The source has no items. Check the content (CSV needs a header and at least one row) and select.',
     );
   }
   if (JSON.stringify(out).length > MAX_DATA_BYTES) {
     throw new DataSourceError(
-      `Os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB. Use limit para ler menos itens.`,
+      `The data exceeds ${MAX_DATA_BYTES / 1024 / 1024} MB. Use limit to read fewer items.`,
     );
   }
   return out;
 }
 
-/** Extensões aceitas em `path` (o conteúdo volta por `get_data` e pela API do documento). */
+/** Extensions accepted in `path` (the content comes back through `get_data` and the document API). */
 const DATA_EXTS = ['.json', '.csv', '.tsv'];
 
 export interface LoadOptions {
   /**
-   * Pastas onde `path` pode estar (comparadas depois de resolver symlinks). Ausente = qualquer
-   * pasta não oculta. A rota HTTP do editor limita à pasta do documento e ao home.
+   * Folders where `path` may be (compared after resolving symlinks). Absent = any non-hidden
+   * folder. The editor's HTTP route restricts it to the document's folder and the home folder.
    */
   roots?: string[];
 }
@@ -105,43 +105,43 @@ const isInside = (root: string, p: string): boolean => {
 };
 
 /**
- * Valida e resolve o caminho de um arquivo de dados: absoluto, .json/.csv/.tsv, sem nenhuma pasta
- * ou arquivo oculto (segmento iniciado por ".", ex.: `~/.ssh`, `~/.claude`), inclusive depois de
- * seguir symlinks, e dentro de `roots` quando informado. Devolve o caminho real.
+ * Validates and resolves the path of a data file: absolute, .json/.csv/.tsv, with no hidden folder
+ * or file (segment starting with ".", e.g. `~/.ssh`, `~/.claude`), including after following
+ * symlinks, and inside `roots` when given. Returns the real path.
  */
 export async function resolveDataPath(p: string, opts: LoadOptions = {}): Promise<string> {
-  // Caminho de rede (\\host\share, //host/share) ou de dispositivo (\\?\, \\.\): recusado antes de
-  // qualquer acesso ao disco, porque abrir um compartilhamento SMB pode enviar credenciais NTLM.
+  // Network path (\\host\share, //host/share) or device path (\\?\, \\.\): refused before any
+  // disk access, because opening an SMB share can send NTLM credentials.
   if (/^[\\/]{2}/.test(p)) {
     throw new DataSourceError(
-      `Caminho recusado: "${p}" é um caminho de rede ou de dispositivo. Use um arquivo local ou url http(s).`,
+      `Path refused: "${p}" is a network or device path. Use a local file or an http(s) url.`,
     );
   }
   if (!path.isAbsolute(p)) {
-    throw new DataSourceError(`path deve ser um caminho absoluto, recebido "${p}".`);
+    throw new DataSourceError(`path must be an absolute path, got "${p}".`);
   }
   const resolved = path.resolve(p);
   const hidden = (): DataSourceError =>
     new DataSourceError(
-      `Caminho recusado: "${p}" passa por pasta ou arquivo oculto (nome iniciado por "."). Copie os dados para uma pasta comum ou cole o conteúdo em text.`,
+      `Path refused: "${p}" goes through a hidden folder or file (name starting with "."). Copy the data to a regular folder or paste the content into text.`,
     );
   if (hasHiddenSegment(resolved)) throw hidden();
   const badExt = (q: string): boolean => !DATA_EXTS.includes(path.extname(q).toLowerCase());
   if (badExt(resolved)) {
     throw new DataSourceError(
-      `Extensão "${path.extname(resolved).toLowerCase()}" não suportada. Use .json, .csv ou .tsv.`,
+      `Extension "${path.extname(resolved).toLowerCase()}" is not supported. Use .json, .csv or .tsv.`,
     );
   }
   let real: string;
   try {
     real = await fs.promises.realpath(resolved);
   } catch {
-    throw new DataSourceError(`Arquivo não encontrado: ${p}`);
+    throw new DataSourceError(`File not found: ${p}`);
   }
   if (hasHiddenSegment(real)) throw hidden();
   if (badExt(real)) {
     throw new DataSourceError(
-      `"${p}" aponta para um arquivo sem extensão .json, .csv ou .tsv; recusado.`,
+      `"${p}" points to a file without a .json, .csv or .tsv extension; refused.`,
     );
   }
   if (opts.roots) {
@@ -150,12 +150,12 @@ export async function resolveDataPath(p: string, opts: LoadOptions = {}): Promis
       try {
         roots.push(await fs.promises.realpath(r));
       } catch {
-        // pasta inexistente não autoriza nada
+        // a nonexistent folder authorizes nothing
       }
     }
     if (!roots.some((r) => isInside(r, real))) {
       throw new DataSourceError(
-        `Caminho recusado: pelo editor, o arquivo de dados precisa estar na pasta do documento ou na sua pasta pessoal (${opts.roots.join(', ')}). Cole o conteúdo ou mova o arquivo.`,
+        `Path refused: from the editor, the data file must be in the document's folder or your home folder (${opts.roots.join(', ')}). Paste the content or move the file.`,
       );
     }
   }
@@ -171,12 +171,12 @@ async function readFileData(
   try {
     st = await fs.promises.stat(real);
   } catch {
-    throw new DataSourceError(`Arquivo não encontrado: ${p}`);
+    throw new DataSourceError(`File not found: ${p}`);
   }
-  if (!st.isFile()) throw new DataSourceError(`"${p}" não é um arquivo.`);
+  if (!st.isFile()) throw new DataSourceError(`"${p}" is not a file.`);
   if (st.size > MAX_DATA_FILE_BYTES) {
     throw new DataSourceError(
-      `O arquivo passa do limite de ${MAX_DATA_FILE_BYTES / 1024 / 1024} MB.`,
+      `The file exceeds the ${MAX_DATA_FILE_BYTES / 1024 / 1024} MB limit.`,
     );
   }
   return { text: await fs.promises.readFile(real, 'utf8'), format: guessDataFormat(real) };
@@ -184,7 +184,7 @@ async function readFileData(
 
 async function readUrlData(url: string): Promise<{ text: string; contentType: string }> {
   if (!/^https?:\/\//i.test(url)) {
-    throw new DataSourceError(`url deve começar com http:// ou https://, recebido "${url}".`);
+    throw new DataSourceError(`url must start with http:// or https://, got "${url}".`);
   }
   try {
     const r = await fetchBytes(url, { maxBytes: MAX_DATA_FILE_BYTES, timeoutMs: 20_000 });
@@ -194,12 +194,12 @@ async function readUrlData(url: string): Promise<{ text: string; contentType: st
   }
 }
 
-/** Lê os dados da origem informada (exatamente uma entre `data`, `text`, `path`, `url`). */
+/** Reads the data from the given source (exactly one of `data`, `text`, `path`, `url`). */
 export async function loadData(input: DataInput, opts: LoadOptions = {}): Promise<LoadedData> {
   const given = [input.data, input.text, input.path, input.url].filter((v) => v !== undefined);
   if (given.length !== 1) {
     throw new DataSourceError(
-      'Informe exatamente uma origem: data (lista), text (JSON/CSV colado, com format), path (arquivo .json/.csv/.tsv) ou url (http/https).',
+      'Pass exactly one source: data (list), text (pasted JSON/CSV, with format), path (.json/.csv/.tsv file) or url (http/https).',
     );
   }
   const base: DataSource = { kind: 'inline' };
@@ -210,7 +210,7 @@ export async function loadData(input: DataInput, opts: LoadOptions = {}): Promis
 
   if (input.data !== undefined) {
     if (!Array.isArray(input.data)) {
-      throw new DataSourceError('data deve ser uma lista, ex.: [{ "nome": "Ana" }].');
+      throw new DataSourceError('data must be a list, e.g. [{ "name": "Ana" }].');
     }
     return { data: finalizeList(input.data, input.limit), source: { ...base, fetchedAt: now } };
   }
@@ -240,14 +240,14 @@ export async function loadData(input: DataInput, opts: LoadOptions = {}): Promis
   };
 }
 
-/** Relê a origem guardada de um repetidor. */
+/** Re-reads a repeater's stored source. */
 export async function reloadSource(
   source: DataSource | undefined,
   opts: LoadOptions = {},
 ): Promise<LoadedData> {
   if (!source || source.kind === 'inline') {
     throw new DataSourceError(
-      'Este repetidor tem dados colados/editados, sem arquivo ou URL de origem para atualizar. Use bind_data com path ou url.',
+      'This repeater has pasted/edited data, with no source file or URL to refresh from. Use bind_data with path or url.',
     );
   }
   const input: DataInput = {
@@ -257,11 +257,11 @@ export async function reloadSource(
   };
   if (source.kind === 'url') {
     if (!source.url)
-      throw new DataSourceError('A origem URL perdeu o endereço; use bind_data de novo.');
+      throw new DataSourceError('The URL source lost its address; use bind_data again.');
     input.url = source.url;
   } else {
     if (!source.path)
-      throw new DataSourceError('A origem de arquivo perdeu o caminho; use bind_data de novo.');
+      throw new DataSourceError('The file source lost its path; use bind_data again.');
     input.path = source.path;
     input.format = source.kind;
   }
@@ -270,17 +270,17 @@ export async function reloadSource(
 
 export interface BindResult {
   ops: Op[];
-  /** Id do repetidor depois das ops (muda quando o contêiner é convertido). */
+  /** Repeater id after the ops (changes when the container is converted). */
   nodeId: string;
   converted: boolean;
 }
 
-/** Ops que ligam `loaded` ao nó: `setData` num repetidor ou conversão do contêiner em repetidor. */
+/** Ops that bind `loaded` to the node: `setData` on a repeater or converting the container into a repeater. */
 export function bindOps(doc: Document, nodeId: string, loaded: LoadedData): BindResult {
   const p = findNode(doc, nodeId);
   if (!p) {
     throw new DataSourceError(
-      `Nó não encontrado: "${nodeId}". Use get_tree_summary para listar ids válidos.`,
+      `Node not found: "${nodeId}". Use get_tree_summary to list valid ids.`,
     );
   }
   const node = p.node;
@@ -293,17 +293,17 @@ export function bindOps(doc: Document, nodeId: string, loaded: LoadedData): Bind
   }
   if (node.type === 'text' || node.type === 'image' || node.type === 'svg') {
     throw new DataSourceError(
-      `O nó ${nodeId} é ${node.type}; dados ligam a um contêiner com o template dentro. Passe o id do contêiner pai.`,
+      `Node ${nodeId} is ${node.type}; data binds to a container with the template inside. Pass the parent container's id.`,
     );
   }
   if (!p.parent) {
     throw new DataSourceError(
-      `O nó ${nodeId} é um frame raiz; não vira repetidor. Coloque o template dentro de um contêiner (ex.: write_html com uma div com os cards) e passe o id dele.`,
+      `Node ${nodeId} is a root frame; it cannot become a repeater. Put the template inside a container (e.g. write_html with a div holding the cards) and pass its id.`,
     );
   }
   if (node.children.length === 0) {
     throw new DataSourceError(
-      `O contêiner ${nodeId} não tem filhos. Crie primeiro o template, ex.: write_html com um card usando {{nome}}, e chame bind_data de novo.`,
+      `Container ${nodeId} has no children. Create the template first, e.g. write_html with a card using {{name}}, and call bind_data again.`,
     );
   }
   const rep = createRepeaterFrom(node, loaded.data, loaded.source);
@@ -330,7 +330,7 @@ function rootOf(field: string): string {
   return field.split('.')[0]!;
 }
 
-/** Campos do template sem coluna correspondente (considera `mapping`). */
+/** Template fields with no matching column (takes `mapping` into account). */
 export function missingFields(node: Node, data: unknown[], source?: DataSource): string[] {
   const columns = dataColumns(data, 200);
   if (columns.includes('$item')) return [];
@@ -343,19 +343,19 @@ export function missingFields(node: Node, data: unknown[], source?: DataSource):
   return out;
 }
 
-/** Relatório do repetidor `nodeId` no documento atual. */
+/** Report for repeater `nodeId` in the current document. */
 export function dataReport(doc: Document, nodeId: string): DataReport {
   const p = findNode(doc, nodeId);
   if (!p || p.node.type !== 'repeater') {
     throw new DataSourceError(
-      `O nó ${nodeId} não é um repetidor. Use bind_data para ligar dados a um contêiner.`,
+      `Node ${nodeId} is not a repeater. Use bind_data to bind data to a container.`,
     );
   }
   const data = Array.isArray(p.node.data) ? p.node.data : [];
   const fields = templateFields(p.node.children);
   const warnings = missingFields(p.node, data, p.node.dataSource).map(
     (f) =>
-      `O campo {{${f}}} do template não tem coluna correspondente${p.node.dataSource?.mapping?.[f] ? ` (mapeado para "${p.node.dataSource.mapping[f]}")` : ''}; ajuste o template ou use mapping.`,
+      `The template field {{${f}}} has no matching column${p.node.dataSource?.mapping?.[f] ? ` (mapped to "${p.node.dataSource.mapping[f]}")` : ''}; adjust the template or use mapping.`,
   );
   return {
     nodeId,

@@ -1,9 +1,9 @@
 /**
- * Backends de agente por subprocesso: Claude Code (`claude -p`) e Codex (`codex exec`).
+ * Subprocess agent backends: Claude Code (`claude -p`) and Codex (`codex exec`).
  *
- * Cada turno é um processo novo. O prompt vai por stdin; a config MCP e o prompt de sistema vão por
- * arquivos temporários (nada de JSON nos argumentos, para não depender do quoting do Windows). A
- * saída JSONL é lida linha a linha e convertida em `AgentRunEvent`.
+ * Each turn is a new process. The prompt goes through stdin; the MCP config and the system prompt go
+ * through temporary files (no JSON in the arguments, so it does not depend on Windows quoting). The
+ * JSONL output is read line by line and converted into `AgentRunEvent`.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,15 +13,15 @@ import { StringDecoder } from 'node:string_decoder';
 import type { AssistantBackendInfo } from '@mockup/core';
 import type { AgentBackend, AgentRunEvent, AgentRunInput, AgentRunResult } from './backend.js';
 
-/* ---------- localizar executáveis ---------- */
+/* ---------- locating executables ---------- */
 
 export interface FindExecutableEnv {
-  /** Valor do PATH (padrão: `process.env.PATH`). */
+  /** PATH value (default: `process.env.PATH`). */
   pathEnv?: string;
-  /** Valor do PATHEXT, só no Windows (padrão: `process.env.PATHEXT`). */
+  /** PATHEXT value, Windows only (default: `process.env.PATHEXT`). */
   pathExt?: string;
   platform?: NodeJS.Platform;
-  /** Testa se o caminho é um arquivo executável (injetável nos testes). */
+  /** Checks whether the path is an executable file (injectable in tests). */
   isFile?: (file: string) => boolean;
 }
 
@@ -33,12 +33,12 @@ function defaultIsFile(file: string): boolean {
   }
 }
 
-/** Extensões de executável aceitas no Windows, em ordem de preferência. */
+/** Executable extensions accepted on Windows, in order of preference. */
 const WIN_EXT_ORDER = ['.exe', '.cmd', '.bat'];
 
 /**
- * Caminho completo do executável no PATH ou `null`. No Windows respeita o PATHEXT e prefere `.exe`
- * a `.cmd`/`.bat` (um `.exe` roda sem shell). Nome com separador de pasta é testado direto.
+ * Full path of the executable on PATH, or `null`. On Windows it honors PATHEXT and prefers `.exe`
+ * over `.cmd`/`.bat` (an `.exe` runs without a shell). A name with a folder separator is tested directly.
  */
 export function findExecutable(name: string, env: FindExecutableEnv = {}): string | null {
   const platform = env.platform ?? process.platform;
@@ -86,9 +86,9 @@ export function findExecutable(name: string, env: FindExecutableEnv = {}): strin
   return null;
 }
 
-/* ---------- utilitários de processo ---------- */
+/* ---------- process utilities ---------- */
 
-export function abortError(message = 'Turno cancelado.'): Error {
+export function abortError(message = 'Turn cancelled.'): Error {
   const e = new Error(message);
   e.name = 'AbortError';
   return e;
@@ -98,7 +98,7 @@ export function isAbortError(e: unknown): boolean {
   return e instanceof Error && e.name === 'AbortError';
 }
 
-/** Id de sessão aceito (vira argumento de `--resume`): `[A-Za-z0-9_-]{1,128}`, sem começar com `-`. */
+/** Accepted session id (becomes a `--resume` argument): `[A-Za-z0-9_-]{1,128}`, not starting with `-`. */
 const SESSION_ID_RE = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,127}$/;
 
 export function isValidSessionId(id: unknown): id is string {
@@ -106,19 +106,19 @@ export function isValidSessionId(id: unknown): id is string {
 }
 
 /*
- * Filhos vivos: fora do Windows eles rodam em grupo próprio (detached) e sobreviveriam à queda do
- * daemon; no 'exit' do processo todos são mortos de forma síncrona. O listener só existe enquanto há
- * filhos.
+ * Live children: outside Windows they run in their own group (detached) and would survive the
+ * daemon going down; on process 'exit' they are all killed synchronously. The listener only exists
+ * while there are children.
  */
 const liveChildren = new Set<ChildProcess>();
 let exitHookInstalled = false;
 
-/** Quantos subprocessos de agente estão vivos (para testes). */
+/** How many agent subprocesses are alive (for tests). */
 export function liveChildCount(): number {
   return liveChildren.size;
 }
 
-/** Mata, de forma síncrona, todos os subprocessos de agente vivos (usado no 'exit' do daemon). */
+/** Synchronously kills all live agent subprocesses (used on the daemon's 'exit'). */
 export function killLiveChildren(): void {
   const pids = [...liveChildren]
     .map((c) => c.pid)
@@ -132,7 +132,7 @@ export function killLiveChildren(): void {
         timeout: 5000,
       });
     } catch {
-      /* melhor esforço */
+      /* best effort */
     }
     return;
   }
@@ -140,7 +140,7 @@ export function killLiveChildren(): void {
     try {
       process.kill(-pid, 'SIGKILL');
     } catch {
-      /* já morreu */
+      /* already dead */
     }
   }
 }
@@ -162,7 +162,7 @@ function trackChild(child: ChildProcess): void {
   child.once('error', done);
 }
 
-/** Mata o processo e todos os descendentes (taskkill /T no Windows, grupo de processos no resto). */
+/** Kills the process and all descendants (taskkill /T on Windows, process group elsewhere). */
 export function killTree(child: ChildProcess): void {
   const pid = child.pid;
   if (!pid) return;
@@ -185,14 +185,14 @@ export function killTree(child: ChildProcess): void {
   }
 }
 
-/** Argumento seguro para `cmd.exe` (só usado com `.cmd`/`.bat`): recusa o que não dá para citar. */
+/** Safe argument for `cmd.exe` (only used with `.cmd`/`.bat`): rejects what cannot be quoted. */
 export function quoteCmdArg(a: string): string {
-  if (/["%\r\n]/.test(a)) throw new Error(`Argumento não suportado para executar um .cmd: ${a}`);
+  if (/["%\r\n]/.test(a)) throw new Error(`Unsupported argument for running a .cmd: ${a}`);
   return a === '' || /[\s&|<>^()!,;=]/.test(a) ? `"${a}"` : a;
 }
 
 export interface Located {
-  /** Executável (ou o Node, quando `prefixArgs` tem o script). */
+  /** Executable (or Node, when `prefixArgs` holds the script). */
   command: string;
   prefixArgs: string[];
 }
@@ -213,7 +213,7 @@ function spawnLocated(
   const all = [...loc.prefixArgs, ...args];
   let child: ChildProcess;
   if (win && /\.(cmd|bat)$/i.test(loc.command)) {
-    // Sem lista de args: com `shell: true` o Node a concatenaria sem citar (e avisa de risco).
+    // No args list: with `shell: true` Node would concatenate it without quoting (and warns about the risk).
     const line = [loc.command, ...all].map(quoteCmdArg).join(' ');
     child = spawn(line, { ...base, shell: true });
   } else {
@@ -223,7 +223,7 @@ function spawnLocated(
   return child;
 }
 
-/** Roda a CLI com `args` e devolve o stdout; rejeita em erro, código != 0 ou tempo esgotado. */
+/** Runs the CLI with `args` and returns stdout; rejects on error, non-zero exit code or timeout. */
 function runCapture(
   loc: Located,
   args: string[],
@@ -253,14 +253,14 @@ function runCapture(
     });
     child.on('close', (code) => {
       clearTimeout(timer);
-      if (timedOut) reject(new Error('tempo esgotado'));
-      else if (code !== 0) reject(new Error(`código ${code}`));
+      if (timedOut) reject(new Error('timed out'));
+      else if (code !== 0) reject(new Error(`exit code ${code}`));
       else resolve(out);
     });
   });
 }
 
-/* ---------- parsers de JSONL ---------- */
+/* ---------- JSONL parsers ---------- */
 
 export interface ParsedResult {
   text: string;
@@ -271,17 +271,17 @@ export interface ParsedResult {
 }
 
 export interface LineParser {
-  /** Processa uma linha de stdout e devolve os eventos gerados (linhas inválidas são ignoradas). */
+  /** Processes a stdout line and returns the generated events (invalid lines are ignored). */
   parse(line: string): AgentRunEvent[];
-  /** Resultado final, depois que a CLI sinalizou o fim do turno. */
+  /** Final result, after the CLI signalled the end of the turn. */
   result(): ParsedResult | undefined;
-  /** Último erro visto no fluxo (para compor a mensagem quando o turno falha). */
+  /** Last error seen in the stream (to compose the message when the turn fails). */
   lastError(): string | undefined;
 }
 
 const MCP_PREFIX = /^mcp__[^_]+__/;
 
-/** Nome da ferramenta sem o prefixo `mcp__<servidor>__` (Claude Code). */
+/** Tool name without the `mcp__<server>__` prefix (Claude Code). */
 export function stripMcpPrefix(name: string): string {
   return name.replace(MCP_PREFIX, '');
 }
@@ -290,7 +290,7 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
-/** Primeira linha não vazia, até 200 caracteres. */
+/** First non-empty line, up to 200 characters. */
 export function shortSummary(text: string): string {
   const line = text.split(/\r?\n/).find((l) => l.trim()) ?? '';
   return line.length > 200 ? line.slice(0, 197) + '...' : line.trim();
@@ -314,17 +314,17 @@ function parseJsonLine(line: string, log: (m: string) => void): Obj | undefined 
     const v: unknown = JSON.parse(t);
     return isObj(v) ? v : undefined;
   } catch {
-    log(`linha não-JSON ignorada: ${t.length > 200 ? t.slice(0, 200) + '...' : t}`);
+    log(`non-JSON line ignored: ${t.length > 200 ? t.slice(0, 200) + '...' : t}`);
     return undefined;
   }
 }
 
-/** Saída de `claude -p --output-format stream-json --verbose --include-partial-messages`. */
+/** Output of `claude -p --output-format stream-json --verbose --include-partial-messages`. */
 export class ClaudeStreamParser implements LineParser {
   private final?: ParsedResult;
   private error?: string;
   private sessionSent = false;
-  /** Ids de mensagem cujo texto já chegou em deltas (não repetir quando vier a mensagem completa). */
+  /** Message ids whose text already arrived in deltas (do not repeat when the full message comes). */
   private readonly streamed = new Set<string>();
   private emittedText = false;
   private needSep = false;
@@ -386,7 +386,7 @@ export class ClaudeStreamParser implements LineParser {
             out.push({
               kind: 'tool',
               id: str(b['id']) ?? '',
-              name: stripMcpPrefix(str(b['name']) ?? 'ferramenta'),
+              name: stripMcpPrefix(str(b['name']) ?? 'tool'),
               input: b['input'],
             });
           }
@@ -418,7 +418,7 @@ export class ClaudeStreamParser implements LineParser {
           : [];
         const resultText = str(o['result']) ?? '';
         const error = isError
-          ? resultText || errors.join('; ') || sub || 'erro desconhecido'
+          ? resultText || errors.join('; ') || sub || 'unknown error'
           : undefined;
         this.final = {
           text: resultText,
@@ -437,7 +437,7 @@ export class ClaudeStreamParser implements LineParser {
   }
 }
 
-/** Saída de `codex exec --json`. */
+/** Output of `codex exec --json`. */
 export class CodexStreamParser implements LineParser {
   private final?: ParsedResult;
   private error?: string;
@@ -480,7 +480,7 @@ export class CodexStreamParser implements LineParser {
             this.lastMessage = text;
           }
         } else if (kind === 'mcp_tool_call') {
-          const name = str(item['tool']) ?? str(item['name']) ?? 'ferramenta';
+          const name = str(item['tool']) ?? str(item['name']) ?? 'tool';
           out.push(...this.toolStart(item, name, item['arguments']));
           if (done) {
             const err = item['error'];
@@ -517,13 +517,13 @@ export class CodexStreamParser implements LineParser {
         break;
       case 'turn.failed': {
         const e = o['error'];
-        const msg = (isObj(e) ? str(e['message']) : str(e)) ?? this.error ?? 'o turno falhou';
+        const msg = (isObj(e) ? str(e['message']) : str(e)) ?? this.error ?? 'the turn failed';
         this.error = msg;
         this.final = { text: this.lastMessage, isError: true, error: msg };
         break;
       }
       case 'error': {
-        // Pode ser aviso transitório (reconexão); só vira falha se o turno não completar.
+        // May be a transient warning (reconnect); only becomes a failure if the turn does not complete.
         const msg = str(o['message']);
         if (msg) this.error = msg;
         break;
@@ -535,15 +535,15 @@ export class CodexStreamParser implements LineParser {
   }
 }
 
-/* ---------- classe base ---------- */
+/* ---------- base class ---------- */
 
 export interface CliBackendOptions {
-  /** Executável (ou o Node, com `prefixArgs` apontando para um script): para testes. */
+  /** Executable (or Node, with `prefixArgs` pointing to a script): for tests. */
   command?: string;
   prefixArgs?: string[];
-  /** Variáveis de ambiente extras do subprocesso. */
+  /** Extra environment variables for the subprocess. */
   env?: Record<string, string>;
-  /** Tempo máximo de um turno em ms (padrão: 10 min). */
+  /** Maximum time of a turn in ms (default: 10 min). */
   timeoutMs?: number;
   log?: (message: string) => void;
 }
@@ -553,7 +553,7 @@ const INFO_TTL_MS = 30_000;
 const VERSION_TIMEOUT_MS = 5000;
 const MODEL_RE = /^[\w.:/[\]-]+$/;
 
-/** Arquivos e argumentos de um turno, montados pelo backend concreto. */
+/** Files and arguments of a turn, built by the concrete backend. */
 interface RunPlan {
   args: string[];
   stdin: string;
@@ -562,9 +562,9 @@ interface RunPlan {
 abstract class CliBackend implements AgentBackend {
   abstract readonly id: string;
   abstract readonly name: string;
-  /** Nome do executável procurado no PATH. */
+  /** Name of the executable looked up on PATH. */
   protected abstract readonly exe: string;
-  /** Variável de ambiente que sobrescreve o caminho do executável. */
+  /** Environment variable that overrides the executable path. */
   protected abstract readonly envBin: string;
   protected abstract readonly installHint: string;
 
@@ -586,7 +586,7 @@ abstract class CliBackend implements AgentBackend {
   ): RunPlan | Promise<RunPlan>;
   protected abstract createParser(): LineParser;
 
-  /** Onde está o executável (testes > override por env > PATH). */
+  /** Where the executable is (tests > env override > PATH). */
   protected locate(): Located | null {
     if (this.options.command) {
       return { command: this.options.command, prefixArgs: this.options.prefixArgs ?? [] };
@@ -614,7 +614,7 @@ abstract class CliBackend implements AgentBackend {
         id: this.id,
         name: this.name,
         available: false,
-        detail: `Não encontrado (${this.exe}). ${this.installHint}`,
+        detail: `Not found (${this.exe}). ${this.installHint}`,
       };
     }
     const shown = loc.prefixArgs[0] ?? loc.command;
@@ -668,9 +668,9 @@ abstract class CliBackend implements AgentBackend {
   ): Promise<AgentRunResult> {
     if (signal.aborted) throw abortError();
     const loc = this.locate();
-    if (!loc) throw new Error(`${this.name} não encontrado no PATH. ${this.installHint}`);
+    if (!loc) throw new Error(`${this.name} not found on PATH. ${this.installHint}`);
     if (input.model && !MODEL_RE.test(input.model)) {
-      throw new Error(`Nome de modelo inválido: ${input.model}`);
+      throw new Error(`Invalid model name: ${input.model}`);
     }
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-agent-'));
     try {
@@ -685,7 +685,7 @@ abstract class CliBackend implements AgentBackend {
       try {
         fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       } catch (e) {
-        this.log(`não foi possível apagar ${dir}: ${e instanceof Error ? e.message : String(e)}`);
+        this.log(`could not delete ${dir}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }
@@ -719,7 +719,7 @@ abstract class CliBackend implements AgentBackend {
           try {
             emit(ev);
           } catch (e) {
-            this.log(`erro no tratamento de evento: ${e instanceof Error ? e.message : String(e)}`);
+            this.log(`error handling event: ${e instanceof Error ? e.message : String(e)}`);
           }
         }
       };
@@ -735,7 +735,7 @@ abstract class CliBackend implements AgentBackend {
       const onAbort = (): void => {
         aborted = true;
         killTree(child);
-        // Se o 'close' não vier (processo preso), não deixa o turno pendurado.
+        // If 'close' never comes (stuck process), do not leave the turn hanging.
         fallback = setTimeout(() => settle(() => reject(abortError())), 3000);
       };
       const timer = setTimeout(() => {
@@ -760,7 +760,7 @@ abstract class CliBackend implements AgentBackend {
       });
       child.stdin?.on('error', () => undefined);
       child.on('error', (err) =>
-        settle(() => reject(new Error(`Não foi possível iniciar ${this.name}: ${err.message}`))),
+        settle(() => reject(new Error(`Could not start ${this.name}: ${err.message}`))),
       );
       child.on('close', (code) => {
         buf += decoder.end();
@@ -785,7 +785,7 @@ abstract class CliBackend implements AgentBackend {
 
   private timeoutError(ms: number): Error {
     return new Error(
-      `${this.name} excedeu o tempo limite do turno (${Math.round(ms / 1000)} s) e foi encerrado.`,
+      `${this.name} exceeded the turn time limit (${Math.round(ms / 1000)} s) and was terminated.`,
     );
   }
 
@@ -793,12 +793,12 @@ abstract class CliBackend implements AgentBackend {
     let msg =
       reason ??
       (code !== 0 && code !== null
-        ? `${this.name} terminou com código ${code}.`
-        : `${this.name} terminou sem devolver resposta.`);
+        ? `${this.name} exited with code ${code}.`
+        : `${this.name} finished without returning a response.`);
     const tail = stderr.trim().split(/\r?\n/).slice(-6).join('\n').slice(-600);
     if (tail && !msg.includes(tail)) msg += `\n${tail}`;
     if (/log ?in|logged|auth|credential|unauthori[sz]ed|api key|401/i.test(`${msg}`)) {
-      msg += `\nVerifique se ${this.name} está instalado e logado (abra a CLI no terminal e entre na sua conta).`;
+      msg += `\nCheck that ${this.name} is installed and signed in (open the CLI in a terminal and sign in to your account).`;
     }
     return msg;
   }
@@ -806,7 +806,7 @@ abstract class CliBackend implements AgentBackend {
 
 /* ---------- Claude Code ---------- */
 
-/** Nome do servidor MCP do daemon dentro da config do Claude Code. */
+/** Name of the daemon MCP server inside the Claude Code config. */
 export const MCP_SERVER_NAME = 'mockup-studio';
 
 export class ClaudeCliBackend extends CliBackend {
@@ -815,7 +815,7 @@ export class ClaudeCliBackend extends CliBackend {
   protected readonly exe = 'claude';
   protected readonly envBin = 'MOCKUP_CLAUDE_BIN';
   protected readonly installHint =
-    'Instale o Claude Code (https://claude.com/claude-code) e faça login com `claude`.';
+    'Install Claude Code (https://claude.com/claude-code) and sign in with `claude`.';
 
   protected override locate(): Located | null {
     const script = process.env['MOCKUP_AGENT_CLI'];
@@ -836,11 +836,11 @@ export class ClaudeCliBackend extends CliBackend {
       'stream-json',
       '--verbose',
       '--include-partial-messages',
-      // Sem ferramentas embutidas (Bash, Read, Edit...): só as do MCP do mockup-studio.
+      // No built-in tools (Bash, Read, Edit...): only the mockup-studio MCP ones.
       '--tools',
       '',
       '--strict-mcp-config',
-      // Nada de prompt interativo: o que não está liberado abaixo é negado sozinho.
+      // No interactive prompt: anything not allowed below is denied automatically.
       '--permission-mode',
       'dontAsk',
       '--setting-sources',
@@ -862,7 +862,7 @@ export class ClaudeCliBackend extends CliBackend {
       args.push('--append-system-prompt-file', sys);
     }
     if (input.model) args.push('--model', input.model);
-    // Um argumento só (`--resume=<id>`) e só com id válido: nada vira flag por engano.
+    // A single argument (`--resume=<id>`) and only with a valid id: nothing becomes a flag by mistake.
     if (isValidSessionId(input.resumeSession)) args.push(`--resume=${input.resumeSession}`);
 
     const content: unknown[] = [{ type: 'text', text: input.prompt }];
@@ -880,8 +880,8 @@ export class ClaudeCliBackend extends CliBackend {
 /* ---------- Codex ---------- */
 
 /**
- * Features do Codex desligadas no turno (só as que existirem em `codex features list`): shell e
- * execução unificada, e as integrações que dão outras ferramentas ao agente.
+ * Codex features turned off in the turn (only those present in `codex features list`): shell and
+ * unified exec, and the integrations that give other tools to the agent.
  */
 export const CODEX_DISABLED_FEATURES = [
   'shell_tool',
@@ -892,10 +892,10 @@ export const CODEX_DISABLED_FEATURES = [
   'in_app_browser',
 ] as const;
 
-/** Nome de servidor MCP que dá para desligar por `-c mcp_servers.<nome>.enabled=false` (chave TOML simples). */
+/** MCP server name that can be turned off via `-c mcp_servers.<name>.enabled=false` (simple TOML key). */
 const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/;
 
-/** Nomes dos servidores de `codex mcp list --json`. Entrada inválida vira lista vazia. */
+/** Server names from `codex mcp list --json`. Invalid input becomes an empty list. */
 export function parseCodexMcpList(json: string): string[] {
   try {
     const v: unknown = JSON.parse(json);
@@ -906,7 +906,7 @@ export function parseCodexMcpList(json: string): string[] {
   }
 }
 
-/** Features de `codex features list` (`<nome> <estágio> <estado>` por linha), sem as removidas. */
+/** Features from `codex features list` (`<name> <stage> <state>` per line), without the removed ones. */
 export function parseCodexFeatures(text: string): string[] {
   const out: string[] = [];
   for (const line of text.split(/\r?\n/)) {
@@ -917,26 +917,26 @@ export function parseCodexFeatures(text: string): string[] {
 }
 
 export interface CodexIsolation {
-  /** Servidores MCP configurados pelo usuário (todos serão desligados no turno). */
+  /** MCP servers configured by the user (all of them will be turned off in the turn). */
   servers: string[];
-  /** Features existentes nesta versão do Codex. */
+  /** Features that exist in this Codex version. */
   features: string[];
 }
 
-/** Chave do servidor do turno: a do nome do MCP, sem colidir com um servidor do usuário. */
+/** Key of the turn's server: the MCP name's, without colliding with a user server. */
 export function codexTurnServerKey(name: string, existing: string[]): string {
   const key = name.replace(/[^A-Za-z0-9_]/g, '_');
   return existing.includes(key) ? `${key}_turn` : key;
 }
 
-/** Argumentos `-c mcp_servers.<nome>.enabled=false` e `--disable <feature>` do isolamento. */
+/** Isolation arguments `-c mcp_servers.<name>.enabled=false` and `--disable <feature>`. */
 export function codexIsolationArgs(iso: CodexIsolation, log?: (m: string) => void): string[] {
   const args: string[] = [];
   for (const name of iso.servers) {
     if (!TOML_BARE_KEY.test(name)) {
-      // O Codex não aceita chaves entre aspas em `-c`: não há como desligar este servidor.
+      // Codex does not accept quoted keys in `-c`: there is no way to turn this server off.
       log?.(
-        `servidor MCP "${name}" do Codex não pode ser desligado no turno (nome fora de [A-Za-z0-9_-])`,
+        `Codex MCP server "${name}" cannot be turned off in the turn (name outside [A-Za-z0-9_-])`,
       );
       continue;
     }
@@ -949,9 +949,9 @@ export function codexIsolationArgs(iso: CodexIsolation, log?: (m: string) => voi
 }
 
 export interface CodexCliBackendOptions extends CliBackendOptions {
-  /** Servidores MCP do usuário (padrão: `codex mcp list --json`). Falha = lista vazia. */
+  /** User MCP servers (default: `codex mcp list --json`). Failure = empty list. */
   listMcpServers?: () => Promise<string[]>;
-  /** Features do Codex (padrão: `codex features list`). Falha = lista vazia. */
+  /** Codex features (default: `codex features list`). Failure = empty list. */
   listFeatures?: () => Promise<string[]>;
 }
 
@@ -964,7 +964,7 @@ export class CodexCliBackend extends CliBackend {
   protected readonly exe = 'codex';
   protected readonly envBin = 'MOCKUP_CODEX_BIN';
   protected readonly installHint =
-    'Instale o Codex CLI (https://developers.openai.com/codex/cli) e faça login com `codex login`.';
+    'Install the Codex CLI (https://developers.openai.com/codex/cli) and sign in with `codex login`.';
 
   private isolationCache?: { at: number; value: Promise<CodexIsolation> };
 
@@ -976,7 +976,7 @@ export class CodexCliBackend extends CliBackend {
     return new CodexStreamParser(this.log);
   }
 
-  /** Servidores MCP e features do Codex, com cache curto; qualquer falha vira lista vazia (não cacheada). */
+  /** Codex MCP servers and features, with a short cache; any failure becomes an empty list (not cached). */
   protected isolation(): Promise<CodexIsolation> {
     const now = Date.now();
     if (this.isolationCache && now - this.isolationCache.at < ISOLATION_TTL_MS) {
@@ -989,7 +989,7 @@ export class CodexCliBackend extends CliBackend {
           return await fn();
         } catch (e) {
           ok = false;
-          this.log(`${what} indisponível: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${what} unavailable: ${e instanceof Error ? e.message : String(e)}`);
           return [];
         }
       };
@@ -1025,20 +1025,20 @@ export class CodexCliBackend extends CliBackend {
 
   protected async plan(input: AgentRunInput, dir: string, cwd: string): Promise<RunPlan> {
     const iso = await this.isolation();
-    // `-i` aceita vários valores: fica logo depois de `exec` e antes de outra flag.
+    // `-i` accepts several values: it goes right after `exec` and before another flag.
     const args = ['exec'];
     (input.images ?? []).forEach((img, i) => {
       const ext = img.mime === 'image/jpeg' ? 'jpg' : 'png';
-      const file = path.join(dir, `imagem-${i + 1}.${ext}`);
+      const file = path.join(dir, `image-${i + 1}.${ext}`);
       fs.writeFileSync(file, Buffer.from(img.data, 'base64'));
       args.push('-i', file);
     });
     args.push('--json', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', cwd);
     if (input.model) args.push('-m', input.model);
-    // Os `-c` só acrescentam à config do usuário: desliga os MCPs e as ferramentas dele neste turno.
+    // The `-c` flags only add to the user's config: turns off their MCPs and tools in this turn.
     args.push(...codexIsolationArgs(iso, this.log));
     if (input.mcp) {
-      // Valores sem aspas: se não forem TOML válido o Codex usa a string crua (evita aspas em .cmd).
+      // Unquoted values: if they are not valid TOML Codex uses the raw string (avoids quotes in .cmd).
       const key = `mcp_servers.${codexTurnServerKey(input.mcp.name, iso.servers)}`;
       args.push(
         '-c',
@@ -1047,7 +1047,7 @@ export class CodexCliBackend extends CliBackend {
         `${key}.default_tools_approval_mode=approve`,
       );
     }
-    // O Codex não tem arquivo de system prompt por flag estável: vai junto no prompt (stdin).
+    // Codex has no stable flag for a system prompt file: it goes along in the prompt (stdin).
     const stdin = input.system
       ? `${input.system}\n\n---\n\n${input.prompt}\n`
       : `${input.prompt}\n`;
@@ -1055,9 +1055,9 @@ export class CodexCliBackend extends CliBackend {
   }
 }
 
-/* ---------- detecção ---------- */
+/* ---------- detection ---------- */
 
-/** Backends padrão do daemon, na ordem de preferência do modo `auto`. */
+/** Default daemon backends, in the preference order of `auto` mode. */
 export function detectBackends(): AgentBackend[] {
   return [new ClaudeCliBackend(), new CodexCliBackend()];
 }

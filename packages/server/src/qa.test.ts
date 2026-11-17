@@ -1,5 +1,5 @@
 /**
- * Testes de QA do MVP: robustez do MCP, tempo real MCP -> WS e persistência.
+ * MVP QA tests: MCP robustness, MCP -> WS real time and persistence.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -43,49 +43,49 @@ describe('QA: MCP + daemon', () => {
     ws.cleanup();
   });
 
-  it('parâmetros inválidos devolvem erro e o daemon continua vivo', async () => {
+  it('invalid parameters return an error and the daemon stays alive', async () => {
     const cases: Array<[string, Record<string, unknown>]> = [
-      ['get_node_info', { nodeId: 'el_naoexiste' }],
-      ['get_children', { nodeId: 'el_naoexiste' }],
+      ['get_node_info', { nodeId: 'el_missing' }],
+      ['get_children', { nodeId: 'el_missing' }],
       ['create_frame', { name: 'X', width: -10, height: 100 }],
       ['create_frame', { name: 'X', width: 0, height: 100 }],
-      ['write_html', { parentId: ws.frameId, html: '<p>a</p>', mode: 'invalido' }],
+      ['write_html', { parentId: ws.frameId, html: '<p>a</p>', mode: 'invalid' }],
       ['write_html', { parentId: ws.frameId, html: '' }],
-      ['write_html', { parentId: 'el_naoexiste', html: '<p>a</p>' }],
+      ['write_html', { parentId: 'el_missing', html: '<p>a</p>' }],
       ['get_html', { nodeId: ws.frameId, mode: 'xyz' }],
-      ['update_styles', { nodeIds: ['el_naoexiste'], styles: { color: 'red' } }],
-      ['delete_nodes', { nodeIds: ['el_naoexiste'] }],
+      ['update_styles', { nodeIds: ['el_missing'], styles: { color: 'red' } }],
+      ['delete_nodes', { nodeIds: ['el_missing'] }],
       ['move_nodes', { nodeIds: [ws.frameId], parentId: ws.frameId }],
       ['set_text', { nodeIds: [ws.frameId] }],
-      ['get_guide', { topic: 'inexistente' }],
+      ['get_guide', { topic: 'nonexistent' }],
       ['get_tree_summary', { depth: -1 }],
       ['rename_nodes', { nodeIds: [ws.frameId], names: [] }],
     ];
-    const falhas: string[] = [];
+    const failures: string[] = [];
     for (const [name, args] of cases) {
       const r = await call(name, args);
       if (!isErr(r) || textOf(r).length < 5) {
-        falhas.push(`${name} ${JSON.stringify(args)} => isError=${isErr(r)} ${textOf(r)}`);
+        failures.push(`${name} ${JSON.stringify(args)} => isError=${isErr(r)} ${textOf(r)}`);
       }
     }
-    expect(falhas).toEqual([]);
+    expect(failures).toEqual([]);
     const info = await call('get_basic_info');
     expect(isErr(info)).toBe(false);
     const health = await fetch(`${daemon.url}/api/health`);
     expect(health.status).toBe(200);
   });
 
-  it('erros de validação do core viram isError e o daemon continua válido', async () => {
+  it('core validation errors become isError and the daemon stays valid', async () => {
     const t1 = await call('create_node', { parentId: ws.frameId, tag: 'SCRIPT' });
     expect(isErr(t1)).toBe(true);
-    expect(textOf(t1)).toContain('Tag inválida');
+    expect(textOf(t1)).toContain('Invalid tag');
 
     const t2 = await call('set_attrs', { nodeIds: [ws.frameId], attrs: { onclick: 'x()' } });
     expect(isErr(t2)).toBe(true);
 
     const t3 = await call('write_html', { parentId: ws.frameId, html: '<iframe src=x></iframe>' });
     expect(isErr(t3)).toBe(true);
-    expect(textOf(t3)).toContain('não gerou nenhum nó');
+    expect(textOf(t3)).toContain('produced no nodes');
 
     expect(isErr(await call('get_basic_info'))).toBe(false);
     expect((await fetch(`${daemon.url}/api/health`)).status).toBe(200);
@@ -93,7 +93,7 @@ describe('QA: MCP + daemon', () => {
     expect(() => parseDocument(fs.readFileSync(ws.file, 'utf8'))).not.toThrow();
   });
 
-  it('get_tree_summary com depth 0, 1 e 10', async () => {
+  it('get_tree_summary with depth 0, 1 and 10', async () => {
     await call('write_html', {
       parentId: ws.frameId,
       html: '<section><h1>T</h1><p>x</p></section>',
@@ -107,21 +107,21 @@ describe('QA: MCP + daemon', () => {
     expect(d10).not.toContain('undefined');
   });
 
-  it('set_selection reflete em get_selection', async () => {
+  it('set_selection is reflected in get_selection', async () => {
     await call('write_html', { parentId: ws.frameId, html: '<p>a</p>' });
     const sel = await call('set_selection', { nodeIds: [ws.frameId] });
     expect(isErr(sel)).toBe(false);
     expect(textOf(await call('get_selection'))).toContain(ws.frameId);
     await call('set_selection', { nodeIds: [] });
     expect(textOf(await call('get_selection'))).not.toContain(ws.frameId);
-    const bad = await call('set_selection', { nodeIds: ['el_naoexiste'] });
+    const bad = await call('set_selection', { nodeIds: ['el_missing'] });
     expect(textOf(bad).length).toBeGreaterThan(0);
   });
 
-  it('create_page, set_tokens e get_tokens', async () => {
-    const p = await call('create_page', { name: 'Página 2' });
+  it('create_page, set_tokens and get_tokens', async () => {
+    const p = await call('create_page', { name: 'Page 2' });
     expect(isErr(p)).toBe(false);
-    expect(textOf(await call('get_basic_info'))).toContain('Página 2');
+    expect(textOf(await call('get_basic_info'))).toContain('Page 2');
     const t = await call('set_tokens', { tokens: { '--color-primary': '#0af', '--gap': '8px' } });
     expect(isErr(t), textOf(t)).toBe(false);
     const got = textOf(await call('get_tokens'));
@@ -131,10 +131,10 @@ describe('QA: MCP + daemon', () => {
     expect(textOf(await call('get_tokens'))).not.toContain('--gap');
   });
 
-  it('get_html nos dois modos e guias nos 4 tópicos', async () => {
+  it('get_html in both modes and guides for the 4 topics', async () => {
     await call('write_html', {
       parentId: ws.frameId,
-      html: '<p class="a">oi</p>',
+      html: '<p class="a">hi</p>',
       css: '.a{color:red}',
     });
     const inl = textOf(await call('get_html', { nodeId: ws.frameId, mode: 'inline' }));
@@ -150,29 +150,29 @@ describe('QA: MCP + daemon', () => {
     }
   });
 
-  it('write_html + undo/redo; undo além do histórico não derruba', async () => {
+  it('write_html + undo/redo; undo past the history does not crash', async () => {
     const before = textOf(await call('get_tree_summary', { depth: 5 }));
     const w = await call('write_html', {
       parentId: ws.frameId,
-      html: '<section><h1>Título</h1><p>Texto</p></section>',
+      html: '<section><h1>Title</h1><p>Text</p></section>',
     });
     expect(isErr(w)).toBe(false);
-    expect(textOf(await call('get_tree_summary', { depth: 5 }))).toContain('Título');
+    expect(textOf(await call('get_tree_summary', { depth: 5 }))).toContain('Title');
     await call('undo');
     expect(textOf(await call('get_tree_summary', { depth: 5 }))).toBe(before);
     await call('redo');
-    expect(textOf(await call('get_tree_summary', { depth: 5 }))).toContain('Título');
+    expect(textOf(await call('get_tree_summary', { depth: 5 }))).toContain('Title');
     await call('undo');
     const extra = await call('undo');
     expect(textOf(extra).length).toBeGreaterThan(0);
   });
 
-  it('mudança via MCP chega ao cliente WS em tempo real', async () => {
+  it('a change via MCP reaches the WS client in real time', async () => {
     const sock = new WebSocket(daemon.wsUrl);
     const msgs: Array<Record<string, unknown>> = [];
     sock.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Record<string, unknown>));
     await new Promise((r) => sock.once('open', r));
-    await call('write_html', { parentId: ws.frameId, html: '<p>tempo real</p>' });
+    await call('write_html', { parentId: ws.frameId, html: '<p>real time</p>' });
     const deadline = Date.now() + 3000;
     while (!msgs.some((m) => m.type === 'doc:changed') && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 25));
@@ -182,15 +182,15 @@ describe('QA: MCP + daemon', () => {
     expect(msgs.map((m) => m.type)).toContain('doc:changed');
   });
 
-  it('save_document, autosave e reabertura preservam a mudança', async () => {
-    await call('write_html', { parentId: ws.frameId, html: '<h1>Persistido</h1>' });
+  it('save_document, autosave and reopening preserve the change', async () => {
+    await call('write_html', { parentId: ws.frameId, html: '<h1>Persisted</h1>' });
     const s = await call('save_document');
     expect(isErr(s)).toBe(false);
     const raw = fs.readFileSync(ws.file, 'utf8');
     expect(raw).toContain('\n');
     const json = JSON.parse(raw) as { version: number };
     expect(json.version).toBe(1);
-    expect(raw).toContain('Persistido');
+    expect(raw).toContain('Persisted');
 
     await call('write_html', { parentId: ws.frameId, html: '<h2>Auto</h2>' });
     await new Promise((r) => setTimeout(r, 1800));
@@ -205,11 +205,11 @@ describe('QA: MCP + daemon', () => {
     await c2.close();
     await d2.close();
     fs.rmSync(dir2, { recursive: true, force: true });
-    expect(sum).toContain('Persistido');
+    expect(sum).toContain('Persisted');
     expect(sum).toContain('Auto');
   });
 
-  it('daemon escuta só em loopback', () => {
+  it('daemon listens only on loopback', () => {
     expect(daemon.url).toMatch(/127\.0\.0\.1/);
   });
 });

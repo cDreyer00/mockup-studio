@@ -20,15 +20,15 @@ interface FontFile {
   bytes: Buffer;
   ext: string;
   weight: number;
-  /** Maior peso coberto quando o arquivo é de fonte variável (faixa `weight`..`weightMax`). */
+  /** Highest weight covered when the file is a variable font (range `weight`..`weightMax`). */
   weightMax?: number;
   style: 'normal' | 'italic';
 }
 
-/** Preferência de formato quando a fonte traz o mesmo peso/estilo em vários: woff2 > woff > ttf/otf. */
+/** Format preference when the font ships the same weight/style in several: woff2 > woff > ttf/otf. */
 const FORMAT_RANK: Record<string, number> = { woff2: 0, woff: 1, ttf: 2, otf: 2 };
 
-/** Um arquivo por peso/estilo, no melhor formato disponível. */
+/** One file per weight/style, in the best available format. */
 export function dedupeFormats(files: FontFile[]): FontFile[] {
   const best = new Map<string, FontFile>();
   for (const f of files) {
@@ -40,9 +40,9 @@ export function dedupeFormats(files: FontFile[]): FontFile[] {
 }
 
 /**
- * Fonte variável: o Google devolve o mesmo arquivo para cada peso pedido. Se, em cada estilo, todos
- * os arquivos têm o mesmo conteúdo, cada estilo vira um só, cobrindo a faixa do menor ao maior peso.
- * Se algum estilo não puder ser juntado (fontes estáticas ou um peso só), nada muda.
+ * Variable font: Google returns the same file for every requested weight. If, in each style, all
+ * files have the same content, each style becomes a single one, covering the range from the lowest
+ * to the highest weight. If any style cannot be merged (static fonts or a single weight), nothing changes.
  */
 export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
   if (files.length < 2) return files;
@@ -51,8 +51,8 @@ export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
     const group = files.filter((f) => f.style === style);
     const first = group[0];
     if (!first) continue;
-    // Junta só se todos os estilos presentes puderem ser juntados: a lista `weights` do documento
-    // precisa ser uma faixa por arquivo ou um peso por arquivo, nunca uma mistura das duas.
+    // Merge only if every present style can be merged: the document's `weights` list
+    // must be one range per file or one weight per file, never a mix of the two.
     if (group.length < 2 || !group.every((f) => f.bytes.equals(first.bytes))) return files;
     const ws = group.map((f) => f.weight);
     out.push({ ...first, weight: Math.min(...ws), weightMax: Math.max(...ws) });
@@ -60,7 +60,7 @@ export function mergeIdenticalFiles(files: FontFile[]): FontFile[] {
   return out;
 }
 
-/** Slug da família; se outra família do documento gera o mesmo slug, acrescenta um sufixo estável. */
+/** Family slug; if another family in the document yields the same slug, appends a stable suffix. */
 export function uniqueSlug(family: string, otherFamilies: string[]): string {
   const slug = fontSlug(family);
   if (!otherFamilies.some((o) => fontSlug(o) === slug)) return slug;
@@ -68,8 +68,8 @@ export function uniqueSlug(family: string, otherFamilies: string[]): string {
 }
 
 /**
- * Grava a fonte como `<slug>-<peso>-<estilo>-<hash8>.<ext>` (hash do conteúdo): o nome muda quando a
- * fonte muda e nunca sobrescreve arquivo existente. Mesmo conteúdo reaproveita o arquivo.
+ * Writes the font as `<slug>-<weight>-<style>-<hash8>.<ext>` (content hash): the name changes when
+ * the font changes and never overwrites an existing file. Identical content reuses the file.
  */
 async function writeFontFile(dir: string, slug: string, f: FontFile): Promise<string> {
   const hash = createHash('sha256').update(f.bytes).digest('hex').slice(0, 8);
@@ -79,7 +79,7 @@ async function writeFontFile(dir: string, slug: string, f: FontFile): Promise<st
   try {
     if ((await fs.promises.readFile(file)).equals(f.bytes)) return name;
   } catch {
-    // não existe: grava abaixo
+    // does not exist: write below
   }
   return writeAsset(dir, name, f.bytes);
 }
@@ -91,7 +91,7 @@ async function filesFromPath(source: string, weights?: number[]): Promise<FontFi
   try {
     st = await fs.promises.stat(source);
   } catch {
-    throw new ToolError(`Caminho não encontrado: ${source}`);
+    throw new ToolError(`Path not found: ${source}`);
   }
   const list = st.isDirectory()
     ? (await fs.promises.readdir(source))
@@ -99,23 +99,22 @@ async function filesFromPath(source: string, weights?: number[]): Promise<FontFi
         .sort()
         .map((f) => path.join(source, f))
     : [source];
-  if (!list.length)
-    throw new ToolError(`Nenhum arquivo de fonte (${FONT_EXTS.join(', ')}) em ${source}.`);
+  if (!list.length) throw new ToolError(`No font file (${FONT_EXTS.join(', ')}) in ${source}.`);
   const out: FontFile[] = [];
   for (const file of list) {
     const ext = fontExt(file);
     if (!FONT_EXTS.includes(ext))
-      throw new ToolError(`Extensão não suportada em ${file}; use ${FONT_EXTS.join(', ')}.`);
+      throw new ToolError(`Unsupported extension in ${file}; use ${FONT_EXTS.join(', ')}.`);
     const g = guessFontStyle(file);
     const weight = !st.isDirectory() && weights?.length ? weights[0]! : g.weight;
     if (st.isDirectory() && weights?.length && !weights.includes(weight)) continue;
     const s = await fs.promises.stat(file);
-    if (s.size > MAX_ASSET_BYTES) throw new ToolError(`${file} passa do limite de 20 MB.`);
+    if (s.size > MAX_ASSET_BYTES) throw new ToolError(`${file} exceeds the 20 MB limit.`);
     out.push({ bytes: await fs.promises.readFile(file), ext, weight, style: g.style });
   }
   if (!out.length)
     throw new ToolError(
-      `Nenhum arquivo de ${source} corresponde aos pesos ${weights?.join(', ')}. Os pesos são deduzidos do nome (Regular, Bold, Light...).`,
+      `No file in ${source} matches the weights ${weights?.join(', ')}. Weights are inferred from the file name (Regular, Bold, Light...).`,
     );
   return out;
 }
@@ -131,7 +130,7 @@ async function filesFromUrl(url: string, weights?: number[]): Promise<FontFile[]
   const ext = fontExt(pathname);
   if (!FONT_EXTS.includes(ext))
     throw new ToolError(
-      `A URL deve apontar para um arquivo de fonte (${FONT_EXTS.join(', ')}); recebido "${pathname}".`,
+      `The URL must point to a font file (${FONT_EXTS.join(', ')}); received "${pathname}".`,
     );
   let r;
   try {
@@ -158,13 +157,13 @@ async function filesFromGoogle(family: string, weights: number[]): Promise<FontF
     const msg = e instanceof Error ? e.message : String(e);
     throw new ToolError(
       /HTTP 400|HTTP 404/.test(msg)
-        ? `O Google Fonts não tem a família "${family}" com os pesos ${weights.join(', ')}. Confira o nome (ex.: "Inter", "Playfair Display") e os pesos disponíveis.`
+        ? `Google Fonts does not have the family "${family}" with the weights ${weights.join(', ')}. Check the name (e.g. "Inter", "Playfair Display") and the available weights.`
         : msg,
     );
   }
   const faces = parseGoogleCss(css).filter((f) => f.subset === 'latin');
   if (!faces.length)
-    throw new ToolError(`O Google Fonts não devolveu o subconjunto latin de "${family}".`);
+    throw new ToolError(`Google Fonts did not return the latin subset of "${family}".`);
   const out: FontFile[] = [];
   for (const f of faces) {
     let r;
@@ -194,22 +193,22 @@ export function registerFontTools(ctx: ToolContext): void {
   tool(
     'list_fonts',
     {
-      title: 'Listar fontes',
+      title: 'List fonts',
       description:
-        'Lista as fontes embutidas no documento e as instaladas no sistema, com filtro por nome. Para outra fonte use add_font.',
+        'Lists the fonts embedded in the document and those installed on the system, with a name filter. To use another font, use add_font.',
       example: { query: 'inter' },
       inputSchema: {
         query: z
           .string()
           .optional()
-          .describe('Filtro por nome (contém, sem diferenciar maiúsculas), ex.: "inter".'),
+          .describe('Name filter (contains, case-insensitive), e.g. "inter".'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(500)
           .optional()
-          .describe('Máximo de fontes do sistema listadas, de 1 a 500, ex.: 20 (padrão 50).'),
+          .describe('Maximum system fonts listed, from 1 to 500, e.g. 20 (default 50).'),
         docId: docIdField,
       },
       annotations: READ,
@@ -221,23 +220,20 @@ export function registerFontTools(ctx: ToolContext): void {
       const embeddedNames = new Set(doc.fonts.map((f) => f.family.toLowerCase()));
       const lines: string[] = [];
       const docFonts = doc.fonts.filter((f) => match(f.family));
-      lines.push(`No documento (${docFonts.length}):`);
+      lines.push(`In the document (${docFonts.length}):`);
       for (const f of docFonts) {
-        const w = f.weights?.length ? ` pesos ${[...new Set(f.weights)].join(', ')}` : '';
-        lines.push(`- ${f.family} [${f.source === 'local' ? 'local' : 'embutida'}]${w}`);
+        const w = f.weights?.length ? ` weights ${[...new Set(f.weights)].join(', ')}` : '';
+        lines.push(`- ${f.family} [${f.source === 'local' ? 'local' : 'embedded'}]${w}`);
       }
       const sys = (await listSystemFonts()).filter((f) => match(f.family));
       const max = limit ?? 50;
-      lines.push(`No sistema (${sys.length}${sys.length > max ? `, mostrando ${max}` : ''}):`);
+      lines.push(`On the system (${sys.length}${sys.length > max ? `, showing ${max}` : ''}):`);
       for (const f of sys.slice(0, max)) {
         lines.push(
-          `- ${f.family}${embeddedNames.has(f.family.toLowerCase()) ? ' [embutida no documento]' : ''}`,
+          `- ${f.family}${embeddedNames.has(f.family.toLowerCase()) ? ' [embedded in the document]' : ''}`,
         );
       }
-      if (!sys.length)
-        lines.push(
-          '(nenhuma fonte do sistema encontrada para esse filtro ou listagem indisponível)',
-        );
+      if (!sys.length) lines.push('(no system font found for this filter, or listing unavailable)');
       return lines.join('\n');
     },
   );
@@ -245,12 +241,12 @@ export function registerFontTools(ctx: ToolContext): void {
   tool(
     'get_font_info',
     {
-      title: 'Informações de uma fonte',
+      title: 'Font info',
       description:
-        'Diz se a fonte está instalada no sistema, embutida no documento e como usá-la em font-family.',
+        'Tells whether the font is installed on the system, embedded in the document and how to use it in font-family.',
       example: { family: 'Inter' },
       inputSchema: {
-        family: z.string().describe('Nome da família, ex.: "Inter".'),
+        family: z.string().describe('Family name, e.g. "Inter".'),
         docId: docIdField,
       },
       annotations: READ,
@@ -260,10 +256,10 @@ export function registerFontTools(ctx: ToolContext): void {
         (f) => f.family.toLowerCase() === family.trim().toLowerCase(),
       );
       const emb = embedded(docId, family);
-      const lines = [`Fonte "${family}":`];
+      const lines = [`Font "${family}":`];
       if (sys) {
         lines.push(
-          `- Sistema: instalada. Estilos: ${sys.styles.join(', ') || '(desconhecido)'}. Arquivos: ${sys.files.slice(0, 6).join(', ') || '(desconhecido)'}`,
+          `- System: installed. Styles: ${sys.styles.join(', ') || '(unknown)'}. Files: ${sys.files.slice(0, 6).join(', ') || '(unknown)'}`,
         );
       } else {
         const similar = (await listSystemFonts())
@@ -271,21 +267,21 @@ export function registerFontTools(ctx: ToolContext): void {
           .slice(0, 5)
           .map((f) => f.family);
         lines.push(
-          `- Sistema: não instalada${similar.length ? ` (parecidas: ${similar.join(', ')})` : ''}.`,
+          `- System: not installed${similar.length ? ` (similar: ${similar.join(', ')})` : ''}.`,
         );
       }
       if (emb) {
         lines.push(
           emb.source === 'local' || !emb.files?.length
-            ? `- Documento: registrada como fonte local (sem arquivos embutidos).`
-            : `- Documento: embutida. Arquivos: ${emb.files.join(', ')}; pesos: ${(emb.weights ?? []).join(', ') || '(todos)'}.`,
+            ? `- Document: registered as a local font (no embedded files).`
+            : `- Document: embedded. Files: ${emb.files.join(', ')}; weights: ${(emb.weights ?? []).join(', ') || '(all)'}.`,
         );
       } else {
         lines.push(
-          '- Documento: não registrada. Use add_font para embutir (google, arquivo, URL) ou registrar como local.',
+          '- Document: not registered. Use add_font to embed (google, file, URL) or register as local.',
         );
       }
-      lines.push(`Uso: ${fontFamilyCss(sys?.family ?? emb?.family ?? family)}`);
+      lines.push(`Usage: ${fontFamilyCss(sys?.family ?? emb?.family ?? family)}`);
       return lines.join('\n');
     },
   );
@@ -293,21 +289,19 @@ export function registerFontTools(ctx: ToolContext): void {
   tool(
     'add_font',
     {
-      title: 'Adicionar fonte ao documento',
+      title: 'Add font to the document',
       description:
-        'Registra uma fonte no documento: source "google" (baixa e embute), "local" (instalada), caminho de arquivo/pasta ou URL http(s). Exceto "local", o documento precisa ter caminho.',
+        'Registers a font in the document: source "google" (downloads and embeds), "local" (installed), a file/folder path or an http(s) URL. Except for "local", the document must have a path on disk.',
       example: { family: 'Inter', source: 'google', weights: [400, 700] },
       inputSchema: {
-        family: z.string().min(1).describe('Nome da família, ex.: "Inter".'),
+        family: z.string().min(1).describe('Family name, e.g. "Inter".'),
         source: z
           .string()
-          .describe(
-            '"google", "local", caminho de arquivo/pasta ou URL http(s) do arquivo de fonte.',
-          ),
+          .describe('"google", "local", a file/folder path or an http(s) URL of the font file.'),
         weights: z
           .array(z.number().int().min(100).max(900))
           .optional()
-          .describe('Pesos de 100 a 900, ex.: [400, 600, 700] (padrão no google: 400 e 700).'),
+          .describe('Weights from 100 to 900, e.g. [400, 600, 700] (google default: 400 and 700).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -326,14 +320,14 @@ export function registerFontTools(ctx: ToolContext): void {
         );
         if (!installed)
           notes.push(
-            `Atenção: "${fam}" não foi encontrada entre as fontes instaladas; confira com list_fonts.`,
+            `Warning: "${fam}" was not found among the installed fonts; check with list_fonts.`,
           );
         ref = { family: fam, source: 'local' };
       } else {
         const assets = store.assetsDir(id);
         if (!assets)
           throw new ToolError(
-            'O documento ainda não tem caminho em disco, então não há onde gravar assets/fonts. Salve o documento antes (create_document ou Salvar como).',
+            'The document has no path on disk yet, so there is nowhere to write assets/fonts. Save the document first (create_document or Save As).',
           );
         let files: FontFile[];
         const isGoogle = src.toLowerCase() === 'google';
@@ -342,11 +336,11 @@ export function registerFontTools(ctx: ToolContext): void {
         else if (path.isAbsolute(src)) files = await filesFromPath(src, weights);
         else
           throw new ToolError(
-            `source inválido: "${src}". Use "google", "local", um caminho absoluto ou uma URL http(s).`,
+            `Invalid source: "${src}". Use "google", "local", an absolute path or an http(s) URL.`,
           );
         files = dedupeFormats(files);
-        // Pesos pedidos de um arquivo só (fonte variável): o documento guarda a lista completa de
-        // pesos com um único arquivo, e o @font-face sai com a faixa "min max".
+        // Weights requested from a single file (variable font): the document keeps the full list of
+        // weights with one file, and the @font-face comes out with the "min max" range.
         const requested = files.map((f) => f.weight).sort((a, b) => a - b);
         files.sort((a, b) => a.weight - b.weight || a.style.localeCompare(b.style));
         files = mergeIdenticalFiles(files);
@@ -371,14 +365,14 @@ export function registerFontTools(ctx: ToolContext): void {
         };
       }
 
-      // Re-adicionar a família troca a entrada no lugar (um undo restaura a anterior); os arquivos
-      // antigos continuam em assets/fonts.
+      // Re-adding the family replaces the entry in place (one undo restores the previous one); the
+      // old files remain in assets/fonts.
       const at = doc.fonts.findIndex((f) => f.family.toLowerCase() === fam.toLowerCase());
       const fonts = at < 0 ? [...doc.fonts, ref] : doc.fonts.map((f, i) => (i === at ? ref : f));
       ctx.apply(id, [{ type: 'setFonts', fonts }], 'add_font');
       const reg =
         ref.source === 'local'
-          ? 'fonte local (sem arquivos)'
+          ? 'local font (no files)'
           : ref
               .files!.map((f, i) => {
                 const ws = ref.weights!;
@@ -388,9 +382,9 @@ export function registerFontTools(ctx: ToolContext): void {
               })
               .join(', ');
       return [
-        `Fonte "${fam}" registrada: ${reg}.`,
+        `Font "${fam}" registered: ${reg}.`,
         ...notes,
-        `Uso: ${fontFamilyCss(fam)} (e font-weight com os pesos registrados), via update_styles.`,
+        `Usage: ${fontFamilyCss(fam)} (and font-weight with the registered weights), via update_styles.`,
       ].join('\n');
     },
   );

@@ -1,7 +1,7 @@
-/** Tipos mínimos do `opentype.js` 2.x (o pacote não traz declarações), só o que `outlines.ts` usa. */
+/** Minimal types for `opentype.js` 2.x (the package ships no declarations), only what `outlines.ts` uses. */
 declare module 'opentype.js' {
   export interface Path {
-    /** `decimals` inteiro: casas decimais, sem inverter o eixo Y. */
+    /** Integer `decimals`: decimal places, without flipping the Y axis. */
     toPathData(decimals: number): string;
   }
 
@@ -19,12 +19,12 @@ declare module 'opentype.js' {
 
   export interface Font {
     unitsPerEm: number;
-    /** Ascendente e descendente (hhea; o descendente é negativo). */
+    /** Ascender and descender (hhea; the descender is negative). */
     ascender: number;
     descender: number;
     tables: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
     names: Record<string, Record<string, string> | undefined>;
-    /** Presente nas fontes variáveis. */
+    /** Present in variable fonts. */
     variation?: { getTransform(glyph: Glyph, coords?: Record<string, number>): Glyph };
     charToGlyphIndex(char: string): number;
     forEachGlyph(

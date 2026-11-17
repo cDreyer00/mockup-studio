@@ -34,13 +34,13 @@ interface Work {
   cleanup(): void;
 }
 
-/** Documento com um frame e 3 filhos (a, b, c). */
+/** Document with one frame and 3 children (a, b, c). */
 function makeWork(): Work {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-assist-'));
   const dataDir = path.join(dir, 'data');
   fs.mkdirSync(dataDir);
   const kids: Node[] = ['A', 'B', 'C'].map((n) =>
-    createNodeFromTag('div', { name: `Caixa ${n}`, styles: { width: '100px', height: '40px' } }),
+    createNodeFromTag('div', { name: `Box ${n}`, styles: { width: '100px', height: '40px' } }),
   );
   const frame = createNodeFromTag('div', {
     isRoot: true,
@@ -49,9 +49,9 @@ function makeWork(): Work {
     position: { x: 0, y: 0 },
     children: kids,
   });
-  const doc = createDocument('Teste');
+  const doc = createDocument('Test');
   doc.pages[0]!.frames.push(frame);
-  const file = path.join(dir, 'teste.mockup.json');
+  const file = path.join(dir, 'test.mockup.json');
   fs.writeFileSync(file, serializeDocument(doc), 'utf8');
   return {
     dir,
@@ -79,14 +79,14 @@ function memBackend(
   const id = opts.id ?? 'fake';
   return {
     id,
-    name: `Falso ${id}`,
+    name: `Fake ${id}`,
     calls,
     info: () =>
       Promise.resolve({
         id,
-        name: `Falso ${id}`,
+        name: `Fake ${id}`,
         available: opts.available ?? true,
-        ...(opts.available === false ? { detail: 'não instalado' } : {}),
+        ...(opts.available === false ? { detail: 'not installed' } : {}),
       }),
     run: (input, emit, signal) => {
       calls.push(input);
@@ -97,7 +97,7 @@ function memBackend(
 
 function abortable(signal: AbortSignal): Promise<never> {
   return new Promise((_, reject) => {
-    const onAbort = () => reject(Object.assign(new Error('cancelado'), { name: 'AbortError' }));
+    const onAbort = () => reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
     if (signal.aborted) onAbort();
     else signal.addEventListener('abort', onAbort, { once: true });
   });
@@ -111,7 +111,7 @@ function collect(svc: AssistantService, docId: string): AssistantEvent[] {
   return events;
 }
 
-describe('AssistantService (backend em memória)', () => {
+describe('AssistantService (in-memory backend)', () => {
   let w: Work;
   let store: DocumentStore;
   let docId: string;
@@ -134,20 +134,20 @@ describe('AssistantService (backend em memória)', () => {
       ...extra,
     });
 
-  it('turno: eventos na ordem, mensagem final e contexto com a seleção', async () => {
+  it('turn: events in order, final message and context with the selection', async () => {
     const be = memBackend((_input, emit) => {
       emit({ kind: 'session', sessionId: 'S1' });
-      emit({ kind: 'text', text: 'Vou ' });
-      emit({ kind: 'text', text: 'renomear.' });
+      emit({ kind: 'text', text: 'Going to ' });
+      emit({ kind: 'text', text: 'rename.' });
       emit({ kind: 'tool', id: 't1', name: 'rename_nodes', input: { nodeIds: ['x'] } });
       emit({ kind: 'tool-result', id: 't1', ok: true, summary: 'ok' });
-      return Promise.resolve({ text: 'Renomeei tudo.', sessionId: 'S1' });
+      return Promise.resolve({ text: 'Renamed everything.', sessionId: 'S1' });
     });
     const svc = svcWith([be]);
     const events = collect(svc, docId);
     store.setSelection(docId, [w.ids[0]!, w.ids[1]!], 'editor');
 
-    const msg = await svc.runTurn(docId, 'Renomeie as caixas', { instructions: 'EXTRA-INSTR' });
+    const msg = await svc.runTurn(docId, 'Rename the boxes', { instructions: 'EXTRA-INSTR' });
 
     expect(events.map((e) => e.kind)).toEqual([
       'turn-start',
@@ -160,13 +160,13 @@ describe('AssistantService (backend em memória)', () => {
     const start = events[0] as Extract<AssistantEvent, { kind: 'turn-start' }>;
     expect(start.user).toMatchObject({
       role: 'user',
-      text: 'Renomeie as caixas',
+      text: 'Rename the boxes',
       selection: [w.ids[0], w.ids[1]],
     });
     expect(start.backend).toBe('fake');
     expect(msg).toMatchObject({
       role: 'assistant',
-      text: 'Renomeei tudo.',
+      text: 'Renamed everything.',
       status: 'done',
       backend: 'fake',
       opsCount: 0,
@@ -180,23 +180,23 @@ describe('AssistantService (backend em memória)', () => {
     expect(input.mcp?.name).toBe('mockup-studio');
     expect(input.mcp?.url).toMatch(/^http:\/\/127\.0\.0\.1:4747\/mcp\?turn=[0-9a-f]{32}$/);
     expect(input.prompt).toContain(`docId: ${docId}`);
-    expect(input.prompt).toContain(`Seleção: ${w.ids[0]}, ${w.ids[1]}`);
-    expect(input.prompt).toContain('Caixa A');
-    expect(input.prompt).not.toContain('Caixa C');
-    expect(input.prompt).toContain('Renomeie as caixas');
+    expect(input.prompt).toContain(`Selection: ${w.ids[0]}, ${w.ids[1]}`);
+    expect(input.prompt).toContain('Box A');
+    expect(input.prompt).not.toContain('Box C');
+    expect(input.prompt).toContain('Rename the boxes');
     expect(input.system).toContain('EXTRA-INSTR');
     expect(input.system).toContain(docId);
     expect(input.cwd).toBeTruthy();
     expect(await svc.history(docId)).toHaveLength(2);
   });
 
-  it('sem seleção lista os frames; com render anexa o screenshot e tolera falha dele', async () => {
+  it('without a selection it lists the frames; with a render it attaches the screenshot and tolerates its failure', async () => {
     const captured: unknown[] = [];
     let fail = false;
     const render: RenderProvider = {
       capture: (req) => {
         captured.push({ nodeId: req.nodeId, scale: req.scale, maxWidth: req.maxWidth });
-        if (fail) return Promise.reject(new Error('sem render'));
+        if (fail) return Promise.reject(new Error('no render'));
         return Promise.resolve({
           data: Buffer.from('PNG'),
           mime: 'image/png',
@@ -210,8 +210,8 @@ describe('AssistantService (backend em memória)', () => {
     };
     const be = memBackend(() => Promise.resolve({ text: 'ok' }));
     const svc = svcWith([be], { render });
-    await svc.runTurn(docId, 'oi');
-    expect(be.calls[0]!.prompt).toContain('Seleção: (nenhuma)');
+    await svc.runTurn(docId, 'hi');
+    expect(be.calls[0]!.prompt).toContain('Selection: (none)');
     expect(be.calls[0]!.prompt).toContain('Desktop');
     expect(be.calls[0]!.images).toEqual([
       { mime: 'image/png', data: Buffer.from('PNG').toString('base64') },
@@ -220,20 +220,20 @@ describe('AssistantService (backend em memória)', () => {
 
     fail = true;
     store.setSelection(docId, [w.ids[2]!], 'editor');
-    const m = await svc.runTurn(docId, 'de novo');
+    const m = await svc.runTurn(docId, 'again');
     expect(m.status).toBe('done');
     expect(be.calls[1]!.images).toEqual([]);
     expect(captured[1]).toMatchObject({ nodeId: w.ids[2] });
   });
 
-  it('resolveTurn vale durante o turno e vira null depois; fecha o grupo', async () => {
+  it('resolveTurn is valid during the turn and becomes null afterwards; closes the group', async () => {
     let urlToken = '';
     let binding: unknown;
     const svc: AssistantService = svcWith([
       memBackend((input) => {
         urlToken = new URL(input.mcp!.url).searchParams.get('turn')!;
         binding = svc.resolveTurn(urlToken);
-        // duas aplicações do mesmo grupo viram uma entrada de undo
+        // two applications of the same group become one undo entry
         const g = (binding as { group: string }).group;
         store.applyOps(
           docId,
@@ -252,21 +252,21 @@ describe('AssistantService (backend em memória)', () => {
     expect(binding).toMatchObject({ docId, group: expect.stringMatching(/^assistant:turn_/) });
     expect(svc.resolveTurn(urlToken)).toBeNull();
     expect(msg.opsCount).toBe(2);
-    // um undo desfaz as duas
+    // one undo reverts both
     store.undo(docId, 'editor');
-    expect(findNode(store.get(docId), w.ids[0]!)!.node.name).toBe('Caixa A');
-    expect(findNode(store.get(docId), w.ids[1]!)!.node.name).toBe('Caixa B');
+    expect(findNode(store.get(docId), w.ids[0]!)!.node.name).toBe('Box A');
+    expect(findNode(store.get(docId), w.ids[1]!)!.node.name).toBe('Box B');
   });
 
-  it('segundo send concorrente é recusado; cancel gera turno cancelled', async () => {
+  it('a second concurrent send is rejected; cancel produces a cancelled turn', async () => {
     const be = memBackend((_i, emit, signal) => {
-      emit({ kind: 'text', text: 'parcial' });
+      emit({ kind: 'text', text: 'partial' });
       return abortable(signal);
     });
     const svc = svcWith([be]);
     const events = collect(svc, docId);
-    const { turnId } = await svc.send(docId, 'longo');
-    await expect(svc.send(docId, 'outro')).rejects.toThrow(/em andamento/);
+    const { turnId } = await svc.send(docId, 'long');
+    await expect(svc.send(docId, 'other')).rejects.toThrow(/in progress/);
     expect(svc.cancel(docId)).toBe(true);
     await svc.close();
     const end = events.find((e) => e.kind === 'turn-end') as Extract<
@@ -274,71 +274,72 @@ describe('AssistantService (backend em memória)', () => {
       { kind: 'turn-end' }
     >;
     expect(end.turnId).toBe(turnId);
-    expect(end.message).toMatchObject({ status: 'cancelled', text: 'parcial' });
+    expect(end.message).toMatchObject({ status: 'cancelled', text: 'partial' });
     expect(svc.cancel(docId)).toBe(false);
-    await expect(svc.send(docId, 'depois de fechar')).rejects.toThrow(/encerrado/);
+    await expect(svc.send(docId, 'after closing')).rejects.toThrow(/shut down/);
   });
 
-  it('erro do backend vira status error com a mensagem', async () => {
-    const svc = svcWith([memBackend(() => Promise.reject(new Error('CLI não logada')))]);
-    const m = await svc.runTurn(docId, 'oi');
-    expect(m).toMatchObject({ status: 'error', error: 'CLI não logada' });
-    expect(svc.resolveTurn('qualquer')).toBeNull();
-    // o documento fica livre para outro turno
-    await expect(svc.runTurn(docId, 'de novo')).resolves.toMatchObject({ status: 'error' });
+  it('a backend error becomes status error with the message', async () => {
+    const svc = svcWith([memBackend(() => Promise.reject(new Error('CLI not signed in')))]);
+    const m = await svc.runTurn(docId, 'hi');
+    expect(m).toMatchObject({ status: 'error', error: 'CLI not signed in' });
+    expect(svc.resolveTurn('any')).toBeNull();
+    // the document is free for another turn
+    await expect(svc.runTurn(docId, 'again')).resolves.toMatchObject({ status: 'error' });
   });
 
-  it('sessão do backend é reaproveitada (resume) e, se falhar, refaz sem resume', async () => {
+  it('the backend session is reused (resume) and, if it fails, retried without resume', async () => {
     let n = 0;
     const be = memBackend((input) => {
       n++;
-      if (n === 3 && input.resumeSession) return Promise.reject(new Error('sessão inexistente'));
+      if (n === 3 && input.resumeSession)
+        return Promise.reject(new Error('session does not exist'));
       return Promise.resolve({ text: `r${n}`, sessionId: `S${n}` });
     });
     const svc = svcWith([be]);
-    await svc.runTurn(docId, 'um');
-    await svc.runTurn(docId, 'dois');
+    await svc.runTurn(docId, 'one');
+    await svc.runTurn(docId, 'two');
     expect(be.calls[0]!.resumeSession).toBeUndefined();
     expect(be.calls[1]!.resumeSession).toBe('S1');
-    // sem resume (sem sessão), o histórico recente vai resumido no prompt
-    expect(be.calls[0]!.prompt).not.toContain('Conversa anterior');
-    await svc.runTurn(docId, 'três');
+    // without resume (no session), the recent history goes summarized in the prompt
+    expect(be.calls[0]!.prompt).not.toContain('Previous conversation');
+    await svc.runTurn(docId, 'three');
     expect(be.calls.map((c) => c.resumeSession)).toEqual([undefined, 'S1', 'S2', undefined]);
-    expect(be.calls[3]!.prompt).toContain('Conversa anterior');
-    expect(be.calls[3]!.prompt).toContain('um');
+    expect(be.calls[3]!.prompt).toContain('Previous conversation');
+    expect(be.calls[3]!.prompt).toContain('one');
   });
 
-  it('resume falho com texto ou ferramenta já emitidos não refaz o turno', async () => {
+  it('a failed resume with text or tool already emitted does not redo the turn', async () => {
     let n = 0;
     const be = memBackend((_input, emit) => {
       n++;
       if (n === 1) return Promise.resolve({ text: 'r1', sessionId: 'S1' });
-      emit({ kind: 'text', text: 'já falei' });
-      return Promise.reject(new Error('quebrou no meio'));
+      emit({ kind: 'text', text: 'already said' });
+      return Promise.reject(new Error('broke midway'));
     });
     const svc = svcWith([be]);
-    await svc.runTurn(docId, 'um');
-    const m = await svc.runTurn(docId, 'dois');
-    expect(m).toMatchObject({ status: 'error', error: 'quebrou no meio' });
-    expect(be.calls).toHaveLength(2); // sem segunda tentativa
+    await svc.runTurn(docId, 'one');
+    const m = await svc.runTurn(docId, 'two');
+    expect(m).toMatchObject({ status: 'error', error: 'broke midway' });
+    expect(be.calls).toHaveLength(2); // no second attempt
     expect(be.calls[1]!.resumeSession).toBe('S1');
   });
 
-  it('nenhum backend disponível: erro claro; id desconhecido; auto escolhe o primeiro disponível', async () => {
+  it('no backend available: clear error; unknown id; auto picks the first available', async () => {
     const off = memBackend(() => Promise.resolve({ text: '' }), { id: 'claude', available: false });
-    const on = memBackend(() => Promise.resolve({ text: 'do codex' }), { id: 'codex' });
-    await expect(svcWith([off]).runTurn(docId, 'oi')).rejects.toThrow(
-      /Nenhum agente de IA disponível[\s\S]*Claude Code[\s\S]*Codex/,
+    const on = memBackend(() => Promise.resolve({ text: 'from codex' }), { id: 'codex' });
+    await expect(svcWith([off]).runTurn(docId, 'hi')).rejects.toThrow(
+      /No AI agent available[\s\S]*Claude Code[\s\S]*Codex/,
     );
     const svc = svcWith([off, on]);
-    expect((await svc.runTurn(docId, 'oi')).backend).toBe('codex');
-    await expect(svc.runTurn(docId, 'oi', { backend: 'xyz' })).rejects.toThrow(/desconhecido/);
-    await expect(svc.runTurn(docId, 'oi', { backend: 'claude' })).rejects.toThrow(/indisponível/);
-    // o documento não fica preso depois de erro de backend
-    expect((await svc.runTurn(docId, 'oi')).status).toBe('done');
+    expect((await svc.runTurn(docId, 'hi')).backend).toBe('codex');
+    await expect(svc.runTurn(docId, 'hi', { backend: 'xyz' })).rejects.toThrow(/[Uu]nknown/);
+    await expect(svc.runTurn(docId, 'hi', { backend: 'claude' })).rejects.toThrow(/unavailable/);
+    // the document does not get stuck after a backend error
+    expect((await svc.runTurn(docId, 'hi')).status).toBe('done');
   });
 
-  it('configuração persistida em assistant.json e validada', async () => {
+  it('configuration persisted in assistant.json and validated', async () => {
     const a = memBackend(() => Promise.resolve({ text: '' }), { id: 'claude' });
     const b = memBackend(() => Promise.resolve({ text: 'cx' }), { id: 'codex' });
     const svc = svcWith([a, b]);
@@ -355,27 +356,27 @@ describe('AssistantService (backend em memória)', () => {
       models: { codex: 'gpt-5' },
     });
     await expect(
-      svc.handle({ type: 'assistant:config', reqId: '2', config: { backend: 'nada' } }),
-    ).rejects.toThrow(/desconhecido/);
+      svc.handle({ type: 'assistant:config', reqId: '2', config: { backend: 'nothing' } }),
+    ).rejects.toThrow(/[Uu]nknown/);
     await expect(
       svc.handle({ type: 'assistant:config', reqId: '3', config: { model: 'a b;c' } }),
-    ).rejects.toThrow(/inválido/);
-    // novo serviço lê o arquivo; o modelo vai ao backend do turno
+    ).rejects.toThrow(/[Ii]nvalid/);
+    // a new service reads the file; the model goes to the turn's backend
     const svc2 = svcWith([a, b]);
     expect(svc2.getConfig()).toEqual({
       backend: 'codex',
       model: 'gpt-5',
       models: { codex: 'gpt-5' },
     });
-    await svc2.runTurn(docId, 'oi');
+    await svc2.runTurn(docId, 'hi');
     expect(b.calls[0]!.model).toBe('gpt-5');
-    // limpar o modelo
+    // clear the model
     await svc2.handle({ type: 'assistant:config', reqId: '4', config: { model: '' } });
     expect(svc2.getConfig()).toEqual({ backend: 'codex' });
   });
 
-  it('modelo por backend: o do claude não vai ao codex no auto; models e atalho model', async () => {
-    const claude = memBackend(() => Promise.reject(new Error('fora')), {
+  it('model per backend: the claude one does not go to codex in auto; models and the model shortcut', async () => {
+    const claude = memBackend(() => Promise.reject(new Error('offline')), {
       id: 'claude',
       available: false,
     });
@@ -390,20 +391,20 @@ describe('AssistantService (backend em memória)', () => {
       backend: 'auto',
       models: { claude: 'opus', codex: 'gpt-5' },
     });
-    await svc.runTurn(docId, 'oi'); // auto → codex (claude indisponível)
+    await svc.runTurn(docId, 'hi'); // auto → codex (claude unavailable)
     expect(codex.calls[0]!.model).toBe('gpt-5');
-    // sem modelo do backend escolhido: padrão da CLI, nunca o de outro backend
+    // no model for the chosen backend: CLI default, never another backend's
     await svc.handle({ type: 'assistant:config', reqId: '2', config: { models: { codex: '' } } });
-    await svc.runTurn(docId, 'de novo');
+    await svc.runTurn(docId, 'again');
     expect(codex.calls[1]!.model).toBeUndefined();
-    // com backend auto, o atalho model não diz a qual backend vale
+    // with backend auto, the model shortcut does not say which backend it applies to
     await expect(
       svc.handle({ type: 'assistant:config', reqId: '3', config: { model: 'x' } }),
     ).rejects.toThrow(/auto/);
     await expect(
-      svc.handle({ type: 'assistant:config', reqId: '4', config: { models: { nada: 'x' } } }),
-    ).rejects.toThrow(/desconhecido/);
-    // o atalho vale para o backend do mesmo patch
+      svc.handle({ type: 'assistant:config', reqId: '4', config: { models: { nothing: 'x' } } }),
+    ).rejects.toThrow(/[Uu]nknown/);
+    // the shortcut applies to the backend of the same patch
     await svc.handle({
       type: 'assistant:config',
       reqId: '5',
@@ -416,7 +417,7 @@ describe('AssistantService (backend em memória)', () => {
     });
   });
 
-  it('assistant.json antigo com model único: vale para o backend configurado (ou claude no auto)', () => {
+  it('old assistant.json with a single model: applies to the configured backend (or claude in auto)', () => {
     const a = memBackend(() => Promise.resolve({ text: '' }), { id: 'claude' });
     const b = memBackend(() => Promise.resolve({ text: '' }), { id: 'codex' });
     const file = path.join(w.dataDir, 'assistant.json');
@@ -430,17 +431,17 @@ describe('AssistantService (backend em memória)', () => {
     expect(svcWith([a, b]).getConfig()).toEqual({ backend: 'auto', models: { claude: 'opus' } });
   });
 
-  it('histórico em arquivo lateral, recarregado por um novo serviço; clear apaga', async () => {
+  it('history in a sidecar file, reloaded by a new service; clear deletes it', async () => {
     const be = memBackend((_i, emit) => {
       emit({ kind: 'session', sessionId: 'SESS' });
-      return Promise.resolve({ text: 'resposta', sessionId: 'SESS' });
+      return Promise.resolve({ text: 'reply', sessionId: 'SESS' });
     });
     const svc = svcWith([be]);
-    await svc.runTurn(docId, 'primeira');
-    await svc.runTurn(docId, 'efêmera', { ephemeral: true });
+    await svc.runTurn(docId, 'first');
+    await svc.runTurn(docId, 'ephemeral', { ephemeral: true });
 
     const side = assistantSidecarPath(w.file);
-    expect(side).toBe(path.join(w.dir, 'teste.assistant.json'));
+    expect(side).toBe(path.join(w.dir, 'test.assistant.json'));
     const saved = JSON.parse(fs.readFileSync(side, 'utf8')) as {
       version: number;
       messages: AssistantMessage[];
@@ -448,12 +449,12 @@ describe('AssistantService (backend em memória)', () => {
     };
     expect(saved.version).toBe(1);
     expect(saved.messages.map((m) => [m.role, m.text])).toEqual([
-      ['user', 'primeira'],
-      ['assistant', 'resposta'],
+      ['user', 'first'],
+      ['assistant', 'reply'],
     ]);
     expect(saved.sessions).toEqual({ fake: 'SESS' });
 
-    const be2 = memBackend(() => Promise.resolve({ text: 'segunda' }));
+    const be2 = memBackend(() => Promise.resolve({ text: 'second' }));
     const svc2 = svcWith([be2]);
     const events2 = collect(svc2, docId);
     const hist = (await svc2.handle({
@@ -469,8 +470,8 @@ describe('AssistantService (backend em memória)', () => {
     expect(hist.messages).toHaveLength(2);
     expect(hist.running).toBeNull();
     expect(hist.backends).toHaveLength(1);
-    // a sessão persistida também volta
-    await svc2.runTurn(docId, 'continua');
+    // the persisted session comes back too
+    await svc2.runTurn(docId, 'continue');
     expect(be2.calls[0]!.resumeSession).toBe('SESS');
     expect(await svc2.history(docId)).toHaveLength(4);
 
@@ -480,7 +481,7 @@ describe('AssistantService (backend em memória)', () => {
     expect(events2.at(-1)?.kind).toBe('cleared');
   });
 
-  it('sessionId malicioso/inválido no arquivo lateral nunca chega ao backend', async () => {
+  it('malicious/invalid sessionId in the sidecar file never reaches the backend', async () => {
     const side = assistantSidecarPath(w.file);
     const bad: unknown[] = [
       '--settings={"hooks":{"x":1}}',
@@ -500,61 +501,61 @@ describe('AssistantService (backend em memória)', () => {
         'utf8',
       );
       const be = memBackend(() => Promise.resolve({ text: 'ok' }));
-      await svcWith([be]).runTurn(docId, 'oi', { ephemeral: true });
+      await svcWith([be]).runTurn(docId, 'hi', { ephemeral: true });
       expect(be.calls[0]!.resumeSession).toBeUndefined();
     }
-    // válido continua valendo
+    // a valid one still works
     fs.writeFileSync(
       side,
       JSON.stringify({ version: 1, messages: [], sessions: { fake: 'abc-DEF_123' } }),
     );
     const ok = memBackend(() => Promise.resolve({ text: 'ok' }));
-    await svcWith([ok]).runTurn(docId, 'oi', { ephemeral: true });
+    await svcWith([ok]).runTurn(docId, 'hi', { ephemeral: true });
     expect(ok.calls[0]!.resumeSession).toBe('abc-DEF_123');
-    // sessions que não é objeto também é descartado sem erro
+    // sessions that is not an object is also discarded without error
     fs.writeFileSync(side, JSON.stringify({ version: 1, messages: [], sessions: ['--x'] }));
     const arr = memBackend(() => Promise.resolve({ text: 'ok' }));
-    await svcWith([arr]).runTurn(docId, 'oi', { ephemeral: true });
+    await svcWith([arr]).runTurn(docId, 'hi', { ephemeral: true });
     expect(arr.calls[0]!.resumeSession).toBeUndefined();
   });
 
-  it('evento session (ou sessionId do resultado) inválido é ignorado e não é gravado', async () => {
+  it('an invalid session event (or result sessionId) is ignored and not saved', async () => {
     const be = memBackend((_i, emit) => {
       emit({ kind: 'session', sessionId: '--settings=x' });
       return Promise.resolve({ text: 'ok', sessionId: '--model evil' });
     });
     const svc = svcWith([be]);
-    await svc.runTurn(docId, 'um');
-    await svc.runTurn(docId, 'dois');
+    await svc.runTurn(docId, 'one');
+    await svc.runTurn(docId, 'two');
     expect(be.calls[1]!.resumeSession).toBeUndefined();
     const saved = JSON.parse(fs.readFileSync(assistantSidecarPath(w.file), 'utf8')) as {
       sessions: Record<string, string>;
     };
     expect(saved.sessions).toEqual({});
-    // um evento válido depois do inválido vale
+    // a valid event after the invalid one counts
     const be2 = memBackend((_i, emit) => {
       emit({ kind: 'session', sessionId: '--x' });
       emit({ kind: 'session', sessionId: 'GOOD-1' });
       return Promise.resolve({ text: 'ok' });
     });
     const svc2 = svcWith([be2]);
-    await svc2.runTurn(docId, 'tres');
-    await svc2.runTurn(docId, 'quatro');
+    await svc2.runTurn(docId, 'three');
+    await svc2.runTurn(docId, 'four');
     expect(be2.calls[1]!.resumeSession).toBe('GOOD-1');
   });
 
-  it('nome do arquivo lateral não colide entre a.json e a.mockup.json', () => {
+  it('sidecar file name does not collide between a.json and a.mockup.json', () => {
     const p = (n: string) => assistantSidecarPath(path.join('x', n));
     expect(p('a.mockup.json')).toBe(path.join('x', 'a.assistant.json'));
     expect(p('a.json')).toBe(path.join('x', 'a.json.assistant.json'));
     expect(p('a.MOCKUP.JSON')).toBe(path.join('x', 'a.assistant.json'));
-    expect(p('semext')).toBe(path.join('x', 'semext.assistant.json'));
+    expect(p('noext')).toBe(path.join('x', 'noext.assistant.json'));
   });
 
-  it('gravações do histórico: temporário único, uma por vez por arquivo, sem sobras', async () => {
+  it('history writes: unique temp file, one at a time per file, no leftovers', async () => {
     const be = memBackend(() => Promise.resolve({ text: 'r' }));
     const svc = svcWith([be]);
-    await svc.runTurn(docId, 'um');
+    await svc.runTurn(docId, 'one');
     const tmps: string[] = [];
     let inFlight = 0;
     let maxInFlight = 0;
@@ -584,17 +585,17 @@ describe('AssistantService (backend em memória)', () => {
     JSON.parse(fs.readFileSync(assistantSidecarPath(w.file), 'utf8'));
   });
 
-  it('documento aberto com o nome do arquivo lateral não é sobrescrito pelo histórico', async () => {
-    const other = path.join(w.dir, 'teste.assistant.json'); // = sidecar de teste.mockup.json
-    fs.writeFileSync(other, serializeDocument(createDocument('Outro')), 'utf8');
+  it('a document open under the sidecar file name is not overwritten by the history', async () => {
+    const other = path.join(w.dir, 'test.assistant.json'); // = sidecar of test.mockup.json
+    fs.writeFileSync(other, serializeDocument(createDocument('Other')), 'utf8');
     const before = fs.readFileSync(other, 'utf8');
     await store.open(other);
     const svc = svcWith([memBackend(() => Promise.resolve({ text: 'r' }))]);
-    await svc.runTurn(docId, 'oi');
+    await svc.runTurn(docId, 'hi');
     expect(fs.readFileSync(other, 'utf8')).toBe(before);
   });
 
-  it('limita o histórico a 200 mensagens', async () => {
+  it('caps the history at 200 messages', async () => {
     const svc = svcWith([memBackend(() => Promise.resolve({ text: 'r' }))]);
     for (let i = 0; i < 101; i++) await svc.runTurn(docId, `p${i}`, {});
     const h = await svc.history(docId);
@@ -602,16 +603,16 @@ describe('AssistantService (backend em memória)', () => {
     expect(h.at(-2)?.text).toBe('p100');
   }, 60_000);
 
-  it('history durante o turno inclui o pedido e a mensagem em andamento', async () => {
+  it('history during the turn includes the request and the in-progress message', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const be = memBackend(async (_i, emit) => {
-      emit({ kind: 'text', text: 'parcial' });
+      emit({ kind: 'text', text: 'partial' });
       await gate;
-      return { text: 'fim' };
+      return { text: 'end' };
     });
     const svc = svcWith([be]);
-    const { turnId } = await svc.send(docId, 'pedido');
+    const { turnId } = await svc.send(docId, 'request');
     await new Promise((r) => setTimeout(r, 50));
     const r = (await svc.handle({ type: 'assistant:history', reqId: 'h', docId })) as {
       messages: AssistantMessage[];
@@ -619,38 +620,38 @@ describe('AssistantService (backend em memória)', () => {
     };
     expect(r.running).toBe(turnId);
     expect(r.messages.map((m) => [m.role, m.text, m.status])).toEqual([
-      ['user', 'pedido', undefined],
-      ['assistant', 'parcial', 'running'],
+      ['user', 'request', undefined],
+      ['assistant', 'partial', 'running'],
     ]);
     await expect(svc.handle({ type: 'assistant:clear', reqId: 'c', docId })).rejects.toThrow(
-      /em andamento/,
+      /in progress/,
     );
     release();
     await svc.close();
   });
 
-  it('generateText: sem MCP, devolve o texto final', async () => {
+  it('generateText: without MCP, returns the final text', async () => {
     const be = memBackend((input) =>
-      Promise.resolve({ text: input.mcp ? 'COM MCP' : `  resposta para: ${input.prompt}  ` }),
+      Promise.resolve({ text: input.mcp ? 'WITH MCP' : `  reply to: ${input.prompt}  ` }),
     );
     const svc = svcWith([be]);
-    expect(await svc.generateText('faça X', { system: 'SYS' })).toBe('resposta para: faça X');
+    expect(await svc.generateText('do X', { system: 'SYS' })).toBe('reply to: do X');
     expect(be.calls[0]).toMatchObject({ system: 'SYS' });
     expect(be.calls[0]!.mcp).toBeUndefined();
     const empty = svcWith([memBackend(() => Promise.resolve({ text: '  ' }))]);
-    await expect(empty.generateText('x')).rejects.toThrow(/não devolveu texto/);
+    await expect(empty.generateText('x')).rejects.toThrow(/returned no text/);
   });
 
-  it('generateText: uma por documento, cancelável por cancel(docId) e por signal', async () => {
+  it('generateText: one per document, cancellable by cancel(docId) and by signal', async () => {
     const be = memBackend((_i, _emit, signal) => abortable(signal));
     const svc = svcWith([be]);
     const firstErr = svc.generateText('x', { docId }).catch((e: unknown) => e as Error);
-    await expect(svc.generateText('y', { docId })).rejects.toThrow(/em andamento neste documento/);
+    await expect(svc.generateText('y', { docId })).rejects.toThrow(/in progress in this document/);
     expect(svc.cancel(docId)).toBe(true);
     expect(await firstErr).toMatchObject({ name: 'AbortError' });
-    // liberado: nova geração no mesmo documento funciona
-    const ok = svcWith([memBackend(() => Promise.resolve({ text: 'fim' }))]);
-    expect(await ok.generateText('x', { docId })).toBe('fim');
+    // released: a new generation in the same document works
+    const ok = svcWith([memBackend(() => Promise.resolve({ text: 'end' }))]);
+    expect(await ok.generateText('x', { docId })).toBe('end');
     // signal
     const ac = new AbortController();
     const pErr = svc
@@ -661,46 +662,46 @@ describe('AssistantService (backend em memória)', () => {
     await expect(svc.generateText('x', { signal: AbortSignal.abort() })).rejects.toMatchObject({
       name: 'AbortError',
     });
-    // documento inexistente: erro claro
-    await expect(svc.generateText('x', { docId: 'doc_nope' })).rejects.toThrow(/não encontrado/);
-    // sem docId: teto de gerações simultâneas
+    // nonexistent document: clear error
+    await expect(svc.generateText('x', { docId: 'doc_nope' })).rejects.toThrow(/not found/);
+    // without docId: cap on concurrent generations
     const many = Array.from({ length: 4 }, () =>
       svc.generateText('x').catch((e: unknown) => e as Error),
     );
-    await expect(svc.generateText('x')).rejects.toThrow(/demais/);
+    await expect(svc.generateText('x')).rejects.toThrow(/Too many/);
     await svc.close();
     for (const r of await Promise.all(many)) expect(r).toMatchObject({ name: 'AbortError' });
   });
 
-  it('assistant:cancel/history/clear validam o docId com erro claro', async () => {
+  it('assistant:cancel/history/clear validate the docId with a clear error', async () => {
     const svc = svcWith([memBackend(() => Promise.resolve({ text: 'x' }))]);
     for (const type of ['assistant:cancel', 'assistant:history', 'assistant:clear'] as const) {
       for (const bad of [undefined, '', 5, null]) {
         await expect(
           svc.handle({ type, reqId: '1', docId: bad as unknown as string }),
-        ).rejects.toThrow(/exige "docId"/);
+        ).rejects.toThrow(/requires "docId"/);
       }
       await expect(svc.handle({ type, reqId: '1', docId: 'doc_nope' })).rejects.toThrow(
-        /Documento não encontrado/,
+        /Document not found/,
       );
     }
   });
 
-  it('mensagens inválidas e documento inexistente', async () => {
+  it('invalid messages and nonexistent document', async () => {
     const svc = svcWith([memBackend(() => Promise.resolve({ text: 'x' }))]);
     await expect(
       svc.handle({ type: 'assistant:send', reqId: '1', docId, prompt: '  ' }),
     ).rejects.toThrow(/prompt/);
     await expect(
-      svc.handle({ type: 'assistant:send', reqId: '1', docId: 'doc_nope', prompt: 'oi' }),
-    ).rejects.toThrow(/não encontrado/);
+      svc.handle({ type: 'assistant:send', reqId: '1', docId: 'doc_nope', prompt: 'hi' }),
+    ).rejects.toThrow(/not found/);
     expect(await svc.handle({ type: 'assistant:cancel', reqId: '1', docId })).toEqual({
       cancelled: false,
     });
   });
 });
 
-describe('Assistente com o daemon e a CLI falsa', () => {
+describe('Assistant with the daemon and the fake CLI', () => {
   let w: Work;
   let daemon: DaemonHandle;
   let docId: string;
@@ -725,16 +726,16 @@ describe('Assistente com o daemon e a CLI falsa', () => {
   const styleOf = (id: string, prop: string) =>
     findNode(daemon.store.get(docId), id)!.node.style[prop];
 
-  it('3 nós editados via MCP viram um único undo; ordem dos eventos, opsCount e contexto', async () => {
+  it('3 nodes edited via MCP become a single undo; event order, opsCount and context', async () => {
     const [a, b, c] = w.ids as [string, string, string];
     daemon.store.setSelection(docId, [a, b, c], 'editor');
     const events = collect(daemon.services.assistant as AssistantService, docId);
     const msg = await daemon.services.assistant.runTurn(
       docId,
       [
-        `@@rename ${a} Alfa`,
+        `@@rename ${a} Alpha`,
         `@@style ${b} background #ff0000`,
-        `@@rename ${c} Gama`,
+        `@@rename ${c} Gamma`,
         '@@echo',
       ].join('\n'),
     );
@@ -746,17 +747,17 @@ describe('Assistente com o daemon e a CLI falsa', () => {
       ['update_styles', true],
       ['rename_nodes', true],
     ]);
-    expect(nameOf(a)).toBe('Alfa');
+    expect(nameOf(a)).toBe('Alpha');
     expect(styleOf(b, 'background')).toBe('#ff0000');
-    expect(nameOf(c)).toBe('Gama');
+    expect(nameOf(c)).toBe('Gamma');
 
-    // contexto que chegou ao agente
-    expect(msg.text).toContain(`Seleção: ${a}, ${b}, ${c}`);
-    expect(msg.text).toContain('Caixa A');
-    expect(msg.text).toContain('Use SOMENTE as ferramentas MCP do mockup-studio');
+    // context that reached the agent
+    expect(msg.text).toContain(`Selection: ${a}, ${b}, ${c}`);
+    expect(msg.text).toContain('Box A');
+    expect(msg.text).toContain('Use ONLY the mockup-studio MCP tools');
     expect(msg.text).toMatch(/ECHO-MCP: http:\/\/127\.0\.0\.1:\d+\/mcp\?turn=[0-9a-f]{32}/);
 
-    // ordem: turn-start, depois tool/tool-result de cada chamada, texto e turn-end
+    // order: turn-start, then tool/tool-result of each call, text and turn-end
     const kinds = events.map((e) => e.kind);
     expect(kinds[0]).toBe('turn-start');
     expect(kinds.at(-1)).toBe('turn-end');
@@ -766,26 +767,26 @@ describe('Assistente com o daemon e a CLI falsa', () => {
     expect(kinds).toContain('text');
     expect(kinds.filter((k) => k === 'turn-start' || k === 'turn-end')).toHaveLength(2);
 
-    // um único undo desfaz tudo
+    // a single undo reverts everything
     expect(daemon.store.undo(docId, 'editor')).not.toBeNull();
-    expect(nameOf(a)).toBe('Caixa A');
+    expect(nameOf(a)).toBe('Box A');
     expect(styleOf(b, 'background')).toBeUndefined();
-    expect(nameOf(c)).toBe('Caixa C');
+    expect(nameOf(c)).toBe('Box C');
     expect(daemon.store.undo(docId, 'editor')).toBeNull();
-    // e um redo refaz tudo
+    // and a redo redoes everything
     daemon.store.redo(docId, 'editor');
-    expect(nameOf(a)).toBe('Alfa');
-    expect(nameOf(c)).toBe('Gama');
+    expect(nameOf(a)).toBe('Alpha');
+    expect(nameOf(c)).toBe('Gamma');
   });
 
-  it('depois do turno o token não abre sessão (403); undo no turno é recusado', async () => {
+  it('after the turn the token does not open a session (403); undo inside the turn is rejected', async () => {
     const msg = await daemon.services.assistant.runTurn(
       docId,
-      [`@@rename ${w.ids[0]} Um`, '@@undo', '@@echo'].join('\n'),
+      [`@@rename ${w.ids[0]} One`, '@@undo', '@@echo'].join('\n'),
     );
     expect(msg.status).toBe('done');
-    expect(msg.text).toContain('undo: recusado');
-    expect(nameOf(w.ids[0]!)).toBe('Um'); // o undo recusado não desfez nada
+    expect(msg.text).toContain('undo: rejected');
+    expect(nameOf(w.ids[0]!)).toBe('One'); // the rejected undo reverted nothing
     const url = /ECHO-MCP: (\S+)/.exec(msg.text)![1]!;
     const res = await fetch(url, {
       method: 'POST',
@@ -807,40 +808,40 @@ describe('Assistente com o daemon e a CLI falsa', () => {
     expect(res.status).toBe(403);
   });
 
-  it('sessão aberta durante o turno não escreve mais depois dele', async () => {
+  it('a session opened during the turn no longer writes after it', async () => {
     let held: Client | undefined;
     let during = '';
     const be = memBackend(async (input) => {
-      held = new Client({ name: 'agente', version: '0' });
+      held = new Client({ name: 'agent', version: '0' });
       await held.connect(new StreamableHTTPClientTransport(new URL(input.mcp!.url)));
       const ok = await held.callTool({
         name: 'rename_nodes',
-        arguments: { docId, nodeIds: [w.ids[0]!], names: ['Dentro'] },
+        arguments: { docId, nodeIds: [w.ids[0]!], names: ['Inside'] },
       });
       during = JSON.stringify(ok);
       return { text: 'ok' };
     });
-    // serviço próprio sobre o mesmo store/daemon para o backend em memória
+    // own service over the same store/daemon for the in-memory backend
     const svc = new AssistantService(daemon.store, {
       getPort: () => daemon.port,
       backends: [be],
     });
     const bridge = daemon.services.assistant;
-    // liga as resoluções do daemon ao serviço de teste: troca temporária do resolveTurn
+    // links the daemon resolutions to the test service: temporary swap of resolveTurn
     const original = bridge.resolveTurn.bind(bridge);
     bridge.resolveTurn = (t) => svc.resolveTurn(t) ?? original(t);
     try {
-      const m = await svc.runTurn(docId, 'oi');
+      const m = await svc.runTurn(docId, 'hi');
       expect(m.status).toBe('done');
       expect(during).not.toContain('"isError":true');
-      expect(nameOf(w.ids[0]!)).toBe('Dentro');
+      expect(nameOf(w.ids[0]!)).toBe('Inside');
       const after = (await held!.callTool({
         name: 'rename_nodes',
-        arguments: { docId, nodeIds: [w.ids[1]!], names: ['Fora'] },
+        arguments: { docId, nodeIds: [w.ids[1]!], names: ['Outside'] },
       })) as { isError?: boolean; content: Array<{ text: string }> };
       expect(after.isError).toBe(true);
-      expect(after.content[0]!.text).toMatch(/turno do assistente[\s\S]*terminou/);
-      expect(nameOf(w.ids[1]!)).toBe('Caixa B');
+      expect(after.content[0]!.text).toMatch(/assistant turn[\s\S]*(ended|finished)/);
+      expect(nameOf(w.ids[1]!)).toBe('Box B');
     } finally {
       await held?.close();
       bridge.resolveTurn = original;
@@ -848,18 +849,18 @@ describe('Assistente com o daemon e a CLI falsa', () => {
     }
   });
 
-  it('cancelamento mata o processo; as ops já feitas ficam num único undo', async () => {
+  it('cancellation kills the process; the ops already done stay in a single undo', async () => {
     const svc = daemon.services.assistant;
     const events = collect(svc as AssistantService, docId);
     const { turnId } = await svc.send(
       docId,
-      [`@@rename ${w.ids[0]} Antes`, `@@style ${w.ids[1]} color red`, '@@sleep 30000'].join('\n'),
+      [`@@rename ${w.ids[0]} Before`, `@@style ${w.ids[1]} color red`, '@@sleep 30000'].join('\n'),
     );
-    await expect(svc.send(docId, 'concorrente')).rejects.toThrow(/em andamento/);
-    // espera as duas edições chegarem
+    await expect(svc.send(docId, 'concurrent')).rejects.toThrow(/in progress/);
+    // wait for both edits to arrive
     const t0 = Date.now();
-    while (nameOf(w.ids[0]!) !== 'Antes' || styleOf(w.ids[1]!, 'color') !== 'red') {
-      if (Date.now() - t0 > 15_000) throw new Error('as edições não chegaram');
+    while (nameOf(w.ids[0]!) !== 'Before' || styleOf(w.ids[1]!, 'color') !== 'red') {
+      if (Date.now() - t0 > 15_000) throw new Error('the edits did not arrive');
       await new Promise((r) => setTimeout(r, 50));
     }
     expect(svc.cancel(docId)).toBe(true);
@@ -868,38 +869,38 @@ describe('Assistente com o daemon e a CLI falsa', () => {
     expect(end.message.opsCount).toBe(2);
     expect(svc.resolveTurn('x')).toBeNull();
     daemon.store.undo(docId, 'editor');
-    expect(nameOf(w.ids[0]!)).toBe('Caixa A');
+    expect(nameOf(w.ids[0]!)).toBe('Box A');
     expect(styleOf(w.ids[1]!, 'color')).toBeUndefined();
     expect(daemon.store.undo(docId, 'editor')).toBeNull();
-    // documento liberado
-    const next = await svc.runTurn(docId, '@@text depois');
+    // document released
+    const next = await svc.runTurn(docId, '@@text after');
     expect(next.status).toBe('done');
   });
 
-  it('falha do agente (@@fail) → status error com a mensagem', async () => {
-    const msg = await daemon.services.assistant.runTurn(docId, '@@fail agente quebrou');
+  it('agent failure (@@fail) → status error with the message', async () => {
+    const msg = await daemon.services.assistant.runTurn(docId, '@@fail agent broke');
     expect(msg.status).toBe('error');
-    expect(msg.error).toContain('agente quebrou');
-    // histórico guarda o erro
+    expect(msg.error).toContain('agent broke');
+    // the history keeps the error
     const h = await daemon.services.assistant.history(docId);
     expect(h.at(-1)).toMatchObject({ status: 'error' });
   });
 
-  it('continua a sessão (--resume) no turno seguinte', async () => {
+  it('continues the session (--resume) in the next turn', async () => {
     const first = await daemon.services.assistant.runTurn(docId, '@@echo');
-    expect(first.text).toContain('ECHO-RESUME: (nenhum)');
+    expect(first.text).toContain('ECHO-RESUME: (none)');
     const second = await daemon.services.assistant.runTurn(docId, '@@echo');
     expect(second.text).toMatch(/ECHO-RESUME: fake-/);
   });
 
-  it('generateText pela CLI: sem MCP', async () => {
+  it('generateText through the CLI: without MCP', async () => {
     const text = await daemon.services.assistant.generateText('@@echo', { system: 'SYSTEM-GEN' });
-    expect(text).toContain('ECHO-MCP: (sem mcp)');
+    expect(text).toContain('ECHO-MCP: (no mcp)');
     expect(text).toContain('SYSTEM-GEN');
   });
 
-  it('histórico no arquivo lateral e recarregado por um novo AssistantService', async () => {
-    await daemon.services.assistant.runTurn(docId, '@@text olá');
+  it('history in the sidecar file and reloaded by a new AssistantService', async () => {
+    await daemon.services.assistant.runTurn(docId, '@@text hello');
     const side = assistantSidecarPath(w.file);
     expect(fs.existsSync(side)).toBe(true);
     const fresh = new AssistantService(daemon.store, {
@@ -908,10 +909,10 @@ describe('Assistente com o daemon e a CLI falsa', () => {
     });
     const h = await fresh.history(docId);
     expect(h.map((m) => m.role)).toEqual(['user', 'assistant']);
-    expect(h[1]!.text).toBe('olá');
+    expect(h[1]!.text).toBe('hello');
   });
 
-  it('mensagens WS assistant:* por um cliente real', async () => {
+  it('WS assistant:* messages from a real client', async () => {
     const sock = new WebSocket(daemon.wsUrl);
     const msgs: Array<Record<string, unknown>> = [];
     const waiters: Array<() => void> = [];
@@ -991,7 +992,7 @@ async function waitEnd(
   for (;;) {
     const e = events.find((x) => x.kind === 'turn-end' && x.turnId === turnId);
     if (e) return e as Extract<AssistantEvent, { kind: 'turn-end' }>;
-    if (Date.now() - t0 > 15_000) throw new Error('turn-end não chegou');
+    if (Date.now() - t0 > 15_000) throw new Error('turn-end did not arrive');
     await new Promise((r) => setTimeout(r, 25));
   }
 }

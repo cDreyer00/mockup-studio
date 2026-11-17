@@ -1,6 +1,6 @@
-/** Formatação, em português, dos erros de validação de parâmetros e de ferramenta inexistente. */
+/** Formatting of parameter validation errors and unknown-tool errors, in English. */
 
-/** Subconjunto de `z.core.$ZodIssue` que usamos (tipado frouxo para cobrir todas as variantes). */
+/** Subset of `z.core.$ZodIssue` that we use (loosely typed to cover all variants). */
 export interface InputIssue {
   code: string;
   path: PropertyKey[];
@@ -16,17 +16,17 @@ export interface InputIssue {
 }
 
 const TYPE_NAMES: Record<string, string> = {
-  string: 'texto (string)',
-  number: 'número (number)',
-  int: 'número inteiro (integer)',
-  boolean: 'booleano (boolean)',
-  array: 'lista (array)',
+  string: 'text (string)',
+  number: 'number',
+  int: 'integer',
+  boolean: 'boolean',
+  array: 'list (array)',
   object: 'objeto (object)',
   record: 'objeto (object)',
   null: 'null',
 };
 
-const typeName = (t: string | undefined): string => (t ? (TYPE_NAMES[t] ?? t) : 'valor válido');
+const typeName = (t: string | undefined): string => (t ? (TYPE_NAMES[t] ?? t) : 'valid value');
 
 function getAt(value: unknown, path: PropertyKey[]): unknown {
   let cur = value;
@@ -38,22 +38,22 @@ function getAt(value: unknown, path: PropertyKey[]): unknown {
 }
 
 function fieldOf(path: PropertyKey[]): string {
-  if (!path.length) return '(argumentos)';
+  if (!path.length) return '(arguments)';
   return path.reduce<string>(
     (acc, k) => (typeof k === 'number' ? `${acc}[${k}]` : acc ? `${acc}.${String(k)}` : String(k)),
     '',
   );
 }
 
-/** Descreve o valor recebido: tipo e, para primitivos curtos, o próprio valor. */
+/** Describes the received value: its type and, for short primitives, the value itself. */
 function describeReceived(v: unknown): string {
-  if (v === undefined) return 'ausente';
+  if (v === undefined) return 'missing';
   if (v === null) return 'null';
-  if (Array.isArray(v)) return 'lista (array)';
+  if (Array.isArray(v)) return 'list (array)';
   if (typeof v === 'string')
-    return `texto (string) ${JSON.stringify(v.length > 40 ? `${v.slice(0, 39)}…` : v)}`;
-  if (typeof v === 'number') return `número (number) ${v}`;
-  if (typeof v === 'boolean') return `booleano (boolean) ${v}`;
+    return `text (string) ${JSON.stringify(v.length > 40 ? `${v.slice(0, 39)}…` : v)}`;
+  if (typeof v === 'number') return `number ${v}`;
+  if (typeof v === 'boolean') return `boolean ${v}`;
   return 'objeto (object)';
 }
 
@@ -65,17 +65,19 @@ function bound(i: InputIssue, kind: 'min' | 'max'): string {
   const origin = i.origin ?? 'number';
   if (origin === 'array' || origin === 'set') {
     return kind === 'min'
-      ? `a lista deve ter pelo menos ${n} item(ns)`
-      : `a lista deve ter no máximo ${n} item(ns)`;
+      ? `the list must have at least ${n} item(s)`
+      : `the list must have at most ${n} item(s)`;
   }
   if (origin === 'string') {
     return kind === 'min'
-      ? `o texto deve ter pelo menos ${n} caractere(s)`
-      : `o texto deve ter no máximo ${n} caractere(s)`;
+      ? `the text must have at least ${n} character(s)`
+      : `the text must have at most ${n} character(s)`;
   }
   if (kind === 'min')
-    return incl ? `o valor deve ser maior ou igual a ${n}` : `o valor deve ser maior que ${n}`;
-  return incl ? `o valor deve ser menor ou igual a ${n}` : `o valor deve ser menor que ${n}`;
+    return incl
+      ? `the value must be greater than or equal to ${n}`
+      : `the value must be greater than ${n}`;
+  return incl ? `the value must be less than or equal to ${n}` : `the value must be less than ${n}`;
 }
 
 function describeIssue(i: InputIssue, args: unknown): string {
@@ -83,11 +85,11 @@ function describeIssue(i: InputIssue, args: unknown): string {
   switch (i.code) {
     case 'invalid_type':
       return received === undefined
-        ? `obrigatório e ausente (esperado: ${typeName(i.expected)})`
-        : `tipo incorreto: esperado ${typeName(i.expected)}, recebido ${describeReceived(received)}`;
+        ? `required and missing (expected: ${typeName(i.expected)})`
+        : `wrong type: expected ${typeName(i.expected)}, received ${describeReceived(received)}`;
     case 'invalid_value': {
       const vals = i.values ?? [];
-      return `valor inválido (recebido ${received === undefined ? 'ausente' : JSON.stringify(received)}); use ${vals.length > 1 ? 'um de' : ''}: ${list(vals)}`.replace(
+      return `invalid value (received ${received === undefined ? 'missing' : JSON.stringify(received)}); use ${vals.length > 1 ? 'one of' : ''}: ${list(vals)}`.replace(
         '; use : ',
         '; use ',
       );
@@ -97,14 +99,14 @@ function describeIssue(i: InputIssue, args: unknown): string {
     case 'too_big':
       return bound(i, 'max');
     case 'unrecognized_keys':
-      return `parâmetro(s) desconhecido(s): ${(i.keys ?? []).join(', ')}`;
+      return `unknown parameter(s): ${(i.keys ?? []).join(', ')}`;
     case 'invalid_union': {
       const branches = (i.errors ?? []).flat();
       const literals = branches
         .filter((b) => b.code === 'invalid_value')
         .flatMap((b) => b.values ?? []);
       if (branches.length && literals.length === branches.length) {
-        return `valor inválido (recebido ${received === undefined ? 'ausente' : JSON.stringify(received)}); use um de: ${list(literals)}`;
+        return `invalid value (received ${received === undefined ? 'missing' : JSON.stringify(received)}); use one of: ${list(literals)}`;
       }
       const types = [
         ...new Set(
@@ -113,8 +115,8 @@ function describeIssue(i: InputIssue, args: unknown): string {
       ];
       if (types.length) {
         return received === undefined
-          ? `obrigatório e ausente (esperado: ${types.join(' ou ')})`
-          : `tipo incorreto: esperado ${types.join(' ou ')}, recebido ${describeReceived(received)}`;
+          ? `required and missing (expected: ${types.join(' or ')})`
+          : `wrong type: expected ${types.join(' or ')}, received ${describeReceived(received)}`;
       }
       return i.message;
     }
@@ -123,7 +125,7 @@ function describeIssue(i: InputIssue, args: unknown): string {
   }
 }
 
-/** Mensagem de erro de parâmetros: um item por campo e uma chamada de exemplo. */
+/** Parameter error message: one item per field and an example call. */
 export function formatToolInputError(
   tool: string,
   issues: readonly InputIssue[],
@@ -132,13 +134,13 @@ export function formatToolInputError(
 ): string {
   const lines = issues.map((i) => `- ${fieldOf(i.path)}: ${describeIssue(i, args)}.`);
   return [
-    `Parâmetros inválidos em ${tool}:`,
+    `Invalid parameters in ${tool}:`,
     ...lines,
-    `Exemplo: ${tool}(${JSON.stringify(example ?? {})})`,
+    `Example: ${tool}(${JSON.stringify(example ?? {})})`,
   ].join('\n');
 }
 
-/** Distância de edição simples (para sugerir nomes de ferramenta parecidos). */
+/** Simple edit distance (to suggest similar tool names). */
 function distance(a: string, b: string): number {
   const dp = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
@@ -167,7 +169,7 @@ export function notFoundToolMessage(name: string, available: string[]): string {
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
     .map((x) => x.n);
-  return `Ferramenta "${name}" não existe.${
-    scored.length ? ` Ferramentas parecidas: ${scored.join(', ')}.` : ''
-  } Veja a lista de ferramentas do servidor ou get_guide('getting-started').`;
+  return `Tool "${name}" does not exist.${
+    scored.length ? ` Similar tools: ${scored.join(', ')}.` : ''
+  } See the server's tool list or get_guide('getting-started').`;
 }

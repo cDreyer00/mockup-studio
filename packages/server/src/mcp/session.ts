@@ -21,19 +21,19 @@ export interface McpHandler {
 }
 
 export interface McpHandlerOptions {
-  /** Porta atual do daemon; usada para montar os `Host` aceitos (o SDK compara o header inteiro, com porta). */
+  /** Current daemon port; used to build the accepted `Host` values (the SDK compares the whole header, port included). */
   getPort?: () => number;
-  /** Tempo de ociosidade, em ms, após o qual uma sessão é encerrada. Padrão: 30 min. */
+  /** Idle time, in ms, after which a session is closed. Default: 30 min. */
   sessionTtlMs?: number;
-  /** Motor de render (screenshot, layout, SVG medido). */
+  /** Render engine (screenshot, layout, measured SVG). */
   render?: RenderProvider;
-  /** Pasta de dados do daemon. */
+  /** Daemon data folder. */
   dataDir?: string;
-  /** Serviços da fase 9; o assistente resolve o token `?turn=` das sessões abertas pelo agente. */
+  /** Phase 9 services; the assistant resolves the `?turn=` token of sessions opened by the agent. */
   services?: DaemonServices;
 }
 
-/** Token de turno do assistente: query `?turn=` ou header `x-mockup-turn`. */
+/** Assistant turn token: `?turn=` query or `x-mockup-turn` header. */
 function turnTokenOf(req: Request): string | undefined {
   const q = req.query?.['turn'];
   const fromQuery = Array.isArray(q) ? q[0] : q;
@@ -75,7 +75,7 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
         if (sid) {
           const s = sessions.get(sid);
           if (!s) {
-            jsonRpcError(res, 404, -32001, 'Sessão não encontrada');
+            jsonRpcError(res, 404, -32001, 'Session not found');
             return;
           }
           s.lastSeen = Date.now();
@@ -86,7 +86,7 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
         if (req.method === 'POST' && isInitializeRequest(req.body)) {
           const token = turnTokenOf(req);
           if (token && !opts.services?.assistant?.resolveTurn(token)) {
-            jsonRpcError(res, 403, -32002, 'Turno do assistente inexistente ou encerrado.');
+            jsonRpcError(res, 403, -32002, 'Assistant turn does not exist or has ended.');
             return;
           }
           const assistant = opts.services?.assistant;
@@ -116,15 +116,10 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
           await transport.handleRequest(req, res, req.body);
           return;
         }
-        jsonRpcError(
-          res,
-          400,
-          -32000,
-          'Requisição inválida: sessão ausente. Envie initialize primeiro.',
-        );
+        jsonRpcError(res, 400, -32000, 'Invalid request: missing session. Send initialize first.');
       } catch (e) {
         if (!res.headersSent) {
-          jsonRpcError(res, 500, -32603, e instanceof Error ? e.message : 'Erro interno');
+          jsonRpcError(res, 500, -32603, e instanceof Error ? e.message : 'Internal error');
         }
       }
     },

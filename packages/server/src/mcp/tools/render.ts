@@ -7,7 +7,7 @@ import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 const short = (s: string, max: number): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 const kb = (n: number): string => `${Math.max(1, Math.round(n / 1024))} KB`;
 
-/** Uma linha por nó: `id "nome" tag x,y wxh` (+ texto das linhas); filhos além de `depth` viram contagem. */
+/** One line per node: `id "name" tag x,y wxh` (+ line text); children beyond `depth` become a count. */
 export function formatLayout(root: LayoutNode, depth: number): string {
   const lines: string[] = [];
   const walk = (n: LayoutNode, level: number): void => {
@@ -28,7 +28,7 @@ export function formatLayout(root: LayoutNode, depth: number): string {
     if (n.grid) lines.push(`${pad}  ${formatGridTracks(n.grid)}`);
     if (level >= depth) {
       if (n.children.length)
-        lines.push(`${pad}  … ${n.children.length} filho(s) além da profundidade`);
+        lines.push(`${pad}  … ${n.children.length} child(ren) beyond the depth`);
       return;
     }
     for (const c of n.children) walk(c, level + 1);
@@ -41,14 +41,14 @@ export function registerRenderTools(ctx: ToolContext): void {
   const { tool, store, opts, readNode } = ctx;
 
   /**
-   * Alvo de render: documento com instâncias expandidas (a página de render não conhece
-   * componentes); `cp_...` e nós de um principal rendem numa instância padrão.
+   * Render target: document with expanded instances (the render page does not know
+   * components); `cp_...` and main component nodes render in a default instance.
    */
   const targetOf = (doc: Parameters<typeof renderTargetFor>[0], id: string): RenderTarget => {
     const t = renderTargetFor(doc, id);
     if (!t) {
-      readNode(doc, id); // lança o erro padrão de nó não encontrado
-      throw new ToolError(`Nó não encontrado: "${id}".`);
+      readNode(doc, id); // throws the standard node-not-found error
+      throw new ToolError(`Node not found: "${id}".`);
     }
     return t;
   };
@@ -62,45 +62,47 @@ export function registerRenderTools(ctx: ToolContext): void {
   tool(
     'get_screenshot',
     {
-      title: 'Screenshot de um nó',
+      title: 'Node screenshot',
       description:
-        'Renderiza um nó e devolve a IMAGEM; use após cada conjunto de mudanças para conferir. Dica: scale 1 e maxWidth 800 gastam menos contexto. Sem nodeId usa a seleção ou o primeiro frame. state mostra hover, dark etc. Exige render.',
+        'Renders a node and returns the IMAGE; use it after each set of changes to check them. Tip: scale 1 and maxWidth 800 use less context. Without nodeId it uses the selection or the first frame. state shows hover, dark, etc. Requires render.',
       example: { nodeId: 'fr_ab12cd34', scale: 1, format: 'png', maxWidth: 800 },
       inputSchema: {
         nodeId: z
           .string()
           .optional()
-          .describe('Id do nó, ex.: "fr_ab12cd34" (padrão: seleção atual ou primeiro frame).'),
+          .describe('Node id, e.g. "fr_ab12cd34" (default: current selection or first frame).'),
         scale: z
           .union([z.literal(1), z.literal(2), z.literal(3)])
           .optional()
-          .describe('Escala de pixels: 1 (padrão), 2 ou 3. Ex.: 2 para checar detalhes.'),
+          .describe('Pixel scale: 1 (default), 2 or 3. E.g. 2 to check details.'),
         format: z
           .enum(['png', 'jpg'])
           .optional()
-          .describe('"png" (padrão) ou "jpg" (arquivo menor), ex.: "png".'),
+          .describe('"png" (default) or "jpg" (smaller file), e.g. "png".'),
         maxWidth: z
           .number()
           .int()
           .min(16)
           .optional()
-          .describe('Largura máxima da imagem em px; reduz mantendo a proporção. Ex.: 800.'),
+          .describe('Maximum image width in px; scales down keeping the aspect ratio. E.g. 800.'),
         transparent: z
           .boolean()
           .optional()
-          .describe('true deixa o fundo transparente fora do conteúdo (só png). Padrão false.'),
+          .describe(
+            'true makes the background transparent outside the content (png only). Default false.',
+          ),
         state: z
           .enum(PREVIEW_STATES)
           .optional()
           .describe(
-            `Estado de prévia (veja get_guide("tailwind")): ${PREVIEW_STATES.join(', ')}. Mostra o nó com os states (hover:, dark:...) aplicados, ex.: "hover".`,
+            `Preview state (see get_guide("tailwind")): ${PREVIEW_STATES.join(', ')}. Shows the node with the states (hover:, dark:...) applied, e.g. "hover".`,
           ),
         time: z
           .number()
           .min(0)
           .optional()
           .describe(
-            'Instante (s) das animações no quadro: efeitos, partículas, Lottie, Rive, Three.js e vídeo. Ex.: 1.5. Vídeo com poster mostra o poster quando time não é informado.',
+            'Time (s) of the animations in the frame: effects, particles, Lottie, Rive, Three.js and video. E.g. 1.5. Video with a poster shows the poster when time is not given.',
           ),
         docId: docIdField,
       },
@@ -129,13 +131,13 @@ export function registerRenderTools(ctx: ToolContext): void {
         });
       } catch (e) {
         throw new ToolError(
-          `Falha ao renderizar ${target}: ${e instanceof Error ? e.message : String(e)}`,
+          `Failed to render ${target}: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
       const ext = r.mime === 'image/jpeg' ? 'jpg' : 'png';
       return {
         images: [{ data: r.data.toString('base64'), mimeType: r.mime }],
-        text: `${target} "${rt.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (imagem ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` com o estado "${state}"` : ''}`,
+        text: `${target} "${rt.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (image ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` with state "${state}"` : ''}`,
       };
     },
   );
@@ -143,12 +145,12 @@ export function registerRenderTools(ctx: ToolContext): void {
   tool(
     'get_layout',
     {
-      title: 'Medidas reais do layout',
+      title: 'Actual layout measurements',
       description:
-        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas e, em grids, as trilhas (grid cols x+w,... rows ... gap). Exige render.',
+        'Actual (rendered) position and size of a node and its descendants, one line per node: id "name" tag x,y wxh, plus the line text and, for grids, the tracks (grid cols x+w,... rows ... gap). Requires render.',
       example: { nodeId: 'fr_ab12cd34', depth: 3 },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó raiz da medição, ex.: "fr_ab12cd34".'),
+        nodeId: z.string().describe('Id of the measurement root node, e.g. "fr_ab12cd34".'),
         depth: z
           .number()
           .int()
@@ -156,7 +158,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           .max(10)
           .optional()
           .describe(
-            'Níveis de descendentes exibidos, de 0 a 10, ex.: 3 (padrão 3); o resto vira contagem.',
+            'Levels of descendants shown, 0 to 10, e.g. 3 (default 3); the rest becomes a count.',
           ),
         docId: docIdField,
       },
@@ -177,7 +179,7 @@ export function registerRenderTools(ctx: ToolContext): void {
         });
       } catch (e) {
         throw new ToolError(
-          `Falha ao medir ${nodeId}: ${e instanceof Error ? e.message : String(e)}`,
+          `Failed to measure ${nodeId}: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
       return formatLayout(layout, depth ?? 3);

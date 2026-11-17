@@ -31,7 +31,7 @@ describe('DocumentStore', () => {
   const readBg = () =>
     parseDocument(fs.readFileSync(ws.file, 'utf8')).pages[0]!.frames[0]!.style['background'];
 
-  it('abre, reaproveita documento já aberto e resolve o ativo', async () => {
+  it('opens, reuses an already open document and resolves the active one', async () => {
     const a = await store.open(ws.file);
     const b = await store.open(ws.file);
     expect(b.docId).toBe(a.docId);
@@ -39,17 +39,17 @@ describe('DocumentStore', () => {
     expect(store.resolveDocId()).toBe(a.docId);
   });
 
-  it('resolveDocId sem documento lança mensagem orientativa', () => {
-    expect(() => store.resolveDocId()).toThrow(/Nenhum documento aberto/);
+  it('resolveDocId without a document throws a guiding message', () => {
+    expect(() => store.resolveDocId()).toThrow(/No open documents/);
   });
 
-  it('create acrescenta extensão e salva', async () => {
-    const info = await store.create(path.join(ws.dir, 'novo'), 'Novo');
-    expect(info.path).toMatch(/novo\.mockup\.json$/);
-    expect(parseDocument(fs.readFileSync(info.path!, 'utf8')).name).toBe('Novo');
+  it('create appends the extension and saves', async () => {
+    const info = await store.create(path.join(ws.dir, 'new'), 'New');
+    expect(info.path).toMatch(/new\.mockup\.json$/);
+    expect(parseDocument(fs.readFileSync(info.path!, 'utf8')).name).toBe('New');
   });
 
-  it('autosave com debounce e save explícito', async () => {
+  it('autosave with debounce and explicit save', async () => {
     const { docId } = await store.open(ws.file);
     bg(docId, '#111111');
     expect(store.list()[0]!.dirty).toBe(true);
@@ -64,7 +64,7 @@ describe('DocumentStore', () => {
     expect(fs.readdirSync(ws.dir).filter((f) => f.endsWith('.tmp'))).toHaveLength(0);
   });
 
-  it('undo/redo emitem doc:changed com a origem', async () => {
+  it('undo/redo emit doc:changed with the source', async () => {
     const { docId } = await store.open(ws.file);
     const events: Array<{ source: string; revision: number }> = [];
     store.on('doc:changed', (e) => events.push({ source: e.source, revision: e.revision }));
@@ -78,7 +78,7 @@ describe('DocumentStore', () => {
     expect(store.undo(docId, 'editor')).toBeNull();
   });
 
-  it('seleção e close salvam pendências', async () => {
+  it('selection and close save pending changes', async () => {
     const { docId } = await store.open(ws.file);
     store.setSelection(docId, [ws.frameId], 'editor');
     expect(store.getSelection(docId)).toEqual([ws.frameId]);
@@ -88,16 +88,16 @@ describe('DocumentStore', () => {
     expect(store.getActive()).toBeNull();
   });
 
-  it('create normaliza a extensão e não sobrescreve arquivo existente', async () => {
+  it('create normalizes the extension and does not overwrite an existing file', async () => {
     const info = await store.create(path.join(ws.dir, 'foo.json'), 'Foo');
     expect(info.path!.endsWith('foo.mockup.json')).toBe(true);
     expect(fs.existsSync(info.path!)).toBe(true);
     const before = fs.readFileSync(ws.file, 'utf8');
-    await expect(store.create(ws.file, 'Outro')).rejects.toThrow(/já existe/);
+    await expect(store.create(ws.file, 'Other')).rejects.toThrow(/already exists/);
     expect(fs.readFileSync(ws.file, 'utf8')).toBe(before);
   });
 
-  it('saves em fila: o arquivo fica com a última revisão e dirty=false', async () => {
+  it('queued saves: the file ends up with the latest revision and dirty=false', async () => {
     const { docId } = await store.open(ws.file);
     bg(docId, '#111111');
     const p1 = store.save(docId);
@@ -109,11 +109,11 @@ describe('DocumentStore', () => {
     expect(fs.readdirSync(ws.dir).filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 
-  it('mudança durante um save em andamento mantém dirty=true', async () => {
+  it('a change during an in-flight save keeps dirty=true', async () => {
     const { docId } = await store.open(ws.file);
     bg(docId, '#111111');
     const p1 = store.save(docId);
-    await new Promise((r) => setImmediate(r)); // deixa o save 1 começar a gravar
+    await new Promise((r) => setImmediate(r)); // lets save 1 start writing
     bg(docId, '#333333');
     await p1;
     expect(store.getInfo(docId).dirty).toBe(true);
@@ -122,7 +122,7 @@ describe('DocumentStore', () => {
     expect(readBg()).toBe('#333333');
   });
 
-  it('removeDaemonInfo só remove do próprio pid quando onlyIfPid é dado', () => {
+  it('removeDaemonInfo only removes its own pid when onlyIfPid is given', () => {
     const info = { port: 1, pid: 999999, startedAt: 'x', url: 'u', mcpUrl: 'm', wsUrl: 'w' };
     writeDaemonInfo(info, ws.dataDir);
     removeDaemonInfo(ws.dataDir, process.pid);
@@ -134,7 +134,7 @@ describe('DocumentStore', () => {
     expect(readDaemonInfo(ws.dataDir)).toBeNull();
   });
 
-  it('eventos doc:opened e doc:changed incluem history; save registra recente', async () => {
+  it('doc:opened and doc:changed events include history; save registers a recent', async () => {
     const events: Array<{ canUndo: boolean; canRedo: boolean }> = [];
     store.on('doc:opened', (e) => events.push(e.history));
     store.on('doc:changed', (e) => events.push(e.history));
@@ -151,27 +151,27 @@ describe('DocumentStore', () => {
     expect(readRecent(ws.dataDir)).toEqual([ws.file]);
   });
 
-  it('saveAs grava no novo caminho, copia assets sem sobrescrever e atualiza o estado', async () => {
+  it('saveAs writes to the new path, copies assets without overwriting and updates the state', async () => {
     const { docId } = await store.open(ws.file);
     const assets = path.join(ws.dir, 'assets');
     fs.mkdirSync(path.join(assets, 'fonts'), { recursive: true });
-    fs.writeFileSync(path.join(assets, 'a.png'), 'novo');
+    fs.writeFileSync(path.join(assets, 'a.png'), 'new');
     fs.writeFileSync(path.join(assets, 'fonts', 'f.woff2'), 'f');
-    const destDir = path.join(ws.dir, 'outro');
+    const destDir = path.join(ws.dir, 'other');
     fs.mkdirSync(path.join(destDir, 'assets'), { recursive: true });
-    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'existente');
+    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'existing');
     bg(docId, '#222222');
     const saved: string[] = [];
     store.on('doc:saved', (e) => saved.push(e.path));
-    const info = await store.saveAs(docId, path.join(destDir, 'copia'));
-    const dest = path.join(destDir, 'copia.mockup.json');
+    const info = await store.saveAs(docId, path.join(destDir, 'copy'));
+    const dest = path.join(destDir, 'copy.mockup.json');
     expect(info.path).toBe(dest);
     expect(info.dirty).toBe(false);
     expect(saved).toEqual([dest]);
     expect(
       parseDocument(fs.readFileSync(dest, 'utf8')).pages[0]!.frames[0]!.style['background'],
     ).toBe('#222222');
-    expect(fs.readFileSync(path.join(destDir, 'assets', 'a.png'), 'utf8')).toBe('existente');
+    expect(fs.readFileSync(path.join(destDir, 'assets', 'a.png'), 'utf8')).toBe('existing');
     expect(fs.existsSync(path.join(destDir, 'assets', 'fonts', 'f.woff2'))).toBe(true);
     expect(fs.existsSync(path.join(assets, 'a.png'))).toBe(true);
     expect(store.getInfo(docId).path).toBe(dest);
@@ -179,24 +179,24 @@ describe('DocumentStore', () => {
     expect(store.assetsDir(docId)).toBe(path.join(destDir, 'assets'));
   });
 
-  it('saveAs renomeia assets em colisão com conteúdo diferente e reescreve as referências', async () => {
+  it('saveAs renames colliding assets with different content and rewrites the references', async () => {
     const { docId } = await store.open(ws.file);
     const assets = path.join(ws.dir, 'assets');
     fs.mkdirSync(path.join(assets, 'fonts'), { recursive: true });
-    fs.writeFileSync(path.join(assets, 'a.png'), 'origem');
-    fs.writeFileSync(path.join(assets, 'igual.png'), 'mesmo');
-    fs.writeFileSync(path.join(assets, 'bg.png'), 'fundo');
-    fs.writeFileSync(path.join(assets, 'fonts', 'f.woff2'), 'fonte');
-    const destDir = path.join(ws.dir, 'outro');
+    fs.writeFileSync(path.join(assets, 'a.png'), 'source');
+    fs.writeFileSync(path.join(assets, 'same.png'), 'same');
+    fs.writeFileSync(path.join(assets, 'bg.png'), 'background');
+    fs.writeFileSync(path.join(assets, 'fonts', 'f.woff2'), 'font');
+    const destDir = path.join(ws.dir, 'other');
     fs.mkdirSync(path.join(destDir, 'assets', 'fonts'), { recursive: true });
-    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'diferente');
-    fs.writeFileSync(path.join(destDir, 'assets', 'igual.png'), 'mesmo');
-    fs.writeFileSync(path.join(destDir, 'assets', 'bg.png'), 'outro-fundo');
-    fs.writeFileSync(path.join(destDir, 'assets', 'fonts', 'f.woff2'), 'outra-fonte');
-    const img = createNode({ tag: 'img', type: 'image', id: 'im_aaaaaaaa', name: 'Foto' });
+    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'different');
+    fs.writeFileSync(path.join(destDir, 'assets', 'same.png'), 'same');
+    fs.writeFileSync(path.join(destDir, 'assets', 'bg.png'), 'other-background');
+    fs.writeFileSync(path.join(destDir, 'assets', 'fonts', 'f.woff2'), 'other-font');
+    const img = createNode({ tag: 'img', type: 'image', id: 'im_aaaaaaaa', name: 'Photo' });
     img.src = 'a.png';
-    const same = createNode({ tag: 'img', type: 'image', id: 'im_bbbbbbbb', name: 'Igual' });
-    same.src = 'igual.png';
+    const same = createNode({ tag: 'img', type: 'image', id: 'im_bbbbbbbb', name: 'Same' });
+    same.src = 'same.png';
     store.applyOps(
       docId,
       [
@@ -217,19 +217,19 @@ describe('DocumentStore', () => {
     const before = store.getRevision(docId);
     const changes: string[] = [];
     store.on('doc:changed', (e) => changes.push(e.source));
-    await store.saveAs(docId, path.join(destDir, 'copia'));
+    await store.saveAs(docId, path.join(destDir, 'copy'));
 
     const out = path.join(destDir, 'assets');
-    expect(fs.readFileSync(path.join(out, 'a.png'), 'utf8')).toBe('diferente');
-    expect(fs.readFileSync(path.join(out, 'a-1.png'), 'utf8')).toBe('origem');
-    expect(fs.existsSync(path.join(out, 'igual-1.png'))).toBe(false);
-    expect(fs.readFileSync(path.join(out, 'fonts', 'f-1.woff2'), 'utf8')).toBe('fonte');
-    const saved = parseDocument(fs.readFileSync(path.join(destDir, 'copia.mockup.json'), 'utf8'));
+    expect(fs.readFileSync(path.join(out, 'a.png'), 'utf8')).toBe('different');
+    expect(fs.readFileSync(path.join(out, 'a-1.png'), 'utf8')).toBe('source');
+    expect(fs.existsSync(path.join(out, 'same-1.png'))).toBe(false);
+    expect(fs.readFileSync(path.join(out, 'fonts', 'f-1.woff2'), 'utf8')).toBe('font');
+    const saved = parseDocument(fs.readFileSync(path.join(destDir, 'copy.mockup.json'), 'utf8'));
     const frame = saved.pages[0]!.frames[0]!;
-    expect(frame.children.map((c) => c.src)).toEqual(['a-1.png', 'igual.png']);
+    expect(frame.children.map((c) => c.src)).toEqual(['a-1.png', 'same.png']);
     expect(frame.style['background-image']).toBe('url("assets/bg-1.png")');
     expect(saved.fonts[0]!.files).toEqual(['fonts/f-1.woff2']);
-    // uma única entrada de histórico, com origem 'system'
+    // a single history entry, with source 'system'
     expect(changes).toEqual(['system']);
     expect(store.getRevision(docId)).toBe(before + 1);
     expect(store.getInfo(docId).dirty).toBe(false);
@@ -237,18 +237,20 @@ describe('DocumentStore', () => {
     expect(store.get(docId).fonts[0]!.files).toEqual(['fonts/f.woff2']);
     expect(store.get(docId).pages[0]!.frames[0]!.children.map((c) => c.src)).toEqual([
       'a.png',
-      'igual.png',
+      'same.png',
     ]);
   });
 
-  it('saveAs recusa o caminho de outro documento aberto', async () => {
+  it('saveAs rejects the path of another open document', async () => {
     const a = await store.open(ws.file);
     const b = await store.create(path.join(ws.dir, 'b'), 'B');
-    await expect(store.saveAs(b.docId, ws.file)).rejects.toThrow(/outro documento aberto/);
+    await expect(store.saveAs(b.docId, ws.file)).rejects.toThrow(
+      /Another document is already open/,
+    );
     await expect(store.saveAs(a.docId, ws.file)).resolves.toMatchObject({ path: ws.file });
   });
 
-  it('groupOpsCount e groupCreatedIds somam o grupo mesmo com op do usuário intercalada', async () => {
+  it('groupOpsCount and groupCreatedIds sum the group even with an interleaved user op', async () => {
     const store = new DocumentStore({ autosaveMs: 60_000 });
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-grp-')), 'g.mockup.json');
     const { docId, doc } = await store.create(file, 'G');
@@ -262,32 +264,32 @@ describe('DocumentStore', () => {
       style: { width: '10px', height: '10px' },
       children: [],
     });
-    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_agente01') }], {
+    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_agent001') }], {
       source: 'mcp',
-      group: 'turno',
+      group: 'turn',
     });
-    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_usuari01') }], {
+    store.applyOps(docId, [{ type: 'createNode', pageId, node: frame('fr_user0001') }], {
       source: 'editor',
     });
     store.applyOps(
       docId,
       [
-        { type: 'createNode', pageId, node: frame('fr_agente02') },
-        { type: 'renameNodes', changes: [{ nodeId: 'fr_agente02', name: 'B' }] },
+        { type: 'createNode', pageId, node: frame('fr_agent002') },
+        { type: 'renameNodes', changes: [{ nodeId: 'fr_agent002', name: 'B' }] },
       ],
-      { source: 'mcp', group: 'turno' },
+      { source: 'mcp', group: 'turn' },
     );
-    expect(store.groupOpsCount(docId, 'turno')).toBe(3);
-    expect([...store.groupCreatedIds(docId, 'turno')].sort()).toEqual([
-      'fr_agente01',
-      'fr_agente02',
+    expect(store.groupOpsCount(docId, 'turn')).toBe(3);
+    expect([...store.groupCreatedIds(docId, 'turn')].sort()).toEqual([
+      'fr_agent001',
+      'fr_agent002',
     ]);
-    expect(store.groupOpsCount(docId, 'outro')).toBe(0);
-    // a edição do usuário dividiu o undo do turno em duas entradas (comportamento documentado)
+    expect(store.groupOpsCount(docId, 'other')).toBe(0);
+    // the user edit split the turn's undo into two entries (documented behavior)
     store.undo(docId, 'editor');
     expect(store.get(docId).pages[0]!.frames.map((f) => f.id)).toEqual([
-      'fr_agente01',
-      'fr_usuari01',
+      'fr_agent001',
+      'fr_user0001',
     ]);
     await store.closeAll();
   });

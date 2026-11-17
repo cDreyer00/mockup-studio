@@ -1,14 +1,14 @@
 /**
- * Ida e volta de repetidores pelo HTML do MCP: `get_html` marca cada repetidor com
- * `data-mockup-repeat="<id>"` (e `data-repeat="<itens>"`, só informativo) e `write_html` reconhece a
- * marca e recria o repetidor com os dados e a origem do original, em vez de perdê-los.
+ * Round trip of repeaters through the MCP HTML: `get_html` marks each repeater with
+ * `data-mockup-repeat="<id>"` (and `data-repeat="<items>"`, informational only) and `write_html`
+ * recognizes the mark and recreates the repeater with the original's data and source, instead of losing them.
  */
 import { createRepeaterFrom, findNode, walk, type Document, type Node } from '@mockup/core';
 
 export const REPEAT_MARK = 'data-mockup-repeat';
 export const REPEAT_COUNT = 'data-repeat';
 
-/** Cópia da árvore com a marca nos repetidores (para `nodesToHtml`). */
+/** Copy of the tree with the mark on repeaters (for `nodesToHtml`). */
 export function markRepeaters(node: Node): Node {
   const out: Node = {
     ...node,
@@ -23,9 +23,9 @@ export function markRepeaters(node: Node): Node {
 }
 
 /**
- * Troca, nos nós vindos do HTML, os elementos com a marca por repetidores com os dados do original
- * (procurado em `doc`). A marca sai dos atributos mesmo sem original. Devolve os ids originais
- * reaproveitados.
+ * Replaces, in the nodes coming from the HTML, the marked elements with repeaters carrying the
+ * original's data (looked up in `doc`). The mark is removed from the attributes even without an
+ * original. Returns the original ids that were reused.
  */
 export function restoreRepeaters(
   nodes: Node[],
@@ -52,7 +52,7 @@ export function restoreRepeaters(
   return { nodes: nodes.map(visit), restored };
 }
 
-/** Repetidores dentro dos nós `deletedIds` que não foram recriados (para avisar da perda). */
+/** Repeaters inside the `deletedIds` nodes that were not recreated (to warn about the loss). */
 export function lostRepeaters(
   doc: Document,
   deletedIds: string[],

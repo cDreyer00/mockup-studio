@@ -7,8 +7,8 @@ export const DEFAULT_PORT = 4747;
 export const DOCUMENT_EXT = '.mockup.json';
 
 /**
- * Normaliza o caminho de um documento para terminar em `.mockup.json`:
- * `foo.mockup.json` mantém; `foo.json` vira `foo.mockup.json`; `foo` vira `foo.mockup.json`.
+ * Normalizes a document path to end in `.mockup.json`:
+ * `foo.mockup.json` is kept; `foo.json` becomes `foo.mockup.json`; `foo` becomes `foo.mockup.json`.
  */
 export function normalizeDocumentPath(p: string): string {
   const abs = path.resolve(p);
@@ -56,7 +56,7 @@ export function readDaemonInfo(dataDir: string = getDataDir()): DaemonInfo | nul
   return readJson<DaemonInfo>(path.join(dataDir, 'daemon.json'));
 }
 
-/** Remove o daemon.json. Com `onlyIfPid`, só remove se o pid gravado for o mesmo (outro daemon pode ter assumido o arquivo). */
+/** Removes daemon.json. With `onlyIfPid`, only removes if the recorded pid is the same (another daemon may have taken over the file). */
 export function removeDaemonInfo(dataDir: string = getDataDir(), onlyIfPid?: number): void {
   try {
     if (onlyIfPid !== undefined) {
@@ -65,7 +65,7 @@ export function removeDaemonInfo(dataDir: string = getDataDir(), onlyIfPid?: num
     }
     fs.rmSync(path.join(dataDir, 'daemon.json'), { force: true });
   } catch {
-    /* ignorado */
+    /* ignored */
   }
 }
 
@@ -84,7 +84,7 @@ export function addRecent(filePath: string, dataDir: string = getDataDir()): voi
   try {
     fs.writeFileSync(path.join(dataDir, 'recent.json'), JSON.stringify(list, null, 2), 'utf8');
   } catch {
-    /* ignorado */
+    /* ignored */
   }
 }
 

@@ -1,17 +1,17 @@
 /* global process, fetch, console, setTimeout, Buffer */
 /**
- * CLI falsa que imita `claude -p --input-format stream-json --output-format stream-json` para os
- * testes do assistente. Lê a mensagem do usuário no stdin e executa os comandos `@@...` que
- * encontrar no texto, falando de verdade com o MCP do daemon (URL e token da `--mcp-config`).
+ * Fake CLI that mimics `claude -p --input-format stream-json --output-format stream-json` for the
+ * assistant tests. Reads the user message from stdin and runs the `@@...` commands it finds in
+ * the text, really talking to the daemon MCP (URL and token from `--mcp-config`).
  *
- * Comandos (um por linha):
- *   @@rename <nodeId> <nome>          rename_nodes
- *   @@style <nodeId> <prop> <valor>   update_styles
- *   @@undo                            chama `undo` (deve ser recusado dentro de um turno)
- *   @@sleep <ms>                      espera
- *   @@text <mensagem>                 emite um texto
- *   @@echo                            devolve o prompt, o system prompt, a URL do MCP, o resume e os args
- *   @@fail <mensagem>                 termina com erro (is_error) e código 1
+ * Commands (one per line):
+ *   @@rename <nodeId> <name>          rename_nodes
+ *   @@style <nodeId> <prop> <value>   update_styles
+ *   @@undo                            calls `undo` (must be rejected inside a turn)
+ *   @@sleep <ms>                      waits
+ *   @@text <message>                 emits a text
+ *   @@echo                            returns the prompt, the system prompt, the MCP URL, the resume and the args
+ *   @@fail <message>                 ends with an error (is_error) and exit code 1
  */
 import fs from 'node:fs';
 
@@ -22,7 +22,7 @@ const arg = (name) => {
 };
 
 if (argv.includes('--version')) {
-  console.log('0.0.0-fake (CLI falsa)');
+  console.log('0.0.0-fake (fake CLI)');
   process.exit(0);
 }
 
@@ -34,7 +34,7 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/* ---------- cliente MCP mínimo (Streamable HTTP) ---------- */
+/* ---------- minimal MCP client (Streamable HTTP) ---------- */
 
 async function rpc(url, body, headers) {
   const res = await fetch(url, {
@@ -78,7 +78,7 @@ async function openMcp(url) {
   );
   if (init.msg?.error) throw new Error(init.msg.error.message);
   const sid = init.res.headers.get('mcp-session-id');
-  if (!sid) throw new Error(`MCP recusou a sessão (HTTP ${init.res.status})`);
+  if (!sid) throw new Error(`MCP refused the session (HTTP ${init.res.status})`);
   const headers = { 'mcp-session-id': sid };
   await rpc(url, { jsonrpc: '2.0', method: 'notifications/initialized' }, headers);
   let n = 1;
@@ -94,7 +94,7 @@ async function openMcp(url) {
   };
 }
 
-/* ---------- turno ---------- */
+/* ---------- turn ---------- */
 
 const raw = (await readStdin()).split('\n')[0] ?? '';
 let userText = '';
@@ -136,7 +136,7 @@ const textMsg = (text) =>
 
 let call;
 async function tool(name, input) {
-  if (!mcpUrl) throw new Error('sem MCP configurado neste turno');
+  if (!mcpUrl) throw new Error('no MCP configured in this turn');
   call ??= await openMcp(mcpUrl);
   const id = `toolu_${++counter}`;
   emit({
@@ -174,7 +174,7 @@ try {
       });
     } else if (cmd === 'undo') {
       const r = await tool('undo', { docId });
-      finalTexts.push(`undo: ${r.isError ? 'recusado' : 'aceito'}`);
+      finalTexts.push(`undo: ${r.isError ? 'rejected' : 'accepted'}`);
     } else if (cmd === 'sleep') {
       await new Promise((r) => setTimeout(r, Number(rest[0]) || 0));
     } else if (cmd === 'text') {
@@ -185,16 +185,16 @@ try {
       const t = [
         `ECHO-PROMPT:\n${userText}`,
         `ECHO-SYSTEM:\n${system}`,
-        `ECHO-MCP: ${mcpUrl ?? '(sem mcp)'}`,
-        `ECHO-RESUME: ${resume ?? '(nenhum)'}`,
+        `ECHO-MCP: ${mcpUrl ?? '(no mcp)'}`,
+        `ECHO-RESUME: ${resume ?? '(none)'}`,
         `ECHO-ARGS: ${JSON.stringify(argv)}`,
         `ECHO-IMAGES: ${images}`,
       ].join('\n');
       textMsg(t);
       finalTexts.push(t);
     } else if (cmd === 'fail') {
-      const message = rest.join(' ') || 'falhou';
-      console.error(`stderr falso: ${message}`);
+      const message = rest.join(' ') || 'failed';
+      console.error(`fake stderr: ${message}`);
       emit({
         type: 'result',
         subtype: 'error_during_execution',
@@ -216,7 +216,7 @@ try {
   process.exit(1);
 }
 
-const finalText = finalTexts.length ? finalTexts.join('\n') : 'Pronto.';
+const finalText = finalTexts.length ? finalTexts.join('\n') : 'Done.';
 if (!finalTexts.length) textMsg(finalText);
 emit({
   type: 'result',

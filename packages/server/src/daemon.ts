@@ -20,22 +20,22 @@ export interface DaemonOptions {
   openFiles?: string[];
   dataDir?: string;
   writeInfo?: boolean;
-  /** TTL de ociosidade das sessões MCP em ms (padrão 30 min). */
+  /** Idle TTL of MCP sessions in ms (default 30 min). */
   sessionTtlMs?: number;
-  /** Motor de render (injetado pelo app desktop). Sem ele, screenshot/layout ficam indisponíveis. */
+  /** Render engine (injected by the desktop app). Without it, screenshot/layout are unavailable. */
   render?: RenderProvider;
-  /** Pasta com o build do editor (`packages/editor/dist`), servida em `/` pelo daemon. */
+  /** Folder with the editor build (`packages/editor/dist`), served at `/` by the daemon. */
   editorDir?: string;
-  /** Quem iniciou o daemon (health). Padrão: `desktop` com render, `headless` com `headless`, senão `serve`. */
+  /** Who started the daemon (health). Default: `desktop` with render, `headless` with `headless`, otherwise `serve`. */
   mode?: DaemonMode;
   /**
-   * Habilita `POST /api/shutdown`: o daemon responde 202, fecha (salvando os documentos) e então
-   * chama este callback (ex.: `process.exit` ou `app.quit`). Sem ele a rota responde 409.
+   * Enables `POST /api/shutdown`: the daemon responds 202, closes (saving the documents) and then
+   * calls this callback (e.g. `process.exit` or `app.quit`). Without it the route responds 409.
    */
   onShutdown?: () => void;
   /**
-   * Backends do assistente no lugar dos detectados (CLIs `claude` e `codex` no PATH). Usado nos
-   * testes com um backend falso.
+   * Assistant backends in place of the detected ones (`claude` and `codex` CLIs on PATH). Used in
+   * tests with a fake backend.
    */
   agentBackends?: AgentBackend[];
 }
@@ -47,11 +47,11 @@ export interface DaemonHandle {
   mcpUrl: string;
   wsUrl: string;
   store: DocumentStore;
-  /** Assistente, scripts e remix. */
+  /** Assistant, scripts and remix. */
   services: Required<DaemonServices>;
-  /** Motor de render injetado (ou `undefined`). */
+  /** Injected render engine (or `undefined`). */
   render?: RenderProvider;
-  /** Número de sessões MCP ativas. */
+  /** Number of active MCP sessions. */
   sessionCount(): number;
   close(): Promise<void>;
 }
@@ -94,7 +94,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     mode: opts.mode ?? (opts.render ? 'desktop' : opts.headless ? 'headless' : 'serve'),
     shutdown: opts.onShutdown
       ? () => {
-          log('encerramento pedido por HTTP');
+          log('shutdown requested over HTTP');
           void handle.close().finally(() => opts.onShutdown?.());
         }
       : undefined,
@@ -106,7 +106,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       reject(
         (err as NodeJS.ErrnoException).code === 'EADDRINUSE'
           ? new Error(
-              `Porta ${requestedPort} já está em uso em ${host}. Use --port para escolher outra.`,
+              `Port ${requestedPort} is already in use on ${host}. Use --port to choose another.`,
             )
           : err,
       );
@@ -118,8 +118,8 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     });
   });
 
-  // O ws repassa os erros do servidor (EADDRINUSE) como `error` sem ouvinte, o que derrubaria o
-  // processo antes da mensagem clara abaixo: só se anexa depois que a porta foi obtida.
+  // ws forwards the server errors (EADDRINUSE) as an unhandled `error`, which would crash the
+  // process before the clear message above: it is only attached after the port is obtained.
   const ws = attachWebSocket(server, store, '/ws', services);
   actualPort = (server.address() as AddressInfo).port;
   const origin = `${host === '::1' ? '[::1]' : host}:${actualPort}`;
@@ -131,7 +131,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     try {
       await store.open(file);
     } catch (e) {
-      log(`não foi possível abrir ${file}:`, e instanceof Error ? e.message : e);
+      log(`could not open ${file}:`, e instanceof Error ? e.message : e);
     }
   }
 
@@ -173,11 +173,11 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         await store.closeAll();
         await opts.render?.close?.().catch(() => undefined);
         if (writeInfo) removeDaemonInfo(dataDir, process.pid);
-        log('encerrado');
+        log('stopped');
       })();
       return closing;
     },
   };
-  log(`ouvindo em ${url}`);
+  log(`listening on ${url}`);
   return handle;
 }

@@ -1,13 +1,13 @@
 /**
- * Kits de componentes (`kits/*.mockup.json`): documentos com `components` (e os tokens que eles usam)
- * importáveis em qualquer documento (`import_kit`, `insert_component('kit/Nome')`, aba do editor).
+ * Component kits (`kits/*.mockup.json`): documents with `components` (and the tokens they use)
+ * importable into any document (`import_kit`, `insert_component('kit/Name')`, editor tab).
  *
- * Onde fica a pasta `kits/`:
- * 1. `MOCKUP_KITS_DIR` (se definida e existente);
- * 2. empacotado: `process.resourcesPath/kits` (extraResources do electron-builder; também vale para o
- *    daemon que roda com `ELECTRON_RUN_AS_NODE=1` a partir de `resources/cli`);
- * 3. desenvolvimento e bundles (`out/cli/daemon.mjs`, `out/main`): sobe de `import.meta.url` até achar
- *    uma pasta `kits/` com arquivos `.mockup.json` (a raiz do repositório); por último, do cwd.
+ * Where the `kits/` folder lives:
+ * 1. `MOCKUP_KITS_DIR` (if set and existing);
+ * 2. packaged: `process.resourcesPath/kits` (electron-builder extraResources; also applies to the
+ *    daemon running with `ELECTRON_RUN_AS_NODE=1` from `resources/cli`);
+ * 3. development and bundles (`out/cli/daemon.mjs`, `out/main`): walks up from `import.meta.url` until it finds
+ *    a `kits/` folder with `.mockup.json` files (the repository root); lastly, from the cwd.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,7 +16,7 @@ import { validateDocument, type Document, type PropDef } from '@mockup/core';
 
 export const KIT_EXT = '.mockup.json';
 
-/** Erro de kit (inexistente, arquivo inválido); a mensagem diz o que fazer. */
+/** Kit error (missing, invalid file); the message says what to do. */
 export class KitError extends Error {
   constructor(
     public status: number,
@@ -47,7 +47,7 @@ function walkUp(start: string): string | null {
   return null;
 }
 
-/** Pasta dos kits (ver o cabeçalho do arquivo) ou `null` se não achar. */
+/** Kits folder (see the file header) or `null` if not found. */
 export function findKitsDir(): string | null {
   const env = process.env.MOCKUP_KITS_DIR;
   if (env && fs.existsSync(env)) return path.resolve(env);
@@ -65,7 +65,7 @@ export function findKitsDir(): string | null {
   return (here ? walkUp(here) : null) ?? walkUp(process.cwd());
 }
 
-/** Nomes dos kits disponíveis (arquivo sem `.mockup.json`), em ordem alfabética. */
+/** Names of the available kits (file without `.mockup.json`), in alphabetical order. */
 export function listKitNames(): string[] {
   const dir = findKitsDir();
   if (!dir) return [];
@@ -73,11 +73,11 @@ export function listKitNames(): string[] {
     .readdirSync(dir)
     .filter((f) => f.toLowerCase().endsWith(KIT_EXT))
     .map((f) => f.slice(0, -KIT_EXT.length))
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => a.localeCompare(b, 'en-US'));
 }
 
 export interface LoadedKit {
-  /** Nome do kit (arquivo sem `.mockup.json`). */
+  /** Kit name (file without `.mockup.json`). */
   name: string;
   file: string;
   doc: Document;
@@ -90,7 +90,7 @@ function loadFile(file: string, name: string): LoadedKit {
   try {
     st = fs.statSync(file);
   } catch {
-    throw new KitError(404, `Arquivo de kit não encontrado: ${file}`);
+    throw new KitError(404, `Kit file not found: ${file}`);
   }
   const hit = cache.get(file);
   if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) return hit.kit;
@@ -98,19 +98,19 @@ function loadFile(file: string, name: string): LoadedKit {
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch {
-    throw new KitError(400, `Não foi possível ler o arquivo de kit: ${file}`);
+    throw new KitError(400, `Could not read the kit file: ${file}`);
   }
-  // A mensagem crua do JSON.parse pode trazer trechos do arquivo: só "JSON inválido".
+  // The raw JSON.parse message can carry excerpts of the file: only "Invalid JSON".
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new KitError(400, `Kit inválido (${file}): JSON inválido`);
+    throw new KitError(400, `Invalid kit (${file}): Invalid JSON`);
   }
   const r = validateDocument(data);
   if (!r.ok) {
     const more = r.errors.length > 5 ? ` (+${r.errors.length - 5})` : '';
-    throw new KitError(400, `Kit inválido (${file}): ${r.errors.slice(0, 5).join('; ')}${more}`);
+    throw new KitError(400, `Invalid kit (${file}): ${r.errors.slice(0, 5).join('; ')}${more}`);
   }
   const doc = r.doc;
   const kit: LoadedKit = { name, file, doc };
@@ -119,21 +119,18 @@ function loadFile(file: string, name: string): LoadedKit {
 }
 
 /**
- * Carrega um kit pelo nome (`shadcn-like`) ou por um caminho absoluto de `.mockup.json`
- * (a extensão é obrigatória; o nome do kit vem do arquivo). Cache por mtime. Arquivo com JSON
- * malformado: "JSON inválido" (sem repassar a mensagem do parser); documento inválido: os erros
- * do schema.
+ * Loads a kit by name (`shadcn-like`) or by an absolute `.mockup.json` path
+ * (the extension is required; the kit name comes from the file). Cached by mtime. File with
+ * malformed JSON: "Invalid JSON" (without passing on the parser's message); invalid document: the
+ * schema errors.
  */
 export function loadKit(nameOrPath: string): LoadedKit {
   const ref = nameOrPath.trim();
-  if (!ref) throw new KitError(400, 'Informe o nome do kit (ex.: "shadcn-like").');
+  if (!ref) throw new KitError(400, 'Pass the kit name (e.g. "shadcn-like").');
   if (path.isAbsolute(ref)) {
     const base = path.basename(ref);
     if (!base.toLowerCase().endsWith(KIT_EXT) || base.length === KIT_EXT.length) {
-      throw new KitError(
-        400,
-        `O arquivo do kit precisa ter a extensão ${KIT_EXT} (recebido "${base}").`,
-      );
+      throw new KitError(400, `The kit file must have the ${KIT_EXT} extension (got "${base}").`);
     }
     return loadFile(ref, base.slice(0, -KIT_EXT.length));
   }
@@ -143,7 +140,7 @@ export function loadKit(nameOrPath: string): LoadedKit {
   if (!found || !dir) {
     throw new KitError(
       404,
-      `Kit "${ref}" não encontrado. Kits disponíveis: ${names.length ? names.join(', ') : '(nenhum)'}. Para um arquivo seu, passe o caminho absoluto do .mockup.json.`,
+      `Kit "${ref}" not found. Available kits: ${names.length ? names.join(', ') : '(none)'}. For your own file, pass the absolute path of the .mockup.json.`,
     );
   }
   return loadFile(path.join(dir, found + KIT_EXT), found);
@@ -161,7 +158,7 @@ export interface KitInfo {
   components: KitComponentInfo[];
 }
 
-/** Kits disponíveis com os componentes (id, nome, descrição, props); kits inválidos são ignorados. */
+/** Available kits with their components (id, name, description, props); invalid kits are ignored. */
 export function listKits(): KitInfo[] {
   const out: KitInfo[] = [];
   for (const name of listKitNames()) {
@@ -177,7 +174,7 @@ export function listKits(): KitInfo[] {
         })),
       });
     } catch {
-      // kit corrompido não derruba a listagem
+      // a corrupted kit does not break the listing
     }
   }
   return out;

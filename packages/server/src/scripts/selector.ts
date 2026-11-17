@@ -1,14 +1,14 @@
 /**
- * Mini-seletor de nós para `doc.select("...")` (avaliado no daemon, sobre o documento real:
- * instâncias de componente não são expandidas).
+ * Node mini-selector for `doc.select("...")` (evaluated in the daemon, on the real document:
+ * component instances are not expanded).
  *
- * Sintaxe (subconjunto de CSS):
- * - `*`, tipo (`frame`, `element`, `text`, `image`, `svg`, `instance`) ou tag (`button`, `h1`...)
- * - `#id` e `.classe` (classes Tailwind escritas no nó)
- * - atributos: `[name="x"]`, `[name=x]`, `[name^=x]`, `[name*=x]`, `[name$=x]`, `[text*=x]`,
+ * Syntax (CSS subset):
+ * - `*`, type (`frame`, `element`, `text`, `image`, `svg`, `instance`) or tag (`button`, `h1`...)
+ * - `#id` and `.class` (Tailwind classes written on the node)
+ * - attributes: `[name="x"]`, `[name=x]`, `[name^=x]`, `[name*=x]`, `[name$=x]`, `[text*=x]`,
  *   `[tag=x]`, `[type=x]`, `[style.color]`, `[style.color="red"]`, `[attrs.href^="http"]`, `[hidden]`
- * - combinadores: descendente (espaço) e filho (`>`); lista separada por vírgula.
- * Sem expressões regulares fornecidas pelo usuário (nada de ReDoS no thread principal).
+ * - combinators: descendant (space) and child (`>`); comma-separated list.
+ * No user-supplied regular expressions (no ReDoS on the main thread).
  */
 import type { Document, Node } from '@mockup/core';
 
@@ -23,7 +23,7 @@ interface AttrTest {
 }
 
 interface Compound {
-  /** `*`, um tipo ou uma tag (minúsculos); ausente = qualquer. */
+  /** `*`, a type or a tag (lowercase); absent = any. */
   kind?: string;
   ids: string[];
   classes: string[];
@@ -32,7 +32,7 @@ interface Compound {
 
 interface Part {
   compound: Compound;
-  /** Relação com a parte anterior: descendente (` `) ou filho (`>`). */
+  /** Relation to the previous part: descendant (` `) or child (`>`). */
   combinator: ' ' | '>';
 }
 
@@ -44,7 +44,7 @@ function parseSelector(source: string): Part[][] {
   const s = source;
   let i = 0;
   const fail = (msg: string): never => {
-    throw new SelectorError(`Seletor inválido "${source}": ${msg} (posição ${i}).`);
+    throw new SelectorError(`Invalid selector "${source}": ${msg} (position ${i}).`);
   };
   const skipSpaces = (): boolean => {
     const start = i;
@@ -63,7 +63,7 @@ function parseSelector(source: string): Part[][] {
     const start = i;
     while (i < s.length && /[\w.-]/.test(s[i]!)) i++;
     const key = s.slice(start, i);
-    if (!key) fail('esperava o nome do atributo depois de "["');
+    if (!key) fail('expected the attribute name after "["');
     skipSpaces();
     if (s[i] === ']') {
       i++;
@@ -77,7 +77,7 @@ function parseSelector(source: string): Part[][] {
       op = `${s[i]}=` as AttrOp;
       i += 2;
     } else {
-      return fail('operador de atributo inválido (use =, ^=, *= ou $=)');
+      return fail('invalid attribute operator (use =, ^=, *= or $=)');
     }
     skipSpaces();
     let value: string;
@@ -86,7 +86,7 @@ function parseSelector(source: string): Part[][] {
       i++;
       const from = i;
       while (i < s.length && s[i] !== q) i++;
-      if (i >= s.length) fail('aspas sem fechar');
+      if (i >= s.length) fail('unclosed quote');
       value = s.slice(from, i);
       i++;
     } else {
@@ -95,7 +95,7 @@ function parseSelector(source: string): Part[][] {
       value = s.slice(from, i).trim();
     }
     skipSpaces();
-    if (s[i] !== ']') fail('esperava "]"');
+    if (s[i] !== ']') fail('expected "]"');
     i++;
     return { key, op, value };
   };
@@ -116,25 +116,25 @@ function parseSelector(source: string): Part[][] {
       if (ch === '#') {
         i++;
         const v = ident();
-        if (!v) fail('esperava um id depois de "#"');
+        if (!v) fail('expected an id after "#"');
         c.ids.push(v);
       } else if (ch === '.') {
         i++;
         const v = ident();
-        if (!v) fail('esperava uma classe depois de "."');
+        if (!v) fail('expected a class after "."');
         c.classes.push(v);
       } else if (ch === '[') {
         c.attrs.push(parseAttr());
       } else break;
       any = true;
     }
-    if (!any) fail(s[i] === undefined ? 'seletor incompleto' : `caractere inesperado "${s[i]}"`);
+    if (!any) fail(s[i] === undefined ? 'incomplete selector' : `unexpected character "${s[i]}"`);
     return c;
   };
 
   const list: Part[][] = [];
   skipSpaces();
-  if (i >= s.length) fail('seletor vazio');
+  if (i >= s.length) fail('empty selector');
   for (;;) {
     const parts: Part[] = [{ compound: parseCompound(), combinator: ' ' }];
     for (;;) {
@@ -146,21 +146,21 @@ function parseSelector(source: string): Part[][] {
         i++;
         skipSpaces();
       } else if (!spaced) {
-        fail(`caractere inesperado "${s[i]}"`);
+        fail(`unexpected character "${s[i]}"`);
       }
       parts.push({ compound: parseCompound(), combinator });
     }
     list.push(parts);
     if (i >= s.length) break;
-    i++; // vírgula
+    i++; // comma
     skipSpaces();
-    if (i >= s.length) fail('seletor vazio depois da vírgula');
+    if (i >= s.length) fail('empty selector after the comma');
   }
   return list;
 }
 
 const ATTR_KEYS =
-  'id, name, tag, type, text, src, classes (ou class), component, hidden, locked, style.<prop>, attrs.<nome>';
+  'id, name, tag, type, text, src, classes (or class), component, hidden, locked, style.<prop>, attrs.<name>';
 
 function kebab(p: string): string {
   return p.startsWith('-') ? p : p.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -193,7 +193,7 @@ function attrValue(n: Node, key: string): string | undefined {
   }
   if (key.startsWith('style.')) return n.style[kebab(key.slice(6))];
   if (key.startsWith('attrs.')) return n.attrs[key.slice(6)];
-  throw new SelectorError(`Atributo desconhecido "${key}" no seletor. Use: ${ATTR_KEYS}.`);
+  throw new SelectorError(`Unknown attribute "${key}" in the selector. Use: ${ATTR_KEYS}.`);
 }
 
 function matchAttr(n: Node, t: AttrTest): boolean {
@@ -231,7 +231,7 @@ function matchCompound(n: Node, c: Compound): boolean {
 interface Entry {
   node: Node;
   parent: Entry | null;
-  /** Dentro do escopo (`within`), sem contar o próprio nó de escopo. */
+  /** Inside the scope (`within`), not counting the scope node itself. */
   inScope: boolean;
 }
 
@@ -256,12 +256,12 @@ function matchFrom(e: Entry, parts: Part[], i: number): boolean {
   return false;
 }
 
-/** Ids dos nós que casam com o seletor, em ordem de documento (opcionalmente só descendentes de `within`). */
+/** Ids of the nodes matching the selector, in document order (optionally only descendants of `within`). */
 export function selectIds(doc: Document, selector: string, within?: string | null): string[] {
   const list = parseSelector(selector);
   const entries = buildEntries(doc, within);
   if (within && !entries.some((e) => e.node.id === within)) {
-    throw new SelectorError(`Nó de escopo não encontrado: "${within}".`);
+    throw new SelectorError(`Scope node not found: "${within}".`);
   }
   const ids: string[] = [];
   for (const e of entries) {

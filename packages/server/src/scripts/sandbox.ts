@@ -1,67 +1,67 @@
 /**
- * Sandbox dos scripts: executa JavaScript do usuário num `worker_threads.Worker` (criado de uma
- * string, ver `worker-source.ts`) dentro de um contexto `node:vm` sem `process`, `require`, rede,
- * arquivos nem `eval`. A única saída do contexto é uma ponte síncrona de strings JSON para o thread
- * principal, que responde com `handler(method, args)`.
+ * Script sandbox: runs user JavaScript in a `worker_threads.Worker` (created from a
+ * string, see `worker-source.ts`) inside a `node:vm` context without `process`, `require`, network,
+ * files or `eval`. The context's only way out is a synchronous bridge of JSON strings to the main
+ * thread, which answers with `handler(method, args)`.
  *
- * - Timeout no thread principal (`worker.terminate()`): mata `while (true) {}` e laços depois de `await`.
- * - Cancelamento: `signal` abortado e um vigia (`alive()`, ex.: o turno do assistente que disparou o
- *   script terminou) encerram o worker na hora, inclusive em laços que nunca chamam a API.
- * - Memória: `resourceLimits` do worker; estouro vira um erro legível e nunca derruba o daemon.
- * - Tamanho: limites de linhas/caracteres de log e do resultado.
- * Modelo de segurança completo em `docs/SCRIPTS.md`.
+ * - Timeout on the main thread (`worker.terminate()`): kills `while (true) {}` and loops after `await`.
+ * - Cancellation: an aborted `signal` and a watchdog (`alive()`, e.g. the assistant turn that triggered the
+ *   script has finished) stop the worker right away, even in loops that never call the API.
+ * - Memory: the worker's `resourceLimits`; overflow becomes a readable error and never takes down the daemon.
+ * - Size: limits on log lines/characters and on the result.
+ * Full security model in `docs/SCRIPTS.md`.
  */
 import { MessageChannel, Worker } from 'node:worker_threads';
 import { BOOTSTRAP_SOURCE, WORKER_SOURCE } from './worker-source.js';
 
 export const SANDBOX_LIMITS = {
-  /** Timeout padrão e máximo (ms). */
+  /** Default and maximum timeout (ms). */
   defaultTimeoutMs: 10_000,
   maxTimeoutMs: 60_000,
   minTimeoutMs: 50,
-  /** Tamanho máximo do código do script. */
+  /** Maximum size of the script code. */
   maxCodeChars: 500_000,
-  /** Heap do worker (MB). */
+  /** Worker heap (MB). */
   maxOldGenerationSizeMb: 128,
   maxYoungGenerationSizeMb: 16,
   stackSizeMb: 4,
-  /** Logs: linhas, caracteres por linha e total. */
+  /** Logs: lines, characters per line and total. */
   maxLogLines: 500,
   maxLogLine: 2000,
   maxLogChars: 256 * 1024,
-  /** Resultado (`return`) serializado em JSON. */
+  /** Result (`return`) serialized as JSON. */
   maxResultChars: 1_000_000,
-  /** Argumento de uma chamada da API do documento (JSON). */
+  /** Argument of a document API call (JSON). */
   maxArgsChars: 4_000_000,
 } as const;
 
-/** Implementação do lado do daemon da API do documento (`method` vem do bootstrap do contexto). */
+/** Daemon-side implementation of the document API (`method` comes from the context bootstrap). */
 export type SandboxHandler = (method: string, args: unknown) => unknown | Promise<unknown>;
 
 export interface SandboxOutcome {
   ok: boolean;
   error?: string;
-  /** Valor devolvido pelo script, já em JSON (ausente se `undefined`). */
+  /** Value returned by the script, already as JSON (absent if `undefined`). */
   resultJson?: string;
   logs: string[];
   timedOut: boolean;
-  /** Verdadeiro se a execução foi interrompida de fora (`signal` abortado ou `alive()` falso). */
+  /** True if the run was interrupted from outside (`signal` aborted or `alive()` false). */
   cancelled?: boolean;
 }
 
 export interface SandboxOptions {
   timeoutMs?: number;
-  /** Aborta a execução: o worker é encerrado imediatamente. */
+  /** Aborts the run: the worker is terminated immediately. */
   signal?: AbortSignal;
-  /** Vigia: consultado a cada `watchIntervalMs`; ao ficar falso o worker é encerrado. */
+  /** Watchdog: polled every `watchIntervalMs`; when it turns false the worker is terminated. */
   alive?: () => boolean;
 }
 
-/** Intervalo do vigia de `alive()` (ms). */
+/** `alive()` watchdog interval (ms). */
 export const WATCH_INTERVAL_MS = 100;
 
-export const CANCELLED_ABORT_MESSAGE = 'A execução foi cancelada; o script foi interrompido.';
-export const CANCELLED_TURN_MESSAGE = 'O turno do assistente terminou; o script foi interrompido.';
+export const CANCELLED_ABORT_MESSAGE = 'The run was cancelled; the script was interrupted.';
+export const CANCELLED_TURN_MESSAGE = 'The assistant turn ended; the script was interrupted.';
 
 const isAlive = (alive: (() => boolean) | undefined): boolean => {
   if (!alive) return true;
@@ -91,19 +91,19 @@ type WorkerMessage =
   | { t: 'rpc'; method: string; args: string };
 
 /**
- * `import()` num contexto `vm` sem loader rejeita com um erro do realm do worker, e dele se chega
- * ao `process` (`e.constructor.constructor('return process')()`). Como `eval` e `new Function`
- * estão desligados, a única forma de escrever `import(...)` é o token `import` no texto do
- * script: recusar o texto fecha a porta (às custas de falsos positivos em comentários e strings).
+ * `import()` in a `vm` context without a loader rejects with an error from the worker's realm, which leads
+ * to `process` (`e.constructor.constructor('return process')()`). Since `eval` and `new Function`
+ * are disabled, the only way to write `import(...)` is the `import` token in the script
+ * text: rejecting the text closes the door (at the cost of false positives in comments and strings).
  */
 const IMPORT_TOKEN = /\bimport\b/;
 
 export function checkSource(code: string): string | undefined {
   if (code.length > SANDBOX_LIMITS.maxCodeChars) {
-    return `O script é grande demais (${code.length} caracteres; limite ${SANDBOX_LIMITS.maxCodeChars}).`;
+    return `The script is too large (${code.length} characters; limit ${SANDBOX_LIMITS.maxCodeChars}).`;
   }
   if (IMPORT_TOKEN.test(code)) {
-    return 'A palavra "import" não é permitida em scripts (import e import() não existem na sandbox; use só a API doc). Se aparece num texto ou comentário, reescreva-a.';
+    return 'The word "import" is not allowed in scripts (import and import() do not exist in the sandbox; use only the doc API). If it appears in a text or comment, rewrite it.';
   }
   return undefined;
 }
@@ -165,7 +165,7 @@ export async function runInSandbox(
       transferList: [port2],
     });
     worker.unref();
-    // Ninguém usa a saída do worker (o script não tem console do processo); descarta.
+    // Nobody uses the worker's output (the script has no process console); discard it.
     worker.stdout.resume();
     worker.stderr.resume();
 
@@ -199,7 +199,7 @@ export async function runInSandbox(
     const handleRpc = async (m: Extract<WorkerMessage, { t: 'rpc' }>) => {
       let out: string;
       try {
-        if (typeof m.method !== 'string') throw new Error('Chamada inválida.');
+        if (typeof m.method !== 'string') throw new Error('Invalid call.');
         const args: unknown = m.args ? JSON.parse(m.args) : null;
         const value = await handler(m.method, args);
         out = JSON.stringify({ ok: true, value: value === undefined ? null : value });
@@ -228,10 +228,10 @@ export async function runInSandbox(
           settle(
             p.ok
               ? { ok: true, ...(p.result !== undefined ? { resultJson: p.result } : {}) }
-              : { ok: false, error: p.error ?? 'Erro desconhecido.' },
+              : { ok: false, error: p.error ?? 'Unknown error.' },
           );
         } catch {
-          settle({ ok: false, error: 'Resposta inválida da sandbox.' });
+          settle({ ok: false, error: 'Invalid response from the sandbox.' });
         }
       }
     });
@@ -240,15 +240,15 @@ export async function runInSandbox(
       if (e.code === 'ERR_WORKER_OUT_OF_MEMORY') {
         settle({
           ok: false,
-          error: `O script estourou o limite de memória (${SANDBOX_LIMITS.maxOldGenerationSizeMb} MB) e foi interrompido.`,
+          error: `The script exceeded the memory limit (${SANDBOX_LIMITS.maxOldGenerationSizeMb} MB) and was interrupted.`,
         });
       } else {
-        settle({ ok: false, error: `Falha interna da sandbox: ${errorText(e)}` });
+        settle({ ok: false, error: `Internal sandbox failure: ${errorText(e)}` });
       }
     });
 
-    // Sem resultado e sem erro: o worker terminou sozinho (ex.: uma promessa que nunca resolve).
-    // A mensagem `done` pode chegar um instante depois do `exit`: dá uma pequena folga.
+    // No result and no error: the worker ended on its own (e.g. a promise that never resolves).
+    // The `done` message may arrive a moment after `exit`: allow a small grace period.
     worker.on('exit', () => {
       if (closed) return;
       exitTimer = setTimeout(
@@ -256,7 +256,7 @@ export async function runInSandbox(
           settle({
             ok: false,
             error:
-              'O script terminou sem devolver um resultado (uma promessa que nunca resolve? Lembre que não há setTimeout).',
+              'The script ended without returning a result (a promise that never resolves? Remember there is no setTimeout).',
           }),
         50,
       );
@@ -266,11 +266,11 @@ export async function runInSandbox(
       settle({
         ok: false,
         timedOut: true,
-        error: `O script excedeu o tempo limite de ${timeoutMs} ms e foi interrompido.`,
+        error: `The script exceeded the ${timeoutMs} ms time limit and was interrupted.`,
       });
     }, timeoutMs);
 
-    // Cancelamento de fora: `signal` (imediato) e vigia de `alive()` (cobre laços sem chamadas à API).
+    // Cancellation from outside: `signal` (immediate) and the `alive()` watchdog (covers loops with no API calls).
     if (opts.signal) opts.signal.addEventListener('abort', onAbort, { once: true });
     if (opts.alive) {
       watch = setInterval(() => {

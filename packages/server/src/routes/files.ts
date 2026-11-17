@@ -1,6 +1,6 @@
 /**
- * Rotas de organização e busca de arquivos: lista com filtros, metadados (pasta, tags, favorito),
- * pastas virtuais, registro/esquecimento, miniaturas e busca de nós nos documentos abertos.
+ * File organization and search routes: filtered list, metadata (folder, tags, favorite),
+ * virtual folders, register/forget, thumbnails and node search across the open documents.
  */
 import type { Express } from 'express';
 import { searchNodes } from '@mockup/core';
@@ -14,10 +14,7 @@ const optStr = (v: unknown): string | undefined => (typeof v === 'string' ? v : 
 function tagList(v: unknown, field: string): string[] | undefined {
   if (v === undefined) return undefined;
   if (!Array.isArray(v) || v.some((t) => typeof t !== 'string'))
-    throw new RouteError(
-      400,
-      `${field} deve ser uma lista de textos. Ex.: ["cliente", "rascunho"].`,
-    );
+    throw new RouteError(400, `${field} must be a list of strings. E.g.: ["client", "draft"].`);
   return v as string[];
 }
 
@@ -45,9 +42,9 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     wrap(async (req, res) => {
       const b = (req.body ?? {}) as Record<string, unknown>;
       if (b.folder !== undefined && b.folder !== null && typeof b.folder !== 'string')
-        throw new RouteError(400, 'folder deve ser um texto ou null.');
+        throw new RouteError(400, 'folder must be a string or null.');
       if (b.favorite !== undefined && typeof b.favorite !== 'boolean')
-        throw new RouteError(400, 'favorite deve ser true ou false.');
+        throw new RouteError(400, 'favorite must be true or false.');
       res.json(
         await index().setMeta(FileIndex.requireDocPath(b.path), {
           folder: b.folder as string | null | undefined,
@@ -65,7 +62,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     wrap(async (req, res) => {
       const b = (req.body ?? {}) as Record<string, unknown>;
       const p = optStr(b.path);
-      if (!p) throw new RouteError(400, 'Campo obrigatório ausente: path (nome da pasta).');
+      if (!p) throw new RouteError(400, 'Missing required field: path (folder name).');
       let folders: string[];
       switch (b.action) {
         case 'create':
@@ -73,7 +70,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
           break;
         case 'rename': {
           const to = optStr(b.to);
-          if (!to) throw new RouteError(400, 'Para renomear, informe o novo caminho em "to".');
+          if (!to) throw new RouteError(400, 'To rename, provide the new path in "to".');
           folders = await index().renameFolder(p, to);
           break;
         }
@@ -81,7 +78,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
           folders = await index().deleteFolder(p);
           break;
         default:
-          throw new RouteError(400, 'action deve ser "create", "rename" ou "delete".');
+          throw new RouteError(400, 'action must be "create", "rename" or "delete".');
       }
       res.json({ folders });
     }),
@@ -91,7 +88,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     '/api/files/add',
     wrap(async (req, res) => {
       const p = optStr((req.body as Record<string, unknown> | undefined)?.path);
-      if (!p) throw new RouteError(400, 'Campo obrigatório ausente: path.');
+      if (!p) throw new RouteError(400, 'Missing required field: path.');
       res.json({ added: await index().add(p) });
     }),
   );
@@ -100,7 +97,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     '/api/files/forget',
     wrap(async (req, res) => {
       const p = optStr((req.body as Record<string, unknown> | undefined)?.path);
-      if (!p) throw new RouteError(400, 'Campo obrigatório ausente: path.');
+      if (!p) throw new RouteError(400, 'Missing required field: path.');
       await index().forget(p);
       res.json({ ok: true });
     }),
@@ -110,18 +107,18 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
     '/api/files/thumbnail',
     wrap(async (req, res) => {
       const p = FileIndex.requireDocPath(optStr(req.query.path));
-      // GET de <img> não manda Origin: só renderiza o que a tela inicial lista, não qualquer arquivo.
+      // An <img> GET sends no Origin: only render what the home screen lists, not any file.
       if (!index().isKnown(p)) {
         throw new RouteError(
           404,
-          'Arquivo fora da lista (índice, recentes ou abertos). Adicione com POST /api/files/add ou abra o documento.',
+          'File not in the list (index, recents or open). Add it with POST /api/files/add or open the document.',
         );
       }
       let w = 480;
       if (req.query.w !== undefined) {
         w = Number(req.query.w);
         if (!Number.isFinite(w) || w < 1)
-          throw new RouteError(400, 'w deve ser a largura em pixels, de 1 a 1024. Ex.: w=480.');
+          throw new RouteError(400, 'w must be the width in pixels, from 1 to 1024. E.g.: w=480.');
         w = Math.min(1024, Math.round(w));
       }
       if (!ctx.render) {
@@ -137,7 +134,7 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
         if (e instanceof Error && 'status' in e) throw e;
         throw new RouteError(
           500,
-          `Falha ao gerar a miniatura: ${e instanceof Error ? e.message : String(e)}`,
+          `Failed to generate the thumbnail: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
       res.set('Content-Type', 'image/png').set('Cache-Control', 'no-cache').send(png);
@@ -151,13 +148,12 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
       if (!query)
         throw new RouteError(
           400,
-          'Informe a consulta em ?query=. Ex.: query=tag:button, query=text:"fale conosco".',
+          'Provide the query in ?query=. E.g.: query=tag:button, query=text:"contact us".',
         );
       const docId = optStr(req.query.docId);
       const limit = req.query.limit === undefined ? 50 : Math.max(1, Number(req.query.limit) || 50);
       const infos = docId ? ctx.store.list().filter((d) => d.docId === docId) : ctx.store.list();
-      if (docId && infos.length === 0)
-        throw new RouteError(404, `Documento não encontrado: ${docId}`);
+      if (docId && infos.length === 0) throw new RouteError(404, `Document not found: ${docId}`);
       const matches: ({ docId: string } & ReturnType<typeof searchNodes>[number])[] = [];
       for (const info of infos) {
         if (matches.length >= limit) break;

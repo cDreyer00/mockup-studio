@@ -17,7 +17,7 @@ const textOf = (r: unknown): string =>
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32"><rect width="48" height="32"/></svg>';
 
-describe('MCP: set_image e generate_placeholder', () => {
+describe('MCP: set_image and generate_placeholder', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -25,7 +25,7 @@ describe('MCP: set_image e generate_placeholder', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -43,7 +43,7 @@ describe('MCP: set_image e generate_placeholder', () => {
   const assets = () => path.join(ws.dir, 'assets');
 
   async function makeImage(): Promise<string> {
-    const file = path.join(ws.dir, 'foto.svg');
+    const file = path.join(ws.dir, 'photo.svg');
     fs.writeFileSync(file, SVG);
     const r = await call('insert_image', { parentId: ws.frameId, source: file });
     expect(r.isError, textOf(r)).toBeFalsy();
@@ -52,7 +52,7 @@ describe('MCP: set_image e generate_placeholder', () => {
   const imgNode = () => frame().children[0]!;
 
   describe('set_image', () => {
-    it('fit, posição por atalho, filtros mesclados (preserva drop-shadow), crop e clipPath', async () => {
+    it('fit, position by preset, merged filters (keeps drop-shadow), crop and clipPath', async () => {
       const id = await makeImage();
       await call('update_styles', {
         nodeIds: [id],
@@ -65,7 +65,7 @@ describe('MCP: set_image e generate_placeholder', () => {
         filters: { grayscale: 100, blur: null, hueRotate: 30 },
         crop: { top: 10, bottom: 5 },
         clipPath: 'circle',
-        alt: 'Foto',
+        alt: 'Photo',
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       const s = imgNode().style;
@@ -77,10 +77,10 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(s['filter']).not.toContain('blur');
       expect(s['object-view-box']).toBe('inset(10% 0% 5% 0%)');
       expect(s['clip-path']).toBe('circle(50% at 50% 50%)');
-      expect(imgNode().attrs['alt']).toBe('Foto');
+      expect(imgNode().attrs['alt']).toBe('Photo');
       expect(textOf(r)).toContain('object-view-box');
 
-      // remover: crop null, clipPath none, filtros neutros
+      // remove: crop null, clipPath none, neutral filters
       const r2 = await call('set_image', {
         nodeId: id,
         crop: null,
@@ -94,7 +94,7 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(s2['filter']).toBe('drop-shadow(0 0 2px rgba(0,0,0,.5))');
     });
 
-    it('clipPath com url() externa é recusado; url(#id) é aceito', async () => {
+    it('clipPath with an external url() is rejected; url(#id) is accepted', async () => {
       const id = await makeImage();
       for (const bad of [
         'url(http://evil.test/x.svg#m)',
@@ -106,12 +106,12 @@ describe('MCP: set_image e generate_placeholder', () => {
         expect(textOf(r)).toContain('url(#id)');
       }
       expect(imgNode().style['clip-path']).toBeUndefined();
-      const ok = await call('set_image', { nodeId: id, clipPath: 'url(#mascara)' });
+      const ok = await call('set_image', { nodeId: id, clipPath: 'url(#mask)' });
       expect(ok.isError, textOf(ok)).toBeFalsy();
-      expect(imgNode().style['clip-path']).toBe('url(#mascara)');
+      expect(imgNode().style['clip-path']).toBe('url(#mask)');
     });
 
-    it('é uma única entrada de undo', async () => {
+    it('is a single undo entry', async () => {
       const id = await makeImage();
       const before = JSON.stringify(imgNode());
       await call('set_image', {
@@ -125,39 +125,39 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(JSON.stringify(imgNode())).toBe(before);
     });
 
-    it('source relativo (arquivo em assets/) e absoluto', async () => {
+    it('relative source (file in assets/) and absolute', async () => {
       const id = await makeImage();
-      fs.writeFileSync(path.join(assets(), 'outra.svg'), SVG.replace('48', '60'));
-      const r = await call('set_image', { nodeId: id, source: 'outra.svg' });
+      fs.writeFileSync(path.join(assets(), 'other.svg'), SVG.replace('48', '60'));
+      const r = await call('set_image', { nodeId: id, source: 'other.svg' });
       expect(r.isError, textOf(r)).toBeFalsy();
-      expect(imgNode().src).toBe('outra.svg');
+      expect(imgNode().src).toBe('other.svg');
 
-      const abs = path.join(ws.dir, 'terceira.svg');
+      const abs = path.join(ws.dir, 'third.svg');
       fs.writeFileSync(abs, SVG.replace('48', '70'));
       const r2 = await call('set_image', { nodeId: id, source: abs });
       expect(r2.isError, textOf(r2)).toBeFalsy();
-      expect(imgNode().src).toBe('terceira.svg');
-      expect(fs.existsSync(path.join(assets(), 'terceira.svg'))).toBe(true);
+      expect(imgNode().src).toBe('third.svg');
+      expect(fs.existsSync(path.join(assets(), 'third.svg'))).toBe(true);
 
-      const miss = await call('set_image', { nodeId: id, source: 'nao-existe.png' });
+      const miss = await call('set_image', { nodeId: id, source: 'does-not-exist.png' });
       expect(miss.isError).toBe(true);
       expect(textOf(miss)).toContain('assets/');
     });
 
-    it('erros: nó que não é imagem, nada para ajustar, filtro desconhecido', async () => {
+    it('errors: node that is not an image, nothing to adjust, unknown filter', async () => {
       const id = await makeImage();
       const notImg = await call('set_image', { nodeId: ws.frameId, fit: 'cover' });
       expect(notImg.isError).toBe(true);
-      expect(textOf(notImg)).toContain('não uma imagem');
+      expect(textOf(notImg)).toContain('not an image');
       const none = await call('set_image', { nodeId: id });
       expect(none.isError).toBe(true);
-      const bad = await call('set_image', { nodeId: id, filters: { sombra: 3 } });
+      const bad = await call('set_image', { nodeId: id, filters: { shadow: 3 } });
       expect(bad.isError).toBe(true);
     });
   });
 
   describe('generate_placeholder', () => {
-    it('contêiner ganha filho img; mesma seed = mesmo arquivo e bytes; seeds diferentes = arquivos diferentes', async () => {
+    it('container gets an img child; same seed = same file and bytes; different seeds = different files', async () => {
       const r = await call('generate_placeholder', {
         nodeId: ws.frameId,
         kind: 'avatar',
@@ -191,26 +191,26 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(other.equals(bytes)).toBe(false);
     });
 
-    it('nó image troca o src; nunca sobrescreve conteúdo diferente', async () => {
+    it('image node swaps the src; never overwrites different content', async () => {
       const id = await makeImage();
       fs.mkdirSync(path.join(assets(), 'placeholders'), { recursive: true });
-      fs.writeFileSync(path.join(assets(), 'placeholders', 'logo-x-480x160.svg'), 'meu arquivo');
+      fs.writeFileSync(path.join(assets(), 'placeholders', 'logo-x-480x160.svg'), 'my file');
       const r = await call('generate_placeholder', { nodeId: id, kind: 'logo', seed: 'x' });
       expect(r.isError, textOf(r)).toBeFalsy();
       expect(imgNode().src).toBe('placeholders/logo-x-480x160-1.svg');
       expect(
         fs.readFileSync(path.join(assets(), 'placeholders', 'logo-x-480x160.svg'), 'utf8'),
-      ).toBe('meu arquivo');
+      ).toBe('my file');
     });
 
-    it('erra em texto', async () => {
-      await call('write_html', { parentId: ws.frameId, html: '<p>oi</p>' });
+    it('fails on text', async () => {
+      await call('write_html', { parentId: ws.frameId, html: '<p>hi</p>' });
       const p = frame().children[0]!;
       const bad = await call('generate_placeholder', { nodeId: p.id, kind: 'avatar' });
       expect(bad.isError).toBe(true);
     });
 
-    it('documento sem caminho usa data URL', async () => {
+    it('document without a path uses a data URL', async () => {
       const r = await buildPlaceholder(doc(), null, {
         nodeId: ws.frameId,
         kind: 'logo',
@@ -220,7 +220,7 @@ describe('MCP: set_image e generate_placeholder', () => {
       expect(r.ops[0]!.type).toBe('createNode');
     });
 
-    it('rota HTTP /api/placeholder grava e aplica o src', async () => {
+    it('HTTP route /api/placeholder writes and applies the src', async () => {
       const id = await makeImage();
       const res = await fetch(`${daemon.url}/api/placeholder/${docId()}`, {
         method: 'POST',
@@ -236,7 +236,7 @@ describe('MCP: set_image e generate_placeholder', () => {
       const bad = await fetch(`${daemon.url}/api/placeholder/${docId()}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ nodeId: id, kind: 'gato' }),
+        body: JSON.stringify({ nodeId: id, kind: 'cat' }),
       });
       expect(bad.status).toBe(400);
     });

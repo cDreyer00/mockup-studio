@@ -1,44 +1,44 @@
-/** Guia MCP do tópico `import` (importação de sites); fica aqui para não inflar `mcp/guides.ts`. */
+/** MCP guide for the `import` topic (importing sites); lives here to avoid bloating `mcp/guides.ts`. */
 
 export const IMPORT_GUIDE_INFO = {
-  title: 'Guia: importar sites',
+  title: 'Guide: importing sites',
   description:
-    'Extensão x import_url x import_html, seletor e largura, frame Referência, cleanup_imported, tokens e limitações.',
+    'Extension vs import_url vs import_html, selector and width, Reference frame, cleanup_imported, tokens and limitations.',
 };
 
-export const IMPORT_GUIDE = `# Importar sites para o canvas
+export const IMPORT_GUIDE = `# Importing sites into the canvas
 
-Transforma uma página (ou uma seção) de um site existente num frame editável: nós HTML/CSS reais com estilos computados, imagens em \`assets/\` e fontes registradas no documento.
+Turns a page (or a section) of an existing site into an editable frame: real HTML/CSS nodes with computed styles, images in \`assets/\` and fonts registered in the document.
 
-## Qual caminho usar
+## Which path to use
 
-- **Extensão do navegador** — o usuário abre o site já logado, escolhe o elemento e envia ao Mockup Studio. É o único caminho para páginas atrás de login, paywall ou com estado (menus abertos, abas).
-- \`import_url({ url, selector?, width? })\` — o daemon abre a URL numa janela isolada e captura. Exige o motor de render (app desktop ou \`mockup serve --render\`); sem ele a ferramenta explica e você usa \`import_html\`.
-- \`import_html({ html, css?, assets_base_url? })\` — para HTML que você já tem (trecho colado, arquivo local). Com render captura como o import_url; sem render faz uma conversão simples, menos fiel (sem estilos computados nem fontes), e o frame ganha a altura do viewport: ajuste-a.
+- **Browser extension** — the user opens the site already logged in, picks the element and sends it to Mockup Studio. It is the only way for pages behind a login or paywall, or with state (open menus, tabs).
+- \`import_url({ url, selector?, width? })\` — the daemon opens the URL in an isolated window and captures it. Requires the render engine (desktop app or \`mockup serve --render\`); without it the tool explains and you use \`import_html\`.
+- \`import_html({ html, css?, assets_base_url? })\` — for HTML you already have (pasted snippet, local file). With render it captures like import_url; without render it does a simple, less faithful conversion (no computed styles or fonts), and the frame gets the viewport height: adjust it.
 
-## Seletor e largura
+## Selector and width
 
-- \`selector\` limita a captura a um elemento (\`"header"\`, \`"#pricing"\`, \`".hero"\`); sem ele vem a página inteira. Seções separadas dão árvores menores e mais fáceis de editar.
-- \`width\` escolhe o breakpoint do site (320 a 3840; padrão 1440). Para o mesmo site em vários tamanhos, importe uma vez por largura (ex.: 1440, 768, 390) e nomeie cada frame com \`name\`.
+- \`selector\` limits the capture to one element (\`"header"\`, \`"#pricing"\`, \`".hero"\`); without it the whole page comes in. Separate sections give smaller trees that are easier to edit.
+- \`width\` picks the site's breakpoint (320 to 3840; default 1440). For the same site at several sizes, import once per width (e.g. 1440, 768, 390) and name each frame with \`name\`.
 
-## Depois de importar
+## After importing
 
-1. O resultado traz o id do frame (\`fr_...\`), contagens e avisos. Confira com \`get_screenshot(frameId)\`.
-2. Compare com o original: a captura vem junto num frame oculto chamado "Referência — <nome>", à direita. Para ver, \`set_node_flags\` com \`hidden:false\` nesse frame e use \`get_screenshot\` (oculte ou apague depois). \`reference:false\` não anexa a referência.
-3. \`cleanup_imported(frameId)\` simplifica a árvore: remove wrappers vazios, desembrulha divs sem estilo troca width em px igual ao do pai por auto e height em px de blocos com conteúdo por min-height, para o conteúdo poder crescer (\`remove_empty\`, \`unwrap\` e \`fluid\` ligam e desligam cada regra). É uma entrada de histórico: \`undo\` desfaz. Confira o screenshot de novo.
-4. Tokens: cores e espaçamentos repetidos viram variáveis. Leia com \`get_html\`/\`get_styles\`, agrupe os valores que mais aparecem (cor de marca, texto, fundo, raio) e defina com \`set_tokens\`; depois troque os valores por \`var(--...)\` com \`update_styles\` (veja \`get_guide('design-system')\`).
+1. The result carries the frame id (\`fr_...\`), counts and warnings. Check with \`get_screenshot(frameId)\`.
+2. Compare with the original: the capture comes along in a hidden frame called "Reference — <name>", to the right. To see it, use \`set_node_flags\` with \`hidden:false\` on that frame and \`get_screenshot\` (hide or delete it afterwards). \`reference:false\` does not attach the reference.
+3. \`cleanup_imported(frameId)\` simplifies the tree: removes empty wrappers, unwraps unstyled divs, replaces a px width equal to the parent's with auto, and replaces the px height of blocks with content with min-height, so the content can grow (\`remove_empty\`, \`unwrap\` and \`fluid\` turn each rule on and off). It is one history entry: \`undo\` reverts it. Check the screenshot again.
+4. Tokens: repeated colors and spacings become variables. Read with \`get_html\`/\`get_styles\`, group the most frequent values (brand color, text, background, radius) and define them with \`set_tokens\`; then replace the values with \`var(--...)\` using \`update_styles\` (see \`get_guide('design-system')\`).
 
-## Onde as imagens e fontes vão
+## Where images and fonts go
 
-- Documento salvo: imagens e fontes ficam em \`assets/\` e \`assets/fonts\`. Documento sem caminho: imagens são embutidas (data URL) e as fontes são puladas (salve o documento e importe de novo).
-- Fundos \`url()\` são embutidos até ~2 MB; acima disso o estilo aponta para a URL original (aviso).
+- Saved document: images and fonts go to \`assets/\` and \`assets/fonts\`. Document with no path: images are embedded (data URL) and fonts are skipped (save the document and import again).
+- \`url()\` backgrounds are embedded up to ~2 MB; above that the style points to the original URL (warning).
 
-## Limitações
+## Limitations
 
-- Páginas com login/paywall: use a extensão (o import_url abre uma janela sem sessão).
-- \`canvas\`, \`video\`, \`iframe\` e mapas viram placeholders; conteúdo carregado por scripts depois da captura pode faltar. O seletor é esperado até 5 s depois do load (1 s no \`import_html\` sem \`assets_base_url\`, em que o JS fica desligado); se não aparecer, a importação falha com "Seletor ... não encontrado".
-- URL que responde 4xx/5xx é importada assim mesmo (vem a página de erro) com o aviso "A página respondeu HTTP <status>": confira a URL antes de seguir.
-- Fontes de outro domínio sem CORS podem não vir nos bytes da captura; o daemon tenta baixar pela URL e avisa quando falha (a família cai no fallback do sistema).
-- Animações, hover e estados dinâmicos viram o quadro capturado; \`position: sticky\`/\`fixed\` e vídeos de fundo ficam estáticos.
-- Limite de ~5000 nós por importação: use \`selector\` para seções menores.
+- Pages with login/paywall: use the extension (import_url opens a window with no session).
+- \`canvas\`, \`video\`, \`iframe\` and maps become placeholders; content loaded by scripts after the capture may be missing. The selector is awaited for up to 5 s after load (1 s in \`import_html\` without \`assets_base_url\`, where JS is off); if it does not appear, the import fails with "Selector ... not found".
+- A URL that answers 4xx/5xx is imported anyway (you get the error page) with the warning "The page responded HTTP <status>": check the URL before going on.
+- Fonts from another domain without CORS may not come in the capture bytes; the daemon tries to download them by URL and warns when it fails (the family falls back to the system font).
+- Animations, hover and dynamic states become the captured frame; \`position: sticky\`/\`fixed\` and background videos stay static.
+- Limit of ~5000 nodes per import: use \`selector\` for smaller sections.
 `;

@@ -1,6 +1,6 @@
 /**
- * Rotas de assets: CDN local (`/cdn/<hash>.<ext>`), listagem/remoção/link/otimização dos assets de
- * um documento (`/api/assets/:docId...`) e a biblioteca global (`/api/library`).
+ * Asset routes: local CDN (`/cdn/<hash>.<ext>`), listing/removal/link/optimization of a
+ * document's assets (`/api/assets/:docId...`) and the global library (`/api/library`).
  */
 import express from 'express';
 import type { Express } from 'express';
@@ -23,12 +23,12 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
   const svc: AssetsServiceCtx = { store: ctx.store, dataDir: ctx.dataDir, getPort: ctx.getPort };
   const lib = () => getLibrary(ctx.dataDir);
 
-  // CDN: arquivo endereçado por conteúdo; imutável, então o cache pode ser eterno.
+  // CDN: content-addressed file; immutable, so the cache can last forever.
   app.get('/cdn/:file', (req, res) => {
     const name = String(req.params.file);
     const file = CDN_FILE_RE.test(name) ? lib().fileFor(name) : null;
     if (!file) {
-      res.status(404).json({ error: 'Arquivo não encontrado na biblioteca' });
+      res.status(404).json({ error: 'File not found in the library' });
       return;
     }
     const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
@@ -36,10 +36,10 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     res.setHeader('Content-Security-Policy', ASSET_CSP);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Type', EMBEDDABLE_MIME[ext] ?? 'application/octet-stream');
-    // SVG abre na aba (link direto); a CSP com sandbox impede script e carregamentos.
+    // SVG opens in the tab (direct link); the sandboxed CSP blocks script and loads.
     if (ext === '.svg') res.setHeader('Content-Disposition', 'inline');
     res.sendFile(file, { dotfiles: 'allow' }, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'Arquivo não encontrado' });
+      if (err && !res.headersSent) res.status(404).json({ error: 'File not found' });
     });
   });
 
@@ -54,7 +54,7 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     '/api/assets/:docId',
     wrap(async (req, res) => {
       const rel = str(req.query.path);
-      if (!rel) throw new RouteError(400, 'Informe o caminho do asset em ?path=');
+      if (!rel) throw new RouteError(400, 'Provide the asset path in ?path=');
       const force = ['1', 'true'].includes(String(req.query.force ?? ''));
       res.json({ removed: await removeDocAsset(svc, String(req.params.docId), rel, force) });
     }),
@@ -72,7 +72,7 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     '/api/assets/:docId/link',
     wrap(async (req, res) => {
       const rel = str((req.body as { path?: unknown } | undefined)?.path);
-      if (!rel) throw new RouteError(400, 'Campo obrigatório ausente: path');
+      if (!rel) throw new RouteError(400, 'Missing required field: path');
       res.json(await linkDocAsset(svc, String(req.params.docId), rel));
     }),
   );
@@ -97,7 +97,7 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     }),
   );
 
-  // Biblioteca global (o próprio CDN com índice).
+  // Global library (the CDN itself, with an index).
   app.get(
     '/api/library',
     wrap((req, res) => {
@@ -111,16 +111,16 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     wrap((req, res) => {
       const body: unknown = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0) {
-        throw new RouteError(400, 'Corpo vazio: envie os bytes da imagem ou da fonte');
+        throw new RouteError(400, 'Empty body: send the image or font bytes');
       }
       const info = detectAsset(body);
       if (!info) {
         throw new RouteError(
           400,
-          'O conteúdo não é uma imagem (PNG, JPEG, GIF, WebP, SVG, AVIF) nem uma fonte (woff2, woff, ttf, otf) reconhecida.',
+          'The content is not a recognized image (PNG, JPEG, GIF, WebP, SVG, AVIF) or font (woff2, woff, ttf, otf).',
         );
       }
-      const stem = safeStem(str(req.query.name) ?? '', 'imagem');
+      const stem = safeStem(str(req.query.name) ?? '', 'image');
       res.json(lib().add(body, { name: `${stem}${info.ext}`, info }));
     }),
   );
@@ -130,12 +130,11 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     wrap(async (req, res) => {
       const hash = String(req.params.hash);
       const docId = str((req.body as { docId?: unknown } | undefined)?.docId);
-      if (!docId) throw new RouteError(400, 'Campo obrigatório ausente: docId');
+      if (!docId) throw new RouteError(400, 'Missing required field: docId');
       requireDoc(ctx, docId);
-      if (!lib().has(hash))
-        throw new RouteError(404, `Asset não encontrado na biblioteca: ${hash}`);
+      if (!lib().has(hash)) throw new RouteError(404, `Asset not found in the library: ${hash}`);
       const dir = ctx.store.assetsDir(docId);
-      if (!dir) throw new RouteError(409, 'Salve o documento antes de importar da biblioteca');
+      if (!dir) throw new RouteError(409, 'Save the document before importing from the library');
       res.json({ src: await lib().importTo(hash, dir) });
     }),
   );
@@ -144,7 +143,7 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     '/api/library/:hash',
     wrap((req, res) => {
       if (!lib().remove(String(req.params.hash))) {
-        throw new RouteError(404, 'Asset não encontrado na biblioteca');
+        throw new RouteError(404, 'Asset not found in the library');
       }
       res.json({ removed: true });
     }),

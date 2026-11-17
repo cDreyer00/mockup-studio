@@ -1,7 +1,7 @@
 /**
- * Biblioteca global de assets e CDN local: arquivos endereçados por conteúdo em
- * `<dataDir>/cdn/<hash>.<ext>` (hash = 32 primeiros hex do sha256), com índice `index.json`.
- * O mesmo conteúdo sempre dá o mesmo link, mesmo com o documento fechado ou após reiniciar o daemon.
+ * Global asset library and local CDN: content-addressed files in
+ * `<dataDir>/cdn/<hash>.<ext>` (hash = first 32 hex chars of the sha256), with an `index.json` index.
+ * The same content always gives the same link, even with the document closed or after restarting the daemon.
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ import { EMBEDDABLE_MIME, detectImage, writeAsset } from './assets.js';
 
 export interface LibraryAsset {
   hash: string;
-  /** Extensão sem ponto (png, jpg, gif, webp, svg, avif, woff2, woff, ttf, otf). */
+  /** Extension without the dot (png, jpg, gif, webp, svg, avif, woff2, woff, ttf, otf). */
   ext: string;
   name: string;
   mime: string;
@@ -21,14 +21,14 @@ export interface LibraryAsset {
   height?: number;
   addedAt: string;
   tags: string[];
-  /** Caminho relativo servido pelo daemon: `/cdn/<hash>.<ext>`. */
+  /** Relative path served by the daemon: `/cdn/<hash>.<ext>`. */
   url: string;
 }
 
 export type AssetKind = 'image' | 'font' | 'other';
 
 export interface DetectedAsset {
-  /** Extensão com ponto. */
+  /** Extension with the dot. */
   ext: string;
   mime: string;
   kind: 'image' | 'font';
@@ -40,12 +40,12 @@ export const CDN_FILE_RE = /^([0-9a-f]{32})\.(png|jpg|jpeg|gif|webp|svg|avif|wof
 export const FONT_EXTS = new Set(['.woff2', '.woff', '.ttf', '.otf']);
 export const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
 
-/** Hash de conteúdo: 32 primeiros hex do sha256. */
+/** Content hash: first 32 hex chars of the sha256. */
 export function hashBytes(bytes: Uint8Array): string {
   return crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 32);
 }
 
-/** Tipo da fonte pela assinatura dos bytes (woff2, woff, ttf, otf). */
+/** Font type from the byte signature (woff2, woff, ttf, otf). */
 function detectFont(b: Buffer): string | null {
   if (b.length < 12) return null;
   const sig = b.toString('latin1', 0, 4);
@@ -56,7 +56,7 @@ function detectFont(b: Buffer): string | null {
   return null;
 }
 
-/** Detecta imagem ou fonte pelos bytes. `null` se não for nenhum dos dois. */
+/** Detects an image or font from the bytes. `null` if it is neither. */
 export function detectAsset(bytes: Buffer): DetectedAsset | null {
   const img = detectImage(bytes);
   if (img) return { ...img, kind: 'image' };
@@ -65,14 +65,14 @@ export function detectAsset(bytes: Buffer): DetectedAsset | null {
   return null;
 }
 
-/** Tipo (imagem/fonte/outro) pela extensão do nome. */
+/** Kind (image/font/other) from the name's extension. */
 export function kindOfExt(ext: string): AssetKind {
   const e = ext.toLowerCase();
   return IMAGE_EXTS.has(e) ? 'image' : FONT_EXTS.has(e) ? 'font' : 'other';
 }
 
-/** Nome seguro (só [a-zA-Z0-9._-], sem ponto inicial, até 76 chars) sem a extensão. */
-export function safeStem(raw: string, fallback = 'arquivo'): string {
+/** Safe name (only [a-zA-Z0-9._-], no leading dot, up to 76 chars) without the extension. */
+export function safeStem(raw: string, fallback = 'file'): string {
   const last = raw.split(/[\\/]/).pop() ?? '';
   const ext = path.extname(last);
   let base = last
@@ -81,7 +81,7 @@ export function safeStem(raw: string, fallback = 'arquivo'): string {
     .replace(/^\.+/, '');
   base = base.slice(0, 76).replace(/[. ]+$/, '');
   if (!base) base = fallback;
-  if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i.test(base)) base += '-arquivo';
+  if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i.test(base)) base += '-file';
   return base;
 }
 
@@ -115,13 +115,13 @@ export class Library {
         }
       }
     } catch {
-      // sem índice (ou ilegível): começa vazio
+      // no index (or unreadable): start empty
     }
     this.entries = map;
     return map;
   }
 
-  /** Grava o índice de forma atômica (arquivo temporário + rename). */
+  /** Writes the index atomically (temporary file + rename). */
   private save(): void {
     const assets: IndexFile['assets'] = {};
     for (const [hash, e] of this.load()) {
@@ -138,7 +138,7 @@ export class Library {
     return { ...e, url: `/cdn/${e.hash}.${e.ext}` };
   }
 
-  /** Caminho do arquivo no disco para `hash` (qualquer extensão registrada), ou null. */
+  /** Path of the file on disk for `hash` (any registered extension), or null. */
   resolve(hash: string): { file: string; asset: LibraryAsset } | null {
     const e = this.load().get(hash);
     if (!e) return null;
@@ -154,7 +154,7 @@ export class Library {
     return this.resolve(hash)?.asset ?? null;
   }
 
-  /** Caminho do arquivo servido por `/cdn/<hash>.<ext>` (só se existir e a extensão bater). */
+  /** Path of the file served by `/cdn/<hash>.<ext>` (only if it exists and the extension matches). */
   fileFor(name: string): string | null {
     const m = CDN_FILE_RE.exec(name);
     if (!m) return null;
@@ -165,8 +165,8 @@ export class Library {
   }
 
   /**
-   * Registra bytes (imagem ou fonte). Idempotente: o mesmo conteúdo dá a mesma entrada (o nome da
-   * primeira vez é mantido; tags novas são somadas).
+   * Registers bytes (image or font). Idempotent: the same content gives the same entry (the name
+   * from the first time is kept; new tags are added).
    */
   add(
     bytes: Buffer,
@@ -175,7 +175,7 @@ export class Library {
     const info = opts.info ?? detectAsset(bytes);
     if (!info) {
       throw new Error(
-        'O conteúdo não é uma imagem (PNG, JPEG, GIF, WebP, SVG, AVIF) nem uma fonte (woff2, woff, ttf, otf) reconhecida.',
+        'The content is not a recognized image (PNG, JPEG, GIF, WebP, SVG, AVIF) or font (woff2, woff, ttf, otf).',
       );
     }
     const ext = info.ext.slice(1);
@@ -210,7 +210,7 @@ export class Library {
     return this.view(entry);
   }
 
-  /** Registra um arquivo do disco (por exemplo, de `assets/` de um documento). */
+  /** Registers a file from disk (for example, from a document's `assets/`). */
   async addFile(
     file: string,
     opts: { name?: string; tags?: string[] } = {},
@@ -219,7 +219,7 @@ export class Library {
     return this.add(bytes, { name: path.basename(file), ...opts });
   }
 
-  /** Lista, mais recentes primeiro; `query` filtra por nome ou tag (sem acento, sem caixa). */
+  /** Lists, newest first; `query` filters by name or tag (accent- and case-insensitive). */
   list(query?: string): LibraryAsset[] {
     const terms = foldText(query ?? '')
       .split(/\s+/)
@@ -233,10 +233,13 @@ export class Library {
           return terms.every((t) => hay.includes(t));
         })
       : all;
-    return out.sort((a, b) => b.addedAt.localeCompare(a.addedAt) || a.name.localeCompare(b.name));
+    return out.sort(
+      (a, b) =>
+        b.addedAt.localeCompare(a.addedAt, 'en-US') || a.name.localeCompare(b.name, 'en-US'),
+    );
   }
 
-  /** Remove da biblioteca (arquivo e índice). Devolve false se não existia. */
+  /** Removes from the library (file and index). Returns false if it did not exist. */
   remove(hash: string): boolean {
     const map = this.load();
     const e = map.get(hash);
@@ -244,7 +247,7 @@ export class Library {
     try {
       fs.rmSync(path.join(this.dir, `${hash}.${e.ext}`), { force: true });
     } catch {
-      // arquivo em uso: sai só do índice
+      // file in use: it only leaves the index
     }
     map.delete(hash);
     this.save();
@@ -252,13 +255,13 @@ export class Library {
   }
 
   /**
-   * Copia o asset para a pasta `assets/` de um documento sem sobrescrever (sufixo -1, -2...).
-   * Devolve o caminho final relativo a `assets/` (usável como `src`; fontes vão para `fonts/`).
+   * Copies the asset to a document's `assets/` folder without overwriting (suffix -1, -2...).
+   * Returns the final path relative to `assets/` (usable as `src`; fonts go to `fonts/`).
    */
   async importTo(hash: string, assetsDir: string): Promise<string> {
     const r = this.resolve(hash);
-    if (!r) throw new Error(`Asset não encontrado na biblioteca: ${hash}`);
-    const stem = safeStem(r.asset.name, 'imagem');
+    if (!r) throw new Error(`Asset not found in the library: ${hash}`);
+    const stem = safeStem(r.asset.name, 'image');
     const bytes = await fs.promises.readFile(r.file);
     const isFont = r.asset.mime.startsWith('font/');
     const dir = isFont ? path.join(assetsDir, 'fonts') : assetsDir;
@@ -269,14 +272,14 @@ export class Library {
 
 const libraries = new Map<string, Library>();
 
-/** Pasta do CDN: `<dataDir>/cdn`, ou uma pasta temporária por processo quando não há dataDir. */
+/** CDN folder: `<dataDir>/cdn`, or a per-process temporary folder when there is no dataDir. */
 export function cdnDirFor(dataDir?: string): string {
   return dataDir
     ? path.join(path.resolve(dataDir), 'cdn')
     : path.join(os.tmpdir(), `mockup-cdn-${process.pid}`);
 }
 
-/** Singleton por pasta. */
+/** Singleton per folder. */
 export function getLibrary(dataDir?: string): Library {
   const dir = cdnDirFor(dataDir);
   let lib = libraries.get(dir);

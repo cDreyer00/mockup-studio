@@ -67,34 +67,34 @@ export type { McpServerOptions } from './context.js';
 const nodeIdsField = z
   .array(z.string())
   .min(1)
-  .describe('Ids dos nós (veja get_tree_summary), ex.: ["el_ab12cd34", "tx_9f8e7d6c"].');
+  .describe('Node ids (see get_tree_summary), e.g. ["el_ab12cd34", "tx_9f8e7d6c"].');
 const stylesField = z
   .record(z.string(), z.string())
   .describe(
-    'Propriedades CSS em kebab-case, ex.: { "display": "flex", "gap": "16px", "background": "#0f172a" }.',
+    'CSS properties in kebab-case, e.g. { "display": "flex", "gap": "16px", "background": "#0f172a" }.',
   );
 
-/** Instruções enviadas ao cliente MCP no handshake (o proxy stdio do CLI as repassa). */
+/** Instructions sent to the MCP client on handshake (the CLI stdio proxy forwards them). */
 export const SERVER_INSTRUCTIONS = [
-  'Mockup Studio é um editor de design em canvas: documentos com páginas, frames (artboards) e nós HTML/CSS reais.',
-  "Comece com get_guide('getting-started') (fluxo em 6 passos) e get_basic_info.",
-  "Para HTML com classes Tailwind (shadcn/ui, Tailwind UI): write_html/import_component, set_classes, get_screenshot(state) e get_guide('tailwind').",
-  "Componentes reutilizáveis (shadcn-like: Button, Card, Navbar...): insert_component, list_components e get_guide('components').",
-  "Defina o design system (set_tokens, create_theme; get_guide('tokens')) antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.",
-  'Sempre confira o resultado com get_screenshot e corrija (update_styles, set_text, undo) antes de seguir.',
-  'docId é opcional (vale o documento ativo), exceto em close_document.',
-  'Ao terminar um conjunto de edições, chame finish_working.',
-  "Problemas (render indisponível, porta ocupada...): get_guide('troubleshooting').",
+  'Mockup Studio is a canvas design editor: documents with pages, frames (artboards) and real HTML/CSS nodes.',
+  "Start with get_guide('getting-started') (6-step workflow) and get_basic_info.",
+  "For HTML with Tailwind classes (shadcn/ui, Tailwind UI): write_html/import_component, set_classes, get_screenshot(state) and get_guide('tailwind').",
+  "Reusable components (shadcn-like: Button, Card, Navbar...): insert_component, list_components and get_guide('components').",
+  "Define the design system (set_tokens, create_theme; get_guide('tokens')) before designing, and prefer write_html (HTML + CSS at once) over many create_node calls.",
+  'Always check the result with get_screenshot and fix it (update_styles, set_text, undo) before moving on.',
+  'docId is optional (the active document is used), except in close_document.',
+  'When you finish a set of edits, call finish_working.',
+  "Problems (render unavailable, port in use...): get_guide('troubleshooting').",
 ].join('\n');
 
 /**
- * Troca o erro cru de validação do SDK (`MCP error -32602: Input validation error: ... [ {zod issues} ]`)
- * por uma mensagem em português por campo, com exemplo de chamada correta, devolvida como `isError`.
+ * Replaces the SDK's raw validation error (`MCP error -32602: Input validation error: ... [ {zod issues} ]`)
+ * with a per-field message in English plus an example of a correct call, returned as `isError`.
  *
- * `validateToolInput` e `createToolError` são métodos de instância do `McpServer` (invocados via `this`
- * pelo handler de `tools/call`), mas não fazem parte da API pública tipada, daí o cast. O original roda
- * primeiro: só se ele falhar com erro de validação é que reformatamos (e, se a nossa revalidação achar
- * que está tudo certo, repropagamos o erro original). O catch do SDK converte o `ToolError` em `isError`.
+ * `validateToolInput` and `createToolError` are instance methods of `McpServer` (invoked via `this`
+ * by the `tools/call` handler) but are not part of the typed public API, hence the cast. The original
+ * runs first: only if it fails with a validation error do we reformat (and, if our revalidation finds
+ * everything fine, we rethrow the original error). The SDK's catch converts the `ToolError` to `isError`.
  */
 function interceptInputErrors(
   server: McpServer,
@@ -138,9 +138,9 @@ function pxOf(v: string | undefined): number {
 }
 
 /**
- * Documento com o estilo efetivo dos estados: breakpoints pela largura do frame raiz (como o
- * render) e, com `state`, a pseudo-classe e o `dark` da chave. Sem estados no documento devolve o
- * próprio documento.
+ * Document with the effective style of the states: breakpoints by the root frame width (like the
+ * render) and, with `state`, the key's pseudo-class and `dark`. With no states in the document it
+ * returns the document itself.
  */
 function withResolvedStates(doc: Document, state?: string): { doc: Document; dark: boolean } {
   const key = state ? parseStateOrThrow(state) : undefined;
@@ -202,7 +202,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { isError: true, content: [{ type: 'text' as const, text: `Erro: ${msg}` }] };
+        return { isError: true, content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
       }
     };
     const { example, ...sdkCfg } = cfg;
@@ -212,15 +212,15 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
 
   const nodeNotFound = (id: string) =>
     new ToolError(
-      `Nó não encontrado: "${id}". Use get_tree_summary para listar ids válidos (ex.: "fr_ab12cd34"; dentro de instâncias: "in_ab12cd34/el_ab12cd34"; nós de um principal: get_component).`,
+      `Node not found: "${id}". Use get_tree_summary to list valid ids (e.g. "fr_ab12cd34"; inside instances: "in_ab12cd34/el_ab12cd34"; nodes of a main component: get_component).`,
     );
-  /** Nó para escrita: real (instâncias sem expandir), ou id virtual / nó de principal. */
+  /** Node for writing: real (instances not expanded), or virtual id / main component node. */
   const requireNode = (doc: Document, id: string): NodePath => {
     const p = findNode(doc, id) ?? resolveRead(doc, id)?.path;
     if (!p) throw nodeNotFound(id);
     return p;
   };
-  /** Nó para leitura: do documento expandido (instâncias viram HTML concreto). */
+  /** Node for reading: from the expanded document (instances become concrete HTML). */
   const readNode = (doc: Document, id: string) => {
     const r = resolveRead(doc, id);
     if (!r) throw nodeNotFound(id);
@@ -229,15 +229,13 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   const requirePage = (doc: Document, pageId: string) => {
     const p = doc.pages.find((x) => x.id === pageId);
     if (!p) {
-      throw new ToolError(
-        `Página não encontrada: "${pageId}". Use get_basic_info para ver as páginas.`,
-      );
+      throw new ToolError(`Page not found: "${pageId}". Use get_basic_info to see the pages.`);
     }
     return p;
   };
   const requireNodes = (doc: Document, ids: string[]) => ids.map((id) => requireNode(doc, id));
 
-  /** Resumo (profundidade 2) dos nós afetados; ids ausentes caem para os fallbacks (pai/frame). */
+  /** Summary (depth 2) of the affected nodes; missing ids fall back to the fallbacks (parent/frame). */
   function summaryOf(doc: Document, ids: string[], fallbackIds: string[] = []): string {
     const parts: string[] = [];
     const seen = new Set<string>();
@@ -270,7 +268,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     const t = opts.turn();
     if (t === null)
       throw new ToolError(
-        'O turno do assistente que abriu esta sessão já terminou ou foi cancelado: nenhuma alteração foi feita.',
+        'The assistant turn that opened this session has already ended or was canceled: no changes were made.',
       );
     return t?.group;
   };
@@ -283,7 +281,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     const frame = doc.pages[0]?.frames[0];
     if (!frame)
       throw new ToolError(
-        'O documento não tem frames. Use create_frame(name, width, height) primeiro.',
+        'The document has no frames. Use create_frame(name, width, height) first.',
       );
     return frame.id;
   };
@@ -291,32 +289,32 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   const sizeOf = (n: Node): string =>
     `${n.style['width'] ?? 'auto'}x${n.style['height'] ?? 'auto'}`.replace(/px/g, '');
 
-  /* ---------- leitura ---------- */
+  /* ---------- reading ---------- */
 
   tool(
     'get_basic_info',
     {
-      title: 'Informações básicas',
+      title: 'Basic info',
       description:
-        'Visão geral do documento: arquivo, páginas, frames (id, nome, tamanho, posição), documentos abertos e seleção. Chame primeiro para descobrir os ids dos frames.',
+        'Document overview: file, pages, frames (id, name, size, position), open documents and selection. Call first to discover frame ids.',
       example: {},
       inputSchema: { docId: docIdField },
       annotations: READ,
     },
     ({ docId }) => {
-      // Sem documento é o estado normal no começo da sessão (as instruções mandam chamar esta
-      // ferramenta primeiro): responde com o próximo passo em vez de um erro.
+      // No document is the normal state at the start of a session (the instructions say to call this
+      // tool first): reply with the next step instead of an error.
       if (!docId && store.list().length === 0)
         return [
-          'Nenhum documento aberto ainda.',
-          'Próximo passo: create_document(path, name) para começar um novo (ex.: "C:/projetos/app/design/telas") ou open_document(path) para abrir um arquivo .mockup.json existente.',
+          'No document open yet.',
+          'Next step: create_document(path, name) to start a new one (e.g. "C:/projects/app/design/screens") or open_document(path) to open an existing .mockup.json file.',
         ].join('\n');
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const info = store.getInfo(id);
       const lines = [
-        `Arquivo: ${info.name} (${info.path ?? 'sem caminho'}) | id: ${info.docId} | alterado: ${info.dirty ? 'sim' : 'não'} | revisão: ${info.revision}`,
-        'Páginas:',
+        `File: ${info.name} (${info.path ?? 'no path'}) | id: ${info.docId} | modified: ${info.dirty ? 'yes' : 'no'} | revision: ${info.revision}`,
+        'Pages:',
       ];
       for (const page of doc.pages) {
         lines.push(`- ${page.name} (${page.id}) — ${page.frames.length} frame(s)`);
@@ -326,14 +324,14 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         }
       }
       lines.push(
-        `Documentos abertos: ${store
+        `Open documents: ${store
           .list()
-          .map((d) => `${d.name} (${d.docId})${d.docId === store.activeDocId ? ' [ativo]' : ''}`)
+          .map((d) => `${d.name} (${d.docId})${d.docId === store.activeDocId ? ' [active]' : ''}`)
           .join(', ')}`,
       );
       const sel = store.getSelection(id);
-      lines.push(`Seleção: ${sel.length ? sel.join(', ') : '(vazia)'}`);
-      lines.push('Use get_tree_summary para ver a estrutura e write_html para criar conteúdo.');
+      lines.push(`Selection: ${sel.length ? sel.join(', ') : '(empty)'}`);
+      lines.push('Use get_tree_summary to see the structure and write_html to create content.');
       return lines.join('\n');
     },
   );
@@ -341,9 +339,9 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'list_documents',
     {
-      title: 'Listar documentos abertos',
+      title: 'List open documents',
       description:
-        'Lista os documentos abertos no daemon (id, nome, caminho, revisão); o ativo vem marcado com *.',
+        'Lists the documents open in the daemon (id, name, path, revision); the active one is marked with *.',
       example: {},
       inputSchema: {},
       annotations: READ,
@@ -351,11 +349,11 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     () => {
       const list = store.list();
       if (!list.length)
-        return 'Nenhum documento aberto. Use open_document(path) ou create_document(path, name).';
+        return 'No document open. Use open_document(path) or create_document(path, name).';
       return list
         .map(
           (d) =>
-            `${d.docId === store.activeDocId ? '* ' : '- '}${d.name} | id: ${d.docId} | ${d.path ?? 'sem caminho'} | rev ${d.revision}${d.dirty ? ' | alterado' : ''}`,
+            `${d.docId === store.activeDocId ? '* ' : '- '}${d.name} | id: ${d.docId} | ${d.path ?? 'no path'} | rev ${d.revision}${d.dirty ? ' | modified' : ''}`,
         )
         .join('\n');
     },
@@ -364,84 +362,84 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'open_document',
     {
-      title: 'Abrir documento',
+      title: 'Open document',
       description:
-        'Abre um arquivo .mockup.json existente e o torna o documento ativo. Devolve o id e um resumo.',
-      example: { path: 'C:/projetos/site.mockup.json' },
+        'Opens an existing .mockup.json file and makes it the active document. Returns the id and a summary.',
+      example: { path: 'C:/projects/site.mockup.json' },
       inputSchema: {
         path: z
           .string()
-          .describe('Caminho absoluto do arquivo, ex.: "C:/projetos/site.mockup.json".'),
+          .describe('Absolute path of the file, e.g. "C:/projects/site.mockup.json".'),
       },
       annotations: WRITE,
     },
     async ({ path }) => {
       const r = await store.open(path);
-      return `Documento aberto: ${r.name} (id ${r.docId}).\n${getDocumentSummary(r.doc, 1)}`;
+      return `Document opened: ${r.name} (id ${r.docId}).\n${getDocumentSummary(r.doc, 1)}`;
     },
   );
 
   tool(
     'create_document',
     {
-      title: 'Criar documento',
+      title: 'Create document',
       description:
-        'Cria um documento novo e vazio (sem frames: crie-os com create_frame) em path, acrescentando .mockup.json se faltar, e o torna ativo. Devolve o id do documento.',
-      example: { path: 'C:/projetos/site', name: 'Landing page' },
+        'Creates a new, empty document (no frames: create them with create_frame) at path, appending .mockup.json if missing, and makes it active. Returns the document id.',
+      example: { path: 'C:/projects/site', name: 'Landing page' },
       inputSchema: {
         path: z
           .string()
           .describe(
-            'Caminho absoluto do novo arquivo, ex.: "C:/projetos/site" (a extensão .mockup.json é acrescentada).',
+            'Absolute path of the new file, e.g. "C:/projects/site" (the .mockup.json extension is appended).',
           ),
-        name: z.string().describe('Nome do documento, ex.: "Landing page".'),
+        name: z.string().describe('Document name, e.g. "Landing page".'),
       },
       annotations: WRITE,
     },
     async ({ path, name }) => {
       const r = await store.create(path, name);
-      return `Documento criado: ${r.name} (id ${r.docId}) em ${r.path}.\nPróximo passo: create_frame(name, width, height).`;
+      return `Document created: ${r.name} (id ${r.docId}) at ${r.path}.\nNext step: create_frame(name, width, height).`;
     },
   );
 
   tool(
     'save_document',
     {
-      title: 'Salvar documento',
+      title: 'Save document',
       description:
-        'Força a gravação em disco; o salvamento automático já ocorre após as alterações. Devolve o caminho salvo.',
+        'Forces a write to disk; autosave already happens after changes. Returns the saved path.',
       example: {},
       inputSchema: { docId: docIdField },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ docId }) => `Salvo em ${await store.save(docId)}.`,
+    async ({ docId }) => `Saved to ${await store.save(docId)}.`,
   );
 
   tool(
     'close_document',
     {
-      title: 'Fechar documento',
-      description: 'Fecha um documento aberto, salvando antes as alterações pendentes.',
+      title: 'Close document',
+      description: 'Closes an open document, saving pending changes first.',
       example: { docId: 'doc_ab12cd34' },
       inputSchema: {
         docId: z
           .string()
-          .describe('Id do documento a fechar (veja list_documents), ex.: "doc_ab12cd34".'),
+          .describe('Id of the document to close (see list_documents), e.g. "doc_ab12cd34".'),
       },
       annotations: WRITE,
     },
     async ({ docId }) => {
       await store.close(docId);
-      return `Documento ${docId} fechado.`;
+      return `Document ${docId} closed.`;
     },
   );
 
   tool(
     'get_selection',
     {
-      title: 'Seleção atual',
+      title: 'Current selection',
       description:
-        'Devolve o resumo dos nós atualmente selecionados no editor (útil quando o usuário diz "este botão").',
+        'Returns a summary of the nodes currently selected in the editor (useful when the user says "this button").',
       example: {},
       inputSchema: { docId: docIdField },
       annotations: READ,
@@ -450,11 +448,11 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const sel = store.getSelection(id);
-      if (!sel.length) return 'Nenhum nó selecionado.';
+      if (!sel.length) return 'No node selected.';
       return sel
         .map((n) => {
           const p = resolveRead(doc, n)?.path;
-          return p ? summarizeNode(p.node, doc) : `${n} (não existe mais)`;
+          return p ? summarizeNode(p.node, doc) : `${n} (no longer exists)`;
         })
         .join('\n');
     },
@@ -463,13 +461,14 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'set_selection',
     {
-      title: 'Definir seleção',
-      description: 'Seleciona nós no editor (o usuário vê a seleção). Lista vazia limpa a seleção.',
+      title: 'Set selection',
+      description:
+        'Selects nodes in the editor (the user sees the selection). An empty list clears the selection.',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: {
         nodeIds: z
           .array(z.string())
-          .describe('Ids dos nós a selecionar, ex.: ["el_ab12cd34"]; [] limpa a seleção.'),
+          .describe('Ids of the nodes to select, e.g. ["el_ab12cd34"]; [] clears the selection.'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -478,19 +477,19 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       const id = store.resolveDocId(docId);
       requireNodes(store.get(id), nodeIds);
       store.setSelection(id, nodeIds, 'mcp');
-      return `Seleção definida: ${nodeIds.length ? nodeIds.join(', ') : '(vazia)'}.`;
+      return `Selection set: ${nodeIds.length ? nodeIds.join(', ') : '(empty)'}.`;
     },
   );
 
   tool(
     'get_node_info',
     {
-      title: 'Detalhes de um nó',
+      title: 'Node details',
       description:
-        'Detalhes de um nó: tipo, nome, tag, página, pai, ancestrais, atributos, estilos próprios, texto, posição e flags.',
+        'Details of a node: type, name, tag, page, parent, ancestors, attributes, own styles, text, position and flags.',
       example: { nodeId: 'el_ab12cd34' },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó, ex.: "el_ab12cd34".'),
+        nodeId: z.string().describe('Node id, e.g. "el_ab12cd34".'),
         docId: docIdField,
       },
       annotations: READ,
@@ -504,12 +503,12 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           ? Object.entries(o)
               .map(([k, v]) => `${k}: ${v}`)
               .join('; ')
-          : '(nenhum)';
+          : '(none)';
       const lines = [
-        `${n.id} | tipo: ${n.type} | nome: ${n.name} | tag: ${n.tag}`,
-        `página: ${p.page.name} (${p.page.id})`,
-        `pai: ${p.parent ? `${p.parent.name} (${p.parent.id})` : '(raiz da página)'} | índice: ${p.index}`,
-        `ancestrais: ${p.ancestors.length ? p.ancestors.map((a) => `${a.name} (${a.id})`).join(' > ') : '(nenhum)'}`,
+        `${n.id} | type: ${n.type} | name: ${n.name} | tag: ${n.tag}`,
+        `page: ${p.page.name} (${p.page.id})`,
+        `parent: ${p.parent ? `${p.parent.name} (${p.parent.id})` : '(page root)'} | index: ${p.index}`,
+        `ancestors: ${p.ancestors.length ? p.ancestors.map((a) => `${a.name} (${a.id})`).join(' > ') : '(none)'}`,
         `attrs: ${kv(n.attrs)}`,
         `style: ${kv(n.style)}`,
       ];
@@ -520,17 +519,17 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
             .map(([k, v]) => `${k} { ${kv(v)} }`)
             .join(' | ')}`,
         );
-      if (n.position) lines.push(`posição: ${n.position.x}, ${n.position.y}`);
-      if (n.text !== undefined) lines.push(`texto: ${JSON.stringify(n.text)}`);
+      if (n.position) lines.push(`position: ${n.position.x}, ${n.position.y}`);
+      if (n.text !== undefined) lines.push(`text: ${JSON.stringify(n.text)}`);
       if (n.src) lines.push(`src: ${n.src.length > 120 ? `${n.src.slice(0, 120)}…` : n.src}`);
       if (n.effect) lines.push(`effect: ${JSON.stringify(n.effect)}`);
       if (n.video) lines.push(`video: ${JSON.stringify(n.video)}`);
       if (n.embed)
         lines.push(
-          `embed: ${JSON.stringify(n.embed.code ? { ...n.embed, code: `(${n.embed.code.length} caracteres)` } : n.embed)}`,
+          `embed: ${JSON.stringify(n.embed.code ? { ...n.embed, code: `(${n.embed.code.length} characters)` } : n.embed)}`,
         );
       lines.push(
-        `filhos: ${n.children.length}${n.locked ? ' | bloqueado' : ''}${n.hidden ? ' | oculto' : ''}`,
+        `children: ${n.children.length}${n.locked ? ' | locked' : ''}${n.hidden ? ' | hidden' : ''}`,
       );
       const inst = findInstanceNode(stored, nodeId);
       if (inst) {
@@ -539,16 +538,16 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           .map(([k, v]) => `${k}=${String(v)}`)
           .join(', ');
         lines.push(
-          `instância de ${def ? `${def.name} (${def.id})` : `${inst.componentId} (ausente)`} | props: ${props || '(padrão)'} | overrides: ${Object.keys(inst.overrides ?? {}).join(', ') || '(nenhum)'}`,
-          'Os dados acima são da árvore expandida; edite com set_instance_props / set_instance_override (get_guide("components")).',
+          `instance of ${def ? `${def.name} (${def.id})` : `${inst.componentId} (missing)`} | props: ${props || '(default)'} | overrides: ${Object.keys(inst.overrides ?? {}).join(', ') || '(none)'}`,
+          'The data above comes from the expanded tree; edit with set_instance_props / set_instance_override (get_guide("components")).',
         );
       } else if (nodeId.includes('/')) {
         lines.push(
-          'Nó interno de uma instância: update_styles/set_text neste id viram override da instância; para mudar todas, edite o principal (get_component).',
+          'Inner node of an instance: update_styles/set_text on this id become an instance override; to change all instances, edit the main component (get_component).',
         );
       } else if (p.page.id.startsWith('pg__')) {
         lines.push(
-          'Nó da árvore de um principal: update_styles/set_text neste id editam o principal e todas as instâncias.',
+          'Node in a main component tree: update_styles/set_text on this id edit the main component and all its instances.',
         );
       }
       return lines.join('\n');
@@ -558,11 +557,11 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'get_children',
     {
-      title: 'Filhos de um nó',
-      description: 'Uma linha de resumo por filho direto do nó, em ordem.',
+      title: 'Node children',
+      description: 'One summary line per direct child of the node, in order.',
       example: { nodeId: 'fr_ab12cd34' },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó pai, ex.: "fr_ab12cd34".'),
+        nodeId: z.string().describe('Parent node id, e.g. "fr_ab12cd34".'),
         docId: docIdField,
       },
       annotations: READ,
@@ -570,7 +569,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     ({ nodeId, docId }) => {
       const stored = store.get(store.resolveDocId(docId));
       const node = readNode(stored, nodeId).path.node;
-      if (!node.children.length) return `${node.id} não tem filhos.`;
+      if (!node.children.length) return `${node.id} has no children.`;
       return node.children.map((c) => summarizeNode(c, stored)).join('\n');
     },
   );
@@ -578,22 +577,22 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'get_tree_summary',
     {
-      title: 'Resumo da árvore',
+      title: 'Tree summary',
       description:
-        'Estrutura compacta da árvore, uma linha por nó. Sem nodeId resume o documento inteiro; com nodeId, a subárvore. Use para descobrir ids e conferir o resultado.',
+        'Compact tree structure, one line per node. Without nodeId it summarizes the whole document; with nodeId, the subtree. Use it to discover ids and check the result.',
       example: { nodeId: 'fr_ab12cd34', depth: 2 },
       inputSchema: {
         nodeId: z
           .string()
           .optional()
-          .describe('Id do nó raiz do resumo, ex.: "fr_ab12cd34" (padrão: documento inteiro).'),
+          .describe('Id of the summary root node, e.g. "fr_ab12cd34" (default: whole document).'),
         depth: z
           .number()
           .int()
           .min(0)
           .max(10)
           .optional()
-          .describe('Níveis exibidos de 0 a 10, ex.: 3 (padrão 2); o resto vira contagem.'),
+          .describe('Levels shown, 0 to 10, e.g. 3 (default 2); the rest becomes a count.'),
         docId: docIdField,
       },
       annotations: READ,
@@ -609,21 +608,21 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'get_styles',
     {
-      title: 'Estilos efetivos',
+      title: 'Effective styles',
       description:
-        'Estilos efetivos (herdados, var() resolvido, calc()/color-mix() avaliados) de nós, como "prop: valor". Aplica states de breakpoint pela largura do frame; state (hover, dark...) mostra esse estado. theme resolve os tokens como se o nó tivesse data-theme com esse tema.',
+        'Effective styles (inherited, var() resolved, calc()/color-mix() evaluated) of nodes, as "prop: value". Applies breakpoint states by the frame width; state (hover, dark...) shows that state. theme resolves tokens as if the node had data-theme with that theme.',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: {
         nodeIds: nodeIdsField,
         theme: z
           .string()
           .optional()
-          .describe('Nome de um tema (veja get_tokens) para resolver os tokens, ex.: "dark".'),
+          .describe('Theme name (see get_tokens) used to resolve tokens, e.g. "dark".'),
         state: z
           .string()
           .optional()
           .describe(
-            `Estado a mostrar: ${PSEUDO_STATES.join(', ')}, dark ou breakpoint, combináveis (ex.: "hover", "dark:hover", "md"). Padrão: estilo base.`,
+            `State to show: ${PSEUDO_STATES.join(', ')}, dark or breakpoint, combinable (e.g. "hover", "dark:hover", "md"). Default: base style.`,
           ),
         docId: docIdField,
       },
@@ -631,7 +630,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     },
     ({ nodeIds, theme: themeArg, state, docId }) => {
       const stored = store.get(store.resolveDocId(docId));
-      // ids virtuais e de principais vivem no documento expandido / temporário
+      // virtual ids and main component ids live in the expanded / temporary document
       const reads = nodeIds.map((id) => readNode(stored, id).doc);
       const resolved = new Map<Document, { doc: Document; dark: boolean }>();
       const resolve = (d: Document) => {
@@ -647,7 +646,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         themeArg ?? (dark && stored.themes?.some((t) => t.name === 'dark') ? 'dark' : undefined);
       if (theme && !stored.themes?.some((t) => t.name === theme))
         throw new ToolError(
-          `Tema "${theme}" não existe. Crie com create_theme ou veja get_tokens.`,
+          `Theme "${theme}" does not exist. Create it with create_theme or see get_tokens.`,
         );
       return nodeIds
         .map((id, i) => {
@@ -655,7 +654,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           const body = Object.entries(styles)
             .map(([k, v]) => `  ${k}: ${v}`)
             .join('\n');
-          return `${id}:\n${body || '  (sem estilos)'}`;
+          return `${id}:\n${body || '  (no styles)'}`;
         })
         .join('\n');
     },
@@ -664,23 +663,25 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'get_html',
     {
-      title: 'Exportar nó como HTML',
+      title: 'Export node as HTML',
       description:
-        'HTML de um nó. mode "inline" (padrão) usa style inline; "classes" devolve o html mais um bloco <style>. Para código de entrega prefira get_code.',
+        'HTML of a node. mode "inline" (default) uses inline style; "classes" returns the html plus a <style> block. For delivery code prefer get_code.',
       example: { nodeId: 'fr_ab12cd34', mode: 'classes' },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó, ex.: "fr_ab12cd34".'),
+        nodeId: z.string().describe('Node id, e.g. "fr_ab12cd34".'),
         mode: z
           .enum(['inline', 'classes'])
           .optional()
-          .describe('"inline" (style em cada nó, padrão) ou "classes" (classes + bloco <style>).'),
+          .describe(
+            '"inline" (style on each node, default) or "classes" (classes + <style> block).',
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
     ({ nodeId, mode, docId }) => {
-      // instância: HTML expandido (props, variantes e overrides aplicados); repetidores marcados
-      // com data-mockup-repeat para o write_html recriá-los com os dados
+      // instance: expanded HTML (props, variants and overrides applied); repeaters marked
+      // with data-mockup-repeat so write_html can recreate them with their data
       const { path } = readNode(store.get(store.resolveDocId(docId)), nodeId);
       const out = nodesToHtml([markRepeaters(path.node)], { mode: mode ?? 'inline' });
       return out.css && (mode ?? 'inline') === 'classes'
@@ -692,44 +693,45 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'get_guide',
     {
-      title: 'Guia de uso',
-      description: `Guia curto em markdown, para ler antes de agir. Tópicos: ${GUIDE_TOPICS.join(', ')}. Comece por getting-started.`,
+      title: 'Usage guide',
+      description: `Short markdown guide, to read before acting. Topics: ${GUIDE_TOPICS.join(', ')}. Start with getting-started.`,
       example: { topic: 'getting-started' },
       inputSchema: {
         topic: z
           .enum(GUIDE_TOPICS)
-          .describe(`Tópico do guia: ${GUIDE_TOPICS.join(', ')}. Ex.: "getting-started".`),
+          .describe(`Guide topic: ${GUIDE_TOPICS.join(', ')}. E.g. "getting-started".`),
       },
       annotations: READ,
     },
     ({ topic }) => GUIDES[topic],
   );
 
-  /* ---------- escrita ---------- */
+  /* ---------- writing ---------- */
 
   tool(
     'create_frame',
     {
-      title: 'Criar frame',
+      title: 'Create frame',
       description:
-        'Cria um frame raiz (artboard/breakpoint) com fundo branco. Sem x/y fica 100px à direita do último frame. Devolve o id e o resumo do frame.',
+        'Creates a root frame (artboard/breakpoint) with a white background. Without x/y it is placed 100px to the right of the last frame. Returns the frame id and summary.',
       example: { name: 'Desktop', width: 1440, height: 900 },
       inputSchema: {
-        name: z.string().describe('Nome do frame, ex.: "Desktop", "Tablet", "Mobile".'),
-        width: z.number().positive().describe('Largura em px, ex.: 1440.'),
-        height: z.number().positive().describe('Altura em px, ex.: 900.'),
-        pageId: z
-          .string()
-          .optional()
-          .describe('Id da página, ex.: "pg_ab12cd34" (padrão: primeira).'),
+        name: z.string().describe('Frame name, e.g. "Desktop", "Tablet", "Mobile".'),
+        width: z.number().positive().describe('Width in px, e.g. 1440.'),
+        height: z.number().positive().describe('Height in px, e.g. 900.'),
+        pageId: z.string().optional().describe('Page id, e.g. "pg_ab12cd34" (default: first).'),
         x: z
           .number()
           .optional()
-          .describe('Posição X no canvas em px, ex.: 1540 (padrão: à direita do último frame).'),
+          .describe(
+            'X position on the canvas in px, e.g. 1540 (default: right of the last frame).',
+          ),
         y: z
           .number()
           .optional()
-          .describe('Posição Y no canvas em px, ex.: 0 (padrão: alinhado ao último frame).'),
+          .describe(
+            'Y position on the canvas in px, e.g. 0 (default: aligned with the last frame).',
+          ),
         styles: stylesField.optional(),
         docId: docIdField,
       },
@@ -759,48 +761,50 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         [{ type: 'createNode', parentId: null, pageId: targetPageId, node: frame }],
         'create_frame',
       );
-      return `Frame criado: ${frame.id} "${name}" ${width}x${height} em ${px},${py}.\n${summaryOf(r.doc, [frame.id])}`;
+      return `Frame created: ${frame.id} "${name}" ${width}x${height} at ${px},${py}.\n${summaryOf(r.doc, [frame.id])}`;
     },
   );
 
   tool(
     'write_html',
     {
-      title: 'Escrever HTML',
+      title: 'Write HTML',
       description:
-        'Cria nós a partir de HTML + CSS (a forma preferida de montar telas). HTML com classes Tailwind é detectado e compilado (tailwind auto/on/off). mode: append (padrão), replace-children ou replace. Sem parentId usa a seleção ou o primeiro frame.',
+        'Creates nodes from HTML + CSS (the preferred way to build screens). HTML with Tailwind classes is detected and compiled (tailwind auto/on/off). mode: append (default), replace-children or replace. Without parentId it uses the selection or the first frame.',
       example: {
         parentId: 'fr_ab12cd34',
-        html: '<section class="hero"><h1>Olá</h1><p>Texto</p></section>',
+        html: '<section class="hero"><h1>Hello</h1><p>Text</p></section>',
         css: '.hero{display:flex;flex-direction:column;gap:16px;padding:48px}',
       },
       inputSchema: {
         html: z
           .string()
           .describe(
-            'Marcação HTML a inserir, ex.: "<section class=\\"hero\\"><h1>Olá</h1></section>".',
+            'HTML markup to insert, e.g. "<section class=\\"hero\\"><h1>Hello</h1></section>".',
           ),
         mode: z
           .enum(['append', 'replace', 'replace-children'])
           .optional()
-          .describe('"append" (padrão, ao final dos filhos), "replace-children" ou "replace".'),
+          .describe(
+            '"append" (default, at the end of the children), "replace-children" or "replace".',
+          ),
         parentId: z
           .string()
           .optional()
           .describe(
-            'Id do nó alvo, ex.: "fr_ab12cd34" (pai; ou o nó substituído em mode replace). Padrão: seleção ou primeiro frame.',
+            'Target node id, e.g. "fr_ab12cd34" (the parent; or the node being replaced in mode replace). Default: selection or first frame.',
           ),
         css: z
           .string()
           .optional()
           .describe(
-            'CSS com os seletores usados no HTML, ex.: ".hero{display:flex}". O literal "tailwind" equivale a tailwind: "on" (não é CSS).',
+            'CSS with the selectors used in the HTML, e.g. ".hero{display:flex}". The literal "tailwind" is equivalent to tailwind: "on" (it is not CSS).',
           ),
         tailwind: z
           .enum(['auto', 'on', 'off'])
           .optional()
           .describe(
-            'Classes Tailwind: "auto" (padrão) detecta pelo HTML, "on" força, "off" trata class como CSS comum. Ao compilar, o CSS base do documento passa a ser o do Tailwind.',
+            'Tailwind classes: "auto" (default) detects from the HTML, "on" forces it, "off" treats class as plain CSS. When compiling, the document base CSS becomes the Tailwind one.',
           ),
         docId: docIdField,
       },
@@ -813,27 +817,27 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   tool(
     'create_node',
     {
-      title: 'Criar nó',
+      title: 'Create node',
       description:
-        'Cria um único nó filho (para vários elementos prefira write_html). Devolve o id do nó e o resumo do pai.',
+        'Creates a single child node (for several elements prefer write_html). Returns the node id and the parent summary.',
       example: {
         parentId: 'fr_ab12cd34',
         tag: 'button',
-        text: 'Enviar',
+        text: 'Submit',
         styles: { padding: '12px 24px' },
       },
       inputSchema: {
-        parentId: z.string().describe('Id do pai, ex.: "fr_ab12cd34".'),
-        tag: z.string().describe('Tag HTML, ex.: "div", "h1", "p", "button", "img".'),
+        parentId: z.string().describe('Parent id, e.g. "fr_ab12cd34".'),
+        tag: z.string().describe('HTML tag, e.g. "div", "h1", "p", "button", "img".'),
         styles: stylesField.optional(),
-        text: z.string().optional().describe('Texto do nó, ex.: "Enviar".'),
+        text: z.string().optional().describe('Node text, e.g. "Submit".'),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
-        name: z.string().optional().describe('Nome da camada, ex.: "Botão CTA".'),
+          .describe('Position among the children, e.g. 0 (default: end).'),
+        name: z.string().optional().describe('Layer name, e.g. "CTA button".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -843,33 +847,33 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       requireNode(store.get(id), parentId);
       const node = createNodeFromTag(tag, { name, styles, text });
       const r = apply(id, [{ type: 'createNode', parentId, node, index }], 'create_node');
-      return `Nó criado: ${node.id} <${tag}> em ${parentId}.\n${summaryOf(r.doc, [parentId])}`;
+      return `Node created: ${node.id} <${tag}> in ${parentId}.\n${summaryOf(r.doc, [parentId])}`;
     },
   );
 
   tool(
     'update_styles',
     {
-      title: 'Atualizar estilos',
+      title: 'Update styles',
       description:
-        'Define e/ou remove propriedades CSS em vários nós. Informe styles e/ou unset; valor "" em styles também remove. Com state (hover, dark, md...) grava no estado do nó (mescla), como editar com a prévia de estado. Devolve o resumo.',
+        'Sets and/or removes CSS properties on several nodes. Provide styles and/or unset; a "" value in styles also removes. With state (hover, dark, md...) it writes to the node state (merging), like editing with the state preview. Returns the summary.',
       example: { nodeIds: ['el_ab12cd34'], styles: { gap: '24px' }, unset: ['margin'] },
       inputSchema: {
         nodeIds: nodeIdsField,
         styles: stylesField
           .optional()
           .describe(
-            'Propriedades CSS a definir, ex.: { "gap": "24px", "color": "#0f172a" }; valor "" remove a propriedade.',
+            'CSS properties to set, e.g. { "gap": "24px", "color": "#0f172a" }; a "" value removes the property.',
           ),
         unset: z
           .array(z.string())
           .optional()
-          .describe('Propriedades CSS a remover, ex.: ["margin", "box-shadow"].'),
+          .describe('CSS properties to remove, e.g. ["margin", "box-shadow"].'),
         state: z
           .string()
           .optional()
           .describe(
-            'Grava no estado em vez do estilo base: hover, focus, focus-visible, focus-within, active, disabled, dark, sm...2xl ou combinação (ex.: "hover", "md:hover").',
+            'Writes to the state instead of the base style: hover, focus, focus-visible, focus-within, active, disabled, dark, sm...2xl or a combination (e.g. "hover", "md:hover").',
           ),
         docId: docIdField,
       },
@@ -879,7 +883,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       const id = store.resolveDocId(docId);
       requireNodes(store.get(id), nodeIds);
       if (!styles && !unset?.length) {
-        throw new ToolError('Informe styles e/ou unset. Ex.: styles { "color": "#333" }.');
+        throw new ToolError('Provide styles and/or unset. E.g. styles { "color": "#333" }.');
       }
       if (state) {
         const doc = store.get(id);
@@ -894,7 +898,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           ),
           'update_styles',
         );
-        return `Estilos do estado "${key}" atualizados em ${nodeIds.length} nó(s).
+        return `Styles of state "${key}" updated on ${nodeIds.length} node(s).
 ${summaryOf(r.doc, nodeIds)}`;
       }
       const r = apply(
@@ -909,27 +913,27 @@ ${summaryOf(r.doc, nodeIds)}`;
         ],
         'update_styles',
       );
-      return `Estilos atualizados em ${nodeIds.length} nó(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Styles updated on ${nodeIds.length} node(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'set_text',
     {
-      title: 'Definir texto',
+      title: 'Set text',
       description:
-        'Altera o texto de nós. Use content (o mesmo texto em todos) OU contents (um por nó, na ordem de nodeIds).',
-      example: { nodeIds: ['tx_a1b2c3d4'], content: 'Olá, mundo' },
+        'Changes the text of nodes. Use content (the same text on all) OR contents (one per node, in nodeIds order).',
+      example: { nodeIds: ['tx_a1b2c3d4'], content: 'Hello, world' },
       inputSchema: {
         nodeIds: nodeIdsField,
         content: z
           .string()
           .optional()
-          .describe('Texto único aplicado a todos os nós, ex.: "Comprar agora".'),
+          .describe('Single text applied to all nodes, e.g. "Buy now".'),
         contents: z
           .array(z.string())
           .optional()
-          .describe('Um texto por nó, na ordem de nodeIds, ex.: ["Olá", "Mundo"].'),
+          .describe('One text per node, in nodeIds order, e.g. ["Hello", "World"].'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -941,38 +945,38 @@ ${summaryOf(r.doc, nodeIds)}`;
       if (contents) {
         if (contents.length !== nodeIds.length) {
           throw new ToolError(
-            `contents tem ${contents.length} item(ns) e nodeIds ${nodeIds.length}; devem ter o mesmo tamanho.`,
+            `contents has ${contents.length} item(s) and nodeIds ${nodeIds.length}; they must have the same length.`,
           );
         }
         texts = contents;
       } else if (content !== undefined) {
         texts = nodeIds.map(() => content);
       } else {
-        throw new ToolError('Informe content ou contents. Ex.: content "Olá".');
+        throw new ToolError('Provide content or contents. E.g. content "Hello".');
       }
       const r = apply(
         id,
         [{ type: 'setText', changes: nodeIds.map((nodeId, i) => ({ nodeId, text: texts[i]! })) }],
         'set_text',
       );
-      return `Texto atualizado em ${nodeIds.length} nó(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Text updated on ${nodeIds.length} node(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'set_attrs',
     {
-      title: 'Definir atributos',
+      title: 'Set attributes',
       description:
-        'Define e/ou remove atributos HTML (href, alt, title...) de vários nós. Informe attrs e/ou unset. Em nó svg os atributos vão para o <svg> raiz (ex.: height, width, viewBox, fill).',
-      example: { nodeIds: ['el_ab12cd34'], attrs: { href: '/contato' } },
+        'Sets and/or removes HTML attributes (href, alt, title...) on several nodes. Provide attrs and/or unset. On an svg node the attributes go to the root <svg> (e.g. height, width, viewBox, fill).',
+      example: { nodeIds: ['el_ab12cd34'], attrs: { href: '/contact' } },
       inputSchema: {
         nodeIds: nodeIdsField,
         attrs: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Atributos HTML a definir, ex.: { "href": "/contato", "alt": "Logo" }.'),
-        unset: z.array(z.string()).optional().describe('Atributos a remover, ex.: ["title"].'),
+          .describe('HTML attributes to set, e.g. { "href": "/contact", "alt": "Logo" }.'),
+        unset: z.array(z.string()).optional().describe('Attributes to remove, e.g. ["title"].'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -981,26 +985,26 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       requireNodes(store.get(id), nodeIds);
       if (!attrs && !unset?.length)
-        throw new ToolError('Informe attrs e/ou unset. Ex.: attrs { "alt": "Logo" }.');
+        throw new ToolError('Provide attrs and/or unset. E.g. attrs { "alt": "Logo" }.');
       const r = apply(
         id,
         [{ type: 'setAttrs', changes: nodeIds.map((nodeId) => ({ nodeId, set: attrs, unset })) }],
         'set_attrs',
       );
-      return `Atributos atualizados em ${nodeIds.length} nó(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Attributes updated on ${nodeIds.length} node(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'set_tag',
     {
-      title: 'Trocar tag HTML',
+      title: 'Change HTML tag',
       description:
-        'Troca a tag HTML dos nós (ex.: div para section). Tags bloqueadas (script, style, iframe...) e trocas inválidas são recusadas.',
+        'Changes the HTML tag of nodes (e.g. div to section). Blocked tags (script, style, iframe...) and invalid changes are rejected.',
       example: { nodeIds: ['el_ab12cd34'], tag: 'section' },
       inputSchema: {
         nodeIds: nodeIdsField,
-        tag: z.string().describe('Nova tag HTML, ex.: "section", "h2", "button".'),
+        tag: z.string().describe('New HTML tag, e.g. "section", "h2", "button".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -1013,7 +1017,7 @@ ${summaryOf(r.doc, nodeIds)}`;
         [{ type: 'setTag', changes: nodeIds.map((nodeId) => ({ nodeId, tag })) }],
         'set_tag',
       );
-      return `Tag alterada em ${nodeIds.length} nó(s).
+      return `Tag changed on ${nodeIds.length} node(s).
 ${summaryOf(r.doc, nodeIds)}`;
     },
   );
@@ -1021,15 +1025,13 @@ ${summaryOf(r.doc, nodeIds)}`;
   tool(
     'rename_nodes',
     {
-      title: 'Renomear nós',
+      title: 'Rename nodes',
       description:
-        'Renomeia camadas; names é pareado com nodeIds (mesmo tamanho). Os nomes aparecem no editor e nos arquivos exportados.',
+        'Renames layers; names is paired with nodeIds (same length). The names appear in the editor and in exported files.',
       example: { nodeIds: ['fr_ab12cd34'], names: ['Tablet'] },
       inputSchema: {
         nodeIds: nodeIdsField,
-        names: z
-          .array(z.string())
-          .describe('Novos nomes, na ordem de nodeIds, ex.: ["Cabeçalho"].'),
+        names: z.array(z.string()).describe('New names, in nodeIds order, e.g. ["Header"].'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -1039,7 +1041,7 @@ ${summaryOf(r.doc, nodeIds)}`;
       requireNodes(store.get(id), nodeIds);
       if (names.length !== nodeIds.length) {
         throw new ToolError(
-          `names tem ${names.length} item(ns) e nodeIds ${nodeIds.length}; devem ter o mesmo tamanho.`,
+          `names has ${names.length} item(s) and nodeIds ${nodeIds.length}; they must have the same length.`,
         );
       }
       const r = apply(
@@ -1052,16 +1054,16 @@ ${summaryOf(r.doc, nodeIds)}`;
         ],
         'rename_nodes',
       );
-      return `${nodeIds.length} nó(s) renomeado(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `${nodeIds.length} node(s) renamed.\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'move_nodes',
     {
-      title: 'Mover nós',
+      title: 'Move nodes',
       description:
-        'Move nós para outro pai e/ou índice. Sem parentId só reordena; parentId null leva à raiz da página (vira frame).',
+        'Moves nodes to another parent and/or index. Without parentId it only reorders; parentId null moves to the page root (becomes a frame).',
       example: { nodeIds: ['el_ab12cd34'], parentId: 'fr_ab12cd34', index: 0 },
       inputSchema: {
         nodeIds: nodeIdsField,
@@ -1070,20 +1072,20 @@ ${summaryOf(r.doc, nodeIds)}`;
           .nullable()
           .optional()
           .describe(
-            'Id do novo pai, ex.: "el_ab12cd34" (padrão: mantém o atual). null = raiz da página (vira frame).',
+            'New parent id, e.g. "el_ab12cd34" (default: keep the current one). null = page root (becomes a frame).',
           ),
         pageId: z
           .string()
           .optional()
           .describe(
-            'Id da página de destino quando parentId é null, ex.: "pg_ab12cd34" (padrão: página do primeiro nó).',
+            'Destination page id when parentId is null, e.g. "pg_ab12cd34" (default: page of the first node).',
           ),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Índice no pai de destino, ex.: 0 (padrão: final).'),
+          .describe('Index in the destination parent, e.g. 0 (default: end).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -1108,21 +1110,21 @@ ${summaryOf(r.doc, nodeIds)}`;
         }
         if (changes.length) ops.push({ type: 'setPosition', changes });
         const r = apply(id, ops, 'move_nodes');
-        return `${nodeIds.length} nó(s) movido(s) para a raiz da página ${page.id}.\n${summaryOf(r.doc, nodeIds)}`;
+        return `${nodeIds.length} node(s) moved to the root of page ${page.id}.\n${summaryOf(r.doc, nodeIds)}`;
       }
       if (parentId) requireNode(doc, parentId);
       const r = apply(id, [{ type: 'moveNodes', nodeIds, parentId, index }], 'move_nodes');
       const target = parentId ? [parentId] : fallbackFor(doc, nodeIds);
-      return `${nodeIds.length} nó(s) movido(s).\n${summaryOf(r.doc, target, nodeIds)}`;
+      return `${nodeIds.length} node(s) moved.\n${summaryOf(r.doc, target, nodeIds)}`;
     },
   );
 
   tool(
     'duplicate_nodes',
     {
-      title: 'Duplicar nós',
+      title: 'Duplicate nodes',
       description:
-        'Duplica nós com seus descendentes. Devolve o mapa de ids antigos para novos. Para criar breakpoints, duplique o frame.',
+        'Duplicates nodes with their descendants. Returns the map of old ids to new ones. To create breakpoints, duplicate the frame.',
       example: { nodeIds: ['fr_ab12cd34'] },
       inputSchema: { nodeIds: nodeIdsField, docId: docIdField },
       annotations: WRITE,
@@ -1137,15 +1139,15 @@ ${summaryOf(r.doc, nodeIds)}`;
       const idMap = fromOp ?? fromResult ?? {};
       const pairs = nodeIds.filter((o) => idMap[o]).map((o) => `${o} -> ${idMap[o]}`);
       const newIds = nodeIds.map((o) => idMap[o]).filter((x): x is string => !!x);
-      return `Duplicado: ${pairs.join(', ') || '(mapa indisponível)'}.\n${summaryOf(r.doc, newIds)}`;
+      return `Duplicated: ${pairs.join(', ') || '(map unavailable)'}.\n${summaryOf(r.doc, newIds)}`;
     },
   );
 
   tool(
     'delete_nodes',
     {
-      title: 'Excluir nós',
-      description: 'Remove nós e seus descendentes (reversível com undo).',
+      title: 'Delete nodes',
+      description: 'Removes nodes and their descendants (reversible with undo).',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: { nodeIds: nodeIdsField, docId: docIdField },
       annotations: DESTRUCTIVE,
@@ -1161,21 +1163,21 @@ ${summaryOf(r.doc, nodeIds)}`;
         store.getSelection(id).filter((s) => !nodeIds.includes(s)),
         'mcp',
       );
-      return `${nodeIds.length} nó(s) removido(s).\n${summaryOf(r.doc, parents)}`;
+      return `${nodeIds.length} node(s) removed.\n${summaryOf(r.doc, parents)}`;
     },
   );
 
   tool(
     'set_position',
     {
-      title: 'Definir posição',
+      title: 'Set position',
       description:
-        'Define x/y no canvas de um frame raiz ou de um filho com position absolute. Use para dispor frames lado a lado.',
+        'Sets x/y on the canvas for a root frame or a child with position absolute. Use it to lay out frames side by side.',
       example: { nodeId: 'fr_ab12cd34', x: 1540, y: 0 },
       inputSchema: {
-        nodeId: z.string().describe('Id do frame ou filho absoluto, ex.: "fr_ab12cd34".'),
-        x: z.number().describe('Posição X em px, ex.: 1540.'),
-        y: z.number().describe('Posição Y em px, ex.: 0.'),
+        nodeId: z.string().describe('Id of the frame or absolute child, e.g. "fr_ab12cd34".'),
+        x: z.number().describe('X position in px, e.g. 1540.'),
+        y: z.number().describe('Y position in px, e.g. 0.'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -1188,19 +1190,18 @@ ${summaryOf(r.doc, nodeIds)}`;
         [{ type: 'setPosition', changes: [{ nodeId, position: { x, y } }] }],
         'set_position',
       );
-      return `Posição de ${nodeId} = ${x},${y}.\n${summaryOf(r.doc, [nodeId])}`;
+      return `Position of ${nodeId} = ${x},${y}.\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'create_page',
     {
-      title: 'Criar página',
-      description:
-        'Cria uma nova página (conjunto de frames) no documento. Devolve o id da página.',
+      title: 'Create page',
+      description: 'Creates a new page (a set of frames) in the document. Returns the page id.',
       example: { name: 'Mobile' },
       inputSchema: {
-        name: z.string().describe('Nome da página, ex.: "Mobile".'),
+        name: z.string().describe('Page name, e.g. "Mobile".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -1209,19 +1210,19 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       const pageId = newPageId();
       const r = apply(id, [{ type: 'createPage', pageId, name }], 'create_page');
-      return `Página criada: ${pageId} "${name}".\n${getDocumentSummary(r.doc, 1)}`;
+      return `Page created: ${pageId} "${name}".\n${getDocumentSummary(r.doc, 1)}`;
     },
   );
 
   tool(
     'rename_page',
     {
-      title: 'Renomear página',
-      description: 'Renomeia uma página existente (ids em get_basic_info).',
+      title: 'Rename page',
+      description: 'Renames an existing page (ids in get_basic_info).',
       example: { pageId: 'pg_ab12cd34', name: 'Mobile' },
       inputSchema: {
-        pageId: z.string().describe('Id da página (veja get_basic_info), ex.: "pg_ab12cd34".'),
-        name: z.string().describe('Novo nome da página, ex.: "Mobile".'),
+        pageId: z.string().describe('Page id (see get_basic_info), e.g. "pg_ab12cd34".'),
+        name: z.string().describe('New page name, e.g. "Mobile".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -1230,19 +1231,19 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       requirePage(store.get(id), pageId);
       const r = apply(id, [{ type: 'renamePage', pageId, name }], 'rename_page');
-      return `Página ${pageId} renomeada para "${name}".\n${getDocumentSummary(r.doc, 1)}`;
+      return `Page ${pageId} renamed to "${name}".\n${getDocumentSummary(r.doc, 1)}`;
     },
   );
 
   tool(
     'delete_page',
     {
-      title: 'Excluir página',
+      title: 'Delete page',
       description:
-        'Remove uma página e seus frames (reversível com undo). A última página não pode ser excluída.',
+        'Removes a page and its frames (reversible with undo). The last page cannot be deleted.',
       example: { pageId: 'pg_ab12cd34' },
       inputSchema: {
-        pageId: z.string().describe('Id da página (veja get_basic_info), ex.: "pg_ab12cd34".'),
+        pageId: z.string().describe('Page id (see get_basic_info), e.g. "pg_ab12cd34".'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -1251,21 +1252,24 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       requirePage(store.get(id), pageId);
       const r = apply(id, [{ type: 'deletePage', pageId }], 'delete_page');
-      return `Página ${pageId} removida.\n${getDocumentSummary(r.doc, 1)}`;
+      return `Page ${pageId} removed.\n${getDocumentSummary(r.doc, 1)}`;
     },
   );
 
   tool(
     'set_node_flags',
     {
-      title: 'Ocultar/bloquear nós',
+      title: 'Hide/lock nodes',
       description:
-        'Oculta/exibe (hidden) e/ou bloqueia/desbloqueia (locked) nós no editor. Informe ao menos um dos dois.',
+        'Hides/shows (hidden) and/or locks/unlocks (locked) nodes in the editor. Provide at least one of the two.',
       example: { nodeIds: ['el_ab12cd34'], hidden: true },
       inputSchema: {
         nodeIds: nodeIdsField,
-        hidden: z.boolean().optional().describe('true oculta o nó; false o exibe.'),
-        locked: z.boolean().optional().describe('true bloqueia o nó no editor; false desbloqueia.'),
+        hidden: z.boolean().optional().describe('true hides the node; false shows it.'),
+        locked: z
+          .boolean()
+          .optional()
+          .describe('true locks the node in the editor; false unlocks it.'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -1274,14 +1278,14 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       requireNodes(store.get(id), nodeIds);
       if (hidden === undefined && locked === undefined) {
-        throw new ToolError('Informe hidden e/ou locked. Ex.: hidden true.');
+        throw new ToolError('Provide hidden and/or locked. E.g. hidden true.');
       }
       const r = apply(
         id,
         [{ type: 'setNodeFlags', changes: nodeIds.map((nodeId) => ({ nodeId, hidden, locked })) }],
         'set_node_flags',
       );
-      return `Flags atualizadas em ${nodeIds.length} nó(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Flags updated on ${nodeIds.length} node(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
@@ -1289,11 +1293,11 @@ ${summaryOf(r.doc, nodeIds)}`;
     tool(
       kind,
       {
-        title: kind === 'undo' ? 'Desfazer' : 'Refazer',
+        title: kind === 'undo' ? 'Undo' : 'Redo',
         description:
           kind === 'undo'
-            ? 'Desfaz a última alteração do documento (inclusive as feitas pelo usuário). Devolve o resumo.'
-            : 'Refaz a última alteração desfeita. Devolve o resumo.',
+            ? 'Undoes the last change to the document (including those made by the user). Returns the summary.'
+            : 'Redoes the last undone change. Returns the summary.',
         example: {},
         inputSchema: { docId: docIdField },
         annotations: WRITE,
@@ -1301,12 +1305,12 @@ ${summaryOf(r.doc, nodeIds)}`;
       ({ docId }) => {
         if (opts.turn?.() !== undefined)
           throw new ToolError(
-            `Durante um turno do assistente ${kind === 'undo' ? 'o undo desfaria o turno inteiro (todas as suas ops formam um único grupo)' : 'o redo não está disponível'}. Corrija com as ferramentas de edição (update_styles, set_text, delete_nodes...).`,
+            `During an assistant turn ${kind === 'undo' ? 'undo would revert the whole turn (all its ops form a single group)' : 'redo is not available'}. Fix it with the editing tools (update_styles, set_text, delete_nodes...).`,
           );
         const id = store.resolveDocId(docId);
         const r = kind === 'undo' ? store.undo(id, 'mcp') : store.redo(id, 'mcp');
-        if (!r) return kind === 'undo' ? 'Nada para desfazer.' : 'Nada para refazer.';
-        return `${kind === 'undo' ? 'Desfeito' : 'Refeito'}. Revisão ${r.revision}.\n${getDocumentSummary(r.doc, 1)}`;
+        if (!r) return kind === 'undo' ? 'Nothing to undo.' : 'Nothing to redo.';
+        return `${kind === 'undo' ? 'Undone' : 'Redone'}. Revision ${r.revision}.\n${getDocumentSummary(r.doc, 1)}`;
       },
     );
   }
@@ -1314,15 +1318,15 @@ ${summaryOf(r.doc, nodeIds)}`;
   tool(
     'finish_working',
     {
-      title: 'Terminei de editar',
+      title: 'Finished editing',
       description:
-        'Chame ao terminar as edições (depois de conferir com get_screenshot): limpa o indicador "IA" nos nós no editor. Sem nodeIds vale para o documento.',
+        'Call when you finish editing (after checking with get_screenshot): clears the "AI" indicator on nodes in the editor. Without nodeIds it applies to the whole document.',
       example: {},
       inputSchema: {
         nodeIds: z
           .array(z.string())
           .optional()
-          .describe('Ids dos nós concluídos, ex.: ["fr_ab12cd34"] (padrão: todos).'),
+          .describe('Ids of the finished nodes, e.g. ["fr_ab12cd34"] (default: all).'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -1331,12 +1335,12 @@ ${summaryOf(r.doc, nodeIds)}`;
       const id = store.resolveDocId(docId);
       store.finishWorking(id, nodeIds ?? []);
       return nodeIds?.length
-        ? `Edição concluída em ${nodeIds.length} nó(s).`
-        : 'Edição concluída no documento.';
+        ? `Editing finished on ${nodeIds.length} node(s).`
+        : 'Editing finished on the document.';
     },
   );
 
-  /* ---------- render, exportação, imagens, ícones e fontes ---------- */
+  /* ---------- render, export, images, icons and fonts ---------- */
 
   const ctx: ToolContext = {
     server,

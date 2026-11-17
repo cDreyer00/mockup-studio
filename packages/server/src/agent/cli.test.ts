@@ -33,13 +33,13 @@ function feed(p: LineParser, lines: unknown[]): AgentRunEvent[] {
 }
 
 describe('ClaudeStreamParser', () => {
-  it('mapeia init, texto, ferramenta, resultado da ferramenta e result final', () => {
+  it('maps init, text, tool, tool result and final result', () => {
     const p = new ClaudeStreamParser();
     const ev = feed(p, [
       { type: 'system', subtype: 'init', session_id: 'S1', tools: [], mcp_servers: [] },
       {
         type: 'assistant',
-        message: { content: [{ type: 'text', text: 'Vou renomear.' }] },
+        message: { content: [{ type: 'text', text: 'Renaming now.' }] },
       },
       {
         type: 'assistant',
@@ -61,7 +61,7 @@ describe('ClaudeStreamParser', () => {
             {
               type: 'tool_result',
               tool_use_id: 'tu1',
-              content: '1 nó(s) renomeado(s).\nresto',
+              content: '1 node(s) renamed.\nrest',
               is_error: false,
             },
           ],
@@ -74,7 +74,7 @@ describe('ClaudeStreamParser', () => {
             {
               type: 'tool_result',
               tool_use_id: 'tu2',
-              content: [{ type: 'text', text: 'Erro: x' }],
+              content: [{ type: 'text', text: 'Error: x' }],
               is_error: true,
             },
           ],
@@ -85,20 +85,20 @@ describe('ClaudeStreamParser', () => {
         type: 'result',
         subtype: 'success',
         is_error: false,
-        result: 'Feito.',
+        result: 'Finished.',
         session_id: 'S1',
         total_cost_usd: 0.01,
       },
     ]);
     expect(ev).toEqual([
       { kind: 'session', sessionId: 'S1' },
-      { kind: 'text', text: 'Vou renomear.' },
+      { kind: 'text', text: 'Renaming now.' },
       { kind: 'tool', id: 'tu1', name: 'rename_nodes', input: { nodeIds: ['a'], names: ['B'] } },
-      { kind: 'tool-result', id: 'tu1', ok: true, summary: '1 nó(s) renomeado(s).' },
-      { kind: 'tool-result', id: 'tu2', ok: false, summary: 'Erro: x' },
+      { kind: 'tool-result', id: 'tu1', ok: true, summary: '1 node(s) renamed.' },
+      { kind: 'tool-result', id: 'tu2', ok: false, summary: 'Error: x' },
     ]);
     expect(p.result()).toEqual({
-      text: 'Feito.',
+      text: 'Finished.',
       sessionId: 'S1',
       costUsd: 0.01,
       isError: false,
@@ -106,7 +106,7 @@ describe('ClaudeStreamParser', () => {
     });
   });
 
-  it('streaming por deltas não duplica o texto quando chega a mensagem completa', () => {
+  it('delta streaming does not duplicate the text when the full message arrives', () => {
     const p = new ClaudeStreamParser();
     const delta = (text: string) => ({
       type: 'stream_event',
@@ -114,23 +114,26 @@ describe('ClaudeStreamParser', () => {
     });
     const ev = feed(p, [
       { type: 'stream_event', event: { type: 'message_start', message: { id: 'm1' } } },
-      delta('Olá, '),
-      delta('mundo'),
-      { type: 'assistant', message: { id: 'm1', content: [{ type: 'text', text: 'Olá, mundo' }] } },
-      // segunda mensagem do mesmo turno (depois de uma ferramenta): separada por parágrafo
+      delta('Hello, '),
+      delta('world'),
+      {
+        type: 'assistant',
+        message: { id: 'm1', content: [{ type: 'text', text: 'Hello, world' }] },
+      },
+      // second message of the same turn (after a tool): separated by a paragraph
       { type: 'stream_event', event: { type: 'message_start', message: { id: 'm2' } } },
-      delta('Pronto.'),
-      { type: 'assistant', message: { id: 'm2', content: [{ type: 'text', text: 'Pronto.' }] } },
+      delta('Done.'),
+      { type: 'assistant', message: { id: 'm2', content: [{ type: 'text', text: 'Done.' }] } },
     ]);
     const text = ev.flatMap((e) => (e.kind === 'text' ? [e.text] : [])).join('');
-    expect(text).toBe('Olá, mundo\n\nPronto.');
+    expect(text).toBe('Hello, world\n\nDone.');
   });
 
-  it('result com is_error vira erro e linhas inválidas/parciais são ignoradas com log', () => {
+  it('result with is_error becomes an error and invalid/partial lines are ignored with a log', () => {
     const logs: string[] = [];
     const p = new ClaudeStreamParser((m) => logs.push(m));
     expect(p.parse('')).toEqual([]);
-    expect(p.parse('isto não é json')).toEqual([]);
+    expect(p.parse('this is not json')).toEqual([]);
     expect(p.parse('{"type":"assistant","mess')).toEqual([]);
     expect(p.parse('[1,2]')).toEqual([]);
     expect(logs.length).toBe(2);
@@ -155,7 +158,7 @@ describe('ClaudeStreamParser', () => {
 });
 
 describe('CodexStreamParser', () => {
-  it('mapeia mensagens, chamadas MCP e turn.completed', () => {
+  it('maps messages, MCP calls and turn.completed', () => {
     const p = new CodexStreamParser();
     const ev = feed(p, [
       { type: 'thread.started', thread_id: 'T' },
@@ -178,7 +181,7 @@ describe('CodexStreamParser', () => {
           type: 'mcp_tool_call',
           tool: 'rename_nodes',
           status: 'completed',
-          result: { content: [{ type: 'text', text: '1 nó(s) renomeado(s).' }] },
+          result: { content: [{ type: 'text', text: '1 node(s) renamed.' }] },
         },
       },
       {
@@ -188,31 +191,31 @@ describe('CodexStreamParser', () => {
           type: 'mcp_tool_call',
           tool: 'x',
           status: 'failed',
-          error: { message: 'quebrou' },
+          error: { message: 'broke' },
         },
       },
-      { type: 'item.completed', item: { id: 'i3', type: 'agent_message', text: 'Primeira.' } },
-      { type: 'item.completed', item: { id: 'i4', type: 'agent_message', text: 'Segunda.' } },
+      { type: 'item.completed', item: { id: 'i3', type: 'agent_message', text: 'First.' } },
+      { type: 'item.completed', item: { id: 'i4', type: 'agent_message', text: 'Second.' } },
       { type: 'turn.completed', usage: { input_tokens: 1 } },
     ]);
     expect(ev).toEqual([
       { kind: 'tool', id: 'i1', name: 'rename_nodes', input: { nodeIds: ['a'] } },
-      { kind: 'tool-result', id: 'i1', ok: true, summary: '1 nó(s) renomeado(s).' },
+      { kind: 'tool-result', id: 'i1', ok: true, summary: '1 node(s) renamed.' },
       { kind: 'tool', id: 'i2', name: 'x', input: undefined },
-      { kind: 'tool-result', id: 'i2', ok: false, summary: 'quebrou' },
-      { kind: 'text', text: 'Primeira.' },
-      { kind: 'text', text: '\n\nSegunda.' },
+      { kind: 'tool-result', id: 'i2', ok: false, summary: 'broke' },
+      { kind: 'text', text: 'First.' },
+      { kind: 'text', text: '\n\nSecond.' },
     ]);
-    expect(p.result()).toEqual({ text: 'Segunda.', isError: false });
+    expect(p.result()).toEqual({ text: 'Second.', isError: false });
   });
 
-  it('turn.failed vira erro; error isolado só serve de motivo', () => {
+  it('turn.failed becomes an error; a standalone error only serves as the reason', () => {
     const p = new CodexStreamParser();
     feed(p, [{ type: 'error', message: 'Reconnecting... 1/5' }]);
     expect(p.result()).toBeUndefined();
     expect(p.lastError()).toBe('Reconnecting... 1/5');
-    feed(p, [{ type: 'turn.failed', error: { message: 'não autenticado' } }]);
-    expect(p.result()).toMatchObject({ isError: true, error: 'não autenticado' });
+    feed(p, [{ type: 'turn.failed', error: { message: 'not authenticated' } }]);
+    expect(p.result()).toMatchObject({ isError: true, error: 'not authenticated' });
   });
 });
 
@@ -220,7 +223,7 @@ describe('findExecutable', () => {
   const dirs = 'C:\\a;C:\\b;"C:\\c d"';
   const files = (list: string[]) => (f: string) => list.includes(f);
 
-  it('Windows: prefere .exe a .cmd e respeita o PATHEXT', () => {
+  it('Windows: prefers .exe over .cmd and honors PATHEXT', () => {
     const env = {
       platform: 'win32' as const,
       pathEnv: dirs,
@@ -242,13 +245,13 @@ describe('findExecutable', () => {
       'C:\\c d\\claude.bat',
     );
     expect(findExecutable('claude', { ...env, isFile: files([]) })).toBeNull();
-    // fora do PATHEXT não vale
+    // outside PATHEXT does not count
     expect(
       findExecutable('claude', { ...env, pathExt: '.EXE', isFile: files(['C:\\a\\claude.cmd']) }),
     ).toBeNull();
   });
 
-  it('Windows: nome com extensão e caminho absoluto', () => {
+  it('Windows: name with extension and absolute path', () => {
     const env = { platform: 'win32' as const, pathEnv: dirs, pathExt: '.EXE;.CMD' };
     expect(findExecutable('codex.exe', { ...env, isFile: files(['C:\\b\\codex.exe']) })).toBe(
       'C:\\b\\codex.exe',
@@ -258,7 +261,7 @@ describe('findExecutable', () => {
     );
   });
 
-  it('POSIX: primeiro diretório do PATH com o arquivo', () => {
+  it('POSIX: first PATH directory containing the file', () => {
     const env = { platform: 'linux' as const, pathEnv: '/usr/bin:/opt/bin' };
     expect(findExecutable('claude', { ...env, isFile: files(['/opt/bin/claude']) })).toBe(
       '/opt/bin/claude',
@@ -267,48 +270,48 @@ describe('findExecutable', () => {
   });
 });
 
-describe('ClaudeCliBackend com a CLI falsa', () => {
+describe('ClaudeCliBackend with the fake CLI', () => {
   const backend = () => new ClaudeCliBackend({ command: process.execPath, prefixArgs: [FAKE_CLI] });
 
-  it('info() devolve disponibilidade e versão', async () => {
+  it('info() returns availability and version', async () => {
     const info = await backend().info();
     expect(info).toMatchObject({ id: 'claude', available: true });
     expect(info.detail).toContain('fake');
   });
 
-  it('executável inexistente: run() rejeita com mensagem clara', async () => {
-    const r = new ClaudeCliBackend({ command: path.join(here, 'nao-existe.exe') }).run(
-      { prompt: 'oi' },
+  it('missing executable: run() rejects with a clear message', async () => {
+    const r = new ClaudeCliBackend({ command: path.join(here, 'does-not-exist.exe') }).run(
+      { prompt: 'hi' },
       () => undefined,
       new AbortController().signal,
     );
-    await expect(r).rejects.toThrow(/Não foi possível iniciar/);
+    await expect(r).rejects.toThrow(/Could not start/);
   });
 
-  it('roda um turno sem MCP, emite eventos e devolve o texto e a sessão', async () => {
+  it('runs a turn without MCP, emits events and returns the text and the session', async () => {
     const events: AgentRunEvent[] = [];
     const res = await backend().run(
-      { prompt: '@@text olá do agente', system: 'SISTEMA' },
+      { prompt: '@@text hello from the agent', system: 'SYSTEM' },
       (e) => events.push(e),
       new AbortController().signal,
     );
-    expect(res.text).toBe('olá do agente');
+    expect(res.text).toBe('hello from the agent');
     expect(res.sessionId).toMatch(/^fake-/);
     expect(events[0]).toMatchObject({ kind: 'session' });
-    expect(events).toContainEqual({ kind: 'text', text: 'olá do agente' });
+    expect(events).toContainEqual({ kind: 'text', text: 'hello from the agent' });
   });
 
-  it('falha do agente rejeita com a mensagem e o fim do stderr', async () => {
+  it('agent failure rejects with the message and the end of stderr', async () => {
     await expect(
       backend().run(
         { prompt: '@@fail Not logged in' },
         () => undefined,
         new AbortController().signal,
       ),
-    ).rejects.toThrow(/Not logged in[\s\S]*logado/);
+    ).rejects.toThrow(/Not logged in[\s\S]*signed in/);
   });
 
-  it('cancelamento mata o processo e rejeita com AbortError', async () => {
+  it('cancellation kills the process and rejects with AbortError', async () => {
     const ac = new AbortController();
     const t0 = Date.now();
     const p = backend().run({ prompt: '@@sleep 30000' }, () => undefined, ac.signal);
@@ -317,7 +320,7 @@ describe('ClaudeCliBackend com a CLI falsa', () => {
     expect(Date.now() - t0).toBeLessThan(10_000);
   });
 
-  it('timeout do turno encerra o processo', async () => {
+  it('turn timeout terminates the process', async () => {
     const b = new ClaudeCliBackend({
       command: process.execPath,
       prefixArgs: [FAKE_CLI],
@@ -325,24 +328,24 @@ describe('ClaudeCliBackend com a CLI falsa', () => {
     });
     await expect(
       b.run({ prompt: '@@sleep 30000' }, () => undefined, new AbortController().signal),
-    ).rejects.toThrow(/tempo limite/);
+    ).rejects.toThrow(/time limit/);
   });
 
-  it('killTree aceita processo sem pid', () => {
+  it('killTree accepts a process without a pid', () => {
     expect(() => killTree({ pid: undefined } as never)).not.toThrow();
   });
 });
 
 describe('quoteCmdArg', () => {
-  it('recusa %, aspas e quebras de linha (não dá para citar com segurança num .cmd)', () => {
-    expect(() => quoteCmdArg('a%PATH%b')).toThrow(/não suportado/);
-    expect(() => quoteCmdArg('say "oi"')).toThrow(/não suportado/);
-    expect(() => quoteCmdArg('a\nb')).toThrow(/não suportado/);
-    expect(() => quoteCmdArg('a\rb')).toThrow(/não suportado/);
+  it('rejects %, quotes and line breaks (cannot be safely quoted in a .cmd)', () => {
+    expect(() => quoteCmdArg('a%PATH%b')).toThrow(/Unsupported argument/);
+    expect(() => quoteCmdArg('say "hi"')).toThrow(/Unsupported argument/);
+    expect(() => quoteCmdArg('a\nb')).toThrow(/Unsupported argument/);
+    expect(() => quoteCmdArg('a\rb')).toThrow(/Unsupported argument/);
   });
 
-  it('cita só o que precisa', () => {
-    expect(quoteCmdArg('simples')).toBe('simples');
+  it('quotes only what needs it', () => {
+    expect(quoteCmdArg('simple')).toBe('simple');
     expect(quoteCmdArg('')).toBe('""');
     expect(quoteCmdArg('C:\\Program Files\\x')).toBe('"C:\\Program Files\\x"');
     expect(quoteCmdArg('a&b')).toBe('"a&b"');
@@ -352,8 +355,8 @@ describe('quoteCmdArg', () => {
   });
 });
 
-describe('isValidSessionId e --resume', () => {
-  it('aceita só [A-Za-z0-9_-]{1,128} sem começar com hífen', () => {
+describe('isValidSessionId and --resume', () => {
+  it('accepts only [A-Za-z0-9_-]{1,128} not starting with a hyphen', () => {
     for (const ok of ['abc', 'a-b_C9', '0f8fad5b-d9cb-469f-a165-70867728950e', 'x'.repeat(128)]) {
       expect(isValidSessionId(ok)).toBe(true);
     }
@@ -380,7 +383,7 @@ describe('isValidSessionId e --resume', () => {
     }
   }
 
-  it('Claude: --resume=<id> é um argumento só; id inválido nem vai para os args', async () => {
+  it('Claude: --resume=<id> is a single argument; an invalid id does not even reach the args', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
     try {
       const b = new Peek({ command: process.execPath });
@@ -397,7 +400,7 @@ describe('isValidSessionId e --resume', () => {
     }
   });
 
-  it('com a CLI falsa: o resume chega à CLI como --resume=<id>', async () => {
+  it('with the fake CLI: the resume reaches the CLI as --resume=<id>', async () => {
     const b = new ClaudeCliBackend({ command: process.execPath, prefixArgs: [FAKE_CLI] });
     const res = await b.run(
       { prompt: '@@echo', resumeSession: 'sess-42' },
@@ -409,35 +412,35 @@ describe('isValidSessionId e --resume', () => {
   });
 });
 
-describe('isolamento do Codex', () => {
-  it('parseCodexMcpList: nomes dos servidores; lixo vira lista vazia', () => {
+describe('Codex isolation', () => {
+  it('parseCodexMcpList: server names; garbage becomes an empty list', () => {
     expect(
       parseCodexMcpList(
-        JSON.stringify([{ name: 'mockup-studio', enabled: true }, { name: 'outro' }, { x: 1 }, 3]),
+        JSON.stringify([{ name: 'mockup-studio', enabled: true }, { name: 'other' }, { x: 1 }, 3]),
       ),
-    ).toEqual(['mockup-studio', 'outro']);
-    expect(parseCodexMcpList('não é json')).toEqual([]);
+    ).toEqual(['mockup-studio', 'other']);
+    expect(parseCodexMcpList('not json')).toEqual([]);
     expect(parseCodexMcpList('{"name":"x"}')).toEqual([]);
     expect(parseCodexMcpList('[]')).toEqual([]);
   });
 
-  it('parseCodexFeatures: nomes, sem as removidas', () => {
+  it('parseCodexFeatures: names, without the removed ones', () => {
     const out = [
       'apps                                     stable             true',
       'shell_tool                               stable             true',
       'apply_patch_freeform                     removed            false',
       'goals                                    under development  false',
       '',
-      'Error: lixo com espaços',
+      'Error: garbage with spaces',
     ].join('\r\n');
     expect(parseCodexFeatures(out)).toEqual(['apps', 'shell_tool', 'goals']);
   });
 
-  it('codexIsolationArgs: -c enabled=false por servidor e --disable só das features existentes', () => {
+  it('codexIsolationArgs: -c enabled=false per server and --disable only for existing features', () => {
     const logs: string[] = [];
     const args = codexIsolationArgs(
       {
-        servers: ['mockup-studio', 'github', 'com.ponto', 'com espaço'],
+        servers: ['mockup-studio', 'github', 'with.dot', 'with space'],
         features: ['shell_tool', 'apps', 'goals', 'browser_use'],
       },
       (m) => logs.push(m),
@@ -454,7 +457,7 @@ describe('isolamento do Codex', () => {
       '--disable',
       'browser_use',
     ]);
-    expect(logs).toHaveLength(2); // nomes que não dá para desligar ficam registrados
+    expect(logs).toHaveLength(2); // names that cannot be turned off are logged
     expect(CODEX_DISABLED_FEATURES).toEqual([
       'shell_tool',
       'unified_exec',
@@ -466,7 +469,7 @@ describe('isolamento do Codex', () => {
     expect(codexIsolationArgs({ servers: [], features: [] })).toEqual([]);
   });
 
-  it('codexTurnServerKey não colide com um servidor do usuário', () => {
+  it('codexTurnServerKey does not collide with a user server', () => {
     expect(codexTurnServerKey('mockup-studio', ['mockup-studio'])).toBe('mockup_studio');
     expect(codexTurnServerKey('mockup-studio', ['mockup_studio'])).toBe('mockup_studio_turn');
   });
@@ -479,7 +482,7 @@ describe('isolamento do Codex', () => {
   const mcp = { name: 'mockup-studio', url: 'http://127.0.0.1:1/mcp?turn=tok' };
   const quiet = () => undefined;
 
-  it('plan: desliga MCPs e features do usuário, mantém read-only e só o MCP do turno', async () => {
+  it('plan: turns off the user MCPs and features, keeps read-only and only the turn MCP', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
     try {
       const b = new Peek({
@@ -494,7 +497,7 @@ describe('isolamento do Codex', () => {
       expect(args).toContain('mcp_servers.mockup-studio.enabled=false');
       expect(args).toContain('mcp_servers.mockup_studio.enabled=false');
       expect(args).toContain('mcp_servers.github.enabled=false');
-      // o servidor do turno usa uma chave que não colide com a do usuário
+      // the turn server uses a key that does not collide with the user's
       expect(args).toContain('mcp_servers.mockup_studio_turn.url=' + mcp.url);
       expect(args).toContain('mcp_servers.mockup_studio_turn.default_tools_approval_mode=approve');
       expect(args.filter((a) => a === '--disable')).toHaveLength(3);
@@ -502,7 +505,7 @@ describe('isolamento do Codex', () => {
         expect(args[args.indexOf(f) - 1]).toBe('--disable');
       }
       expect(args).not.toContain('goals');
-      // turno só de texto: também isolado, sem servidor do turno
+      // text-only turn: also isolated, with no turn server
       const text = (await b.peek({ prompt: 'x' }, dir)).args;
       expect(text).toContain('mcp_servers.github.enabled=false');
       expect(text.some((a) => a.includes('.url='))).toBe(false);
@@ -511,7 +514,7 @@ describe('isolamento do Codex', () => {
     }
   });
 
-  it('falha ao listar vira lista vazia (sem isolar), não é cacheada e o sucesso é cacheado', async () => {
+  it('a listing failure becomes an empty list (no isolation), is not cached and a success is cached', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
     try {
       let mcpCalls = 0;
@@ -521,27 +524,29 @@ describe('isolamento do Codex', () => {
         log: quiet,
         listMcpServers: () => {
           mcpCalls++;
-          return failing ? Promise.reject(new Error('codex sumiu')) : Promise.resolve(['github']);
+          return failing
+            ? Promise.reject(new Error('codex vanished'))
+            : Promise.resolve(['github']);
         },
         listFeatures: () => Promise.resolve(['shell_tool']),
       });
       const a1 = (await b.peek({ prompt: 'x', mcp }, dir)).args;
       expect(a1.some((a) => a.endsWith('.enabled=false'))).toBe(false);
-      expect(a1).toContain('--disable'); // features listadas ainda valem
+      expect(a1).toContain('--disable'); // listed features still apply
       failing = false;
       const a2 = (await b.peek({ prompt: 'x', mcp }, dir)).args;
-      expect(a2).toContain('mcp_servers.github.enabled=false'); // falha anterior não ficou em cache
+      expect(a2).toContain('mcp_servers.github.enabled=false'); // the previous failure was not cached
       await b.peek({ prompt: 'x', mcp }, dir);
       await b.peek({ prompt: 'x', mcp }, dir);
-      expect(mcpCalls).toBe(2); // 1 falha + 1 sucesso; o resto vem do cache
+      expect(mcpCalls).toBe(2); // 1 failure + 1 success; the rest comes from the cache
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });
 
-describe('filhos vivos e saída do daemon', () => {
-  it('registra o filho, instala/remove o listener de exit e killLiveChildren os mata', async () => {
+describe('live children and daemon exit', () => {
+  it('tracks the child, installs/removes the exit listener and killLiveChildren kills them', async () => {
     const before = process.listenerCount('exit');
     expect(liveChildCount()).toBe(0);
     const b = new ClaudeCliBackend({ command: process.execPath, prefixArgs: [FAKE_CLI] });
@@ -552,7 +557,7 @@ describe('filhos vivos e saída do daemon', () => {
     );
     const t0 = Date.now();
     while (liveChildCount() === 0) {
-      if (Date.now() - t0 > 10_000) throw new Error('o filho não foi registrado');
+      if (Date.now() - t0 > 10_000) throw new Error('the child was not registered');
       await new Promise((r) => setTimeout(r, 20));
     }
     expect(process.listenerCount('exit')).toBe(before + 1);
@@ -566,7 +571,7 @@ describe('filhos vivos e saída do daemon', () => {
     expect(process.listenerCount('exit')).toBe(before);
   });
 
-  it('killLiveChildren sem filhos não faz nada', () => {
+  it('killLiveChildren with no children does nothing', () => {
     expect(() => killLiveChildren()).not.toThrow();
   });
 });

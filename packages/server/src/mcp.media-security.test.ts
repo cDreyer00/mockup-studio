@@ -23,7 +23,7 @@ function find(node: Node, pred: (n: Node) => boolean): Node | undefined {
   return undefined;
 }
 
-describe('MCP: URLs de loopback em embeds', () => {
+describe('MCP: loopback URLs in embeds', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
   let client: Client;
@@ -31,7 +31,7 @@ describe('MCP: URLs de loopback em embeds', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -55,7 +55,7 @@ describe('MCP: URLs de loopback em embeds', () => {
   };
 
   it.each(['http://127.0.0.1:4747/', 'http://localhost:5173/'])(
-    'insert_embed iframe recusa %s',
+    'insert_embed iframe rejects %s',
     async (url) => {
       const r = await call('insert_embed', { parentId: ws.frameId, url, provider: 'iframe' });
       expect(r.isError).toBe(true);
@@ -64,13 +64,13 @@ describe('MCP: URLs de loopback em embeds', () => {
     },
   );
 
-  it('insert_embed iframe aceita https://example.com', async () => {
+  it('insert_embed iframe accepts https://example.com', async () => {
     const r = await call('insert_embed', { parentId: ws.frameId, url: 'https://example.com' });
     expect(r.isError, textOf(r)).toBeFalsy();
     expect(embeds()).toHaveLength(1);
   });
 
-  it('update_media recusa trocar a url para loopback', async () => {
+  it('update_media rejects changing the url to loopback', async () => {
     await call('insert_embed', { parentId: ws.frameId, url: 'https://example.com' });
     const e = find(doc().pages[0]!.frames[0]!, (n) => n.type === 'embed')!;
     const r = await call('update_media', { nodeId: e.id, url: 'http://127.0.0.1:4747/' });
@@ -79,13 +79,13 @@ describe('MCP: URLs de loopback em embeds', () => {
     expect(embeds()[0]!.embed!.url).toBe('https://example.com');
   });
 
-  it('export html embute o JSON de um Lottie local pequeno (abre por file://)', async () => {
+  it('export html embeds the JSON of a small local Lottie (opens via file://)', async () => {
     const json = JSON.stringify({ v: '5.7.0', fr: 30, ip: 0, op: 60, w: 10, h: 10, layers: [] });
     const f = path.join(ws.dir, 'anim.json');
     fs.writeFileSync(f, json);
     const ins = await call('insert_embed', { parentId: ws.frameId, url: f });
     expect(ins.isError, textOf(ins)).toBeFalsy();
-    const out = path.join(ws.dir, 'saida');
+    const out = path.join(ws.dir, 'output');
     const r = await call('export', { nodeIds: [ws.frameId], format: 'html', outputDir: out });
     expect(r.isError, textOf(r)).toBeFalsy();
     const html = fs.readdirSync(out).find((n) => n.endsWith('.html'))!;

@@ -1,33 +1,33 @@
-/** Guia `effects`: efeitos visuais, vídeo, embeds, Three.js e export animado. */
-export const EFFECTS_GUIDE = `# Efeitos, vídeo, embeds e export animado
+/** Guide `effects`: visual effects, video, embeds, Three.js and animated export. */
+export const EFFECTS_GUIDE = `# Effects, video, embeds and animated export
 
-## Efeitos como fundo
-- \`list_effects()\` mostra os efeitos (shaders WebGL e partículas), parâmetros e presets.
-- \`add_effect(nodeId, kind, preset?, params?)\` cria o efeito como PRIMEIRO filho do contêiner (\`placement: 'background'\`, padrão), cobrindo-o atrás do conteúdo. O pai ganha \`position: relative\` e \`isolation: isolate\` no mesmo passo (um \`undo\` desfaz tudo).
-- Ex.: \`add_effect('fr_ab12cd34', 'mesh-gradient', preset: 'aurora')\` dá um fundo animado ao frame inteiro; o conteúdo existente continua por cima.
-- \`placement: 'child'\` insere um filho comum (padrão 100% x 240px) para usar como bloco decorativo.
-- \`update_effect(nodeId, params?, preset?, kind?, reset?)\` mescla parâmetros; \`kind\` troca o efeito.
-- Parâmetros inválidos voltam com a lista de problemas: confira \`list_effects\`.
+## Effects as a background
+- \`list_effects()\` shows the effects (WebGL shaders and particles), parameters and presets.
+- \`add_effect(nodeId, kind, preset?, params?)\` creates the effect as the FIRST child of the container (\`placement: 'background'\`, the default), covering it behind the content. The parent gets \`position: relative\` and \`isolation: isolate\` in the same step (one \`undo\` reverts everything).
+- E.g.: \`add_effect('fr_ab12cd34', 'mesh-gradient', preset: 'aurora')\` gives the whole frame an animated background; the existing content stays on top.
+- \`placement: 'child'\` inserts a regular child (default 100% x 240px) to use as a decorative block.
+- \`update_effect(nodeId, params?, preset?, kind?, reset?)\` merges parameters; \`kind\` switches the effect.
+- Invalid parameters come back with the list of problems: check \`list_effects\`.
 
-## Conferir o resultado
-- \`get_screenshot(nodeId, time)\` renderiza o quadro das animações no instante \`time\` (s): efeitos, partículas, Lottie, Rive, Three.js e vídeo. Compare \`time: 0\` e \`time: 2\`.
-- Vídeo com \`poster\` mostra o poster no screenshot quando \`time\` não é informado.
+## Checking the result
+- \`get_screenshot(nodeId, time)\` renders the animation frame at instant \`time\` (s): effects, particles, Lottie, Rive, Three.js and video. Compare \`time: 0\` and \`time: 2\`.
+- A video with a \`poster\` shows the poster in the screenshot when \`time\` is not given.
 
-## Vídeo
-- \`insert_video(parentId, source, poster?)\`: \`source\` é um caminho absoluto (mp4, m4v, mov, webm, ogv; até 500 MB; copiado para \`assets/videos/\`) ou uma URL http(s) (referenciada direto; só toca com rede). Documento sem caminho em disco só aceita URL.
-- Padrões: mudo, em loop, autoplay, sem controles, 640x360 com \`object-fit: cover\`. \`update_media\` altera as opções.
+## Video
+- \`insert_video(parentId, source, poster?)\`: \`source\` is an absolute path (mp4, m4v, mov, webm, ogv; up to 500 MB; copied to \`assets/videos/\`) or an http(s) URL (referenced directly; only plays with network access). A document with no path on disk only accepts a URL.
+- Defaults: muted, looping, autoplay, no controls, 640x360 with \`object-fit: cover\`. \`update_media\` changes the options.
 
 ## Embeds
-- \`insert_embed(parentId, url)\` detecta o provedor: YouTube (usa o \`?t=\` como início), \`.json\`/\`.lottie\` (Lottie), \`.riv\` (Rive) e qualquer outra URL (iframe).
-- Offline: Lottie e Rive são copiados para \`assets/lottie/\` e \`assets/rive/\` e funcionam sem rede. YouTube e iframe PRECISAM de rede.
-- \`update_media\` troca url, src, code ou parâmetros de um embed.
+- \`insert_embed(parentId, url)\` detects the provider: YouTube (uses \`?t=\` as the start), \`.json\`/\`.lottie\` (Lottie), \`.riv\` (Rive) and any other URL (iframe).
+- Offline: Lottie and Rive are copied to \`assets/lottie/\` and \`assets/rive/\` and work without a network. YouTube and iframes NEED a network.
+- \`update_media\` changes the url, src, code or parameters of an embed.
 
-## Ilha Three.js
-- \`insert_three(parentId, code?, params?)\`. O código é o corpo de uma função com \`THREE, renderer, canvas, width, height, params\` e devolve \`{ scene, camera, update(t) }\` (t em segundos). Sem \`code\`, usa um nó de toro giratório.
-- Roda isolada num iframe sandbox, sem acesso ao documento (o sandbox não bloqueia a rede). Parâmetros chegam em \`params\`.
+## Three.js island
+- \`insert_three(parentId, code?, params?)\`. The code is the body of a function with \`THREE, renderer, canvas, width, height, params\` and returns \`{ scene, camera, update(t) }\` (t in seconds). Without \`code\`, it uses a spinning torus node.
+- Runs isolated in a sandboxed iframe, with no access to the document (the sandbox does not block the network). Parameters arrive in \`params\`.
 
-## Export animado
-- \`export(nodeIds, format: 'mp4' | 'webm' | 'gif', fps?, duration?, start?, maxWidth?, scale?)\`: renderiza os quadros e codifica com ffmpeg. Padrões: 30 fps (gif 15, máximo 30), 3 s, \`start\` 0; duração até 30 s. Exige render e ffmpeg (\`MOCKUP_FFMPEG\` ou o ffmpeg embutido).
-- mp4 é o mais compatível, webm é menor, gif serve para README (use \`maxWidth\` para reduzir).
-- \`export(format: 'react', effects: 'live' | 'static')\`: com \`live\` (padrão) o componente recria os efeitos animados; com \`static\` grava um PNG de cada efeito em \`assets/effects/\` (exige render).
+## Animated export
+- \`export(nodeIds, format: 'mp4' | 'webm' | 'gif', fps?, duration?, start?, maxWidth?, scale?)\`: renders the frames and encodes them with ffmpeg. Defaults: 30 fps (gif 15, max 30), 3 s, \`start\` 0; duration up to 30 s. Requires render and ffmpeg (\`MOCKUP_FFMPEG\` or the bundled ffmpeg).
+- mp4 is the most compatible, webm is smaller, gif suits a README (use \`maxWidth\` to shrink it).
+- \`export(format: 'react', effects: 'live' | 'static')\`: with \`live\` (default) the component recreates the animated effects; with \`static\` it writes a PNG of each effect to \`assets/effects/\` (requires render).
 `;

@@ -1,7 +1,7 @@
 /**
- * Lado do daemon da API de scripts: implementa os `method`s que o bootstrap do contexto chama
- * pela ponte (ver `worker-source.ts`). Tudo que entra aqui veio de código não confiável e já
- * atravessou como JSON: os argumentos são validados antes de tocar o documento.
+ * Daemon side of the scripts API: implements the `method`s that the context bootstrap calls
+ * over the bridge (see `worker-source.ts`). Everything that arrives here came from untrusted code and has already
+ * crossed as JSON: arguments are validated before touching the document.
  */
 import {
   createNodeFromTag,
@@ -25,7 +25,7 @@ const MAX_CREATE_NODES = 2000;
 const MAX_CREATE_DEPTH = 24;
 const MAX_SRC_IN_SNAPSHOT = 200;
 
-/** Visão JSON de um nó entregue ao script (predicados e `toJSON`). */
+/** JSON view of a node handed to the script (predicates and `toJSON`). */
 export interface NodeSnapshot {
   id: string;
   type: Node['type'];
@@ -80,7 +80,7 @@ function snapshotOf(
   };
 }
 
-/** Ids de nós tocados pelas ops (para o resumo da árvore no `run_script`). */
+/** Ids of nodes touched by the ops (for the tree summary in `run_script`). */
 export function touchedNodeIds(ops: readonly Op[]): string[] {
   const ids = new Set<string>();
   for (const op of ops) {
@@ -103,20 +103,20 @@ export function touchedNodeIds(ops: readonly Op[]): string[] {
 export interface ScriptHostOptions {
   store: DocumentStore;
   docId: string;
-  /** Seleção vista por `doc.selection()` (padrão: a do daemon). */
+  /** Selection seen by `doc.selection()` (default: the daemon's). */
   selection?: string[];
   group: string;
   source: 'editor' | 'mcp';
   render?: RenderProvider;
   /**
-   * Conferido antes de CADA chamada à API (e de cada escrita): falso = o dono da execução (ex.: o
-   * turno do assistente que disparou o script) terminou ou cancelou, e nada mais é aplicado.
+   * Checked before EACH API call (and each write): false = the owner of the run (e.g. the
+   * assistant turn that triggered the script) has finished or cancelled, and nothing more is applied.
    */
   alive?: () => boolean;
 }
 
-/** Mensagem de erro quando `alive()` fica falso no meio da execução. */
-export const TURN_ENDED_MESSAGE = 'O turno do assistente terminou; o script foi interrompido.';
+/** Error message when `alive()` turns false in the middle of a run. */
+export const TURN_ENDED_MESSAGE = 'The assistant turn ended; the script was interrupted.';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -124,7 +124,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 export class ScriptHost {
   opsCount = 0;
   readonly images: ScriptImage[] = [];
-  /** Verdadeiro depois do fim da execução: chamadas tardias (screenshot em andamento) são recusadas. */
+  /** True after the run ends: late calls (screenshot in progress) are rejected. */
   closed = false;
   private calls = 0;
 
@@ -134,7 +134,7 @@ export class ScriptHost {
     return this.o.store.get(this.o.docId);
   }
 
-  /** Recusa (sem aplicar nada) quando o dono da execução já não está ativo. */
+  /** Rejects (applying nothing) when the owner of the run is no longer active. */
   private assertAlive(): void {
     let ok = true;
     try {
@@ -146,10 +146,10 @@ export class ScriptHost {
   }
 
   async call(method: string, rawArgs: unknown): Promise<unknown> {
-    if (this.closed) throw new Error('A execução do script já terminou.');
+    if (this.closed) throw new Error('The script run has already finished.');
     this.assertAlive();
     if (++this.calls > MAX_CALLS) {
-      throw new Error(`O script fez chamadas demais à API do documento (limite ${MAX_CALLS}).`);
+      throw new Error(`The script made too many calls to the document API (limit ${MAX_CALLS}).`);
     }
     const args = isRecord(rawArgs) ? rawArgs : {};
     switch (method) {
@@ -182,14 +182,14 @@ export class ScriptHost {
       case 'setTokens':
         return this.setTokens(args['tokens']);
       default:
-        throw new Error(`Método desconhecido da API do documento: "${method}".`);
+        throw new Error(`Unknown document API method: "${method}".`);
     }
   }
 
   private str(args: Record<string, unknown>, key: string): string {
     const v = args[key];
     if (typeof v !== 'string' || !v)
-      throw new Error(`Argumento "${key}" inválido (esperava uma string).`);
+      throw new Error(`Invalid argument "${key}" (expected a string).`);
     return v;
   }
 
@@ -197,7 +197,7 @@ export class ScriptHost {
     const doc = this.doc;
     if (typeof pageId === 'string') {
       const page = doc.pages.find((p) => p.id === pageId);
-      if (!page) throw new Error(`Página não encontrada: "${pageId}".`);
+      if (!page) throw new Error(`Page not found: "${pageId}".`);
       return page.frames.map((f) => f.id);
     }
     return doc.pages.flatMap((p) => p.frames.map((f) => f.id));
@@ -212,7 +212,7 @@ export class ScriptHost {
   private nodes(within: unknown): NodeSnapshot[] {
     const doc = this.doc;
     const scope = typeof within === 'string' && within ? within : null;
-    if (scope && !findNode(doc, scope)) throw new Error(`Nó de escopo não encontrado: "${scope}".`);
+    if (scope && !findNode(doc, scope)) throw new Error(`Scope node not found: "${scope}".`);
     const out: NodeSnapshot[] = [];
     const visit = (
       n: Node,
@@ -232,7 +232,7 @@ export class ScriptHost {
   }
 
   private select(selector: unknown, within: unknown): string[] {
-    if (typeof selector !== 'string') throw new Error('Seletor inválido: esperava uma string.');
+    if (typeof selector !== 'string') throw new Error('Invalid selector: expected a string.');
     try {
       return selectIds(this.doc, selector, typeof within === 'string' ? within : null);
     } catch (e) {
@@ -248,7 +248,7 @@ export class ScriptHost {
   }
 
   private apply(ops: Op[]) {
-    // Ponto único de toda escrita (apply, create, setTokens, setters de nó): confere o turno de novo.
+    // Single point for every write (apply, create, setTokens, node setters): checks the turn again.
     this.assertAlive();
     const r = this.o.store.applyOps(this.o.docId, ops, {
       source: this.o.source,
@@ -260,9 +260,9 @@ export class ScriptHost {
   }
 
   private applyOps(raw: unknown): unknown[] {
-    if (!Array.isArray(raw)) throw new Error('doc.apply espera uma op ou um array de ops.');
+    if (!Array.isArray(raw)) throw new Error('doc.apply expects an op or an array of ops.');
     if (raw.length > MAX_OPS_PER_APPLY) {
-      throw new Error(`Ops demais numa só chamada (${raw.length}; limite ${MAX_OPS_PER_APPLY}).`);
+      throw new Error(`Too many ops in a single call (${raw.length}; limit ${MAX_OPS_PER_APPLY}).`);
     }
     if (raw.length === 0) return [];
     const ops = raw.map((o) => parseOp(o));
@@ -277,21 +277,21 @@ export class ScriptHost {
   private buildNode(spec: unknown, depth: number, budget: { left: number }, root: boolean): Node {
     if (!isRecord(spec))
       throw new Error(
-        'A descrição do nó deve ser um objeto { tag, name, text, style, attrs, children }.',
+        'The node description must be an object { tag, name, text, style, attrs, children }.',
       );
-    if (depth > MAX_CREATE_DEPTH) throw new Error('Árvore profunda demais em doc.create.');
+    if (depth > MAX_CREATE_DEPTH) throw new Error('Tree too deep in doc.create.');
     if (--budget.left < 0)
-      throw new Error(`Nós demais em doc.create (limite ${MAX_CREATE_NODES}).`);
+      throw new Error(`Too many nodes in doc.create (limit ${MAX_CREATE_NODES}).`);
     const tag = spec['tag'] === undefined ? 'div' : spec['tag'];
-    if (typeof tag !== 'string') throw new Error('"tag" deve ser uma string.');
+    if (typeof tag !== 'string') throw new Error('"tag" must be a string.');
     const strMap = (v: unknown, what: string): Record<string, string> | undefined => {
       if (v === undefined || v === null) return undefined;
-      if (!isRecord(v)) throw new Error(`"${what}" deve ser um objeto { nome: valor }.`);
+      if (!isRecord(v)) throw new Error(`"${what}" must be an object { name: value }.`);
       return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, String(x)]));
     };
     const optStr = (v: unknown, what: string): string | undefined => {
       if (v === undefined || v === null) return undefined;
-      if (typeof v !== 'string') throw new Error(`"${what}" deve ser uma string.`);
+      if (typeof v !== 'string') throw new Error(`"${what}" must be a string.`);
       return v;
     };
     const children = Array.isArray(spec['children'])
@@ -321,7 +321,7 @@ export class ScriptHost {
     if (parentId === null || parentId === undefined) {
       const node = this.buildNode(spec, 0, budget, true);
       const page = doc.pages[0];
-      if (!page) throw new Error('O documento não tem páginas.');
+      if (!page) throw new Error('The document has no pages.');
       if (!node.position) {
         const last = page.frames[page.frames.length - 1];
         const w = last ? parseFloat(last.style['width'] ?? '') : NaN;
@@ -334,7 +334,7 @@ export class ScriptHost {
       return node.id;
     }
     if (typeof parentId !== 'string' || !findNode(doc, parentId)) {
-      throw new Error(`Nó pai não encontrado: "${String(parentId)}".`);
+      throw new Error(`Parent node not found: "${String(parentId)}".`);
     }
     const node = this.buildNode(spec, 0, budget, false);
     const index =
@@ -345,7 +345,7 @@ export class ScriptHost {
 
   private setTokens(raw: unknown): Record<string, string> {
     if (!isRecord(raw))
-      throw new Error('doc.setTokens espera um objeto { "--nome": "valor" } (null remove).');
+      throw new Error('doc.setTokens expects an object { "--name": "value" } (null removes).');
     const set: Record<string, string> = {};
     const unset: string[] = [];
     for (const [k, v] of Object.entries(raw)) {
@@ -369,20 +369,20 @@ export class ScriptHost {
     const { render, store, docId } = this.o;
     if (!render) throw new Error(renderUnavailableMessage({ pid: process.pid }));
     if (this.images.length >= MAX_IMAGES) {
-      throw new Error(`Screenshots demais numa execução (limite ${MAX_IMAGES}).`);
+      throw new Error(`Too many screenshots in one run (limit ${MAX_IMAGES}).`);
     }
     const scale = args['scale'] ?? 1;
-    if (scale !== 1 && scale !== 2 && scale !== 3) throw new Error('scale deve ser 1, 2 ou 3.');
+    if (scale !== 1 && scale !== 2 && scale !== 3) throw new Error('scale must be 1, 2 or 3.');
     const format = args['format'] ?? 'png';
-    if (format !== 'png' && format !== 'jpg') throw new Error('format deve ser "png" ou "jpg".');
+    if (format !== 'png' && format !== 'jpg') throw new Error('format must be "png" or "jpg".');
     const doc = this.doc;
     let target = typeof args['nodeId'] === 'string' ? args['nodeId'] : undefined;
     if (!target) {
       target = this.selection()[0] ?? doc.pages.flatMap((p) => p.frames)[0]?.id;
-      if (!target) throw new Error('O documento não tem frames para capturar.');
+      if (!target) throw new Error('The document has no frames to capture.');
     }
     const rt = renderTargetFor(doc, target);
-    if (!rt) throw new Error(`Nó não encontrado: "${target}".`);
+    if (!rt) throw new Error(`Node not found: "${target}".`);
     let r;
     try {
       r = await render.capture({
@@ -394,11 +394,9 @@ export class ScriptHost {
         format,
       });
     } catch (e) {
-      throw new Error(
-        `Falha ao renderizar ${target}: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      throw new Error(`Failed to render ${target}: ${e instanceof Error ? e.message : String(e)}`);
     }
-    if (this.closed) throw new Error('A execução do script já terminou.');
+    if (this.closed) throw new Error('The script run has already finished.');
     this.assertAlive();
     const width = Math.round(r.width);
     const height = Math.round(r.height);

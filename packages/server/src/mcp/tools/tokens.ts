@@ -30,14 +30,14 @@ import { DESTRUCTIVE, READ, ToolError, WRITE, docIdField, type ToolContext } fro
 const nodeIdsField = z
   .array(z.string())
   .min(1)
-  .describe('Ids dos nós (veja get_tree_summary), ex.: ["fr_ab12cd34"].');
+  .describe('Node ids (see get_tree_summary), e.g. ["fr_ab12cd34"].');
 
 const themeNameField = (what: string) =>
-  z.string().min(1).describe(`${what}, ex.: "dark" (letras, dígitos, "-" e "_").`);
+  z.string().min(1).describe(`${what}, e.g. "dark" (letters, digits, "-" and "_").`);
 
 const GROUP_IDS = TOKEN_GROUPS.map((g) => g.id).join(', ');
 
-/** Mapa com as chaves normalizadas (`primary` vira `--primary`). */
+/** Map with normalized keys (`primary` becomes `--primary`). */
 function normalizeKeys<T>(map: Record<string, T> | undefined): Record<string, T> {
   return Object.fromEntries(Object.entries(map ?? {}).map(([k, v]) => [normalizeTokenName(k), v]));
 }
@@ -46,7 +46,7 @@ function requireTheme(doc: Document, name: string): void {
   if (doc.themes?.some((t) => t.name === name)) return;
   const have = (doc.themes ?? []).map((t) => t.name);
   throw new ToolError(
-    `Tema "${name}" não existe${have.length ? ` (existentes: ${have.join(', ')})` : ''}. Crie com create_theme({ name: "${name}" }).`,
+    `Theme "${name}" does not exist${have.length ? ` (existing: ${have.join(', ')})` : ''}. Create it with create_theme({ name: "${name}" }).`,
   );
 }
 
@@ -54,7 +54,7 @@ const quote = (names: string[]): string => names.join(', ');
 
 function tokenLine(t: TokenInfo, theme?: string): string {
   const shown = theme ? (t.resolvedByTheme[theme] ?? t.resolved) : t.resolved;
-  const parts = [`${t.name}: ${t.value ?? '(só nos temas)'}`];
+  const parts = [`${t.name}: ${t.value ?? '(themes only)'}`];
   if (shown !== undefined && shown !== t.value) parts.push(`=> ${shown}`);
   const own = Object.entries(t.themes);
   if (!theme && own.length) {
@@ -62,19 +62,19 @@ function tokenLine(t: TokenInfo, theme?: string): string {
       `[${own.map(([n, v]) => `${n}: ${v}${t.resolvedByTheme[n] && t.resolvedByTheme[n] !== v ? ` => ${t.resolvedByTheme[n]}` : ''}`).join('; ')}]`,
     );
   } else if (theme && theme in t.themes) {
-    parts.push('(sobrescrito no tema)');
+    parts.push('(overridden in the theme)');
   }
   const uses = t.usage.nodeIds.length + t.usage.tokens.length;
-  parts.push(uses > 0 ? `| ${uses} uso(s)` : '| não usado');
+  parts.push(uses > 0 ? `| ${uses} use(s)` : '| unused');
   if (t.description) parts.push(`| ${t.description}`);
   if (t.problem)
-    parts.push(`| ${t.problem.level === 'error' ? 'ERRO' : 'aviso'}: ${t.problem.message}`);
+    parts.push(`| ${t.problem.level === 'error' ? 'ERROR' : 'warning'}: ${t.problem.message}`);
   return parts.join(' ');
 }
 
 function reportText(report: TokenReport, group?: string, theme?: string): string {
   if (report.tokens.length === 0 && report.themes.length === 0) {
-    return 'Nenhum token definido. Crie com set_tokens({ tokens: { "--color-primary": "#2563eb" } }) e veja get_guide(\'tokens\').';
+    return 'No tokens defined. Create them with set_tokens({ tokens: { "--color-primary": "#2563eb" } }) and see get_guide(\'tokens\').';
   }
   const out: string[] = [];
   const wanted = group
@@ -88,11 +88,11 @@ function reportText(report: TokenReport, group?: string, theme?: string): string
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
   });
   out.push(
-    `${wanted.length} token(s)${group ? ` no grupo "${tokenGroupLabel(group)}"` : ''}${theme ? ` (valores no tema "${theme}")` : ''}.`,
+    `${wanted.length} token(s)${group ? ` in group "${tokenGroupLabel(group)}"` : ''}${theme ? ` (values in theme "${theme}")` : ''}.`,
   );
   if (group && wanted.length === 0) {
     out.push(
-      `Nenhum token nesse grupo. Grupos com tokens: ${order.map(tokenGroupLabel).join(', ') || '(nenhum)'}.`,
+      `No tokens in this group. Groups with tokens: ${order.map(tokenGroupLabel).join(', ') || '(none)'}.`,
     );
   }
   for (const g of order) {
@@ -102,23 +102,23 @@ function reportText(report: TokenReport, group?: string, theme?: string): string
     for (const t of list) out.push(tokenLine(t, theme));
   }
   if (!group) {
-    out.push('', `## Temas (${report.themes.length})`);
+    out.push('', `## Themes (${report.themes.length})`);
     if (report.themes.length === 0) {
-      out.push('Nenhum. Crie com create_theme({ name: "dark", overrides: { ... } }).');
+      out.push('None. Create one with create_theme({ name: "dark", overrides: { ... } }).');
     }
     for (const t of report.themes) {
       out.push(
-        `${t.name}: ${t.overrides} override(s); frames: ${t.frames.length ? t.frames.join(', ') : 'nenhum'}`,
+        `${t.name}: ${t.overrides} override(s); frames: ${t.frames.length ? t.frames.join(', ') : 'none'}`,
       );
     }
-    if (report.unused.length) out.push('', `Não usados: ${quote(report.unused)}`);
+    if (report.unused.length) out.push('', `Unused: ${quote(report.unused)}`);
     if (report.broken.length) {
-      out.push('', 'Referências quebradas:');
+      out.push('', 'Broken references:');
       for (const b of report.broken) {
         const where = b.nodeId
-          ? `nó ${b.nodeId} (${b.property})`
-          : `token ${b.token}${b.theme ? ` no tema ${b.theme}` : ''}`;
-        out.push(`- ${where} usa ${b.missing}, que não existe`);
+          ? `node ${b.nodeId} (${b.property})`
+          : `token ${b.token}${b.theme ? ` in theme ${b.theme}` : ''}`;
+        out.push(`- ${where} uses ${b.missing}, which does not exist`);
       }
     }
   }
@@ -131,23 +131,23 @@ export function registerTokenTools(ctx: ToolContext): void {
   tool(
     'get_tokens',
     {
-      title: 'Tokens do documento',
+      title: 'Document tokens',
       description:
-        'Design system do documento: tokens por grupo (valor, valor resolvido, descrição, usos, não usados, problemas), temas (overrides, frames) e referências quebradas. format "json" devolve o relatório estruturado.',
+        'Document design system: tokens by group (value, resolved value, description, uses, unused, problems), themes (overrides, frames) and broken references. format "json" returns the structured report.',
       example: { group: 'color', theme: 'dark' },
       inputSchema: {
         group: z
           .string()
           .optional()
-          .describe(`Só um grupo (${GROUP_IDS} ou grupo livre), ex.: "color".`),
+          .describe(`A single group (${GROUP_IDS} or a free-form group), e.g. "color".`),
         theme: z
           .string()
           .optional()
-          .describe('Mostra os valores resolvidos nesse tema, ex.: "dark".'),
+          .describe('Shows the values resolved in that theme, e.g. "dark".'),
         format: z
           .enum(['text', 'json'])
           .optional()
-          .describe('"text" (padrão) ou "json" (relatório estruturado).'),
+          .describe('"text" (default) or "json" (structured report).'),
         docId: docIdField,
       },
       annotations: READ,
@@ -171,34 +171,36 @@ export function registerTokenTools(ctx: ToolContext): void {
   tool(
     'set_tokens',
     {
-      title: 'Definir tokens',
+      title: 'Set tokens',
       description:
-        'Define/remove tokens (variáveis CSS); "--" é acrescentado se faltar. Com theme grava nas sobrescritas do tema; unset sem tema remove da base, dos metadados e dos temas. groups/descriptions guardam grupo e descrição. Aceita var(), calc(), color-mix().',
+        'Sets/removes tokens (CSS variables); "--" is added if missing. With theme it writes to the theme overrides; unset without a theme removes from the base, the metadata and the themes. groups/descriptions store group and description. Accepts var(), calc(), color-mix().',
       example: {
         tokens: { '--blue-600': '#2563eb', '--color-primary': 'var(--blue-600)' },
         groups: { '--blue-600': 'color' },
-        descriptions: { '--color-primary': 'Ação principal' },
+        descriptions: { '--color-primary': 'Primary action' },
       },
       inputSchema: {
         tokens: z
           .record(z.string(), z.string())
           .optional()
           .describe(
-            'Tokens a definir; o prefixo "--" é acrescentado se faltar ("primary" vira "--primary").',
+            'Tokens to set; the "--" prefix is added if missing ("primary" becomes "--primary").',
           ),
-        unset: z.array(z.string()).optional().describe('Tokens a remover, ex.: ["--old-color"].'),
+        unset: z.array(z.string()).optional().describe('Tokens to remove, e.g. ["--old-color"].'),
         theme: z
           .string()
           .optional()
-          .describe('Tema alvo (precisa existir): tokens/unset valem só nas sobrescritas dele.'),
+          .describe('Target theme (must exist): tokens/unset only apply to its overrides.'),
         groups: z
           .record(z.string(), z.string())
           .optional()
-          .describe(`Grupo por token, ex.: { "--brand": "color" } (${GROUP_IDS} ou livre).`),
+          .describe(`Group per token, e.g. { "--brand": "color" } (${GROUP_IDS} or free-form).`),
         descriptions: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Descrição por token (texto vazio apaga), ex.: { "--brand": "Cor da marca" }.'),
+          .describe(
+            'Description per token (empty text clears it), e.g. { "--brand": "Brand color" }.',
+          ),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -218,7 +220,7 @@ export function registerTokenTools(ctx: ToolContext): void {
         !Object.keys(descMap).length
       ) {
         throw new ToolError(
-          'Nada a fazer. Informe tokens, unset, groups e/ou descriptions. Ex.: tokens { "--color-primary": "#2563eb" }.',
+          'Nothing to do. Provide tokens, unset, groups and/or descriptions. E.g. tokens { "--color-primary": "#2563eb" }.',
         );
       }
       if (theme) requireTheme(doc, theme);
@@ -230,15 +232,15 @@ export function registerTokenTools(ctx: ToolContext): void {
       ]) {
         if (!/^--[A-Za-z0-9_-]+$/.test(k)) {
           throw new ToolError(
-            `Nome de token inválido: "${k}". Use letras, dígitos, "-" e "_", ex.: "--color-primary".`,
+            `Invalid token name: "${k}". Use letters, digits, "-" and "_", e.g. "--color-primary".`,
           );
         }
       }
       for (const [k, g] of Object.entries(groupMap)) {
-        if (!g.trim()) throw new ToolError(`Grupo vazio para ${k}. Use um de: ${GROUP_IDS}.`);
+        if (!g.trim()) throw new ToolError(`Empty group for ${k}. Use one of: ${GROUP_IDS}.`);
       }
 
-      // Documento hipotético com os novos valores: serve para resolver var() ao validar.
+      // Hypothetical document with the new values: used to resolve var() when validating.
       const draft: Document = theme
         ? {
             ...doc,
@@ -247,7 +249,7 @@ export function registerTokenTools(ctx: ToolContext): void {
             ),
           }
         : { ...doc, tokens: { ...doc.tokens, ...set } };
-      // `invalid` distingue ciclo/referência quebrada (inclusive entre tokens desta chamada) de inexistente.
+      // `invalid` tells a cycle/broken reference (including among tokens in this call) from a nonexistent one.
       const { vars, invalid } = resolvedTokensDetailed(draft, theme);
       const errors: string[] = [];
       const warnings: string[] = [];
@@ -260,7 +262,7 @@ export function registerTokenTools(ctx: ToolContext): void {
       }
       if (errors.length) {
         throw new ToolError(
-          `Nenhum token foi alterado; corrija o valor:\n${errors.map((e) => `- ${e}`).join('\n')}`,
+          `No token was changed; fix the value:\n${errors.map((e) => `- ${e}`).join('\n')}`,
         );
       }
 
@@ -298,7 +300,7 @@ export function registerTokenTools(ctx: ToolContext): void {
           !(doc.themes ?? []).some((t) => name in t.overrides)
         ) {
           throw new ToolError(
-            `Token "${name}" não existe; defina-o em tokens antes de dar grupo ou descrição.`,
+            `Token "${name}" does not exist; define it in tokens before giving it a group or description.`,
           );
         }
         const meta: TokenMeta = { ...doc.tokenMeta?.[name] };
@@ -312,20 +314,22 @@ export function registerTokenTools(ctx: ToolContext): void {
       }
       if (Object.keys(metaSet).length) ops.push({ type: 'setTokenMeta', set: metaSet });
       if (!ops.length) {
-        throw new ToolError(`Nada foi alterado: ${quote(missing)} não existe(m). Veja get_tokens.`);
+        throw new ToolError(
+          `Nothing was changed: ${quote(missing)} does not exist. See get_tokens.`,
+        );
       }
 
       const r = apply(id, ops, 'set_tokens');
       const out = [
-        `Tokens atualizados${theme ? ` no tema "${theme}"` : ''}: ${setNames.length} definido(s), ${unsetNames.length - missing.length} removido(s), ${Object.keys(metaSet).length} com metadados (${Object.keys(r.doc.tokens).length} tokens no total).`,
+        `Tokens updated${theme ? ` in theme "${theme}"` : ''}: ${setNames.length} set, ${unsetNames.length - missing.length} removed, ${Object.keys(metaSet).length} with metadata (${Object.keys(r.doc.tokens).length} tokens in total).`,
       ];
       const after = resolvedTokens(r.doc, theme);
       for (const [k, v] of Object.entries(set)) {
         const shown = after[k] === undefined ? undefined : evaluateCss(after[k]);
         out.push(`${k}: ${v}${shown !== undefined && shown !== v ? ` => ${shown}` : ''}`);
       }
-      if (missing.length) out.push(`Não existiam (ignorados): ${quote(missing)}`);
-      if (warnings.length) out.push('Avisos:', ...warnings.map((w) => `- ${w}`));
+      if (missing.length) out.push(`Did not exist (ignored): ${quote(missing)}`);
+      if (warnings.length) out.push('Warnings:', ...warnings.map((w) => `- ${w}`));
       return out.join('\n');
     },
   );
@@ -333,13 +337,13 @@ export function registerTokenTools(ctx: ToolContext): void {
   tool(
     'rename_token',
     {
-      title: 'Renomear token',
+      title: 'Rename token',
       description:
-        'Renomeia um token e atualiza todas as referências var(--antigo): estilos dos nós, outros tokens, temas e metadados.',
+        'Renames a token and updates all var(--old) references: node styles, other tokens, themes and metadata.',
       example: { from: '--color-brand', to: '--color-primary' },
       inputSchema: {
-        from: z.string().min(1).describe('Nome atual, ex.: "--color-brand".'),
-        to: z.string().min(1).describe('Nome novo (não pode existir), ex.: "--color-primary".'),
+        from: z.string().min(1).describe('Current name, e.g. "--color-brand".'),
+        to: z.string().min(1).describe('New name (must not exist), e.g. "--color-primary".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -350,24 +354,21 @@ export function registerTokenTools(ctx: ToolContext): void {
       const b = normalizeTokenName(to);
       const r = apply(id, [{ type: 'renameToken', from: a, to: b }], 'rename_token');
       const res = (r.results[0] ?? {}) as { nodes?: number; references?: number };
-      return `Token renomeado: ${a} -> ${b}. ${res.references ?? 0} referência(s) atualizada(s) em ${res.nodes ?? 0} nó(s).`;
+      return `Token renamed: ${a} -> ${b}. ${res.references ?? 0} reference(s) updated in ${res.nodes ?? 0} node(s).`;
     },
   );
 
   tool(
     'apply_token',
     {
-      title: 'Aplicar token',
+      title: 'Apply token',
       description:
-        'Liga uma propriedade CSS de um ou mais nós a um token: grava "propriedade: var(--token)". Devolve o valor resolvido e o resumo dos nós.',
+        'Binds a CSS property of one or more nodes to a token: writes "property: var(--token)". Returns the resolved value and the node summary.',
       example: { nodeIds: ['el_ab12cd34'], property: 'background', token: '--color-primary' },
       inputSchema: {
         nodeIds: nodeIdsField,
-        property: z
-          .string()
-          .min(1)
-          .describe('Propriedade CSS, ex.: "background" ou "border-radius".'),
-        token: z.string().min(1).describe('Token existente, ex.: "--color-primary".'),
+        property: z.string().min(1).describe('CSS property, e.g. "background" or "border-radius".'),
+        token: z.string().min(1).describe('Existing token, e.g. "--color-primary".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -379,27 +380,27 @@ export function registerTokenTools(ctx: ToolContext): void {
       const r = apply(id, ops, 'apply_token');
       const name = normalizeTokenName(token);
       const resolved = getTokenReport(r.doc).tokens.find((t) => t.name === name)?.resolved;
-      return `${property} = var(${name})${resolved ? ` (valor resolvido: ${resolved})` : ''} em ${nodeIds.length} nó(s).\n${ctx.summaryOf(r.doc, nodeIds)}`;
+      return `${property} = var(${name})${resolved ? ` (resolved value: ${resolved})` : ''} on ${nodeIds.length} node(s).\n${ctx.summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'create_theme',
     {
-      title: 'Criar tema',
+      title: 'Create theme',
       description:
-        'Cria um tema (ex.: "dark") com sobrescritas de tokens. Só liste o que muda; aliases acompanham. copyFrom parte das sobrescritas de outro tema. Aplique a frames com set_frame_theme.',
+        'Creates a theme (e.g. "dark") with token overrides. List only what changes; aliases follow along. copyFrom starts from another theme\'s overrides. Apply it to frames with set_frame_theme.',
       example: {
         name: 'dark',
         overrides: { '--color-surface': '#0f172a', '--color-text': '#f8fafc' },
       },
       inputSchema: {
-        name: themeNameField('Nome do tema'),
+        name: themeNameField('Theme name'),
         overrides: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Tokens sobrescritos, ex.: { "--color-surface": "#0f172a" }.'),
-        copyFrom: z.string().optional().describe('Tema existente de onde copiar as sobrescritas.'),
+          .describe('Overridden tokens, e.g. { "--color-surface": "#0f172a" }.'),
+        copyFrom: z.string().optional().describe('Existing theme to copy the overrides from.'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -408,8 +409,8 @@ export function registerTokenTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const ov = normalizeKeys(overrides);
-      // O plano já valida nome, duplicidade e copyFrom; ele traz o tema novo com as sobrescritas
-      // finais (copyFrom + overrides), que usamos num documento hipotético para resolver var().
+      // The plan already validates name, duplicates and copyFrom; it returns the new theme with the final
+      // overrides (copyFrom + overrides), which we use in a hypothetical document to resolve var().
       const planned = planCreateTheme(doc, name, { overrides: ov, copyFrom });
       const draft: Document = {
         ...doc,
@@ -424,15 +425,15 @@ export function registerTokenTools(ctx: ToolContext): void {
       }
       if (errors.length) {
         throw new ToolError(
-          `Tema não criado; corrija o valor:\n${errors.map((e) => `- ${e}`).join('\n')}`,
+          `Theme not created; fix the value:\n${errors.map((e) => `- ${e}`).join('\n')}`,
         );
       }
       const r = apply(id, planned, 'create_theme');
       const theme = r.doc.themes?.find((t) => t.name === name.trim());
       const out = [
-        `Tema "${name.trim()}" criado com ${Object.keys(theme?.overrides ?? {}).length} sobrescrita(s). Aplique com set_frame_theme({ nodeIds: [...], theme: "${name.trim()}" }).`,
+        `Theme "${name.trim()}" created with ${Object.keys(theme?.overrides ?? {}).length} override(s). Apply it with set_frame_theme({ nodeIds: [...], theme: "${name.trim()}" }).`,
       ];
-      if (warnings.length) out.push('Avisos:', ...warnings.map((w) => `- ${w}`));
+      if (warnings.length) out.push('Warnings:', ...warnings.map((w) => `- ${w}`));
       return out.join('\n');
     },
   );
@@ -440,10 +441,11 @@ export function registerTokenTools(ctx: ToolContext): void {
   tool(
     'delete_theme',
     {
-      title: 'Remover tema',
-      description: 'Remove um tema e tira o tema dos frames que o usavam (voltam aos tokens base).',
+      title: 'Delete theme',
+      description:
+        'Deletes a theme and removes it from the frames that used it (they go back to the base tokens).',
       example: { name: 'dark' },
-      inputSchema: { name: themeNameField('Tema a remover'), docId: docIdField },
+      inputSchema: { name: themeNameField('Theme to delete'), docId: docIdField },
       annotations: DESTRUCTIVE,
     },
     ({ name, docId }) => {
@@ -452,19 +454,19 @@ export function registerTokenTools(ctx: ToolContext): void {
       requireTheme(doc, name);
       const frames = getTokenReport(doc).themes.find((t) => t.name === name)?.frames ?? [];
       apply(id, planDeleteTheme(doc, name), 'delete_theme');
-      return `Tema "${name}" removido${frames.length ? `; ${frames.length} frame(s) voltaram aos tokens base (${frames.join(', ')})` : ''}.`;
+      return `Theme "${name}" deleted${frames.length ? `; ${frames.length} frame(s) went back to the base tokens (${frames.join(', ')})` : ''}.`;
     },
   );
 
   tool(
     'rename_theme',
     {
-      title: 'Renomear tema',
-      description: 'Renomeia um tema e atualiza o data-theme dos frames que o usam.',
+      title: 'Rename theme',
+      description: 'Renames a theme and updates the data-theme of the frames that use it.',
       example: { from: 'dark', to: 'night' },
       inputSchema: {
-        from: themeNameField('Nome atual'),
-        to: themeNameField('Nome novo'),
+        from: themeNameField('Current name'),
+        to: themeNameField('New name'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -475,23 +477,23 @@ export function registerTokenTools(ctx: ToolContext): void {
       requireTheme(doc, from);
       const frames = getTokenReport(doc).themes.find((t) => t.name === from)?.frames ?? [];
       apply(id, planRenameTheme(doc, from, to), 'rename_theme');
-      return `Tema renomeado: ${from} -> ${to.trim()} (${frames.length} frame(s) atualizado(s)).`;
+      return `Theme renamed: ${from} -> ${to.trim()} (${frames.length} frame(s) updated).`;
     },
   );
 
   tool(
     'set_frame_theme',
     {
-      title: 'Tema do frame',
+      title: 'Frame theme',
       description:
-        'Define o tema (atributo data-theme) de um ou mais frames; vale para o frame e os descendentes. theme null volta aos tokens base.',
+        'Sets the theme (data-theme attribute) of one or more frames; it applies to the frame and its descendants. theme null goes back to the base tokens.',
       example: { nodeIds: ['fr_ab12cd34'], theme: 'dark' },
       inputSchema: {
         nodeIds: nodeIdsField,
         theme: z
           .string()
           .nullable()
-          .describe('Nome do tema (veja get_tokens) ou null para os tokens base.'),
+          .describe('Theme name (see get_tokens) or null for the base tokens.'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -502,16 +504,16 @@ export function registerTokenTools(ctx: ToolContext): void {
       if (theme !== null) requireTheme(doc, theme);
       const ops = planSetFrameTheme(doc, nodeIds, theme);
       const r = apply(id, ops, 'set_frame_theme');
-      return `${nodeIds.length} frame(s) ${theme === null ? 'voltaram aos tokens base' : `usam o tema "${theme}"`}.\n${ctx.summaryOf(r.doc, nodeIds)}`;
+      return `${nodeIds.length} frame(s) ${theme === null ? 'went back to the base tokens' : `use theme "${theme}"`}.\n${ctx.summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'import_tokens',
     {
-      title: 'Importar tokens',
+      title: 'Import tokens',
       description:
-        'Importa tokens e temas de texto: CSS (:root, [data-theme="x"], @theme do Tailwind v4) ou JSON W3C Design Tokens. mode "merge" (padrão) mantém o que existe; "replace" troca o design system inteiro. Devolve contagens e avisos.',
+        'Imports tokens and themes from text: CSS (:root, [data-theme="x"], Tailwind v4 @theme) or W3C Design Tokens JSON. mode "merge" (default) keeps what exists; "replace" swaps the whole design system. Returns counts and warnings.',
       example: {
         content:
           ':root { --color-primary: #2563eb; }\n[data-theme="dark"] { --color-primary: #60a5fa; }',
@@ -519,15 +521,15 @@ export function registerTokenTools(ctx: ToolContext): void {
         mode: 'merge',
       },
       inputSchema: {
-        content: z.string().min(1).describe('Texto CSS ou JSON a importar.'),
+        content: z.string().min(1).describe('CSS or JSON text to import.'),
         format: z
           .enum(['css', 'json'])
           .optional()
-          .describe('"css" ou "json" (padrão: detectado pelo conteúdo).'),
+          .describe('"css" or "json" (default: detected from the content).'),
         mode: z
           .enum(['merge', 'replace'])
           .optional()
-          .describe('"merge" (padrão) mescla; "replace" substitui tokens, metadados e temas.'),
+          .describe('"merge" (default) merges; "replace" replaces tokens, metadata and themes.'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -540,21 +542,21 @@ export function registerTokenTools(ctx: ToolContext): void {
         set = parseTokens(content, format);
       } catch (e) {
         throw new ToolError(
-          `Não foi possível ler os tokens: ${e instanceof Error ? e.message : String(e)}. Passe format "css" ou "json" e o texto completo em content.`,
+          `Could not read the tokens: ${e instanceof Error ? e.message : String(e)}. Pass format "css" or "json" and the full text in content.`,
         );
       }
       const nTokens = Object.keys(set.tokens).length;
       if (nTokens === 0 && set.themes.length === 0) {
         throw new ToolError(
-          `Nenhum token encontrado no conteúdo.${set.warnings.length ? `\nAvisos:\n${set.warnings.map((w) => `- ${w}`).join('\n')}` : ''}`,
+          `No tokens found in the content.${set.warnings.length ? `\nWarnings:\n${set.warnings.map((w) => `- ${w}`).join('\n')}` : ''}`,
         );
       }
       const m = mode ?? 'merge';
       const r = apply(id, planImportTokens(doc, set, m), 'import_tokens');
       const out = [
-        `Importados (${m}): ${nTokens} token(s), ${set.themes.length} tema(s) [${set.themes.map((t) => t.name).join(', ')}]. O documento agora tem ${Object.keys(r.doc.tokens).length} token(s) e ${(r.doc.themes ?? []).length} tema(s).`,
+        `Imported (${m}): ${nTokens} token(s), ${set.themes.length} theme(s) [${set.themes.map((t) => t.name).join(', ')}]. The document now has ${Object.keys(r.doc.tokens).length} token(s) and ${(r.doc.themes ?? []).length} theme(s).`,
       ];
-      if (set.warnings.length) out.push('Avisos:', ...set.warnings.map((w) => `- ${w}`));
+      if (set.warnings.length) out.push('Warnings:', ...set.warnings.map((w) => `- ${w}`));
       return out.join('\n');
     },
   );
@@ -562,12 +564,12 @@ export function registerTokenTools(ctx: ToolContext): void {
   tool(
     'export_tokens',
     {
-      title: 'Exportar tokens',
+      title: 'Export tokens',
       description:
-        'Devolve o design system como texto: "css" (:root + [data-theme]), "json" (W3C Design Tokens, com grupos, descrições e temas) ou "tailwind" (@theme + @custom-variant).',
+        'Returns the design system as text: "css" (:root + [data-theme]), "json" (W3C Design Tokens, with groups, descriptions and themes) or "tailwind" (@theme + @custom-variant).',
       example: { format: 'css' },
       inputSchema: {
-        format: z.enum(['css', 'json', 'tailwind']).describe('"css", "json" ou "tailwind".'),
+        format: z.enum(['css', 'json', 'tailwind']).describe('"css", "json" or "tailwind".'),
         docId: docIdField,
       },
       annotations: READ,
@@ -575,7 +577,9 @@ export function registerTokenTools(ctx: ToolContext): void {
     ({ format, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       if (Object.keys(doc.tokens).length === 0 && !(doc.themes ?? []).length) {
-        throw new ToolError('O documento não tem tokens. Crie com set_tokens antes de exportar.');
+        throw new ToolError(
+          'The document has no tokens. Create them with set_tokens before exporting.',
+        );
       }
       return exportTokens(doc, format);
     },

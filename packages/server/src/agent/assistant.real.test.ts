@@ -13,14 +13,14 @@ import { startDaemon, type DaemonHandle } from '../index.js';
 import { ClaudeCliBackend } from './cli.js';
 
 /**
- * Teste de ponta a ponta com o Claude Code REAL da máquina (usa a conta logada: custa cota e leva
- * alguns segundos). Só roda com `MOCKUP_REAL_AGENT=1`; o CI e `npm test` o ignoram.
+ * End-to-end test with the machine's REAL Claude Code (uses the logged-in account: costs quota and
+ * takes a few seconds). Only runs with `MOCKUP_REAL_AGENT=1`; CI and `npm test` skip it.
  *
  *   MOCKUP_REAL_AGENT=1 npx vitest run packages/server/src/agent/assistant.real.test.ts
  */
 const enabled = process.env.MOCKUP_REAL_AGENT === '1';
 
-describe.skipIf(!enabled)('Assistente com o Claude Code real', () => {
+describe.skipIf(!enabled)('Assistant with the real Claude Code', () => {
   let dir: string;
   let daemon: DaemonHandle;
   let docId: string;
@@ -29,8 +29,8 @@ describe.skipIf(!enabled)('Assistente com o Claude Code real', () => {
   beforeEach(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-real-'));
     const button: Node = createNodeFromTag('button', {
-      name: 'Primário',
-      text: 'Comprar',
+      name: 'Primary',
+      text: 'Buy',
       styles: {
         background: '#2563eb',
         color: '#ffffff',
@@ -66,13 +66,13 @@ describe.skipIf(!enabled)('Assistente com o Claude Code real', () => {
 
   const styleOf = () => ({ ...findNode(daemon.store.get(docId), buttonId)!.node.style });
 
-  it('"deixe o botão primário mais destacado" muda o nó selecionado e um undo desfaz o turno', async () => {
+  it('"make the primary button stand out more" changes the selected node and one undo reverts the turn', async () => {
     const before = styleOf();
     daemon.store.setSelection(docId, [buttonId], 'editor');
 
     const msg = await daemon.services.assistant.runTurn(
       docId,
-      'deixe o botão primário mais destacado',
+      'make the primary button stand out more',
       { selection: [buttonId] },
     );
 
@@ -81,7 +81,7 @@ describe.skipIf(!enabled)('Assistente com o Claude Code real', () => {
     expect(msg.tools?.some((t) => t.name === 'update_styles')).toBe(true);
     expect(styleOf()).not.toEqual(before);
 
-    // um único Ctrl+Z desfaz o turno inteiro, mesmo com várias ferramentas
+    // a single Ctrl+Z undoes the whole turn, even with several tools
     expect(daemon.store.undo(docId, 'editor')).not.toBeNull();
     expect(styleOf()).toEqual(before);
     expect(daemon.store.undo(docId, 'editor')).toBeNull();

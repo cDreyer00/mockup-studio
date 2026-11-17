@@ -17,12 +17,12 @@ function parseArgs(argv: string[]) {
     if (a === '--port') {
       const n = Number(argv[++i]);
       if (!Number.isInteger(n) || n < 0 || n > 65535)
-        throw new Error('--port exige um número entre 0 e 65535.');
+        throw new Error('--port requires a number between 0 and 65535.');
       opts.port = n;
     } else if (a === '--host') opts.host = argv[++i];
     else if (a === '--headless') opts.headless = true;
     else if (a === '--data-dir') opts.dataDir = argv[++i];
-    else if (a.startsWith('--')) throw new Error(`Opção desconhecida: ${a}`);
+    else if (a.startsWith('--')) throw new Error(`Unknown option: ${a}`);
     else opts.openFiles.push(a);
   }
   return opts;
@@ -43,6 +43,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  console.error('[mockup-daemon] erro:', e instanceof Error ? e.message : e);
+  console.error('[mockup-daemon] error:', e instanceof Error ? e.message : e);
   process.exit(1);
 });

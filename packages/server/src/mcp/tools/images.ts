@@ -17,7 +17,7 @@ export const MAX_DATA_URL_BYTES = 2 * 1024 * 1024;
 
 export interface Loaded {
   bytes: Buffer;
-  /** Nome base sugerido para o arquivo (sem extensão confiável). */
+  /** Suggested base name for the file (without a trustworthy extension). */
   hint: string;
 }
 
@@ -25,9 +25,9 @@ export async function loadSource(source: string): Promise<Loaded> {
   const src = source.trim();
   if (src.startsWith('data:')) {
     const d = parseDataUrl(src);
-    if (!d) throw new ToolError('Data URL inválida. Ex.: "data:image/png;base64,iVBORw0...".');
-    if (d.bytes.length > MAX_ASSET_BYTES) throw new ToolError('A imagem passa do limite de 20 MB.');
-    return { bytes: d.bytes, hint: 'imagem' };
+    if (!d) throw new ToolError('Invalid data URL. E.g. "data:image/png;base64,iVBORw0...".');
+    if (d.bytes.length > MAX_ASSET_BYTES) throw new ToolError('The image exceeds the 20 MB limit.');
+    return { bytes: d.bytes, hint: 'image' };
   }
   if (/^https?:\/\//i.test(src)) {
     let r;
@@ -42,30 +42,30 @@ export async function loadSource(source: string): Promise<Loaded> {
       r.contentType !== 'application/octet-stream'
     ) {
       throw new ToolError(
-        `A URL devolveu "${r.contentType}", não uma imagem. Use o endereço direto do arquivo (png, jpg, gif, webp, svg, avif).`,
+        `The URL returned "${r.contentType}", not an image. Use the direct address of the file (png, jpg, gif, webp, svg, avif).`,
       );
     }
-    let hint = 'imagem';
+    let hint = 'image';
     try {
       hint = path.basename(new URL(r.finalUrl).pathname) || hint;
     } catch {
-      // mantém o padrão
+      // keep the default
     }
     return { bytes: r.bytes, hint };
   }
   if (!path.isAbsolute(src)) {
     throw new ToolError(
-      `source deve ser um caminho absoluto, URL http(s) ou data URL; recebido "${src}".`,
+      `source must be an absolute path, http(s) URL or data URL; received "${src}".`,
     );
   }
   let st: fs.Stats;
   try {
     st = await fs.promises.stat(src);
   } catch {
-    throw new ToolError(`Arquivo não encontrado: ${src}`);
+    throw new ToolError(`File not found: ${src}`);
   }
-  if (!st.isFile()) throw new ToolError(`"${src}" não é um arquivo.`);
-  if (st.size > MAX_ASSET_BYTES) throw new ToolError('A imagem passa do limite de 20 MB.');
+  if (!st.isFile()) throw new ToolError(`"${src}" is not a file.`);
+  if (st.size > MAX_ASSET_BYTES) throw new ToolError('The image exceeds the 20 MB limit.');
   return { bytes: await fs.promises.readFile(src), hint: path.basename(src) };
 }
 
@@ -75,39 +75,39 @@ export function registerImageTools(ctx: ToolContext): void {
   tool(
     'insert_image',
     {
-      title: 'Inserir imagem',
+      title: 'Insert image',
       description:
-        'Insere uma imagem (nó img) em parentId a partir de caminho absoluto, URL http(s) ou data URL; valida os bytes e copia para assets/. Sem width usa o tamanho intrínseco.',
+        'Inserts an image (img node) into parentId from an absolute path, http(s) URL or data URL; validates the bytes and copies it to assets/. Without width it uses the intrinsic size.',
       example: {
         parentId: 'fr_ab12cd34',
-        source: 'C:/fotos/capa.png',
-        alt: 'Capa',
+        source: 'C:/photos/cover.png',
+        alt: 'Cover',
         styles: { width: '320px' },
       },
       inputSchema: {
-        parentId: z.string().describe('Id do pai, ex.: "fr_ab12cd34".'),
+        parentId: z.string().describe('Parent id, e.g. "fr_ab12cd34".'),
         source: z
           .string()
           .describe(
-            'Caminho absoluto, URL http(s) ou data URL da imagem. Ex.: "C:/fotos/capa.png".',
+            'Absolute path, http(s) URL or data URL of the image. E.g. "C:/photos/cover.png".',
           ),
         alt: z
           .string()
           .optional()
-          .describe('Texto alternativo (atributo alt), ex.: "Foto de capa".'),
+          .describe('Alternative text (alt attribute), e.g. "Cover photo".'),
         styles: z
           .record(z.string(), z.string())
           .optional()
           .describe(
-            'Estilos CSS, ex.: { "width": "320px", "border-radius": "12px", "object-fit": "cover" }.',
+            'CSS styles, e.g. { "width": "320px", "border-radius": "12px", "object-fit": "cover" }.',
           ),
-        name: z.string().optional().describe('Nome da camada, ex.: "Foto de capa".'),
+        name: z.string().optional().describe('Layer name, e.g. "Cover photo".'),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
+          .describe('Position among the children, e.g. 0 (default: end).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -119,14 +119,14 @@ export function registerImageTools(ctx: ToolContext): void {
       const info: ImageInfo | null = detectImage(bytes);
       if (!info) {
         throw new ToolError(
-          'O conteúdo não é uma imagem reconhecida (PNG, JPEG, GIF, WebP, SVG ou AVIF). Confira o arquivo ou a URL.',
+          'The content is not a recognized image (PNG, JPEG, GIF, WebP, SVG or AVIF). Check the file or the URL.',
         );
       }
       const assets = store.assetsDir(id);
       let src: string;
       let where: string;
       if (assets) {
-        const stem = hint.replace(/\.[^.]*$/, '') || 'imagem';
+        const stem = hint.replace(/\.[^.]*$/, '') || 'image';
         const safe = sanitizeAssetName(`${stem}${info.ext}`);
         const file = await writeAsset(assets, `${safe.base}${safe.ext}`, bytes);
         src = file;
@@ -134,11 +134,11 @@ export function registerImageTools(ctx: ToolContext): void {
       } else {
         if (bytes.length > MAX_DATA_URL_BYTES) {
           throw new ToolError(
-            'O documento ainda não tem caminho em disco e a imagem passa de 2 MB para embutir. Salve o documento (create_document ou Salvar como) e tente de novo.',
+            'The document has no path on disk yet and the image exceeds 2 MB for embedding. Save the document (create_document or Save As) and try again.',
           );
         }
         src = `data:${info.mime};base64,${bytes.toString('base64')}`;
-        where = 'data URL embutida';
+        where = 'embedded data URL';
       }
       const st = { ...(styles ?? {}) };
       if (!st['width'] && info.width && info.height) {
@@ -146,23 +146,23 @@ export function registerImageTools(ctx: ToolContext): void {
         if (!st['height']) st['height'] = `${info.height}px`;
       }
       const node = createNodeFromTag('img', {
-        name: name ?? 'Imagem',
+        name: name ?? 'Image',
         src,
         attrs: alt !== undefined ? { alt } : {},
         styles: st,
       });
       const r = apply(id, [{ type: 'createNode', parentId, node, index }], 'insert_image');
       const dims = info.width ? ` ${info.width}x${info.height} px` : '';
-      return `Imagem inserida: ${node.id} (${info.mime}${dims}, ${Math.max(1, Math.round(bytes.length / 1024))} KB) em ${parentId}; arquivo: ${where}.\n${summaryOf(r.doc, [parentId])}`;
+      return `Image inserted: ${node.id} (${info.mime}${dims}, ${Math.max(1, Math.round(bytes.length / 1024))} KB) in ${parentId}; file: ${where}.\n${summaryOf(r.doc, [parentId])}`;
     },
   );
 
   tool(
     'insert_icon',
     {
-      title: 'Inserir ícone',
+      title: 'Insert icon',
       description:
-        'Insere um ícone (nó svg) do Lucide ou Heroicons. name: "arrow-right", "lucide/..." ou "heroicons/..." (sem kit: Lucide, depois Heroicons). Heroicons sem sufixo = outline; "-solid", "-20-solid", "-16-solid" = preenchidos. Sem color usa a cor do texto do pai. Veja search_icons.',
+        'Inserts an icon (svg node) from Lucide or Heroicons. name: "arrow-right", "lucide/..." or "heroicons/..." (without kit: Lucide, then Heroicons). Heroicons without a suffix = outline; "-solid", "-20-solid", "-16-solid" = filled. Without color it uses the parent\'s text color. See search_icons.',
       example: {
         parentId: 'el_ab12cd34',
         name: 'heroicons/arrow-right',
@@ -170,35 +170,35 @@ export function registerImageTools(ctx: ToolContext): void {
         color: '#0f172a',
       },
       inputSchema: {
-        parentId: z.string().describe('Id do pai, ex.: "el_ab12cd34".'),
+        parentId: z.string().describe('Parent id, e.g. "el_ab12cd34".'),
         name: z
           .string()
-          .describe('Nome do ícone, ex.: "arrow-right", "lucide/search", "heroicons/user-solid".'),
+          .describe('Icon name, e.g. "arrow-right", "lucide/search", "heroicons/user-solid".'),
         kit: z
           .enum(['lucide', 'heroicons'])
           .optional()
           .describe(
-            'Kit, ex.: "heroicons" (padrão: pelo prefixo do nome; sem prefixo, Lucide e depois Heroicons).',
+            'Kit, e.g. "heroicons" (default: from the name prefix; without a prefix, Lucide then Heroicons).',
           ),
-        size: z.number().positive().optional().describe('Tamanho em px, ex.: 24 (padrão 24).'),
+        size: z.number().positive().optional().describe('Size in px, e.g. 24 (default 24).'),
         color: z
           .string()
           .optional()
-          .describe('Cor do ícone, ex.: "#0f172a" (padrão: cor do texto do pai).'),
+          .describe('Icon color, e.g. "#0f172a" (default: the parent\'s text color).'),
         stroke_width: z
           .number()
           .positive()
           .max(6)
           .optional()
           .describe(
-            'Espessura do traço (só Lucide e Heroicons outline), maior que 0 e até 6, ex.: 1.5 (padrão: 2 no Lucide, 1.5 no Heroicons).',
+            'Stroke width (Lucide and outline Heroicons only), greater than 0 and up to 6, e.g. 1.5 (default: 2 in Lucide, 1.5 in Heroicons).',
           ),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
+          .describe('Position among the children, e.g. 0 (default: end).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -211,13 +211,13 @@ export function registerImageTools(ctx: ToolContext): void {
       if (!ref) {
         const sug = await suggestSimilarIcons(name, { kit, limit: 6 });
         throw new ToolError(
-          `Ícone "${name}" não existe${kit ? ` no kit ${kit}` : ' (Lucide, Heroicons)'}.${sug.length ? ` Parecidos: ${sug.join(', ')}.` : ''} Use search_icons(query) para procurar.`,
+          `Icon "${name}" does not exist${kit ? ` in the ${kit} kit` : ' (Lucide, Heroicons)'}.${sug.length ? ` Similar: ${sug.join(', ')}.` : ''} Use search_icons(query) to search.`,
         );
       }
       let stroke = color?.trim();
       if (stroke) {
         if (!/^[#a-zA-Z0-9(),.%\s/-]+$/.test(stroke))
-          throw new ToolError(`Cor inválida: "${color}". Ex.: "#6c5ce7" ou "rgb(0 0 0)".`);
+          throw new ToolError(`Invalid color: "${color}". E.g. "#6c5ce7" or "rgb(0 0 0)".`);
       } else {
         const inherited = getComputedLike(doc, parentId)['color']?.trim();
         stroke =
@@ -233,39 +233,39 @@ export function registerImageTools(ctx: ToolContext): void {
       });
       const label = `${ref.kit}/${ref.name}`;
       const node = createNodeFromTag('svg', {
-        name: `Ícone ${label}`,
+        name: `Icon ${label}`,
         svg,
         styles: { width: `${px}px`, height: `${px}px` },
       });
       const r = apply(id, [{ type: 'createNode', parentId, node, index }], 'insert_icon');
       const ignored =
         stroke_width !== undefined && !isStrokeIcon(ref)
-          ? ' stroke_width ignorado: ícone preenchido (solid).'
+          ? ' stroke_width ignored: filled (solid) icon.'
           : '';
-      return `Ícone "${label}" inserido: ${node.id} (${px}px, cor ${stroke}) em ${parentId}.${ignored}\n${summaryOf(r.doc, [parentId])}`;
+      return `Icon "${label}" inserted: ${node.id} (${px}px, color ${stroke}) in ${parentId}.${ignored}\n${summaryOf(r.doc, [parentId])}`;
     },
   );
 
   tool(
     'search_icons',
     {
-      title: 'Buscar ícones (Lucide, Heroicons)',
+      title: 'Search icons (Lucide, Heroicons)',
       description:
-        'Busca ícones offline por nome ou tag (em inglês) no Lucide, no Heroicons ou nos dois (kit "all", padrão). Devolve linhas "- kit/nome (tags)" para usar em insert_icon. No Heroicons as tags são o estilo: outline, solid, 20-solid, 16-solid.',
+        'Searches icons offline by name or tag (in English) in Lucide, Heroicons or both (kit "all", the default). Returns "- kit/name (tags)" lines to use with insert_icon. In Heroicons the tags are the style: outline, solid, 20-solid, 16-solid.',
       example: { query: 'cart', kit: 'all', limit: 10 },
       inputSchema: {
-        query: z.string().min(1).describe('Termo de busca, ex.: "cart".'),
+        query: z.string().min(1).describe('Search term, e.g. "cart".'),
         kit: z
           .enum(['lucide', 'heroicons', 'all'])
           .optional()
-          .describe('Kit a pesquisar, ex.: "heroicons" (padrão "all").'),
+          .describe('Kit to search, e.g. "heroicons" (default "all").'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(100)
           .optional()
-          .describe('Máximo de resultados, de 1 a 100, ex.: 10 (padrão 20).'),
+          .describe('Maximum results, from 1 to 100, e.g. 10 (default 20).'),
       },
       annotations: READ,
     },
@@ -276,10 +276,10 @@ export function registerImageTools(ctx: ToolContext): void {
           kit: kit && kit !== 'all' ? kit : undefined,
           limit: 5,
         });
-        return `Nenhum ícone para "${query}".${sug.length ? ` Parecidos: ${sug.join(', ')}.` : ''}`;
+        return `No icons for "${query}".${sug.length ? ` Similar: ${sug.join(', ')}.` : ''}`;
       }
       return (
-        `${hits.length} ícone(s) para "${query}":\n` +
+        `${hits.length} icon(s) for "${query}":\n` +
         hits
           .map(
             (h) =>

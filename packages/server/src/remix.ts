@@ -1,7 +1,7 @@
 /**
- * Remix: variações de um nó lado a lado. Os tipos locais (`color-scale`, `font-pairs`, `spacing`,
- * `layout`) são planejados pelo core (`planRemix`) e aplicados numa única entrada de undo; o `ai`
- * pede ao assistente que crie as variações num turno (todas as ops do turno viram um grupo).
+ * Remix: side-by-side variations of a node. The local kinds (`color-scale`, `font-pairs`, `spacing`,
+ * `layout`) are planned by core (`planRemix`) and applied in a single undo entry; `ai`
+ * asks the assistant to create the variations in one turn (all the turn's ops become one group).
  */
 import { randomUUID } from 'node:crypto';
 import {
@@ -18,20 +18,20 @@ import type { DocumentStore } from './store.js';
 
 export interface RemixServiceOptions {
   assistant?: AssistantServiceApi;
-  /** Fontes instaladas no sistema (padrão: `listSystemFonts`, com cache). Injetável nos testes. */
+  /** Fonts installed on the system (default: `listSystemFonts`, cached). Injectable in tests. */
   systemFonts?: () => Promise<{ family: string }[]>;
 }
 
 export const REMIX_MAX_COUNT = 10;
-/** Quantidade de variações do `ai` quando `count` não é informado. */
+/** Number of `ai` variations when `count` is not given. */
 export const AI_REMIX_DEFAULT_COUNT = 3;
 
 const KIND_LABEL: Record<RemixKind, string> = {
-  'color-scale': 'escala de cor',
-  'font-pairs': 'pares de fontes',
-  spacing: 'espaçamento',
+  'color-scale': 'color scale',
+  'font-pairs': 'font pairs',
+  spacing: 'spacing',
   layout: 'layout',
-  ai: 'com IA',
+  ai: 'with AI',
 };
 
 const KINDS = Object.keys(KIND_LABEL);
@@ -39,7 +39,9 @@ const KINDS = Object.keys(KIND_LABEL);
 function checkCount(count: number | undefined): number | undefined {
   if (count === undefined) return undefined;
   if (!Number.isInteger(count) || count < 1 || count > REMIX_MAX_COUNT)
-    throw new Error(`count inválido (${String(count)}): use um inteiro de 1 a ${REMIX_MAX_COUNT}.`);
+    throw new Error(
+      `Invalid count (${String(count)}): use an integer from 1 to ${REMIX_MAX_COUNT}.`,
+    );
   return count;
 }
 
@@ -49,9 +51,9 @@ export class RemixService implements RemixServiceApi {
     readonly opts: RemixServiceOptions = {},
   ) {}
 
-  /** Mensagem WS `remix` (origem: editor). */
+  /** WS `remix` message (origin: editor). */
   async handle(msg: ClientMessage): Promise<unknown> {
-    if (msg.type !== 'remix') throw new Error(`Mensagem não tratada pelo remix: "${msg.type}".`);
+    if (msg.type !== 'remix') throw new Error(`Message not handled by remix: "${msg.type}".`);
     return this.run(msg.docId, msg.nodeId, msg.kind, {
       count: msg.count,
       prompt: msg.prompt,
@@ -66,7 +68,7 @@ export class RemixService implements RemixServiceApi {
     opts: RemixOptions = {},
   ): Promise<RemixResult> {
     if (!KINDS.includes(kind))
-      throw new Error(`Tipo de remix inválido: "${String(kind)}". Use ${KINDS.join(', ')}.`);
+      throw new Error(`Invalid remix kind: "${String(kind)}". Use ${KINDS.join(', ')}.`);
     const count = checkCount(opts.count);
     const source = opts.source ?? 'editor';
     if (kind === 'ai') return this.runAi(docId, nodeId, count, opts, source);
@@ -86,15 +88,15 @@ export class RemixService implements RemixServiceApi {
   }
 
   /**
-   * Famílias disponíveis localmente: as do documento (embutidas ou registradas) e as instaladas no
-   * sistema. `undefined` (sem filtro) quando não há como saber.
+   * Families available locally: the document's (embedded or registered) and those installed on the
+   * system. `undefined` (no filter) when it cannot be determined.
    */
   private async localFonts(doc: Document): Promise<string[] | undefined> {
     let system: { family: string }[] = [];
     try {
       system = await (this.opts.systemFonts ?? listSystemFonts)();
     } catch {
-      // listagem indisponível: usa só as do documento
+      // listing unavailable: use only the document's
     }
     const families = new Set([...doc.fonts, ...system].map((f) => f.family));
     return families.size > 0 ? [...families] : undefined;
@@ -109,22 +111,20 @@ export class RemixService implements RemixServiceApi {
   ): Promise<RemixResult> {
     const assistant = this.opts.assistant;
     if (!assistant)
-      throw new Error(
-        'O assistente de IA não está disponível neste daemon: o remix com IA precisa dele.',
-      );
+      throw new Error('The AI assistant is not available in this daemon: AI remix needs it.');
     const prompt = opts.prompt?.trim();
     if (!prompt)
       throw new Error(
-        'O remix com IA exige "prompt": descreva como as variações devem diferir. Ex.: "versões mais ousadas, com mais contraste".',
+        'AI remix requires "prompt": describe how the variations should differ. E.g. "bolder versions, with more contrast".',
       );
     if (nodeId.includes('/'))
       throw new Error(
-        `O nó "${nodeId}" está dentro de uma instância de componente e não pode ser remixado. Escolha um nó real.`,
+        `Node "${nodeId}" is inside a component instance and cannot be remixed. Pick a real node.`,
       );
     const path = findNode(this.store.get(docId), nodeId);
     if (!path)
       throw new Error(
-        `Nó não encontrado: "${nodeId}". Use get_basic_info ou get_tree_summary para ver os ids.`,
+        `Node not found: "${nodeId}". Use get_basic_info or get_tree_summary to see the ids.`,
       );
     const frame = path.ancestors[0] ?? path.node;
     const pageId = path.page.id;
@@ -132,18 +132,18 @@ export class RemixService implements RemixServiceApi {
     const n = count ?? AI_REMIX_DEFAULT_COUNT;
 
     const instructions = [
-      `REMIX COM IA: crie ${n} variação(ões) do frame raiz que contém o nó ${nodeId} (frame ${frame.id} "${frame.name}"), lado a lado à direita dele, conforme o pedido do usuário.`,
-      'Para cada variação i (de 1 a ' + n + '):',
-      `1. Duplique o frame ${frame.id} com duplicate_nodes (a cópia traz todos os descendentes).`,
-      '2. Posicione a cópia com set_position, na mesma linha (mesmo y) do frame original, à direita de TODOS os frames da página que se sobrepõem a essa linha (use get_basic_info para ver posições e tamanhos), com 80 px entre as cópias.',
-      `3. Renomeie a cópia para "${frame.name} — variação i" (rename_nodes).`,
-      '4. Altere a cópia conforme o pedido; cada variação deve ser claramente diferente das outras.',
-      '5. Confira com get_screenshot e corrija se preciso.',
-      'Não altere nem mova o frame original nem os outros frames. Termine com uma frase curta por variação.',
+      `AI REMIX: create ${n} variation(s) of the root frame that contains node ${nodeId} (frame ${frame.id} "${frame.name}"), side by side to its right, as the user requested.`,
+      'For each variation i (from 1 to ' + n + '):',
+      `1. Duplicate frame ${frame.id} with duplicate_nodes (the copy includes all descendants).`,
+      '2. Position the copy with set_position, on the same row (same y) as the original frame, to the right of ALL the page frames that overlap that row (use get_basic_info to see positions and sizes), with 80 px between copies.',
+      `3. Rename the copy to "${frame.name} — variation i" (rename_nodes).`,
+      '4. Change the copy as requested; each variation must be clearly different from the others.',
+      '5. Check with get_screenshot and fix if needed.',
+      'Do not change or move the original frame or the other frames. Finish with one short sentence per variation.',
     ].join('\n');
 
-    // Grupo próprio (ou o de quem chamou): as variações são os frames criados pelas ops DESTE
-    // grupo, não qualquer frame novo da página (o usuário pode criar frames durante o turno).
+    // Own group (or the caller's): the variations are the frames created by THIS
+    // group's ops, not any new frame on the page (the user may create frames during the turn).
     const ownGroup = !opts.group;
     const group = opts.group ?? `remix:${randomUUID()}`;
     let message;
@@ -168,8 +168,8 @@ export class RemixService implements RemixServiceApi {
       throw new Error(
         message.error ??
           (message.status === 'cancelled'
-            ? 'O turno do assistente foi cancelado antes de criar as variações.'
-            : 'O turno do assistente falhou antes de criar as variações.'),
+            ? 'The assistant turn was canceled before creating the variations.'
+            : 'The assistant turn failed before creating the variations.'),
       );
     if (frameIds.length > 0) this.store.setSelection(docId, frameIds, source);
     return { frameIds, labels: created.map((f) => f.name), turnId: message.turnId };
