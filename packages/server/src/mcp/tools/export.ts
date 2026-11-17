@@ -5,6 +5,7 @@ import {
   exportHtml,
   exportReact,
   exportSvg,
+  expandRepeaters,
   exportTailwind,
   tailwindThemeCss,
   type Document,
@@ -50,7 +51,8 @@ function collect(node: Node, out: Set<string>): void {
 /** Arquivos de `assets/` usados pelos nós (imagens, fundos) e pelas fontes embutidas do documento. */
 export function usedAssets(doc: Document, nodes: Node[]): string[] {
   const out = new Set<string>();
-  for (const n of nodes) collect(n, out);
+  // repetidores expandem antes: srcs vindos dos dados também entram
+  for (const n of nodes) collect(expandRepeaters(n), out);
   for (const f of doc.fonts) for (const file of f.files ?? []) out.add(file);
   return [...out];
 }
