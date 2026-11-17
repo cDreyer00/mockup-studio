@@ -5,6 +5,7 @@ import { AppearanceSection } from './AppearanceSection';
 import { AttrsSection } from './AttrsSection';
 import { CssSection } from './CssSection';
 import { DocumentInfo } from './DocumentInfo';
+import { EffectSection } from './EffectSection';
 import { EffectsSection } from './EffectsSection';
 import { HeaderSection } from './HeaderSection';
 import { LayoutSection } from './LayoutSection';
@@ -41,6 +42,7 @@ export function PropertiesPanel() {
         {container && <LayoutSection ctxs={ctxs} />}
         <TypographySection nodes={nodes} />
         <AppearanceSection nodes={nodes} />
+        <EffectSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
         <AttrsSection ctxs={ctxs} />
         {nodes.length === 1 && <CssSection node={nodes[0]!} />}
