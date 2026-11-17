@@ -111,6 +111,70 @@ describe('planSetClasses', () => {
     expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBe('0.5rem');
     expect(findNode(next, 'el_plan0002')!.node.style['margin-block-end']).toBeUndefined();
   });
+
+  it('replace num nó absoluto mantém position/left/top', () => {
+    const doc = fixture();
+    const card = findNode(doc, 'el_plan0001')!.node;
+    card.style = { ...card.style, position: 'absolute', left: '10px', top: '20px' };
+    const { node } = plan(doc, 'p-2', 'replace');
+    expect(node.style.position).toBe('absolute');
+    expect(node.style.left).toBe('10px');
+    expect(node.style.top).toBe('20px');
+    expect(node.style['background-color']).toBeUndefined();
+  });
+
+  it('replace com classes que definem left não o sobrescreve com o antigo', () => {
+    const doc = fixture();
+    const card = findNode(doc, 'el_plan0001')!.node;
+    card.style = { ...card.style, position: 'absolute', left: '10px', top: '20px' };
+    const { node } = plan(doc, 'absolute left-4', 'replace');
+    expect(node.style.left).toBe('1rem');
+    expect(node.style.top).toBe('20px');
+  });
+
+  describe('classes dos filhos ao sair', () => {
+    function parentDoc(classes: string) {
+      const doc = fixture();
+      const parent = findNode(doc, 'fr_plan0001')!.node;
+      const second = createNodeFromTag('div');
+      second.id = 'el_plan0002';
+      parent.children.push(second);
+      const p0 = planSetClasses([{ node: parent, root: true }], classes, engine, 'add');
+      const withKids = applyOps(doc, p0.ops).doc;
+      return withKids;
+    }
+    const run = (doc: Document, classes: string, mode: SetClassesMode) => {
+      const parent = findNode(doc, 'fr_plan0001')!.node;
+      const p = planSetClasses([{ node: parent, root: true }], classes, engine, mode);
+      return applyOps(doc, p.ops).doc;
+    };
+
+    it('remove space-y-4 limpa a margem dos filhos', () => {
+      const doc = parentDoc('space-y-4');
+      expect(findNode(doc, 'el_plan0001')!.node.style['margin-block-end']).toBe('1rem');
+      const next = run(doc, 'space-y-4', 'remove');
+      expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBeUndefined();
+    });
+
+    it('replace space-y-4 por space-y-2 troca a margem', () => {
+      const doc = parentDoc('space-y-4');
+      const next = run(doc, 'space-y-2', 'replace');
+      expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBe('0.5rem');
+    });
+
+    it('replace sem classe de filhos limpa a margem', () => {
+      const doc = parentDoc('space-y-4');
+      const next = run(doc, 'flex', 'replace');
+      expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBeUndefined();
+    });
+
+    it('valor editado manualmente no filho é preservado', () => {
+      const doc = parentDoc('space-y-4');
+      findNode(doc, 'el_plan0001')!.node.style['margin-block-end'] = '7px';
+      const next = run(doc, 'space-y-4', 'remove');
+      expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBe('7px');
+    });
+  });
 });
 
 describe('detectTailwind', () => {

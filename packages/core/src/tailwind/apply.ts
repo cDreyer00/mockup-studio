@@ -154,6 +154,16 @@ function styleDiff(
   return change;
 }
 
+/** Propriedades de posicionamento preservadas por `replace` quando o nó tem `position`. */
+const POSITION_PROPS = ['position', 'left', 'top', 'right', 'bottom', 'z-index'] as const;
+
+type ChildStyles = NonNullable<TailwindStyles['children']>;
+
+/** Propriedades gravadas num filho (`all` + `notLast` se não for o último). */
+function childExtra(c: ChildStyles | undefined, last: boolean): Record<string, string> {
+  return { ...(c?.all ?? {}), ...(last ? {} : (c?.notLast ?? {})) };
+}
+
 /** Propriedades que as classes produzem (base e por estado). */
 function producedProps(r: TailwindStyles): { base: Set<string>; states: Map<string, Set<string>> } {
   const states = new Map<string, Set<string>>();
@@ -207,6 +217,12 @@ export function planSetClasses(
           if (style[k] === undefined && node.style[k] !== undefined) style[k] = node.style[k];
         }
       }
+      // Posicionamento absoluto do modelo (`position` + left/top): as classes novas não o apagam.
+      if (node.style.position !== undefined) {
+        for (const k of POSITION_PROPS) {
+          if (style[k] === undefined && node.style[k] !== undefined) style[k] = node.style[k];
+        }
+      }
     } else if (mode === 'add') {
       const newProps = producedProps(add);
       const infos = engine.inspect(old.join(' '));
@@ -254,15 +270,29 @@ export function planSetClasses(
       classChanges.push({ nodeId: node.id, classes: joined || null });
     finalClasses[node.id] = joined;
 
-    // Classes de filhos (`space-y-2`, `*:p-2`): ao acrescentar ou trocar, valem para os filhos.
-    if (mode !== 'remove' && add.children) {
+    // Classes de filhos (`space-y-2`, `*:p-2`): as antigas que saem limpam o que gravaram (se o
+    // filho ainda tem o valor delas) e as novas/restantes valem para os filhos.
+    let oldKids: ChildStyles | undefined;
+    let newKids: ChildStyles | undefined = mode === 'remove' ? undefined : add.children;
+    if (mode === 'replace') {
+      oldKids = engine.classesToStyles(old.join(' ')).children;
+    } else if (mode === 'remove') {
+      oldKids = engine.classesToStyles(old.filter((c) => given.includes(c)).join(' ')).children;
+      newKids = engine.classesToStyles(next.join(' ')).children;
+    }
+    if (oldKids || newKids) {
       node.children.forEach((child, i) => {
         const last = i === node.children.length - 1;
-        const extra = {
-          ...(add.children!.all ?? {}),
-          ...(last ? {} : (add.children!.notLast ?? {})),
-        };
-        const cd = styleDiff(child.id, child.style, { ...child.style, ...extra });
+        const was = childExtra(oldKids, last);
+        const now = childExtra(newKids, last);
+        const out = { ...child.style };
+        for (const [p, v] of Object.entries(was)) {
+          if (out[p] === v) delete out[p];
+        }
+        for (const [p, v] of Object.entries(now)) {
+          if (mode !== 'remove' || p in was) out[p] = v;
+        }
+        const cd = styleDiff(child.id, child.style, out);
         if (cd) styleChanges.push(cd);
       });
     }
