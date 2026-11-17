@@ -5,6 +5,7 @@ import { createDocument, createNode } from './document.js';
 import { History } from './history.js';
 import type { Op } from './ops.js';
 import {
+  canonicalTokenGroup,
   effectiveTheme,
   findVarRefs,
   getTokenReport,
@@ -628,5 +629,22 @@ describe('grupos', () => {
     expect(replaceVarRefs('var(--a) var(--a-b) var(--a, 1px)', '--a', '--z')).toBe(
       'var(--z) var(--a-b) var(--z, 1px)',
     );
+  });
+});
+
+describe('canonicalTokenGroup', () => {
+  it('grupo livre com rótulo ou id de embutido vira o embutido (caixa e acento não importam)', () => {
+    expect(canonicalTokenGroup('Cores')).toBe('color');
+    expect(canonicalTokenGroup(' cores ')).toBe('color');
+    expect(canonicalTokenGroup('Espacamento')).toBe('spacing');
+    expect(canonicalTokenGroup('COLOR')).toBe('color');
+    expect(canonicalTokenGroup('Marca')).toBe('Marca');
+  });
+
+  it('relatório junta o grupo livre "Cores" ao grupo color', () => {
+    const doc = createDocument('Teste', { id: 'doc_grp00001' });
+    doc.tokens = { '--brand': '#2563eb', '--color-a': '#000' };
+    doc.tokenMeta = { '--brand': { group: 'Cores' } };
+    expect(getTokenReport(doc).tokens.map((t) => t.group)).toEqual(['color', 'color']);
   });
 });

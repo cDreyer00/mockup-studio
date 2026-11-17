@@ -139,6 +139,18 @@ describe('MCP tokens e temas', () => {
     expect(missing).toContain('--c: referência a token inexistente: --nada');
   });
 
+  it('get_tokens: grupo livre com o rótulo de um embutido ("Cores") junta-se ao embutido', async () => {
+    await ok('set_tokens', {
+      tokens: { '--brand': '#2563eb', '--color-a': '#000', '--color-b': '#fff', '--fg': '#111' },
+      groups: { '--brand': 'Cores' },
+    });
+    const text = await ok('get_tokens');
+    expect(text.match(/## Cores/g)).toHaveLength(1);
+    expect(text).toContain('## Cores (4)');
+    expect((await json()).tokens.find((t) => t.name === '--brand')?.group).toBe('color');
+    expect(await ok('get_tokens', { group: 'cores' })).toContain('--brand');
+  });
+
   it('get_tokens em texto e json: grupos, usos, não usado e quebrado', async () => {
     await ok('set_tokens', {
       tokens: {

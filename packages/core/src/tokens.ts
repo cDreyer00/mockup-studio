@@ -42,6 +42,23 @@ export function tokenGroupLabel(group: string): string {
   return TOKEN_GROUPS.find((g) => g.id === group)?.label ?? group;
 }
 
+const foldGroup = (g: string): string =>
+  g
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase();
+
+/**
+ * Grupo canônico: um grupo livre com o rótulo (ou o id) de um grupo embutido, sem diferenciar
+ * caixa nem acentos (`Cores`, `cores`, `Espacamento`), vira o embutido, para não aparecerem dois
+ * grupos com o mesmo título no painel e no `get_tokens`. Os demais ficam como estão.
+ */
+export function canonicalTokenGroup(group: string): string {
+  const f = foldGroup(group);
+  return TOKEN_GROUPS.find((g) => g.id === f || foldGroup(g.label) === f)?.id ?? group;
+}
+
 const COLOR_FN = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\(/i;
 const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const LENGTH = /^-?(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vw|vh|vmin|vmax|ch|ex|svh|dvh|lvh)$/i;
@@ -87,7 +104,8 @@ const NAMED_BASIC = new Set([
 
 /** Grupo efetivo: o de `tokenMeta` ou o inferido. */
 export function tokenGroup(doc: Document, name: string): string {
-  return doc.tokenMeta?.[name]?.group ?? inferTokenGroup(name, doc.tokens[name]);
+  const g = doc.tokenMeta?.[name]?.group;
+  return g !== undefined ? canonicalTokenGroup(g) : inferTokenGroup(name, doc.tokens[name]);
 }
 
 /** Todos os nomes de token definidos (base e temas), na ordem dos tokens base e depois dos temas. */
@@ -542,7 +560,7 @@ export function validateTokenValue(
     }
     return { level: 'warning', message: parts.join('; ') };
   }
-  const group = opts.group ?? inferTokenGroup(name, value);
+  const group = canonicalTokenGroup(opts.group ?? inferTokenGroup(name, value));
   const prop = typeCheckProperty(name, group);
   if (!prop) return null;
   try {

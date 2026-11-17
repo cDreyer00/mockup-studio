@@ -41,7 +41,7 @@ E num frame escuro: `{ "attrs": { "data-theme": "dark" } }`.
 
 ## Grupos
 
-Os grupos embutidos (`TOKEN_GROUPS`) são `color` (Cores), `typography` (Tipografia), `spacing` (Espaçamento), `radius` (Raio), `shadow` (Sombra) e `other` (Outros). `tokenMeta[nome].group` aceita também um nome livre, que aparece com o próprio nome.
+Os grupos embutidos (`TOKEN_GROUPS`) são `color` (Cores), `typography` (Tipografia), `spacing` (Espaçamento), `radius` (Raio), `shadow` (Sombra) e `other` (Outros). `tokenMeta[nome].group` aceita também um nome livre, que aparece com o próprio nome. Um nome livre igual ao rótulo ou ao id de um grupo embutido (sem diferenciar caixa nem acentos, ex.: `Cores`, `cores`) conta como o embutido (`canonicalTokenGroup`): o painel e o `get_tokens` mostram um só grupo, e o tipo do valor é conferido como o do embutido.
 
 Sem grupo explícito, `inferTokenGroup` decide pelo prefixo do nome e, se não houver prefixo conhecido, pelo valor:
 
