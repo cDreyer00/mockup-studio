@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   History,
+  assertPublicOps,
   createDocument,
   parseDocument,
   serializeDocument,
@@ -459,6 +460,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
 
   applyOps(docId: string, ops: Op[], opts: { source: OpSource; label?: string }): ApplyOutcome {
     const d = this.entry(docId);
+    // Entrada pública (editor pelo WS, ferramentas do MCP): sem campos internos (ex. `force`).
+    assertPublicOps(ops);
     const r = d.history.apply(ops, opts.label);
     this.markChanged(d, r.appliedOps, opts.source);
     return {

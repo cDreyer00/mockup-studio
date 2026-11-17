@@ -65,14 +65,15 @@ describe('bloqueio de estrutura em nós de instâncias', () => {
 });
 
 describe('criar componente (Ctrl+Alt+K)', () => {
-  it('manda replaceNode + addComponent numa chamada e seleciona a instância', async () => {
+  it('manda replaceNode + addComponent + replaceNode numa chamada e seleciona a instância', async () => {
     const { doc, c } = makeDoc();
     useDoc.setState(withView(doc));
     ui.select([c.id]);
     expect(await createComponentFromSelection()).toBe(true);
     const ops = lastOps();
-    expect(ops.map((o) => o.type)).toEqual(['replaceNode', 'addComponent']);
-    const replaced = ops[0]!.type === 'replaceNode' ? ops[0]!.node : null;
+    expect(ops.map((o) => o.type)).toEqual(['replaceNode', 'addComponent', 'replaceNode']);
+    const last = ops[2]!;
+    const replaced = last.type === 'replaceNode' ? last.node : null;
     expect(replaced?.type).toBe('instance');
     expect(useUi.getState().selection).toEqual([replaced!.id]);
   });

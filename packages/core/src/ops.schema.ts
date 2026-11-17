@@ -227,6 +227,22 @@ const OP_TYPES = [
   'setInstanceOverrides',
 ];
 
+/**
+ * Recusa campos internos nas ops vindas de fora (WS `op:apply`, MCP): hoje, `force` em
+ * `deleteComponent` (só o inverso de `addComponent` usa; ver `DeleteComponentOp`). O desfazer e o
+ * refazer aplicam os inversos pelo histórico, sem passar por aqui.
+ */
+export function assertPublicOps(ops: readonly unknown[]): void {
+  for (const op of ops) {
+    const o = op as { type?: unknown; force?: unknown } | null;
+    if (o?.type === 'deleteComponent' && o.force !== undefined) {
+      throw new Error(
+        'Operação inválida: "force" em deleteComponent é interno (só o desfazer usa). Destaque ou remova as instâncias antes de excluir o componente.',
+      );
+    }
+  }
+}
+
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */
 export function parseOp(input: unknown): Op {
   const type = (input as { type?: unknown } | null)?.type;

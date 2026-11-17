@@ -148,6 +148,17 @@ describe('WebSocket', () => {
     expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad2')).toBeTruthy();
     sock.send(JSON.stringify({ type: 'op:apply', reqId: 'bad3', ops: [] }));
     expect(await waitFor((m) => m.type === 'error' && m.reqId === 'bad3')).toBeTruthy();
+    // `force` em deleteComponent é interno (só o desfazer usa): recusado na entrada pública.
+    sock.send(
+      JSON.stringify({
+        type: 'op:apply',
+        reqId: 'bad4',
+        docId,
+        ops: [{ type: 'deleteComponent', componentId: 'cp_x', force: true }],
+      }),
+    );
+    const forced = await waitFor((m) => m.type === 'error' && m.reqId === 'bad4');
+    expect(String(forced.message)).toContain('"force" em deleteComponent é interno');
     expect(daemon.store.getRevision(docId)).toBe(rev);
     sock.close();
   });

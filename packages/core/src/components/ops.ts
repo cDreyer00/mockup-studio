@@ -330,8 +330,12 @@ export function doAddComponent(d: Document, op: AddComponentOp): ComponentApplie
   next.splice(index, 0, c);
   d.components = next;
   assertNoCycle(d, c.id);
+  // O inverso só precisa de `force` se já havia instâncias desse id (que voltam a ficar sem
+  // principal no desfazer). `createComponentOps` troca o nó por um provisório antes do
+  // `addComponent`, então o caso comum desfaz sem `force`.
+  const orphans = listInstances(d, c.id).length > 0;
   return {
-    inverse: [{ type: 'deleteComponent', componentId: c.id, force: true }],
+    inverse: [{ type: 'deleteComponent', componentId: c.id, ...(orphans && { force: true }) }],
     result: { componentId: c.id },
   };
 }

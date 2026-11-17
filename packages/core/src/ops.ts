@@ -220,8 +220,9 @@ export interface AddComponentOp {
 
 /**
  * Remove um componente principal. Recusa se houver instâncias (nas páginas ou em outros
- * principais), a menos que `force` (usado pelo inverso de `addComponent`, que restaura o estado
- * anterior exato).
+ * principais), a menos que `force`: interno, só no inverso de um `addComponent` feito quando já
+ * havia instâncias desse id (o desfazer restaura o estado anterior exato). A entrada pública
+ * (`assertPublicOps`: WS `op:apply` e MCP) recusa `force`.
  */
 export interface DeleteComponentOp {
   type: 'deleteComponent';

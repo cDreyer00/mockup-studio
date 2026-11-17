@@ -130,18 +130,20 @@ Primitivas (em `ops.ts`, com inverso exato):
 
 | Op                     | Campos                                                                 | Inverso                                      |
 | ---------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
-| `addComponent`         | `component`, `index?`                                                  | `deleteComponent` (`force`)                  |
+| `addComponent`         | `component`, `index?`                                                  | `deleteComponent` (ver `force` abaixo)       |
 | `deleteComponent`      | `componentId` (recusa se houver instâncias)                            | `addComponent` na posição original           |
 | `updateComponent`      | `componentId`, `name?`, `description?`, `props?`, `variants?`, `root?` | `updateComponent` com os valores anteriores  |
 | `replaceNode`          | `nodeId`, `node` (troca o nó no lugar; ids novos validados)            | `replaceNode` de volta                       |
 | `setInstanceProps`     | `changes[{ nodeId, set?, unset? }]`                                    | `setInstanceProps` com os valores anteriores |
 | `setInstanceOverrides` | `changes[{ nodeId, overrides \| null }]` (substitui o mapa)            | `setInstanceOverrides` com o mapa anterior   |
 
+`deleteComponent.force` é **interno**: só o inverso de um `addComponent` feito quando já existiam instâncias daquele id (órfãs, ex. criadas por `createNode` antes do principal) o usa, para o desfazer voltar exatamente ao estado anterior. No caso comum o inverso é `deleteComponent` sem `force`: o desfazer roda os inversos em ordem inversa, então as instâncias criadas depois já foram desfeitas (e `createComponentOps` usa um nó provisório para o `addComponent` acontecer sem instâncias). A entrada pública recusa `force` (`assertPublicOps` em `ops.schema.ts`, chamada por `DocumentStore.applyOps`, que atende o WS `op:apply` e as ferramentas do MCP); o desfazer/refazer aplica os inversos pelo histórico, sem passar por ela.
+
 Planejadores (em `components/plan.ts`, devolvem `Op[]` aplicadas como uma entrada de histórico):
 
 | Função                                                | Ops                                                                                                                                  |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `createComponentOps(doc, nodeId, { name, props })`    | `replaceNode` (nó → instância) + `addComponent` (raiz = o nó, mesmos ids, livres depois da troca)                                    |
+| `createComponentOps(doc, nodeId, { name, props })`    | `replaceNode` (nó → provisório) + `addComponent` (raiz = o nó, mesmos ids, livres depois da troca) + `replaceNode` (→ instância)     |
 | `instanceNodeFor(doc, componentId, { props, slots })` | (nó) instância pronta para `createNode`, com os contêineres de slot                                                                  |
 | `detachInstanceOps(doc, nodeId)`                      | `replaceNode` (instância → árvore concreta com ids novos; conteúdo de slot mantém os ids; instâncias aninhadas continuam instâncias) |
 | `pushOverridesToMainOps(doc, nodeId)`                 | `updateComponent` (overrides gravados no principal) + `setInstanceOverrides` (limpa)                                                 |

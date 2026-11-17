@@ -179,8 +179,15 @@ describe('createComponentOps', () => {
       componentId: 'cp_hero',
       instanceId: 'in_hero',
     });
-    expect(plan.ops.map((o) => o.type)).toEqual(['replaceNode', 'addComponent']);
+    expect(plan.ops.map((o) => o.type)).toEqual(['replaceNode', 'addComponent', 'replaceNode']);
     const d1 = roundTrip(doc, plan.ops);
+    // O desfazer remove o principal sem `force` (o nó provisório tira a instância antes).
+    const h = new History(doc);
+    const { inverse } = h.apply(plan.ops);
+    expect(inverse.find((o) => o.type === 'deleteComponent')).toEqual({
+      type: 'deleteComponent',
+      componentId: 'cp_hero',
+    });
     const def = getComponent(d1, 'cp_hero')!;
     expect(def.name).toBe('Hero');
     expect(def.root.id).toBe('el_hero');

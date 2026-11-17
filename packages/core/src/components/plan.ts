@@ -187,8 +187,11 @@ export function inferProps(root: Node): PropDef[] {
 /**
  * Transforma o nó num componente: a raiz é o clone do nó com os mesmos ids (sem `position`,
  * sem as propriedades de posicionamento no pai) e o nó vira a primeira instância (herda
- * posição, nome, `locked`, `hidden` e o posicionamento). Ops: `replaceNode` (nó → instância)
- * e `addComponent` (nessa ordem: os ids da raiz só ficam livres depois da troca).
+ * posição, nome, `locked`, `hidden` e o posicionamento). Ops: `replaceNode` (nó → nó provisório
+ * vazio), `addComponent` e `replaceNode` (provisório → instância). Os ids da raiz só ficam livres
+ * depois da primeira troca; o provisório faz o `addComponent` acontecer sem instâncias, então o
+ * desfazer (ordem inversa: instância → provisório, `deleteComponent`, provisório → nó) não precisa
+ * de `force`.
  */
 export function createComponentOps(
   doc: Document,
@@ -263,16 +266,32 @@ export function createComponentOps(
   if (node.position) instance.position = { ...node.position };
   if (Object.keys(instStates).length > 0) instance.states = instStates;
   const taken = documentNodeIds(doc);
-  for (const slot of slotNames(component)) {
+  taken.add(instanceId);
+  const freshElementId = (): string => {
     let id = newNodeId('element');
     while (taken.has(id)) id = newNodeId('element');
     taken.add(id);
-    instance.children.push(slotContainerNode(id, slot));
+    return id;
+  };
+  for (const slot of slotNames(component)) {
+    instance.children.push(slotContainerNode(freshElementId(), slot));
   }
+  const stub: Node = {
+    id: freshElementId(),
+    type: 'element',
+    name: node.name,
+    tag: 'div',
+    attrs: {},
+    style: {},
+    children: [],
+    locked: node.locked,
+    hidden: node.hidden,
+  };
   return {
     ops: [
-      { type: 'replaceNode', nodeId, node: instance },
+      { type: 'replaceNode', nodeId, node: stub },
       { type: 'addComponent', component },
+      { type: 'replaceNode', nodeId: stub.id, node: instance },
     ],
     componentId,
     instanceId,

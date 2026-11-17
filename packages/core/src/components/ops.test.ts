@@ -3,6 +3,7 @@ import { applyOp, applyOps } from '../apply.js';
 import { findNode } from '../document.js';
 import { History } from '../history.js';
 import type { Op } from '../ops.js';
+import { assertPublicOps } from '../ops.schema.js';
 import { parseDocument } from '../schema.js';
 import { getTreeSummary } from '../summary.js';
 import type { ComponentDef, Document, Node } from '../types.js';
@@ -185,7 +186,7 @@ describe('ops primitivas de componentes', () => {
     ).toThrow(/tx_lbl/);
   });
 
-  it('deleteComponent recusa com instâncias (salvo force)', () => {
+  it('deleteComponent recusa com instâncias (salvo force, interno do desfazer)', () => {
     const doc = fixture();
     expect(() => applyOp(doc, { type: 'deleteComponent', componentId: 'cp_btn' })).toThrow(
       /instâncias/,
@@ -195,6 +196,41 @@ describe('ops primitivas de componentes', () => {
     const warnings: string[] = [];
     expandInstance(r.doc, node(r.doc, 'in_c1'), { warnings });
     expect(warnings).toHaveLength(1);
+  });
+
+  it('inverso de addComponent: sem force, salvo se já havia instâncias desse id', () => {
+    const doc = fixture();
+    const fresh = { ...button(), id: 'cp_new', name: 'Novo' };
+    fresh.root = n('el_new1', 'element', 'button') as Node;
+    expect(applyOp(doc, { type: 'addComponent', component: fresh }).inverse).toEqual([
+      { type: 'deleteComponent', componentId: 'cp_new' },
+    ]);
+    // Instância órfã (componente ainda inexistente): o desfazer volta a deixá-la órfã.
+    const orphan = applyOp(doc, {
+      type: 'createNode',
+      parentId: 'fr_1',
+      node: n('in_orf', 'instance', 'button', { componentId: 'cp_new' }) as Node,
+    }).doc;
+    const added = applyOp(orphan, { type: 'addComponent', component: fresh });
+    expect(added.inverse).toEqual([
+      { type: 'deleteComponent', componentId: 'cp_new', force: true },
+    ]);
+    const h = new History(orphan);
+    h.apply([{ type: 'addComponent', component: fresh }]);
+    h.undo();
+    expect(strip(h.doc)).toEqual(strip(orphan));
+  });
+
+  it('force vindo de fora é recusado (assertPublicOps)', () => {
+    expect(() =>
+      assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card', force: true }]),
+    ).toThrow(/"force" em deleteComponent é interno/);
+    expect(() =>
+      assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card', force: false }]),
+    ).toThrow(/interno/);
+    expect(() =>
+      assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card' }]),
+    ).not.toThrow();
   });
 
   it('updateComponent com inverso exato e validações', () => {
