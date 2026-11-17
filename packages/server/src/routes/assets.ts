@@ -36,7 +36,8 @@ export function registerAssetsRoutes(app: Express, ctx: RouteContext): void {
     res.setHeader('Content-Security-Policy', ASSET_CSP);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Type', EMBEDDABLE_MIME[ext] ?? 'application/octet-stream');
-    if (ext === '.svg') res.setHeader('Content-Disposition', 'attachment');
+    // SVG abre na aba (link direto); a CSP com sandbox impede script e carregamentos.
+    if (ext === '.svg') res.setHeader('Content-Disposition', 'inline');
     res.sendFile(file, { dotfiles: 'allow' }, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'Arquivo não encontrado' });
     });

@@ -108,14 +108,19 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect((await fetch(`${base}/cdn/%2e%2e%2f%2e%2e%2fpackage.json`)).status).toBe(404);
     });
 
-    it('svg sai como attachment', async () => {
+    it('svg sai inline com a CSP restritiva (sandbox, sem script)', async () => {
       const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"></svg>');
       const a = (await (
         await fetch(`${base}/api/library?name=i.svg`, { method: 'POST', body: new Uint8Array(svg) })
       ).json()) as { hash: string };
       const r = await fetch(`${base}/cdn/${a.hash}.svg`);
       expect(r.headers.get('content-type')).toBe('image/svg+xml');
-      expect(r.headers.get('content-disposition')).toBe('attachment');
+      expect(r.headers.get('content-disposition')).toBe('inline');
+      const csp = r.headers.get('content-security-policy') ?? '';
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain('sandbox');
+      expect(csp).not.toContain('script-src');
+      expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     });
 
     it('listar não registra no CDN; o link registra', async () => {
