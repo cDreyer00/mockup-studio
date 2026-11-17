@@ -127,7 +127,8 @@ function makePayload(base: string, over: Partial<SnapshotPayload> = {}): Snapsho
     format: SNAPSHOT_FORMAT,
     version: SNAPSHOT_VERSION,
     source: {
-      url: 'https://exemplo.com/',
+      // mesma origem dos assets do servidor de teste (127.0.0.1 só é baixável assim)
+      url: `${base}/pagina`,
       title: 'Exemplo — Home',
       capturedAt: new Date().toISOString(),
       viewport: { width: 1440, height: 900 },
@@ -271,6 +272,88 @@ describe('importSnapshot', () => {
       expect(frame.children[1]!.src).toBe('');
       expect(r.warnings.join('\n')).toContain('grande demais para embutir');
       expect(r.warnings.join('\n')).toContain('não é uma imagem reconhecida');
+    });
+
+    it('asset em rede local de outra origem é bloqueado com aviso e sem arquivo', async () => {
+      const p = makePayload(srv.base);
+      p.source.url = 'https://exemplo.com/';
+      p.assets = [{ id: 'a2', kind: 'image', url: `${srv.base}/img/logo.png` }];
+      p.fonts = [];
+      const before = srv.hits.length;
+      const r = await imports(store, docId, p);
+      expect(srv.hits.length).toBe(before);
+      expect(findNode(store.get(docId), r.frameId)!.node.children[1]!.src).toBe('');
+      expect(r.warnings.join('\n')).toContain('destino na rede local bloqueado: 127.0.0.1');
+    });
+
+    it('fonte em rede local de outra origem também é bloqueada, sem arquivo', async () => {
+      const ws = makeWorkspace();
+      const saved = new DocumentStore({ dataDir: ws.dataDir, autosaveMs: 60_000 });
+      try {
+        const id = (await saved.open(ws.file)).docId;
+        const p = makePayload(srv.base);
+        p.source.url = 'https://exemplo.com/';
+        const r = await imports(saved, id, p);
+        expect(r.fonts).toEqual([]);
+        expect(r.warnings.join('\n')).toContain('destino na rede local bloqueado');
+        expect(fs.existsSync(path.join(ws.dir, 'assets', 'fonts'))).toBe(false);
+      } finally {
+        await saved.closeAll();
+        ws.cleanup();
+      }
+    });
+
+    it('com source.url na mesma origem do asset local, baixa normalmente', async () => {
+      const p = makePayload(srv.base);
+      p.source.url = `${srv.base}/outra-pagina`;
+      const r = await imports(store, docId, p);
+      const frame = findNode(store.get(docId), r.frameId)!.node;
+      expect(frame.children[1]!.src).toMatch(/^data:image\/png;base64,/);
+      expect(r.warnings.join('\n')).not.toContain('rede local');
+    });
+
+    it('estourar o orçamento total dá um aviso único e o asset restante fica sem arquivo', async () => {
+      const png = pngDataUrl();
+      const p = makePayload(srv.base);
+      p.assets = [
+        { id: 'a1', kind: 'image', url: 'https://cdn.exemplo.com/1.png', dataUrl: png },
+        { id: 'a2', kind: 'image', url: 'https://cdn.exemplo.com/2.png', dataUrl: png },
+      ];
+      p.fonts = [];
+      const size = Buffer.from(png.split(',')[1]!, 'base64').length;
+      const r = await importSnapshot(
+        store,
+        p,
+        { docId },
+        { source: 'mcp', maxTotalBytes: size + 1 },
+      );
+      const frame = findNode(store.get(docId), r.frameId)!.node;
+      // um asset cabe no orçamento (a ordem de carga não importa), o outro fica sem arquivo
+      const srcs = [frame.children[0]!.src, frame.children[1]!.src];
+      expect(srcs.filter((s) => s.startsWith('data:'))).toHaveLength(1);
+      expect(srcs.filter((s) => s === '')).toHaveLength(1);
+      const budget = r.warnings.filter((w) => w.includes('orçamento'));
+      expect(budget).toHaveLength(1);
+      expect(budget[0]).toContain('esgotado');
+    });
+
+    it('remove URLs perigosas de href/formaction/xlink:href e mantém as normais e asset:', async () => {
+      const p = makePayload(srv.base);
+      p.root.children.push(
+        el('a', { attrs: { href: 'javascript:alert(1)' } }),
+        el('button', { attrs: { formaction: ' JaVa\tScript:x()' } }),
+        el('a', { attrs: { href: 'https://exemplo.com/ok' } }),
+        el('a', { attrs: { 'xlink:href': 'data:text/html,<script>1</script>' } }),
+      );
+      const r = await imports(store, docId, p);
+      const kids = findNode(store.get(docId), r.frameId)!.node.children;
+      const attrsOf = (i: number) => kids[kids.length - 4 + i]!.attrs;
+      expect(attrsOf(0).href).toBeUndefined();
+      expect(attrsOf(1).formaction).toBeUndefined();
+      expect(attrsOf(2).href).toBe('https://exemplo.com/ok');
+      expect(attrsOf(3)['xlink:href']).toBeUndefined();
+      expect(kids[0]!.src).toMatch(/^data:image\/png/);
+      expect(r.warnings.join('\n')).toContain('removidos por segurança');
     });
 
     it('sanitiza atributos on* e tags bloqueadas em vez de falhar', async () => {

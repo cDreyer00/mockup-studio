@@ -15,6 +15,7 @@ import {
   attrNameProblem,
   cloneNodeWithNewIds,
   createNodeFromTag,
+  isUnsafeUrl,
   newNodeId,
   type Document,
   type FontRef,
@@ -31,13 +32,16 @@ import {
   type SnapshotImportResult,
   type SnapshotPayload,
 } from '@mockup/snapshot-core';
-import { detectImage, fetchBytes, parseDataUrl, type ImageInfo } from '../assets.js';
+import { detectImage, parseDataUrl, type ImageInfo } from '../assets.js';
 import { fontSlug } from '../fonts.js';
 import type { DocumentStore } from '../store.js';
+import { guardedFetchBytes } from './netguard.js';
 import { SnapshotImportError, validateSnapshotPayload } from './validate.js';
 
 /** Limite de um arquivo baixado (imagem ou fonte). */
 export const MAX_IMPORT_ASSET_BYTES = 20 * 1024 * 1024;
+/** Orçamento total de uma importação: soma dos bytes de imagens e fontes carregadas. */
+export const MAX_IMPORT_TOTAL_BYTES = 150 * 1024 * 1024;
 const ASSET_TIMEOUT_MS = 15_000;
 const ASSET_CONCURRENCY = 4;
 /** Maior imagem embutida como data URL num estilo `url()` (o canvas não resolve caminhos relativos ali). */
@@ -56,6 +60,8 @@ export interface ImportOptions {
   method?: SnapshotImportResult['method'];
   /** Aviso extra no início da lista (ex.: fidelidade menor na conversão sem render). */
   warnings?: string[];
+  /** Orçamento total de bytes de assets (padrão `MAX_IMPORT_TOTAL_BYTES`; injetável nos testes). */
+  maxTotalBytes?: number;
 }
 
 /* ------------------------------ utilidades ------------------------------ */
@@ -136,12 +142,60 @@ interface Bytes {
   mime: string;
 }
 
-async function loadBytes(dataUrl: string | undefined, url: string, what: string): Promise<Bytes> {
+/** Estouro do orçamento total da importação (vira um único aviso, não um por asset). */
+class BudgetExceededError extends Error {}
+
+/** Contabiliza os bytes de imagens e fontes carregados numa importação. */
+class ByteBudget {
+  private used = 0;
+  private exhausted = false;
+
+  constructor(private readonly limit: number) {}
+
+  /** Lança `BudgetExceededError` se `n` não cabe mais; depois de estourar, recusa tudo. */
+  take(n: number): void {
+    if (this.exhausted || this.used + n > this.limit) {
+      this.exhausted = true;
+      throw new BudgetExceededError();
+    }
+    this.used += n;
+  }
+
+  get message(): string {
+    const size =
+      this.limit >= 1048576 ? `${Math.round(this.limit / 1048576)} MB` : `${this.limit} bytes`;
+    return `orçamento de ${size} da importação esgotado: os assets restantes (imagens e fontes) não foram carregados.`;
+  }
+}
+
+/** Contexto de download compartilhado por imagens e fontes de uma importação. */
+interface LoadCtx {
+  budget: ByteBudget;
+  /** Origem da página importada: pode apontar para a rede local (ex.: dev server). */
+  trustedOrigin?: string;
+}
+
+function originOf(url: string): string | undefined {
+  try {
+    const o = new URL(url).origin;
+    return o === 'null' ? undefined : o;
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadBytes(
+  dataUrl: string | undefined,
+  url: string,
+  what: string,
+  ctx: LoadCtx,
+): Promise<Bytes> {
   if (dataUrl) {
     const d = parseDataUrl(dataUrl);
     if (d && d.bytes.length > 0) {
       if (d.bytes.length > MAX_IMPORT_ASSET_BYTES)
         throw new Error(`${what} passa do limite de 20 MB`);
+      ctx.budget.take(d.bytes.length);
       return { bytes: d.bytes, mime: d.mime };
     }
   }
@@ -150,13 +204,16 @@ async function loadBytes(dataUrl: string | undefined, url: string, what: string)
     if (!d || d.bytes.length === 0) throw new Error(`${what}: data URL inválida`);
     if (d.bytes.length > MAX_IMPORT_ASSET_BYTES)
       throw new Error(`${what} passa do limite de 20 MB`);
+    ctx.budget.take(d.bytes.length);
     return { bytes: d.bytes, mime: d.mime };
   }
   if (!/^https?:\/\//i.test(url)) throw new Error(`${what}: só http(s) e data: podem ser baixados`);
-  const r = await fetchBytes(url, {
+  const r = await guardedFetchBytes(url, {
     maxBytes: MAX_IMPORT_ASSET_BYTES,
     timeoutMs: ASSET_TIMEOUT_MS,
+    trustedOrigin: ctx.trustedOrigin,
   });
+  ctx.budget.take(r.bytes.length);
   return { bytes: r.bytes, mime: r.contentType };
 }
 
@@ -177,6 +234,7 @@ class ImageStore {
     assets: SnapshotAsset[],
     private readonly assetsDir: string | null,
     private readonly warn: (m: string) => void,
+    private readonly ctx: LoadCtx,
   ) {
     this.assets = new Map(assets.map((a) => [a.id, a]));
   }
@@ -205,7 +263,7 @@ class ImageStore {
       return null;
     }
     try {
-      const { bytes } = await loadBytes(a.dataUrl, a.url, 'a imagem');
+      const { bytes } = await loadBytes(a.dataUrl, a.url, 'a imagem', this.ctx);
       const info = detectImage(bytes);
       if (!info)
         throw new Error(
@@ -213,6 +271,10 @@ class ImageStore {
         );
       return { bytes, info, url: a.url };
     } catch (e) {
+      if (e instanceof BudgetExceededError) {
+        this.warn(this.ctx.budget.message);
+        return null;
+      }
       this.warn(
         `Imagem não importada (${short(a.url)}): ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -250,6 +312,9 @@ function collectAssetRefs(root: Node): { img: Set<string>; css: Set<string> } {
   return { img, css };
 }
 
+/** Atributos que carregam URL e não podem executar código (`javascript:`, `data:` não imagem). */
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href']);
+
 /** Remove nós/atributos que o `NodeSchema` recusaria (tags bloqueadas, `on*`...), com aviso. */
 function sanitizeTree(root: Node, warn: (m: string) => void): void {
   const dropped = new Set<string>();
@@ -264,9 +329,17 @@ function sanitizeTree(root: Node, warn: (m: string) => void): void {
           dropped.add(`atributo ${k}`);
           return false;
         }
+        if (URL_ATTRS.has(k.toLowerCase()) && isUnsafeUrl(v)) {
+          dropped.add(`atributo ${k} com URL perigosa`);
+          return false;
+        }
         return true;
       }),
     );
+    if (n.type === 'image' && typeof n.src === 'string' && isUnsafeUrl(n.src)) {
+      dropped.add('src de imagem com URL perigosa');
+      n.src = '';
+    }
     n.children = (n.children ?? []).filter((c) => {
       const tag = typeof c.tag === 'string' ? c.tag.trim().toLowerCase() : '';
       if (!TAG_RE.test(tag) || BLOCKED_TAGS.has(tag)) {
@@ -418,6 +491,7 @@ async function importFonts(
   docFonts: FontRef[],
   assetsDir: string | null,
   warn: (m: string) => void,
+  ctx: LoadCtx,
 ): Promise<FontsOutcome> {
   const none: FontsOutcome = { fonts: null, families: [] };
   if (payload.fonts.length === 0) return none;
@@ -471,11 +545,15 @@ async function importFonts(
 
   const loaded = await mapLimit(jobs, ASSET_CONCURRENCY, async (j) => {
     try {
-      const { bytes } = await loadBytes(j.asset.dataUrl, j.asset.url, 'a fonte');
+      const { bytes } = await loadBytes(j.asset.dataUrl, j.asset.url, 'a fonte', ctx);
       if (/^\s*</.test(bytes.subarray(0, 64).toString('latin1')))
         throw new Error('a resposta não é um arquivo de fonte (HTML?)');
       return bytes;
     } catch (e) {
+      if (e instanceof BudgetExceededError) {
+        warn(ctx.budget.message);
+        return null;
+      }
       warn(
         `Fonte "${j.family}" não importada (${short(j.asset.url)}): ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -675,7 +753,11 @@ export async function importSnapshot(
   const refs = collectAssetRefs(cloned);
 
   // 2) imagens (no máximo 4 downloads em paralelo)
-  const images = new ImageStore(payload.assets, assetsDir, warn);
+  const loadCtx: LoadCtx = {
+    budget: new ByteBudget(opts.maxTotalBytes ?? MAX_IMPORT_TOTAL_BYTES),
+    trustedOrigin: originOf(payload.source.url),
+  };
+  const images = new ImageStore(payload.assets, assetsDir, warn, loadCtx);
   await mapLimit([...new Set([...refs.img, ...refs.css])], ASSET_CONCURRENCY, (id) =>
     images.load(id),
   );
@@ -728,7 +810,7 @@ export async function importSnapshot(
   resolveTree(cloned);
 
   // 3) fontes
-  const fontsOutcome = await importFonts(payload, doc.fonts, assetsDir, warn);
+  const fontsOutcome = await importFonts(payload, doc.fonts, assetsDir, warn, loadCtx);
 
   // 4) frame
   const pos =
