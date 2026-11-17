@@ -8,7 +8,7 @@ const count = (text: string, part: string): number => text.split(part).length - 
 describe('inScript', () => {
   const code = `a = '</script><script>alert(1)</script>'; // <!-- x ${LS} y ${PS} z`;
 
-  it('não deixa < nem U+2028/U+2029 no texto e faz ida e volta', () => {
+  it('leaves no < or U+2028/U+2029 in the text and round-trips', () => {
     const out = inScript(code);
     expect(out).not.toContain('<');
     expect(out).not.toContain(LS);
@@ -20,10 +20,10 @@ describe('inScript', () => {
 });
 
 describe('threeSrcdoc', () => {
-  it('o código com </script> e <!-- não fecha o script nem abre comentário', () => {
-    const code = `const s = '</script>'; // <!-- fim ${LS}`;
+  it('code with </script> and <!-- does not close the script or open a comment', () => {
+    const code = `const s = '</script>'; // <!-- end ${LS}`;
     const html = threeSrcdoc(code, 'http://localhost:5173');
-    // só os fechamentos reais: o do <script src> e o do script da ilha
+    // only the real closings: the <script src> one and the island script one
     expect(count(html, '</script>')).toBe(2);
     expect(html).not.toContain('<!--');
     expect(html).not.toContain(LS);

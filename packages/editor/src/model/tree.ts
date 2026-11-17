@@ -1,17 +1,17 @@
 /**
- * Índice e consultas sobre a árvore do documento, usados por todas as áreas do editor.
- * O índice é calculado uma vez por objeto de documento (cache em WeakMap).
+ * Index and queries over the document tree, used by all areas of the editor.
+ * The index is computed once per document object (cached in a WeakMap).
  */
 import type { Document, Node, Page } from '@mockup/core';
 
 export interface NodeEntry {
   node: Node;
-  /** Id do pai; `null` para frames raiz. */
+  /** Parent id; `null` for root frames. */
   parentId: string | null;
   pageId: string;
-  /** Índice entre os irmãos (em `parent.children` ou `page.frames`). */
+  /** Index among siblings (in `parent.children` or `page.frames`). */
   index: number;
-  /** 0 para frames raiz. */
+  /** 0 for root frames. */
   depth: number;
 }
 
@@ -59,7 +59,7 @@ export function getParent(doc: Document, id: string): Node | null {
   return e?.parentId ? (getNode(doc, e.parentId) ?? null) : null;
 }
 
-/** Irmãos do nó (incluindo ele), na ordem do documento. */
+/** Siblings of the node (including itself), in document order. */
 export function getSiblings(doc: Document, id: string): Node[] {
   const e = getEntry(doc, id);
   if (!e) return [];
@@ -67,7 +67,7 @@ export function getSiblings(doc: Document, id: string): Node[] {
   return getIndex(doc).pages.get(e.pageId)?.frames ?? [];
 }
 
-/** Cadeia do frame raiz até o nó (inclusive). Vazia se o nó não existir. */
+/** Chain from the root frame to the node (inclusive). Empty if the node does not exist. */
 export function getChain(doc: Document, id: string): Node[] {
   const out: Node[] = [];
   let cur: string | null = id;
@@ -80,7 +80,7 @@ export function getChain(doc: Document, id: string): Node[] {
   return out.reverse();
 }
 
-/** Frame raiz que contém o nó (o próprio, se for raiz). */
+/** Root frame containing the node (the node itself, if it is a root). */
 export function getFrameOf(doc: Document, id: string): Node | undefined {
   return getChain(doc, id)[0];
 }
@@ -90,7 +90,7 @@ export function isRoot(doc: Document, id: string): boolean {
   return !!e && e.parentId === null;
 }
 
-/** `true` se `ancestorId` for ancestor estrito de `id`. */
+/** `true` if `ancestorId` is a strict ancestor of `id`. */
 export function isAncestor(doc: Document, ancestorId: string, id: string): boolean {
   let cur = getEntry(doc, id)?.parentId ?? null;
   while (cur) {
@@ -100,14 +100,14 @@ export function isAncestor(doc: Document, ancestorId: string, id: string): boole
   return false;
 }
 
-/** Remove ids inexistentes e os que têm um ancestral também na lista; mantém a ordem do documento. */
+/** Removes nonexistent ids and those that have an ancestor also in the list; keeps document order. */
 export function topLevel(doc: Document, ids: readonly string[]): string[] {
   const set = new Set(ids.filter((id) => getEntry(doc, id)));
   const kept = [...set].filter((id) => ![...set].some((o) => o !== id && isAncestor(doc, o, id)));
   return sortByDocumentOrder(doc, kept);
 }
 
-/** Ordena ids pela ordem de pré-ordem no documento. */
+/** Sorts ids by pre-order in the document. */
 export function sortByDocumentOrder(doc: Document, ids: readonly string[]): string[] {
   const order = new Map<string, number>();
   let i = 0;
@@ -115,7 +115,7 @@ export function sortByDocumentOrder(doc: Document, ids: readonly string[]): stri
   return [...ids].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
 }
 
-/** `true` se todos os ids tiverem o mesmo pai (e a mesma página, para frames raiz). */
+/** `true` if all ids have the same parent (and the same page, for root frames). */
 export function haveSameParent(doc: Document, ids: readonly string[]): boolean {
   const entries = ids.map((id) => getEntry(doc, id));
   if (entries.some((e) => !e) || entries.length === 0) return false;
@@ -128,13 +128,13 @@ export function canHaveChildren(node: Node): boolean {
   return !['img', 'input', 'br', 'hr', 'area', 'col', 'source', 'track', 'wbr'].includes(node.tag);
 }
 
-/** Contêiner flex (display flex/inline-flex). */
+/** Flex container (display flex/inline-flex). */
 export function isFlex(node: Node | null | undefined): boolean {
   const d = node?.style.display;
   return d === 'flex' || d === 'inline-flex';
 }
 
-/** Direção principal do flex: `row` ou `column` (padrão `row`). */
+/** Main direction of the flex: `row` or `column` (default `row`). */
 export function flexDirection(node: Node | null | undefined): 'row' | 'column' {
   return (node?.style['flex-direction'] ?? 'row').startsWith('column') ? 'column' : 'row';
 }
@@ -144,24 +144,24 @@ export function isAbsolute(node: Node): boolean {
   return p === 'absolute' || p === 'fixed';
 }
 
-/** `true` se o nó ou algum ancestral estiver travado. */
+/** `true` if the node or any ancestor is locked. */
 export function isLockedDeep(doc: Document, id: string): boolean {
   return getChain(doc, id).some((n) => n.locked);
 }
 
-/** `true` se o nó ou algum ancestral estiver oculto. */
+/** `true` if the node or any ancestor is hidden. */
 export function isHiddenDeep(doc: Document, id: string): boolean {
   return getChain(doc, id).some((n) => n.hidden);
 }
 
-/** Valor numérico em px de um estilo (`'120px'` → 120, `'120'` → 120); `undefined` se não for px. */
+/** Numeric value in px of a style (`'120px'` → 120, `'120'` → 120); `undefined` if not px. */
 export function pxValue(v: string | undefined): number | undefined {
   if (v === undefined) return undefined;
   const m = /^\s*(-?\d*\.?\d+)(px)?\s*$/.exec(v);
   return m ? Number(m[1]) : undefined;
 }
 
-/** Tamanho em px de um frame raiz (width/height em px; padrão 800x600). */
+/** Size in px of a root frame (width/height in px; default 800x600). */
 export function frameSize(frame: Node): { w: number; h: number } {
   return { w: pxValue(frame.style.width) ?? 800, h: pxValue(frame.style.height) ?? 600 };
 }

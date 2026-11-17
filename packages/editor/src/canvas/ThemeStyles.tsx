@@ -2,13 +2,13 @@ import { memo, useMemo } from 'react';
 import { themeRulesCss } from '@mockup/core';
 import type { Document } from '@mockup/core';
 
-/** Seletor de escopo das regras de tema: `.cv-world ` (não vaza para a interface do editor). */
+/** Scope selector for theme rules: `.cv-world ` (does not leak into the editor UI). */
 export const THEME_SCOPE = '.cv-world ';
 
 /**
- * Injeta `.cv-world [data-theme="x"] { --token: ... }` para cada tema do documento. O tema de um
- * frame é o atributo `data-theme` do próprio elemento, então o CSS é o mesmo do export HTML.
- * Memoizado por `tokens`/`themes`: só recalcula quando o sistema de tokens muda.
+ * Injects `.cv-world [data-theme="x"] { --token: ... }` for each theme of the document. A frame's
+ * theme is the `data-theme` attribute of the element itself, so the CSS is the same as the HTML export.
+ * Memoized by `tokens`/`themes`: only recomputes when the token system changes.
  */
 export const ThemeStyles = memo(function ThemeStyles({
   tokens,

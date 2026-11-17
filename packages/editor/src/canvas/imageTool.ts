@@ -1,4 +1,4 @@
-/** Inserção de imagens: seletor de arquivo, upload ao daemon e criação do nó no canvas. */
+/** Image insertion: file picker, upload to the daemon and node creation on the canvas. */
 import type { Node, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { makeFrame, makeImage } from '../model/factory';
@@ -11,7 +11,7 @@ import { buildCreateOps, planPlacement } from './placement';
 const MAX_IMAGE_W = 800;
 const FALLBACK_SIZE = { w: 240, h: 160 };
 
-/** Abre o seletor de arquivos de imagem; `null` se cancelado. */
+/** Opens the image file picker; `null` if cancelled. */
 export function pickImageFile(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -29,7 +29,7 @@ export function pickImageFile(): Promise<File | null> {
   });
 }
 
-/** Dimensões naturais da imagem (bitmap, com fallback para `<img>`); `null` se ilegível. */
+/** Natural dimensions of the image (bitmap, with `<img>` fallback); `null` if unreadable. */
 async function readImageSize(file: File): Promise<{ w: number; h: number } | null> {
   try {
     const bmp = await createImageBitmap(file);
@@ -37,7 +37,7 @@ async function readImageSize(file: File): Promise<{ w: number; h: number } | nul
     bmp.close();
     if (size.w > 0 && size.h > 0) return size;
   } catch {
-    // SVG e formatos sem decodificação por bitmap caem no fallback.
+    // SVG and formats without bitmap decoding fall back.
   }
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -55,8 +55,8 @@ async function readImageSize(file: File): Promise<{ w: number; h: number } | nul
 }
 
 /**
- * Envia a imagem ao daemon e a insere no contêiner sob `at` (mundo; padrão: centro da tela).
- * Sem contêiner, cria um frame raiz do tamanho da imagem. Devolve o id do nó ou `null`.
+ * Sends the image to the daemon and inserts it into the container under `at` (world; default: screen center).
+ * Without a container, creates a root frame the size of the image. Returns the node id or `null`.
  */
 export async function insertImageFile(
   file: File,
@@ -77,7 +77,7 @@ export async function insertImageFile(
     }
     const doc = useDoc.getState().doc;
     const pageId = currentPageId();
-    if (!doc || !pageId) throw new Error('Nenhum documento aberto');
+    if (!doc || !pageId) throw new Error('No document open');
     const center = canvasApi.viewportCenter();
     const point = at ?? { x: center.x - w / 2, y: center.y - h / 2 };
     const plan = planPlacement(doc, point);
@@ -86,7 +86,7 @@ export async function insertImageFile(
     let ops: Op[];
     if (!plan.parentId) {
       image = makeImage(src, { w, h, alt });
-      const frame = makeFrame(point.x, point.y, w, h, 'Imagem');
+      const frame = makeFrame(point.x, point.y, w, h, 'Image');
       frame.children.push(image);
       ops = buildCreateOps(pageId, plan, frame);
     } else {

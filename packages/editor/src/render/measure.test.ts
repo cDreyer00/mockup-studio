@@ -12,7 +12,7 @@ const ch = (c: string, x: number, y: number, w = 6, h = 16) => ({
 });
 
 describe('groupLines', () => {
-  it('agrupa caracteres por linha e apara espaços das pontas', () => {
+  it('groups characters by line and trims spaces at the ends', () => {
     const lines = groupLines([
       ch('O', 0, 0),
       ch('i', 6, 0),
@@ -25,7 +25,7 @@ describe('groupLines', () => {
     expect(lines[1]).toMatchObject({ text: 'tu', y: 20, width: 12 });
   });
 
-  it('ignora caracteres sem caixa e tolera pequenas variações de topo', () => {
+  it('ignores characters without a box and tolerates small top variations', () => {
     const lines = groupLines([
       ch('a', 0, 0),
       { ch: ' ', x: 6, y: 0, width: 0, height: 0 },
@@ -35,14 +35,14 @@ describe('groupLines', () => {
     expect(lines[0]!.text).toBe('ab');
   });
 
-  it('nova linha quando o x volta para trás na mesma altura aproximada', () => {
+  it('new line when x goes backwards at roughly the same height', () => {
     const lines = groupLines([ch('a', 50, 0), ch('b', 0, 0)]);
     expect(lines.map((l) => l.text)).toEqual(['a', 'b']);
   });
 });
 
 describe('fitLineBox', () => {
-  it('centraliza a baseline no line box', () => {
+  it('centers the baseline in the line box', () => {
     const r = fitLineBox(
       { x: 0, y: 10, width: 10, height: 20, text: 'x' },
       { ascent: 16, descent: 4 },
@@ -50,7 +50,7 @@ describe('fitLineBox', () => {
     );
     expect(r).toEqual({ y: 5, height: 30, baseline: 21 });
   });
-  it('line-height normal usa a área de conteúdo', () => {
+  it('normal line-height uses the content area', () => {
     const r = fitLineBox(
       { x: 0, y: 10, width: 10, height: 20, text: 'x' },
       { ascent: 16, descent: 4 },
@@ -61,7 +61,7 @@ describe('fitLineBox', () => {
 });
 
 describe('pickFrame', () => {
-  it('acha o frame raiz do nó e o fundo da página', () => {
+  it('finds the root frame of the node and the page background', () => {
     const { doc, frame, a } = makeDoc();
     doc.pages[0]!.background = '#123456';
     expect(pickFrame(doc, a.id)).toMatchObject({ frame: { id: frame.id }, background: '#123456' });
@@ -85,7 +85,7 @@ describe('measureGridTracks', () => {
   });
   const rect = { x: 10, y: 20, width: 632, height: 208 };
 
-  it('posiciona as trilhas resolvidas na caixa de conteúdo, relativas ao frame', () => {
+  it('positions the resolved tracks in the content box, relative to the frame', () => {
     const g = measureGridTracks(cs(), rect)!;
     expect(g.columns).toEqual([
       { start: 10, size: 200 },
@@ -100,7 +100,7 @@ describe('measureGridTracks', () => {
     expect(g.rowGap).toBe(8);
   });
 
-  it('desconta borda e padding do início', () => {
+  it('subtracts the border and padding at the start', () => {
     const g = measureGridTracks(
       cs({
         borderLeftWidth: '2px',
@@ -114,7 +114,7 @@ describe('measureGridTracks', () => {
     expect(g.rows[0]).toEqual({ start: 37, size: 100 });
   });
 
-  it('aceita inline-grid, nomes de linha, fracionários e gap normal', () => {
+  it('accepts inline-grid, line names, fractional values and normal gap', () => {
     const g = measureGridTracks(
       cs({
         display: 'inline-grid',
@@ -133,7 +133,7 @@ describe('measureGridTracks', () => {
     expect(g.columnGap).toBe(0);
   });
 
-  it('nó que não é grid devolve undefined', () => {
+  it('a node that is not a grid returns undefined', () => {
     expect(measureGridTracks(cs({ display: 'flex' }), rect)).toBeUndefined();
     expect(measureGridTracks(cs({ display: 'block' }), rect)).toBeUndefined();
   });

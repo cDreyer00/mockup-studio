@@ -1,7 +1,7 @@
 /**
- * Filhos de um contêiner grid no canvas: arrastar para uma célula, esticar por várias células
- * (alças de span) e o destaque da célula. As contas (`dropPlacement`, `resizeSpan`, `placementDelta`...)
- * são puras; o que toca no DOM/daemon fica em `measureGridWorld`, `planGridMove` e `startSpanDrag`.
+ * Children of a grid container on the canvas: dragging to a cell, stretching across several cells
+ * (span handles) and the cell highlight. The computations (`dropPlacement`, `resizeSpan`, `placementDelta`...)
+ * are pure; what touches the DOM/daemon lives in `measureGridWorld`, `planGridMove` and `startSpanDrag`.
  */
 import {
   cellAt,
@@ -21,7 +21,7 @@ import type { NodePreview } from '../state/uiStore';
 import { clientToWorld, findNodeEl, measureWorldRect } from './dom';
 import type { Point, Rect } from './geometry';
 
-/** Posição completa de um filho: início (1-based) e extensão, em trilhas. */
+/** Full position of a child: start (1-based) and extent, in tracks. */
 export interface CellPlacement {
   column: number;
   row: number;
@@ -36,7 +36,7 @@ export interface StyleChange {
   unset: string[];
 }
 
-/** Trilhas medidas de um grid, em coordenadas do mundo, e a caixa do contêiner. */
+/** Measured tracks of a grid, in world coordinates, and the container box. */
 export interface GridWorld {
   grid: LayoutGrid;
   rect: Rect;
@@ -44,9 +44,9 @@ export interface GridWorld {
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 
-/* ------------------------------ contas puras ------------------------------ */
+/* ------------------------------ pure computations ------------------------------ */
 
-/** Mantém a posição dentro das trilhas existentes (a extensão encolhe e o início recua se preciso). */
+/** Keeps the position within the existing tracks (the extent shrinks and the start moves back if needed). */
 export function clampPlacement(grid: LayoutGrid, p: CellPlacement): CellPlacement {
   const nc = Math.max(1, grid.columns.length);
   const nr = Math.max(1, grid.rows.length);
@@ -60,7 +60,7 @@ export function clampPlacement(grid: LayoutGrid, p: CellPlacement): CellPlacemen
   };
 }
 
-/** Posição ao soltar com o ponteiro em `point` (mundo), mantendo a extensão; `null` fora do grid. */
+/** Position when dropping with the pointer at `point` (world), keeping the extent; `null` outside the grid. */
 export function dropPlacement(
   grid: LayoutGrid,
   point: Point,
@@ -72,8 +72,8 @@ export function dropPlacement(
 }
 
 /**
- * Posição atual de um filho: o que o estilo declara (`grid-column`/`grid-row`) e, no que for automático,
- * a posição renderizada (`rect`, em coordenadas do mundo).
+ * Current position of a child: what the style declares (`grid-column`/`grid-row`) and, for what is automatic,
+ * the rendered position (`rect`, in world coordinates).
  */
 export function currentPlacement(
   grid: LayoutGrid,
@@ -92,7 +92,7 @@ export function currentPlacement(
   };
 }
 
-/** Nova extensão ao arrastar a alça `edge` até `point` (mundo): a borda final encaixa na trilha mais próxima. */
+/** New extent when dragging the `edge` handle to `point` (world): the end edge snaps to the nearest track. */
 export function resizeSpan(
   grid: LayoutGrid,
   start: CellPlacement,
@@ -113,13 +113,13 @@ export function resizeSpan(
   });
 }
 
-/** Retângulo (mundo) da célula/extensão; `null` se fora do grid. */
+/** Rectangle (world) of the cell/extent; `null` if outside the grid. */
 export function placementRect(grid: LayoutGrid, p: CellPlacement): Rect | null {
   const r = cellRect(grid, p);
   return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
 }
 
-/** Estilos `grid-column`/`grid-row` de uma posição completa (extensão 1 vira só a linha). */
+/** `grid-column`/`grid-row` styles of a full position (extent 1 becomes just the line). */
 export function placementStyles(p: CellPlacement): Record<string, string> {
   return gridPlacementStyles(p);
 }
@@ -135,8 +135,8 @@ const PLACEMENT_PROPS = [
 ];
 
 /**
- * Alteração de estilo para mudar a posição do filho: `patch` troca só os campos presentes (`null` limpa
- * o campo, voltando ao automático). Remove `grid-area` e as formas longas que conflitariam.
+ * Style change to move the child's position: `patch` replaces only the fields present (`null` clears
+ * the field, going back to automatic). Removes `grid-area` and the long forms that would conflict.
  */
 export function placementDelta(
   style: Record<string, string | undefined>,
@@ -148,7 +148,7 @@ export function placementDelta(
     const v = k in patch ? patch[k] : cur[k];
     if (v !== undefined && v !== null) merged[k] = v;
   }
-  // Extensão 1 sem início explícito é o padrão do navegador: não precisa de declaração
+  // Extent 1 without an explicit start is the browser default: no declaration needed
   if (merged.column === undefined && merged.columnSpan === 1) delete merged.columnSpan;
   if (merged.row === undefined && merged.rowSpan === 1) delete merged.rowSpan;
   const set = gridPlacementStyles(merged);
@@ -156,7 +156,7 @@ export function placementDelta(
   return { set, unset };
 }
 
-/** O delta muda alguma coisa em relação ao estilo atual? */
+/** Does the delta change anything relative to the current style? */
 export function deltaChangesStyle(
   style: Record<string, string | undefined>,
   d: StyleChange,
@@ -168,7 +168,7 @@ export function deltaChangesStyle(
 
 /* ------------------------------ DOM ------------------------------ */
 
-/** Trilhas medidas do nó (se for grid) em coordenadas do mundo, lendo o `getComputedStyle` do elemento. */
+/** Measured tracks of the node (if it is a grid) in world coordinates, reading the element's `getComputedStyle`. */
 export function measureGridWorld(root: HTMLElement, id: string): GridWorld | null {
   const el = findNodeEl(root, id);
   const rect = measureWorldRect(root, id);
@@ -191,7 +191,7 @@ export function measureGridWorld(root: HTMLElement, id: string): GridWorld | nul
   return grid ? { grid, rect } : null;
 }
 
-/** Destaque transitório da célula (mundo) durante o arrasto de um filho ou de uma alça. */
+/** Transient cell highlight (world) while dragging a child or a handle. */
 export const useGridFx = create<{ cell: Rect | null }>(() => ({ cell: null }));
 
 const setCell = (cell: Rect | null): void => {
@@ -208,8 +208,8 @@ export interface GridMovePlan {
 }
 
 /**
- * Arrasto de filhos de um grid: destaca a célula sob o ponteiro e, ao soltar, grava `grid-column`/`grid-row`
- * (mantendo a extensão de cada um) em vez de reordenar.
+ * Dragging children of a grid: highlights the cell under the pointer and, on drop, writes `grid-column`/`grid-row`
+ * (keeping each one's extent) instead of reordering.
  */
 export function planGridMove(
   root: HTMLElement,
@@ -272,8 +272,8 @@ export function planGridMove(
 }
 
 /**
- * Gesto das alças de span: arrasta a borda direita/inferior da célula do filho e ajusta
- * `grid-column`/`grid-row` com prévia ao vivo; Esc cancela.
+ * Span handle gesture: drags the right/bottom edge of the child's cell and adjusts
+ * `grid-column`/`grid-row` with a live preview; Esc cancels.
  */
 export function startSpanDrag(root: HTMLElement, childId: string, edge: SpanEdge): void {
   const doc = useDoc.getState().doc;

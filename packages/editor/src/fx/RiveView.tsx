@@ -6,7 +6,7 @@ import { fxBegin } from './ready';
 import { FX_INNER, fxRootStyle } from './types';
 import type { FxViewProps } from './types';
 
-/** Embed `rive` (@rive-app/canvas, wasm local; carregado sob demanda). */
+/** Embed `rive` (@rive-app/canvas, local wasm; loaded on demand). */
 export function RiveView({ node, style, docId }: FxViewProps) {
   const e = node.embed;
   const src = e?.src ? resolveSrc(docId, e.src) : '';
@@ -68,13 +68,13 @@ export function RiveView({ node, style, docId }: FxViewProps) {
     const r = riveRef.current;
     if (!loaded || !r) return;
     if (manual !== null) {
-      // Melhor esforço: pausa e posiciona as animações lineares no tempo (state machines ficam no início).
+      // Best effort: pauses and positions linear animations in time (state machines stay at the start).
       const done = fxBegin();
       try {
         r.pause();
         if (!stateMachine) r.scrub(undefined, manual);
       } catch {
-        /* sem animação linear: segue com o quadro atual */
+        /* no linear animation: carries on with the current frame */
       }
       loadDone.current?.();
       requestAnimationFrame(() => requestAnimationFrame(() => done()));

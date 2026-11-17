@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 function button(): Node {
   const n = createNodeFromTag('button', {
-    name: 'Botão',
+    name: 'Button',
     styles: { background: 'blue', padding: '8px' },
   });
   n.states = {
@@ -47,13 +47,13 @@ function renderTree(
   );
 }
 
-describe('buildNodeStyle com estados', () => {
-  it('sem contexto usa só node.style', () => {
+describe('buildNodeStyle with states', () => {
+  it('without context uses only node.style', () => {
     const style = buildNodeStyle(button(), undefined, false);
     expect(style).toMatchObject({ background: 'blue', padding: '8px' });
   });
 
-  it('aplica os estados ativos do contexto', () => {
+  it('applies the active states from the context', () => {
     const n = button();
     const hover = buildNodeStyle(
       n,
@@ -69,7 +69,7 @@ describe('buildNodeStyle com estados', () => {
     });
   });
 
-  it('left/top do filho absoluto vêm do estilo resolvido', () => {
+  it('left/top of the absolute child come from the resolved style', () => {
     const n = createNodeFromTag('div', {
       styles: { position: 'static' },
       position: { x: 5, y: 6 },
@@ -81,7 +81,7 @@ describe('buildNodeStyle com estados', () => {
     });
   });
 
-  it('quantiza a largura pelos breakpoints do Tailwind', () => {
+  it('quantizes the width by the Tailwind breakpoints', () => {
     expect(quantizeWidth(undefined)).toBe(0);
     expect(quantizeWidth(639)).toBe(0);
     expect(quantizeWidth(768)).toBe(768);
@@ -92,8 +92,8 @@ describe('buildNodeStyle com estados', () => {
   });
 });
 
-describe('NodeView com estados', () => {
-  it('prévia hover aplica o estado em todos os nós', () => {
+describe('NodeView with states', () => {
+  it('hover preview applies the state to all nodes', () => {
     const b = button();
     const { rerender } = renderTree(frameWith('400px', b));
     expect(el(b).style.background).toBe('blue');
@@ -105,7 +105,7 @@ describe('NodeView com estados', () => {
     expect(el(b).style.background).toBe('red');
   });
 
-  it('breakpoint vale pela largura do frame raiz', () => {
+  it('breakpoint is based on the root frame width', () => {
     const b = button();
     renderTree(frameWith('800px', b));
     expect(el(b).style.padding).toBe('32px');
@@ -115,7 +115,7 @@ describe('NodeView com estados', () => {
     expect(el(c).style.padding).toBe('8px');
   });
 
-  it('dark vale dentro de data-theme="dark" e na prévia dark', () => {
+  it('dark applies inside data-theme="dark" and in the dark preview', () => {
     const b = button();
     renderTree(frameWith('400px', b, { 'data-theme': 'dark' }));
     expect(el(b).style.color).toBe('white');
@@ -129,7 +129,7 @@ describe('NodeView com estados', () => {
     expect(el(d).style.color).toBe('white');
   });
 
-  it('data-theme num ancestral intermediário vale só para a subárvore', () => {
+  it('data-theme on an intermediate ancestor applies only to the subtree', () => {
     const inner = button();
     const wrapper = createNodeFromTag('div', {
       attrs: { 'data-theme': 'dark' },
@@ -147,7 +147,7 @@ describe('NodeView com estados', () => {
     expect(el(outside).style.color).toBe('');
   });
 
-  it('breakpoint customizado do documento vale no lugar do padrão', () => {
+  it('custom document breakpoint applies instead of the default', () => {
     const breakpoints = breakpointsOf({ tokens: { '--breakpoint-md': '900px' } });
     const b = button();
     renderTree(frameWith('800px', b), null, { breakpoints });
@@ -158,7 +158,7 @@ describe('NodeView com estados', () => {
     expect(el(c).style.padding).toBe('32px');
   });
 
-  it('prévia dark põe data-theme="dark" no frame raiz só se o tema existe', () => {
+  it('dark preview sets data-theme="dark" on the root frame only if the theme exists', () => {
     const b = button();
     const frame = frameWith('400px', b);
     renderTree(frame, 'dark', { darkTheme: true });
@@ -174,7 +174,7 @@ describe('NodeView com estados', () => {
     expect(el(f3).getAttribute('data-theme')).toBeNull();
   });
 
-  it('dark continua ligado num tema claro aninhado, como no CSS exportado', () => {
+  it('dark stays on in a nested light theme, as in the exported CSS', () => {
     const inner = button();
     const light = createNodeFromTag('div', { attrs: { 'data-theme': 'light' }, children: [inner] });
     renderTree(

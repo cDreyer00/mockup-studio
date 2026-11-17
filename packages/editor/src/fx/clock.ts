@@ -1,26 +1,26 @@
 /**
- * Relógio das animações do canvas (efeitos, partículas, vídeo, Lottie, Rive, Three.js).
+ * Clock for the canvas animations (effects, particles, video, Lottie, Rive, Three.js).
  *
- * - Editor: tempo real enquanto `playing`; pausar congela o tempo (play continua de onde parou).
- * - Página de render: tempo manual (`setManual(t)`), para screenshots e quadros determinísticos.
+ * - Editor: real time while `playing`; pausing freezes time (play resumes where it left off).
+ * - Render page: manual time (`setManual(t)`), for screenshots and deterministic frames.
  */
 import { create } from 'zustand';
 
 export interface FxClockState {
-  /** Animações tocando no editor (botão play/pausa da barra). */
+  /** Animations playing in the editor (the bar's play/pause button). */
   playing: boolean;
-  /** Tempo manual em segundos (página de render) ou `null` (tempo real). */
+  /** Manual time in seconds (render page) or `null` (real time). */
   manual: number | null;
 }
 
 export const useFxClock = create<FxClockState>(() => ({ playing: true, manual: null }));
 
-let base = 0; // tempo acumulado até o último play/pausa (s)
+let base = 0; // time accumulated up to the last play/pause (s)
 let since = typeof performance !== 'undefined' ? performance.now() : 0;
 
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-/** Tempo atual das animações em segundos. */
+/** Current animation time in seconds. */
 export function fxNow(): number {
   const s = useFxClock.getState();
   if (s.manual !== null) return s.manual;
@@ -38,7 +38,7 @@ export const fxClock = {
   toggle(): void {
     fxClock.setPlaying(!useFxClock.getState().playing);
   },
-  /** Fixa o tempo (s) ou volta ao tempo real com `null`. */
+  /** Fixes the time (s) or goes back to real time with `null`. */
   setManual(t: number | null): void {
     useFxClock.setState({ manual: t });
   },

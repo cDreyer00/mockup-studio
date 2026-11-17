@@ -1,4 +1,4 @@
-/** Documentos de teste do editor. */
+/** Editor test documents. */
 import {
   applyOps,
   createComponentOps,
@@ -8,7 +8,7 @@ import {
 } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
 
-/** Doc com 1 frame flex (coluna) contendo 3 filhos e 1 filho absoluto. */
+/** Doc with 1 flex frame (column) containing 3 children and 1 absolute child. */
 export function makeDoc(): { doc: Document; frame: Node; a: Node; b: Node; c: Node; abs: Node } {
   const doc = createDocument('Teste');
   const a = createNodeFromTag('div', { name: 'A', styles: { width: '10px' } });
@@ -36,7 +36,7 @@ export function makeDoc(): { doc: Document; frame: Node; a: Node; b: Node; c: No
   return { doc, frame, a, b, c, abs };
 }
 
-/** Documento grande: `frames` frames × `perFrame` nós (para medições). */
+/** Large document: `frames` frames × `perFrame` nodes (for measurements). */
 export function makeBigDoc(frames = 6, perFrame = 50): Document {
   const doc = createDocument('Grande');
   for (let f = 0; f < frames; f++) {
@@ -45,7 +45,7 @@ export function makeBigDoc(frames = 6, perFrame = 50): Document {
       children.push(
         i % 3 === 0
           ? createNodeFromTag('p', {
-              text: `Texto ${f}-${i}`,
+              text: `Text ${f}-${i}`,
               styles: { 'font-size': '16px', color: '#222', 'line-height': '1.4' },
             })
           : createNodeFromTag('div', {
@@ -80,23 +80,23 @@ export function makeBigDoc(frames = 6, perFrame = 50): Document {
 }
 
 /**
- * Doc com um componente "Card" (texto `{{label}}` e slot `content`) e 3 instâncias no frame:
- * `in_card0001` (o nó original, sem props), `in_card0002` (label B) e `in_card0003` (label C).
+ * Doc with a "Card" component (text `{{label}}` and slot `content`) and 3 instances in the frame:
+ * `in_card0001` (the original node, no props), `in_card0002` (label B) and `in_card0003` (label C).
  */
 export function makeComponentDoc(): {
   doc: Document;
   frameId: string;
   componentId: string;
   instanceIds: string[];
-  /** Ids dos nós do principal: raiz, texto e contêiner do slot. */
+  /** Ids of the main component's nodes: root, text and slot container. */
   main: { rootId: string; textId: string; slotId: string };
 } {
   const doc = createDocument('Componentes');
-  const text = createNodeFromTag('p', { name: 'Rótulo', text: '{{label}}' });
+  const text = createNodeFromTag('p', { name: 'Label', text: '{{label}}' });
   const slot = createNodeFromTag('div', {
-    name: 'Conteúdo',
+    name: 'Content',
     attrs: { 'data-slot': 'content' },
-    children: [createNodeFromTag('span', { name: 'Padrão', text: 'padrão' })],
+    children: [createNodeFromTag('span', { name: 'Default', text: 'default' })],
   });
   const card = createNodeFromTag('div', {
     name: 'Card',

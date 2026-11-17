@@ -1,6 +1,6 @@
 /**
- * Ferramentas de forma (Elipse, Linha, Polígono): retângulo/linha de arrasto, vetor da forma e
- * nó svg posicionado como o Container (pai sob o ponteiro; absoluto em pai bloco, no fluxo em flex).
+ * Shape tools (Ellipse, Line, Polygon): drag rectangle/line, shape vector and
+ * svg node positioned like the Container (parent under the pointer; absolute in a block parent, in flow in flex).
  */
 import { createShapeVector, createVectorNode, editVector } from '@mockup/core';
 import type { Node, ShapeKind, ShapeSpec } from '@mockup/core';
@@ -22,22 +22,22 @@ export function isShapeTool(tool: string): tool is ShapeTool {
   return (SHAPE_TOOLS as readonly string[]).includes(tool);
 }
 
-/** Tamanho (px) de uma forma criada com um clique simples. */
+/** Size (px) of a shape created with a simple click. */
 export const DEFAULT_SHAPE_SIZE = { w: 100, h: 100 };
-/** Número de pontas da estrela (polígono com Alt ao soltar). */
+/** Number of star points (polygon with Alt on release). */
 export const STAR_POINTS = 5;
 
 const NAMES: Record<ShapeKind, string> = {
-  rect: 'Retângulo',
-  ellipse: 'Elipse',
-  line: 'Linha',
-  polygon: 'Polígono',
-  star: 'Estrela',
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  line: 'Line',
+  polygon: 'Polygon',
+  star: 'Star',
 };
 
 /**
- * Retângulo de arrasto de `a` até `b` (mundo). Elipse e polígono com `shift` ficam quadrados
- * (proporção 1:1, seguindo o maior deslocamento); a linha com `shift` trava em múltiplos de 45°.
+ * Drag rectangle from `a` to `b` (world). Ellipse and polygon with `shift` become square
+ * (1:1 ratio, following the larger displacement); the line with `shift` locks to multiples of 45°.
  */
 export function shapeDragRect(tool: string, a: Point, b: Point, shift: boolean): Rect {
   if (!shift) return normalizeRect(a, b);
@@ -52,12 +52,12 @@ export function shapeDragRect(tool: string, a: Point, b: Point, shift: boolean):
   return normalizeRect(a, b);
 }
 
-/** Tipo de forma da ferramenta (polígono com `star` vira estrela). */
+/** Shape kind of the tool (polygon with `star` becomes a star). */
 export function shapeKindOf(tool: ShapeTool, star: boolean): ShapeKind {
   return tool === 'polygon' && star ? 'star' : tool;
 }
 
-/** A linha foi desenhada da direita para a esquerda / de baixo para cima? */
+/** Was the line drawn from right to left / bottom to top? */
 export function lineFlips(start: Point, rect: Rect): { x: boolean; y: boolean } {
   return {
     x: rect.w > 0 && start.x >= rect.x + rect.w - 1e-6,
@@ -68,9 +68,9 @@ export function lineFlips(start: Point, rect: Rect): { x: boolean; y: boolean } 
 const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
 
 /**
- * Nó svg da forma. `rect` é o retângulo desenhado (ou `null` para o tamanho padrão); `start` é o
- * ponto inicial do arrasto (define o sentido da linha). A caixa do nó segue o `viewBox` do vetor
- * (a linha tem folga para o traço), deslocada para o desenho ficar onde foi arrastado.
+ * svg node of the shape. `rect` is the drawn rectangle (or `null` for the default size); `start` is the
+ * starting point of the drag (defines the line direction). The node box follows the vector's `viewBox`
+ * (the line has slack for the stroke), offset so the drawing stays where it was dragged.
  */
 export function buildShapeNode(
   tool: ShapeTool,
@@ -117,9 +117,9 @@ export function buildShapeNode(
 }
 
 /**
- * Conclui o gesto de uma ferramenta de forma: coloca o nó como o Container (pai sob o ponteiro;
- * absoluto em pai bloco, no fluxo em pai flex), seleciona-o e volta para a ferramenta Selecionar.
- * Fora de um frame avisa (um svg não vira frame raiz sozinho).
+ * Finishes a shape tool gesture: places the node like the Container (parent under the pointer;
+ * absolute in a block parent, in flow in a flex parent), selects it and goes back to the Select tool.
+ * Outside a frame it warns (an svg does not become a root frame on its own).
  */
 export async function createShape(
   tool: ShapeTool,
@@ -134,11 +134,11 @@ export async function createShape(
   const at = rect ? { x: rect.x, y: rect.y } : start;
   const plan = planPlacement(doc, at, client);
   if (!plan.parentId) {
-    ui.toast('Clique dentro de um frame para criar a forma', 'info');
+    ui.toast('Click inside a frame to create the shape', 'info');
     return;
   }
   const node = buildShapeNode(tool, rect, start, plan, opts);
-  // Volta para seleção já (antes do ack), para não sobrescrever uma ferramenta escolhida no meio.
+  // Switches back to selection right away (before the ack), so a tool chosen in the meantime is not overwritten.
   if (useUi.getState().tool === tool) ui.setTool('select');
   const ack = await daemon.applySafe(buildCreateOps(pageId, plan, node));
   if (ack) ui.select([node.id]);

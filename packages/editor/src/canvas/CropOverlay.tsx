@@ -22,8 +22,8 @@ const HANDLE_POS: Record<HandleName, [number, number]> = {
 };
 
 /**
- * Modo de recorte: a imagem inteira (prévia `fill`) fica visível, o que está fora do retângulo de
- * recorte escurece e o retângulo tem 8 alças. Arrastar dentro move; Enter confirma, Esc cancela.
+ * Crop mode: the whole image (`fill` preview) stays visible, what is outside the crop
+ * rectangle is dimmed and the rectangle has 8 handles. Dragging inside moves; Enter confirms, Esc cancels.
  */
 export function CropOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null> }) {
   const nodeId = useUi((s) => s.cropNodeId);
@@ -35,14 +35,14 @@ export function CropOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | n
   const [rect, setRect] = useState<Rect | null>(null);
   const drag = useRef<{ crop: ImageCrop; x: number; y: number } | null>(null);
 
-  // Outra ação limpou a prévia (ack de op): reafirma a imagem inteira.
+  // Another action cleared the preview (op ack): reasserts the whole image.
   useEffect(() => {
     if (nodeId && !preview) {
       ui.setPreview({ ...useUi.getState().preview, [nodeId]: { style: CROP_MODE_PREVIEW_STYLE } });
     }
   }, [nodeId, preview]);
 
-  // Mede a caixa da imagem depois que a prévia (fill) foi aplicada.
+  // Measures the image box after the preview (fill) has been applied.
   useLayoutEffect(() => {
     if (!nodeId) return setRect(null);
     const root = rootRef.current;
@@ -57,7 +57,7 @@ export function CropOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | n
     return () => cancelAnimationFrame(raf);
   }, [nodeId, vp, preview, doc, rootRef]);
 
-  // A seleção saiu da imagem (camadas, MCP): descarta o modo.
+  // The selection left the image (layers, MCP): discards the mode.
   useEffect(() => {
     if (nodeId && !(selection.length === 1 && selection[0] === nodeId)) cancelCrop();
   }, [nodeId, selection]);
@@ -139,25 +139,25 @@ export function CropOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | n
           type="button"
           className="btn primary"
           data-testid="crop-apply"
-          title="Aplicar recorte (Enter)"
+          title="Apply crop (Enter)"
           onClick={() => void commitCrop()}
         >
-          <Check size={13} /> Aplicar
+          <Check size={13} /> Apply
         </button>
         <button
           type="button"
           className="btn"
           data-testid="crop-cancel"
-          title="Cancelar (Esc)"
+          title="Cancel (Esc)"
           onClick={cancelCrop}
         >
-          <X size={13} /> Cancelar
+          <X size={13} /> Cancel
         </button>
         <button
           type="button"
           className="btn"
           data-testid="crop-reset"
-          title="Remover recorte"
+          title="Remove crop"
           onClick={() => ui.setCropDraft({ top: 0, right: 0, bottom: 0, left: 0 })}
         >
           <Trash2 size={13} />

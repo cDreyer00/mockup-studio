@@ -9,14 +9,14 @@ import { FX_INNER, fxRootStyle } from './types';
 import type { FxViewProps } from './types';
 
 export interface ThreeViewProps {
-  /** Corpo de função do usuário (ver `DEFAULT_THREE_CODE`); roda isolado numa ilha com origem opaca. */
+  /** User function body (see `DEFAULT_THREE_CODE`); runs isolated in an island with an opaque origin. */
   code: string;
   params?: Record<string, MediaParamValue>;
-  /** Estilo do contêiner (o iframe preenche 100%×100%). */
+  /** Container style (the iframe fills 100%×100%). */
   style?: CSSProperties;
-  /** Pointer events do conteúdo: desligado por padrão para não roubar cliques (use `true` em preview). */
+  /** Pointer events of the content: off by default so it does not steal clicks (use `true` in preview). */
   interactive?: boolean;
-  /** Notificado com a mensagem de erro do código (ou `null` quando some). */
+  /** Notified with the code's error message (or `null` when it goes away). */
   onError?: (message: string | null) => void;
 }
 
@@ -56,7 +56,7 @@ function ThreeFrame({ code, params, interactive, onError }: ThreeViewProps) {
     for (const done of list) done();
   };
 
-  // Mensagens da ilha (só da janela do próprio iframe).
+  // Messages from the island (only from the iframe's own window).
   useEffect(() => {
     const onMessage = (ev: MessageEvent): void => {
       if (ev.source !== frameRef.current?.contentWindow) return;
@@ -74,14 +74,14 @@ function ThreeFrame({ code, params, interactive, onError }: ThreeViewProps) {
       }
     };
     window.addEventListener('message', onMessage);
-    if (useFxClock.getState().manual !== null) wait(); // página de render: pronto no primeiro quadro
+    if (useFxClock.getState().manual !== null) wait(); // render page: ready on the first frame
     return () => {
       window.removeEventListener('message', onMessage);
       flush();
     };
   }, []);
 
-  // (Re)inicia a ilha quando fica pronta ou os parâmetros mudam.
+  // (Re)starts the island when it becomes ready or the parameters change.
   useEffect(() => {
     if (!ready) return;
     const { w, h, dpr } = sizeOf();
@@ -97,7 +97,7 @@ function ThreeFrame({ code, params, interactive, onError }: ThreeViewProps) {
     });
   }, [ready, paramsKey]);
 
-  // Relógio: tempo manual (quadro por quadro) ou play/pausa.
+  // Clock: manual time (frame by frame) or play/pause.
   useEffect(() => {
     if (!ready || !inited.current) return;
     if (manual !== null) {
@@ -106,7 +106,7 @@ function ThreeFrame({ code, params, interactive, onError }: ThreeViewProps) {
     } else send({ type: 'play', playing, t: fxNow() });
   }, [ready, manual, playing]);
 
-  // Tamanho do layout (sem o zoom do canvas).
+  // Layout size (without the canvas zoom).
   useEffect(() => {
     const el = frameRef.current;
     if (!el || !ready || typeof ResizeObserver === 'undefined') return;
@@ -150,13 +150,13 @@ function ThreeFrame({ code, params, interactive, onError }: ThreeViewProps) {
   );
 }
 
-/** Ilha Three.js isolada (também usável como preview com `code` arbitrário). */
+/** Isolated Three.js island (also usable as a preview with arbitrary `code`). */
 export function ThreeView({ code, params, style, interactive, onError }: ThreeViewProps) {
   return (
     <div
       style={{ position: 'relative', overflow: 'hidden', width: '100%', height: '100%', ...style }}
     >
-      {/* `key`: outro código = outro documento, com handshake novo. */}
+      {/* `key`: different code = different document, with a new handshake. */}
       <ThreeFrame
         key={code}
         code={code}
@@ -168,7 +168,7 @@ export function ThreeView({ code, params, style, interactive, onError }: ThreeVi
   );
 }
 
-/** Nó `embed` com provedor `three` no canvas. */
+/** `embed` node with the `three` provider on the canvas. */
 export function ThreeNodeView({ node, style }: FxViewProps) {
   return (
     <div

@@ -15,7 +15,7 @@ const build = (pts: [number, number][]) =>
   pts.reduce((s, [x, y]) => addAnchor(s, { x, y }), PEN_EMPTY);
 
 describe('pen', () => {
-  it('acrescenta âncoras e ignora pontos muito próximos', () => {
+  it('appends anchors and ignores points that are too close', () => {
     let s = build([
       [0, 0],
       [10, 0],
@@ -26,7 +26,7 @@ describe('pen', () => {
     expect(s.anchors).toHaveLength(3);
   });
 
-  it('Shift restringe a múltiplos de 45 graus', () => {
+  it('Shift constrains to multiples of 45 degrees', () => {
     const p = constrainAngle({ x: 0, y: 0 }, { x: 10, y: 1 });
     expect(p.y).toBeCloseTo(0);
     expect(p.x).toBeCloseTo(Math.hypot(10, 1));
@@ -34,7 +34,7 @@ describe('pen', () => {
     expect(s.anchors[1]!.x).toBeCloseTo(s.anchors[1]!.y);
   });
 
-  it('arrastar cria alças simétricas; Alt quebra a simetria', () => {
+  it('dragging creates symmetric handles; Alt breaks the symmetry', () => {
     const s = dragLastHandles(
       build([
         [0, 0],
@@ -49,7 +49,7 @@ describe('pen', () => {
     expect(alt.anchors[1]!.in).toEqual({ x: 5, y: 10 });
   });
 
-  it('fecha só ao clicar perto da primeira âncora com 2 ou mais pontos', () => {
+  it('closes only when clicking near the first anchor with 2 or more points', () => {
     expect(isNearFirst(build([[0, 0]]), { x: 0, y: 0 }, 5)).toBe(false);
     const s = build([
       [0, 0],
@@ -64,7 +64,7 @@ describe('pen', () => {
     expect(isNearFirst(c, { x: 0, y: 0 }, 5)).toBe(false);
   });
 
-  it('canFinish exige 2 âncoras; Backspace remove a última', () => {
+  it('canFinish requires 2 anchors; Backspace removes the last', () => {
     expect(canFinish(build([[0, 0]]))).toBe(false);
     const s = build([
       [0, 0],
@@ -75,7 +75,7 @@ describe('pen', () => {
     expect(removeLastAnchor(PEN_EMPTY)).toBe(PEN_EMPTY);
   });
 
-  it('prévia: reta, curva com alça e fechamento', () => {
+  it('preview: line, curve with handle and closing', () => {
     expect(previewSegmentD(PEN_EMPTY, { x: 1, y: 1 })).toBe('');
     const s = build([
       [0, 0],

@@ -1,6 +1,6 @@
 /**
- * Lógica pura do canvas (sem DOM nem stores): conversão tela↔mundo, enquadramento, regras de
- * seleção, marquee, redimensionamento, índice de inserção em fluxo e régua de distâncias.
+ * Pure canvas logic (no DOM or stores): screen↔world conversion, fitting, rules for
+ * selection, marquee, resizing, flow insertion index and distance ruler.
  */
 import type { Document, Node } from '@mockup/core';
 import { getChain, getParent } from '../model/tree';
@@ -30,7 +30,7 @@ export const clampZoom = (z: number): number => Math.min(MAX_ZOOM, Math.max(MIN_
 /* viewport                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Ponto em coordenadas da tela (relativas ao canvas) → mundo. */
+/** Point in screen coordinates (relative to the canvas) → world. */
 export function screenToWorld(vp: Viewport, p: Point): Point {
   return { x: (p.x - vp.x) / vp.z, y: (p.y - vp.y) / vp.z };
 }
@@ -43,14 +43,14 @@ export function rectToScreen(vp: Viewport, r: Rect): Rect {
   return { x: r.x * vp.z + vp.x, y: r.y * vp.z + vp.y, w: r.w * vp.z, h: r.h * vp.z };
 }
 
-/** Novo viewport com zoom `z`, mantendo fixo o ponto de tela (px, py). */
+/** New viewport with zoom `z`, keeping the screen point (px, py) fixed. */
 export function zoomAtPoint(vp: Viewport, z: number, px: number, py: number): Viewport {
   const nz = clampZoom(z);
   const k = nz / vp.z;
   return { z: nz, x: px - (px - vp.x) * k, y: py - (py - vp.y) * k };
 }
 
-/** Viewport que enquadra `rect` (mundo) centralizado numa área `size`, com margem `padding`. */
+/** Viewport that fits `rect` (world) centered in an area `size`, with margin `padding`. */
 export function fitRect(
   rect: Rect,
   size: { w: number; h: number },
@@ -84,7 +84,7 @@ export function unionRects(rects: readonly Rect[]): Rect | null {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** `inner` está totalmente dentro de `outer` (com folga `margin`). */
+/** `inner` is entirely inside `outer` (with slack `margin`). */
 export function rectInside(outer: Rect, inner: Rect, margin = 0): boolean {
   return (
     inner.x >= outer.x + margin &&
@@ -102,7 +102,7 @@ export function rectContains(outer: Rect, inner: Rect): boolean {
 /* marquee                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Retângulo normalizado entre dois pontos. */
+/** Normalized rectangle between two points. */
 export function normalizeRect(a: Point, b: Point): Rect {
   return {
     x: Math.min(a.x, b.x),
@@ -112,21 +112,21 @@ export function normalizeRect(a: Point, b: Point): Rect {
   };
 }
 
-/** Interseção estrita (retângulos que só se tocam nas bordas não contam). */
+/** Strict intersection (rectangles that only touch at the edges do not count). */
 export function rectsIntersect(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-/** Ids dos itens cujo retângulo intersecta o marquee (na ordem recebida). */
+/** Ids of the items whose rectangle intersects the marquee (in the order received). */
 export function marqueeHits(items: readonly { id: string; rect: Rect }[], marquee: Rect): string[] {
   return items.filter((i) => rectsIntersect(i.rect, marquee)).map((i) => i.id);
 }
 
 /* ------------------------------------------------------------------ */
-/* seleção por clique                                                 */
+/* click selection                                                 */
 /* ------------------------------------------------------------------ */
 
-/** Cadeia do frame raiz até o alvo, cortada no primeiro nó travado (que não é selecionável). */
+/** Chain from the root frame to the target, cut at the first locked node (which is not selectable). */
 export function selectableChain(doc: Document, targetId: string): Node[] {
   const out: Node[] = [];
   for (const n of getChain(doc, targetId)) {
@@ -137,10 +137,10 @@ export function selectableChain(doc: Document, targetId: string): Node[] {
 }
 
 /**
- * Regra de clique estilo Figma. Com a seleção atual dentro de um pai que está na cadeia, o clique
- * seleciona o elemento da cadeia logo abaixo desse pai (irmãos ficam clicáveis); senão seleciona
- * o filho direto do frame (ou o próprio frame). `deep` seleciona o próprio alvo.
- * Devolve `null` se nada for selecionável (alvo travado).
+ * Figma-style click rule. With the current selection inside a parent that is in the chain, the click
+ * selects the chain element right below that parent (siblings stay clickable); otherwise it selects
+ * the direct child of the frame (or the frame itself). `deep` selects the target itself.
+ * Returns `null` if nothing is selectable (locked target).
  */
 export function resolveClickTarget(
   doc: Document,
@@ -160,7 +160,7 @@ export function resolveClickTarget(
   return (chain[1] ?? chain[0])!.id;
 }
 
-/** Duplo clique: desce um nível na cadeia ou entra em edição de texto. */
+/** Double click: goes down one level in the chain or enters text editing. */
 export function resolveDoubleClick(
   doc: Document,
   targetId: string,
@@ -178,15 +178,15 @@ export function resolveDoubleClick(
 }
 
 /* ------------------------------------------------------------------ */
-/* redimensionar                                                      */
+/* resize                                                       */
 /* ------------------------------------------------------------------ */
 
 export type HandleName = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 export const HANDLES: readonly HandleName[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
 /**
- * Retângulo resultante de arrastar a alça `handle` por (dx, dy). `fromCenter` (Alt) redimensiona
- * simetricamente; `keepRatio` (Shift) mantém a proporção. Tamanho mínimo 1.
+ * Resulting rectangle from dragging the `handle` by (dx, dy). `fromCenter` (Alt) resizes
+ * symmetrically; `keepRatio` (Shift) keeps the aspect ratio. Minimum size 1.
  */
 export function resizeRect(
   rect: Rect,
@@ -224,7 +224,7 @@ export function resizeRect(
   return { x, y, w, h };
 }
 
-/** Mapeia `r` (dentro da caixa antiga `from`) para a caixa nova `to` (escala proporcional). */
+/** Maps `r` (inside the old box `from`) to the new box `to` (proportional scale). */
 export function scaleRectToBox(r: Rect, from: Rect, to: Rect): Rect {
   const sx = from.w ? to.w / from.w : 1;
   const sy = from.h ? to.h / from.h : 1;
@@ -237,7 +237,7 @@ export function scaleRectToBox(r: Rect, from: Rect, to: Rect): Rect {
 }
 
 /* ------------------------------------------------------------------ */
-/* inserção em fluxo                                                  */
+/* flow insertion                                                  */
 /* ------------------------------------------------------------------ */
 
 export type Axis = 'row' | 'column';
@@ -249,9 +249,9 @@ function distToRect(p: Point, r: Rect): number {
 }
 
 /**
- * Índice de inserção (0..n) na lista ORIGINAL de irmãos para o ponteiro. Considera só os irmãos
- * que não estão sendo movidos (`movingIndices`): acha o mais próximo do ponteiro e insere antes
- * ou depois dele conforme o centro no eixo principal.
+ * Insertion index (0..n) in the ORIGINAL list of siblings for the pointer. Considers only the siblings
+ * that are not being moved (`movingIndices`): finds the one closest to the pointer and inserts before
+ * or after it depending on its center on the main axis.
  */
 export function computeInsertIndex(
   siblingRects: readonly Rect[],
@@ -276,8 +276,8 @@ export function computeInsertIndex(
 }
 
 /**
- * Linha do indicador de inserção (retângulo de espessura 0 no eixo principal) para o índice
- * `gap` devolvido por `computeInsertIndex`.
+ * Insertion indicator line (rectangle with thickness 0 on the main axis) for the index
+ * `gap` returned by `computeInsertIndex`.
  */
 export function insertLineRect(
   siblingRects: readonly Rect[],
@@ -315,14 +315,14 @@ export function insertLineRect(
 }
 
 export interface SiblingRect {
-  /** Índice real em `parent.children`. */
+  /** Real index in `parent.children`. */
   index: number;
   rect: Rect;
 }
 
 /**
- * Combina `computeInsertIndex` com a conversão para `moveNodes`: `gap` é o índice na lista
- * original de filhos; `moveIndex` é o `index` a enviar (aplicado após remover os nós movidos).
+ * Combines `computeInsertIndex` with the conversion for `moveNodes`: `gap` is the index in the
+ * original list of children; `moveIndex` is the `index` to send (applied after removing the moved nodes).
  */
 export function resolveFlowInsert(
   siblings: readonly SiblingRect[],
@@ -339,7 +339,7 @@ export function resolveFlowInsert(
   return { gap, moveIndex, line: insertLineRect(rects, g, axis, movingPos) };
 }
 
-/** `true` se mover `movingReal` para `moveIndex` não altera a ordem dos filhos. */
+/** `true` if moving `movingReal` to `moveIndex` does not change the order of the children. */
 export function isNoopReorder(movingReal: readonly number[], moveIndex: number): boolean {
   const sorted = [...movingReal].sort((a, b) => a - b);
   const contiguous = sorted.every((v, i) => i === 0 || v === sorted[i - 1]! + 1);
@@ -347,7 +347,7 @@ export function isNoopReorder(movingReal: readonly number[], moveIndex: number):
 }
 
 /* ------------------------------------------------------------------ */
-/* régua de distâncias (Alt)                                          */
+/* distance ruler (Alt)                                          */
 /* ------------------------------------------------------------------ */
 
 export interface Guide {
@@ -355,7 +355,7 @@ export interface Guide {
   y1: number;
   x2: number;
   y2: number;
-  /** Distância em unidades do mundo (px do design), arredondada. */
+  /** Distance in world units (design px), rounded. */
   value: number;
   axis: 'h' | 'v';
 }
@@ -367,9 +367,9 @@ function mid(a0: number, a1: number, b0: number, b1: number): number {
 }
 
 /**
- * Linhas de distância entre `a` e `b`. Se um contém o outro, as 4 distâncias entre as bordas
- * internas; senão, os vãos horizontal e/ou vertical entre bordas que se enfrentam.
- * `scale` converte o espaço dos retângulos para px do mundo (zoom, se estiverem na tela).
+ * Distance lines between `a` and `b`. If one contains the other, the 4 distances between the
+ * inner edges; otherwise, the horizontal and/or vertical gaps between facing edges.
+ * `scale` converts the rectangles' space to world px (zoom, if they are on screen).
  */
 export function distanceGuides(a: Rect, b: Rect, scale = 1): Guide[] {
   const val = (d: number): number => Math.round(d / scale);

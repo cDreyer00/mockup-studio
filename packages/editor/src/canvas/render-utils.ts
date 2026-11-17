@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { ATTR_NAME_RE, isValidTag } from '@mockup/core';
 import type { Node } from '@mockup/core';
 
-/** `background-color` → `backgroundColor`; custom properties (`--x`) ficam intactas. */
+/** `background-color` → `backgroundColor`; custom properties (`--x`) stay intact. */
 export function kebabToCamel(prop: string): string {
   if (prop.startsWith('--')) return prop;
   const p = prop.startsWith('-ms-') ? prop.slice(1) : prop;
@@ -15,15 +15,15 @@ export function convertStyle(style: Record<string, string>): CSSProperties {
   return out as CSSProperties;
 }
 
-/** Resolve o `src` de imagens: data:/http(s) passam; relativo vira `/assets/<docId>/<src>`. */
+/** Resolves the `src` of images: data:/http(s) pass through; relative becomes `/assets/<docId>/<src>`. */
 export function resolveSrc(docId: string, src: string): string {
   if (/^(data:|https?:)/i.test(src)) return src;
   return `/assets/${docId}/${src.replace(/^\/+/, '')}`;
 }
 
 /**
- * SVG como data URI (renderizado via `<img>`, o que desativa scripts e recursos externos). Como
- * imagem o SVG é lido como XML: sem `xmlns` na raiz ele não carrega (sai 0x0), então é acrescentado.
+ * SVG as a data URI (rendered via `<img>`, which disables scripts and external resources). As an
+ * image the SVG is read as XML: without `xmlns` on the root it does not load (comes out 0x0), so it is added.
  */
 export function svgToDataUri(svg: string): string {
   const s = svg.replace(
@@ -34,8 +34,8 @@ export function svgToDataUri(svg: string): string {
 }
 
 /**
- * Tag válida (minúscula) ou `div` quando inválida/bloqueada. `svg` também vira `div`: o nó SVG é
- * renderizado num `<img>` e nunca passa por aqui com a própria tag.
+ * Valid tag (lowercase) or `div` when invalid/blocked. `svg` also becomes `div`: the SVG node is
+ * rendered in an `<img>` and never comes through here with its own tag.
  */
 export function resolveTag(tag: string): string {
   const t = typeof tag === 'string' ? tag.trim().toLowerCase() : '';
@@ -52,14 +52,14 @@ const FORBIDDEN_ATTRS = new Set([
   'formaction',
 ]);
 
-/** Nome de atributo que pode ser repassado ao React com segurança. */
+/** Attribute name that can be safely passed on to React. */
 export function isSafeAttrName(name: string): boolean {
   if (!ATTR_NAME_RE.test(name)) return false;
   const n = name.toLowerCase();
   return !FORBIDDEN_ATTRS.has(n) && !n.startsWith('on');
 }
 
-/** Repassa atributos seguros (`href` vira `data-href`; `src` só em img). */
+/** Passes on safe attributes (`href` becomes `data-href`; `src` only on img). */
 export function safeAttrs(node: Node, docId: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(node.attrs ?? {})) {

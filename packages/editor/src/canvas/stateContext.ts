@@ -1,25 +1,25 @@
 /**
- * Contexto dos estados (variantes do Tailwind) na renderização: o frame raiz fornece a largura
- * (breakpoints), o tema `dark` e o pseudo-estado em prévia; nós com `data-theme` redefinem o `dark`
- * para a própria subárvore.
+ * States context (Tailwind variants) during rendering: the root frame provides the width
+ * (breakpoints), the `dark` theme and the pseudo-state in preview; nodes with `data-theme` redefine `dark`
+ * for their own subtree.
  */
 import { createContext } from 'react';
 import { BREAKPOINT_PX, fixedWidthPx } from '@mockup/core';
 import type { Breakpoint, PreviewState, StateContext as CoreStateContext } from '@mockup/core';
 
 export interface StateCtx {
-  /** Prévia de estado do editor/render (`null` = nenhuma). */
+  /** State preview from the editor/render (`null` = none). */
   preview: PreviewState | null;
   /**
-   * Largura "quantizada" do frame raiz: o maior breakpoint já atingido (0 = nenhum). Assim o
-   * contexto só muda ao cruzar um breakpoint, e não a cada pixel de um redimensionamento.
+   * "Quantized" width of the root frame: the largest breakpoint reached so far (0 = none). This way the
+   * context only changes when crossing a breakpoint, not on every pixel of a resize.
    */
   bpWidth: number;
-  /** O nó está dentro de um tema `dark` (ou na prévia "dark"). */
+  /** The node is inside a `dark` theme (or in the "dark" preview). */
   dark: boolean;
-  /** Larguras dos breakpoints do documento (`--breakpoint-*`); só o contexto do topo as define. */
+  /** Widths of the document's breakpoints (`--breakpoint-*`); only the top context defines them. */
   breakpoints: Record<Breakpoint, number>;
-  /** O documento tem um tema `dark`: a prévia "dark" põe `data-theme="dark"` no frame raiz. */
+  /** The document has a `dark` theme: the "dark" preview sets `data-theme="dark"` on the root frame. */
   darkTheme: boolean;
 }
 
@@ -31,10 +31,10 @@ export const BASE_STATE_CTX: StateCtx = {
   darkTheme: false,
 };
 
-/** No topo (canvas ou página de render) só `preview` importa; o frame raiz completa o resto. */
+/** At the top (canvas or render page) only `preview` matters; the root frame fills in the rest. */
 export const StateCtxContext = createContext<StateCtx>(BASE_STATE_CTX);
 
-/** Maior breakpoint do Tailwind atingido pela largura (0 se nenhum ou largura desconhecida). */
+/** Largest Tailwind breakpoint reached by the width (0 if none or the width is unknown). */
 export function quantizeWidth(
   width: number | undefined,
   breakpoints: Record<Breakpoint, number> = BREAKPOINT_PX,
@@ -45,7 +45,7 @@ export function quantizeWidth(
   return out;
 }
 
-/** Contexto do frame raiz a partir da largura dele (`style.width` ou a da prévia de resize). */
+/** Root frame context from its width (`style.width` or the resize preview's). */
 export function rootStateCtx(base: StateCtx, width: string | undefined): StateCtx {
   return {
     ...base,
@@ -55,15 +55,15 @@ export function rootStateCtx(base: StateCtx, width: string | undefined): StateCt
 }
 
 /**
- * Contexto para a subárvore de um nó com `data-theme`: `dark` liga com o tema `dark` e, como no CSS
- * exportado (`[data-theme=dark] *`), continua ligado dentro de um tema claro aninhado.
+ * Context for the subtree of a node with `data-theme`: `dark` turns on with the `dark` theme and, as in the
+ * exported CSS (`[data-theme=dark] *`), stays on inside a nested light theme.
  */
 export function themedStateCtx(ctx: StateCtx, theme: string): StateCtx {
   const dark = ctx.dark || ctx.preview === 'dark' || theme === 'dark';
   return dark === ctx.dark ? ctx : { ...ctx, dark };
 }
 
-/** Contexto no formato de `resolveStateStyle`. */
+/** Context in the `resolveStateStyle` format. */
 export function toCoreContext(ctx: StateCtx): CoreStateContext {
   return {
     frameWidth: ctx.bpWidth,

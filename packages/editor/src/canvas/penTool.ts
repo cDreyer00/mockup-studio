@@ -1,7 +1,7 @@
 /**
- * Ferramenta Caneta: estado ao vivo (store), eventos de ponteiro/teclado e conclusão do caminho.
- * A lógica pura está em `pen.ts`; o desenho ao vivo, em `PenOverlay.tsx`. Ao concluir, o nó svg
- * entra no pai sob o primeiro clique com uma única chamada `applySafe`.
+ * Pen tool: live state (store), pointer/keyboard events and path completion.
+ * The pure logic is in `pen.ts`; the live drawing is in `PenOverlay.tsx`. On completion, the svg node
+ * goes into the parent under the first click with a single `applySafe` call.
  */
 import { create } from 'zustand';
 import { daemon } from '../client/daemon';
@@ -30,9 +30,9 @@ import { buildCreateOps, planPlacement } from './placement';
 
 export interface PenStore {
   state: PenState;
-  /** Ponteiro em coordenadas do mundo (prévia do próximo segmento). */
+  /** Pointer in world coordinates (preview of the next segment). */
   cursor: Point | null;
-  /** Primeiro clique: mundo e janela (decidem o pai do nó). */
+  /** First click: world and window (decide the node's parent). */
   first: { world: Point; client: Point } | null;
 }
 
@@ -44,14 +44,14 @@ export function penReset(): void {
 
 const zoom = (): number => useUi.getState().viewport.z;
 
-/** Origem (mundo) do sistema de coordenadas dos filhos absolutos do pai: borda de preenchimento. */
+/** Origin (world) of the coordinate system of the parent's absolute children: padding edge. */
 function parentOrigin(root: HTMLElement, parentId: string): Point {
   const rect = measureWorldRect(root, parentId);
   const el = findNodeEl(root, parentId);
   return { x: (rect?.x ?? 0) + (el?.clientLeft ?? 0), y: (rect?.y ?? 0) + (el?.clientTop ?? 0) };
 }
 
-/** Movimento do ponteiro sem botão: atualiza a prévia do próximo segmento. */
+/** Pointer movement without a button: updates the preview of the next segment. */
 export function penPointerMove(e: PointerEvent, root: HTMLElement): void {
   const s = usePen.getState();
   if (s.state.anchors.length === 0) return;
@@ -62,8 +62,8 @@ export function penPointerMove(e: PointerEvent, root: HTMLElement): void {
 }
 
 /**
- * Pressionar o botão: fecha (primeira âncora) ou acrescenta uma âncora e acompanha o arrasto, que
- * cria alças simétricas (Alt quebra a simetria).
+ * Pressing the button: closes (first anchor) or appends an anchor and follows the drag, which
+ * creates symmetric handles (Alt breaks the symmetry).
  */
 export function penPointerDown(e: PointerEvent, root: HTMLElement): void {
   const doc = useDoc.getState().doc;
@@ -80,10 +80,10 @@ export function penPointerDown(e: PointerEvent, root: HTMLElement): void {
     return;
   }
   if (cur.state.anchors.length === 0) {
-    // O primeiro clique decide o pai: sem contêiner sob o ponteiro, avisa e não começa.
+    // The first click decides the parent: with no container under the pointer, it warns and does not start.
     const plan = planPlacement(doc, w, { x: e.clientX, y: e.clientY });
     if (!plan.parentId) {
-      ui.toast('Clique dentro de um frame para desenhar o caminho', 'info');
+      ui.toast('Click inside a frame to draw the path', 'info');
       return;
     }
   }
@@ -114,7 +114,7 @@ export function penPointerDown(e: PointerEvent, root: HTMLElement): void {
   window.addEventListener('pointercancel', stop);
 }
 
-/** Conclui o caminho atual (aberto ou fechado) e cria o nó svg. Menos de 2 âncoras: descarta. */
+/** Finishes the current path (open or closed) and creates the svg node. Fewer than 2 anchors: discards. */
 export async function penFinish(): Promise<void> {
   const { state, first } = usePen.getState();
   penReset();
@@ -126,7 +126,7 @@ export async function penFinish(): Promise<void> {
   if (!doc || !pageId || !root) return;
   const plan = planPlacement(doc, first.world, first.client);
   if (!plan.parentId) {
-    ui.toast('Clique dentro de um frame para desenhar o caminho', 'info');
+    ui.toast('Click inside a frame to draw the path', 'info');
     return;
   }
   const origin = plan.flow ? { x: 0, y: 0 } : parentOrigin(root, plan.parentId);
@@ -135,14 +135,14 @@ export async function penFinish(): Promise<void> {
   if (ack) ui.select([node.id]);
 }
 
-/** Duplo clique: conclui (o 2º clique do duplo já foi ignorado por estar sobre a última âncora). */
+/** Double click: finishes (the 2nd click of the double was already ignored for being over the last anchor). */
 export function penDoubleClick(): void {
   if (canFinish(usePen.getState().state)) void penFinish();
 }
 
 /**
- * Teclas da caneta (captura em `window`, antes dos atalhos globais): Enter/Esc concluem,
- * Backspace remove a última âncora. Só age com um caminho em andamento.
+ * Pen keys (captured on `window`, before the global shortcuts): Enter/Esc finish,
+ * Backspace removes the last anchor. Only acts with a path in progress.
  */
 export function attachPenKeys(): () => void {
   const onKey = (e: KeyboardEvent): void => {

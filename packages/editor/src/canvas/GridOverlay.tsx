@@ -18,9 +18,9 @@ import {
 import type { GridWorld, SpanEdge } from './gridDrag';
 
 interface Shown {
-  /** Contêiner grid cujas trilhas aparecem. */
+  /** Grid container whose tracks are shown. */
   gw: GridWorld;
-  /** Filho selecionado (alças de span) e a célula/extensão que ele ocupa, em mundo. */
+  /** Selected child (span handles) and the cell/extent it occupies, in world coordinates. */
   child: { id: string; cell: Rect; locked: boolean } | null;
 }
 
@@ -51,7 +51,7 @@ function sameShown(a: Shown | null, b: Shown | null): boolean {
   );
 }
 
-/** Grid a mostrar: o selecionado, se for grid, ou o pai grid do filho selecionado. */
+/** Grid to show: the selected one, if it is a grid, or the grid parent of the selected child. */
 function measure(root: HTMLElement): Shown | null {
   const { selection } = useUi.getState();
   const doc = useDoc.getState().doc;
@@ -77,8 +77,8 @@ function measure(root: HTMLElement): Shown | null {
 const px = (r: Rect): CSSProperties => ({ left: r.x, top: r.y, width: r.w, height: r.h });
 
 /**
- * Trilhas do grid selecionado (colunas e linhas, com os gaps entre elas) medidas do DOM, o destaque da
- * célula durante arrastos e as alças de span do filho de um grid selecionado.
+ * Tracks of the selected grid (columns and rows, with the gaps between them) measured from the DOM, the cell
+ * highlight during drags and the span handles of a selected grid's child.
  */
 export function GridOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null> }) {
   const [shown, setShown] = useState<Shown | null>(null);

@@ -11,17 +11,17 @@ import type { FxViewProps } from './types';
 
 export interface EffectCanvasProps {
   spec: EffectSpec;
-  /** Tamanho fixo em px CSS (miniaturas); sem isso preenche o pai (100%) e acompanha o tamanho. */
+  /** Fixed size in CSS px (thumbnails); without it, fills the parent (100%) and follows its size. */
   width?: number;
   height?: number;
-  /** Tempo fixo (s): desenha só esse quadro e não anima. Sem isso usa o relógio do editor. */
+  /** Fixed time (s): draws only that frame and does not animate. Without it, uses the editor clock. */
   time?: number;
   style?: CSSProperties;
 }
 
 const dprNow = (): number => Math.min(2, globalThis.devicePixelRatio || 1);
 
-/** `<canvas>` de um efeito. Usável fora do canvas do editor (miniaturas/preview). */
+/** `<canvas>` of an effect. Usable outside the editor canvas (thumbnails/preview). */
 export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [handle, setHandle] = useState<EffectHandle | null>(null);
@@ -38,7 +38,7 @@ export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasP
   const staticTimeRef = useRef<number | null>(staticTime);
   staticTimeRef.current = staticTime;
 
-  // Monta o runtime quando o efeito (kind) muda.
+  // Mounts the runtime when the effect (kind) changes.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -50,7 +50,7 @@ export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasP
     };
   }, [mountSpec.kind, mountSpec.category]);
 
-  // Tamanho (layout, sem o transform de zoom) e densidade.
+  // Size (layout, without the zoom transform) and density.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !handle) return;
@@ -69,7 +69,7 @@ export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasP
     return () => ro.disconnect();
   }, [handle, fixed, width, height]);
 
-  // Visibilidade: não desenha efeitos fora da tela.
+  // Visibility: does not draw effects that are off screen.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || typeof IntersectionObserver === 'undefined') return;
@@ -80,23 +80,23 @@ export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasP
     return () => io.disconnect();
   }, []);
 
-  // Parâmetros sem recriar o contexto.
+  // Parameters without recreating the context.
   useEffect(() => {
     handle?.setParams(specRef.current.params);
   }, [handle, paramsKey]);
 
-  // Quadro fixo (tempo manual / `time`) ou pausado: desenha uma vez a cada mudança.
+  // Fixed frame (manual time / `time`) or paused: draws once per change.
   useEffect(() => {
     if (!handle) return;
     if (staticTime !== null) {
-      // Na página de render (tempo manual) avisa que este tempo foi desenhado.
+      // On the render page (manual time) reports that this time has been drawn.
       const done = manual !== null ? fxBegin() : null;
       handle.draw(staticTime);
       done?.();
     } else if (!playing) handle.draw(fxNow());
   }, [handle, staticTime, manual, playing, paramsKey]);
 
-  // Tempo real: laço compartilhado.
+  // Real time: shared loop.
   useEffect(() => {
     if (!handle || staticTime !== null || !playing) return;
     return fxSubscribe((t) => {
@@ -134,14 +134,14 @@ export function EffectCanvas({ spec, width, height, time, style }: EffectCanvasP
             pointerEvents: 'none',
           }}
         >
-          efeito indisponível
+          effect unavailable
         </span>
       )}
     </>
   );
 }
 
-/** Nó `effect` no canvas. */
+/** `effect` node on the canvas. */
 export function EffectView({ node, style }: FxViewProps) {
   const spec = node.effect ?? { kind: '', params: {} };
   return (

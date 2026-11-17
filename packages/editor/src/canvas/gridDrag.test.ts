@@ -10,7 +10,7 @@ import {
   resizeSpan,
 } from './gridDrag';
 
-/** 3 colunas de 100 (gap 10) a partir de x=20 e 2 linhas de 50 (gap 10) a partir de y=40. */
+/** 3 columns of 100 (gap 10) starting at x=20 and 2 rows of 50 (gap 10) starting at y=40. */
 const grid: LayoutGrid = {
   columns: [
     { start: 20, size: 100 },
@@ -26,7 +26,7 @@ const grid: LayoutGrid = {
 };
 
 describe('dropPlacement', () => {
-  it('acha a célula sob o ponteiro e mantém a extensão', () => {
+  it('finds the cell under the pointer and keeps the extent', () => {
     expect(dropPlacement(grid, { x: 150, y: 120 }, { columnSpan: 1, rowSpan: 1 })).toEqual({
       column: 2,
       row: 2,
@@ -34,7 +34,7 @@ describe('dropPlacement', () => {
       rowSpan: 1,
     });
   });
-  it('recua o início quando a extensão passaria do fim', () => {
+  it('moves the start back when the extent would go past the end', () => {
     expect(dropPlacement(grid, { x: 300, y: 50 }, { columnSpan: 2, rowSpan: 1 })).toEqual({
       column: 2,
       row: 1,
@@ -42,18 +42,18 @@ describe('dropPlacement', () => {
       rowSpan: 1,
     });
   });
-  it('devolve null fora do grid', () => {
+  it('returns null outside the grid', () => {
     expect(dropPlacement(grid, { x: 5, y: 50 }, { columnSpan: 1, rowSpan: 1 })).toBeNull();
     expect(dropPlacement(grid, { x: 50, y: 500 }, { columnSpan: 1, rowSpan: 1 })).toBeNull();
   });
-  it('em um gap escolhe a trilha mais próxima', () => {
+  it('in a gap picks the nearest track', () => {
     expect(dropPlacement(grid, { x: 124, y: 50 }, { columnSpan: 1, rowSpan: 1 })?.column).toBe(1);
     expect(dropPlacement(grid, { x: 127, y: 50 }, { columnSpan: 1, rowSpan: 1 })?.column).toBe(2);
   });
 });
 
 describe('clampPlacement', () => {
-  it('limita extensão e início às trilhas existentes', () => {
+  it('limits extent and start to the existing tracks', () => {
     expect(clampPlacement(grid, { column: 3, row: 2, columnSpan: 5, rowSpan: 4 })).toEqual({
       column: 1,
       row: 1,
@@ -65,7 +65,7 @@ describe('clampPlacement', () => {
 
 describe('currentPlacement', () => {
   const rect = { x: 130, y: 100, w: 210, h: 50 };
-  it('usa o estilo declarado', () => {
+  it('uses the declared style', () => {
     expect(currentPlacement(grid, rect, { 'grid-column': '2 / span 2', 'grid-row': '2' })).toEqual({
       column: 2,
       row: 2,
@@ -73,7 +73,7 @@ describe('currentPlacement', () => {
       rowSpan: 1,
     });
   });
-  it('completa o automático com a caixa renderizada', () => {
+  it('fills in the automatic one with the rendered box', () => {
     expect(currentPlacement(grid, rect, {})).toEqual({
       column: 2,
       row: 2,
@@ -85,21 +85,21 @@ describe('currentPlacement', () => {
 
 describe('resizeSpan', () => {
   const start = { column: 1, row: 1, columnSpan: 1, rowSpan: 1 };
-  it('estica pela borda direita até a trilha mais próxima', () => {
+  it('stretches by the right edge to the nearest track', () => {
     expect(resizeSpan(grid, start, 'e', { x: 225, y: 60 })).toEqual({ ...start, columnSpan: 2 });
     expect(resizeSpan(grid, start, 'e', { x: 400, y: 60 })).toEqual({ ...start, columnSpan: 3 });
   });
-  it('estica pela borda inferior sem mexer nas colunas', () => {
+  it('stretches by the bottom edge without touching the columns', () => {
     expect(resizeSpan(grid, start, 's', { x: 5000, y: 145 })).toEqual({ ...start, rowSpan: 2 });
   });
-  it('nunca fica abaixo de 1', () => {
+  it('never goes below 1', () => {
     const wide = { ...start, columnSpan: 3 };
     expect(resizeSpan(grid, wide, 'e', { x: 0, y: 60 })).toEqual({ ...start, columnSpan: 1 });
   });
 });
 
 describe('placementRect', () => {
-  it('cobre a extensão inteira', () => {
+  it('covers the whole extent', () => {
     expect(placementRect(grid, { column: 2, row: 1, columnSpan: 2, rowSpan: 2 })).toEqual({
       x: 130,
       y: 40,
@@ -110,7 +110,7 @@ describe('placementRect', () => {
 });
 
 describe('placementDelta', () => {
-  it('grava grid-column/grid-row e remove grid-area', () => {
+  it('writes grid-column/grid-row and removes grid-area', () => {
     const d = placementDelta(
       { 'grid-area': 'main' },
       { column: 2, row: 1, columnSpan: 2, rowSpan: 1 },
@@ -118,7 +118,7 @@ describe('placementDelta', () => {
     expect(d.set).toEqual({ 'grid-column': '2 / span 2', 'grid-row': '1' });
     expect(d.unset).toEqual(['grid-area']);
   });
-  it('remove as formas longas -start/-end ao gravar grid-column/grid-row', () => {
+  it('removes the long forms -start/-end when writing grid-column/grid-row', () => {
     const d = placementDelta(
       {
         'grid-column-start': '2',
@@ -136,21 +136,21 @@ describe('placementDelta', () => {
       'grid-row-start',
     ]);
   });
-  it('preserva o que não está no patch', () => {
+  it('preserves what is not in the patch', () => {
     const d = placementDelta({ 'grid-column': '2 / span 2', 'grid-row': '1' }, { row: 2 });
     expect(d.set).toEqual({ 'grid-column': '2 / span 2', 'grid-row': '2' });
     expect(d.unset).toEqual([]);
   });
-  it('null volta ao automático', () => {
+  it('null goes back to automatic', () => {
     const d = placementDelta({ 'grid-column': '2', 'grid-row': '1' }, { column: null, row: null });
     expect(d.set).toEqual({});
     expect(d.unset.sort()).toEqual(['grid-column', 'grid-row']);
   });
-  it('extensão sem início vira span', () => {
+  it('extent without a start becomes span', () => {
     expect(placementDelta({}, { columnSpan: 2 }).set).toEqual({ 'grid-column': 'span 2' });
     expect(placementDelta({}, { columnSpan: 1 }).set).toEqual({});
   });
-  it('detecta quando nada muda', () => {
+  it('detects when nothing changes', () => {
     const style = { 'grid-column': '2', 'grid-row': '1' };
     expect(deltaChangesStyle(style, placementDelta(style, { column: 2, row: 1 }))).toBe(false);
     expect(deltaChangesStyle(style, placementDelta(style, { column: 3 }))).toBe(true);

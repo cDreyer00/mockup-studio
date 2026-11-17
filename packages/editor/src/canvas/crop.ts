@@ -1,13 +1,13 @@
 /**
- * Geometria pura do recorte visual de imagens. O recorte é um `ImageCrop` (% de cada lado da
- * imagem inteira); durante o modo de recorte a imagem inteira ocupa a caixa do nó e o retângulo
- * de recorte é desenhado sobre ela. Nada aqui toca DOM, store ou rede.
+ * Pure geometry of the visual image crop. The crop is an `ImageCrop` (% of each side of the
+ * whole image); during crop mode the whole image fills the node box and the crop
+ * rectangle is drawn over it. Nothing here touches the DOM, store or network.
  */
 import { clampCrop, cropToCss, parseCrop } from '@mockup/core';
 import type { ImageCrop, Op } from '@mockup/core';
 import type { HandleName, Rect } from './geometry';
 
-/** Menor largura/altura (em %) do retângulo de recorte. */
+/** Minimum width/height (in %) of the crop rectangle. */
 export const MIN_CROP_SIZE = 1;
 
 export const NO_CROP: ImageCrop = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -22,12 +22,12 @@ export function sameCrop(a: ImageCrop, b: ImageCrop): boolean {
   return a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
 }
 
-/** Recorte atual do nó a partir do `object-view-box` (`null` quando o valor não é um `inset()` em %). */
+/** Current crop of the node from `object-view-box` (`null` when the value is not an `inset()` in %). */
 export function cropOfStyle(style: Record<string, string>): ImageCrop | null {
   return parseCrop(style['object-view-box']);
 }
 
-/** Retângulo do recorte (px) dentro de uma caixa `w`×`h` que mostra a imagem inteira. */
+/** Crop rectangle (px) inside a `w`×`h` box that shows the whole image. */
 export function cropToRect(c: ImageCrop, w: number, h: number): Rect {
   return {
     x: (c.left / 100) * w,
@@ -37,12 +37,12 @@ export function cropToRect(c: ImageCrop, w: number, h: number): Rect {
   };
 }
 
-/** Converte um deslocamento em px (na caixa `w`×`h`) para % da imagem. */
+/** Converts a displacement in px (in the `w`×`h` box) to % of the image. */
 export function pxToPct(dx: number, dy: number, w: number, h: number): { dx: number; dy: number } {
   return { dx: w > 0 ? (dx / w) * 100 : 0, dy: h > 0 ? (dy / h) * 100 : 0 };
 }
 
-/** Arrasta a alça `handle` por (dx, dy) em %; cada lado fica em 0..100 com ao menos `MIN_CROP_SIZE` visível. */
+/** Drags the `handle` by (dx, dy) in %; each side stays within 0..100 with at least `MIN_CROP_SIZE` visible. */
 export function dragCropHandle(
   crop: ImageCrop,
   handle: HandleName,
@@ -57,7 +57,7 @@ export function dragCropHandle(
   return clampCrop({ top, right, bottom, left });
 }
 
-/** Move o retângulo de recorte inteiro por (dx, dy) em %, sem sair da imagem e sem mudar o tamanho. */
+/** Moves the whole crop rectangle by (dx, dy) in %, without leaving the image and without changing the size. */
 export function moveCrop(crop: ImageCrop, dx: number, dy: number): ImageCrop {
   const width = 100 - crop.left - crop.right;
   const height = 100 - crop.top - crop.bottom;
@@ -71,7 +71,7 @@ export function moveCrop(crop: ImageCrop, dx: number, dy: number): ImageCrop {
   });
 }
 
-/** Op que grava o recorte (`object-view-box`) ou o remove (`unset`) quando zerado. `null` se nada muda. */
+/** Op that writes the crop (`object-view-box`) or removes it (`unset`) when reset. `null` if nothing changes. */
 export function buildCropOp(
   nodeId: string,
   style: Record<string, string>,
@@ -89,15 +89,15 @@ export function buildCropOp(
 }
 
 /**
- * Estilos transitórios do modo de recorte: a imagem inteira preenche a caixa (`fill`, sem
- * `object-view-box`), de modo que os % do recorte correspondam à caixa do nó.
+ * Transient styles of crop mode: the whole image fills the box (`fill`, without
+ * `object-view-box`), so the crop % match the node box.
  */
 export const CROP_MODE_PREVIEW_STYLE: Record<string, string> = {
   'object-fit': 'fill',
   'object-view-box': 'none',
 };
 
-/** O `object-fit` do nó diverge do que o modo de recorte usa para calcular (cover/fill)? */
+/** Does the node's `object-fit` differ from what crop mode uses to compute (cover/fill)? */
 export function cropFitWarning(style: Record<string, string>): boolean {
   const fit = style['object-fit'];
   return fit !== undefined && fit !== 'cover' && fit !== 'fill';

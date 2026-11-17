@@ -3,7 +3,7 @@ import { makeDoc } from '../test/fixtures';
 import { getChain, getEntry, haveSameParent, isAncestor, pxValue, topLevel } from './tree';
 
 describe('tree', () => {
-  it('indexa pai, índice e profundidade', () => {
+  it('indexes parent, index and depth', () => {
     const { doc, frame, c } = makeDoc();
     const c1 = c.children[0]!;
     expect(getEntry(doc, frame.id)).toMatchObject({ parentId: null, index: 0, depth: 0 });
@@ -13,7 +13,7 @@ describe('tree', () => {
     expect(isAncestor(doc, c1.id, frame.id)).toBe(false);
   });
 
-  it('topLevel remove descendentes e ordena pelo documento', () => {
+  it('topLevel removes descendants and sorts by document order', () => {
     const { doc, a, c } = makeDoc();
     expect(topLevel(doc, [c.children[0]!.id, c.id, a.id, 'nada'])).toEqual([a.id, c.id]);
   });

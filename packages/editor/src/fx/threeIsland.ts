@@ -1,14 +1,14 @@
 /**
- * Ilha Three.js: o código do usuário roda num `<iframe sandbox="allow-scripts" srcdoc>` SEM
- * `allow-same-origin` (origem opaca): nunca toca na origem do editor nem no daemon.
+ * Three.js island: the user's code runs in an `<iframe sandbox="allow-scripts" srcdoc>` WITHOUT
+ * `allow-same-origin` (opaque origin): it never touches the editor's origin or the daemon.
  *
- * Protocolo `postMessage` (cada lado valida `event.source`):
- *   filho -> pai: { type: 'ready' }                  script do THREE carregou
- *                 { type: 'error', message }         erro do código do usuário / do WebGL
- *                 { type: 'drawn', t }               quadro desenhado no tempo t
- *   pai -> filho: { type: 'init', params, w, h, dpr, t, playing }   (re)cria renderer e roda o código
- *                 { type: 'time', t }                tempo manual: desenha update(t)+render
- *                 { type: 'play', playing, t }       liga/desliga o laço próprio (a partir de t)
+ * `postMessage` protocol (each side validates `event.source`):
+ *   child -> parent: { type: 'ready' }                  THREE script loaded
+ *                 { type: 'error', message }         error from the user's code / WebGL
+ *                 { type: 'drawn', t }               frame drawn at time t
+ *   parent -> child: { type: 'init', params, w, h, dpr, t, playing }   (re)creates the renderer and runs the code
+ *                 { type: 'time', t }                manual time: draws update(t)+render
+ *                 { type: 'play', playing, t }       turns the own loop on/off (starting from t)
  *                 { type: 'resize', w, h, dpr }
  */
 
@@ -29,14 +29,14 @@ export type ThreeToChild =
   | { type: 'play'; playing: boolean; t: number }
   | { type: 'resize'; w: number; h: number; dpr: number };
 
-/** JSON seguro dentro de `<script>`: sem `</script>`, `<!--` nem separadores de linha U+2028/U+2029. */
+/** Safe JSON inside `<script>`: no `</script>`, `<!--` or U+2028/U+2029 line separators. */
 export const inScript = (value: unknown): string =>
   JSON.stringify(value)
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 
-// Script do filho (JS clássico, sem template literals para não conflitar com o gerador).
+// Child script (classic JS, no template literals so it does not conflict with the generator).
 const CHILD_SCRIPT = `
 (function () {
   var canvas = document.getElementById('c');
@@ -107,12 +107,12 @@ const CHILD_SCRIPT = `
     else if (m.type === 'resize') size(m.w, m.h, m.dpr);
   });
 
-  if (typeof THREE === 'undefined') fail('Three.js não carregou');
+  if (typeof THREE === 'undefined') fail('Three.js failed to load');
   else post({ type: 'ready' });
 })();
 `;
 
-/** Documento (srcdoc) da ilha para um `code`; `origin` é a origem do editor (servidor do three.iife.js). */
+/** Island document (srcdoc) for a `code`; `origin` is the editor's origin (server of three.iife.js). */
 export function threeSrcdoc(code: string, origin: string): string {
   const script = CHILD_SCRIPT.replace('CODE);', () => `${inScript(code)});`);
   return (

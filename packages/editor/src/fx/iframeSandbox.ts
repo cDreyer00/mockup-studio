@@ -1,12 +1,12 @@
 /**
- * Atributo `sandbox` do embed iframe. Páginas externas mantêm `allow-same-origin` (muitas precisam
- * de localStorage/cookies próprios). Se a URL é de loopback ou da própria origem do editor, a
- * página sem `allow-same-origin` ganha origem opaca e não alcança o daemon (`/api`, `/mcp`, WS) nem
- * o localStorage do editor, mas continua renderizando (ex.: pré-visualizar um dev server local).
+ * `sandbox` attribute of the iframe embed. External pages keep `allow-same-origin` (many need
+ * their own localStorage/cookies). If the URL is loopback or from the editor's own origin, the
+ * page without `allow-same-origin` gets an opaque origin and cannot reach the daemon (`/api`, `/mcp`, WS) or
+ * the editor's localStorage, but still renders (e.g. previewing a local dev server).
  */
 const BASE = 'allow-scripts allow-popups';
 
-/** Hostname de loopback: localhost, *.localhost, 127.0.0.0/8, 0.0.0.0, ::1 (e IPv4 mapeado). */
+/** Loopback hostname: localhost, *.localhost, 127.0.0.0/8, 0.0.0.0, ::1 (and mapped IPv4). */
 export function isLoopbackHost(hostname: string): boolean {
   const h = hostname
     .toLowerCase()
@@ -16,12 +16,12 @@ export function isLoopbackHost(hostname: string): boolean {
   if (h === '0.0.0.0' || h === '::1' || h === '::') return true;
   const v4 = /^(\d+)\.\d+\.\d+\.\d+$/.exec(h);
   if (v4) return Number(v4[1]) === 127;
-  // ::ffff:7f00:1 (forma normalizada de ::ffff:127.0.0.1) e ::ffff:127.x.y.z
+  // ::ffff:7f00:1 (normalized form of ::ffff:127.0.0.1) and ::ffff:127.x.y.z
   if (/^::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}$/.test(h)) return true;
   return /^::ffff:127\./.test(h);
 }
 
-/** Valor de `sandbox` para `url`, dado `origin` (`window.location.origin`). */
+/** `sandbox` value for `url`, given `origin` (`window.location.origin`). */
 export function iframeSandbox(url: string, origin: string): string {
   let u: URL;
   try {

@@ -1,20 +1,20 @@
 /**
- * Registro de prontidão das animações: cada componente de mídia registra uma pendência quando
- * começa a carregar ou quando o tempo manual muda, e a libera depois de desenhar aquele tempo.
- * A página de render espera `fxSettled()` antes de medir/capturar.
+ * Animation readiness registry: each media component registers a pending item when
+ * it starts loading or when the manual time changes, and releases it after drawing that time.
+ * The render page waits for `fxSettled()` before measuring/capturing.
  */
 
 const pending = new Set<Promise<void>>();
 
-/** Informações do render atual (preenchidas pela página de render antes de montar o frame). */
+/** Information about the current render (filled in by the render page before mounting the frame). */
 export const fxRenderInfo = {
-  /** O chamador informou `time` explicitamente (vídeo com poster só usa o poster se NÃO informou). */
+  /** The caller passed `time` explicitly (video with a poster only uses the poster if it did NOT). */
   explicitTime: false,
 };
 
 /**
- * Registra uma pendência e devolve a função que a libera. Libera sozinha após `maxMs` para que
- * um componente que falhou em avisar nunca trave a página.
+ * Registers a pending item and returns the function that releases it. Releases itself after `maxMs` so that
+ * a component that failed to report never hangs the page.
  */
 export function fxBegin(maxMs = 15000): () => void {
   let release!: () => void;
@@ -30,18 +30,18 @@ export function fxBegin(maxMs = 15000): () => void {
   return release;
 }
 
-/** Número de pendências (testes e diagnóstico). */
+/** Number of pending items (tests and diagnostics). */
 export function fxPendingCount(): number {
   return pending.size;
 }
 
-/** Espera todas as pendências (inclusive as registradas enquanto espera), com limite. */
+/** Waits for all pending items (including those registered while waiting), with a limit. */
 export async function fxSettled(timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   let quietTicks = 0;
   for (;;) {
     if (pending.size === 0) {
-      // Um turno extra: efeitos recém-montados podem registrar pendências logo em seguida.
+      // One extra turn: newly mounted effects may register pending items right after.
       if (quietTicks++ >= 1) return true;
       await new Promise((r) => setTimeout(r, 0));
       continue;
@@ -60,7 +60,7 @@ export async function fxSettled(timeoutMs: number): Promise<boolean> {
   }
 }
 
-/** Espera um dos eventos (ou o limite de tempo) num elemento. */
+/** Waits for one of the events (or the time limit) on an element. */
 export function fxOnce(
   el: EventTarget,
   events: string[],

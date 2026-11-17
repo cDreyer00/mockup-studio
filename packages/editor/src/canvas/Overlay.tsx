@@ -14,9 +14,9 @@ import type { HandleName, Rect } from './geometry';
 interface Measured {
   sel: { id: string; rect: Rect }[];
   hover: Rect | null;
-  /** Há nós selecionáveis para redimensionar (nenhum travado). */
+  /** There are selectable nodes to resize (none locked). */
   resizable: boolean;
-  /** Seleção/hover em instância de componente (ou nó dela, ou do principal): contorno roxo. */
+  /** Selection/hover on a component instance (or a node inside it, or inside the main component): purple outline. */
   selComponent: boolean;
   hoverComponent: boolean;
 }
@@ -84,9 +84,9 @@ const HANDLE_POS: Record<HandleName, [number, number]> = {
 };
 
 /**
- * Camada em coordenadas de tela acima do mundo: hover, seleção, alças, dimensão, marquee,
- * indicador de inserção e régua de distâncias. Mede o DOM por rAF quando seleção/hover/doc/prévia
- * mudam; pan e zoom só reconvertem os retângulos já medidos (em mundo).
+ * Layer in screen coordinates above the world: hover, selection, handles, dimensions, marquee,
+ * insertion indicator and distance ruler. Measures the DOM via rAF when selection/hover/doc/preview
+ * change; pan and zoom only reconvert the already-measured rectangles (in world coordinates).
  */
 export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null> }) {
   const [m, setM] = useState<Measured>(EMPTY);
@@ -122,7 +122,7 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
       if (s.doc !== p.doc) schedule();
     });
     const root = rootRef.current;
-    // Imagens/fontes que terminam de carregar mudam o tamanho dos nós.
+    // Images/fonts that finish loading change the size of the nodes.
     root?.addEventListener('load', schedule, true);
     return () => {
       offUi();

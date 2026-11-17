@@ -1,4 +1,4 @@
-/** Efeitos transitórios de gestos (marquee, retângulo de criação, indicador de inserção), em mundo. */
+/** Transient gesture effects (marquee, creation rectangle, insertion indicator), in world coordinates. */
 import { create } from 'zustand';
 import type { Rect } from './geometry';
 

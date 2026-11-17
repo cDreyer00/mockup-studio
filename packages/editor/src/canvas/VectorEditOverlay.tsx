@@ -29,13 +29,13 @@ import { makeViewMap } from './vectorMap';
 import type { ViewMap } from './vectorMap';
 import './vector.css';
 
-/** Deslocamento mínimo (px de tela) para um clique virar arrasto. */
+/** Minimum displacement (screen px) for a click to become a drag. */
 const DRAG_THRESHOLD = 2;
-/** Tolerância (px de tela) do clique num segmento para inserir uma âncora. */
+/** Click tolerance (screen px) on a segment to insert an anchor. */
 const SEGMENT_TOLERANCE = 6;
 
 export const COMPLEX_SVG_MESSAGE =
-  'Este SVG é complexo (filtros, máscaras, texto...) e não tem paths editáveis: edite o markup.';
+  'This SVG is complex (filters, masks, text...) and has no editable paths: edit the markup.';
 
 function tryEnsure(node: Node): Vector | null {
   try {
@@ -54,7 +54,7 @@ function tryLoad(v: Vector | null): EditModel | null {
   }
 }
 
-/** Edição de pontos do nó svg em `editingVectorId`: âncoras e alças sobre o desenho. */
+/** Point editing of the svg node in `editingVectorId`: anchors and handles over the drawing. */
 export function VectorEditOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null> }) {
   const id = useUi((s) => s.editingVectorId);
   const node = useNode(id);
@@ -74,7 +74,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
   const latest = useRef({ node, vector, base, sel });
   latest.current = { node, vector, base, sel };
 
-  // SVG sem paths editáveis: avisa e sai do modo.
+  // SVG without editable paths: warns and exits the mode.
   useEffect(() => {
     if (!base) {
       ui.toast(COMPLEX_SVG_MESSAGE, 'info');
@@ -82,7 +82,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     }
   }, [base]);
 
-  // Sair se a seleção deixar de ser só este nó.
+  // Exit if the selection stops being just this node.
   useEffect(
     () =>
       useUi.subscribe((s, p) => {
@@ -95,7 +95,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     [node.id],
   );
 
-  // Caixa do nó no mundo (re-mede quando o nó ou a prévia mudam; de novo no próximo quadro).
+  // Node box in the world (re-measures when the node or the preview change; again on the next frame).
   useLayoutEffect(() => {
     const measure = (): void => {
       const root = rootRef.current;
@@ -123,7 +123,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     setDraft(null);
   };
 
-  // Teclas (captura, antes dos atalhos globais): Esc/Enter saem, Delete remove âncoras.
+  // Keys (capture, before the global shortcuts): Esc/Enter exit, Delete removes anchors.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isEditableTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -151,7 +151,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-    // só no mount: o handler lê o estado atual por `latest`
+    // only on mount: the handler reads the current state via `latest`
   }, []);
 
   if (!vector || !base || !rect) return null;
@@ -165,7 +165,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     return { x: e.clientX - (rr?.left ?? 0), y: e.clientY - (rr?.top ?? 0) };
   };
 
-  /** Arrasto com limiar; `update` recebe o deslocamento em unidades do viewBox. */
+  /** Drag with threshold; `update` receives the displacement in viewBox units. */
   const startDrag = (
     e: ReactPointerEvent,
     update: (d: Point, ev: PointerEvent) => EditModel,
@@ -211,7 +211,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     const selected = sel.some((r) => sameRef(r, ref));
     let moving = sel;
     if (e.shiftKey) {
-      // Shift soma/remove da seleção (sem arrastar).
+      // Shift adds to/removes from the selection (without dragging).
       setSel(selected ? sel.filter((r) => !sameRef(r, ref)) : [...sel, ref]);
       e.stopPropagation();
       e.preventDefault();

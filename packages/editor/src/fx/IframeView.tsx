@@ -7,7 +7,7 @@ import type { FxViewProps } from './types';
 
 const LOAD_TIMEOUT_MS = 5000;
 
-/** Embed `iframe` (URL http(s) arbitrária), isolado por `sandbox` e sem referrer. */
+/** `iframe` embed (arbitrary http(s) URL), isolated by `sandbox` and without referrer. */
 export function IframeView({ node, style }: FxViewProps) {
   const url = node.embed?.url;
   const render = useFxClock((s) => s.manual) !== null;

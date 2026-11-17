@@ -1,7 +1,7 @@
 /**
- * Máquina da ferramenta Caneta (lógica pura, sem DOM): âncoras em coordenadas do mundo, alças
- * Bézier simétricas ao arrastar, fechamento, remoção da última âncora e montagem do nó svg.
- * O desenho ao vivo (`PenOverlay`) e os eventos de ponteiro (`penTool`) ficam em outros módulos.
+ * Pen tool state machine (pure logic, no DOM): anchors in world coordinates, symmetric
+ * Bézier handles when dragging, closing, removal of the last anchor and svg node assembly.
+ * The live drawing (`PenOverlay`) and the pointer events (`penTool`) live in other modules.
  */
 import { createVectorNode, fitVectorToContent, subpathsToPath } from '@mockup/core';
 import type { Node, PathAnchor, Subpath, Vector } from '@mockup/core';
@@ -14,21 +14,21 @@ export interface PenState {
 
 export const PEN_EMPTY: PenState = { anchors: [], closed: false };
 
-/** Raio (px de tela) em volta da primeira âncora que fecha o caminho. */
+/** Radius (screen px) around the first anchor that closes the path. */
 export const PEN_CLOSE_RADIUS = 8;
-/** Deslocamento mínimo (px de tela) para um clique virar arrasto de alças. */
+/** Minimum displacement (screen px) for a click to become a handle drag. */
 export const PEN_DRAG_THRESHOLD = 3;
-/** Distância mínima (px de tela) para aceitar uma âncora nova (ignora o 2º clique de um duplo clique). */
+/** Minimum distance (screen px) to accept a new anchor (ignores the 2nd click of a double click). */
 export const PEN_MIN_GAP = 2;
 
-/** Tinta padrão do caminho: traço #111111 de 2 px; fechado ganha preenchimento #d9d9d9. */
+/** Default path ink: #111111 stroke of 2 px; closed paths get a #d9d9d9 fill. */
 export const PEN_STROKE = '#111111';
 export const PEN_STROKE_WIDTH = 2;
 export const PEN_FILL = '#d9d9d9';
 
 const dist = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** Leva `to` ao múltiplo de 45° mais próximo (em torno de `from`), preservando o comprimento. */
+/** Snaps `to` to the nearest multiple of 45° (around `from`), preserving the length. */
 export function constrainAngle(from: Point, to: Point): Point {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -40,8 +40,8 @@ export function constrainAngle(from: Point, to: Point): Point {
 }
 
 /**
- * Acrescenta uma âncora reta. Ignora o ponto se o caminho já está fechado ou se ele cai a menos de
- * `minGap` (mundo) da última âncora. Com `shift` o ponto é restrito a múltiplos de 45° da última.
+ * Appends a straight anchor. Ignores the point if the path is already closed or if it falls less than
+ * `minGap` (world) from the last anchor. With `shift` the point is constrained to multiples of 45° from the last one.
  */
 export function addAnchor(
   s: PenState,
@@ -57,8 +57,8 @@ export function addAnchor(
 }
 
 /**
- * Arrasto logo após criar a última âncora: `out` vai para `p` e `in` para o ponto simétrico em torno
- * da âncora. Com `alt` a simetria quebra: só `out` muda (`in` fica como estava).
+ * Drag right after creating the last anchor: `out` goes to `p` and `in` to the symmetric point around
+ * the anchor. With `alt` the symmetry breaks: only `out` changes (`in` stays as it was).
  */
 export function dragLastHandles(s: PenState, p: Point, alt = false): PenState {
   const i = s.anchors.length - 1;
@@ -72,7 +72,7 @@ export function dragLastHandles(s: PenState, p: Point, alt = false): PenState {
   return { ...s, anchors };
 }
 
-/** O ponto está sobre a primeira âncora (e há âncoras suficientes para fechar)? */
+/** Is the point over the first anchor (and are there enough anchors to close)? */
 export function isNearFirst(s: PenState, p: Point, radius: number): boolean {
   const first = s.anchors[0];
   return !s.closed && s.anchors.length >= 2 && !!first && dist(first, p) <= radius;
@@ -87,7 +87,7 @@ export function removeLastAnchor(s: PenState): PenState {
   return { anchors: s.anchors.slice(0, -1), closed: false };
 }
 
-/** Caminho aberto precisa de 2 âncoras; o fechado também (a máquina só fecha com 2 ou mais). */
+/** An open path needs 2 anchors; so does a closed one (the machine only closes with 2 or more). */
 export function canFinish(s: PenState): boolean {
   return s.anchors.length >= 2;
 }
@@ -97,9 +97,9 @@ export function penSubpath(s: PenState): Subpath {
 }
 
 /**
- * Path data (`M .. C/L ..`) do segmento de prévia da última âncora até `cursor`; com `closing` o
- * destino é a primeira âncora e usa a alça de entrada dela. Mesmo sistema de coordenadas das
- * âncoras de `s`. Vazio se não há âncoras ou o caminho já está fechado.
+ * Path data (`M .. C/L ..`) of the preview segment from the last anchor to `cursor`; with `closing` the
+ * destination is the first anchor and uses its incoming handle. Same coordinate system as the
+ * anchors of `s`. Empty if there are no anchors or the path is already closed.
  */
 export function previewSegmentD(s: PenState, cursor: Point, closing = false): string {
   const last = s.anchors[s.anchors.length - 1];
@@ -125,9 +125,9 @@ export function translateAnchors(anchors: PathAnchor[], dx: number, dy: number):
 }
 
 /**
- * Nó svg do caminho concluído. As âncoras vêm em coordenadas do mundo; `origin` é a origem do pai
- * (mundo) para convertê-las. `flow`: o nó entra no fluxo do pai (só width/height); senão fica
- * `position: absolute` em left/top. Devolve também a caixa final (no pai).
+ * svg node of the finished path. The anchors come in world coordinates; `origin` is the parent's origin
+ * (world) to convert them. `flow`: the node enters the parent's flow (width/height only); otherwise it is
+ * `position: absolute` at left/top. Also returns the final box (in the parent).
  */
 export function buildPenNode(
   s: PenState,
@@ -137,7 +137,7 @@ export function buildPenNode(
   const anchors = translateAnchors(s.anchors, -origin.x, -origin.y);
   const d = subpathsToPath([{ anchors, closed: s.closed }]);
   const draft: Vector = {
-    // viewBox identidade com a caixa (escala 1): as coordenadas do caminho já são as do pai.
+    // viewBox identical to the box (scale 1): the path coordinates are already the parent's.
     viewBox: { x: 0, y: 0, width: 1, height: 1 },
     paths: [
       {
@@ -161,6 +161,6 @@ export function buildPenNode(
     style.left = num(fit.box.x);
     style.top = num(fit.box.y);
   }
-  const node = createVectorNode(fit.vector, { name: opts.name ?? 'Caminho', style });
+  const node = createVectorNode(fit.vector, { name: opts.name ?? 'Path', style });
   return { node, box: fit.box };
 }

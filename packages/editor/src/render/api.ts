@@ -1,6 +1,6 @@
 /**
- * API da página de render (`window.__mockupRender`), usada pelo processo principal do app desktop
- * para screenshots fiéis e para `get_layout`. Não conecta ao daemon: recebe o documento pronto.
+ * Render page API (`window.__mockupRender`), used by the desktop app's main process
+ * for faithful screenshots and for `get_layout`. It does not connect to the daemon: it receives the finished document.
  */
 import { createElement } from 'react';
 import { flushSync } from 'react-dom';
@@ -35,16 +35,16 @@ export interface RenderPayload {
   docId: string;
   nodeId: string;
   transparent?: boolean;
-  /** Prévia de estado (hover, focus, active, focus-visible, disabled, dark). */
+  /** State preview (hover, focus, active, focus-visible, disabled, dark). */
   state?: PreviewState;
-  /** Instante da animação (s). Sem isso: tempo 0 (e vídeo com poster mostra o poster). */
+  /** Animation instant (s). Without it: time 0 (and a video with a poster shows the poster). */
   time?: number;
 }
 
 export interface MockupRenderApi {
   render(payload: RenderPayload): Promise<RenderBox>;
   measure(nodeId: string): LayoutNode;
-  /** Muda o tempo do frame já renderizado e espera as animações desenharem (captura de N quadros). */
+  /** Changes the time of the already rendered frame and waits for the animations to draw (capturing N frames). */
   setTime(t: number): Promise<void>;
 }
 
@@ -63,7 +63,7 @@ const FX_TIMEOUT_MS = 10000;
 const timeout = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const esc = (id: string): string => `[data-node-id="${id.replace(/["\\]/g, '\\$&')}"]`;
 
-/** Espera a imagem carregar e decodificar (com limite de tempo; erro não trava). */
+/** Waits for the image to load and decode (with a time limit; an error does not hang). */
 async function imageReady(img: HTMLImageElement): Promise<void> {
   const work = (async () => {
     if (!img.complete) {
@@ -75,7 +75,7 @@ async function imageReady(img: HTMLImageElement): Promise<void> {
     try {
       await img.decode();
     } catch {
-      /* imagem quebrada: segue */
+      /* broken image: carry on */
     }
   })();
   await Promise.race([work, timeout(ASSET_TIMEOUT_MS)]);
@@ -87,7 +87,7 @@ function rectIn(el: Element, origin: DOMRect) {
 }
 
 let ctx2d: CanvasRenderingContext2D | null | undefined;
-/** Ascent/descent da fonte do elemento (métrica da fonte, não do texto). */
+/** Ascent/descent of the element's font (font metric, not of the text). */
 function fontMetrics(cs: CSSStyleDeclaration): { ascent: number; descent: number } {
   const size = parseFloat(cs.fontSize) || 16;
   try {
@@ -99,7 +99,7 @@ function fontMetrics(cs: CSSStyleDeclaration): { ascent: number; descent: number
         return { ascent: m.fontBoundingBoxAscent, descent: m.fontBoundingBoxDescent };
     }
   } catch {
-    /* sem canvas: aproxima */
+    /* no canvas: approximate */
   }
   return { ascent: size * 0.8, descent: size * 0.2 };
 }
@@ -148,7 +148,7 @@ function readStyle(el: Element): LayoutStyle {
   return out;
 }
 
-/** Trilhas do nó quando ele é um contêiner grid (valores resolvidos do navegador, em px). */
+/** Tracks of the node when it is a grid container (values resolved by the browser, in px). */
 function gridOf(el: Element, rect: LayoutRect): LayoutGrid | undefined {
   const cs = getComputedStyle(el);
   return measureGridTracks(
@@ -176,7 +176,7 @@ function findNode(n: Node, id: string): Node | null {
   return null;
 }
 
-/** Primeiro nó oculto no caminho do frame (exclusive) até `id` (inclusive), ou null. */
+/** First hidden node on the path from the frame (exclusive) to `id` (inclusive), or null. */
 function hiddenOnPath(root: Node, id: string): Node | null {
   const walk = (n: Node, hiddenAbove: Node | null): Node | null | undefined => {
     const h = hiddenAbove ?? (n !== root && n.hidden ? n : null);
@@ -193,11 +193,9 @@ function hiddenOnPath(root: Node, id: string): Node | null {
 function assertVisible(frame: Node, id: string): void {
   const h = hiddenOnPath(frame, id);
   if (!h) return;
-  const quem =
-    h.id === id
-      ? `O nó "${id}" está oculto (hidden)`
-      : `O nó "${id}" está dentro de "${h.id}", que está oculto (hidden)`;
-  throw new Error(`${quem}; mostre-o com set_node_flags ou capture outro nó.`);
+  const who =
+    h.id === id ? `Node "${id}" is hidden` : `Node "${id}" is inside "${h.id}", which is hidden`;
+  throw new Error(`${who}; show it with set_node_flags or capture another node.`);
 }
 
 interface Last {
@@ -206,17 +204,17 @@ interface Last {
   frame: Node;
 }
 
-/** Instala `window.__mockupRender` montando o React em `container`. */
+/** Installs `window.__mockupRender` by mounting React in `container`. */
 export function installRenderApi(container: HTMLElement): MockupRenderApi {
   let root: Root | null = null;
   let last: Last | null = null;
 
   const api: MockupRenderApi = {
     async render({ doc: received, docId, nodeId, transparent, state, time }) {
-      // O daemon manda o documento já expandido; um documento com instâncias cruas também serve.
+      // The daemon sends the document already expanded; a document with raw instances also works.
       const doc = expandDocument(received);
       const picked = pickFrame(doc, nodeId);
-      if (!picked) throw new Error(`Nó não encontrado no documento: ${nodeId}`);
+      if (!picked) throw new Error(`Node not found in the document: ${nodeId}`);
       const frame = renderFrameOf(picked.frame);
       assertVisible(frame, nodeId);
 
@@ -226,10 +224,10 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         el.style.margin = '0';
         el.style.overflow = 'hidden';
       }
-      // Sem fundo: evita que o `color-scheme: dark` do tema pinte a tela por baixo do frame.
+      // No background: prevents the theme's `color-scheme: dark` from painting the screen beneath the frame.
       document.documentElement.style.colorScheme = transparent ? 'normal' : '';
 
-      // Animações em tempo manual (determinístico); `time` explícito é lembrado (regra do poster).
+      // Animations in manual time (deterministic); an explicit `time` is remembered (poster rule).
       fxRenderInfo.explicitTime = time !== undefined;
       fxClock.setManual(time ?? 0);
 
@@ -238,10 +236,10 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
 
       const world = container.firstElementChild as HTMLElement | null;
       const frameEl = world?.querySelector<HTMLElement>(esc(frame.id));
-      if (!world || !frameEl) throw new Error(`Falha ao renderizar o frame ${frame.id}`);
+      if (!world || !frameEl) throw new Error(`Failed to render frame ${frame.id}`);
       last = { world, frameEl, frame };
 
-      void frameEl.getBoundingClientRect(); // força o layout, que dispara o carregamento das fontes
+      void frameEl.getBoundingClientRect(); // forces layout, which triggers font loading
       await document.fonts?.ready;
       await Promise.all(Array.from(world.querySelectorAll('img')).map(imageReady));
       await document.fonts?.ready;
@@ -261,20 +259,20 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
     },
 
     async setTime(t) {
-      if (!last) throw new Error('Nada foi renderizado ainda: chame render() antes de setTime().');
+      if (!last) throw new Error('Nothing has been rendered yet: call render() before setTime().');
       fxRenderInfo.explicitTime = true;
       fxClock.setManual(t);
-      await raf(); // deixa as views reagirem ao novo tempo e registrarem pendências
+      await raf(); // lets the views react to the new time and register pending items
       await fxSettled(FX_TIMEOUT_MS);
       await raf();
       await raf();
     },
 
     measure(nodeId) {
-      if (!last) throw new Error('Nada foi renderizado ainda: chame render() antes de measure().');
+      if (!last) throw new Error('Nothing has been rendered yet: call render() before measure().');
       const { world, frameEl, frame } = last;
       const node = findNode(frame, nodeId);
-      if (!node) throw new Error(`O nó ${nodeId} não está no último render (frame ${frame.id}).`);
+      if (!node) throw new Error(`Node ${nodeId} is not in the last render (frame ${frame.id}).`);
       assertVisible(frame, nodeId);
       const origin = frameEl.getBoundingClientRect();
 
@@ -294,7 +292,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         const grid = gridOf(el, out);
         if (grid) out.grid = grid;
         if (n.type === 'image' && n.src) out.src = n.src;
-        // effect/video/embed são caixas: sem linhas de texto.
+        // effect/video/embed are boxes: no text lines.
         for (const c of n.children ?? []) {
           if (c.hidden) continue;
           const m = build(c);
@@ -303,7 +301,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         return out;
       };
       const result = build(node);
-      if (!result) throw new Error(`O nó ${nodeId} não foi renderizado (oculto?).`);
+      if (!result) throw new Error(`Node ${nodeId} was not rendered (hidden?).`);
       return result;
     },
   };

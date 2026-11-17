@@ -4,7 +4,7 @@ import { installRenderApi } from './api';
 import { makeDoc } from '../test/fixtures';
 import type { MockupRenderApi } from './api';
 
-describe('página de render', () => {
+describe('render page', () => {
   let api: MockupRenderApi;
   beforeEach(() => {
     document.body.innerHTML = '<div id="root"></div>';
@@ -12,12 +12,12 @@ describe('página de render', () => {
     api = installRenderApi(document.getElementById('root')!);
   });
 
-  it('expõe a API e marca a página como pronta', () => {
+  it('exposes the API and marks the page as ready', () => {
     expect(window.__mockupRenderReady).toBe(true);
     expect(window.__mockupRender).toBe(api);
   });
 
-  it('renderiza só o frame do nó em (0,0), sem sombra, com fundo da página', async () => {
+  it('renders only the node frame at (0,0), without shadow, with the page background', async () => {
     const { doc, frame, a } = makeDoc();
     doc.pages[0]!.background = '#abcdef';
     doc.pages[0]!.frames.push({ ...frame, id: 'outro', children: [] });
@@ -30,38 +30,38 @@ describe('página de render', () => {
     expect(document.body.style.background).toContain('#abcdef');
   });
 
-  it('transparent remove o fundo', async () => {
+  it('transparent removes the background', async () => {
     const { doc, a } = makeDoc();
     await api.render({ doc, docId: doc.id, nodeId: a.id, transparent: true });
     expect(document.body.style.background).toContain('transparent');
   });
 
-  it('injeta @font-face das fontes embutidas', async () => {
+  it('injects @font-face for the embedded fonts', async () => {
     const { doc, a } = makeDoc();
     doc.fonts = [{ family: 'Minha', source: 'file', files: ['fonts/m.woff2'] }];
     await api.render({ doc, docId: doc.id, nodeId: a.id });
     expect(document.body.innerHTML).toContain(`/assets/${doc.id}/fonts/m.woff2`);
   });
 
-  it('measure devolve a subárvore e erra para nó fora do último render', async () => {
+  it('measure returns the subtree and throws for a node outside the last render', async () => {
     const { doc, frame, a } = makeDoc();
     await api.render({ doc, docId: doc.id, nodeId: a.id });
     const tree = api.measure(frame.id);
     expect(tree.id).toBe(frame.id);
     expect(tree.children.map((c) => c.id)).toContain(a.id);
-    expect(() => api.measure('nada')).toThrow(/não está no último render/);
+    expect(() => api.measure('nothing')).toThrow(/is not in the last render/);
   });
 
-  it('erra com nó inexistente', async () => {
+  it('throws for a nonexistent node', async () => {
     const { doc } = makeDoc();
-    await expect(api.render({ doc, docId: doc.id, nodeId: 'x' })).rejects.toThrow(/não encontrado/);
+    await expect(api.render({ doc, docId: doc.id, nodeId: 'x' })).rejects.toThrow(/not found/);
   });
 
-  it('nó oculto (ou dentro de um oculto) erra em render e measure; frame raiz oculto renderiza', async () => {
+  it('hidden node (or inside a hidden one) throws in render and measure; hidden root frame renders', async () => {
     const { doc, frame, a, c } = makeDoc();
     a.hidden = true;
     await expect(api.render({ doc, docId: doc.id, nodeId: a.id })).rejects.toThrow(
-      `O nó "${a.id}" está oculto (hidden); mostre-o com set_node_flags`,
+      `Node "${a.id}" is hidden; show it with set_node_flags`,
     );
     a.hidden = false;
     frame.hidden = true;
@@ -71,12 +71,12 @@ describe('página de render', () => {
     const inner = c.children[0]!;
     c.hidden = true;
     await expect(api.render({ doc, docId: doc.id, nodeId: inner.id })).rejects.toThrow(
-      `dentro de "${c.id}", que está oculto`,
+      `inside "${c.id}", which is hidden`,
     );
     c.hidden = false;
     a.hidden = false;
     await api.render({ doc, docId: doc.id, nodeId: frame.id });
     a.hidden = true;
-    expect(() => api.measure(a.id)).toThrow(/oculto/);
+    expect(() => api.measure(a.id)).toThrow(/hidden/);
   });
 });

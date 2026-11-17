@@ -1,4 +1,4 @@
-/** Funções puras da medição da página de render (testáveis sem navegador). */
+/** Pure functions for render page measurement (testable without a browser). */
 import {
   isGridContainer,
   layoutTracks,
@@ -11,7 +11,7 @@ import {
 } from '@mockup/core';
 import { getEntry, getFrameOf } from '../model/tree';
 
-/** Propriedades de `LayoutStyle` lidas do `getComputedStyle`. */
+/** `LayoutStyle` properties read from `getComputedStyle`. */
 export const LAYOUT_STYLE_PROPS = [
   'background-color',
   'background-image',
@@ -56,7 +56,7 @@ export interface PickedFrame {
   background: string | undefined;
 }
 
-/** Frame raiz (e página) que contém o nó; `null` se o nó não existe no documento. */
+/** Root frame (and page) containing the node; `null` if the node does not exist in the document. */
 export function pickFrame(doc: Document, nodeId: string): PickedFrame | null {
   const entry = getEntry(doc, nodeId);
   const frame = entry ? getFrameOf(doc, nodeId) : undefined;
@@ -74,8 +74,8 @@ export interface RawLine extends LayoutRect {
 }
 
 /**
- * Agrupa retângulos de caracteres em linhas: caracteres cujo topo difere menos que a tolerância (e
- * que seguem na mesma direção) ficam juntos. Caracteres sem caixa (espaços colapsados) são ignorados.
+ * Groups character rectangles into lines: characters whose top differs by less than the tolerance (and
+ * that go in the same direction) stay together. Characters without a box (collapsed spaces) are ignored.
  */
 export function groupLines(chars: CharBox[], tolerance = 2): RawLine[] {
   const lines: RawLine[] = [];
@@ -103,8 +103,8 @@ export function groupLines(chars: CharBox[], tolerance = 2): RawLine[] {
 }
 
 /**
- * Aplica o line box à linha medida (a caixa do texto é a área de conteúdo da fonte): devolve o
- * retângulo com a altura do line box, centrado, e a baseline a partir do topo dele.
+ * Applies the line box to the measured line (the text box is the font's content area): returns the
+ * rectangle with the line box height, centered, and the baseline from its top.
  */
 export function fitLineBox(
   line: RawLine,
@@ -121,7 +121,7 @@ export function fitLineBox(
   };
 }
 
-/** Valores do `getComputedStyle` de um contêiner grid, como strings (já resolvidos pelo navegador). */
+/** `getComputedStyle` values of a grid container, as strings (already resolved by the browser). */
 export interface GridComputed {
   display: string;
   gridTemplateColumns: string;
@@ -139,16 +139,16 @@ const px = (v: string | undefined): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Tamanhos resolvidos (`"200px 200px"`, com nomes de linha opcionais) → início/tamanho a partir de `origin`. */
+/** Resolved sizes (`"200px 200px"`, with optional line names) → start/size from `origin`. */
 function tracksFrom(template: string, origin: number, gap: number): LayoutTrack[] {
   const sizes = parseTrackList(template).map((t) => (t.kind === 'px' ? (t.amount ?? 0) : 0));
   return layoutTracks(sizes, gap, origin);
 }
 
 /**
- * Trilhas medidas de um contêiner `display: grid`/`inline-grid`, relativas ao frame: lê as trilhas
- * resolvidas em px (`grid-template-columns`/`rows` do computed style) e posiciona-as na caixa de conteúdo
- * (retângulo do nó menos borda e padding). `undefined` se o nó não é grid.
+ * Measured tracks of a `display: grid`/`inline-grid` container, relative to the frame: reads the tracks
+ * resolved in px (`grid-template-columns`/`rows` from the computed style) and positions them in the content box
+ * (node rectangle minus border and padding). `undefined` if the node is not a grid.
  */
 export function measureGridTracks(cs: GridComputed, rect: LayoutRect): LayoutGrid | undefined {
   if (!isGridContainer({ display: cs.display })) return undefined;
