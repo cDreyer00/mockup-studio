@@ -65,7 +65,9 @@ O setup lê o registro atual direto de `~/.claude.json` (ou `$CLAUDE_CONFIG_DIR/
 
 - Já registrado com o mesmo comando: não executa nada ("nada a fazer").
 - Claude com comando diferente: avisa que o re-registro descarta campos extras e faz `remove -s user` + `add --scope user`. Se o servidor só existe no escopo local ou de projeto, informa e adiciona no escopo user.
-- Codex com comando diferente: edita só `command`/`args` (ou `url`) da seção no `config.toml`. Chaves como `default_tools_approval_mode`, `env`, timeouts, comentários e as outras seções ficam como estão.
+- Codex com comando diferente: edita só as chaves de lançamento da seção no `config.toml` (`command`/`args`/`env`, ou `url` com `--http`). Chaves como `default_tools_approval_mode`, timeouts, comentários (inclusive no fim da linha) e as outras seções ficam como estão. Um `env = { ... }` em linha é atualizado em linha.
+- Troca de transporte no Codex: ao ir para `--http`, remove `command`, `args`, `env`, `env_vars` e `cwd` (o Codex não aceita essas chaves em servidor HTTP e não sobe); ao voltar para stdio, remove `url`, `bearer_token_env_var`, `http_headers` e `env_http_headers`. O setup lista o que removeu.
+- Antes de gravar, o setup confere o resultado com um parser TOML: se não ficar válido ou com o comando esperado, não grava nada e sugere editar à mão ou `--force`. Um `config.toml` já inválido é apontado (linha e coluna) pelo setup e pelo `mockup doctor`.
 - Sem a seção no Codex: `codex mcp add`.
 - Sem os executáveis no PATH, imprime as instruções.
 
