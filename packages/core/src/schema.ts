@@ -136,7 +136,17 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   name: z.string(),
   pages: z.array(PageSchema).min(1, { error: 'o documento precisa de ao menos uma página' }),
   tokens: FileTokensSchema.default({}),
-  fonts: z.array(FontRefSchema).default([]),
+  // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo
+  // ruins) em vez de recusar o documento inteiro; a op `setFonts` continua estrita.
+  fonts: z
+    .array(z.unknown())
+    .default([])
+    .transform((list) =>
+      list.flatMap((f) => {
+        const r = FontRefSchema.safeParse(f);
+        return r.success ? [r.data] : [];
+      }),
+    ),
   meta: z
     .object({ createdAt: z.string(), updatedAt: z.string() })
     .catchall(z.unknown())

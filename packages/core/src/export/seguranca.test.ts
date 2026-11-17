@@ -240,10 +240,25 @@ describe('fontes: injeção por família, estilo e arquivo', () => {
     expect(parse({ ...base, styles: ['oblique'], weights: [1000] })).toBe(true);
   });
 
-  it('parseDocument recusa documento com fonte perigosa', () => {
+  it('parseDocument descarta só a fonte perigosa e abre o documento', () => {
     const raw = JSON.parse(serializeDocument(createDocument('F'))) as Record<string, unknown>;
-    raw.fonts = [{ family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] }];
-    expect(() => parseDocument(JSON.stringify(raw))).toThrow();
+    raw.fonts = [
+      { family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] },
+      { family: 'B', source: 'file', files: ['../x.woff2'] },
+      { family: 'Inter', source: 'file', files: ['fonts/inter.woff2'], weights: [400] },
+    ];
+    const doc = parseDocument(JSON.stringify(raw));
+    expect(doc.fonts.map((f) => f.family)).toEqual(['Inter']);
+  });
+
+  it('setFonts continua recusando fonte perigosa', () => {
+    const doc = createDocument('F');
+    expect(() =>
+      applyOp(doc, {
+        type: 'setFonts',
+        fonts: [{ family: 'A</style>', source: 'file', files: ['fonts/a.woff2'] }],
+      }),
+    ).toThrow();
   });
 
   it('fontFaceCss descarta entradas inválidas (defesa em profundidade)', () => {
