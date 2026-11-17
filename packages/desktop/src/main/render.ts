@@ -5,7 +5,7 @@
  */
 import { BrowserWindow, nativeImage } from 'electron';
 import type { CaptureRequest, CaptureResult, RenderProvider, RenderTarget } from '@mockup/server';
-import { getFrameOf, type LayoutNode, type RenderBox } from '@mockup/core';
+import { getFrameOf, type LayoutNode, type PreviewState, type RenderBox } from '@mockup/core';
 import {
   CACHE_MAX_BYTES,
   LruCache,
@@ -139,6 +139,7 @@ export class RenderService implements RenderProvider {
     t: RenderTarget,
     scale: number,
     transparent: boolean,
+    state?: PreviewState,
   ): Promise<RenderBox> {
     const declared = declaredSize(getFrameOf(t.doc, t.nodeId));
     let vw = Math.ceil(declared.width ?? DEFAULT_VIEWPORT.width);
@@ -148,6 +149,7 @@ export class RenderService implements RenderProvider {
       docId: t.docId,
       nodeId: t.nodeId,
       transparent,
+      state,
     })})`;
     let box!: RenderBox;
     for (let i = 0; i < 3; i++) {
@@ -180,9 +182,10 @@ export class RenderService implements RenderProvider {
     const format = req.format ?? 'png';
     // JPG não tem alfa: ignora `transparent`
     const transparent = format === 'png' && !!req.transparent;
+    // O estado de prévia e o CSS base (preflight) mudam a imagem: entram na chave pelo docId.
     const key = cacheKey({
       doc: req.doc,
-      docId: req.docId,
+      docId: [req.docId, req.doc.cssBase, req.state].filter(Boolean).join('#'),
       nodeId: req.nodeId,
       scale,
       format,
@@ -215,7 +218,7 @@ export class RenderService implements RenderProvider {
     transparent: boolean,
   ): Promise<CaptureResult> {
     const win = await this.ensureWindow();
-    const box = await this.prepare(win, req, scale, transparent);
+    const box = await this.prepare(win, req, scale, transparent, req.state);
     assertSize(box.width, box.height, scale);
     let png: Buffer;
     try {

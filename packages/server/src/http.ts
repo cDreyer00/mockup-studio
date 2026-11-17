@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { exportSvg, findNode } from '@mockup/core';
+import { PREVIEW_STATES, exportSvg, findNode, type PreviewState } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { assetDataUrl } from './assets.js';
@@ -378,6 +378,9 @@ export function createApp(
       if (maxWidth !== undefined && !(Number.isFinite(maxWidth) && maxWidth > 0))
         throw new HttpError(400, 'maxWidth inválido');
       const t = String(req.query.transparent ?? '');
+      const stateQ = req.query.state === undefined ? undefined : String(req.query.state);
+      if (stateQ !== undefined && !(PREVIEW_STATES as readonly string[]).includes(stateQ))
+        throw new HttpError(400, `state deve ser um de: ${PREVIEW_STATES.join(', ')}`);
       let result;
       try {
         result = await ctx.render.capture({
@@ -390,6 +393,7 @@ export function createApp(
           quality,
           maxWidth,
           transparent: t === '1' || t === 'true',
+          state: stateQ as PreviewState | undefined,
         });
       } catch (e) {
         throw new HttpError(500, e instanceof Error ? e.message : 'Falha no render');

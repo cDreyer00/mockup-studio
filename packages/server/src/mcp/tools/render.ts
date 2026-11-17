@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LayoutNode } from '@mockup/core';
+import { PREVIEW_STATES, type LayoutNode } from '@mockup/core';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
@@ -49,7 +49,7 @@ export function registerRenderTools(ctx: ToolContext): void {
     {
       title: 'Screenshot de um nó',
       description:
-        'Renderiza um nó e devolve a IMAGEM; use após cada conjunto de mudanças para conferir. Dica: scale 1 e maxWidth 800 gastam menos contexto. Sem nodeId usa a seleção ou o primeiro frame. Exige render.',
+        'Renderiza um nó e devolve a IMAGEM; use após cada conjunto de mudanças para conferir. Dica: scale 1 e maxWidth 800 gastam menos contexto. Sem nodeId usa a seleção ou o primeiro frame. state mostra hover, dark etc. Exige render.',
       example: { nodeId: 'fr_ab12cd34', scale: 1, format: 'png', maxWidth: 800 },
       inputSchema: {
         nodeId: z
@@ -74,11 +74,17 @@ export function registerRenderTools(ctx: ToolContext): void {
           .boolean()
           .optional()
           .describe('true deixa o fundo transparente fora do conteúdo (só png). Padrão false.'),
+        state: z
+          .enum(PREVIEW_STATES)
+          .optional()
+          .describe(
+            `Estado de prévia (veja get_guide("tailwind")): ${PREVIEW_STATES.join(', ')}. Mostra o nó com os states (hover:, dark:...) aplicados, ex.: "hover".`,
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
-    async ({ nodeId, scale, format, maxWidth, transparent, docId }) => {
+    async ({ nodeId, scale, format, maxWidth, transparent, state, docId }) => {
       const render = needRender();
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
@@ -96,6 +102,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           format: fmt,
           maxWidth,
           transparent,
+          ...(state ? { state } : {}),
         });
       } catch (e) {
         throw new ToolError(
@@ -105,7 +112,7 @@ export function registerRenderTools(ctx: ToolContext): void {
       const ext = r.mime === 'image/jpeg' ? 'jpg' : 'png';
       return {
         images: [{ data: r.data.toString('base64'), mimeType: r.mime }],
-        text: `${node.id} "${node.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (imagem ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})`,
+        text: `${node.id} "${node.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (imagem ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` com o estado "${state}"` : ''}`,
       };
     },
   );

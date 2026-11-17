@@ -3,7 +3,7 @@
  * injeta uma implementação em `startDaemon({ render })`. Sem ela, screenshot, `get_layout` e SVG
  * medido ficam indisponíveis (as ferramentas explicam como habilitar).
  */
-import type { Document, LayoutNode } from '@mockup/core';
+import type { Document, LayoutNode, PreviewState } from '@mockup/core';
 
 export type RenderScale = 1 | 2 | 3;
 export type RenderFormat = 'png' | 'jpg';
@@ -30,6 +30,8 @@ export interface CaptureRequest extends RenderTarget {
   maxWidth?: number;
   /** Fundo transparente fora do conteúdo (PNG). Padrão `false`. */
   transparent?: boolean;
+  /** Estado de prévia (hover, focus, dark...): aplica os `states` do nó como a prévia do editor. */
+  state?: PreviewState;
 }
 
 export interface CaptureResult {
