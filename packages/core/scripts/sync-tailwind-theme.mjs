@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
@@ -24,4 +25,6 @@ fs.writeFileSync(
     '',
   ].join('\n'),
 );
-console.log(`theme.generated.ts atualizado (tailwindcss ${version}, ${css.length} caracteres)`);
+process.stdout.write(
+  `theme.generated.ts atualizado (tailwindcss ${version}, ${css.length} caracteres)\n`,
+);

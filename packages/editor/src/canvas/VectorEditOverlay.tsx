@@ -151,7 +151,7 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // só no mount: o handler lê o estado atual por `latest`
   }, []);
 
   if (!vector || !base || !rect) return null;

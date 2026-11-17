@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { pathToSubpaths } from '@mockup/core';
 import type { Node } from '@mockup/core';
 import { Mcp, createDoc, getDoc, gotoEditor } from './helpers';
@@ -10,7 +11,7 @@ function findSvgs(nodes: Node[]): Node[] {
   return nodes.flatMap((n) => [...(n.type === 'svg' ? [n] : []), ...findSvgs(n.children)]);
 }
 
-async function frameWithBox(docId: string, page: import('@playwright/test').Page) {
+async function frameWithBox(docId: string, page: Page) {
   const mcp = await new Mcp().init();
   await mcp.call('create_frame', { name: 'Tela', width: 800, height: 600, x: 0, y: 0 });
   const frame = (await getDoc(docId)).pages[0]!.frames[0]!;
