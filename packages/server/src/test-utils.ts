@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createDocument, createNodeFromTag, serializeDocument } from '@mockup/core';
 
-/** Cria uma pasta temporária com um documento mínimo (1 frame) e devolve os caminhos. */
+/** Creates a temporary folder with a minimal document (1 frame) and returns the paths. */
 export function makeWorkspace(): {
   dir: string;
   dataDir: string;
@@ -14,7 +14,7 @@ export function makeWorkspace(): {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-'));
   const dataDir = path.join(dir, 'data');
   fs.mkdirSync(dataDir);
-  const doc = createDocument('Teste');
+  const doc = createDocument('Test');
   const frame = createNodeFromTag('div', {
     isRoot: true,
     name: 'Desktop',
@@ -22,7 +22,7 @@ export function makeWorkspace(): {
     position: { x: 0, y: 0 },
   });
   doc.pages[0]!.frames.push(frame);
-  const file = path.join(dir, 'teste.mockup.json');
+  const file = path.join(dir, 'test.mockup.json');
   fs.writeFileSync(file, serializeDocument(doc), 'utf8');
   return {
     dir,

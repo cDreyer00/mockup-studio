@@ -14,7 +14,7 @@ const textOf = (r: unknown): string =>
 const LUCIDE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
-describe('QA fase 7: vetores e grid pelo MCP', () => {
+describe('QA phase 7: vectors and grid through MCP', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
   let client: Client;
@@ -47,7 +47,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     return /(sv_[0-9a-z]+)/.exec(textOf(r))![1]!;
   };
 
-  it('Lucide: get_svg devolve o raw idêntico; trocar a cor regenera; undo volta ao raw', async () => {
+  it('Lucide: get_svg returns the identical raw; changing the color regenerates; undo goes back to raw', async () => {
     const id = await insertSvg(LUCIDE);
     const before = nodeOf(id).svg!;
     expect(textOf(await call('get_svg', { nodeId: id }))).toContain(LUCIDE);
@@ -67,7 +67,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect(nodeOf(id).svg).toContain('#ff0000');
   });
 
-  it('set_path recusa d inválido com mensagem clara e não altera o nó', async () => {
+  it('set_path refuses an invalid d with a clear message and does not change the node', async () => {
     const id = await shape({ shape: 'rect', x: 0, y: 0, width: 50, height: 50 });
     const d0 = nodeOf(id).vector!.paths[0]!.d;
     for (const d of ['M', 'L 1 2', '', 'M 0 0 L', 'M 0 0 L 1 x', 'M 0 0 Q 1 1']) {
@@ -78,7 +78,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect(nodeOf(id).vector!.paths[0]!.d).toBe(d0);
   });
 
-  it('boolean_op: união, subtração, interseção e exclusão entre formas livres', async () => {
+  it('boolean_op: union, subtract, intersect and exclude between free shapes', async () => {
     for (const op of ['union', 'subtract', 'intersect', 'exclude']) {
       const a = await shape({ shape: 'rect', x: 0, y: 0, width: 100, height: 100 });
       const b = await shape({ shape: 'ellipse', x: 50, y: 50, width: 100, height: 100 });
@@ -107,7 +107,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     }
   });
 
-  it('boolean_op de formas disjuntas na interseção não derruba o daemon', async () => {
+  it('boolean_op of disjoint shapes in an intersection does not bring the daemon down', async () => {
     const a = await shape({ shape: 'rect', x: 0, y: 0, width: 20, height: 20 });
     const b = await shape({ shape: 'rect', x: 200, y: 200, width: 20, height: 20 });
     const r = await call('boolean_op', { nodeIds: [a, b], op: 'intersect' });
@@ -115,16 +115,16 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect((await call('get_tree_summary')).isError).toBeFalsy();
   });
 
-  it('boolean_op entre nós em fluxo sem render é recusado com mensagem clara', async () => {
+  it('boolean_op between in-flow nodes without render is refused with a clear message', async () => {
     const a = await shape({ shape: 'rect', width: 40, height: 40 });
     const b = await shape({ shape: 'rect', width: 40, height: 40 });
     const r = await call('boolean_op', { nodeIds: [a, b], op: 'union' });
     expect(r.isError).toBe(true);
-    expect(textOf(r)).toMatch(/em fluxo|position: absolute/);
+    expect(textOf(r)).toMatch(/in flow|position: absolute/);
     expect(nodeOf(a)).toBeDefined();
   });
 
-  it('set_grid 3x2 com áreas, place_in_grid com span e get_layout sem render explica', async () => {
+  it('set_grid 3x2 with areas, place_in_grid with span and get_layout without render explains', async () => {
     await call('write_html', {
       parentId: ws.frameId,
       html: '<div style="width:600px;height:200px"><div>a</div><div>b</div><div>c</div></div>',
@@ -161,7 +161,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect(textOf(lay)).toMatch(/render|Electron/i);
   });
 
-  it('exportação com 2 vetores com gradiente: ids de gradiente não colidem', async () => {
+  it('export with 2 vectors with gradients: gradient ids do not collide', async () => {
     const grad = (c1: string, c2: string) => ({
       type: 'linear',
       stops: [
@@ -185,7 +185,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     }
   });
 
-  it('insert_svg sanitiza script, onload e javascript:; href http(s) permanece (observação)', async () => {
+  it('insert_svg sanitizes script, onload and javascript:; http(s) href stays (note)', async () => {
     const id = await insertSvg(
       '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10" onload="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)"><path d="M0 0 L5 5" onclick="x()"/></a><a xlink:href="JaVaScRiPt:alert(4)"><rect width="3" height="3"/></a><foreignObject><div>x</div></foreignObject><a href="https://example.com"><circle r="2"/></a></svg>',
     );
@@ -196,7 +196,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect(s).not.toMatch(/foreignObject/i);
     const raw = nodeOf(id).vector?.raw ?? '';
     expect(raw).not.toMatch(/<script|onload|javascript:/i);
-    // observação (comportamento atual, não requisito): href http(s) em <a> é mantido
+    // note (current behavior, not a requirement): http(s) href on <a> is kept
     expect(s).toContain('href="https://example.com"');
   });
 });

@@ -15,12 +15,12 @@ const landingRaw = JSON.parse(
   fs.readFileSync(new URL('../../../../examples/landing.mockup.json', import.meta.url), 'utf8'),
 );
 
-/** Documento mínimo em JSON cru (como um arquivo antigo/editado à mão). */
+/** Minimal document as raw JSON (like an old/hand-edited file). */
 function rawDoc(style: Record<string, string>, tokens: Record<string, string> = {}): unknown {
   return {
     version: 1,
     id: 'doc_seg',
-    name: 'Segurança',
+    name: 'Security',
     tokens,
     pages: [
       {
@@ -30,7 +30,7 @@ function rawDoc(style: Record<string, string>, tokens: Record<string, string> = 
           {
             id: 'fr_seg00001',
             type: 'frame',
-            name: 'Tela',
+            name: 'Screen',
             tag: 'div',
             attrs: {},
             style: { width: '100px', ...style },
@@ -60,33 +60,33 @@ describe('cssValueProblem', () => {
     '1px solid var(--color-muted)',
     'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\'/>")',
     'url(data:image/png;base64,AAAA)',
-    '"texto; com { chaves } dentro"',
+    '"text; with { braces } inside"',
     "'a;b'",
     'calc(100% - (2 * 8px))',
     'Inter, "Open Sans", sans-serif',
-    '"\\"; ainda dentro"',
-  ])('aceita %s', (v) => {
+    '"\\"; still inside"',
+  ])('accepts %s', (v) => {
     expect(cssValueProblem(v)).toBeNull();
   });
 
-  it.each(BAD_VALUES)('recusa %s', (v) => {
+  it.each(BAD_VALUES)('rejects %s', (v) => {
     expect(cssValueProblem(v)).toEqual(expect.any(String));
   });
 
-  it('recusa </style em qualquer caixa, mesmo entre aspas', () => {
+  it('rejects </style in any case, even inside quotes', () => {
     expect(cssValueProblem('"</STYLE>"')).toMatch(/style/);
   });
 });
 
 describe('normalizeStyles / updateStyles', () => {
-  it('normalizeStyles recusa valores que quebram a regra, com mensagem clara', () => {
+  it('normalizeStyles rejects values that break the rule, with a clear message', () => {
     expect(() => normalizeStyles({ color: 'red; } a { x: y' })).toThrow(
-      /Valor CSS inválido em "color"/,
+      /Invalid CSS value in "color"/,
     );
-    expect(() => normalizeStyles({ 'a b': 'x' })).toThrow(/Nome de propriedade CSS inválido/);
+    expect(() => normalizeStyles({ 'a b': 'x' })).toThrow(/Invalid CSS property name/);
   });
 
-  it('updateStyles recusa valor e chave inválidos', () => {
+  it('updateStyles rejects invalid values and keys', () => {
     const doc = createDocument('T', { id: 'doc_t' });
     doc.pages[0].frames.push(
       createNode({ tag: 'div', type: 'frame', id: 'fr_aaaaaaaa', name: 'F' }),
@@ -94,7 +94,7 @@ describe('normalizeStyles / updateStyles', () => {
     for (const v of BAD_VALUES) {
       expect(() =>
         applyOp(doc, { type: 'updateStyles', nodeIds: ['fr_aaaaaaaa'], styles: { color: v } }),
-      ).toThrow(/Valor CSS inválido/);
+      ).toThrow(/Invalid CSS value/);
     }
     expect(() =>
       applyOp(doc, {
@@ -102,7 +102,7 @@ describe('normalizeStyles / updateStyles', () => {
         nodeIds: ['fr_aaaaaaaa'],
         styles: { 'color: red; x': 'y' },
       }),
-    ).toThrow(/inválido/);
+    ).toThrow(/Invalid/);
     const ok = applyOp(doc, {
       type: 'updateStyles',
       nodeIds: ['fr_aaaaaaaa'],
@@ -112,8 +112,8 @@ describe('normalizeStyles / updateStyles', () => {
   });
 });
 
-describe('leitura de arquivos', () => {
-  it('parseDocument só descarta a declaração ruim, sem recusar o arquivo', () => {
+describe('file reading', () => {
+  it('parseDocument only drops the bad declaration, without rejecting the file', () => {
     const doc = parseDocument(
       rawDoc({
         color: 'red; } body { display: none',
@@ -125,21 +125,21 @@ describe('leitura de arquivos', () => {
     expect(doc.pages[0].frames[0].style).toEqual({ width: '100px', 'background-color': 'blue' });
   });
 
-  it('parseDocument descarta tokens com valor perigoso e mantém os demais', () => {
+  it('parseDocument drops tokens with a dangerous value and keeps the rest', () => {
     const doc = parseDocument(rawDoc({}, { '--a': 'red; } x {', '--b': '#fff' }));
     expect(doc.tokens).toEqual({ '--b': '#fff' });
   });
 });
 
-describe('exportadores saneiam arquivos antigos', () => {
-  /** Documento com estilo ruim que escapou da leitura (montado direto, sem passar pelo parser). */
+describe('exporters sanitize old files', () => {
+  /** Document with bad style that escaped reading (built directly, without going through the parser). */
   function dirtyDoc(): Document {
-    const doc = createDocument('Sujo', { id: 'doc_sujo' });
+    const doc = createDocument('Dirty', { id: 'doc_dirty' });
     const frame = createNode({
       tag: 'div',
       type: 'frame',
-      id: 'fr_sujo0001',
-      name: 'Tela',
+      id: 'fr_dirt0001',
+      name: 'Screen',
       style: { width: '100px', height: '50px' },
     });
     frame.style.color = 'red; } body { display: none';
@@ -147,7 +147,7 @@ describe('exportadores saneiam arquivos antigos', () => {
     frame.style['background-color'] = 'blue';
     frame.style.content = '"</style><script>alert(1)</script>"';
     doc.pages[0].frames.push(frame);
-    doc.tokens = { '--ok': '#fff', '--ruim': 'red; } body { display: none', semprefixo: '1' };
+    doc.tokens = { '--ok': '#fff', '--bad': 'red; } body { display: none', noprefix: '1' };
     return doc;
   }
 
@@ -155,12 +155,12 @@ describe('exportadores saneiam arquivos antigos', () => {
     expect(out).not.toContain('display: none');
     expect(out).not.toContain('alert(1)');
     expect(out).not.toContain('bad key');
-    expect(out).not.toContain('--ruim');
-    expect(out).not.toContain('semprefixo');
+    expect(out).not.toContain('--bad');
+    expect(out).not.toContain('noprefix');
     expect(out).not.toMatch(/<\/style><script/);
   };
 
-  it('html (classes e inline)', () => {
+  it('html (classes and inline)', () => {
     for (const mode of ['classes', 'inline'] as const) {
       const out = exportHtml(dirtyDoc(), { mode });
       checks(out);
@@ -175,29 +175,29 @@ describe('exportadores saneiam arquivos antigos', () => {
     expect(out).toContain('--ok: #fff');
   });
 
-  it('react (tailwind e inline)', () => {
+  it('react (tailwind and inline)', () => {
     for (const styles of ['tailwind', 'inline'] as const) {
-      const r = exportReact(dirtyDoc(), { nodeId: 'fr_sujo0001', styles });
+      const r = exportReact(dirtyDoc(), { nodeId: 'fr_dirt0001', styles });
       checks(r.code + (r.css ?? ''));
     }
   });
 
   it('svg (fallback)', () => {
-    checks(exportSvg(dirtyDoc(), { nodeId: 'fr_sujo0001' }));
+    checks(exportSvg(dirtyDoc(), { nodeId: 'fr_dirt0001' }));
   });
 });
 
-describe('prefixo -- dos tokens', () => {
-  it('parseDocument acrescenta o prefixo e mantém os que já têm', () => {
+describe('-- prefix of tokens', () => {
+  it('parseDocument adds the prefix and keeps those that already have it', () => {
     const raw = structuredClone(landingRaw) as { tokens: Record<string, string> };
-    raw.tokens = { primary: '#6c5ce7', '--color-bg': '#000', ' espaco ': '1' };
+    raw.tokens = { primary: '#6c5ce7', '--color-bg': '#000', ' space ': '1' };
     const doc = parseDocument(raw);
-    expect(doc.tokens).toEqual({ '--primary': '#6c5ce7', '--color-bg': '#000', '--espaco': '1' });
-    // ida e volta estável
+    expect(doc.tokens).toEqual({ '--primary': '#6c5ce7', '--color-bg': '#000', '--space': '1' });
+    // stable round-trip
     expect(parseDocument(serializeDocument(doc)).tokens).toEqual(doc.tokens);
   });
 
-  it('setTokens acrescenta o prefixo em set e em unset', () => {
+  it('setTokens adds the prefix in set and in unset', () => {
     const doc = parseDocument(landingRaw);
     const a = applyOp(doc, { type: 'setTokens', set: { accent: '#f0f', '--ok': '1' } });
     expect(a.doc.tokens.accent).toBeUndefined();
@@ -205,28 +205,28 @@ describe('prefixo -- dos tokens', () => {
     expect(a.doc.tokens['--ok']).toBe('1');
     const b = applyOp(a.doc, { type: 'setTokens', unset: ['accent'] });
     expect(b.doc.tokens['--accent']).toBeUndefined();
-    // o inverso restaura o estado anterior
+    // the inverse restores the previous state
     const back = applyOp(b.doc, b.inverse[0]);
     expect(back.doc.tokens['--accent']).toBe('#f0f');
   });
 
-  it('setTokens recusa nome inválido e valor perigoso', () => {
+  it('setTokens rejects an invalid name and a dangerous value', () => {
     const doc = parseDocument(landingRaw);
     expect(() => applyOp(doc, { type: 'setTokens', set: { 'a b': '1' } })).toThrow(/token/);
     expect(() => applyOp(doc, { type: 'setTokens', set: { '--x': 'red; } a {' } })).toThrow(
-      /valor inválido/,
+      /invalid value/i,
     );
   });
 });
 
-describe('fontes: injeção por família, estilo e arquivo', () => {
+describe('fonts: injection via family, style and file', () => {
   const lines = (fonts: unknown[]): Document => {
-    const doc = createDocument('Fontes');
+    const doc = createDocument('Fonts');
     doc.fonts = fonts as Document['fonts'];
     return doc;
   };
 
-  it('FontRefSchema recusa família, estilo e arquivo perigosos', () => {
+  it('FontRefSchema rejects dangerous family, style and file', () => {
     const base = { family: 'Inter', source: 'file', files: ['fonts/a.woff2'] };
     const parse = (f: unknown) => FontRefSchema.safeParse(f).success;
     expect(parse(base)).toBe(true);
@@ -240,7 +240,7 @@ describe('fontes: injeção por família, estilo e arquivo', () => {
     expect(parse({ ...base, styles: ['oblique'], weights: [1000] })).toBe(true);
   });
 
-  it('parseDocument descarta só a fonte perigosa e abre o documento', () => {
+  it('parseDocument drops only the dangerous font and opens the document', () => {
     const raw = JSON.parse(serializeDocument(createDocument('F'))) as Record<string, unknown>;
     raw.fonts = [
       { family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] },
@@ -251,7 +251,7 @@ describe('fontes: injeção por família, estilo e arquivo', () => {
     expect(doc.fonts.map((f) => f.family)).toEqual(['Inter']);
   });
 
-  it('setFonts continua recusando fonte perigosa', () => {
+  it('setFonts still rejects a dangerous font', () => {
     const doc = createDocument('F');
     expect(() =>
       applyOp(doc, {
@@ -261,7 +261,7 @@ describe('fontes: injeção por família, estilo e arquivo', () => {
     ).toThrow();
   });
 
-  it('fontFaceCss descarta entradas inválidas (defesa em profundidade)', () => {
+  it('fontFaceCss drops invalid entries (defense in depth)', () => {
     const css = fontFaceCss(
       lines([
         { family: 'A</style><script>', source: 'file', files: ['fonts/a.woff2'] },
@@ -282,7 +282,7 @@ describe('fontes: injeção por família, estilo e arquivo', () => {
     expect(css).not.toContain('font-family:"A');
   });
 
-  it('o <style> do SVG sai escapado e o data URL sobrevive', () => {
+  it('the SVG <style> is escaped and the data URL survives', () => {
     const doc = lines([{ family: 'Inter', source: 'file', files: ['fonts/a.woff2'] }]);
     doc.pages[0]!.frames.push(
       createNode({ tag: 'div', type: 'frame', id: 'fr_x0000001', name: 'F' }),

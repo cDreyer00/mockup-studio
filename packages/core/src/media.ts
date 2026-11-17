@@ -1,7 +1,7 @@
 /**
- * Nós de mídia: efeitos (`type: 'effect'`), vídeo (`type: 'video'`) e embeds (`type: 'embed'`).
- * Esquemas zod dos campos `effect`/`video`/`embed`, detecção de provedor por URL e fábricas de nós.
- * Sem DOM e sem Node.
+ * Media nodes: effects (`type: 'effect'`), video (`type: 'video'`) and embeds (`type: 'embed'`).
+ * Zod schemas for the `effect`/`video`/`embed` fields, provider detection by URL and node factories.
+ * No DOM and no Node.
  */
 import { z } from 'zod';
 import { createNode } from './document.js';
@@ -17,10 +17,10 @@ import type {
 
 export const EMBED_PROVIDERS = ['lottie', 'rive', 'youtube', 'three', 'iframe'] as const;
 
-/** Tamanho máximo do código de uma ilha Three.js. */
+/** Maximum size of a Three.js island's code. */
 export const MAX_THREE_CODE = 200_000;
 
-// Texto que vai para atributos, CSS e código exportado: sem < > { } ; " ` \ nem controles.
+// Text that goes into attributes, CSS and exported code: no < > { } ; " ` \ or control characters.
 // eslint-disable-next-line no-control-regex
 const SAFE_TEXT = /^[^<>{};"`\\\u0000-\u001f\u007f]*$/;
 const PARAM_NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
@@ -29,34 +29,34 @@ const HTTP_URL = /^https?:\/\/[^\s"'<>`\\]+$/i;
 export const MediaParamValueSchema: z.ZodType<MediaParamValue, unknown> = z.union([
   z.number().finite(),
   z.boolean(),
-  z.string().max(300).regex(SAFE_TEXT, { error: 'texto com caracteres inválidos' }),
+  z.string().max(300).regex(SAFE_TEXT, { error: 'text with invalid characters' }),
 ]);
 
 export const MediaParamsSchema = z
   .record(
-    z.string().regex(PARAM_NAME, { error: 'nome de parâmetro inválido (use letras e dígitos)' }),
+    z.string().regex(PARAM_NAME, { error: 'invalid param name (use letters and digits)' }),
     MediaParamValueSchema,
   )
-  .refine((p) => Object.keys(p).length <= 64, { error: 'parâmetros demais (máximo 64)' });
+  .refine((p) => Object.keys(p).length <= 64, { error: 'too many params (max 64)' });
 
-/** Caminho relativo a `assets/` (sem `..`, sem barra inicial, sem esquema) ou URL http(s). */
+/** Path relative to `assets/` (no `..`, no leading slash, no scheme) or an http(s) URL. */
 export function mediaRefProblem(
   ref: string,
   opts: { allowDataImage?: boolean } = {},
 ): string | null {
-  if (!ref) return 'vazio';
+  if (!ref) return 'empty';
   if (
     opts.allowDataImage &&
     /^data:image\/(png|jpeg|gif|webp|avif);base64,[a-z0-9+/=]+$/i.test(ref)
   )
     return null;
   if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) {
-    return HTTP_URL.test(ref) ? null : 'use um caminho relativo a assets/ ou uma URL http(s)';
+    return HTTP_URL.test(ref) ? null : 'use a path relative to assets/ or an http(s) URL';
   }
-  if (ref.length > 500) return 'caminho longo demais';
-  if (!SAFE_TEXT.test(ref) || ref.includes("'")) return 'caminho com caracteres inválidos';
+  if (ref.length > 500) return 'path too long';
+  if (!SAFE_TEXT.test(ref) || ref.includes("'")) return 'path with invalid characters';
   if (ref.startsWith('/') || ref.split('/').some((s) => s === '..' || s === ''))
-    return 'o caminho deve ser relativo a assets/, sem ".." nem segmentos vazios';
+    return 'the path must be relative to assets/, with no ".." or empty segments';
   return null;
 }
 
@@ -67,9 +67,9 @@ const refSchema = (allowDataImage = false) =>
   });
 
 /**
- * Mensagem de erro se a URL aponta para loopback (localhost, 127.0.0.0/8, 0.0.0.0, ::1, ::),
- * senão null. O editor e a página de render são servidos pelo daemon em 127.0.0.1: um iframe
- * para essa origem daria acesso à API do daemon.
+ * Error message if the URL points to loopback (localhost, 127.0.0.0/8, 0.0.0.0, ::1, ::),
+ * otherwise null. The editor and the render page are served by the daemon on 127.0.0.1: an iframe
+ * to that origin would give access to the daemon API.
  */
 export function loopbackUrlProblem(url: string): string | null {
   let host: string;
@@ -88,21 +88,21 @@ export function loopbackUrlProblem(url: string): string | null {
     host === '::1' ||
     host === '::';
   if (!loop && host.includes(':')) {
-    // IPv4 mapeado: o URL normaliza ::ffff:127.0.0.1 para ::ffff:7f00:1.
+    // IPv4-mapped: the URL normalizes ::ffff:127.0.0.1 to ::ffff:7f00:1.
     const m = host.match(/^::ffff:(?:(\d+)\.\d+\.\d+\.\d+|([0-9a-f]{1,4}):[0-9a-f]{1,4})$/);
     if (m) {
       loop = m[1] !== undefined ? m[1] === '127' || m[1] === '0' : /^(7f..|0|0000)$/.test(m[2]!);
     }
   }
   return loop
-    ? 'URLs de loopback (localhost/127.0.0.1) não são aceitas em iframe/YouTube: dariam acesso ao daemon do Mockup Studio'
+    ? 'URLs pointing to loopback (localhost/127.0.0.1) are not accepted in iframe/YouTube: they would give access to the Mockup Studio daemon'
     : null;
 }
 
 const httpUrlSchema = z
   .string()
   .max(2000)
-  .regex(HTTP_URL, { error: 'URL inválida (use http:// ou https://)' })
+  .regex(HTTP_URL, { error: 'invalid URL (use http:// or https://)' })
   .superRefine((v, ctx) => {
     const p = loopbackUrlProblem(v);
     if (p) ctx.addIssue({ code: 'custom', message: p });
@@ -111,7 +111,7 @@ const httpUrlSchema = z
 export const EffectSpecSchema: z.ZodType<EffectSpec, unknown> = z.object({
   kind: z
     .string()
-    .regex(/^[a-z][a-z0-9-]{0,40}$/, { error: 'kind inválido (ex.: "mesh-gradient")' }),
+    .regex(/^[a-z][a-z0-9-]{0,40}$/, { error: 'invalid kind (e.g. "mesh-gradient")' }),
   params: MediaParamsSchema.default({}),
 });
 
@@ -138,14 +138,14 @@ export const EmbedSpecSchema: z.ZodType<EmbedSpec, unknown> = z
       if (!ok) ctx.addIssue({ code: 'custom', message });
     };
     if (e.provider === 'lottie' || e.provider === 'rive')
-      need(!!e.src, `embed ${e.provider} exige src (arquivo em assets/ ou URL http(s))`);
+      need(!!e.src, `embed ${e.provider} requires src (file in assets/ or http(s) URL)`);
     if (e.provider === 'youtube')
-      need(!!e.url && !!youtubeId(e.url), 'embed youtube exige url de vídeo do YouTube');
-    if (e.provider === 'iframe') need(!!e.url, 'embed iframe exige url http(s)');
-    if (e.provider === 'three') need(typeof e.code === 'string', 'embed three exige code');
+      need(!!e.url && !!youtubeId(e.url), 'embed youtube requires a YouTube video url');
+    if (e.provider === 'iframe') need(!!e.url, 'embed iframe requires an http(s) url');
+    if (e.provider === 'three') need(typeof e.code === 'string', 'embed three requires code');
   });
 
-/** Campo de mídia esperado para cada tipo de nó. */
+/** Media field expected for each node type. */
 export const MEDIA_FIELD = { effect: 'effect', video: 'video', embed: 'embed' } as const;
 export type MediaType = keyof typeof MEDIA_FIELD;
 
@@ -153,9 +153,9 @@ export function isMediaType(type: string): type is MediaType {
   return type === 'effect' || type === 'video' || type === 'embed';
 }
 
-/* ---------------- Detecção de provedor ---------------- */
+/* ---------------- Provider detection ---------------- */
 
-/** Id de 11 caracteres de uma URL do YouTube (watch, youtu.be, embed, shorts, live) ou null. */
+/** 11-character id from a YouTube URL (watch, youtu.be, embed, shorts, live) or null. */
 export function youtubeId(url: string): string | null {
   let u: URL;
   try {
@@ -174,7 +174,7 @@ export function youtubeId(url: string): string | null {
   return null;
 }
 
-/** Início em segundos de uma URL do YouTube (`t=90`, `t=1m30s`, `start=90`) ou undefined. */
+/** Start time in seconds from a YouTube URL (`t=90`, `t=1m30s`, `start=90`) or undefined. */
 export function youtubeStart(url: string): number | undefined {
   try {
     const u = new URL(url);
@@ -189,7 +189,7 @@ export function youtubeStart(url: string): number | undefined {
   }
 }
 
-/** URL de embed (sem cookies) de um vídeo do YouTube. */
+/** Embed URL (cookie-free) of a YouTube video. */
 export function youtubeEmbedUrl(
   id: string,
   opts: {
@@ -215,8 +215,8 @@ export function youtubeEmbedUrl(
 }
 
 /**
- * Provedor de embed a partir de uma URL ou caminho: YouTube, `.json`/`.lottie` (Lottie),
- * `.riv` (Rive), arquivos de vídeo (`video`) ou qualquer outra URL http(s) (`iframe`).
+ * Embed provider from a URL or path: YouTube, `.json`/`.lottie` (Lottie),
+ * `.riv` (Rive), video files (`video`) or any other http(s) URL (`iframe`).
  */
 export function detectEmbedProvider(urlOrPath: string): EmbedProvider | 'video' | null {
   const s = urlOrPath.trim();
@@ -230,7 +230,7 @@ export function detectEmbedProvider(urlOrPath: string): EmbedProvider | 'video' 
   return null;
 }
 
-/* ---------------- Fábricas ---------------- */
+/* ---------------- Factories ---------------- */
 
 export interface MediaNodeOptions {
   name?: string;
@@ -238,7 +238,7 @@ export interface MediaNodeOptions {
   position?: Position;
 }
 
-/** Estilo de um efeito usado como fundo: cobre o pai, atrás do conteúdo em fluxo. */
+/** Style of an effect used as a background: covers the parent, behind the in-flow content. */
 export const EFFECT_BACKGROUND_STYLE: Readonly<Record<string, string>> = {
   position: 'absolute',
   inset: '0',
@@ -256,7 +256,7 @@ export function createEffectNode(
   const node = createNode({
     tag: 'div',
     type: 'effect',
-    name: opts.name ?? 'Efeito',
+    name: opts.name ?? 'Effect',
     style: opts.styles ?? {},
     position: opts.position,
   });
@@ -268,7 +268,7 @@ export function createVideoNode(spec: VideoSpec, opts: MediaNodeOptions = {}): N
   const node = createNode({
     tag: 'video',
     type: 'video',
-    name: opts.name ?? 'Vídeo',
+    name: opts.name ?? 'Video',
     style: opts.styles ?? {},
     position: opts.position,
   });
@@ -295,7 +295,7 @@ export function createEmbedNode(spec: EmbedSpec, opts: MediaNodeOptions = {}): N
   return node;
 }
 
-/** Referências a `assets/` de um nó de mídia (src de vídeo/poster/lottie/rive), sem URLs. */
+/** `assets/` references of a media node (video src/poster, lottie/rive src), excluding URLs. */
 export function mediaAssetRefs(node: Node): string[] {
   const out: string[] = [];
   const add = (r: string | undefined) => {
@@ -309,9 +309,9 @@ export function mediaAssetRefs(node: Node): string[] {
   return out;
 }
 
-/** Código padrão de uma ilha Three.js (corpo de função; ver docs/EMBEDS.md). */
-export const DEFAULT_THREE_CODE = `// Variáveis: THREE, renderer, canvas, width, height, params.
-// Devolva { scene, camera, update(t) } (t em segundos).
+/** Default code of a Three.js island (function body; see docs/EMBEDS.md). */
+export const DEFAULT_THREE_CODE = `// Variables: THREE, renderer, canvas, width, height, params.
+// Return { scene, camera, update(t) } (t in seconds).
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
 camera.position.set(0, 0, 6);

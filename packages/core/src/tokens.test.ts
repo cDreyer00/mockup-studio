@@ -38,19 +38,19 @@ function el(id: string, style: Record<string, string> = {}, children: Node[] = [
   return createNode({ tag: 'div', id, name: id, style, children });
 }
 
-/** Documento com um frame `fr_main0001` (filhos dados) e tokens/temas opcionais. */
+/** Document with a frame `fr_main0001` (given children) and optional tokens/themes. */
 function docWith(
   children: Node[],
   extra: Partial<Pick<Document, 'tokens' | 'tokenMeta' | 'themes'>> = {},
   frameAttrs: Record<string, string> = {},
 ): Document {
-  const doc = createDocument('Teste', { id: 'doc_test0001' });
+  const doc = createDocument('Test', { id: 'doc_test0001' });
   doc.pages[0].frames.push(
     createNode({
       tag: 'div',
       type: 'frame',
       id: 'fr_main0001',
-      name: 'Tela',
+      name: 'Screen',
       attrs: frameAttrs,
       style: { width: '400px' },
       children,
@@ -60,7 +60,7 @@ function docWith(
   return doc;
 }
 
-/** Aplica pelo History, confere undo exato e redo, e devolve o documento depois das ops. */
+/** Applies through History, checks exact undo and redo, and returns the document after the ops. */
 function applyAndUndo(doc: Document, ops: Op[]): Document {
   const h = new History(structuredClone(doc));
   const after = h.apply(ops).doc;
@@ -69,8 +69,8 @@ function applyAndUndo(doc: Document, ops: Op[]): Document {
   return after;
 }
 
-describe('resolução de variáveis', () => {
-  it('alias simples e cadeia', () => {
+describe('variable resolution', () => {
+  it('simple alias and chain', () => {
     const doc = docWith([], {
       tokens: { '--a': '#111', '--b': 'var(--a)', '--c': 'var(--b)' },
     });
@@ -78,13 +78,13 @@ describe('resolução de variáveis', () => {
     expect(resolveTokenValue(doc, 'c')).toBe('#111');
   });
 
-  it('fallback quando a variável não existe', () => {
+  it('fallback when the variable does not exist', () => {
     expect(substituteVars('var(--x, 4px)', () => undefined)).toEqual({ value: '4px', missing: [] });
     expect(substituteVars('var(--x)', () => undefined).missing).toEqual(['--x']);
     expect(findVarRefs('var(--x, var(--y, 1px))').map((r) => r.name)).toEqual(['--x', '--y']);
   });
 
-  it('ciclo não trava e deixa as variáveis sem valor', () => {
+  it('a cycle does not hang and leaves the variables without a value', () => {
     const doc = docWith([], { tokens: { '--a': 'var(--b)', '--b': 'var(--a)', '--ok': '1px' } });
     const r = resolvedTokens(doc);
     expect(r['--ok']).toBe('1px');
@@ -93,33 +93,33 @@ describe('resolução de variáveis', () => {
     expect(resolveScope({}, { '--a': 'var(--a)' })).toEqual({});
   });
 
-  it('custom property local do ancestral sobrescreve o token', () => {
+  it('ancestor local custom property overrides the token', () => {
     const doc = docWith(
-      [el('el_pai00001', { '--c': 'blue' }, [el('el_filho001', { color: 'var(--c)' })])],
+      [el('el_parent001', { '--c': 'blue' }, [el('el_child001', { color: 'var(--c)' })])],
       { tokens: { '--c': 'red' } },
     );
-    expect(getComputedLike(doc, 'el_filho001').color).toBe('blue');
+    expect(getComputedLike(doc, 'el_child001').color).toBe('blue');
   });
 
-  it('tema no frame muda o valor resolvido de alias dependente', () => {
+  it('theme on the frame changes the resolved value of a dependent alias', () => {
     const doc = docWith(
-      [el('el_filho001', { background: 'var(--surface)' })],
+      [el('el_child001', { background: 'var(--surface)' })],
       {
         tokens: { '--gray-50': '#fafafa', '--surface': 'var(--gray-50)' },
         themes: [{ name: 'dark', overrides: { '--gray-50': '#111111' } }],
       },
       { 'data-theme': 'dark' },
     );
-    expect(getComputedLike(doc, 'el_filho001').background).toBe('#111111');
-    expect(effectiveTheme(doc, 'el_filho001')).toBe('dark');
+    expect(getComputedLike(doc, 'el_child001').background).toBe('#111111');
+    expect(effectiveTheme(doc, 'el_child001')).toBe('dark');
     expect(resolvedTokens(doc)['--surface']).toBe('#fafafa');
     expect(resolvedTokens(doc, 'dark')['--surface']).toBe('#111111');
-    // tema desconhecido no atributo é ignorado
-    const semTema = docWith([el('el_filho001')], { tokens: {} }, { 'data-theme': 'nada' });
-    expect(effectiveTheme(semTema, 'el_filho001')).toBeUndefined();
+    // unknown theme in the attribute is ignored
+    const noTheme = docWith([el('el_child001')], { tokens: {} }, { 'data-theme': 'none' });
+    expect(effectiveTheme(noTheme, 'el_child001')).toBeUndefined();
   });
 
-  it('themeDeclarations inclui os tokens base que dependem das overrides', () => {
+  it('themeDeclarations includes the base tokens that depend on the overrides', () => {
     const doc = docWith([], {
       tokens: { '--gray-50': '#fafafa', '--surface': 'var(--gray-50)', '--x': '1px' },
       themes: [{ name: 'dark', overrides: { '--gray-50': '#111' } }],
@@ -128,10 +128,10 @@ describe('resolução de variáveis', () => {
       '--surface': 'var(--gray-50)',
       '--gray-50': '#111',
     });
-    expect(themeDeclarations(doc, 'nada')).toEqual({});
+    expect(themeDeclarations(doc, 'none')).toEqual({});
   });
 
-  it('getComputedLike avalia calc() e color-mix(), com opção evaluate:false', () => {
+  it('getComputedLike evaluates calc() and color-mix(), with the evaluate:false option', () => {
     const doc = docWith(
       [
         el('el_a0000001', {
@@ -149,7 +149,7 @@ describe('resolução de variáveis', () => {
     expect(raw.color).toContain('color-mix(');
   });
 
-  it('getComputedLike com a opção theme', () => {
+  it('getComputedLike with the theme option', () => {
     const doc = docWith([el('el_a0000001', { color: 'var(--c)' })], {
       tokens: { '--c': 'white' },
       themes: [{ name: 'dark', overrides: { '--c': 'black' } }],
@@ -177,19 +177,19 @@ describe('renameToken', () => {
           '--dep': 'var(--old)',
           '--keep': '3px',
         },
-        tokenMeta: { '--old': { group: 'color', description: 'cor' } },
+        tokenMeta: { '--old': { group: 'color', description: 'color' } },
         themes: [{ name: 'dark', overrides: { '--old': '#abcdef', '--dep2': 'var(--old)' } }],
       },
     );
     doc.pages.push({
       id: 'pg_segunda1',
-      name: 'Outra',
+      name: 'Other',
       background: '#fff',
       frames: [
         createNode({
           tag: 'div',
           type: 'frame',
-          id: 'fr_outro001',
+          id: 'fr_other001',
           children: [el('el_c0000003', { color: 'var( --old )' })],
         }),
       ],
@@ -197,26 +197,26 @@ describe('renameToken', () => {
     return doc;
   }
 
-  it('atualiza tokens, metadados, temas e estilos em várias páginas', () => {
-    const { doc: out } = applyOps(rich(), [{ type: 'renameToken', from: 'old', to: '--novo' }]);
-    expect(out.tokens['--novo']).toBe('#123456');
+  it('updates tokens, metadata, themes and styles across several pages', () => {
+    const { doc: out } = applyOps(rich(), [{ type: 'renameToken', from: 'old', to: '--new' }]);
+    expect(out.tokens['--new']).toBe('#123456');
     expect('--old' in out.tokens).toBe(false);
-    expect(out.tokens['--dep']).toBe('var(--novo)');
-    expect(out.tokenMeta).toEqual({ '--novo': { group: 'color', description: 'cor' } });
-    expect(out.themes![0].overrides).toEqual({ '--novo': '#abcdef', '--dep2': 'var(--novo)' });
+    expect(out.tokens['--dep']).toBe('var(--new)');
+    expect(out.tokenMeta).toEqual({ '--new': { group: 'color', description: 'color' } });
+    expect(out.themes![0].overrides).toEqual({ '--new': '#abcdef', '--dep2': 'var(--new)' });
     const a = out.pages[0].frames[0].children[0].style;
-    expect(a.color).toBe('var(--novo)');
-    // nome com prefixo igual não é tocado
+    expect(a.color).toBe('var(--new)');
+    // a name sharing the prefix is left alone
     expect(a['--old-extra']).toBe('1px');
     expect(a.border).toBe('1px solid var(--old-extra, red)');
     expect(out.tokens['--old-extra']).toBe('2px');
     const b = out.pages[0].frames[0].children[1].style;
-    expect(b['--novo']).toBe('green');
-    expect(b.background).toBe('var(--novo, #000)');
-    expect(out.pages[1].frames[0].children[0].style.color).toBe('var(--novo )');
+    expect(b['--new']).toBe('green');
+    expect(b.background).toBe('var(--new, #000)');
+    expect(out.pages[1].frames[0].children[0].style.color).toBe('var(--new )');
   });
 
-  it('atualiza node.classes (nome curto, variantes, opacidade, arbitrárias) e o undo restaura', () => {
+  it('updates node.classes (short name, variants, opacity, arbitrary) and undo restores', () => {
     const n = el('el_k0000001');
     n.classes =
       'bg-brand hover:bg-brand/90 md:dark:!text-brand border-x-brand bg-brand-500 bg-[var(--color-brand)] bg-(--color-brand) hover:[&:not(:first-child)]:ring-brand! p-4 bg-hov';
@@ -230,7 +230,7 @@ describe('renameToken', () => {
     applyAndUndo(doc, ops);
   });
 
-  it('namespaces diferentes só mexem nas formas var() das classes', () => {
+  it('different namespaces only touch the var() forms of the classes', () => {
     const n = el('el_k0000002');
     n.classes = 'bg-brand bg-[var(--color-brand)] text-brand';
     const doc = docWith([n], { tokens: { '--color-brand': '#111' } });
@@ -242,23 +242,23 @@ describe('renameToken', () => {
     );
   });
 
-  it('erros: destino existe, origem não existe, nome inválido', () => {
+  it('errors: destination exists, source does not exist, invalid name', () => {
     const doc = rich();
     expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--keep' }])).toThrow(
-      /existe/,
+      /already exists/,
     );
-    expect(() => applyOps(doc, [{ type: 'renameToken', from: '--nada', to: '--x' }])).toThrow(
-      /não encontrado/,
+    expect(() => applyOps(doc, [{ type: 'renameToken', from: '--none', to: '--x' }])).toThrow(
+      /not found/,
     );
     expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--a b' }])).toThrow(
-      /inválido/,
+      /invalid/i,
     );
     expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--old' }])).toThrow();
   });
 
-  it('undo restaura o documento exatamente e redo reaplica', () => {
-    const after = applyAndUndo(rich(), [{ type: 'renameToken', from: '--old', to: '--novo' }]);
-    expect(after.tokens['--novo']).toBe('#123456');
+  it('undo restores the document exactly and redo reapplies', () => {
+    const after = applyAndUndo(rich(), [{ type: 'renameToken', from: '--old', to: '--new' }]);
+    expect(after.tokens['--new']).toBe('#123456');
   });
 
   function withAttrsAndSvg(): Document {
@@ -286,7 +286,7 @@ describe('renameToken', () => {
     );
   }
 
-  it('troca var() em attrs e no markup SVG, conta nós e referências', () => {
+  it('replaces var() in attrs and in SVG markup, counts nodes and references', () => {
     const { doc: out, results } = applyOps(withAttrsAndSvg(), [
       { type: 'renameToken', from: '--a', to: '--b' },
     ]);
@@ -302,18 +302,18 @@ describe('renameToken', () => {
     expect(results[0]).toMatchObject({ nodes: 4, references: 6 });
   });
 
-  it('undo de attrs e SVG volta exatamente ao documento original', () => {
+  it('undo of attrs and SVG restores the original document exactly', () => {
     const doc = withAttrsAndSvg();
     const { doc: out, inverse } = applyOps(doc, [{ type: 'renameToken', from: '--a', to: '--b' }]);
     expect(strip(applyOps(out, inverse).doc)).toEqual(strip(doc));
     applyAndUndo(doc, [{ type: 'renameToken', from: '--a', to: '--b' }]);
   });
 
-  it('setSvg recusa nó que não é svg e sanitiza o markup', () => {
+  it('setSvg rejects a node that is not svg and sanitizes the markup', () => {
     const doc = withAttrsAndSvg();
     expect(() =>
       applyOps(doc, [{ type: 'setSvg', changes: [{ nodeId: 'el_attr0001', svg: '<svg/>' }] }]),
-    ).toThrow(/não é um SVG/);
+    ).toThrow(/is not an SVG/);
     const { doc: out } = applyOps(doc, [
       {
         type: 'setSvg',
@@ -331,42 +331,42 @@ describe('renameToken', () => {
     ).toThrow(/on\*/);
   });
 
-  it('recusa destino já declarado no estilo de algum nó', () => {
-    const doc = docWith([el('el_a0000001', { '--novo': '1px' })], { tokens: { '--old': '#000' } });
-    expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--novo' }])).toThrow(
-      /já está declarada no estilo do nó "el_a0000001" \(el_a0000001\)/,
+  it('rejects a destination already declared in the style of some node', () => {
+    const doc = docWith([el('el_a0000001', { '--new': '1px' })], { tokens: { '--old': '#000' } });
+    expect(() => applyOps(doc, [{ type: 'renameToken', from: '--old', to: '--new' }])).toThrow(
+      /is already declared in the style of node "el_a0000001" \(el_a0000001\)/,
     );
   });
 
-  it('renameTokenProblem cobre cada recusa e devolve null quando pode', () => {
+  it('renameTokenProblem covers each rejection and returns null when allowed', () => {
     const doc = docWith([el('el_a0000001', { '--local': '1px' })], {
       tokens: { '--old': '#000', '--keep': '1px' },
-      themes: [{ name: 'dark', overrides: { '--so-tema': '#111' } }],
+      themes: [{ name: 'dark', overrides: { '--theme-only': '#111' } }],
     });
-    expect(renameTokenProblem(doc, 'old', 'novo')).toBeNull();
-    expect(renameTokenProblem(doc, '--old', '--a b')).toMatch(/inválido/);
-    expect(renameTokenProblem(doc, '--old', 'old')).toMatch(/igual/);
-    expect(renameTokenProblem(doc, '--nada', '--x')).toMatch(/não encontrado/);
-    expect(renameTokenProblem(doc, '--old', '--keep')).toMatch(/Já existe/);
-    expect(renameTokenProblem(doc, '--old', '--so-tema')).toMatch(/Já existe/);
-    expect(renameTokenProblem(doc, '--old', '--local')).toMatch(/já está declarada/);
+    expect(renameTokenProblem(doc, 'old', 'new')).toBeNull();
+    expect(renameTokenProblem(doc, '--old', '--a b')).toMatch(/invalid/i);
+    expect(renameTokenProblem(doc, '--old', 'old')).toMatch(/same as/);
+    expect(renameTokenProblem(doc, '--none', '--x')).toMatch(/not found/);
+    expect(renameTokenProblem(doc, '--old', '--keep')).toMatch(/already exists/);
+    expect(renameTokenProblem(doc, '--old', '--theme-only')).toMatch(/already exists/);
+    expect(renameTokenProblem(doc, '--old', '--local')).toMatch(/is already declared/);
   });
 
-  it('replaceVarRefs casa VAR( sem diferenciar maiúsculas e preserva a grafia', () => {
+  it('replaceVarRefs matches VAR( case-insensitively and preserves the spelling', () => {
     expect(replaceVarRefs('VAR(--a) Var( --a, 1px) var(--A)', '--a', '--z')).toBe(
       'VAR(--z) Var(--z, 1px) var(--A)',
     );
   });
 });
 
-describe('ops de tokens e temas', () => {
+describe('token and theme ops', () => {
   const base = (): Document =>
     docWith([], {
       tokens: { '--a': '1px' },
       themes: [{ name: 'dark', overrides: { '--a': '2px' } }],
     });
 
-  it('setTokens com theme escreve nas overrides e desfaz', () => {
+  it('setTokens with theme writes to the overrides and undoes', () => {
     const after = applyAndUndo(base(), [
       { type: 'setTokens', theme: 'dark', set: { b: '3px' }, unset: ['--a'] },
     ]);
@@ -374,34 +374,34 @@ describe('ops de tokens e temas', () => {
     expect(after.tokens).toEqual({ '--a': '1px' });
   });
 
-  it('setTokens com tema inexistente falha', () => {
+  it('setTokens with a nonexistent theme fails', () => {
     expect(() =>
-      applyOps(base(), [{ type: 'setTokens', theme: 'nada', set: { '--a': '1px' } }]),
-    ).toThrow(/não encontrado/);
+      applyOps(base(), [{ type: 'setTokens', theme: 'none', set: { '--a': '1px' } }]),
+    ).toThrow(/not found/);
   });
 
-  it('setTokens recusa valor que escapa da declaração', () => {
+  it('setTokens rejects a value that escapes the declaration', () => {
     expect(() =>
       applyOps(base(), [{ type: 'setTokens', set: { '--a': 'red; color: blue' } }]),
     ).toThrow();
   });
 
-  it('setTokenMeta define, remove e limpa o campo vazio', () => {
+  it('setTokenMeta sets, removes and clears the empty field', () => {
     const after = applyAndUndo(base(), [
       { type: 'setTokenMeta', set: { a: { group: 'spacing', description: 'x' } } },
     ]);
     expect(after.tokenMeta).toEqual({ '--a': { group: 'spacing', description: 'x' } });
     const h = new History(after);
-    const sem = h.apply([{ type: 'setTokenMeta', unset: ['--a'] }]).doc;
-    expect('tokenMeta' in sem).toBe(false);
+    const without = h.apply([{ type: 'setTokenMeta', unset: ['--a'] }]).doc;
+    expect('tokenMeta' in without).toBe(false);
     h.undo();
     expect(strip(h.doc)).toEqual(strip(after));
-    // entrada vazia equivale a remover
-    const vazio = applyOps(after, [{ type: 'setTokenMeta', set: { '--a': {} } }]).doc;
-    expect('tokenMeta' in vazio).toBe(false);
+    // an empty entry is the same as removing
+    const empty = applyOps(after, [{ type: 'setTokenMeta', set: { '--a': {} } }]).doc;
+    expect('tokenMeta' in empty).toBe(false);
   });
 
-  it('setThemes troca a lista, remove o campo quando vazia e desfaz', () => {
+  it('setThemes replaces the list, removes the field when empty and undoes', () => {
     const after = applyAndUndo(base(), [
       { type: 'setThemes', themes: [{ name: 'light', overrides: {} }] },
     ]);
@@ -410,7 +410,7 @@ describe('ops de tokens e temas', () => {
     expect('themes' in none).toBe(false);
   });
 
-  it('setThemes recusa nome inválido e duplicado', () => {
+  it('setThemes rejects an invalid and a duplicate name', () => {
     expect(() =>
       applyOps(base(), [{ type: 'setThemes', themes: [{ name: 'a b', overrides: {} }] }]),
     ).toThrow();
@@ -427,7 +427,7 @@ describe('ops de tokens e temas', () => {
     ).toThrow();
   });
 
-  it('replaceTokens troca tudo e desfaz', () => {
+  it('replaceTokens replaces everything and undoes', () => {
     const after = applyAndUndo(base(), [
       {
         type: 'replaceTokens',
@@ -438,13 +438,13 @@ describe('ops de tokens e temas', () => {
     ]);
     expect(after.tokens).toEqual({ '--n': '5px' });
     expect(after.themes![0].name).toBe('alto');
-    const limpo = applyAndUndo(base(), [{ type: 'replaceTokens', tokens: {} }]);
-    expect('themes' in limpo).toBe(false);
-    expect('tokenMeta' in limpo).toBe(false);
+    const cleared = applyAndUndo(base(), [{ type: 'replaceTokens', tokens: {} }]);
+    expect('themes' in cleared).toBe(false);
+    expect('tokenMeta' in cleared).toBe(false);
   });
 });
 
-describe('planejadores', () => {
+describe('planners', () => {
   const base = (): Document =>
     docWith(
       [el('el_a0000001')],
@@ -456,58 +456,58 @@ describe('planejadores', () => {
       { 'data-theme': 'dark' },
     );
 
-  it('planDeleteTokens remove de base, metadados e temas', () => {
+  it('planDeleteTokens removes from base, metadata and themes', () => {
     const doc = base();
     const out = applyAndUndo(doc, planDeleteTokens(doc, ['a']));
     expect(out.tokens).toEqual({ '--b': '2px' });
     expect('tokenMeta' in out).toBe(false);
     expect(out.themes![0].overrides).toEqual({});
-    expect(() => planDeleteTokens(doc, ['--nada'])).toThrow(/não encontrado/);
+    expect(() => planDeleteTokens(doc, ['--none'])).toThrow(/not found/);
   });
 
-  it('planApplyToken gera var(--x) e recusa token inexistente', () => {
+  it('planApplyToken generates var(--x) and rejects a nonexistent token', () => {
     const doc = base();
     const out = applyOps(doc, planApplyToken(doc, ['el_a0000001'], 'backgroundColor', 'b')).doc;
     expect(out.pages[0].frames[0].children[0].style['background-color']).toBe('var(--b)');
-    expect(() => planApplyToken(doc, ['el_a0000001'], 'color', '--nada')).toThrow(/não existe/);
-    expect(() => planApplyToken(doc, ['el_zzzzzzzz'], 'color', '--a')).toThrow(/não encontrado/);
+    expect(() => planApplyToken(doc, ['el_a0000001'], 'color', '--none')).toThrow(/doesn't exist/);
+    expect(() => planApplyToken(doc, ['el_zzzzzzzz'], 'color', '--a')).toThrow(/not found/);
   });
 
-  it('criar, renomear e remover tema atualizam data-theme dos nós', () => {
+  it("creating, renaming and removing a theme update the nodes' data-theme", () => {
     const doc = base();
-    const criado = applyOps(
+    const created = applyOps(
       doc,
       planCreateTheme(doc, 'hc', { copyFrom: 'dark', overrides: { b: '7px' } }),
     ).doc;
-    expect(criado.themes![1]).toEqual({ name: 'hc', overrides: { '--a': '9px', '--b': '7px' } });
-    expect(() => planCreateTheme(doc, 'dark')).toThrow(/Já existe/);
-    expect(() => planCreateTheme(doc, 'a b')).toThrow(/inválido/);
+    expect(created.themes![1]).toEqual({ name: 'hc', overrides: { '--a': '9px', '--b': '7px' } });
+    expect(() => planCreateTheme(doc, 'dark')).toThrow(/already exists/);
+    expect(() => planCreateTheme(doc, 'a b')).toThrow(/invalid/i);
 
-    const ren = applyAndUndo(doc, planRenameTheme(doc, 'dark', 'noite'));
-    expect(ren.themes![0].name).toBe('noite');
-    expect(ren.pages[0].frames[0].attrs['data-theme']).toBe('noite');
+    const ren = applyAndUndo(doc, planRenameTheme(doc, 'dark', 'night'));
+    expect(ren.themes![0].name).toBe('night');
+    expect(ren.pages[0].frames[0].attrs['data-theme']).toBe('night');
 
     const del = applyAndUndo(doc, planDeleteTheme(doc, 'dark'));
     expect('themes' in del).toBe(false);
     expect('data-theme' in del.pages[0].frames[0].attrs).toBe(false);
-    expect(() => planDeleteTheme(doc, 'nada')).toThrow(/não encontrado/);
+    expect(() => planDeleteTheme(doc, 'none')).toThrow(/not found/);
   });
 
-  it('planSetFrameTheme define e, com null, remove', () => {
+  it('planSetFrameTheme sets and, with null, removes', () => {
     const doc = base();
-    const sem = applyOps(doc, planSetFrameTheme(doc, ['fr_main0001'], null)).doc;
-    expect('data-theme' in sem.pages[0].frames[0].attrs).toBe(false);
-    const com = applyOps(sem, planSetFrameTheme(sem, ['fr_main0001'], 'dark')).doc;
-    expect(com.pages[0].frames[0].attrs['data-theme']).toBe('dark');
-    expect(() => planSetFrameTheme(doc, ['fr_main0001'], 'nada')).toThrow();
+    const without = applyOps(doc, planSetFrameTheme(doc, ['fr_main0001'], null)).doc;
+    expect('data-theme' in without.pages[0].frames[0].attrs).toBe(false);
+    const withTheme = applyOps(without, planSetFrameTheme(without, ['fr_main0001'], 'dark')).doc;
+    expect(withTheme.pages[0].frames[0].attrs['data-theme']).toBe('dark');
+    expect(() => planSetFrameTheme(doc, ['fr_main0001'], 'none')).toThrow();
   });
 });
 
 describe('getTokenReport', () => {
-  it('considera node.states: uso só em hover não é unused e referência quebrada aponta o estado', () => {
+  it('considers node.states: usage only in hover is not unused and a broken reference points to the state', () => {
     const n = el('el_st000001');
     n.states = {
-      hover: { 'background-color': 'var(--hov)', color: 'var(--nada)' },
+      hover: { 'background-color': 'var(--hov)', color: 'var(--none)' },
       dark: { '--loc': '1px', margin: 'var(--loc)' },
     };
     const doc = docWith([n], { tokens: { '--hov': '#222' } });
@@ -515,11 +515,11 @@ describe('getTokenReport', () => {
     expect(r.unused).not.toContain('--hov');
     expect(r.tokens.find((t) => t.name === '--hov')!.usage.nodeIds).toEqual(['el_st000001']);
     expect(r.broken).toEqual([
-      { nodeId: 'el_st000001', property: 'state:hover:color', missing: '--nada' },
+      { nodeId: 'el_st000001', property: 'state:hover:color', missing: '--none' },
     ]);
   });
 
-  it('conta uso e referências quebradas em attrs e em markup SVG', () => {
+  it('counts usage and broken references in attrs and in SVG markup', () => {
     const doc = docWith(
       [
         createNode({
@@ -546,52 +546,52 @@ describe('getTokenReport', () => {
     ]);
   });
 
-  it('uso por nós e por tokens, e não usados', () => {
+  it('usage by nodes and by tokens, and unused ones', () => {
     const doc = docWith(
       [
         el('el_a0000001', { color: 'var(--a)' }),
         el('el_b0000002', { background: 'var(--a)', margin: 'var(--c)' }),
       ],
-      { tokens: { '--a': '#fff', '--b': 'var(--a)', '--c': '1px', '--sobra': '3px' } },
+      { tokens: { '--a': '#fff', '--b': 'var(--a)', '--c': '1px', '--spare': '3px' } },
     );
     const r = getTokenReport(doc);
     const a = r.tokens.find((t) => t.name === '--a')!;
     expect(a.usage.nodeIds).toEqual(['el_a0000001', 'el_b0000002']);
     expect(a.usage.tokens).toEqual(['--b']);
-    expect(r.unused.sort()).toEqual(['--b', '--sobra']);
+    expect(r.unused.sort()).toEqual(['--b', '--spare']);
     expect(r.broken).toEqual([]);
     expect(a.group).toBe('color');
     expect(a.resolved).toBe('#fff');
   });
 
-  it('referências quebradas em token, tema e estilo; custom property do ancestral não conta', () => {
+  it('broken references in token, theme and style; an ancestor custom property does not count', () => {
     const doc = docWith(
       [
-        el('el_pai00001', { '--local': '4px' }, [
-          el('el_filho001', {
+        el('el_parent001', { '--local': '4px' }, [
+          el('el_child001', {
             padding: 'var(--local)',
-            margin: 'var(--falta)',
-            gap: 'var(--falta2, 1px)',
+            margin: 'var(--missing)',
+            gap: 'var(--missing2, 1px)',
           }),
         ]),
       ],
       {
-        tokens: { '--a': 'var(--sumiu)' },
-        themes: [{ name: 'dark', overrides: { '--a': 'var(--sumiu2)' } }],
+        tokens: { '--a': 'var(--gone)' },
+        themes: [{ name: 'dark', overrides: { '--a': 'var(--gone2)' } }],
       },
     );
     const broken = getTokenReport(doc).broken;
-    expect(broken).toContainEqual({ token: '--a', missing: '--sumiu' });
-    expect(broken).toContainEqual({ token: '--a', theme: 'dark', missing: '--sumiu2' });
+    expect(broken).toContainEqual({ token: '--a', missing: '--gone' });
+    expect(broken).toContainEqual({ token: '--a', theme: 'dark', missing: '--gone2' });
     expect(broken).toContainEqual({
-      nodeId: 'el_filho001',
+      nodeId: 'el_child001',
       property: 'margin',
-      missing: '--falta',
+      missing: '--missing',
     });
     expect(broken).toHaveLength(3);
   });
 
-  it('problema de validação, valores por tema e descrição', () => {
+  it('validation problem, per-theme values and description', () => {
     const doc = docWith([], {
       tokens: { '--color-x': '12px', '--color-ok': '#fff' },
       tokenMeta: { '--color-ok': { description: 'ok' } },
@@ -610,36 +610,36 @@ describe('getTokenReport', () => {
 });
 
 describe('validateTokenValue', () => {
-  it('aceita color-mix e calc válidos', () => {
+  it('accepts valid color-mix and calc', () => {
     expect(validateTokenValue('--color-a', 'color-mix(in srgb, #fff 50%, #000)')).toBeNull();
     expect(validateTokenValue('--space-a', 'calc(1px + 2px)')).toBeNull();
   });
 
-  it('parênteses abertos são erro', () => {
+  it('unclosed parentheses are an error', () => {
     expect(validateTokenValue('--space-a', 'calc(1px + 2px')?.level).toBe('error');
   });
 
-  it('tipo errado é warning', () => {
+  it('wrong type is a warning', () => {
     expect(validateTokenValue('--color-a', '12px')?.level).toBe('warning');
     expect(validateTokenValue('--space-a', 'banana')?.level).toBe('warning');
   });
 
-  it('referência inexistente é warning', () => {
-    const p = validateTokenValue('--color-a', 'var(--nada)', { vars: {} });
+  it('nonexistent reference is a warning', () => {
+    const p = validateTokenValue('--color-a', 'var(--none)', { vars: {} });
     expect(p?.level).toBe('warning');
-    expect(p?.message).toContain('--nada');
+    expect(p?.message).toContain('--none');
     expect(validateTokenValue('--color-a', 'var(--c)', { vars: { '--c': '#fff' } })).toBeNull();
   });
 
-  it('valores perigosos e vazios são erro', () => {
+  it('dangerous and empty values are an error', () => {
     for (const v of ['red}', 'red; color: blue', '<b>', '']) {
       expect(validateTokenValue('--x', v)?.level, v).toBe('error');
     }
   });
 });
 
-describe('grupos', () => {
-  it('inferTokenGroup pelos prefixos', () => {
+describe('groups', () => {
+  it('inferTokenGroup by prefix', () => {
     expect(inferTokenGroup('--color-primary')).toBe('color');
     expect(inferTokenGroup('--bg-card')).toBe('color');
     expect(inferTokenGroup('--shadow-md')).toBe('shadow');
@@ -650,7 +650,7 @@ describe('grupos', () => {
     expect(inferTokenGroup('--zzz')).toBe('other');
   });
 
-  it('inferTokenGroup pelo valor', () => {
+  it('inferTokenGroup by value', () => {
     expect(inferTokenGroup('--zzz', '#abc')).toBe('color');
     expect(inferTokenGroup('--zzz', 'oklch(0.5 0.2 200)')).toBe('color');
     expect(inferTokenGroup('--zzz', '0 1px 2px rgba(0,0,0,.2)')).toBe('shadow');
@@ -658,7 +658,7 @@ describe('grupos', () => {
     expect(inferTokenGroup('--zzz', 'abc')).toBe('other');
   });
 
-  it('tokenGroup prefere os metadados', () => {
+  it('tokenGroup prefers the metadata', () => {
     const doc = docWith([], {
       tokens: { '--a': '#fff' },
       tokenMeta: { '--a': { group: 'marca' } },
@@ -666,7 +666,7 @@ describe('grupos', () => {
     expect(tokenGroup(doc, '--a')).toBe('marca');
   });
 
-  it('replaceVarRefs só troca o nome exato', () => {
+  it('replaceVarRefs only replaces the exact name', () => {
     expect(replaceVarRefs('var(--a) var(--a-b) var(--a, 1px)', '--a', '--z')).toBe(
       'var(--z) var(--a-b) var(--z, 1px)',
     );
@@ -674,18 +674,28 @@ describe('grupos', () => {
 });
 
 describe('canonicalTokenGroup', () => {
-  it('grupo livre com rótulo ou id de embutido vira o embutido (caixa e acento não importam)', () => {
-    expect(canonicalTokenGroup('Cores')).toBe('color');
-    expect(canonicalTokenGroup(' cores ')).toBe('color');
+  it('a free group with the label or id of a built-in one becomes the built-in (case and accents do not matter)', () => {
+    expect(canonicalTokenGroup('Colors')).toBe('color');
+    expect(canonicalTokenGroup(' colors ')).toBe('color');
     expect(canonicalTokenGroup('Espacamento')).toBe('spacing');
     expect(canonicalTokenGroup('COLOR')).toBe('color');
-    expect(canonicalTokenGroup('Marca')).toBe('Marca');
+    expect(canonicalTokenGroup('Brand')).toBe('Brand');
   });
 
-  it('relatório junta o grupo livre "Cores" ao grupo color', () => {
-    const doc = createDocument('Teste', { id: 'doc_grp00001' });
+  it('migrates stored legacy Portuguese group labels to the built-in group', () => {
+    expect(canonicalTokenGroup('Cores')).toBe('color');
+    expect(canonicalTokenGroup('Tipografia')).toBe('typography');
+    expect(canonicalTokenGroup('Espaçamento')).toBe('spacing');
+    expect(canonicalTokenGroup('espacamento')).toBe('spacing');
+    expect(canonicalTokenGroup('Raio')).toBe('radius');
+    expect(canonicalTokenGroup('Sombra')).toBe('shadow');
+    expect(canonicalTokenGroup('Outros')).toBe('other');
+  });
+
+  it('the report merges the free group "Colors" into the color group', () => {
+    const doc = createDocument('Test', { id: 'doc_grp00001' });
     doc.tokens = { '--brand': '#2563eb', '--color-a': '#000' };
-    doc.tokenMeta = { '--brand': { group: 'Cores' } };
+    doc.tokenMeta = { '--brand': { group: 'Colors' } };
     expect(getTokenReport(doc).tokens.map((t) => t.group)).toEqual(['color', 'color']);
   });
 });

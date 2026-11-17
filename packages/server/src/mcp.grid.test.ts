@@ -21,7 +21,7 @@ describe('MCP grid', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -36,7 +36,7 @@ describe('MCP grid', () => {
   const doc = () => daemon.store.get(daemon.store.resolveDocId());
   const frame = (): Node => doc().pages[0]!.frames[0]!;
 
-  /** Cria um contêiner com N filhos e devolve os ids. */
+  /** Creates a container with N children and returns the ids. */
   async function container(n = 3): Promise<{ box: Node; kids: Node[] }> {
     const kidsHtml = Array.from({ length: n }, (_, i) => `<div class="k">K${i}</div>`).join('');
     const w = await call('write_html', {
@@ -48,7 +48,7 @@ describe('MCP grid', () => {
     return { box, kids: box.children };
   }
 
-  it('set_grid 3x2 com gap e áreas', async () => {
+  it('set_grid 3x2 with gap and areas', async () => {
     const { box } = await container(2);
     const r = await call('set_grid', {
       nodeId: box.id,
@@ -69,7 +69,7 @@ describe('MCP grid', () => {
     expect(s['align-items']).toBe('start');
   });
 
-  it('set_grid aceita texto CSS, lista e rejeita entradas ruins', async () => {
+  it('set_grid accepts CSS text and a list, and rejects bad input', async () => {
     const { box } = await container(1);
     const css = await call('set_grid', {
       nodeId: box.id,
@@ -95,17 +95,17 @@ describe('MCP grid', () => {
     expect(textOf(bad)).toContain('banana');
     const badAreas = await call('set_grid', { nodeId: box.id, columns: 2, areas: ['a b', 'a'] });
     expect(badAreas.isError).toBe(true);
-    expect(textOf(badAreas)).toContain('mesmo número de células');
+    expect(textOf(badAreas)).toContain('same number of cells');
     const lshape = await call('set_grid', {
       nodeId: box.id,
       columns: 2,
       areas: ['a a', 'a b', 'b a'],
     });
     expect(lshape.isError).toBe(true);
-    expect(textOf(lshape)).toContain('retângulo');
+    expect(textOf(lshape)).toContain('rectangle');
   });
 
-  it('place_in_grid com span e área nomeada', async () => {
+  it('place_in_grid with span and named area', async () => {
     const { box, kids } = await container(3);
     await call('set_grid', { nodeId: box.id, columns: 3, rows: 2, areas: ['h h h', 'a b c'] });
     const r = await call('place_in_grid', {
@@ -130,13 +130,13 @@ describe('MCP grid', () => {
 
     const noArea = await call('place_in_grid', { nodeIds: [kids[2]!.id], area: 'zz' });
     expect(noArea.isError).toBe(true);
-    expect(textOf(noArea)).toContain('Áreas: h, a, b, c');
+    expect(textOf(noArea)).toContain('Areas: h, a, b, c');
 
     const beyond = await call('place_in_grid', { nodeIds: [kids[2]!.id], column: 3, span: 2 });
-    expect(textOf(beyond)).toContain('passa das 3 coluna');
+    expect(textOf(beyond)).toContain("goes past the grid's 3 column");
   });
 
-  it('place_in_grid remove longhands e grid-area conflitantes ao gravar grid-column/grid-row', async () => {
+  it('place_in_grid removes conflicting longhands and grid-area when writing grid-column/grid-row', async () => {
     const { box, kids } = await container(2);
     await call('set_grid', { nodeId: box.id, columns: 3, rows: 2 });
     const id = kids[0]!.id;
@@ -167,18 +167,18 @@ describe('MCP grid', () => {
     }
   });
 
-  it('place_in_grid erra com mensagem útil quando o pai não é grid', async () => {
+  it('place_in_grid fails with a useful message when the parent is not a grid', async () => {
     const { box, kids } = await container(1);
     const r = await call('place_in_grid', { nodeIds: [kids[0]!.id], column: 1, row: 1 });
     expect(r.isError).toBe(true);
     const t = textOf(r);
-    expect(t).toContain('não é um grid');
+    expect(t).toContain('is not a grid');
     expect(t).toContain(`set_grid(nodeId: "${box.id}"`);
     const none = await call('place_in_grid', { nodeIds: [kids[0]!.id] });
     expect(none.isError).toBe(true);
   });
 
-  it('write_html com grid CSS chega ao documento', async () => {
+  it('write_html with CSS grid reaches the document', async () => {
     const w = await call('write_html', {
       html: '<div class="g"><div class="a">A</div><div class="b">B</div></div>',
       css: '.g{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px}.a{grid-column:1 / span 2}.b{grid-row:2}',
@@ -194,7 +194,7 @@ describe('MCP grid', () => {
     expect(lay.isError, textOf(lay)).toBeFalsy();
   });
 
-  it('get_guide grid e vectors', async () => {
+  it('get_guide grid and vectors', async () => {
     const g = textOf(await call('get_guide', { topic: 'grid' }));
     expect(g.startsWith('# CSS Grid')).toBe(true);
     for (const n of ['set_grid', 'place_in_grid', 'grid-template-columns', 'get_layout'])
@@ -212,7 +212,7 @@ describe('MCP grid', () => {
       expect(v).toContain(n);
   });
 
-  it('exportação Tailwind e React mantém o grid', async () => {
+  it('Tailwind and React export keep the grid', async () => {
     const { box, kids } = await container(2);
     await call('set_grid', { nodeId: box.id, columns: 3, gap: 16 });
     await call('place_in_grid', { nodeIds: [kids[0]!.id], column: 1, span: 2 });

@@ -18,7 +18,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-describe('MCP componentes: kits, instâncias, overrides e render', () => {
+describe('MCP components: kits, instances, overrides and render', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -41,7 +41,7 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
       measures.push({ nodeId: t.nodeId, doc: t.doc });
       return {
         id: t.nodeId,
-        name: 'Medido',
+        name: 'Measured',
         tag: 'button',
         x: 0,
         y: 0,
@@ -57,7 +57,7 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     captures = [];
     measures = [];
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -86,7 +86,7 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     const r = await fetch(`${daemon.url}/api/docs/${activeDocId}`);
     return ((await r.json()) as { doc: Document }).doc;
   };
-  const instanceId = (t: string): string => /Instância criada: (\S+)/.exec(t)![1]!;
+  const instanceId = (t: string): string => /Instance created: (\S+)/.exec(t)![1]!;
   const insertButton = async (props: Record<string, unknown> = {}, extra = {}): Promise<string> =>
     instanceId(
       await ok('insert_component', {
@@ -97,33 +97,33 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
       }),
     );
 
-  it('list_components: biblioteca vazia e kit shadcn-like disponível', async () => {
+  it('list_components: empty library and shadcn-like kit available', async () => {
     const t = await ok('list_components');
-    expect(t).toContain('Componentes do documento (0)');
+    expect(t).toContain('Document components (0)');
     expect(t).toContain('shadcn-like/Button');
     expect(t).toContain('shadcn-like/Card');
     expect(t).toContain('slots: content, footer');
   });
 
-  it('insert_component shadcn-like/Button: importa o kit, aplica variant/label e lê pelo id virtual', async () => {
+  it('insert_component shadcn-like/Button: imports the kit, applies variant/label and reads through the virtual id', async () => {
     const t = await ok('insert_component', {
       component: 'shadcn-like/Button',
       parentId: ws.frameId,
-      props: { variant: 'outline', label: 'Salvar' },
+      props: { variant: 'outline', label: 'Save' },
     });
-    expect(t).toContain('Kit "shadcn-like" importado');
+    expect(t).toContain('Kit "shadcn-like" imported');
     const inst = instanceId(t);
     expect(t).toContain('◆Button');
 
-    // a instância expandida: ids virtuais e HTML com o texto
+    // the expanded instance: virtual ids and HTML with the text
     const tree = await ok('get_tree_summary', { nodeId: inst, depth: 4 });
     expect(tree).toContain(`${inst}/tx_sbtnlabl`);
     const html = await ok('get_html', { nodeId: inst });
-    expect(html).toContain('Salvar');
+    expect(html).toContain('Save');
     expect(html).not.toContain('{{label}}');
-    expect(await ok('get_html', { nodeId: `${inst}/tx_sbtnlabl` })).toContain('Salvar');
+    expect(await ok('get_html', { nodeId: `${inst}/tx_sbtnlabl` })).toContain('Save');
 
-    // estilos expandidos do outline (borda de 1px e fundo do tema), não os do default (primary)
+    // expanded outline styles (1px border and theme background), not the default (primary) ones
     const styles = await ok('get_styles', { nodeIds: [inst] });
     expect(styles).toContain('border-width: 1px');
     expect(styles).toMatch(/background-color: (#|rgb|oklch|color)/);
@@ -135,16 +135,16 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(defStyles).toContain('border-width: 0');
 
     const info = await ok('get_node_info', { nodeId: `${inst}/tx_sbtnlabl` });
-    expect(info).toContain('Nó interno de uma instância');
+    expect(info).toContain('Inner node of an instance');
     const infoInst = await ok('get_node_info', { nodeId: inst });
-    expect(infoInst).toContain('instância de Button');
+    expect(infoInst).toContain('instance of Button');
     expect(infoInst).toContain('variant=outline');
 
     const children = await ok('get_children', { nodeId: inst });
     expect(children).toContain(`${inst}/tx_sbtnlabl`);
   });
 
-  it('o kit importado e a instância entram numa única entrada de histórico (undo/redo)', async () => {
+  it('the imported kit and the instance go into a single history entry (undo/redo)', async () => {
     const inst = await insertButton({ label: 'Ok' });
     expect((await doc()).components?.length).toBeGreaterThan(5);
     await ok('undo');
@@ -157,21 +157,21 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(JSON.stringify(back.pages)).toContain(inst);
   });
 
-  it('erros: componente inexistente, prop inválida e enum fora das opções', async () => {
+  it('errors: missing component, invalid prop and enum outside the options', async () => {
+    expect(await fail('insert_component', { component: 'Ghost', parentId: ws.frameId })).toContain(
+      'list_components',
+    );
     expect(
-      await fail('insert_component', { component: 'Fantasma', parentId: ws.frameId }),
-    ).toContain('list_components');
-    expect(
-      await fail('insert_component', { component: 'shadcn-like/Nada', parentId: ws.frameId }),
-    ).toContain('Componentes: ');
+      await fail('insert_component', { component: 'shadcn-like/Nothing', parentId: ws.frameId }),
+    ).toContain('Components: ');
     const inst = await insertButton();
-    const bad = await fail('set_instance_props', { nodeIds: [inst], set: { cor: 'x' } });
+    const bad = await fail('set_instance_props', { nodeIds: [inst], set: { color: 'x' } });
     expect(bad).toContain('variant');
     expect(bad).toContain('label');
     const badEnum = await fail('set_instance_props', { nodeIds: [inst], set: { variant: 'neon' } });
     expect(badEnum).toContain('outline');
     expect(await fail('set_instance_props', { nodeIds: [ws.frameId], set: { a: 1 } })).toContain(
-      'não é uma instância',
+      'not a component instance',
     );
     expect(
       await fail('insert_component', {
@@ -179,86 +179,86 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
         parentId: ws.frameId,
         slots: { x: '<p/>' },
       }),
-    ).toContain('não tem o slot');
+    ).toContain('has no slot');
   });
 
-  it('get_component: props com opções, variantes, árvore e HTML; também de kit não importado', async () => {
+  it('get_component: props with options, variants, tree and HTML; also from a kit not imported', async () => {
     const fromKit = await ok('get_component', { component: 'shadcn-like/Button' });
-    expect(fromKit).toContain('ainda não está no documento');
-    expect(fromKit).toContain('enum, opções: default | secondary | outline | ghost | destructive');
-    expect(fromKit).toContain('quando variant=outline');
+    expect(fromKit).toContain('not in the document yet');
+    expect(fromKit).toContain('enum, options: default | secondary | outline | ghost | destructive');
+    expect(fromKit).toContain('when variant=outline');
     expect(fromKit).toContain('tx_sbtnlabl');
     expect(fromKit).toContain('{{label}}');
     await ok('import_kit', { name: 'shadcn-like' });
     const t = await ok('get_component', { component: 'Button' });
     expect(t).toContain('cp_sbutton1');
-    expect(t).toContain('— 0 instância(s) (+5 dentro de outros componentes)');
-    expect(t).not.toContain('ainda não está');
+    expect(t).toContain('— 0 instance(s) (+5 inside other components)');
+    expect(t).not.toContain('not in the document yet');
     const lib = await ok('list_components');
-    expect(lib).toContain('Componentes do documento (8)');
+    expect(lib).toContain('Document components (8)');
     expect(lib).toContain('cp_sbutton1 "Button" [kit shadcn-like]');
   });
 
-  it('import_kit é idempotente (e aceita caminho absoluto)', async () => {
+  it('import_kit is idempotent (and accepts an absolute path)', async () => {
     const first = await ok('import_kit', { name: 'shadcn-like' });
     expect(first).toContain('Button (added)');
     const rev = (await doc()).meta.updatedAt;
     const again = await ok('import_kit', { name: 'shadcn-like' });
-    expect(again).toContain('já está importado');
+    expect(again).toContain('is already imported');
     const d = await doc();
     expect(d.components).toHaveLength(8);
     expect(d.meta.updatedAt).toBe(rev);
     const kitFile = path.join(findKitsDir()!, 'shadcn-like.mockup.json');
-    expect(await ok('import_kit', { name: kitFile })).toContain('já está importado');
-    expect(await fail('import_kit', { name: 'nao-existe' })).toContain('shadcn-like');
+    expect(await ok('import_kit', { name: kitFile })).toContain('is already imported');
+    expect(await fail('import_kit', { name: 'does-not-exist' })).toContain('shadcn-like');
   });
 
-  it('insert_component de kit importa só o que falta e preserva o principal editado ou renomeado', async () => {
+  it('insert_component from a kit imports only what is missing and preserves an edited or renamed main component', async () => {
     const first = await ok('insert_component', {
       component: 'shadcn-like/Card',
       parentId: ws.frameId,
     });
-    expect(first).toContain('Kit "shadcn-like" importado (8 componente(s)');
-    // Edita e renomeia o Button, apaga o Dialog (sem instâncias) e insere o Dialog de novo.
+    expect(first).toContain('Kit "shadcn-like" imported (8 component(s)');
+    // Edits and renames Button, deletes Dialog (no instances) and inserts Dialog again.
     await ok('update_styles', { nodeIds: ['el_sbtnroot'], styles: { color: 'red' } });
-    await ok('update_component', { componentId: 'cp_sbutton1', name: 'Botao' });
+    await ok('update_component', { componentId: 'cp_sbutton1', name: 'Renamed' });
     await ok('delete_component', { componentId: 'cp_sdialog1' });
     const dlg = await ok('insert_component', {
       component: 'shadcn-like/Dialog',
       parentId: ws.frameId,
     });
-    expect(dlg).toContain('Kit "shadcn-like" importado (1 componente(s))');
-    // `shadcn-like/Button` não acha pelo nome (renomeado), mas o id do kit já está no documento.
+    expect(dlg).toContain('Kit "shadcn-like" imported (1 component(s))');
+    // `shadcn-like/Button` is not found by name (renamed), but the kit id is already in the document.
     const again = await ok('insert_component', {
       component: 'shadcn-like/Button',
       parentId: ws.frameId,
     });
-    expect(again).toContain('de "Botao"');
-    expect(again).not.toContain('importado');
+    expect(again).toContain('of "Renamed"');
+    expect(again).not.toContain('imported');
     const d = await doc();
     const btn = d.components!.find((c) => c.id === 'cp_sbutton1')!;
-    expect(btn.name).toBe('Botao');
+    expect(btn.name).toBe('Renamed');
     expect(btn.root.style.color).toBe('red');
     expect(d.components).toHaveLength(8);
   });
 
-  it('import_kit sem overwrite lista os divergentes; com overwrite atualiza', async () => {
+  it('import_kit without overwrite lists the diverged ones; with overwrite it updates', async () => {
     await ok('import_kit', { name: 'shadcn-like' });
     await ok('update_styles', { nodeIds: ['el_sbtnroot'], styles: { color: 'red' } });
     await ok('delete_component', { componentId: 'cp_slist001' });
     const t = await ok('import_kit', { name: 'shadcn-like' });
     expect(t).toContain('List (added)');
     expect(t).toContain('Button (diverged)');
-    expect(t).toContain('Divergentes do kit (mantidos com as suas edições): Button');
+    expect(t).toContain('Diverged from the kit (kept with your edits): Button');
     expect(t).toContain('overwrite: true');
     let d = await doc();
     expect(d.components!.find((c) => c.id === 'cp_sbutton1')!.root.style.color).toBe('red');
     expect(d.components!.some((c) => c.id === 'cp_slist001')).toBe(true);
-    // Repetir sem overwrite: nada a importar, o divergente continua listado.
+    // Repeating without overwrite: nothing to import, the diverged one stays listed.
     const rev = d.meta.updatedAt;
     const same = await ok('import_kit', { name: 'shadcn-like' });
-    expect(same).toContain('nada a importar');
-    expect(same).toContain('Divergentes');
+    expect(same).toContain('nothing to import');
+    expect(same).toContain('Diverged');
     expect((await doc()).meta.updatedAt).toBe(rev);
     const over = await ok('import_kit', { name: 'shadcn-like', overwrite: true });
     expect(over).toContain('Button (updated)');
@@ -266,34 +266,34 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(d.components!.find((c) => c.id === 'cp_sbutton1')!.root.style.color).toBe(
       'var(--color-primary-foreground)',
     );
-    expect(await ok('import_kit', { name: 'shadcn-like' })).toContain('já está importado');
+    expect(await ok('import_kit', { name: 'shadcn-like' })).toContain('is already imported');
   });
 
-  it('slots por HTML (Card): conteúdo vira nós reais no contêiner do slot', async () => {
+  it('slots via HTML (Card): content becomes real nodes in the slot container', async () => {
     const t = await ok('insert_component', {
       component: 'shadcn-like/Card',
       parentId: ws.frameId,
-      props: { title: 'Plano Pro' },
-      slots: { content: '<p id="x" style="color:#123456">Tudo incluso</p>' },
+      props: { title: 'Pro Plan' },
+      slots: { content: '<p id="x" style="color:#123456">Everything included</p>' },
     });
     const inst = instanceId(t);
     expect(t).toMatch(/Slots .*content=el_\w+/);
     const html = await ok('get_html', { nodeId: inst });
-    expect(html).toContain('Plano Pro');
-    expect(html).toContain('Tudo incluso');
-    expect(html).not.toContain('Conteúdo do cartão');
-    // footer vazio usa o conteúdo padrão do principal (botão aninhado)
-    expect(html).toContain('Ação');
+    expect(html).toContain('Pro Plan');
+    expect(html).toContain('Everything included');
+    expect(html).not.toContain('Card content');
+    // empty footer uses the main component default content (nested button)
+    expect(html).toContain('Action');
     const d = await doc();
     const instNode = d.pages[0]!.frames[0]!.children.find((c) => c.id === inst)!;
     expect(instNode.children.map((c) => c.attrs['data-slot'])).toEqual(['content', 'footer']);
     expect(instNode.children[0]!.children).toHaveLength(1);
 
-    // Tailwind em slot: compilado para estilo
+    // Tailwind in a slot: compiled to style
     const tw = await ok('insert_component', {
       component: 'Card',
       parentId: ws.frameId,
-      slots: { content: '<div class="flex gap-4 p-4">Olá</div>' },
+      slots: { content: '<div class="flex gap-4 p-4">Hello</div>' },
     });
     const inst2 = instanceId(tw);
     const slotId = /content=(\S+?)[,.]/.exec(tw)![1]!;
@@ -302,49 +302,49 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(inst2).not.toBe(inst);
   });
 
-  it('create_component com bind, props inferidas, undo e redo', async () => {
+  it('create_component with bind, inferred props, undo and redo', async () => {
     const html = await ok('write_html', {
       parentId: ws.frameId,
       tailwind: 'off',
-      html: '<button style="padding:8px 16px;background:#2563eb;color:#fff"><span>Enviar</span></button>',
+      html: '<button style="padding:8px 16px;background:#2563eb;color:#fff"><span>Submit</span></button>',
     });
-    const btn = /Nós criados: ([^.\n,]+)/.exec(html)![1]!.trim();
+    const btn = /Nodes created: ([^.\n,]+)/.exec(html)![1]!.trim();
     const tree = await ok('get_tree_summary', { nodeId: btn });
     const span = /(tx_\w+|el_\w+)(?= "Span")/.exec(tree)?.[1] ?? /\n\s+(\w+) /.exec(tree)![1]!;
     const t = await ok('create_component', {
       nodeId: btn,
-      name: 'Acao',
-      description: 'Botão de ação',
+      name: 'Action',
+      description: 'Action button',
       props: [
         { name: 'label', type: 'string', bind: { nodeId: span, target: 'text' } },
         { name: 'bg', type: 'color', bind: { nodeId: btn, target: 'style:background' } },
       ],
     });
-    expect(t).toContain('Componente criado: cp_');
-    expect(t).toContain('label:string="Enviar"');
+    expect(t).toContain('Component created: cp_');
+    expect(t).toContain('label:string="Submit"');
     const d = await doc();
-    const def = d.components!.find((c) => c.name === 'Acao')!;
+    const def = d.components!.find((c) => c.name === 'Action')!;
     expect(def.root.style['background']).toBe('{{bg}}');
     expect(def.props.find((p) => p.name === 'bg')?.default).toBe('#2563eb');
-    const inst = /instância (in_\w+)/.exec(t)![1]!;
-    expect(await ok('get_html', { nodeId: inst })).toContain('Enviar');
-    await ok('set_instance_props', { nodeIds: [inst], set: { label: 'Salvar', bg: '#16a34a' } });
+    const inst = /instance (in_\w+)/.exec(t)![1]!;
+    expect(await ok('get_html', { nodeId: inst })).toContain('Submit');
+    await ok('set_instance_props', { nodeIds: [inst], set: { label: 'Save', bg: '#16a34a' } });
     const h = await ok('get_html', { nodeId: inst });
-    expect(h).toContain('Salvar');
+    expect(h).toContain('Save');
     expect(h).toContain('#16a34a');
 
-    await ok('undo'); // props da instância
-    await ok('undo'); // criação do componente
+    await ok('undo'); // instance props
+    await ok('undo'); // component creation
     expect((await doc()).components ?? []).toHaveLength(0);
     expect(JSON.stringify((await doc()).pages)).toContain(btn);
     await ok('redo');
     await ok('redo');
     expect((await doc()).components).toHaveLength(1);
-    expect(await ok('get_html', { nodeId: inst })).toContain('Salvar');
+    expect(await ok('get_html', { nodeId: inst })).toContain('Save');
     expect(await fail('create_component', { nodeId: ws.frameId })).toContain('frame');
   });
 
-  it('set_instance_props / set_instance_override (mescla) / reset_instance', async () => {
+  it('set_instance_props / set_instance_override (merges) / reset_instance', async () => {
     const inst = await insertButton({ label: 'Ok' });
     await ok('set_instance_props', {
       nodeIds: [inst],
@@ -360,24 +360,24 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     await ok('set_instance_override', {
       nodeId: inst,
       path: label,
-      text: 'Excluir',
+      text: 'Delete',
       style: { 'font-size': '20px' },
     });
     d = await doc();
     const ov = d.pages[0]!.frames[0]!.children.find((c) => c.id === inst)!.overrides![label]!;
     expect(ov.style).toEqual({ color: '#ff0000', 'font-size': '20px' });
-    expect(ov.text).toBe('Excluir');
-    expect(await ok('get_html', { nodeId: inst })).toContain('Excluir');
+    expect(ov.text).toBe('Delete');
+    expect(await ok('get_html', { nodeId: inst })).toContain('Delete');
     expect(await ok('get_styles', { nodeIds: [`${inst}/${label}`] })).toContain('color: #ff0000');
 
     expect(
-      await fail('set_instance_override', { nodeId: inst, path: 'el_nada', text: 'x' }),
-    ).toContain('não existe');
+      await fail('set_instance_override', { nodeId: inst, path: 'el_none', text: 'x' }),
+    ).toContain('does not exist');
     expect(await fail('set_instance_override', { nodeId: inst, path: label })).toContain(
-      'Informe ao menos',
+      'Provide at least',
     );
 
-    // update_styles direto no id virtual também vira override
+    // update_styles directly on the virtual id also becomes an override
     await ok('update_styles', {
       nodeIds: [`${inst}/${label}`],
       styles: { 'letter-spacing': '2px' },
@@ -392,10 +392,10 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     await ok('reset_instance', { nodeIds: [inst] });
     d = await doc();
     expect(d.pages[0]!.frames[0]!.children.find((c) => c.id === inst)!.overrides).toBeUndefined();
-    expect(await ok('get_html', { nodeId: inst })).not.toContain('Excluir');
+    expect(await ok('get_html', { nodeId: inst })).not.toContain('Delete');
   });
 
-  it('push_overrides_to_main propaga às outras instâncias; detach_instance devolve o novo id', async () => {
+  it('push_overrides_to_main propagates to the other instances; detach_instance returns the new id', async () => {
     const a = await insertButton({ label: 'A' });
     const b = await insertButton({ label: 'B' });
     await ok('set_instance_override', {
@@ -405,14 +405,14 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     });
     expect(await ok('get_styles', { nodeIds: [`${b}/tx_sbtnlabl`] })).not.toContain('italic');
     const t = await ok('push_overrides_to_main', { nodeId: a });
-    expect(t).toContain('afeta 2 instância(s) (+5 dentro de outros componentes)');
+    expect(t).toContain('affects 2 instance(s) (+5 inside other components)');
     expect(await ok('get_styles', { nodeIds: [`${b}/tx_sbtnlabl`] })).toContain(
       'font-style: italic',
     );
-    expect(await ok('push_overrides_to_main', { nodeId: a })).toContain('nada a enviar');
+    expect(await ok('push_overrides_to_main', { nodeId: a })).toContain('nothing to push');
 
     const det = await ok('detach_instance', { nodeId: b });
-    const newId = /Novo id: (\S+?)\./.exec(det)![1]!;
+    const newId = /New id: (\S+?)\./.exec(det)![1]!;
     expect(newId).not.toBe(b);
     const d = await doc();
     const frame = d.pages[0]!.frames[0]!;
@@ -421,43 +421,43 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(detached.type).toBe('element');
     expect(detached.componentId).toBeUndefined();
     expect(JSON.stringify(detached)).toContain('B');
-    expect(await fail('detach_instance', { nodeId: newId })).toContain('não é uma instância');
+    expect(await fail('detach_instance', { nodeId: newId })).toContain('not a component instance');
   });
 
-  it('update_component_html propaga às instâncias, mantém {{prop}} e avisa', async () => {
-    const inst = await insertButton({ label: 'Salvar' });
+  it('update_component_html propagates to the instances, keeps {{prop}} and warns', async () => {
+    const inst = await insertButton({ label: 'Save' });
     const t = await ok('update_component_html', {
       componentId: 'Button',
-      html: '<button style="padding:4px 8px;background:#0f172a;color:#fff"><span>{{label}}</span> <b>{{icone}}</b></button>',
+      html: '<button style="padding:4px 8px;background:#0f172a;color:#fff"><span>{{label}}</span> <b>{{icon}}</b></button>',
     });
-    expect(t).toContain('atualizadas: 1 instância(s)');
-    expect(t).toContain('Props criadas a partir do HTML: icone:string');
-    // variant e size ainda são usadas pelas variantes do principal: sem aviso
-    expect(t).not.toContain('props sem uso');
+    expect(t).toContain('updated: 1 instance(s)');
+    expect(t).toContain('Props created from the HTML: icon:string');
+    // variant and size are still used by the main component variants: no warning
+    expect(t).not.toContain('props unused in the HTML');
     const input = await ok('update_component_html', {
       componentId: 'Input',
       html: '<input style="padding:4px" placeholder="{{placeholder}}">',
     });
-    expect(input).toContain('props sem uso no HTML');
-    expect(input).toMatch(/sem uso.*value/);
+    expect(input).toContain('props unused in the HTML');
+    expect(input).toMatch(/unused.*value/);
     const html = await ok('get_html', { nodeId: inst });
-    expect(html).toContain('Salvar');
+    expect(html).toContain('Save');
     expect(html).toContain('#0f172a');
     expect(
       await fail('update_component_html', { componentId: 'Button', html: '<p>a</p><p>b</p>' }),
-    ).toContain('único elemento raiz');
+    ).toContain('single root element');
     await ok('undo'); // Input
     await ok('undo'); // Button
     expect(await ok('get_html', { nodeId: inst })).not.toContain('#0f172a');
   });
 
-  it('update_component_html com Tailwind compila as classes e cria slots', async () => {
+  it('update_component_html with Tailwind compiles the classes and creates slots', async () => {
     await ok('import_kit', { name: 'shadcn-like' });
     const t = await ok('update_component_html', {
       componentId: 'List',
       html: '<ul class="flex flex-col gap-2"><li data-slot="items">x</li></ul>',
     });
-    expect(t).toContain('Classes Tailwind compiladas');
+    expect(t).toContain('Tailwind classes compiled');
     const d = await doc();
     const def = d.components!.find((c) => c.name === 'List')!;
     expect(def.root.style['gap']).toBeTruthy();
@@ -465,31 +465,31 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(d.cssBase).toBe('tailwind');
   });
 
-  it('editar o principal por update_styles nos ids do principal propaga às instâncias; go_to_main', async () => {
+  it('editing the main component with update_styles on main component ids propagates to the instances; go_to_main', async () => {
     const a = await insertButton({ label: 'A' });
     const b = await insertButton({ label: 'B' });
     const t = await ok('go_to_main', { nodeId: `${a}/tx_sbtnlabl` });
     expect(t).toContain('el_sbtnroot');
     expect(t).toContain('tx_sbtnlabl');
     expect(await ok('get_selection')).toContain('el_sbtnroot');
-    // ids do principal valem na leitura
+    // main component ids are valid for reading
     expect(await ok('get_html', { nodeId: 'el_sbtnroot' })).toContain('{{label}}');
-    expect(await ok('get_node_info', { nodeId: 'tx_sbtnlabl' })).toContain('principal');
+    expect(await ok('get_node_info', { nodeId: 'tx_sbtnlabl' })).toContain('main component');
     await ok('update_styles', { nodeIds: ['tx_sbtnlabl'], styles: { 'font-size': '33px' } });
     expect(await ok('get_styles', { nodeIds: [`${a}/tx_sbtnlabl`, `${b}/tx_sbtnlabl`] })).toMatch(
       /font-size: 33px[\s\S]*font-size: 33px/,
     );
     await ok('set_selection', { nodeIds: [a] });
-    expect(await ok('go_to_main', { nodeId: a })).toContain('Principal "Button"');
-    expect(await fail('go_to_main', { nodeId: ws.frameId })).toContain('não é uma instância');
+    expect(await ok('go_to_main', { nodeId: a })).toContain('Main component "Button"');
+    expect(await fail('go_to_main', { nodeId: ws.frameId })).toContain('is not an instance');
   });
 
-  it('delete_component recusa com instâncias; detach_instances destaca e exclui', async () => {
+  it('delete_component refuses with instances; detach_instances detaches and deletes', async () => {
     const inst = await insertButton({ label: 'X' });
     const refused = await fail('delete_component', { componentId: 'cp_sbutton1' });
     expect(refused).toContain('detach_instances');
     const t = await ok('delete_component', { componentId: 'Button', detach_instances: true });
-    expect(t).toContain('6 instância(s) destacada(s)');
+    expect(t).toContain('6 instance(s) detached');
     const d = await doc();
     expect(d.components?.some((c) => c.name === 'Button')).toBeFalsy();
     expect(JSON.stringify(d.pages)).not.toContain(inst);
@@ -498,8 +498,8 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect((await doc()).components?.some((c) => c.name === 'Button')).toBe(true);
   });
 
-  it('get_screenshot/get_layout entregam ao provider o documento expandido', async () => {
-    const inst = await insertButton({ variant: 'outline', label: 'Salvar' });
+  it('get_screenshot/get_layout hand the expanded document to the provider', async () => {
+    const inst = await insertButton({ variant: 'outline', label: 'Save' });
     await ok('get_screenshot', { nodeId: inst });
     expect(captures).toHaveLength(1);
     let instances = 0;
@@ -509,7 +509,7 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
           if (n.type === 'instance') instances++;
         });
     expect(instances).toBe(0);
-    expect(JSON.stringify(captures[0]!.doc.pages)).toContain('Salvar');
+    expect(JSON.stringify(captures[0]!.doc.pages)).toContain('Save');
     expect(captures[0]!.nodeId).toBe(inst);
 
     // id virtual
@@ -518,9 +518,9 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
 
     await ok('get_layout', { nodeId: inst });
     expect(measures[0]!.nodeId).toBe(inst);
-    expect(JSON.stringify(measures[0]!.doc.pages)).toContain('Salvar');
+    expect(JSON.stringify(measures[0]!.doc.pages)).toContain('Save');
 
-    // principal (cp_ e nó raiz do principal): prévia numa instância padrão
+    // main component (cp_ and main component root node): preview as a default instance
     for (const ref of ['cp_sbutton1', 'el_sbtnroot']) {
       captures.length = 0;
       await ok('get_screenshot', { nodeId: ref });
@@ -529,40 +529,40 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
       expect(req.doc.pages).toHaveLength(1);
       const s = JSON.stringify(req.doc.pages);
       expect(s).not.toContain('"type":"instance"');
-      expect(s).toContain('Botão');
+      expect(s).toContain('Button');
     }
-    // não alterou o documento
+    // did not change the document
     expect((await doc()).pages).toHaveLength(1);
   });
 
-  it('rota /render usa o documento expandido', async () => {
-    const inst = await insertButton({ label: 'Rota' });
+  it('/render route uses the expanded document', async () => {
+    const inst = await insertButton({ label: 'Route' });
     const info = (await (await fetch(`${daemon.url}/api/docs`)).json()) as { activeDocId: string };
     const res = await fetch(`${daemon.url}/render/${info.activeDocId}/${inst}.png`);
     expect(res.status).toBe(200);
-    expect(JSON.stringify(captures[0]!.doc.pages)).toContain('Rota');
+    expect(JSON.stringify(captures[0]!.doc.pages)).toContain('Route');
     expect(JSON.stringify(captures[0]!.doc.pages)).not.toContain('"type":"instance"');
-    const missing = await fetch(`${daemon.url}/render/${info.activeDocId}/nao_existe.png`);
+    const missing = await fetch(`${daemon.url}/render/${info.activeDocId}/does_not_exist.png`);
     expect(missing.status).toBe(404);
   });
 
-  it('get_code (html/react) e export aceitam instância, id virtual e nó de principal', async () => {
-    const inst = await insertButton({ variant: 'outline', label: 'Salvar' });
+  it('get_code (html/react) and export accept an instance, a virtual id and a main component node', async () => {
+    const inst = await insertButton({ variant: 'outline', label: 'Save' });
     const html = await ok('get_code', { nodeId: inst, format: 'html' });
-    expect(html).toContain('Salvar');
+    expect(html).toContain('Save');
     const virt = await ok('get_code', { nodeId: `${inst}/tx_sbtnlabl`, format: 'html' });
-    expect(virt).toContain('Salvar');
+    expect(virt).toContain('Save');
     const main = await ok('get_code', { nodeId: 'el_sbtnroot', format: 'html' });
     expect(main).toContain('{{label}}');
     const react = await ok('get_code', { nodeId: inst, format: 'react' });
     expect(react).toContain('Button');
     const out = path.join(ws.dir, 'out');
     const exp = await ok('export', { nodeIds: [inst], format: 'html', outputDir: out });
-    expect(exp).toContain('Salvar');
+    expect(exp).toContain('Save');
     expect(fs.readdirSync(out).length).toBeGreaterThan(0);
   });
 
-  it('get_guide("components") e instruções citam componentes', async () => {
+  it('get_guide("components") and instructions mention components', async () => {
     const g = await ok('get_guide', { topic: 'components' });
     for (const n of [
       'insert_component',
@@ -597,8 +597,8 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     }
   });
 
-  describe('kits e rotas HTTP', () => {
-    it('GET /api/kits lista os kits com componentes e props', async () => {
+  describe('kits and HTTP routes', () => {
+    it('GET /api/kits lists the kits with components and props', async () => {
       const res = await fetch(`${daemon.url}/api/kits`);
       expect(res.status).toBe(200);
       const body = (await res.json()) as {
@@ -627,57 +627,57 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
       );
       const button = kit.components.find((c) => c.name === 'Button')!;
       expect(button.id).toBe('cp_sbutton1');
-      expect(button.description).toContain('Botão');
+      expect(button.description).toContain('Button');
       expect(button.props.map((p) => p.name)).toEqual(['variant', 'size', 'label']);
     });
 
-    it('GET /api/kits/:name devolve o documento do kit; nome inexistente ou com caminho dá 404', async () => {
+    it('GET /api/kits/:name returns the kit document; a missing name or one with a path gives 404', async () => {
       const res = await fetch(`${daemon.url}/api/kits/shadcn-like`);
       expect(res.status).toBe(200);
       const kit = (await res.json()) as Document;
       expect(kit.components?.length).toBe(8);
       expect(Object.keys(kit.tokens)).toContain('--color-primary');
-      expect((await fetch(`${daemon.url}/api/kits/nao-existe`)).status).toBe(404);
+      expect((await fetch(`${daemon.url}/api/kits/does-not-exist`)).status).toBe(404);
       expect((await fetch(`${daemon.url}/api/kits/..%2Fpackage`)).status).toBe(404);
     });
 
-    it('findKitsDir/loadKit: MOCKUP_KITS_DIR, cache por mtime e erros', async () => {
+    it('findKitsDir/loadKit: MOCKUP_KITS_DIR, mtime cache and errors', async () => {
       expect(listKitNames()).toContain('shadcn-like');
       expect(loadKit('SHADCN-LIKE')).toBe(loadKit('shadcn-like'));
       const dir = fs.mkdtempSync(path.join(ws.dir, 'kits-'));
       fs.copyFileSync(
         path.join(findKitsDir()!, 'shadcn-like.mockup.json'),
-        path.join(dir, 'meu.mockup.json'),
+        path.join(dir, 'mine.mockup.json'),
       );
-      fs.writeFileSync(path.join(dir, 'quebrado.mockup.json'), '{ nao e json');
+      fs.writeFileSync(path.join(dir, 'broken.mockup.json'), '{ not json');
       const prev = process.env.MOCKUP_KITS_DIR;
       process.env.MOCKUP_KITS_DIR = dir;
       try {
         expect(findKitsDir()).toBe(path.resolve(dir));
-        expect(listKitNames()).toEqual(['meu', 'quebrado']);
-        const k = loadKit('meu');
-        expect(loadKit('meu')).toBe(k);
-        expect(() => loadKit('quebrado')).toThrow(/inválido/);
-        // Caminho: extensão obrigatória; JSON malformado sem a mensagem crua do parser.
-        const broken = path.join(dir, 'quebrado.mockup.json');
-        expect(() => loadKit(broken)).toThrow(`Kit inválido (${broken}): JSON inválido`);
-        const noExt = path.join(dir, 'meu.json');
-        fs.copyFileSync(path.join(dir, 'meu.mockup.json'), noExt);
-        expect(() => loadKit(noExt)).toThrow('precisa ter a extensão .mockup.json');
+        expect(listKitNames()).toEqual(['broken', 'mine']);
+        const k = loadKit('mine');
+        expect(loadKit('mine')).toBe(k);
+        expect(() => loadKit('broken')).toThrow(/Invalid/);
+        // Path: extension required; malformed JSON without the raw parser message.
+        const broken = path.join(dir, 'broken.mockup.json');
+        expect(() => loadKit(broken)).toThrow(`Invalid kit (${broken}): Invalid JSON`);
+        const noExt = path.join(dir, 'mine.json');
+        fs.copyFileSync(path.join(dir, 'mine.mockup.json'), noExt);
+        expect(() => loadKit(noExt)).toThrow('must have the .mockup.json extension');
         expect(await fail('import_kit', { name: noExt })).toContain(
-          'precisa ter a extensão .mockup.json',
+          'must have the .mockup.json extension',
         );
         const viaMcp = await fail('import_kit', { name: broken });
-        expect(viaMcp).toContain('JSON inválido');
-        expect(viaMcp).not.toMatch(/nao e json|Unexpected|position/);
-        // Documento inválido: os erros do schema.
-        const bad = path.join(dir, 'ruim.mockup.json');
+        expect(viaMcp).toContain('Invalid JSON');
+        expect(viaMcp).not.toMatch(/not json|Unexpected|position/);
+        // Invalid document: the schema errors.
+        const bad = path.join(dir, 'invalid.mockup.json');
         fs.writeFileSync(bad, JSON.stringify({ version: 2, id: 'x', name: 'x', pages: [] }));
-        expect(() => loadKit(bad)).toThrow(/Kit inválido .*versão não suportada/);
+        expect(() => loadKit(bad)).toThrow(/Invalid kit .*unsupported version/);
         const res = await fetch(`${daemon.url}/api/kits`);
         const body = (await res.json()) as { kits: { name: string }[] };
-        expect(body.kits.map((x) => x.name)).toEqual(['meu']); // o quebrado é ignorado
-        expect((await fetch(`${daemon.url}/api/kits/quebrado`)).status).toBe(400);
+        expect(body.kits.map((x) => x.name)).toEqual(['mine']); // the broken one is ignored
+        expect((await fetch(`${daemon.url}/api/kits/broken`)).status).toBe(400);
       } finally {
         if (prev === undefined) delete process.env.MOCKUP_KITS_DIR;
         else process.env.MOCKUP_KITS_DIR = prev;

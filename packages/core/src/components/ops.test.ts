@@ -55,7 +55,7 @@ function fixture(): Document {
         id: 'cp_card',
         name: 'Card',
         props: [
-          { name: 'title', type: 'string', default: 'Título' },
+          { name: 'title', type: 'string', default: 'Title' },
           { name: 'content', type: 'slot' },
         ],
         root: n('el_card', 'element', 'div', {
@@ -63,9 +63,12 @@ function fixture(): Document {
             n('tx_ttl', 'text', 'h3', { text: '{{title}}' }),
             n('el_body', 'element', 'div', {
               attrs: { 'data-slot': 'content' },
-              children: [n('tx_def', 'text', 'p', { text: 'Padrão' })] as Node[],
+              children: [n('tx_def', 'text', 'p', { text: 'Default' })] as Node[],
             }),
-            n('in_cbtn', 'instance', 'button', { componentId: 'cp_btn', props: { label: 'Ação' } }),
+            n('in_cbtn', 'instance', 'button', {
+              componentId: 'cp_btn',
+              props: { label: 'Action' },
+            }),
           ] as Node[],
         }),
         variants: [],
@@ -82,14 +85,14 @@ function fixture(): Document {
             children: [
               n('in_b1', 'instance', 'button', {
                 componentId: 'cp_btn',
-                props: { variant: 'outline', label: 'Salvar' },
+                props: { variant: 'outline', label: 'Save' },
               }),
               n('in_c1', 'instance', 'div', {
                 componentId: 'cp_card',
                 children: [
                   n('el_s1', 'element', 'div', {
                     attrs: { 'data-slot': 'content' },
-                    children: [n('tx_s1', 'text', 'p', { text: 'Meu' })] as Node[],
+                    children: [n('tx_s1', 'text', 'p', { text: 'My' })] as Node[],
                   }),
                 ] as Node[],
               }),
@@ -111,7 +114,7 @@ function strip(doc: Document): unknown {
 
 function node(doc: Document, id: string): Node {
   const p = findNode(doc, id);
-  if (!p) throw new Error(`sem ${id}`);
+  if (!p) throw new Error(`no ${id}`);
   return p.node;
 }
 
@@ -119,7 +122,7 @@ function comp(doc: Document, id: string): ComponentDef {
   return getComponent(doc, id)!;
 }
 
-/** Aplica pelo History e confere undo exato e redo igual. */
+/** Applies through History and checks for an exact undo and an identical redo. */
 function roundTrip(doc: Document, ops: Op[]): Document {
   const h = new History(doc);
   const r = h.apply(ops);
@@ -134,15 +137,15 @@ function roundTrip(doc: Document, ops: Op[]): Document {
 const button = (): ComponentDef => ({
   id: 'cp_new',
   name: 'Badge',
-  props: [{ name: 'text', type: 'string', default: 'Novo' }],
+  props: [{ name: 'text', type: 'string', default: 'New' }],
   root: n('el_badge', 'element', 'span', {
     children: [n('tx_badge', 'text', 'span', { text: '{{text}}' })] as Node[],
   }) as Node,
   variants: [],
 });
 
-describe('ops primitivas de componentes', () => {
-  it('addComponent / deleteComponent com undo e redo', () => {
+describe('primitive component ops', () => {
+  it('addComponent / deleteComponent with undo and redo', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [{ type: 'addComponent', component: button(), index: 1 }]);
     expect(d1.components!.map((c) => c.id)).toEqual(['cp_btn', 'cp_new', 'cp_card']);
@@ -151,23 +154,23 @@ describe('ops primitivas de componentes', () => {
     roundTrip(d1, [{ type: 'deleteComponent', componentId: 'cp_new' }]);
   });
 
-  it('addComponent valida nome, raiz, ids e ciclos', () => {
+  it('addComponent validates name, root, ids and cycles', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, { type: 'addComponent', component: { ...button(), name: 'button' } }),
-    ).toThrow(/nome/);
+    ).toThrow(/named/);
     expect(() =>
       applyOp(doc, {
         type: 'addComponent',
         component: { ...button(), root: { ...button().root, type: 'frame' } },
       }),
     ).toThrow(/frame/);
-    // Id de nó de uma página e de outro principal.
+    // Node id from a page and from another main component.
     const dupPage = { ...button(), root: { ...button().root, id: 'el_plain' } };
     expect(() => applyOp(doc, { type: 'addComponent', component: dupPage })).toThrow(/el_plain/);
     const dupComp = { ...button(), root: { ...button().root, id: 'tx_lbl' } };
     expect(() => applyOp(doc, { type: 'addComponent', component: dupComp })).toThrow(/tx_lbl/);
-    // Posição da raiz é descartada.
+    // The root position is discarded.
     const r = applyOp(doc, {
       type: 'addComponent',
       component: { ...button(), root: { ...button().root, position: { x: 1, y: 1 } } },
@@ -175,7 +178,7 @@ describe('ops primitivas de componentes', () => {
     expect(comp(r.doc, 'cp_new').root.position).toBeUndefined();
   });
 
-  it('createNode/duplicate não reutilizam ids das raízes dos componentes', () => {
+  it('createNode/duplicate do not reuse component root ids', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, {
@@ -186,10 +189,10 @@ describe('ops primitivas de componentes', () => {
     ).toThrow(/tx_lbl/);
   });
 
-  it('deleteComponent recusa com instâncias (salvo force, interno do desfazer)', () => {
+  it('deleteComponent refuses when instances exist (unless force, internal to undo)', () => {
     const doc = fixture();
     expect(() => applyOp(doc, { type: 'deleteComponent', componentId: 'cp_btn' })).toThrow(
-      /instâncias/,
+      /instances/,
     );
     const r = applyOp(doc, { type: 'deleteComponent', componentId: 'cp_card', force: true });
     expect(r.doc.components!.map((c) => c.id)).toEqual(['cp_btn']);
@@ -198,14 +201,14 @@ describe('ops primitivas de componentes', () => {
     expect(warnings).toHaveLength(1);
   });
 
-  it('inverso de addComponent: sem force, salvo se já havia instâncias desse id', () => {
+  it('addComponent inverse: without force, unless instances of that id already existed', () => {
     const doc = fixture();
-    const fresh = { ...button(), id: 'cp_new', name: 'Novo' };
+    const fresh = { ...button(), id: 'cp_new', name: 'New' };
     fresh.root = n('el_new1', 'element', 'button') as Node;
     expect(applyOp(doc, { type: 'addComponent', component: fresh }).inverse).toEqual([
       { type: 'deleteComponent', componentId: 'cp_new' },
     ]);
-    // Instância órfã (componente ainda inexistente): o desfazer volta a deixá-la órfã.
+    // Orphan instance (component does not exist yet): undo leaves it orphaned again.
     const orphan = applyOp(doc, {
       type: 'createNode',
       parentId: 'fr_1',
@@ -221,19 +224,19 @@ describe('ops primitivas de componentes', () => {
     expect(strip(h.doc)).toEqual(strip(orphan));
   });
 
-  it('force vindo de fora é recusado (assertPublicOps)', () => {
+  it('force coming from outside is rejected (assertPublicOps)', () => {
     expect(() =>
       assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card', force: true }]),
-    ).toThrow(/"force" em deleteComponent é interno/);
+    ).toThrow(/"force" in deleteComponent is internal/);
     expect(() =>
       assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card', force: false }]),
-    ).toThrow(/interno/);
+    ).toThrow(/internal/);
     expect(() =>
       assertPublicOps([{ type: 'deleteComponent', componentId: 'cp_card' }]),
     ).not.toThrow();
   });
 
-  it('updateComponent com inverso exato e validações', () => {
+  it('updateComponent with exact inverse and validations', () => {
     const doc = fixture();
     const root = structuredClone(comp(doc, 'cp_btn').root);
     root.style.color = 'red';
@@ -241,7 +244,7 @@ describe('ops primitivas de componentes', () => {
       {
         type: 'updateComponent',
         componentId: 'cp_btn',
-        name: 'Botão',
+        name: 'Button label',
         description: 'desc',
         props: [
           ...comp(doc, 'cp_btn').props,
@@ -252,7 +255,7 @@ describe('ops primitivas de componentes', () => {
       },
     ]);
     const c = comp(d1, 'cp_btn');
-    expect(c.name).toBe('Botão');
+    expect(c.name).toBe('Button label');
     expect(c.description).toBe('desc');
     expect(c.variants).toEqual([]);
     expect(expandInstance(d1, node(d1, 'in_b1')).style.color).toBe('red');
@@ -260,22 +263,22 @@ describe('ops primitivas de componentes', () => {
     expect(comp(r.doc, 'cp_btn').description).toBeUndefined();
     expect(() =>
       applyOp(doc, { type: 'updateComponent', componentId: 'cp_btn', name: 'Card' }),
-    ).toThrow(/nome/);
-    // Ciclo: Button passa a conter um Card (que contém Button).
+    ).toThrow(/named/);
+    // Cycle: Button now contains a Card (which contains Button).
     const loop = structuredClone(comp(doc, 'cp_btn').root);
     loop.children.push(n('in_loop', 'instance', 'div', { componentId: 'cp_card' }) as Node);
     expect(() =>
       applyOp(doc, { type: 'updateComponent', componentId: 'cp_btn', root: loop }),
-    ).toThrow(/Ciclo/);
+    ).toThrow(/cycle/);
   });
 
-  it('replaceNode troca no lugar e desfaz', () => {
+  it('replaceNode swaps in place and undoes', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [
       { type: 'replaceNode', nodeId: 'el_plain', node: n('el_new', 'element', 'section') as Node },
     ]);
     expect(d1.pages[0].frames[0].children[3].id).toBe('el_new');
-    // Reaproveitar os ids do nó trocado é permitido; ids de outros nós, não.
+    // Reusing the swapped node's ids is allowed; ids of other nodes are not.
     expect(() =>
       applyOp(doc, {
         type: 'replaceNode',
@@ -290,7 +293,7 @@ describe('ops primitivas de componentes', () => {
     });
   });
 
-  it('setInstanceProps: set/unset, validação pelo tipo e undo', () => {
+  it('setInstanceProps: set/unset, type validation and undo', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [
       {
@@ -309,8 +312,8 @@ describe('ops primitivas de componentes', () => {
         applyOp(doc, { type: 'setInstanceProps', changes: [{ nodeId: 'in_b1', set }] }),
       ).toThrow(re);
     };
-    bad({ variant: 'ghost' }, /opções/);
-    bad({ nope: 'x' }, /não tem a prop/);
+    bad({ variant: 'ghost' }, /options/);
+    bad({ nope: 'x' }, /has no prop/);
     expect(() =>
       applyOp(doc, {
         type: 'setInstanceProps',
@@ -322,10 +325,10 @@ describe('ops primitivas de componentes', () => {
         type: 'setInstanceProps',
         changes: [{ nodeId: 'el_plain', set: { a: 'x' } }],
       }),
-    ).toThrow(/não é uma instância/);
+    ).toThrow(/is not a component instance/);
   });
 
-  it('setInstanceOverrides: substitui o mapa, valida e desfaz', () => {
+  it('setInstanceOverrides: replaces the map, validates and undoes', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [
       {
@@ -350,7 +353,7 @@ describe('ops primitivas de componentes', () => {
         type: 'setInstanceOverrides',
         changes: [{ nodeId: 'in_b1', overrides: { tx_lbl: { style: { color: 'red; } x {' } } } }],
       }),
-    ).toThrow(/inválido/);
+    ).toThrow(/[Ii]nvalid/);
     expect(() =>
       applyOp(doc, {
         type: 'setInstanceOverrides',
@@ -359,7 +362,7 @@ describe('ops primitivas de componentes', () => {
     ).toThrow(/on\*/);
   });
 
-  it('instância só aceita contêineres de slot como filhos', () => {
+  it('an instance only accepts slot containers as children', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, {
@@ -367,14 +370,14 @@ describe('ops primitivas de componentes', () => {
         parentId: 'in_c2',
         node: n('tx_x', 'text', 'p', { text: 'x' }) as Node,
       }),
-    ).toThrow(/insira dentro de um slot/);
+    ).toThrow(/insert inside a slot/);
     expect(() =>
       applyOp(doc, {
         type: 'createNode',
         parentId: 'in_c1',
         node: n('el_x', 'element', 'div', { attrs: { 'data-slot': 'content' } }) as Node,
       }),
-    ).toThrow(/já tem um contêiner/);
+    ).toThrow(/already has a container/);
     expect(() =>
       applyOp(doc, {
         type: 'createNode',
@@ -391,9 +394,9 @@ describe('ops primitivas de componentes', () => {
     ]);
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['el_plain'], parentId: 'in_c2' }),
-    ).toThrow(/insira dentro de um slot/);
+    ).toThrow(/insert inside a slot/);
     expect(() => applyOp(doc, { type: 'duplicateNodes', nodeIds: ['el_s1'] })).toThrow(/slot/);
-    // Instância nova com filho inválido.
+    // New instance with an invalid child.
     expect(() =>
       applyOp(doc, {
         type: 'createNode',
@@ -404,11 +407,11 @@ describe('ops primitivas de componentes', () => {
         }) as Node,
       }),
     ).toThrow(/slot/);
-    // Apagar e desfazer o contêiner volta para a instância.
+    // Deleting and undoing the container puts it back on the instance.
     roundTrip(doc, [{ type: 'deleteNodes', nodeIds: ['el_s1'] }]);
   });
 
-  it('renameToken atualiza raízes, variantes e overrides (com inverso)', () => {
+  it('renameToken updates roots, variants and overrides (with inverse)', () => {
     const base = fixture();
     const doc = applyOp(base, {
       type: 'setInstanceOverrides',
@@ -430,7 +433,7 @@ describe('ops primitivas de componentes', () => {
     expect(strip(h.doc)).toEqual(strip(d1));
   });
 
-  it('documento sem componentes: ops comuns não mudam de comportamento', () => {
+  it('document without components: regular ops behave unchanged', () => {
     const doc = fixture();
     delete doc.components;
     const r = applyOp(doc, {
@@ -442,43 +445,43 @@ describe('ops primitivas de componentes', () => {
     expect(r.doc.components).toBeUndefined();
   });
 
-  it('summary mostra a instância com o nome do componente e as props', () => {
+  it('summary shows the instance with the component name and props', () => {
     const doc = fixture();
     const line = getTreeSummary(node(doc, 'in_b1'), 0, { doc });
-    expect(line).toContain('◆Button variant=outline label="Salvar"');
+    expect(line).toContain('◆Button variant=outline label="Save"');
   });
 });
 
-describe('roteamento', () => {
-  it('op que o roteador não conhece em nó de instância ou de principal falha com mensagem clara', () => {
+describe('routing', () => {
+  it('an op the router does not know on an instance or main component node fails with a clear message', () => {
     const doc = fixture();
-    // Op nova (ex. de vetores/grid) já no OpSchema mas esquecida em targetIds: o applyOp chama o
-    // roteador antes do handler, então o teste chama o roteador direto com uma op fictícia.
+    // New op (e.g. vectors/grid) already in OpSchema but missing from targetIds: applyOp calls the
+    // router before the handler, so the test calls the router directly with a fictitious op.
     const fake = (nodeId: string): Op =>
       ({ type: 'setGridFoo', changes: [{ nodeId, value: 1 }] }) as unknown as Op;
     const route = (op: Op) => routeComponentOp(doc, op, applyOp);
     expect(() => route(fake('in_b1/tx_lbl'))).toThrow(
-      'Operação "setGridFoo" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)',
+      'Operation "setGridFoo" is not supported on instance nodes; use set_instance_override or detach the instance (detach_instance)',
     );
     expect(() =>
       route({ type: 'setGridFoo', nodeIds: ['in_c2/in_cbtn'] } as unknown as Op),
-    ).toThrow(/não é suportada em nós de instância/);
+    ).toThrow(/is not supported on instance nodes/);
     expect(() => route(fake('tx_lbl'))).toThrow(
-      /Operação "setGridFoo" não é suportada em nós de um principal/,
+      /Operation "setGridFoo" is not supported on main component nodes/,
     );
-    // Nó de página (ou op sem alvo de nó): caminho normal do applyOp.
+    // Page node (or op with no node target): normal applyOp path.
     expect(route(fake('el_plain'))).toBeNull();
     expect(route({ type: 'setGridFoo', value: 1 } as unknown as Op)).toBeNull();
   });
 
-  it('updateStyles em id virtual vira override da instância dona', () => {
+  it('updateStyles on a virtual id becomes an override on the owning instance', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [
       { type: 'updateStyles', changes: [{ nodeId: 'in_b1/tx_lbl', set: { color: 'red' } }] },
     ]);
     expect(node(d1, 'in_b1').overrides).toEqual({ tx_lbl: { style: { color: 'red' } } });
     expect(expandInstance(d1, node(d1, 'in_b1')).children[0].style.color).toBe('red');
-    // unset remove do principal (unsetStyle).
+    // unset removes from the main component (unsetStyle).
     const d2 = applyOp(d1, {
       type: 'updateStyles',
       nodeIds: ['in_b1/tx_lbl'],
@@ -487,12 +490,12 @@ describe('roteamento', () => {
     expect(node(d2, 'in_b1').overrides).toEqual({ tx_lbl: { unsetStyle: ['color'] } });
   });
 
-  it('setText, setNodeFlags, setAttrs, setClasses, setStates e props em ids virtuais', () => {
+  it('setText, setNodeFlags, setAttrs, setClasses, setStates and props on virtual ids', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [
       { type: 'setText', changes: [{ nodeId: 'in_c2/in_cbtn/tx_lbl', text: 'Y' }] },
       { type: 'setNodeFlags', changes: [{ nodeId: 'in_c2/tx_def', hidden: true }] },
-      { type: 'setAttrs', changes: [{ nodeId: 'in_c2/tx_ttl', set: { title: 'dica' } }] },
+      { type: 'setAttrs', changes: [{ nodeId: 'in_c2/tx_ttl', set: { title: 'tip' } }] },
       { type: 'setClasses', changes: [{ nodeId: 'in_c2/tx_ttl', classes: 'font-bold' }] },
       {
         type: 'setStates',
@@ -507,7 +510,7 @@ describe('roteamento', () => {
       'in_cbtn/tx_lbl': { text: 'Y' },
       tx_def: { hidden: true },
       tx_ttl: {
-        attrs: { title: 'dica' },
+        attrs: { title: 'tip' },
         classes: 'font-bold',
         states: { hover: { color: 'red' } },
       },
@@ -522,10 +525,10 @@ describe('roteamento', () => {
         type: 'setInstanceProps',
         changes: [{ nodeId: 'in_c2/in_cbtn', set: { variant: 'x' } }],
       }),
-    ).toThrow(/opções/);
+    ).toThrow(/options/);
   });
 
-  it('setInstanceOverrides em instância aninhada (id virtual) troca as chaves com o prefixo', () => {
+  it('setInstanceOverrides on a nested instance (virtual id) replaces the keys with the prefix', () => {
     const doc = applyOp(fixture(), {
       type: 'setInstanceOverrides',
       changes: [
@@ -545,17 +548,17 @@ describe('roteamento', () => {
     expect(expandInstance(d1, node(d1, 'in_c2')).children[2].style.gap).toBe('1px');
   });
 
-  it('id virtual sem componentes no documento: instância ausente recusa', () => {
+  it('virtual id without components in the document: a missing instance is rejected', () => {
     const doc = fixture();
     delete doc.components;
     expect(() =>
       applyOp(doc, { type: 'setText', changes: [{ nodeId: 'in_b1/tx_lbl', text: 'x' }] }),
-    ).toThrow(/não existe/);
+    ).toThrow(/does not exist/);
   });
 
-  it('estrutura em id virtual é recusada', () => {
+  it('structure edits on a virtual id are rejected', () => {
     const doc = fixture();
-    const msg = /edite o principal ou destaque/;
+    const msg = /edit the main component or detach/;
     expect(() => applyOp(doc, { type: 'deleteNodes', nodeIds: ['in_c2/tx_ttl'] })).toThrow(msg);
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['in_c2/tx_ttl'], parentId: 'fr_1' }),
@@ -570,18 +573,18 @@ describe('roteamento', () => {
         parentId: 'in_c2/tx_ttl',
         node: n('tx_q', 'text', 'p') as Node,
       }),
-    ).toThrow(/insira dentro de um slot/);
+    ).toThrow(/insert inside a slot/);
     expect(() =>
       applyOp(doc, { type: 'setText', changes: [{ nodeId: 'in_c2/el_nope', text: 'x' }] }),
-    ).toThrow(/não encontrado/);
+    ).toThrow(/not found/);
   });
 
-  it('createNode/moveNodes em contêiner de slot virtual criam o contêiner real', () => {
+  it('createNode/moveNodes into a virtual slot container create the real container', () => {
     const doc = fixture();
     const op: Op = {
       type: 'createNode',
       parentId: 'in_c2/el_body',
-      node: n('tx_new', 'text', 'p', { text: 'novo' }) as Node,
+      node: n('tx_new', 'text', 'p', { text: 'new' }) as Node,
     };
     const h = new History(doc);
     const r = h.apply([op]);
@@ -598,7 +601,7 @@ describe('roteamento', () => {
     expect(strip(h.doc)).toEqual(strip(doc));
     h.redo();
     expect(strip(h.doc)).toEqual(strip(r.doc));
-    // Determinístico: aplicar de novo no mesmo estado dá o mesmo id.
+    // Deterministic: applying again on the same state gives the same id.
     expect(node(applyOp(doc, op).doc, 'in_c2').children[0].id).toBe(container.id);
 
     const m = roundTrip(doc, [
@@ -607,12 +610,12 @@ describe('roteamento', () => {
     expect(node(m, 'in_c2').children[0].children.map((c) => c.id)).toEqual(['el_plain']);
   });
 
-  it('op em nó do principal vira updateComponent', () => {
+  it('an op on a main component node becomes updateComponent', () => {
     const doc = fixture();
     const r = applyOp(doc, { type: 'updateStyles', nodeIds: ['tx_lbl'], styles: { color: 'red' } });
     expect(r.inverse[0].type).toBe('updateComponent');
     expect(findInRoot(comp(r.doc, 'cp_btn').root, 'tx_lbl')!.style.color).toBe('red');
-    // Todas as instâncias (inclusive aninhadas) refletem.
+    // All instances (including nested ones) reflect it.
     expect(expandInstance(r.doc, node(r.doc, 'in_b1')).children[0].style.color).toBe('red');
     expect(expandInstance(r.doc, node(r.doc, 'in_c1')).children[2].children[0].style.color).toBe(
       'red',
@@ -625,7 +628,7 @@ describe('roteamento', () => {
         node: n('tx_more', 'text', 'p', { text: '+' }) as Node,
         index: 1,
       },
-      { type: 'setText', changes: [{ nodeId: 'tx_def', text: 'Vazio' }] },
+      { type: 'setText', changes: [{ nodeId: 'tx_def', text: 'Empty' }] },
       { type: 'moveNodes', nodeIds: ['tx_ttl'], index: 2 },
       { type: 'deleteNodes', nodeIds: ['tx_more'] },
       { type: 'setInstanceProps', changes: [{ nodeId: 'in_cbtn', set: { variant: 'outline' } }] },
@@ -633,24 +636,24 @@ describe('roteamento', () => {
     ]);
   });
 
-  it('principal: recusa apagar/mover a raiz, mover entre página e principal e ids repetidos', () => {
+  it('main component: rejects deleting/moving the root, moving between page and main component, and repeated ids', () => {
     const doc = fixture();
-    expect(() => applyOp(doc, { type: 'deleteNodes', nodeIds: ['el_card'] })).toThrow(/raiz/);
+    expect(() => applyOp(doc, { type: 'deleteNodes', nodeIds: ['el_card'] })).toThrow(/root/);
     expect(() => applyOp(doc, { type: 'moveNodes', nodeIds: ['el_card'], index: 0 })).toThrow(
-      /raiz/,
+      /root/,
     );
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['el_card'], parentId: 'fr_1' }),
-    ).toThrow(/entre/);
+    ).toThrow(/between/);
     expect(() =>
       applyOp(doc, {
         type: 'setPosition',
         changes: [{ nodeId: 'el_btn', position: { x: 1, y: 1 } }],
       }),
-    ).toThrow(/posição/);
+    ).toThrow(/no position/);
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['el_plain'], parentId: 'el_card' }),
-    ).toThrow(/entre um principal e uma página/);
+    ).toThrow(/between a main component and a page/);
     expect(() =>
       applyOp(doc, {
         type: 'createNode',
@@ -664,10 +667,10 @@ describe('roteamento', () => {
         parentId: 'el_btn',
         node: n('in_loop', 'instance', 'div', { componentId: 'cp_card' }) as Node,
       }),
-    ).toThrow(/Ciclo/);
+    ).toThrow(/cycle/);
   });
 
-  it('duplicateNodes no principal grava o idMap para o redo', () => {
+  it('duplicateNodes on the main component records the idMap for redo', () => {
     const doc = fixture();
     const h = new History(doc);
     const r = h.apply([{ type: 'duplicateNodes', nodeIds: ['tx_ttl'] }]);
@@ -679,7 +682,7 @@ describe('roteamento', () => {
     expect(strip(h.doc)).toEqual(strip(r.doc));
   });
 
-  it('id virtual com a instância dona dentro de um principal vira updateComponent', () => {
+  it('virtual id whose owning instance is inside a main component becomes updateComponent', () => {
     const doc = fixture();
     const r = applyOp(doc, { type: 'setText', changes: [{ nodeId: 'in_cbtn/tx_lbl', text: 'Z' }] });
     expect(r.inverse[0].type).toBe('updateComponent');
@@ -689,7 +692,7 @@ describe('roteamento', () => {
     roundTrip(doc, [{ type: 'setText', changes: [{ nodeId: 'in_cbtn/tx_lbl', text: 'Z' }] }]);
   });
 
-  it('op mista (página + virtual + principal) é particionada com inverso correto', () => {
+  it('a mixed op (page + virtual + main component) is partitioned with a correct inverse', () => {
     const doc = fixture();
     const op: Op = {
       type: 'updateStyles',
@@ -709,7 +712,7 @@ describe('roteamento', () => {
     const del = roundTrip(doc, [{ type: 'deleteNodes', nodeIds: ['el_plain', 'tx_def'] }]);
     expect(findNode(del, 'el_plain')).toBeUndefined();
     expect(findInRoot(comp(del, 'cp_card').root, 'tx_def')).toBeUndefined();
-    // applyOps (sem History) também desfaz.
+    // applyOps (without History) also undoes.
     const r = applyOps(doc, [op]);
     expect(strip(applyOps(r.doc, r.inverse).doc)).toEqual(strip(doc));
   });

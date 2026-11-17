@@ -1,7 +1,7 @@
 /**
- * Contrato do motor de render. O daemon não depende de Electron: o app desktop (`@mockup/desktop`)
- * injeta uma implementação em `startDaemon({ render })`. Sem ela, screenshot, `get_layout` e SVG
- * medido ficam indisponíveis (as ferramentas explicam como habilitar).
+ * Render engine contract. The daemon does not depend on Electron: the desktop app (`@mockup/desktop`)
+ * injects an implementation in `startDaemon({ render })`. Without it, screenshot, `get_layout` and
+ * measured SVG are unavailable (the tools explain how to enable them).
  */
 import type { Document, LayoutNode, PreviewState } from '@mockup/core';
 import type { PageSnapshotRequest, PageSnapshotResult } from '@mockup/snapshot-core';
@@ -10,14 +10,14 @@ export type RenderScale = 1 | 2 | 3;
 export type RenderFormat = 'png' | 'jpg';
 
 export interface RenderTarget {
-  /** Documento completo (o render usa tokens, fontes e o frame que contém o nó). */
+  /** Whole document (the render uses tokens, fonts and the frame that contains the node). */
   doc: Document;
   docId: string;
-  /** Nó a capturar; o frame raiz que o contém é renderizado inteiro e recortado no nó. */
+  /** Node to capture; the root frame that contains it is rendered whole and cropped to the node. */
   nodeId: string;
   /**
-   * Pasta `assets/` do documento (ou null se não salvo). O motor usa o tamanho e a data dos
-   * arquivos referenciados (imagens e fontes) na chave do cache, para não devolver render obsoleto.
+   * The document's `assets/` folder (or null if unsaved). The engine uses the size and date of the
+   * referenced files (images and fonts) in the cache key, so it never returns a stale render.
    */
   assetsDir?: string | null;
 }
@@ -25,38 +25,38 @@ export interface RenderTarget {
 export interface CaptureRequest extends RenderTarget {
   scale?: RenderScale;
   format?: RenderFormat;
-  /** Qualidade JPG (0–100, padrão 90). */
+  /** JPG quality (0–100, default 90). */
   quality?: number;
-  /** Largura máxima da imagem final em px (reduz mantendo a proporção). */
+  /** Maximum width of the final image in px (scales down keeping the aspect ratio). */
   maxWidth?: number;
-  /** Fundo transparente fora do conteúdo (PNG). Padrão `false`. */
+  /** Transparent background outside the content (PNG). Default `false`. */
   transparent?: boolean;
-  /** Estado de prévia (hover, focus, dark...): aplica os `states` do nó como a prévia do editor. */
+  /** Preview state (hover, focus, dark...): applies the node's `states` like the editor preview. */
   state?: PreviewState;
   /**
-   * Tempo (s) das animações no quadro capturado: efeitos, partículas, vídeo, Lottie, Rive e
-   * Three.js. Padrão 0 (vídeo com `poster` mostra o poster quando `time` não é informado).
+   * Time (s) of the animations in the captured frame: effects, particles, video, Lottie, Rive and
+   * Three.js. Default 0 (video with `poster` shows the poster when `time` is not given).
    */
   time?: number;
 }
 
-/** Captura de N quadros PNG de um nó animado (para exportar mp4, webm ou gif). */
+/** Capture of N PNG frames of an animated node (to export mp4, webm or gif). */
 export interface FramesRequest extends RenderTarget {
   scale?: RenderScale;
-  /** Largura máxima de cada quadro em px (reduz mantendo a proporção). */
+  /** Maximum width of each frame in px (scales down keeping the aspect ratio). */
   maxWidth?: number;
-  /** Quadros por segundo (1 a 60). */
+  /** Frames per second (1 to 60). */
   fps: number;
-  /** Duração em segundos (> 0). */
+  /** Duration in seconds (> 0). */
   duration: number;
-  /** Tempo inicial (s), padrão 0. */
+  /** Start time (s), default 0. */
   start?: number;
 }
 
 export interface FramesInfo {
-  /** Quantidade de quadros entregues. */
+  /** Number of frames delivered. */
   frames: number;
-  /** Tamanho de cada quadro em px. */
+  /** Size of each frame in px. */
   pixelWidth: number;
   pixelHeight: number;
 }
@@ -64,28 +64,28 @@ export interface FramesInfo {
 export interface CaptureResult {
   data: Buffer;
   mime: 'image/png' | 'image/jpeg';
-  /** Tamanho do nó em px CSS. */
+  /** Node size in CSS px. */
   width: number;
   height: number;
-  /** Tamanho da imagem gerada em px. */
+  /** Size of the generated image in px. */
   pixelWidth: number;
   pixelHeight: number;
 }
 
 export interface RenderProvider {
   capture(req: CaptureRequest): Promise<CaptureResult>;
-  /** Geometria da subárvore do nó, relativa ao frame raiz (ver `LayoutNode`). */
+  /** Geometry of the node's subtree, relative to the root frame (see `LayoutNode`). */
   measure(target: RenderTarget): Promise<LayoutNode>;
   /**
-   * Abre a URL (ou o HTML) numa janela isolada, roda a captura do `@mockup/snapshot-core` no
-   * elemento e devolve o snapshot (import_url/import_html). Opcional: sem ele, a importação de URL
-   * fica indisponível e a de HTML cai na conversão do core.
+   * Opens the URL (or the HTML) in an isolated window, runs the `@mockup/snapshot-core` capture on
+   * the element and returns the snapshot (import_url/import_html). Optional: without it, URL import
+   * is unavailable and HTML import falls back to the core conversion.
    */
   snapshot?(req: PageSnapshotRequest): Promise<PageSnapshotResult>;
   /**
-   * Renderiza o nó em `round(duration × fps)` quadros, com o relógio das animações em
-   * `start + i / fps`, e entrega cada PNG em ordem a `onFrame` (que pode ser assíncrono: o
-   * próximo quadro espera). Opcional: motores sem animação não implementam.
+   * Renders the node into `round(duration × fps)` frames, with the animation clock at
+   * `start + i / fps`, and hands each PNG in order to `onFrame` (which may be async: the
+   * next frame waits). Optional: engines without animation do not implement it.
    */
   captureFrames?(
     req: FramesRequest,
@@ -94,21 +94,21 @@ export interface RenderProvider {
   close?(): Promise<void>;
 }
 
-/** Mensagem de render indisponível com o pid e a porta do daemon sem render e como resolver. */
+/** Render-unavailable message with the pid and port of the render-less daemon and how to fix it. */
 export function renderUnavailableMessage(info: { pid?: number; port?: number } = {}): string {
   const who =
     info.pid !== undefined
-      ? ` Este é um daemon Node sem render (pid ${info.pid}${info.port !== undefined ? `, porta ${info.port}` : ''}).`
+      ? ` This is a Node daemon without render (pid ${info.pid}${info.port !== undefined ? `, port ${info.port}` : ''}).`
       : '';
   return (
     RENDER_UNAVAILABLE +
     who +
-    ' Para trocar por um com screenshot: encerre-o com `mockup stop` (ou finalize o processo pelo pid) ' +
-    'e chame a ferramenta de novo, ou abra o app desktop, que assume a porta sozinho.'
+    ' To replace it with one that has screenshot support: stop it with `mockup stop` (or kill the process by pid) ' +
+    'and call the tool again, or open the desktop app, which takes over the port on its own.'
   );
 }
 
 export const RENDER_UNAVAILABLE =
-  'O motor de render não está disponível neste daemon (daemon Node puro, sem Electron). ' +
-  'Abra o app desktop do Mockup Studio ou rode `mockup serve --render` (o `mockup mcp` sobe o ' +
-  'Electron headless automaticamente quando ele está instalado).';
+  'The render engine is not available in this daemon (plain Node daemon, no Electron). ' +
+  'Open the Mockup Studio desktop app or run `mockup serve --render` (`mockup mcp` starts ' +
+  'headless Electron automatically when it is installed).';

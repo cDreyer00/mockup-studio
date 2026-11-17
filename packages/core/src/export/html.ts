@@ -18,40 +18,40 @@ import {
 } from './common.js';
 
 export interface HtmlExportOptions {
-  /** Página cujos frames serão exportados (padrão: a primeira). */
+  /** Page whose frames will be exported (default: the first). */
   pageId?: string;
-  /** Nós específicos a exportar (em vez dos frames da página). */
+  /** Specific nodes to export (instead of the page's frames). */
   nodeIds?: string[];
   title?: string;
-  /** `classes` (padrão): classes por slug do nome da camada num `<style>`; `inline`: `style=""`. */
+  /** `classes` (default): classes from the layer-name slug in a `<style>`; `inline`: `style=""`. */
   mode?: 'inline' | 'classes';
-  /** `true`: só `<style>` + markup, sem `<!doctype>`/`<head>`. Padrão `false`. */
+  /** `true`: only `<style>` + markup, without `<!doctype>`/`<head>`. Default `false`. */
   fragment?: boolean;
   /**
-   * Lê um arquivo de `assets/` (caminho relativo). Com ele, animações Lottie `.json` de até 512 KB
-   * vão embutidas no HTML e abrem por `file://`; sem ele (ou acima disso) o HTML busca o arquivo.
+   * Reads a file from `assets/` (relative path). With it, Lottie `.json` animations up to 512 KB
+   * are embedded in the HTML and open via `file://`; without it (or above that size) the HTML fetches the file.
    */
   readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 /**
- * Exporta HTML standalone (frames da página ou nós selecionados). Tokens em `:root`, `@font-face`
- * das fontes embutidas (`assets/<arquivo>`), frame raiz com `min-height` no lugar de `height`.
- * A base segue `doc.cssBase` (com o preflight do Tailwind quando `'tailwind'`).
+ * Exports standalone HTML (the page's frames or selected nodes). Tokens in `:root`, `@font-face`
+ * for embedded fonts (`assets/<file>`), root frame with `min-height` instead of `height`.
+ * The base follows `doc.cssBase` (with the Tailwind preflight when `'tailwind'`).
  *
- * Estados (`node.states`) viram regras no `<style>`: `.slug:hover`, `@media (min-width: 768px)` para
- * breakpoints e `.slug:where([data-theme="dark"], ...)` para `dark`. No modo `inline` o estilo base
- * continua em `style=""`; os nós com estados ganham uma classe só para as regras dos estados, que
- * saem com `!important` (o `style` inline ganharia da cascata).
+ * States (`node.states`) become rules in the `<style>`: `.slug:hover`, `@media (min-width: 768px)` for
+ * breakpoints and `.slug:where([data-theme="dark"], ...)` for `dark`. In `inline` mode the base style
+ * stays in `style=""`; nodes with states get a class only for the state rules, which
+ * are emitted with `!important` (inline `style` would otherwise win the cascade).
  *
- * Nós de mídia: efeitos viram `<canvas data-mockup-effect='{json}'>` com o fundo de fallback do
- * catálogo (visível sem JS) e UM `<script>` no fim do corpo com o runtime e a auto-montagem;
- * vídeo vira `<video>`, YouTube/iframe viram `<iframe>`, Lottie/Rive/Three.js carregam a
- * biblioteca de CDN. Os scripts só existem se houver nós de mídia e vão também com
- * `fragment: true` (logo após o markup).
+ * Media nodes: effects become `<canvas data-mockup-effect='{json}'>` with the catalog's fallback
+ * background (visible without JS) and ONE `<script>` at the end of the body with the runtime and auto-mount;
+ * video becomes `<video>`, YouTube/iframe become `<iframe>`, Lottie/Rive/Three.js load the
+ * library from a CDN. Scripts only exist if there are media nodes and are also emitted with
+ * `fragment: true` (right after the markup).
  */
 export function exportHtml(source: Document, options: HtmlExportOptions = {}): string {
-  // instâncias de componentes viram a árvore concreta (igual ao canvas); aceita ids virtuais
+  // component instances become the concrete tree (same as the canvas); accepts virtual ids
   const doc = expandDocument(source);
   const mode = options.mode ?? 'classes';
   const roots = resolveRoots(doc, options);
@@ -101,7 +101,7 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
 
   return [
     '<!doctype html>',
-    '<html lang="pt-BR">',
+    '<html lang="en">',
     '<head>',
     '  <meta charset="utf-8">',
     '  <meta name="viewport" content="width=device-width, initial-scale=1">',

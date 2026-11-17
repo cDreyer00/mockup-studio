@@ -12,7 +12,7 @@ beforeAll(async () => {
   engine = await createTailwindEngine(doc);
 });
 
-/** Nó com o estilo e os estados que `classes` produz (sem a dica `node.classes`). */
+/** Node with the style and states that `classes` produces (without the `node.classes` hint). */
 function nodeFrom(classes: string, withHint: boolean): Node {
   const r = engine.classesToStyles(classes);
   const node = createNodeFromTag('div', { styles: r.style });
@@ -31,7 +31,7 @@ function expectSameCss(a: Compiled, b: Compiled): void {
   for (const k of Object.keys(a.states)) expect(norm(b.states[k])).toEqual(norm(a.states[k]));
 }
 
-/** Classes que o autor escreveu → estilo → classes (com e sem dica) → o mesmo estilo. */
+/** Classes the author wrote → style → classes (with and without hint) → the same style. */
 function roundTrip(classes: string): { hinted: string[]; plain: string[] } {
   const before = engine.classesToStyles(classes);
   const hinted = engine.nodeClasses(nodeFrom(classes, true));
@@ -43,37 +43,37 @@ function roundTrip(classes: string): { hinted: string[]; plain: string[] } {
   return { hinted: hinted.classes, plain: plain.classes };
 }
 
-describe('round-trip classes → estilo → classes', () => {
-  // [classes, o que a saída sem dica deve conter de forma idiomática]
+describe('round-trip classes → style → classes', () => {
+  // [classes, what the no-hint output should contain idiomatically]
   const idiomatic: [string, string[]][] = [
-    // espaçamento
+    // spacing
     ['p-4', ['p-4']],
     ['px-6 py-2', ['px-6', 'py-2']],
     ['m-4 mx-auto', ['m-4', 'mx-auto']],
     ['-mt-2', ['-mt-2']],
     ['gap-4', ['gap-4']],
     ['gap-x-2 gap-y-4', ['gap-x-2', 'gap-y-4']],
-    // cores
+    // colors
     ['bg-blue-500 text-white', ['bg-blue-500', 'text-white']],
     ['bg-black text-white', ['bg-black']],
     ['bg-primary text-primary', ['bg-primary', 'text-primary']],
-    // flex e grid
+    // flex and grid
     ['flex flex-col items-center justify-between', ['flex', 'flex-col', 'items-center']],
     ['grid grid-cols-3 gap-4', ['grid', 'grid-cols-3', 'gap-4']],
     // tipografia
     ['text-sm font-semibold', ['text-sm', 'font-semibold']],
     ['text-lg leading-6 tracking-tight', ['text-lg/6', 'tracking-tight']],
     ['text-sm/tight', ['text-sm/tight']],
-    // bordas
+    // borders
     ['border border-red-500', ['border', 'border-red-500']],
     ['border-b-2', ['border-b-2']],
-    // sombras, raio
+    // shadows, radius
     ['shadow-md', ['shadow-md']],
     ['rounded-lg', ['rounded-lg']],
     ['rounded-full', ['rounded-full']],
     // !important
     ['p-4!', ['p-4!']],
-    // variantes
+    // variants
     ['hover:bg-red-500', ['hover:bg-red-500']],
     ['dark:bg-black', ['dark:bg-black']],
     ['md:p-8', ['md:p-8']],
@@ -84,11 +84,11 @@ describe('round-trip classes → estilo → classes', () => {
   it.each(idiomatic)('%s', (classes, expected) => {
     const { hinted, plain } = roundTrip(classes);
     for (const c of expected) expect(plain).toContain(c);
-    // com a dica as classes do autor voltam como foram escritas (na mesma ordem)
+    // with the hint the author classes come back as written (in the same order)
     expect(hinted).toEqual(classes.split(' '));
   });
 
-  // casos em que só o caminho com dica devolve as classes originais; sem dica basta recompilar igual
+  // cases where only the hint path returns the original classes; without the hint, recompiling to the same result is enough
   const equivalentOnly = [
     'bg-blue-500/50',
     'bg-primary/50',
@@ -104,12 +104,12 @@ describe('round-trip classes → estilo → classes', () => {
     'text-[#123456] tracking-[0.2em]',
   ];
 
-  it.each(equivalentOnly)('equivalente: %s', (classes) => {
+  it.each(equivalentOnly)('equivalent: %s', (classes) => {
     const { hinted } = roundTrip(classes);
     expect([...hinted].sort()).toEqual(classes.split(' ').sort());
   });
 
-  it('a dica é descartada quando o estilo foi editado', () => {
+  it('the hint is discarded when the style was edited', () => {
     const node = nodeFrom('p-4 bg-blue-500', true);
     node.style.padding = '2rem';
     const { classes } = engine.nodeClasses(node);
@@ -118,7 +118,7 @@ describe('round-trip classes → estilo → classes', () => {
     expect(classes).toContain('bg-blue-500');
   });
 
-  it('prefere a escala do Tailwind a valores arbitrários', () => {
+  it('prefers the Tailwind scale over arbitrary values', () => {
     const node = createNodeFromTag('div', {
       styles: { padding: '16px', width: '13px', 'border-radius': '8px' },
     });
@@ -128,7 +128,7 @@ describe('round-trip classes → estilo → classes', () => {
     expect(classes).toContain('rounded-lg');
   });
 
-  it('estilo com shorthand (padding, border, background, text-decoration) vira classes idiomáticas', () => {
+  it('style with shorthand (padding, border, background, text-decoration) becomes idiomatic classes', () => {
     const node = createNodeFromTag('div', {
       styles: {
         padding: '8px 16px',
@@ -157,30 +157,30 @@ describe('round-trip classes → estilo → classes', () => {
     expect(none.classes).toEqual(['border-none']);
   });
 
-  it('classes desconhecidas e não suportadas seguem como estão (com a dica)', () => {
+  it('unknown and unsupported classes stay as they are (with the hint)', () => {
     const classes = 'group flex group-hover:bg-red-500 [&_svg]:size-4 foo-bar p-4';
     const node = nodeFrom(classes, true);
     const out = engine.nodeClasses(node).classes;
     for (const c of ['group', 'group-hover:bg-red-500', '[&_svg]:size-4', 'foo-bar', 'flex', 'p-4'])
       expect(out).toContain(c);
-    // sem a dica só o que o estilo diz
+    // without the hint only what the style says
     const plain = engine.nodeClasses(nodeFrom(classes, false)).classes;
     expect(plain).toEqual(['flex', 'p-4']);
   });
 
-  it('classes dos filhos (space-y) não ficam no nó: o estilo já está nos filhos', () => {
+  it('child classes (space-y) do not stay on the node: the style is already on the children', () => {
     const node = nodeFrom('flex flex-col space-y-2', true);
     expect(engine.nodeClasses(node).classes).toEqual(['flex', 'flex-col']);
   });
 
-  it('classesToStyles separa estilo, estados e filhos', () => {
+  it('classesToStyles separates style, states and children', () => {
     const r = engine.classesToStyles('p-4 hover:bg-red-500 md:hover:p-2 space-y-2');
     expect(r.style.padding).toBe('1rem');
     expect(Object.keys(r.states).sort()).toEqual(['hover', 'md:hover']);
     expect(r.children?.notLast).toBeDefined();
   });
 
-  it('neutralLeading: text-sm só traz o font-size quando o tema neutraliza o line-height', () => {
+  it('neutralLeading: text-sm only brings font-size when the theme neutralizes line-height', () => {
     const node = createNodeFromTag('div', {
       styles: { 'font-size': '0.875rem', 'line-height': '1.7' },
     });
@@ -189,7 +189,7 @@ describe('round-trip classes → estilo → classes', () => {
     const neutral = engine.nodeClasses(node, { neutralLeading: new Set(['sm']) }).classes;
     expect(neutral).toContain('text-sm');
     expect(neutral.some((c) => c.startsWith('leading-'))).toBe(true);
-    // sem line-height no nó: text-sm sozinho
+    // without line-height on the node: text-sm alone
     const bare = createNodeFromTag('div', { styles: { 'font-size': '0.875rem' } });
     expect(engine.nodeClasses(bare, { neutralLeading: new Set(['sm']) }).classes).toEqual([
       'text-sm',
@@ -197,7 +197,7 @@ describe('round-trip classes → estilo → classes', () => {
   });
 });
 
-describe('cascata do Tailwind independe da ordem escrita', () => {
+describe('Tailwind cascade is independent of written order', () => {
   it.each([
     ['px-2 p-4', 'p-4 px-2'],
     ['border-b-0 border', 'border border-b-0'],
@@ -207,7 +207,7 @@ describe('cascata do Tailwind independe da ordem escrita', () => {
     expectSameCss(engine.classesToStyles(a), engine.classesToStyles(b));
   });
 
-  it('a classe que vem depois no CSS do Tailwind vence', () => {
+  it('the class that comes later in the Tailwind CSS wins', () => {
     expect(engine.classesToStyles('px-2 p-4').style).toMatchObject({
       'padding-inline': '0.5rem',
     });

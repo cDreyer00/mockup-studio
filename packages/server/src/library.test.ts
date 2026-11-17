@@ -28,7 +28,7 @@ function fakePng(w: number, h: number, fill = 0): Buffer {
   ]);
 }
 
-describe('Library (CDN local)', () => {
+describe('Library (local CDN)', () => {
   let dir: string;
   let lib: Library;
 
@@ -38,14 +38,14 @@ describe('Library (CDN local)', () => {
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-  it('hash estável de 32 hex e entrada idempotente por conteúdo', () => {
+  it('stable 32-hex hash and content-idempotent entry', () => {
     const bytes = fakePng(30, 20);
-    const a = lib.add(bytes, { name: 'Capa.png' });
-    const b = lib.add(Buffer.from(bytes), { name: 'outro-nome.png' });
+    const a = lib.add(bytes, { name: 'Cover.png' });
+    const b = lib.add(Buffer.from(bytes), { name: 'other-name.png' });
     expect(a.hash).toMatch(/^[0-9a-f]{32}$/);
     expect(a.hash).toBe(hashBytes(bytes));
     expect(b.hash).toBe(a.hash);
-    expect(b.name).toBe('Capa.png');
+    expect(b.name).toBe('Cover.png');
     expect(a).toMatchObject({
       ext: 'png',
       mime: 'image/png',
@@ -59,7 +59,7 @@ describe('Library (CDN local)', () => {
     expect(fs.existsSync(path.join(dir, 'cdn', `${a.hash}.png`))).toBe(true);
   });
 
-  it('persiste o índice (atômico) e recarrega em outra instância', () => {
+  it('persists the index (atomically) and reloads in another instance', () => {
     const a = lib.add(fakePng(8, 8), { name: 'a.png', tags: ['logo'] });
     expect(fs.readdirSync(path.join(dir, 'cdn')).some((f) => f.endsWith('.tmp'))).toBe(false);
     const index = JSON.parse(fs.readFileSync(path.join(dir, 'cdn', 'index.json'), 'utf8'));
@@ -72,42 +72,42 @@ describe('Library (CDN local)', () => {
     expect(again.get(a.hash)).toMatchObject({ name: 'a.png', tags: ['logo'] });
   });
 
-  it('busca por nome e tag sem acento nem caixa; remove', () => {
-    const a = lib.add(fakePng(8, 8), { name: 'Logotipo-Água.png', tags: ['Marca'] });
-    const b = lib.add(fakePng(9, 9), { name: 'foto.png' });
-    expect(lib.list('agua').map((x) => x.hash)).toEqual([a.hash]);
-    expect(lib.list('MARCA').map((x) => x.hash)).toEqual([a.hash]);
-    expect(lib.list('foto').map((x) => x.hash)).toEqual([b.hash]);
-    expect(lib.list('inexistente')).toEqual([]);
+  it('searches by name and tag ignoring accents and case; removes', () => {
+    const a = lib.add(fakePng(8, 8), { name: 'Logo-Caf\u00e9.png', tags: ['Brand'] });
+    const b = lib.add(fakePng(9, 9), { name: 'photo.png' });
+    expect(lib.list('cafe').map((x) => x.hash)).toEqual([a.hash]);
+    expect(lib.list('BRAND').map((x) => x.hash)).toEqual([a.hash]);
+    expect(lib.list('photo').map((x) => x.hash)).toEqual([b.hash]);
+    expect(lib.list('nonexistent')).toEqual([]);
     expect(lib.remove(a.hash)).toBe(true);
     expect(lib.remove(a.hash)).toBe(false);
     expect(lib.list().map((x) => x.hash)).toEqual([b.hash]);
     expect(lib.fileFor(`${a.hash}.png`)).toBeNull();
   });
 
-  it('importa para assets/ sem sobrescrever', async () => {
-    const a = lib.add(fakePng(8, 8), { name: 'Minha Foto.png' });
+  it('imports into assets/ without overwriting', async () => {
+    const a = lib.add(fakePng(8, 8), { name: 'My Photo.png' });
     const assets = path.join(dir, 'assets');
-    expect(await lib.importTo(a.hash, assets)).toBe('Minha-Foto.png');
-    expect(await lib.importTo(a.hash, assets)).toBe('Minha-Foto-1.png');
-    expect(fs.readdirSync(assets).sort()).toEqual(['Minha-Foto-1.png', 'Minha-Foto.png']);
+    expect(await lib.importTo(a.hash, assets)).toBe('My-Photo.png');
+    expect(await lib.importTo(a.hash, assets)).toBe('My-Photo-1.png');
+    expect(fs.readdirSync(assets).sort()).toEqual(['My-Photo-1.png', 'My-Photo.png']);
   });
 
-  it('rejeita conteúdo que não é imagem nem fonte; reconhece fontes pela assinatura', () => {
-    expect(() => lib.add(Buffer.from('texto qualquer sem formato'))).toThrow(/reconhecida/);
+  it('rejects content that is neither an image nor a font; recognizes fonts by signature', () => {
+    expect(() => lib.add(Buffer.from('any text with no format'))).toThrow(/recognized/);
     const woff2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(40, 1)]);
     expect(detectAsset(woff2)).toMatchObject({ ext: '.woff2', kind: 'font' });
     expect(lib.add(woff2, { name: 'f.woff2' }).mime).toBe('font/woff2');
   });
 
-  it('getLibrary é singleton por pasta e usa uma pasta temporária sem dataDir', () => {
+  it('getLibrary is a per-folder singleton and uses a temporary folder without dataDir', () => {
     expect(getLibrary(dir)).toBe(getLibrary(dir));
     expect(getLibrary().dir).toContain(`mockup-cdn-${process.pid}`);
   });
 
-  it('safeStem sanitiza nomes', () => {
-    expect(safeStem('C:\\x\\Minha Foto (1).png')).toBe('Minha-Foto--1-');
-    expect(safeStem('', 'imagem')).toBe('imagem');
-    expect(safeStem('nul.png')).toBe('nul-arquivo');
+  it('safeStem sanitizes names', () => {
+    expect(safeStem('C:\\x\\My Photo (1).png')).toBe('My-Photo--1-');
+    expect(safeStem('', 'image')).toBe('image');
+    expect(safeStem('nul.png')).toBe('nul-file');
   });
 });

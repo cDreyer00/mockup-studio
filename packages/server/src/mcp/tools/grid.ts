@@ -19,7 +19,7 @@ const trackField = z.union([
 
 const gapField = z.union([z.number().min(0), z.string()]);
 
-/** Valida uma lista de trilhas em texto: trilhas soltas que o CSS não entende viram erro com dica. */
+/** Validates a text list of tracks: loose tracks that CSS does not understand become an error with a hint. */
 function checkTemplate(input: GridTemplateInput, label: string): void {
   const text =
     typeof input === 'string'
@@ -31,22 +31,22 @@ function checkTemplate(input: GridTemplateInput, label: string): void {
   for (const t of parseTrackList(text)) {
     if (t.kind === 'other' && !t.value.includes('(') && !/^(subgrid|masonry)/i.test(t.value)) {
       throw new ToolError(
-        `${label}: trilha "${t.value}" inválida. Use "1fr", "200px", "auto", "minmax(100px, 1fr)", "repeat(3, 1fr)"; ex.: "1fr 200px minmax(100px, 1fr)".`,
+        `${label}: invalid track "${t.value}". Use "1fr", "200px", "auto", "minmax(100px, 1fr)", "repeat(3, 1fr)"; e.g. "1fr 200px minmax(100px, 1fr)".`,
       );
     }
   }
 }
 
-/** Ferramentas de CSS Grid: definir trilhas e posicionar filhos em células. */
+/** CSS Grid tools: define tracks and place children in cells. */
 export function registerGridTools(ctx: ToolContext): void {
   const { tool, store, requireNode, apply, summaryOf } = ctx;
 
   tool(
     'set_grid',
     {
-      title: 'Definir CSS Grid',
+      title: 'Define CSS Grid',
       description:
-        'Faz do nó um contêiner grid: columns/rows (número = N trilhas 1fr, texto CSS "1fr 200px minmax(100px, 1fr)" ou lista), gap, areas e alinhamento. Depois use place_in_grid e confira as trilhas com get_layout.',
+        'Turns the node into a grid container: columns/rows (number = N 1fr tracks, CSS text "1fr 200px minmax(100px, 1fr)" or list), gap, areas and alignment. Then use place_in_grid and check the tracks with get_layout.',
       example: {
         nodeId: 'el_ab12cd34',
         columns: 3,
@@ -56,43 +56,45 @@ export function registerGridTools(ctx: ToolContext): void {
         alignItems: 'start',
       },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó que vira grid, ex.: "el_ab12cd34".'),
+        nodeId: z.string().describe('Id of the node that becomes a grid, e.g. "el_ab12cd34".'),
         columns: trackField.describe(
-          'Colunas: número (3 = três colunas 1fr), texto CSS ("1fr 2fr", "repeat(auto-fill, minmax(200px, 1fr))") ou lista (["200px", "1fr"]).',
+          'Columns: number (3 = three 1fr columns), CSS text ("1fr 2fr", "repeat(auto-fill, minmax(200px, 1fr))") or list (["200px", "1fr"]).',
         ),
         rows: trackField
           .optional()
           .describe(
-            'Linhas, no mesmo formato de columns, ex.: 2 ou "auto 1fr" (padrão: implícitas).',
+            'Rows, in the same format as columns, e.g. 2 or "auto 1fr" (default: implicit).',
           ),
         gap: gapField
           .optional()
-          .describe('Espaço entre trilhas: número (px) ou texto CSS, ex.: 16 ou "16px 24px".'),
-        columnGap: gapField.optional().describe('Espaço entre colunas, ex.: 24 ou "1.5rem".'),
-        rowGap: gapField.optional().describe('Espaço entre linhas, ex.: 16.'),
+          .describe('Space between tracks: number (px) or CSS text, e.g. 16 or "16px 24px".'),
+        columnGap: gapField.optional().describe('Space between columns, e.g. 24 or "1.5rem".'),
+        rowGap: gapField.optional().describe('Space between rows, e.g. 16.'),
         areas: z
           .array(z.string())
           .min(1)
           .optional()
           .describe(
-            'grid-template-areas, uma string por linha, "." é célula vazia, ex.: ["header header", "side main"]. Cada nome forma um retângulo.',
+            'grid-template-areas, one string per row, "." is an empty cell, e.g. ["header header", "side main"]. Each name forms a rectangle.',
           ),
         placeItems: z
           .string()
           .optional()
-          .describe('place-items (alinha e justifica os itens), ex.: "center" ou "start stretch".'),
+          .describe(
+            'place-items (aligns and justifies the items), e.g. "center" or "start stretch".',
+          ),
         justifyItems: z
           .string()
           .optional()
-          .describe('justify-items, ex.: "center", "start", "end", "stretch".'),
+          .describe('justify-items, e.g. "center", "start", "end", "stretch".'),
         alignItems: z
           .string()
           .optional()
-          .describe('align-items, ex.: "center", "start", "end", "stretch".'),
+          .describe('align-items, e.g. "center", "start", "end", "stretch".'),
         autoFlow: z
           .string()
           .optional()
-          .describe('grid-auto-flow, ex.: "row" (padrão), "column", "row dense".'),
+          .describe('grid-auto-flow, e.g. "row" (default), "column", "row dense".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -115,7 +117,7 @@ export function registerGridTools(ctx: ToolContext): void {
       const { node } = requireNode(store.get(id), nodeId);
       if (node.type === 'text' || node.type === 'image' || node.type === 'svg') {
         throw new ToolError(
-          `O nó ${nodeId} é ${node.type === 'text' ? 'um texto' : node.type === 'image' ? 'uma imagem' : 'um svg'} e não pode ser contêiner grid. Use um nó div/section (ou crie um com create_node) e coloque os filhos dentro.`,
+          `Node ${nodeId} is ${node.type === 'text' ? 'a text' : node.type === 'image' ? 'an image' : 'an svg'} and cannot be a grid container. Use a div/section node (or create one with create_node) and put the children inside.`,
         );
       }
       checkTemplate(columns, 'columns');
@@ -148,7 +150,7 @@ export function registerGridTools(ctx: ToolContext): void {
         );
         if (!isAuto && w !== nCols) {
           notes.push(
-            `Atenção: areas tem ${w} coluna(s) e columns define ${nCols}; o grid cria trilhas implícitas. Ajuste para o mesmo número.`,
+            `Warning: areas has ${w} column(s) and columns defines ${nCols}; the grid creates implicit tracks. Adjust to the same number.`,
           );
         }
         if (rows !== undefined) {
@@ -157,17 +159,17 @@ export function registerGridTools(ctx: ToolContext): void {
             nRows !== areas.length &&
             !parseTrackList(styles['grid-template-rows']).some((t) => t.kind === 'other')
           ) {
-            notes.push(`Atenção: areas tem ${areas.length} linha(s) e rows define ${nRows}.`);
+            notes.push(`Warning: areas has ${areas.length} row(s) and rows defines ${nRows}.`);
           }
         }
       }
       if ((node.style['display'] ?? '').includes('flex')) {
         notes.push(
-          'O display antes era flex; agora é grid (flex-direction e justify-content deixam de valer).',
+          'The display was flex before; it is grid now (flex-direction and justify-content no longer apply).',
         );
       }
       const unset: string[] = [];
-      // gap geral e gaps por eixo se sobrepõem: remove os que não vieram
+      // the general gap and the per-axis gaps overlap: remove the ones that were not given
       if (styles['gap'] !== undefined) unset.push('column-gap', 'row-gap');
       else if (styles['column-gap'] !== undefined || styles['row-gap'] !== undefined)
         unset.push('gap');
@@ -187,60 +189,60 @@ export function registerGridTools(ctx: ToolContext): void {
         'set_grid',
       );
       const summary = [
-        `colunas ${styles['grid-template-columns']}`,
-        rows !== undefined ? `linhas ${styles['grid-template-rows']}` : null,
+        `columns ${styles['grid-template-columns']}`,
+        rows !== undefined ? `rows ${styles['grid-template-rows']}` : null,
         styles['gap'] ??
           (styles['column-gap'] || styles['row-gap']
             ? `gap ${styles['column-gap'] ?? '-'} / ${styles['row-gap'] ?? '-'}`
             : null),
-        styles['grid-template-areas'] ? `áreas ${styles['grid-template-areas']}` : null,
+        styles['grid-template-areas'] ? `areas ${styles['grid-template-areas']}` : null,
       ]
         .filter(Boolean)
         .join('; ');
-      return `Grid definido em ${nodeId}: ${summary}.${notes.length ? `\n${notes.join('\n')}` : ''}\nPosicione os filhos com place_in_grid(nodeIds, column, row, span?) e veja as trilhas reais com get_layout(${nodeId}) (precisa de render).\n${summaryOf(r.doc, [nodeId])}`;
+      return `Grid defined on ${nodeId}: ${summary}.${notes.length ? `\n${notes.join('\n')}` : ''}\nPlace the children with place_in_grid(nodeIds, column, row, span?) and see the real tracks with get_layout(${nodeId}) (needs render).\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'place_in_grid',
     {
-      title: 'Posicionar em célula do grid',
+      title: 'Place in a grid cell',
       description:
-        'Posiciona filhos de um grid (grid-column/grid-row ou grid-area). column e row começam em 1; span é número (colunas) ou { columns, rows }. O pai precisa ser display:grid (veja set_grid).',
+        'Places the children of a grid (grid-column/grid-row or grid-area). column and row start at 1; span is a number (columns) or { columns, rows }. The parent must be display:grid (see set_grid).',
       example: { nodeIds: ['el_ab12cd34'], column: 2, row: 1, span: { columns: 2, rows: 1 } },
       inputSchema: {
         nodeIds: z
           .array(z.string())
           .min(1)
-          .describe('Ids dos filhos do grid, ex.: ["el_ab12cd34"].'),
+          .describe('Ids of the grid children, e.g. ["el_ab12cd34"].'),
         column: z
           .number()
           .int()
           .min(1)
           .optional()
-          .describe('Coluna inicial (a primeira é 1), ex.: 2.'),
-        row: z.number().int().min(1).optional().describe('Linha inicial (a primeira é 1), ex.: 1.'),
+          .describe('Start column (the first is 1), e.g. 2.'),
+        row: z.number().int().min(1).optional().describe('Start row (the first is 1), e.g. 1.'),
         span: z
           .union([
             z.number().int().min(1),
             z.object({
-              columns: z.number().int().min(1).optional().describe('Colunas ocupadas, ex.: 2.'),
-              rows: z.number().int().min(1).optional().describe('Linhas ocupadas, ex.: 2.'),
+              columns: z.number().int().min(1).optional().describe('Columns spanned, e.g. 2.'),
+              rows: z.number().int().min(1).optional().describe('Rows spanned, e.g. 2.'),
             }),
           ])
           .optional()
-          .describe('Extensão: número = colunas ocupadas (2), ou { "columns": 2, "rows": 1 }.'),
+          .describe('Span: number = columns spanned (2), or { "columns": 2, "rows": 1 }.'),
         columnSpan: z
           .number()
           .int()
           .min(1)
           .optional()
-          .describe('Colunas ocupadas, ex.: 2 (alternativa a span).'),
-        rowSpan: z.number().int().min(1).optional().describe('Linhas ocupadas, ex.: 2.'),
+          .describe('Columns spanned, e.g. 2 (alternative to span).'),
+        rowSpan: z.number().int().min(1).optional().describe('Rows spanned, e.g. 2.'),
         area: z
           .string()
           .optional()
-          .describe('Área nomeada de grid-template-areas, ex.: "header" (substitui column/row).'),
+          .describe('Named area from grid-template-areas, e.g. "header" (replaces column/row).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -259,17 +261,17 @@ export function registerGridTools(ctx: ToolContext): void {
         rs === undefined
       ) {
         throw new ToolError(
-          'Informe column/row (e span) ou area. Ex.: column 2, row 1, span 2; ou area "header".',
+          'Pass column/row (and span) or area. E.g. column 2, row 1, span 2; or area "header".',
         );
       }
       for (const p of found) {
         const parent = p.parent;
         if (!parent || !isGridContainer(parent.style)) {
           const where = parent
-            ? `O pai de ${p.node.id} (${parent.id}) não é um grid (display: ${parent.style['display'] ?? 'block'}).`
-            : `${p.node.id} é um frame raiz e não tem pai grid.`;
+            ? `The parent of ${p.node.id} (${parent.id}) is not a grid (display: ${parent.style['display'] ?? 'block'}).`
+            : `${p.node.id} is a root frame and has no grid parent.`;
           throw new ToolError(
-            `${where} Torne o pai um grid com set_grid(nodeId: "${parent?.id ?? '<paiId>'}", columns: 3) antes de usar place_in_grid.`,
+            `${where} Make the parent a grid with set_grid(nodeId: "${parent?.id ?? '<parentId>'}", columns: 3) before using place_in_grid.`,
           );
         }
         if (area !== undefined) {
@@ -277,8 +279,8 @@ export function registerGridTools(ctx: ToolContext): void {
           if (!names.includes(area.trim())) {
             throw new ToolError(
               names.length
-                ? `A área "${area}" não existe no grid ${parent.id}. Áreas: ${names.join(', ')}.`
-                : `O grid ${parent.id} não tem áreas nomeadas. Defina com set_grid(nodeId: "${parent.id}", columns: ..., areas: ["a b", "c c"]) ou use column/row.`,
+                ? `Area "${area}" does not exist in grid ${parent.id}. Areas: ${names.join(', ')}.`
+                : `Grid ${parent.id} has no named areas. Define them with set_grid(nodeId: "${parent.id}", columns: ..., areas: ["a b", "c c"]) or use column/row.`,
             );
           }
         }
@@ -301,12 +303,12 @@ export function registerGridTools(ctx: ToolContext): void {
           column + (cs ?? 1) - 1 > nCols
         ) {
           notes.push(
-            `${p.node.id}: a coluna ${column}${cs ? ` com span ${cs}` : ''} passa das ${nCols} coluna(s) do grid; o navegador cria colunas implícitas.`,
+            `${p.node.id}: column ${column}${cs ? ` with span ${cs}` : ''} goes past the grid's ${nCols} column(s); the browser creates implicit columns.`,
           );
         }
       }
-      // Área nomeada, shorthands e formas longas (-start/-end) se sobrepõem: remove o que ficaria conflitando
-      // (grid-area redefine as quatro longhands; grid-column/grid-row redefinem as do seu eixo).
+      // Named area, shorthands and longhand forms (-start/-end) overlap: remove what would conflict
+      // (grid-area resets the four longhands; grid-column/grid-row reset those of their axis).
       const conflicting =
         area !== undefined
           ? [
@@ -342,7 +344,7 @@ export function registerGridTools(ctx: ToolContext): void {
       const text = Object.entries(placement)
         .map(([k, v]) => `${k}: ${v}`)
         .join('; ');
-      return `${nodeIds.length} nó(s) posicionado(s) no grid (${text}).${notes.length ? `\n${notes.join('\n')}` : ''}\n${summaryOf(r.doc, nodeIds)}`;
+      return `${nodeIds.length} node(s) placed in the grid (${text}).${notes.length ? `\n${notes.join('\n')}` : ''}\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 }

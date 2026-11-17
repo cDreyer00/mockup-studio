@@ -1,4 +1,4 @@
-/** Componentes: expansão, ops primitivas, roteamento e planejadores (ver docs/COMPONENTES.md). */
+/** Components: expansion, primitive ops, routing and planners (see docs/COMPONENTS.md). */
 export * from './expand.js';
 export {
   assertComponentInsertion,

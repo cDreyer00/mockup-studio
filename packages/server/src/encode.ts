@@ -1,6 +1,6 @@
 /**
- * Codificação de vídeo animado (mp4, webm, gif) a partir de quadros PNG, via ffmpeg.
- * O binário vem de `MOCKUP_FFMPEG`, do pacote `ffmpeg-static` ou do PATH.
+ * Animated video encoding (mp4, webm, gif) from PNG frames, via ffmpeg.
+ * The binary comes from `MOCKUP_FFMPEG`, the `ffmpeg-static` package or the PATH.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -9,9 +9,9 @@ import { createRequire } from 'node:module';
 export type AnimatedFormat = 'mp4' | 'webm' | 'gif';
 
 export const FFMPEG_MISSING =
-  'O ffmpeg não foi encontrado: instale o ffmpeg (e deixe-o no PATH) ou defina MOCKUP_FFMPEG com o caminho do executável.';
+  'ffmpeg was not found: install ffmpeg (and keep it on the PATH) or set MOCKUP_FFMPEG to the executable path.';
 
-/** Caminho do ffmpeg (env `MOCKUP_FFMPEG` > `ffmpeg-static` > `ffmpeg` no PATH) ou null. */
+/** Path to ffmpeg (env `MOCKUP_FFMPEG` > `ffmpeg-static` > `ffmpeg` on the PATH) or null. */
 export function locateFfmpeg(): string | null {
   const env = process.env['MOCKUP_FFMPEG']?.trim();
   if (env) return env;
@@ -19,18 +19,18 @@ export function locateFfmpeg(): string | null {
     const p = createRequire(import.meta.url)('ffmpeg-static') as string | null;
     if (typeof p === 'string' && fs.existsSync(p)) return p;
   } catch {
-    // pacote ausente: tenta o PATH
+    // package missing: try the PATH
   }
   try {
     const r = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore', windowsHide: true });
     if (!r.error && r.status === 0) return 'ffmpeg';
   } catch {
-    // sem ffmpeg
+    // no ffmpeg
   }
   return null;
 }
 
-/** Argumentos do ffmpeg para ler PNGs do stdin e gravar `out`. */
+/** ffmpeg arguments to read PNGs from stdin and write `out`. */
 export function ffmpegArgs(format: AnimatedFormat, fps: number, out: string): string[] {
   const input = [
     '-y',
@@ -95,11 +95,11 @@ export interface EncodeOptions {
   format: AnimatedFormat;
   fps: number;
   out: string;
-  /** Produz os quadros: chame `write(png)` para cada um, em ordem. */
+  /** Produces the frames: call `write(png)` for each one, in order. */
   produce: (write: (png: Buffer) => Promise<void>) => Promise<unknown>;
 }
 
-/** Codifica os quadros produzidos em `out`. Rejeita com mensagem clara se o ffmpeg falhar. */
+/** Encodes the produced frames into `out`. Rejects with a clear message if ffmpeg fails. */
 export async function encodeFrames(opts: EncodeOptions): Promise<void> {
   if (!opts.ffmpeg) throw new Error(FFMPEG_MISSING);
   const fps = opts.format === 'gif' ? Math.min(opts.fps, 30) : opts.fps;
@@ -152,10 +152,10 @@ export async function encodeFrames(opts: EncodeOptions): Promise<void> {
   const err = spawnError as Error | null;
   if (err) {
     const missing = (err as NodeJS.ErrnoException).code === 'ENOENT';
-    throw new Error(missing ? FFMPEG_MISSING : `Falha ao iniciar o ffmpeg: ${err.message}`);
+    throw new Error(missing ? FFMPEG_MISSING : `Failed to start ffmpeg: ${err.message}`);
   }
   if (code !== 0) {
-    const detail = stderr.trim() || (stdinError as Error | null)?.message || `código ${code}`;
-    throw new Error(`O ffmpeg falhou ao codificar ${opts.format}: ${detail}`);
+    const detail = stderr.trim() || (stdinError as Error | null)?.message || `code ${code}`;
+    throw new Error(`ffmpeg failed to encode ${opts.format}: ${detail}`);
   }
 }

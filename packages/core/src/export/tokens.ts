@@ -1,12 +1,12 @@
 /**
- * Importação e exportação do sistema de tokens:
+ * Import and export of the token system:
  *
- * - `css`: `:root { --x: ... }` e `[data-theme="<tema>"] { ... }`.
- * - `json`: W3C Design Tokens (DTCG) — grupos aninhados pelos segmentos do nome
- *   (`--color-primary` → `color.primary`), `$value`, `$type`, `$description` e aliases
- *   `{color.primary}`. Grupo e valores por tema vão em `$extensions["mockup-studio"]`.
- * - `tailwind`: `@theme { ... }` (Tailwind v4) com os tokens de namespace de tema, `:root` com os
- *   demais, regras de tema e `@custom-variant` por tema.
+ * - `css`: `:root { --x: ... }` and `[data-theme="<theme>"] { ... }`.
+ * - `json`: W3C Design Tokens (DTCG) — groups nested by name segments
+ *   (`--color-primary` → `color.primary`), `$value`, `$type`, `$description` and aliases
+ *   `{color.primary}`. Group and per-theme values go in `$extensions["mockup-studio"]`.
+ * - `tailwind`: `@theme { ... }` (Tailwind v4) with the theme-namespace tokens, `:root` with the
+ *   rest, theme rules and a `@custom-variant` per theme.
  */
 import { generate, parse, walk } from '../csstree.js';
 import { normalizeTokenNames, TokenMetaSchema } from '../schema.js';
@@ -27,10 +27,10 @@ import { themeNamespace } from './tailwind.js';
 export type TokenExportFormat = 'css' | 'json' | 'tailwind';
 
 /* ====================================================================== */
-/* Exportação                                                              */
+/* Export                                                                  */
 /* ====================================================================== */
 
-/** Extensão DTCG com os dados próprios do Mockup Studio. */
+/** DTCG extension with Mockup Studio's own data. */
 export const DTCG_EXTENSION = 'mockup-studio';
 
 const DTCG_TYPE: Record<string, string> = {
@@ -42,7 +42,7 @@ const DTCG_TYPE: Record<string, string> = {
 
 const DIMENSION = /^-?(?:\d+\.?\d*|\.\d+)(?:px|rem)$/;
 
-/** `$type` DTCG quando o valor tem a forma simples do tipo (senão, sem `$type`). */
+/** DTCG `$type` when the value has the simple form of the type (otherwise, no `$type`). */
 function dtcgType(name: string, group: string, value: string): string | undefined {
   if (/^var\(--[a-zA-Z0-9_-]+\)$/.test(value.trim())) return undefined;
   if (group === 'typography') {
@@ -59,7 +59,7 @@ function dtcgType(name: string, group: string, value: string): string | undefine
   return t;
 }
 
-/** `var(--color-primary)` sozinho vira o alias `{color.primary}`; o resto fica como CSS. */
+/** `var(--color-primary)` alone becomes the alias `{color.primary}`; the rest stays as CSS. */
 function toDtcgValue(value: string): string {
   const m = /^var\((--[a-zA-Z0-9_-]+)\)$/.exec(value.trim());
   return m ? `{${m[1]!.slice(2).split('-').join('.')}}` : value;
@@ -67,7 +67,7 @@ function toDtcgValue(value: string): string {
 
 type Json = { [k: string]: unknown };
 
-/** Tokens no formato W3C Design Tokens (objeto JSON). */
+/** Tokens in the W3C Design Tokens format (JSON object). */
 export function tokensToDtcg(doc: Document): Json {
   const root: Json = {};
   for (const name of tokenNames(doc)) {
@@ -76,7 +76,7 @@ export function tokensToDtcg(doc: Document): Json {
     for (const seg of path.slice(0, -1)) {
       const cur = node[seg];
       if (cur && typeof cur === 'object' && '$value' in (cur as Json)) {
-        // Já é um token: vira grupo com o token em `$root`.
+        // Already a token: becomes a group with the token in `$root`.
         node[seg] = { $root: cur };
       } else if (!cur || typeof cur !== 'object') node[seg] = {};
       node = node[seg] as Json;
@@ -98,7 +98,7 @@ export function tokensToDtcg(doc: Document): Json {
       if (name in t.overrides) themes[t.name] = t.overrides[name];
     }
     if (Object.keys(themes).length > 0) ext.themes = themes;
-    // Token sem valor base (só em temas): `$value` vazio + marca, para o import não o descartar.
+    // Token without a base value (themes only): empty `$value` + marker, so import does not discard it.
     if (value === undefined && Object.keys(themes).length > 0) ext.themeOnly = true;
     token.$extensions = { [DTCG_EXTENSION]: ext };
     const existing = node[leafKey];
@@ -112,7 +112,7 @@ export function tokensToDtcg(doc: Document): Json {
   return root;
 }
 
-/** Bloco Tailwind v4: `@theme`, `:root`, regras de tema e variantes `theme-<nome>`. */
+/** Tailwind v4 block: `@theme`, `:root`, theme rules and `theme-<name>` variants. */
 export function tailwindTokensCss(doc: Document): string {
   const theme: string[] = [];
   const root: string[] = [];
@@ -130,7 +130,7 @@ export function tailwindTokensCss(doc: Document): string {
   return blocks.join('\n\n');
 }
 
-/** Exporta só o sistema de tokens no formato pedido. */
+/** Exports only the token system in the requested format. */
 export function exportTokens(doc: Document, format: TokenExportFormat): string {
   switch (format) {
     case 'css':
@@ -143,7 +143,7 @@ export function exportTokens(doc: Document, format: TokenExportFormat): string {
 }
 
 /* ====================================================================== */
-/* Importação: CSS                                                         */
+/* Import: CSS                                                             */
 /* ====================================================================== */
 
 function emptySet(): TokenSet {
@@ -160,9 +160,9 @@ function themeOf(set: TokenSet, name: string): Theme {
 }
 
 /**
- * Seletor → destino: `null` = tokens base (`:root`, `html`, `:host`, `*`, `@theme`); string = tema,
- * só para `[data-theme="x"]` / `[data-theme=x]`, `.dark`, `.light` e `.theme-x` (os três últimos
- * com prefixo opcional `:root`/`html`); `undefined` = ignorar (qualquer outra classe ou seletor).
+ * Selector → target: `null` = base tokens (`:root`, `html`, `:host`, `*`, `@theme`); string = theme,
+ * only for `[data-theme="x"]` / `[data-theme=x]`, `.dark`, `.light` and `.theme-x` (the last three
+ * with an optional `:root`/`html` prefix); `undefined` = ignore (any other class or selector).
  */
 function selectorTarget(selector: string): string | null | undefined {
   const s = selector.trim();
@@ -176,15 +176,15 @@ function selectorTarget(selector: string): string | null | undefined {
   return undefined;
 }
 
-/** Aviso para `url()` remoto (`http:`, `https:` ou `//`); `null` se não houver. */
+/** Warning for a remote `url()` (`http:`, `https:` or `//`); `null` if there is none. */
 function remoteUrlWarning(name: string, value: string): string | null {
   const m = /url\(\s*["']?\s*((?:https?:|\/\/)[^"')\s]*)/i.exec(value);
   return m
-    ? `${name} usa url() remoto (${m[1]}): o projeto é offline-first e o recurso pode não carregar`
+    ? `${name} uses a remote url() (${m[1]}): the project is offline-first and the resource may not load`
     : null;
 }
 
-/** Lê tokens de CSS: `:root {}`, `@theme {}`, `[data-theme="x"] {}`, `.dark {}` e `prefers-color-scheme`. */
+/** Reads tokens from CSS: `:root {}`, `@theme {}`, `[data-theme="x"] {}`, `.dark {}` and `prefers-color-scheme`. */
 export function parseTokensCss(css: string): TokenSet {
   const set = emptySet();
   let ast;
@@ -195,13 +195,13 @@ export function parseTokensCss(css: string): TokenSet {
       onParseError: (e) => set.warnings.push(`CSS: ${e.message}`),
     });
   } catch (e) {
-    throw new Error(`CSS inválido: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`Invalid CSS: ${e instanceof Error ? e.message : String(e)}`);
   }
   const put = (target: string | null, name: string, value: string): void => {
     const v = value.trim();
     const problem = cssValueProblem(v);
     if (problem || v === '') {
-      set.warnings.push(`${name} descartado: ${problem ?? 'valor vazio'}`);
+      set.warnings.push(`${name} discarded: ${problem ?? 'empty value'}`);
       return;
     }
     const remote = remoteUrlWarning(name, v);
@@ -225,18 +225,18 @@ export function parseTokensCss(css: string): TokenSet {
       let target = selectorTarget(sel);
       if (target === null && media) target = media;
       if (target === undefined) {
-        set.warnings.push(`Regra ignorada: "${sel.trim()}"`);
+        set.warnings.push(`Rule ignored: "${sel.trim()}"`);
         continue;
       }
       if (target !== null && !THEME_NAME_RE.test(target)) {
-        set.warnings.push(`Tema com nome inválido ignorado: "${target}"`);
+        set.warnings.push(`Theme with invalid name ignored: "${target}"`);
         continue;
       }
       visitBlock(rule.block, target);
     }
   };
   type Children = { toArray(): unknown[] };
-  /** Percorre uma lista de nós; desce em `@media (prefers-color-scheme)` e `@layer` (recursivo). */
+  /** Walks a list of nodes; descends into `@media (prefers-color-scheme)` and `@layer` (recursive). */
   const visitNodes = (children: Children | undefined, media: string | null): void => {
     for (const node of children?.toArray() ?? []) {
       const n = node as {
@@ -248,34 +248,34 @@ export function parseTokensCss(css: string): TokenSet {
       if (n.type === 'Rule') handleRule(n as { prelude: unknown; block: unknown }, media);
       else if (n.type === 'Atrule' && n.name === 'theme' && n.block) visitBlock(n.block, null);
       else if (n.type === 'Atrule' && n.name === 'layer') {
-        // `@layer a, b;` (só ordem) não tem bloco e não é aviso.
+        // `@layer a, b;` (order only) has no block and is not a warning.
         if (n.block) visitNodes(n.block.children, media);
       } else if (n.type === 'Atrule' && n.name === 'media' && n.block) {
         const q = n.prelude ? generate(n.prelude as Parameters<typeof generate>[0]) : '';
         const m = /prefers-color-scheme\s*:\s*(dark|light)/.exec(q);
         if (!m) {
-          set.warnings.push(`@media ignorado: "${q}"`);
+          set.warnings.push(`@media ignored: "${q}"`);
           continue;
         }
         visitNodes(n.block.children, m[1]!);
-      } else if (n.type === 'Atrule') set.warnings.push(`@${n.name ?? ''} ignorado`);
+      } else if (n.type === 'Atrule') set.warnings.push(`@${n.name ?? ''} ignored`);
     }
   };
   visitNodes((ast as { children?: Children }).children, null);
   set.tokens = normalizeTokenNames(set.tokens);
-  // Redeclarações iguais ao valor base (como as que o export de tema gera para aliases) são redundantes.
+  // Redeclarations equal to the base value (like those the theme export generates for aliases) are redundant.
   for (const t of set.themes) {
     for (const [k, v] of Object.entries(t.overrides))
       if (set.tokens[k] === v) delete t.overrides[k];
   }
   if (Object.keys(set.tokens).length === 0 && set.themes.length === 0) {
-    throw new Error('Nenhum token encontrado no CSS (use :root { --nome: valor; })');
+    throw new Error('No tokens found in the CSS (use :root { --name: value; })');
   }
   return set;
 }
 
 /* ====================================================================== */
-/* Importação: JSON (W3C Design Tokens)                                    */
+/* Import: JSON (W3C Design Tokens)                                        */
 /* ====================================================================== */
 
 const GROUP_BY_TYPE: Record<string, string> = {
@@ -293,7 +293,7 @@ const GROUP_BY_TYPE: Record<string, string> = {
   sizing: 'spacing',
 };
 
-/** `{color.primary}` (alias DTCG) → `var(--color-primary)`, também dentro de textos maiores. */
+/** `{color.primary}` (DTCG alias) → `var(--color-primary)`, also inside longer strings. */
 function aliasToVar(value: string): string {
   return value.replace(/\{([a-zA-Z0-9_.$-]+)\}/g, (_, path: string) => {
     const segs = path.split('.').filter((s) => s !== '$root');
@@ -362,7 +362,7 @@ function fontFamilyValue(v: unknown): string | null {
   return null;
 }
 
-/** Valor DTCG → CSS. Tokens compostos de tipografia viram vários tokens (`-font-size`...). */
+/** DTCG value → CSS. Composite typography tokens become several tokens (`-font-size`...). */
 function dtcgToCss(
   type: string | undefined,
   value: unknown,
@@ -416,18 +416,18 @@ function dtcgToCss(
   }
 }
 
-/** Lê tokens no formato W3C Design Tokens (também aceita `value`/`type` sem `$`, como no Tokens Studio). */
+/** Reads tokens in the W3C Design Tokens format (also accepts `value`/`type` without `$`, as in Tokens Studio). */
 export function parseTokensJson(input: string | object): TokenSet {
   let data: unknown = input;
   if (typeof input === 'string') {
     try {
       data = JSON.parse(input);
     } catch (e) {
-      throw new Error(`JSON malformado: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`Malformed JSON: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('JSON de tokens deve ser um objeto (formato W3C Design Tokens)');
+    throw new Error('Tokens JSON must be an object (W3C Design Tokens format)');
   }
   const set = emptySet();
   const rootExt = ((data as Json).$extensions as Json | undefined)?.[DTCG_EXTENSION] as
@@ -437,7 +437,7 @@ export function parseTokensJson(input: string | object): TokenSet {
       if (typeof t === 'string' && THEME_NAME_RE.test(t)) themeOf(set, t);
   }
 
-  /** Saneia e valida o meta; o que continuar inválido é descartado com aviso (não derruba o import). */
+  /** Sanitizes and validates the meta; whatever stays invalid is dropped with a warning (does not break the import). */
   const cleanMeta = (name: string, meta: TokenMeta): TokenMeta => {
     const out: TokenMeta = {};
     if (meta.group !== undefined) {
@@ -445,7 +445,7 @@ export function parseTokensJson(input: string | object): TokenSet {
       if (g !== '') {
         const r = TokenMetaSchema.safeParse({ group: g });
         if (r.success && r.data.group) out.group = r.data.group;
-        else set.warnings.push(`${name}: grupo "${g}" ignorado (caracteres inválidos)`);
+        else set.warnings.push(`${name}: group "${g}" ignored (invalid characters)`);
       }
     }
     if (meta.description !== undefined) {
@@ -454,7 +454,7 @@ export function parseTokensJson(input: string | object): TokenSet {
       if (d.trim() !== '') {
         const r = TokenMetaSchema.safeParse({ description: d });
         if (r.success && r.data.description) out.description = r.data.description;
-        else set.warnings.push(`${name}: descrição ignorada (inválida)`);
+        else set.warnings.push(`${name}: description ignored (invalid)`);
       }
     }
     return out;
@@ -471,7 +471,7 @@ export function parseTokensJson(input: string | object): TokenSet {
     }
   };
 
-  /** `themeOnly`: token sem valor base; grava só as sobrescritas de tema (e o meta). */
+  /** `themeOnly`: token without a base value; stores only the theme overrides (and the meta). */
   const put = (
     name: string,
     value: string,
@@ -480,13 +480,13 @@ export function parseTokensJson(input: string | object): TokenSet {
     themeOnly = false,
   ) => {
     if (!TOKEN_NAME_RE.test(name)) {
-      set.warnings.push(`Nome de token inválido ignorado: "${name}"`);
+      set.warnings.push(`Invalid token name ignored: "${name}"`);
       return;
     }
     if (!themeOnly) {
       const problem = cssValueProblem(value);
       if (problem || value === '') {
-        set.warnings.push(`${name} descartado: ${problem ?? 'valor vazio'}`);
+        set.warnings.push(`${name} discarded: ${problem ?? 'empty value'}`);
         return;
       }
       const remote = remoteUrlWarning(name, value);
@@ -513,24 +513,28 @@ export function parseTokensJson(input: string | object): TokenSet {
         themes?: unknown;
         themeOnly?: unknown;
       };
-      // Meta com tipo errado: descarta só o meta, com aviso (o token entra).
+      // Meta with a wrong type: drops only the meta, with a warning (the token is kept).
       const wrongType = (what: string, v: unknown, expected: string): void => {
         const shown = (JSON.stringify(v) ?? String(v)).slice(0, 40);
-        set.warnings.push(`${name}: ${what} ignorado (deve ser ${expected}; veio ${shown})`);
+        set.warnings.push(`${name}: ${what} ignored (must be ${expected}; got ${shown})`);
       };
       const descs = [node.$description, node.description].filter((d) => d !== undefined);
       const description = descs.find((d): d is string => typeof d === 'string');
       if (description === undefined && descs.length > 0)
-        wrongType('$description', descs[0], 'texto');
+        wrongType('$description', descs[0], 'text');
       if (ext.group !== undefined && typeof ext.group !== 'string')
-        wrongType(`$extensions["${DTCG_EXTENSION}"].group`, ext.group, 'texto');
+        wrongType(`$extensions["${DTCG_EXTENSION}"].group`, ext.group, 'text');
       const group = typeof ext.group === 'string' ? ext.group : t ? GROUP_BY_TYPE[t] : undefined;
       const themesOk = !!ext.themes && typeof ext.themes === 'object' && !Array.isArray(ext.themes);
       if (ext.themes !== undefined && !themesOk)
-        wrongType(`$extensions["${DTCG_EXTENSION}"].themes`, ext.themes, 'um objeto tema → valor');
+        wrongType(
+          `$extensions["${DTCG_EXTENSION}"].themes`,
+          ext.themes,
+          'an object of theme → value',
+        );
       const themes = themesOk ? (ext.themes as Record<string, unknown>) : {};
       if ((raw === '' || ext.themeOnly === true) && Object.keys(themes).length > 0) {
-        // Token só de tema (sem valor base): mantém as sobrescritas e o meta.
+        // Theme-only token (no base value): keeps the overrides and the meta.
         const meta: TokenMeta = {};
         if (group) meta.group = group;
         if (description) meta.description = description;
@@ -539,7 +543,7 @@ export function parseTokensJson(input: string | object): TokenSet {
       }
       const css = dtcgToCss(t, raw);
       if (css === null) {
-        set.warnings.push(`${name}: valor não suportado (${t ?? 'sem $type'})`);
+        set.warnings.push(`${name}: unsupported value (${t ?? 'no $type'})`);
         return;
       }
       if (typeof css === 'string') {
@@ -569,13 +573,13 @@ export function parseTokensJson(input: string | object): TokenSet {
     !set.themes.some((t) => Object.keys(t.overrides).length > 0)
   ) {
     throw new Error(
-      'Nenhum token encontrado no JSON (esperado o formato W3C Design Tokens com $value)',
+      'No tokens found in the JSON (expected the W3C Design Tokens format with $value)',
     );
   }
   return set;
 }
 
-/** Detecta o formato (JSON se começa com `{`, senão CSS) e importa. */
+/** Detects the format (JSON if it starts with `{`, otherwise CSS) and imports. */
 export function parseTokens(input: string, format?: 'css' | 'json'): TokenSet {
   const f =
     format ?? (/^\s*\{/.test(input) && !/^\s*\{[^"]*\}/.test(input.slice(0, 40)) ? 'json' : 'css');

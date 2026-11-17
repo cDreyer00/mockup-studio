@@ -27,7 +27,7 @@ export interface OpenDoc {
   history: History;
   dirty: boolean;
   saveTimer: NodeJS.Timeout | null;
-  /** Cadeia de gravações do documento: nunca há duas gravações simultâneas no mesmo arquivo. */
+  /** Document write chain: there are never two simultaneous writes to the same file. */
   saveChain: Promise<void>;
 }
 
@@ -73,12 +73,12 @@ export interface ApplyOutcome {
 }
 
 export const AUTOSAVE_MS = 800;
-/** Grupos de undo com estatística guardada por documento. */
+/** Undo groups with stats kept per document. */
 const GROUP_STATS_LIMIT = 64;
 
 /**
- * Erro causado pelo pedido do usuário (arquivo inexistente, já existe, documento desconhecido).
- * `expose` e `status` permitem que a camada HTTP devolva 4xx com a mensagem em vez de 500.
+ * Error caused by the user's request (missing file, already exists, unknown document).
+ * `expose` and `status` let the HTTP layer return a 4xx with the message instead of a 500.
  */
 async function listFiles(dir: string, rel = ''): Promise<string[]> {
   const out: string[] = [];
@@ -91,8 +91,8 @@ async function listFiles(dir: string, rel = ''): Promise<string[]> {
 }
 
 /**
- * Copia `from` para `to` sem sobrescrever: arquivo idêntico no destino é reaproveitado; de conteúdo
- * diferente ganha nome novo (-1, -2...). Devolve o mapa origem -> destino só dos renomeados.
+ * Copies `from` to `to` without overwriting: an identical file at the destination is reused; one with
+ * different content gets a new name (-1, -2...). Returns the source -> destination map of the renamed ones only.
  */
 async function copyAssetsNoClobber(from: string, to: string): Promise<Map<string, string>> {
   const renamed = new Map<string, string>();
@@ -124,7 +124,7 @@ async function copyAssetsNoClobber(from: string, to: string): Promise<Map<string
   return renamed;
 }
 
-/** Ops que apontam nós image, estilos url(assets/...) e fontes para os arquivos renomeados. */
+/** Ops that point image nodes, url(assets/...) styles and fonts to the renamed files. */
 function renameOps(doc: Document, renamed: Map<string, string>): Op[] {
   const srcs: { nodeId: string; src: string }[] = [];
   const styles: { nodeId: string; set: Record<string, string> }[] = [];
@@ -169,8 +169,8 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
   private docs = new Map<string, OpenDoc>();
   private selection = new Map<string, string[]>();
   /**
-   * Estatística por grupo de undo e documento: ops aplicadas e ids criados. Independe da pilha de
-   * undo (uma edição do usuário no meio do turno divide o undo, mas a contagem segue certa).
+   * Stats per undo group and document: applied ops and created ids. Independent of the undo
+   * stack (a user edit in the middle of the turn splits the undo, but the count stays correct).
    */
   private groups = new Map<string, Map<string, { ops: number; created: Set<string> }>>();
   activeDocId: string | null = null;
@@ -198,7 +198,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     if (!d)
       throw new StoreError(
         404,
-        `Documento não encontrado: ${docId}. Use list_documents para ver os abertos.`,
+        `Document not found: ${docId}. Use list_documents to see the open ones.`,
       );
     return d;
   }
@@ -207,7 +207,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     if (this.docs.has(doc.id)) {
       throw new StoreError(
         409,
-        `Já existe outro documento aberto com o id ${doc.id}. Feche-o antes de abrir esta cópia.`,
+        `Another document with id ${doc.id} is already open. Close it before opening this copy.`,
       );
     }
     const d: OpenDoc = {
@@ -245,7 +245,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     try {
       raw = await fs.promises.readFile(abs, 'utf8');
     } catch {
-      throw new StoreError(404, `Não foi possível ler o arquivo: ${abs}`);
+      throw new StoreError(404, `Could not read the file: ${abs}`);
     }
     let doc: Document;
     try {
@@ -267,11 +267,11 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       if ((e as NodeJS.ErrnoException).code === 'EEXIST')
         throw new StoreError(
           409,
-          `O arquivo já existe: ${abs}. Abra-o em vez de criar (open_document ou \`mockup open\`).`,
+          `The file already exists: ${abs}. Open it instead of creating it (open_document or \`mockup open\`).`,
         );
       throw new StoreError(
         400,
-        `Não foi possível criar o arquivo ${abs}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`,
+        `Could not create the file ${abs}: ${(e as NodeJS.ErrnoException).code ?? (e as Error).message}`,
       );
     }
     try {
@@ -323,15 +323,14 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
 
   async save(docId?: string): Promise<string> {
     const d = this.entry(this.resolveDocId(docId));
-    if (!d.path)
-      throw new StoreError(400, 'Documento sem caminho em disco; não é possível salvar.');
+    if (!d.path) throw new StoreError(400, 'Document has no path on disk; cannot save.');
     if (d.saveTimer) {
       clearTimeout(d.saveTimer);
       d.saveTimer = null;
     }
     const file = d.path;
     const run = async (): Promise<void> => {
-      // o snapshot é tomado quando chega a vez na fila, para gravar o estado mais recente
+      // the snapshot is taken when its turn in the queue comes, to write the most recent state
       const revision = d.history.revision;
       await this.writeFile(file, serializeDocument(d.history.doc));
       if (d.history.revision === revision) d.dirty = false;
@@ -345,9 +344,9 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
   }
 
   /**
-   * "Salvar como": grava em outro caminho (sobrescreve; o diálogo nativo já confirmou), copia o
-   * conteúdo de `assets/` para ao lado do novo arquivo (sem apagar o antigo nem sobrescrever
-   * arquivos existentes no destino) e passa a apontar o documento para o novo caminho.
+   * "Save as": writes to another path (overwrites; the native dialog already confirmed), copies the
+   * contents of `assets/` next to the new file (without deleting the old one or overwriting
+   * existing files at the destination) and points the document to the new path.
    */
   async saveAs(docId: string | undefined, newPath: string): Promise<OpenDocumentInfo> {
     const d = this.entry(this.resolveDocId(docId));
@@ -360,7 +359,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       if (other.id !== d.id && other.path && same(other.path, abs)) {
         throw new StoreError(
           409,
-          `Já há outro documento aberto neste caminho: ${abs}. Feche-o antes de salvar por cima.`,
+          `Another document is already open at this path: ${abs}. Close it before saving over it.`,
         );
       }
     }
@@ -379,10 +378,10 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
       }
       d.path = abs;
       if (renamed && renamed.size > 0) {
-        // Referências reescritas numa única entrada de histórico, e o arquivo é regravado com elas.
+        // References rewritten in a single history entry, and the file is rewritten with them.
         const ops = renameOps(d.history.doc, renamed);
         if (ops.length > 0) {
-          d.history.apply(ops, 'Salvar como: assets renomeados');
+          d.history.apply(ops, 'Save as: assets renamed');
           this.markChanged(d, ops, 'system');
           if (d.saveTimer) {
             clearTimeout(d.saveTimer);
@@ -433,7 +432,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     if (this.activeDocId && this.docs.has(this.activeDocId)) return this.activeDocId;
     throw new StoreError(
       400,
-      'Nenhum documento aberto. Use open_document(path) ou create_document(path, name).',
+      'No open documents. Use open_document(path) or create_document(path, name).',
     );
   }
 
@@ -457,10 +456,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     d.saveTimer = setTimeout(() => {
       d.saveTimer = null;
       this.save(d.id).catch((e: unknown) => {
-        console.error(
-          '[mockup-daemon] falha no salvamento automático:',
-          e instanceof Error ? e.message : e,
-        );
+        console.error('[mockup-daemon] autosave failed:', e instanceof Error ? e.message : e);
       });
     }, this.opts.autosaveMs ?? AUTOSAVE_MS);
     d.saveTimer.unref();
@@ -472,7 +468,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     opts: { source: OpSource; label?: string; group?: string },
   ): ApplyOutcome {
     const d = this.entry(docId);
-    // Entrada pública (editor pelo WS, ferramentas do MCP): sem campos internos (ex. `force`).
+    // Public input (editor over WS, MCP tools): no internal fields (e.g. `force`).
     assertPublicOps(ops);
     const r = d.history.apply(ops, opts.label, { group: opts.group });
     if (opts.group !== undefined) this.recordGroup(docId, opts.group, r.appliedOps, r.results);
@@ -507,12 +503,12 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     return { doc: r.doc, ops: r.ops, revision: d.history.revision };
   }
 
-  /** Encerra um grupo de undo (fim do turno do assistente ou do script). */
+  /** Closes an undo group (end of the assistant or script turn). */
   closeGroup(docId: string, group: string): void {
     this.docs.get(docId)?.history.closeGroup(group);
   }
 
-  /** Nº de ops da entrada do topo da pilha de undo se ela for do grupo (0 caso contrário). */
+  /** Number of ops of the top undo stack entry if it belongs to the group (0 otherwise). */
   private recordGroup(
     docId: string,
     group: string,
@@ -524,7 +520,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     let st = byGroup.get(group);
     if (!st) {
       byGroup.set(group, (st = { ops: 0, created: new Set() }));
-      // Só os grupos recentes interessam (fim de turno, remix): limita a memória.
+      // Only recent groups matter (end of turn, remix): limits memory.
       if (byGroup.size > GROUP_STATS_LIMIT) byGroup.delete(byGroup.keys().next().value!);
     }
     st.ops += ops.length;
@@ -534,12 +530,12 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     }
   }
 
-  /** Ops aplicadas com o grupo, somando todas as entradas de undo dele. */
+  /** Ops applied with the group, summing all of its undo entries. */
   groupOpsCount(docId: string, group: string): number {
     return this.groups.get(docId)?.get(group)?.ops ?? 0;
   }
 
-  /** Ids dos nós criados (createNode, duplicateNodes...) por ops do grupo. */
+  /** Ids of nodes created (createNode, duplicateNodes...) by the group's ops. */
   groupCreatedIds(docId: string, group: string): ReadonlySet<string> {
     return this.groups.get(docId)?.get(group)?.created ?? new Set();
   }
@@ -560,7 +556,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     });
   }
 
-  /** O agente terminou de editar estes nós (vazio = documento inteiro); o editor apaga o badge. */
+  /** The agent finished editing these nodes (empty = whole document); the editor clears the badge. */
   finishWorking(docId: string, nodeIds: string[]): void {
     this.entry(docId);
     this.emit('agent:finished', { type: 'agent:finished', docId, nodeIds: [...nodeIds] });
@@ -586,7 +582,7 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
           await this.save(d.id);
         } catch (e) {
           console.error(
-            '[mockup-daemon] falha ao salvar',
+            '[mockup-daemon] failed to save',
             d.path,
             e instanceof Error ? e.message : e,
           );

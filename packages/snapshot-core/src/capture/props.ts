@@ -1,4 +1,4 @@
-/** Listas curadas de propriedades CSS lidas do estilo computado na captura. */
+/** Curated lists of CSS properties read from the computed style during capture. */
 
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
 export type Side = (typeof SIDES)[number];
@@ -7,7 +7,7 @@ export const SIDE_LIST: readonly Side[] = SIDES;
 const CORNERS = ['top-left', 'top-right', 'bottom-right', 'bottom-left'] as const;
 export const CORNER_LIST = CORNERS;
 
-/** Propriedades emitidas quando o computado difere do padrão da tag (não herdadas). */
+/** Properties emitted when the computed value differs from the tag default (non-inherited). */
 export const DIFF_PROPS = [
   'display',
   'z-index',
@@ -48,7 +48,7 @@ export const DIFF_PROPS = [
   '-webkit-box-orient',
 ] as const;
 
-/** Herdadas: na raiz comparam com o body dos padrões; nos descendentes, com o pai. */
+/** Inherited: at the root they are compared with the defaults body; on descendants, with the parent. */
 export const INHERITED_PROPS = [
   'color',
   'font-family',
@@ -70,7 +70,7 @@ export const INHERITED_PROPS = [
   'overflow-wrap',
 ] as const;
 
-/** Todas as propriedades lidas (inclui as que têm tratamento especial). */
+/** All properties read (includes those with special handling). */
 export const ALL_PROPS: readonly string[] = [
   ...DIFF_PROPS,
   ...INHERITED_PROPS,
@@ -115,7 +115,7 @@ export const ALL_PROPS: readonly string[] = [
   '-webkit-text-fill-color',
 ];
 
-/** Tags de elementos substituídos: recebem width/height em px sempre. */
+/** Replaced element tags: they always get width/height in px. */
 export const REPLACED_TAGS = new Set([
   'img',
   'svg',
@@ -129,17 +129,17 @@ export const REPLACED_TAGS = new Set([
   'embed',
 ]);
 
-/** Tags que viram um `div` placeholder cinza com o mesmo tamanho. */
+/** Tags that become a gray placeholder `div` of the same size. */
 export const PLACEHOLDER_NAMES: Record<string, string> = {
   iframe: 'Iframe',
-  object: 'Objeto',
+  object: 'Object',
   embed: 'Embed',
-  video: 'Vídeo',
+  video: 'Video',
   canvas: 'Canvas',
-  audio: 'Áudio',
+  audio: 'Audio',
 };
 
-/** Elementos que nunca viram nós. */
+/** Elements that never become nodes. */
 export const SKIP_TAGS = new Set([
   'script',
   'style',
@@ -159,7 +159,7 @@ export const SKIP_TAGS = new Set([
   'area',
 ]);
 
-/** Atributos copiados do DOM para o nó. */
+/** Attributes copied from the DOM to the node. */
 export const KEEP_ATTRS = [
   'alt',
   'title',

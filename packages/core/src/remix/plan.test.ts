@@ -15,42 +15,42 @@ const ROW = 'el_row00001';
 const TITLE = 'tx_title001';
 const PARA = 'tx_para0001';
 
-/** Documento de teste: frame 800x600 em 0,0; outro frame ao lado (x 1000) e um longe, abaixo. */
+/** Test document: 800x600 frame at 0,0; another frame beside it (x 1000) and one far away, below. */
 function makeDoc(): Document {
   const doc = createDocument('Remix', { id: 'doc_remix001' });
   doc.tokens = { '--brand': '#ff0000', '--space': '10px' };
   const title = createNode({
     id: TITLE,
     tag: 'h1',
-    name: 'Título',
-    text: 'Título',
+    name: 'Title',
+    text: 'Title',
     style: { 'font-size': '32px', color: '#2563eb' },
   });
   const para = createNode({
     id: PARA,
     tag: 'p',
-    name: 'Parágrafo',
-    text: 'Corpo',
+    name: 'Paragraph',
+    text: 'Body',
     style: { 'font-size': '16px', color: '#111111' },
   });
   const label = createNode({
     id: 'tx_btnlbl01',
     tag: 'span',
-    name: 'Rótulo',
+    name: 'Label',
     text: 'Ok',
     style: { 'font-weight': '600' },
   });
   const btn = createNode({
     id: BTN,
     tag: 'button',
-    name: 'Botão',
+    name: 'Button',
     style: { 'background-color': '#2563eb', padding: '12px 20px' },
     children: [label],
   });
   const row = createNode({
     id: ROW,
     tag: 'div',
-    name: 'Linha',
+    name: 'Row',
     style: {
       display: 'flex',
       'flex-direction': 'row',
@@ -74,7 +74,7 @@ function makeDoc(): Document {
     id: OTHER,
     type: 'frame',
     tag: 'div',
-    name: 'Outro',
+    name: 'Other',
     style: { width: '500px', height: '300px' },
     position: { x: 1000, y: 100 },
   });
@@ -82,7 +82,7 @@ function makeDoc(): Document {
     id: FAR,
     type: 'frame',
     tag: 'div',
-    name: 'Longe',
+    name: 'Far',
     style: { width: '9000px', height: '100px' },
     position: { x: 3000, y: 2000 },
   });
@@ -90,7 +90,7 @@ function makeDoc(): Document {
   return doc;
 }
 
-/** Gerador de ids determinístico (8 caracteres depois do prefixo). */
+/** Deterministic id generator (8 characters after the prefix). */
 function counter(): (type: NodeType) => string {
   let n = 0;
   return (type) => ID_PREFIX[type] + String(++n).padStart(8, '0');
@@ -102,7 +102,7 @@ const sansMeta = (d: Document): Omit<Document, 'meta'> => {
   return rest;
 };
 
-describe('planRemix: comum a todos os tipos', () => {
+describe('planRemix: common to all kinds', () => {
   const kinds = [
     ['color-scale', BTN],
     ['font-pairs', FRAME],
@@ -111,21 +111,21 @@ describe('planRemix: comum a todos os tipos', () => {
   ] as const;
 
   it.each(kinds)(
-    '%s: frames lado a lado, sem sobreposição, nomeados e original intacto',
+    '%s: side-by-side frames, no overlap, named, and original untouched',
     (kind, node) => {
       const doc = makeDoc();
       const before = structuredClone(doc);
       const plan = planRemix(doc, node, kind, { newId: counter() });
-      expect(doc).toEqual(before); // planejar não muda o documento
+      expect(doc).toEqual(before); // planning does not change the document
       expect(plan.frameIds.length).toBeGreaterThanOrEqual(2);
       expect(plan.labels).toHaveLength(plan.frameIds.length);
 
       const { doc: after } = applyOps(doc, plan.ops);
-      // A origem fica intacta.
+      // The source stays untouched.
       expect(frameOf(after, FRAME)).toEqual(frameOf(doc, FRAME));
 
-      // Começa depois do frame mais à direita que se sobrepõe verticalmente (OTHER, até x=1500);
-      // o frame distante (abaixo) não conta.
+      // Starts after the rightmost frame that overlaps vertically (OTHER, up to x=1500);
+      // the distant frame (below) does not count.
       const rects = plan.frameIds.map((id) => {
         const f = frameOf(after, id);
         return { x: f.position!.x, y: f.position!.y, w: parseInt(f.style['width']!, 10) };
@@ -135,43 +135,46 @@ describe('planRemix: comum a todos os tipos', () => {
         expect(rects[i]!.y).toBe(0);
         if (i > 0) expect(rects[i]!.x).toBe(rects[i - 1]!.x + rects[i - 1]!.w + REMIX_GAP);
       }
-      // Nomes `<frame> — <label>`.
+      // Names `<frame> — <label>`.
       plan.frameIds.forEach((id, i) =>
         expect(frameOf(after, id).name).toBe(`Desktop — ${plan.labels[i]}`),
       );
-      // Todos os clones são frames raiz da página, com ids novos e descendentes com ids próprios.
+      // All clones are root frames of the page, with new ids and descendants with their own ids.
       const page = after.pages[0]!;
       for (const id of plan.frameIds) expect(page.frames.map((f) => f.id)).toContain(id);
       expect(page.frames).toHaveLength(3 + plan.frameIds.length);
     },
   );
 
-  it.each(kinds)('%s: determinístico com newId fixo', (kind, node) => {
+  it.each(kinds)('%s: deterministic with a fixed newId', (kind, node) => {
     const a = planRemix(makeDoc(), node, kind, { newId: counter() });
     const b = planRemix(makeDoc(), node, kind, { newId: counter() });
     expect(b).toEqual(a);
   });
 
-  it.each(kinds)('%s: aplicar e desfazer com os inversos restaura o documento', (kind, node) => {
-    const doc = makeDoc();
-    const plan = planRemix(doc, node, kind);
-    const applied = applyOps(doc, plan.ops);
-    expect(applied.doc.pages[0]!.frames.length).toBeGreaterThan(3);
-    const undone = applyOps(applied.doc, applied.inverse).doc;
-    expect(sansMeta(undone)).toEqual(sansMeta(doc));
-  });
+  it.each(kinds)(
+    '%s: applying and undoing with the inverses restores the document',
+    (kind, node) => {
+      const doc = makeDoc();
+      const plan = planRemix(doc, node, kind);
+      const applied = applyOps(doc, plan.ops);
+      expect(applied.doc.pages[0]!.frames.length).toBeGreaterThan(3);
+      const undone = applyOps(applied.doc, applied.inverse).doc;
+      expect(sansMeta(undone)).toEqual(sansMeta(doc));
+    },
+  );
 
-  it('o duplicateNodes leva idMap explícito com todos os descendentes', () => {
+  it('duplicateNodes carries an explicit idMap with all descendants', () => {
     const plan = planRemix(makeDoc(), BTN, 'color-scale', { count: 2, newId: counter() });
     const dups = plan.ops.filter((o) => o.type === 'duplicateNodes');
     expect(dups).toHaveLength(2);
     for (const d of dups) {
-      // frame, linha, título, parágrafo, botão e rótulo
+      // frame, row, title, paragraph, button and label
       expect(Object.keys(d.idMap!)).toHaveLength(6);
     }
   });
 
-  it('as camadas dos clones ficam na ordem das variações', () => {
+  it('the clone layers stay in variation order', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, BTN, 'color-scale', { count: 3 });
     const { doc: after } = applyOps(doc, plan.ops);
@@ -181,33 +184,33 @@ describe('planRemix: comum a todos os tipos', () => {
     expect(at[2]).toBe(at[1]! + 1);
   });
 
-  it('count inválido lança erro', () => {
+  it('invalid count throws an error', () => {
     for (const count of [0, -1, 1.5]) {
-      expect(() => planRemix(makeDoc(), BTN, 'color-scale', { count })).toThrow(/count inválido/);
+      expect(() => planRemix(makeDoc(), BTN, 'color-scale', { count })).toThrow(/Invalid count/);
     }
   });
 
-  it('nó inexistente, virtual (dentro de instância) e kind ai lançam erro claro', () => {
+  it('a nonexistent node, a virtual one (inside an instance) and kind ai throw a clear error', () => {
     const doc = makeDoc();
-    expect(() => planRemix(doc, 'el_nope0001', 'spacing')).toThrow(/não encontrado/);
-    expect(() => planRemix(doc, 'in_inst0001/el_btn00001', 'spacing')).toThrow(/instância/);
-    expect(() => planRemix(doc, BTN, 'ai')).toThrow(/IA/);
+    expect(() => planRemix(doc, 'el_nope0001', 'spacing')).toThrow(/not found/);
+    expect(() => planRemix(doc, 'in_inst0001/el_btn00001', 'spacing')).toThrow(/instance/);
+    expect(() => planRemix(doc, BTN, 'ai')).toThrow(/AI/);
   });
 
-  it('ids dos clones são únicos no documento com o gerador padrão', () => {
+  it('clone ids are unique in the document with the default generator', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, BTN, 'color-scale');
     expect(() => applyOps(doc, plan.ops)).not.toThrow();
   });
 
-  it('frame sem medidas em px usa 400 e, sem posição, parte de 0', () => {
+  it('a frame without px measures uses 400 and, without a position, starts from 0', () => {
     const doc = makeDoc();
     doc.pages[0]!.frames = [
       createNode({
         id: FRAME,
         type: 'frame',
         tag: 'div',
-        name: 'Fluido',
+        name: 'Fluid',
         style: { width: '100%', 'background-color': '#ff0000' },
       }),
     ];
@@ -222,12 +225,12 @@ describe('planRemix: comum a todos os tipos', () => {
 });
 
 describe('planRemix color-scale', () => {
-  it('gera 10 frames e troca só a cor do nó pelo tom em cada clone', () => {
+  it('generates 10 frames and swaps only the node color for the shade in each clone', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, BTN, 'color-scale', { newId: counter() });
     expect(plan.frameIds).toHaveLength(10);
     expect(plan.labels).toEqual(
-      [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((s) => `tom ${s}`),
+      [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((s) => `shade ${s}`),
     );
     const scale = colorScale('#2563eb');
     const { doc: after } = applyOps(doc, plan.ops);
@@ -235,22 +238,22 @@ describe('planRemix color-scale', () => {
       const clone = frameOf(after, id);
       const btn = clone.children[0]!.children[2]!;
       expect(btn.style['background-color']).toBe(scale[i]!.color);
-      // o resto do botão e do clone não muda
+      // the rest of the button and of the clone does not change
       expect(btn.style['padding']).toBe('12px 20px');
       expect(clone.children[0]!.children[0]!.style['color']).toBe('#2563eb');
     });
-    // o botão original continua com a cor original
+    // the original button keeps the original color
     expect(findNode(after, BTN)!.node.style['background-color']).toBe('#2563eb');
   });
 
-  it('count menor escolhe stops espaçados', () => {
+  it('a smaller count picks evenly spaced stops', () => {
     const plan = planRemix(makeDoc(), BTN, 'color-scale', { count: 3 });
-    expect(plan.labels).toEqual(['tom 50', 'tom 500', 'tom 900']);
-    expect(planRemix(makeDoc(), BTN, 'color-scale', { count: 1 }).labels).toEqual(['tom 500']);
+    expect(plan.labels).toEqual(['shade 50', 'shade 500', 'shade 900']);
+    expect(planRemix(makeDoc(), BTN, 'color-scale', { count: 1 }).labels).toEqual(['shade 500']);
     expect(planRemix(makeDoc(), BTN, 'color-scale', { count: 99 }).frameIds).toHaveLength(10);
   });
 
-  it('resolve var() de tokens e usa a primeira cor sólida na ordem das propriedades', () => {
+  it('resolves token var() and uses the first solid color in property order', () => {
     const doc = makeDoc();
     const btn = findNode(doc, BTN)!.node;
     btn.style = { color: '#00ff00', 'background-color': 'var(--brand)' };
@@ -261,7 +264,7 @@ describe('planRemix color-scale', () => {
     expect(clone.style['color']).toBe('#00ff00');
   });
 
-  it('usa color quando o nó só tem cor de texto e ignora cor transparente', () => {
+  it('uses color when the node only has a text color and ignores a transparent color', () => {
     const doc = makeDoc();
     const btn = findNode(doc, BTN)!.node;
     btn.style = {
@@ -276,7 +279,7 @@ describe('planRemix color-scale', () => {
     expect(clone.style['background-color']).toBe('transparent');
   });
 
-  it('background só vale se for cor (gradiente é ignorado)', () => {
+  it('background only counts if it is a color (a gradient is ignored)', () => {
     const doc = makeDoc();
     findNode(doc, BTN)!.node.style = {
       background: 'linear-gradient(red, blue)',
@@ -289,30 +292,30 @@ describe('planRemix color-scale', () => {
     expect(clone.style['background']).toBe('linear-gradient(red, blue)');
   });
 
-  it('sem cor sólida lança erro', () => {
-    expect(() => planRemix(makeDoc(), ROW, 'color-scale')).toThrow(/não tem cor sólida/);
+  it('no solid color throws an error', () => {
+    expect(() => planRemix(makeDoc(), ROW, 'color-scale')).toThrow(/no solid color/);
     const doc = makeDoc();
     findNode(doc, BTN)!.node.style = { background: 'linear-gradient(red, blue)' };
-    expect(() => planRemix(doc, BTN, 'color-scale')).toThrow(/não tem cor sólida/);
+    expect(() => planRemix(doc, BTN, 'color-scale')).toThrow(/no solid color/);
   });
 });
 
 describe('planRemix font-pairs', () => {
   const FONTS = ['Playfair Display', 'Inter', 'Georgia', 'Verdana', 'Arial'];
 
-  it('filtra pelos pares com as duas famílias disponíveis, na ordem da lista curada', () => {
+  it('filters by the pairs with both families available, in curated-list order', () => {
     const plan = planRemix(makeDoc(), FRAME, 'font-pairs', { fonts: FONTS });
     expect(plan.labels).toEqual(['Playfair Display + Inter', 'Georgia + Verdana']);
   });
 
-  it('é insensível a maiúsculas ao comparar famílias', () => {
+  it('is case-insensitive when comparing families', () => {
     const plan = planRemix(makeDoc(), FRAME, 'font-pairs', {
       fonts: ['playfair display', 'INTER'],
     });
     expect(plan.labels).toEqual(['Playfair Display + Inter']);
   });
 
-  it('títulos (h1, fonte >= 24px, peso >= 600) recebem a fonte de título e o resto a de corpo', () => {
+  it('headings (h1, font size >= 24px, weight >= 600) get the heading font and the rest the body font', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, FRAME, 'font-pairs', { fonts: FONTS, count: 1 });
     const { doc: after } = applyOps(doc, plan.ops);
@@ -321,13 +324,13 @@ describe('planRemix font-pairs', () => {
     expect(clone.style['font-family']).toBe('"Inter", sans-serif');
     expect(title.style['font-family']).toBe('"Playfair Display", serif');
     expect(para.style['font-family']).toBe('"Inter", sans-serif');
-    // rótulo do botão com peso 600 conta como título
+    // button label with weight 600 counts as a heading
     expect(btn.children[0]!.style['font-family']).toBe('"Playfair Display", serif');
-    // original intacto
+    // original untouched
     expect(findNode(after, TITLE)!.node.style['font-family']).toBeUndefined();
   });
 
-  it('font-size >= 24px sem tag de título também é título', () => {
+  it('font-size >= 24px without a heading tag is also a heading', () => {
     const doc = makeDoc();
     findNode(doc, PARA)!.node.style['font-size'] = '28px';
     const plan = planRemix(doc, PARA, 'font-pairs', { fonts: FONTS, count: 1 });
@@ -336,21 +339,21 @@ describe('planRemix font-pairs', () => {
     expect(para.style['font-family']).toBe('"Playfair Display", serif');
   });
 
-  it('sem a lista de fontes usa a ordem curada e o count padrão 4', () => {
+  it('without the font list uses the curated order and the default count 4', () => {
     const plan = planRemix(makeDoc(), FRAME, 'font-pairs');
     expect(plan.frameIds).toHaveLength(4);
     expect(plan.labels).toEqual(FONT_PAIRS.slice(0, 4).map((p) => `${p.heading} + ${p.body}`));
   });
 
-  it('erros: nenhum par disponível e nó sem texto', () => {
+  it('errors: no pair available and a node without text', () => {
     expect(() => planRemix(makeDoc(), FRAME, 'font-pairs', { fonts: ['Comic Sans MS'] })).toThrow(
-      /Nenhum par/,
+      /None of the/,
     );
     const doc = makeDoc();
     doc.pages[0]!.frames[1]!.children.push(
       createNode({ id: 'el_empty001', tag: 'div', style: { padding: '8px' } }),
     );
-    expect(() => planRemix(doc, 'el_empty001', 'font-pairs')).toThrow(/não tem texto/);
+    expect(() => planRemix(doc, 'el_empty001', 'font-pairs')).toThrow(/no text/);
   });
 });
 
@@ -359,63 +362,63 @@ describe('planRemix spacing', () => {
     frameOf(after, id).children[0]!.children[2]!;
   const cloneRow = (after: Document, id: string): Node => frameOf(after, id).children[0]!;
 
-  it('4 variações em ordem fixa, arredondadas à grade, sem repetir o original', () => {
+  it('4 variations in fixed order, rounded to the grid, without repeating the original', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, FRAME, 'spacing', { newId: counter() });
-    // grade 4 sai: 12px 20px, 24px e 16px já estão na grade de 4 (seria igual ao original)
-    expect(plan.labels).toEqual(['compacto', 'grade 8', 'confortável', 'espaçoso']);
+    // grid 4 drops out: 12px 20px, 24px and 16px are already on the 4 grid (it would equal the original)
+    expect(plan.labels).toEqual(['compact', 'grid 8', 'comfortable', 'spacious']);
     const { doc: after } = applyOps(doc, plan.ops);
     const [compact, g8, comfy, roomy] = plan.frameIds;
-    // compacto: x0,5 na grade de 4 (12px 20px -> 6px 10px -> 8px 12px)
+    // compact: x0.5 on the 4 grid (12px 20px -> 6px 10px -> 8px 12px)
     expect(cloneRow(after, compact!).style['padding']).toBe('12px');
     expect(cloneRow(after, compact!).style['gap']).toBe('8px');
     expect(cloneBtn(after, compact!).style['padding']).toBe('8px 12px');
-    // grade 8: 12 -> 16, 20 -> 24
+    // grid 8: 12 -> 16, 20 -> 24
     expect(cloneBtn(after, g8!).style['padding']).toBe('16px 24px');
     expect(cloneRow(after, g8!).style['gap']).toBe('16px');
-    // confortável: x1,5 na grade de 8 (12*1,5=18 -> 16; 20*1,5=30 -> 32)
+    // comfortable: x1.5 on the 8 grid (12*1.5=18 -> 16; 20*1.5=30 -> 32)
     expect(cloneBtn(after, comfy!).style['padding']).toBe('16px 32px');
-    // espaçoso: x2 na grade de 8
+    // spacious: x2 on the 8 grid
     expect(cloneBtn(after, roomy!).style['padding']).toBe('24px 40px');
     expect(cloneRow(after, roomy!).style['padding']).toBe('48px');
-    // original intacto
+    // original untouched
     expect(findNode(after, BTN)!.node.style['padding']).toBe('12px 20px');
   });
 
-  it('grade 4 entra quando muda algo; count acima do disponível limita', () => {
+  it('grid 4 is included when it changes something; a count above what is available is capped', () => {
     const doc = makeDoc();
     findNode(doc, BTN)!.node.style['padding'] = '10px 18px';
     const plan = planRemix(doc, FRAME, 'spacing', { count: 5 });
-    expect(plan.labels).toEqual(['compacto', 'grade 4', 'grade 8', 'confortável', 'espaçoso']);
+    expect(plan.labels).toEqual(['compact', 'grid 4', 'grid 8', 'comfortable', 'spacious']);
     const { doc: after } = applyOps(doc, plan.ops);
     expect(cloneBtn(after, plan.frameIds[1]!).style['padding']).toBe('12px 20px');
     expect(planRemix(doc, FRAME, 'spacing', { count: 8 }).frameIds).toHaveLength(5);
-    // no fixture padrão só há 4 variações distintas
+    // in the default fixture there are only 4 distinct variations
     expect(planRemix(makeDoc(), FRAME, 'spacing', { count: 5 }).frameIds).toHaveLength(4);
   });
 
-  it('variações repetidas entre si saem: 4px só gera "grade 8"', () => {
+  it('variations repeated among themselves are dropped: 4px only produces "grid 8"', () => {
     const doc = makeDoc();
     const btn = findNode(doc, BTN)!.node;
     btn.style = { padding: '4px' };
-    // compacto e grade 4 dão 4px (igual ao original); confortável e espaçoso dão 8px (igual a grade 8)
+    // compact and grid 4 give 4px (same as the original); comfortable and spacious give 8px (same as grid 8)
     const plan = planRemix(doc, BTN, 'spacing', { count: 5 });
-    expect(plan.labels).toEqual(['grade 8']);
+    expect(plan.labels).toEqual(['grid 8']);
   });
 
-  it('não zera valores positivos pequenos e resolve var() de tokens', () => {
+  it('does not zero small positive values and resolves token var()', () => {
     const doc = makeDoc();
     const btn = findNode(doc, BTN)!.node;
     btn.style = { padding: '1px', 'margin-left': 'var(--space)', margin: '0 auto' };
     const plan = planRemix(doc, BTN, 'spacing', { count: 1 });
     const { doc: after } = applyOps(doc, plan.ops);
     const clone = cloneBtn(after, plan.frameIds[0]!);
-    expect(clone.style['padding']).toBe('4px'); // 0,5px -> grade 4, mas não zera
-    expect(clone.style['margin-left']).toBe('4px'); // 10px x0,5 = 5 -> grade 4
-    expect(clone.style['margin']).toBe('0 auto'); // 0 e auto não mudam
+    expect(clone.style['padding']).toBe('4px'); // 0.5px -> grid 4, but not zeroed
+    expect(clone.style['margin-left']).toBe('4px'); // 10px x0.5 = 5 -> grid 4
+    expect(clone.style['margin']).toBe('0 auto'); // 0 and auto do not change
   });
 
-  it('aplica na subárvore do nó, não fora dela', () => {
+  it('applies within the node subtree, not outside it', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, BTN, 'spacing', { count: 1 });
     const { doc: after } = applyOps(doc, plan.ops);
@@ -425,45 +428,41 @@ describe('planRemix spacing', () => {
     expect(cloneBtn(after, plan.frameIds[0]!).style['padding']).toBe('8px 12px');
   });
 
-  it('sem espaçamento em px lança erro', () => {
-    expect(() => planRemix(makeDoc(), TITLE, 'spacing')).toThrow(/espaçamento em px/);
+  it('no spacing in px throws an error', () => {
+    expect(() => planRemix(makeDoc(), TITLE, 'spacing')).toThrow(/spacing in px/);
     const doc = makeDoc();
     findNode(doc, BTN)!.node.style = { padding: '1rem', gap: 'calc(100% - 2rem)' };
-    expect(() => planRemix(doc, BTN, 'spacing')).toThrow(/espaçamento em px/);
+    expect(() => planRemix(doc, BTN, 'spacing')).toThrow(/spacing in px/);
   });
 });
 
 describe('planRemix layout', () => {
   const cloneRow = (after: Document, id: string): Node => frameOf(after, id).children[0]!;
 
-  it('3 rearranjos do flex do ancestral mais próximo', () => {
+  it('3 rearrangements of the nearest ancestor flex', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, TITLE, 'layout', { newId: counter() });
-    expect(plan.labels).toEqual([
-      'direção invertida',
-      'ordem invertida',
-      'centralizado com quebra',
-    ]);
+    expect(plan.labels).toEqual(['reversed direction', 'reversed order', 'centered with wrap']);
     const { doc: after } = applyOps(doc, plan.ops);
     const [dir, order, wrap] = plan.frameIds.map((id) => cloneRow(after, id)) as [Node, Node, Node];
-    // direção invertida: row -> column, justify center vira align center e align flex-start vira justify
+    // reversed direction: row -> column, justify center becomes align center and align flex-start becomes justify
     expect(dir.style['flex-direction']).toBe('column');
     expect(dir.style['align-items']).toBe('center');
     expect(dir.style['justify-content']).toBe('flex-start');
-    // ordem invertida: filhos ao contrário no clone
-    expect(order.children.map((c) => c.name)).toEqual(['Botão', 'Parágrafo', 'Título']);
+    // reversed order: children reversed in the clone
+    expect(order.children.map((c) => c.name)).toEqual(['Button', 'Paragraph', 'Title']);
     expect(order.style['flex-direction']).toBe('row');
-    // centralizado com quebra
+    // centered with wrap
     expect(wrap.style['flex-wrap']).toBe('wrap');
     expect(wrap.style['justify-content']).toBe('center');
     expect(wrap.style['align-items']).toBe('center');
-    // original intacto
+    // original untouched
     const orig = findNode(after, ROW)!.node;
-    expect(orig.children.map((c) => c.name)).toEqual(['Título', 'Parágrafo', 'Botão']);
+    expect(orig.children.map((c) => c.name)).toEqual(['Title', 'Paragraph', 'Button']);
     expect(orig.style['flex-direction']).toBe('row');
   });
 
-  it('o próprio nó flex é usado quando for o alvo; column volta para row', () => {
+  it('the flex node itself is used when it is the target; column goes back to row', () => {
     const doc = makeDoc();
     const row = findNode(doc, ROW)!.node;
     row.style['flex-direction'] = 'column';
@@ -472,20 +471,20 @@ describe('planRemix layout', () => {
     expect(cloneRow(after, plan.frameIds[0]!).style['flex-direction']).toBe('row');
   });
 
-  it('count limita a 3 e aceita menos', () => {
+  it('count caps at 3 and accepts fewer', () => {
     const doc = makeDoc();
     expect(planRemix(doc, ROW, 'layout', { count: 2 }).frameIds).toHaveLength(2);
     expect(planRemix(doc, ROW, 'layout', { count: 9 }).frameIds).toHaveLength(3);
   });
 
-  it('com menos de 2 filhos a ordem invertida fica de fora', () => {
+  it('with fewer than 2 children the reversed order is left out', () => {
     const doc = makeDoc();
     findNode(doc, ROW)!.node.children.splice(1);
     const plan = planRemix(doc, ROW, 'layout');
-    expect(plan.labels).toEqual(['direção invertida', 'centralizado com quebra']);
+    expect(plan.labels).toEqual(['reversed direction', 'centered with wrap']);
   });
 
-  it('sem flex no nó e nos ancestrais lança erro', () => {
+  it('no flex on the node and its ancestors throws an error', () => {
     const doc = makeDoc();
     findNode(doc, ROW)!.node.style = { padding: '8px' };
     expect(() => planRemix(doc, TITLE, 'layout')).toThrow(/flex/);

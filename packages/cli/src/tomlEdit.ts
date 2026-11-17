@@ -1,8 +1,8 @@
 /**
- * Editor de linhas mínimo para a seção `[mcp_servers.mockup-studio]` do `~/.codex/config.toml`.
- * A leitura usa um parser TOML de verdade (`smol-toml`); a escrita troca só as linhas de uma chave,
- * preservando o resto do arquivo (comentários, outras seções, CRLF). Quem grava valida o texto
- * resultante com `tomlError` antes.
+ * Minimal line editor for the `[mcp_servers.mockup-studio]` section of `~/.codex/config.toml`.
+ * Reading uses a real TOML parser (`smol-toml`); writing only replaces the lines of a key,
+ * preserving the rest of the file (comments, other sections, CRLF). Whoever writes validates the
+ * resulting text with `tomlError` first.
  */
 import { parse } from 'smol-toml';
 
@@ -17,7 +17,7 @@ export function parseDoc(text: string): TomlDoc {
 
 export const renderDoc = (d: TomlDoc): string => d.lines.join(d.eol);
 
-/** Erro de sintaxe do TOML (primeira linha da mensagem do parser, com linha:coluna), ou `null`. */
+/** TOML syntax error (first line of the parser message, with line:column), or `null`. */
 export function tomlError(text: string): string | null {
   try {
     parse(text);
@@ -25,11 +25,11 @@ export function tomlError(text: string): string | null {
   } catch (e) {
     const err = e as { message?: string; line?: number; column?: number };
     const msg = (err.message ?? String(e)).split('\n')[0].replace(/^Invalid TOML document:\s*/, '');
-    return err.line ? `linha ${err.line}, coluna ${err.column}: ${msg}` : msg;
+    return err.line ? `line ${err.line}, column ${err.column}: ${msg}` : msg;
   }
 }
 
-/** Tabela `mcp_servers.mockup-studio` do texto, ou `undefined`. Lança se o TOML é inválido. */
+/** `mcp_servers.mockup-studio` table of the text, or `undefined`. Throws if the TOML is invalid. */
 export function readServerTable(text: string, name: string): Record<string, unknown> | undefined {
   const servers = parse(text).mcp_servers as Record<string, unknown> | undefined;
   const t = servers && typeof servers === 'object' ? servers[name] : undefined;
@@ -47,16 +47,16 @@ const subHeader = (sub: string) => `[mcp_servers.mockup-studio.${sub}]`;
 const ANY_HEADER_RE = /^\s*\[/;
 const BARE_KEY = /^[A-Za-z0-9_-]+$/;
 const PART = String.raw`(?:"(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_-]+)`;
-/** Chave simples ou pontilhada (`env.A`) e o resto da linha. */
+/** Simple or dotted key (`env.A`) and the rest of the line. */
 const KEY_RE = new RegExp(String.raw`^\s*(${PART}(?:\s*\.\s*${PART})*)\s*=(.*)$`);
 const PART_RE = new RegExp(PART, 'g');
-/** Nome da chave sem aspas; as partes de uma chave pontilhada são unidas por `.`. */
+/** Key name without quotes; the parts of a dotted key are joined by `.`. */
 const keyName = (text: string) =>
   (text.match(PART_RE) ?? []).map((p) => (/^["']/.test(p) ? p.slice(1, -1) : p)).join('.');
 
 export interface Entry {
   key: string;
-  /** Primeira linha (índice) e fim exclusivo. */
+  /** First line (index) and exclusive end. */
   from: number;
   to: number;
   raw: string;
@@ -69,8 +69,8 @@ export interface Section {
 }
 
 /**
- * Varre o valor de uma chave (pode ter várias linhas): `complete` quando colchetes/chaves fecharam e
- * nenhuma string `"""`/`'''` ficou aberta; `comment` é o comentário depois do valor (com o `#`).
+ * Scans the value of a key (may span several lines): `complete` when brackets/braces closed and
+ * no `"""`/`'''` string was left open; `comment` is the comment after the value (with the `#`).
  */
 export function scanValue(s: string): { complete: boolean; comment?: string } {
   let depth = 0;
@@ -86,7 +86,7 @@ export function scanValue(s: string): { complete: boolean; comment?: string } {
         if (q === '"""' && s[i] === '\\') i += 2;
         else if (s.startsWith(q, i)) {
           i += 3;
-          while (s[i] === q[0]) i++; // até duas aspas extras fazem parte do conteúdo
+          while (s[i] === q[0]) i++; // up to two extra quotes are part of the content
           break;
         } else i++;
       }
@@ -113,7 +113,7 @@ export function scanValue(s: string): { complete: boolean; comment?: string } {
   return { complete: depth <= 0, comment };
 }
 
-/** Seção principal ou uma subtabela dela (ex.: `env`). */
+/** Main section or one of its subtables (e.g. `env`). */
 export function findSection(doc: TomlDoc, sub?: string): Section | null {
   const { lines } = doc;
   const header = headerRe(sub);
@@ -136,7 +136,7 @@ export function findSection(doc: TomlDoc, sub?: string): Section | null {
   return { start, end: i, entries };
 }
 
-/** Troca (ou insere) `key = valor` na seção, mantendo o comentário do fim da linha. `false` se nada mudou. */
+/** Replaces (or inserts) `key = value` in the section, keeping the end-of-line comment. `false` if nothing changed. */
 export function setKey(doc: TomlDoc, key: string, valueText: string, sub?: string): boolean {
   const sec = findSection(doc, sub);
   if (!sec) return false;
@@ -161,20 +161,20 @@ export function removeKey(doc: TomlDoc, key: string): boolean {
   return true;
 }
 
-/** Remove a subtabela `[mcp_servers.mockup-studio.<sub>]` inteira (até o próximo cabeçalho). */
+/** Removes the whole `[mcp_servers.mockup-studio.<sub>]` subtable (up to the next header). */
 export function removeSubtable(doc: TomlDoc, sub: string): boolean {
   const sec = findSection(doc, sub);
   if (!sec) return false;
   let from = sec.start;
   if (from > 0 && doc.lines[from - 1].trim() === '') from--;
   let to = sec.end;
-  // as linhas em branco do fim ficam (separam a próxima seção / quebra final); a de antes sai
+  // trailing blank lines stay (they separate the next section / final break); the one before goes
   while (to > sec.start + 1 && doc.lines[to - 1].trim() === '') to--;
   doc.lines.splice(from, to - from);
   return true;
 }
 
-/** Remove a chave em linha e a subtabela; devolve os nomes removidos (`env`, `[...env]`). */
+/** Removes the inline key and the subtable; returns the removed names (`env`, `[...env]`). */
 export function removeKeyOrTable(doc: TomlDoc, key: string): string[] {
   const out: string[] = [];
   if (removeKey(doc, key)) out.push(key);
@@ -185,9 +185,9 @@ export function removeKeyOrTable(doc: TomlDoc, key: string): string[] {
 }
 
 /**
- * Garante os pares na tabela `env`: se a seção tem `env = { ... }` em linha, reescreve a mesma chave
- * em linha (com os pares antigos e os novos); senão usa a subtabela `[mcp_servers.mockup-studio.env]`,
- * criando-a logo depois da seção principal. Lança se o `env` em linha não for legível.
+ * Ensures the pairs in the `env` table: if the section has an inline `env = { ... }`, rewrites the same key
+ * inline (with the old and new pairs); otherwise uses the `[mcp_servers.mockup-studio.env]` subtable,
+ * creating it right after the main section. Throws if the inline `env` is not readable.
  */
 export function setEnv(
   doc: TomlDoc,
@@ -199,7 +199,7 @@ export function setEnv(
   const main = findSection(doc);
   if (!main) return false;
   if (main.entries.some((x) => x.key.startsWith('env.')))
-    throw new Error('env definido com chaves pontilhadas (env.NOME = ...) na seção');
+    throw new Error('env defined with dotted keys (env.NAME = ...) in the section');
   const inline = main.entries.find((x) => x.key === 'env');
   if (inline) {
     let cur: unknown;
@@ -209,7 +209,7 @@ export function setEnv(
       cur = undefined;
     }
     if (!cur || typeof cur !== 'object' || Array.isArray(cur))
-      throw new Error('o valor de env na seção não é uma tabela legível');
+      throw new Error('the env value in the section is not a readable table');
     const merged = { ...(cur as Record<string, unknown>), ...env };
     if (pairs.every(([k, v]) => (cur as Record<string, unknown>)[k] === v)) return false;
     const body = Object.entries(merged)
@@ -218,7 +218,7 @@ export function setEnv(
     return setKey(doc, 'env', `{ ${body} }`);
   }
   if (!findSection(doc, 'env')) {
-    // no fim da seção (antes das linhas em branco), para não capturar linhas que o editor não reconhece
+    // at the end of the section (before the blank lines), so it does not capture lines the editor does not recognize
     let at = main.end;
     while (at > main.start + 1 && doc.lines[at - 1].trim() === '') at--;
     doc.lines.splice(at, 0, '', subHeader('env'));

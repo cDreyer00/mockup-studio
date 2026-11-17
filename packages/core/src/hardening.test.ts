@@ -29,32 +29,32 @@ describe('tags (item 1)', () => {
     expect(normalizeTag('  DIV ')).toBe('div');
     expect(isValidTag('my_tag')).toBe(false);
     expect(isValidTag('SCRIPT')).toBe(false);
-    expect(() => normalizeTag('SCRIPT')).toThrow(/Tag inválida/);
-    expect(() => normalizeTag('a b')).toThrow(/Tag inválida/);
+    expect(() => normalizeTag('SCRIPT')).toThrow(/Invalid tag/);
+    expect(() => normalizeTag('a b')).toThrow(/Invalid tag/);
   });
 
-  it('createNode lança para tag bloqueada em qualquer caixa', () => {
-    expect(() => createNode({ tag: 'SCRIPT' })).toThrow(/Tag inválida/);
+  it('createNode throws for a blocked tag in any case', () => {
+    expect(() => createNode({ tag: 'SCRIPT' })).toThrow(/Invalid tag/);
     expect(createNode({ tag: 'DIV' }).tag).toBe('div');
   });
 
-  it('parseDocument rejeita tag Script', () => {
+  it('parseDocument rejects a Script tag', () => {
     const { doc } = base();
     const raw = JSON.parse(JSON.stringify(doc));
     raw.pages[0].frames[0].tag = 'Script';
-    expect(() => parseDocument(raw)).toThrow(/tag bloqueada/);
+    expect(() => parseDocument(raw)).toThrow(/tag blocked/);
     raw.pages[0].frames[0].tag = 'a_b';
-    expect(() => parseDocument(raw)).toThrow(/tag inválida/);
+    expect(() => parseDocument(raw)).toThrow(/invalid tag/);
   });
 
-  it('htmlToNodes pula iframe/object/embed/base e tags fora do regex', () => {
+  it('htmlToNodes skips iframe/object/embed/base and tags outside the regex', () => {
     const ns = htmlToNodes('<iframe src=x></iframe><p>a</p><my_tag>x</my_tag><base href="/">');
     expect(ns.map((n) => n.tag)).toEqual(['p']);
   });
 });
 
-describe('URLs perigosas em atributos (htmlToNodes)', () => {
-  it('descarta href/src/action/formaction com javascript: ou data: não-imagem e srcdoc', () => {
+describe('dangerous URLs in attributes (htmlToNodes)', () => {
+  it('drops href/src/action/formaction with javascript: or non-image data: and srcdoc', () => {
     const [root] = htmlToNodes(
       '<div><a href=" JavaScript:alert(1)" title="t">x</a><form action="javascript:1"><button formaction="data:text/html,1">b</button></form>' +
         '<img src="data:text/html,x" alt="a"/><img src="data:image/png;base64,AA" alt="b"/><a href="https://ok.dev">ok</a></div>',
@@ -68,7 +68,7 @@ describe('URLs perigosas em atributos (htmlToNodes)', () => {
 });
 
 describe('sanitizeSvg (item 2)', () => {
-  it('remove script, on* e foreignObject', () => {
+  it('removes script, on* and foreignObject', () => {
     const [svg] = htmlToNodes(
       '<svg onload="alert(1)"><script>alert(2)</script><circle onclick="x()"/></svg>',
     );
@@ -77,10 +77,10 @@ describe('sanitizeSvg (item 2)', () => {
     expect(sanitizeSvg('<svg><foreignObject><div/></foreignObject><g/></svg>')).toBe(
       '<svg><g/></svg>',
     );
-    expect(sanitizeSvg('<p>nada</p>')).toBe('');
+    expect(sanitizeSvg('<p>nothing</p>')).toBe('');
   });
 
-  it('href perigoso é removido; data:image é mantido; viewBox preservado', () => {
+  it('dangerous href is removed; data:image is kept; viewBox preserved', () => {
     const out = sanitizeSvg(
       '<svg viewBox="0 0 1 1"><a xlink:href=" JaVa\tscript:alert(1)"/><a href="data:text/html,x"/>' +
         '<image href="data:image/png;base64,AAAA"/></svg>',
@@ -90,7 +90,7 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).toContain('href="data:image/png;base64,AAAA"');
   });
 
-  it('remove elementos fora da lista de permissão (escape do contexto SVG no HTML exportado)', () => {
+  it('removes elements outside the allowlist (escape from the SVG context in the exported HTML)', () => {
     const out = sanitizeSvg(
       '<svg><p/><iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"></iframe>' +
         '<embed src="data:text/html,x"/><style>body{display:none}</style><svg:script>1</svg:script>' +
@@ -105,7 +105,7 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).toContain('<feGaussianBlur stdDeviation="2"/>');
   });
 
-  it('remove comentários, CDATA e diretivas (comentário fechado em --!> pelo parser HTML)', () => {
+  it('removes comments, CDATA and directives (comment closed by --!> in the HTML parser)', () => {
     const out = sanitizeSvg('<svg><!-- --!><img src=x onerror=alert(1)> --><rect/></svg>');
     expect(out).not.toMatch(/onerror|<!--|<img/i);
     expect(out).toBe('<svg><rect/></svg>');
@@ -116,7 +116,7 @@ describe('sanitizeSvg (item 2)', () => {
     expect(cdata).toContain('<text>ok</text>');
   });
 
-  it('use só aceita href para fragmento', () => {
+  it('use only accepts href to a fragment', () => {
     const out = sanitizeSvg(
       '<svg><use href="#ok"/><use href="data:image/svg+xml,x"/><use xlink:href="https://a.dev/x.svg#y"/></svg>',
     );
@@ -124,7 +124,7 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).not.toMatch(/data:|https:/);
   });
 
-  it('href com prefixo de namespace arbitrário é tratado como href', () => {
+  it('href with an arbitrary namespace prefix is treated as href', () => {
     const out = sanitizeSvg(
       '<svg xmlns:x="http://www.w3.org/1999/xlink"><a x:href="javascript:alert(1)">a</a>' +
         '<use x:href="#ok"/></svg>',
@@ -134,7 +134,7 @@ describe('sanitizeSvg (item 2)', () => {
     expect(out).toContain('xmlns:x=');
   });
 
-  it('NodeSchema sanitiza o campo svg', () => {
+  it('NodeSchema sanitizes the svg field', () => {
     const { doc } = base();
     const raw = JSON.parse(JSON.stringify(doc));
     raw.pages[0].frames[0].children = [
@@ -152,20 +152,20 @@ describe('sanitizeSvg (item 2)', () => {
 });
 
 describe('OpSchema / parseOp (item 3)', () => {
-  it('createNode com node incompleto lança mencionando o campo faltante', () => {
+  it('createNode with an incomplete node throws mentioning the missing field', () => {
     const { doc, frameId } = base();
     expect(() =>
       applyOp(doc, { type: 'createNode', parentId: frameId, node: { id: 'x' } } as never),
-    ).toThrow(/Operação inválida: node\.type/);
+    ).toThrow(/Invalid operation: node\.type/);
   });
 
-  it('tipo desconhecido', () => {
+  it('unknown type', () => {
     const { doc } = base();
-    expect(() => applyOp(doc, { type: 'xyz' } as never)).toThrow(/Operação inválida/);
-    expect(() => parseOp(null)).toThrow(/Operação inválida/);
+    expect(() => applyOp(doc, { type: 'xyz' } as never)).toThrow(/Invalid operation/);
+    expect(() => parseOp(null)).toThrow(/Invalid operation/);
   });
 
-  it('defaults/sanitização valem no createNode; documento segue válido (inclusive undo/redo)', () => {
+  it('defaults/sanitization apply on createNode; document stays valid (including undo/redo)', () => {
     const { doc, frameId } = base();
     const svg = mk('sv_hard0001', 'svg', { svg: '<svg onclick="x()"><circle/></svg>' });
     const h = new History(doc);
@@ -176,7 +176,7 @@ describe('OpSchema / parseOp (item 3)', () => {
         parentId: frameId,
         node: { id: 'el_hard0002', type: 'element', name: 'd', tag: 'DIV' } as never,
       },
-      { type: 'setText', changes: [{ nodeId: 'el_hard0002', text: 'oi' }] },
+      { type: 'setText', changes: [{ nodeId: 'el_hard0002', text: 'hi' }] },
       { type: 'setPosition', changes: [{ nodeId: 'el_hard0002', position: { x: 1, y: 2 } }] },
       { type: 'duplicateNodes', nodeIds: ['el_hard0002'] },
       { type: 'setTokens', set: { '--a': '1' } },
@@ -191,8 +191,8 @@ describe('OpSchema / parseOp (item 3)', () => {
   });
 });
 
-describe('inversos exatos (item 4)', () => {
-  it('setText em nó sem texto: undo remove o campo', () => {
+describe('exact inverses (item 4)', () => {
+  it('setText on a node without text: undo removes the field', () => {
     const { doc, frameId } = base();
     const r = applyOp(doc, { type: 'setText', changes: [{ nodeId: frameId, text: 'x' }] });
     expect(findNode(r.doc, frameId)!.node.text).toBe('x');
@@ -200,7 +200,7 @@ describe('inversos exatos (item 4)', () => {
     expect('text' in findNode(back, frameId)!.node).toBe(false);
   });
 
-  it('setPosition em nó sem position: undo remove o campo; null remove', () => {
+  it('setPosition on a node without position: undo removes the field; null removes', () => {
     const { doc, frameId } = base();
     const r = applyOp(doc, {
       type: 'setPosition',
@@ -216,8 +216,8 @@ describe('inversos exatos (item 4)', () => {
   });
 });
 
-describe('duplicateNodes com ancestral + descendente (item 5)', () => {
-  it('duplica só o topo', () => {
+describe('duplicateNodes with ancestor + descendant (item 5)', () => {
+  it('duplicates only the top', () => {
     const { doc, frameId } = base();
     const child = mk('el_hard0003', 'span');
     const parent = mk('el_hard0004', 'section', { children: [child] });
@@ -230,34 +230,34 @@ describe('duplicateNodes com ancestral + descendente (item 5)', () => {
   });
 });
 
-describe('espaços em texto misto (item 6)', () => {
-  it('regras', () => {
-    const [p] = htmlToNodes('<p>Olá <b>mundo</b> fim</p>');
-    expect(p!.children.map((c) => c.text)).toEqual(['Olá ', 'mundo', ' fim']);
-    expect(htmlToNodes('<p>\n  Texto\n</p>')[0]!.text).toBe('Texto');
-    expect(htmlToNodes('<span>Olá </span>')[0]!.text).toBe('Olá ');
+describe('whitespace in mixed text (item 6)', () => {
+  it('rules', () => {
+    const [p] = htmlToNodes('<p>Hello <b>world</b> end</p>');
+    expect(p!.children.map((c) => c.text)).toEqual(['Hello ', 'world', ' end']);
+    expect(htmlToNodes('<p>\n  Text\n</p>')[0]!.text).toBe('Text');
+    expect(htmlToNodes('<span>Hello </span>')[0]!.text).toBe('Hello ');
   });
 
-  it('round-trip estável em duas passagens', () => {
-    const h1 = nodesToHtml(htmlToNodes('<p>Olá <b>mundo</b> fim</p>')).html;
-    expect(h1).toContain('Olá </span>');
-    expect(h1).toContain('<span> fim');
+  it('round-trip stable across two passes', () => {
+    const h1 = nodesToHtml(htmlToNodes('<p>Hello <b>world</b> end</p>')).html;
+    expect(h1).toContain('Hello </span>');
+    expect(h1).toContain('<span> end');
     expect(nodesToHtml(htmlToNodes(h1)).html).toBe(h1);
   });
 });
 
 describe('escaping (item 7)', () => {
-  it('nome de atributo malicioso lança na saída', () => {
+  it('malicious attribute name throws on output', () => {
     const n = mk('el_hard0005', 'div', { attrs: { 'x" onmouseover="alert(1)': '1' } });
-    expect(() => nodesToHtml(n)).toThrow(/atributo inválido/);
+    expect(() => nodesToHtml(n)).toThrow(/Invalid attribute name/);
   });
 
-  it('aspas simples escapadas em valores de atributo', () => {
+  it('single quotes escaped in attribute values', () => {
     const n = mk('el_hard0006', 'div', { attrs: { title: "a'b" } });
     expect(nodesToHtml(n).html).toContain('title="a&#39;b"');
   });
 
-  it('setAttrs rejeita on* e nomes inválidos', () => {
+  it('setAttrs rejects on* and invalid names', () => {
     const { doc, frameId } = base();
     const set = (k: string): Op => ({
       type: 'setAttrs',
@@ -265,27 +265,27 @@ describe('escaping (item 7)', () => {
     });
     expect(() => applyOp(doc, set('onclick'))).toThrow(/on\*/);
     expect(() => applyOp(doc, set('OnLoad'))).toThrow(/on\*/);
-    expect(() => applyOp(doc, set('a b'))).toThrow(/inválido/);
+    expect(() => applyOp(doc, set('a b'))).toThrow(/Invalid attribute/);
   });
 
-  it('htmlToNodes descarta on* e atributos inválidos', () => {
+  it('htmlToNodes drops on* and invalid attributes', () => {
     const [p] = htmlToNodes('<p onclick="x()" title="t" data-ok="1">a</p>');
     expect(p!.attrs).toEqual({ title: 't', 'data-ok': '1' });
   });
 
-  it('NodeSchema valida chaves de attrs', () => {
+  it('NodeSchema validates attrs keys', () => {
     const { doc } = base();
     const raw = JSON.parse(JSON.stringify(doc));
     raw.pages[0].frames[0].attrs = { 'a b': '1' };
-    expect(() => parseDocument(raw)).toThrow(/atributo/);
+    expect(() => parseDocument(raw)).toThrow(/attribute/);
   });
 
-  it('</style> não escapa de <style> (classes e tokens)', () => {
+  it('</style> does not escape <style> (classes and tokens)', () => {
     const n = mk('el_hard0007', 'div', { style: { content: '"</style><script>"' } });
     const { css } = nodesToHtml(n, { mode: 'classes' });
     expect(css).not.toContain('</style>');
     expect(css).toContain('<\\/style>');
-    // defesa em profundidade: mesmo se o valor chegar ao exportador, o `</style` não escapa
+    // defense in depth: even if the value reaches the exporter, `</style` does not escape
     const { doc, frameId } = base();
     const created = applyOp(doc, { type: 'createNode', parentId: frameId, node: n }).doc;
     expect(JSON.stringify(created)).not.toContain('</style>');
@@ -295,21 +295,21 @@ describe('escaping (item 7)', () => {
         nodeIds: [frameId],
         styles: { content: '"</style>"' },
       }),
-    ).toThrow(/Valor CSS inválido/);
+    ).toThrow(/Invalid CSS value/);
     expect(() =>
       applyOp(doc, { type: 'setTokens', set: { '--x': '</style><script>alert(1)</script>' } }),
-    ).toThrow(/valor inválido/);
+    ).toThrow(/invalid value/);
   });
 
-  it('nomes de token inválidos são rejeitados', () => {
+  it('invalid token names are rejected', () => {
     const { doc } = base();
     expect(() => applyOp(doc, { type: 'setTokens', set: { 'x;}': '1' } })).toThrow(/token/);
     expect(() => applyOp(doc, { type: 'setTokens', set: { 'a b': '1' } })).toThrow(/token/);
   });
 });
 
-describe('tags void e pais sem filhos (B.1)', () => {
-  it('createNode em img e moveNodes para input falham', () => {
+describe('void tags and parents without children (B.1)', () => {
+  it('createNode into img and moveNodes into input fail', () => {
     const { doc, frameId } = base();
     const d1 = applyOps(doc, [
       { type: 'createNode', parentId: frameId, node: mk('im_hard0001', 'img') },
@@ -318,13 +318,13 @@ describe('tags void e pais sem filhos (B.1)', () => {
     ]).doc;
     expect(() =>
       applyOp(d1, { type: 'createNode', parentId: 'im_hard0001', node: mk('el_hard0010', 'span') }),
-    ).toThrow(/não pode ter filhos/);
+    ).toThrow(/cannot have children/);
     expect(() =>
       applyOp(d1, { type: 'moveNodes', nodeIds: ['el_hard0009'], parentId: 'el_hard0008' }),
-    ).toThrow(/não pode ter filhos/);
+    ).toThrow(/cannot have children/);
   });
 
-  it('NodeSchema rejeita void com filhos ou texto; nodesToHtml lança', () => {
+  it('NodeSchema rejects void with children or text; nodesToHtml throws', () => {
     const { doc } = base();
     const raw = JSON.parse(JSON.stringify(doc));
     raw.pages[0].frames[0].tag = 'br';

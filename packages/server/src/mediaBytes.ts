@@ -1,6 +1,6 @@
 /**
- * Conferência de mídia pelos bytes (vídeo, Lottie, Rive), compartilhada pelo upload HTTP e pelas
- * ferramentas MCP. Sem dependência de http.ts (evita ciclo).
+ * Media validation from the bytes (video, Lottie, Rive), shared by the HTTP upload and the MCP
+ * tools. No dependency on http.ts (avoids a cycle).
  */
 import path from 'node:path';
 import { fetchBytes } from './assets.js';
@@ -9,7 +9,7 @@ export const ANIMATION_FETCH_MAX = 50 * 1024 * 1024;
 
 export type VideoKind = { ext: '.mp4' | '.m4v' | '.mov' | '.webm' | '.ogv'; mime: string };
 
-/** Detecta vídeo pelos primeiros bytes: mp4/m4v/mov (ftyp), webm/mkv (EBML) e ogg. */
+/** Detects video from the first bytes: mp4/m4v/mov (ftyp), webm/mkv (EBML) and ogg. */
 export function detectVideo(head: Buffer): VideoKind | null {
   if (head.length >= 12 && head.toString('ascii', 4, 8) === 'ftyp') {
     const brand = head.toString('ascii', 8, 12);
@@ -32,32 +32,32 @@ export function detectVideo(head: Buffer): VideoKind | null {
   return null;
 }
 
-/** Valida um arquivo Lottie (JSON com v, fr, layers, ou .lottie zip). */
+/** Validates a Lottie file (JSON with v, fr, layers, or a .lottie zip). */
 export function lottieKind(bytes: Buffer): '.json' | '.lottie' | string {
   if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) return '.lottie';
   let json: unknown;
   try {
     json = JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, ''));
   } catch {
-    return 'O arquivo não é um JSON válido de Lottie.';
+    return 'The file is not a valid Lottie JSON.';
   }
   const o = json as Record<string, unknown> | null;
   if (!o || typeof o !== 'object' || !('v' in o) || !('fr' in o) || !Array.isArray(o['layers']))
-    return 'O JSON não parece uma animação Lottie (esperado: campos "v", "fr" e "layers").';
+    return 'The JSON does not look like a Lottie animation (expected fields: "v", "fr" and "layers").';
   return '.json';
 }
 
-/** Confere os bytes de Lottie/Rive: devolve a extensão ('.json', '.lottie', '.riv') ou a mensagem de erro. */
+/** Checks Lottie/Rive bytes: returns the extension ('.json', '.lottie', '.riv') or the error message. */
 export function validateAnimation(bytes: Buffer, provider: 'lottie' | 'rive'): string {
   if (provider === 'rive') {
     return bytes.toString('ascii', 0, 4) === 'RIVE'
       ? '.riv'
-      : 'O arquivo não é um Rive válido (deve começar com "RIVE"). Use um .riv exportado do Rive.';
+      : 'The file is not a valid Rive (it must start with "RIVE"). Use a .riv exported from Rive.';
   }
   return lottieKind(bytes);
 }
 
-/** Baixa e valida um Lottie/Rive por URL http(s). Lança Error (mensagem em português). */
+/** Downloads and validates a Lottie/Rive from an http(s) URL. Throws Error (with an English message). */
 export async function fetchAnimation(
   url: string,
   provider: 'lottie' | 'rive',

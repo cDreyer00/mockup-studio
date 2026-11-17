@@ -15,14 +15,14 @@ import {
 } from './install.js';
 import type { CliRuntime } from './runtime.js';
 
-describe('lista do PATH', () => {
-  it('adiciona sem duplicar (caixa e barra final)', () => {
+describe('PATH list', () => {
+  it('adds without duplicating (case and trailing slash)', () => {
     expect(addToPathList('C:\\a;%USERPROFILE%\\b', 'C:\\x')).toBe('C:\\a;%USERPROFILE%\\b;C:\\x');
     expect(addToPathList('C:\\a;C:\\X\\', 'c:\\x')).toBe('C:\\a;C:\\X\\');
     expect(addToPathList('', 'C:\\x')).toBe('C:\\x');
     expect(addToPathList('C:\\a;;', 'C:\\x')).toBe('C:\\a;C:\\x');
   });
-  it('remove mantendo a ordem e sem ;;', () => {
+  it('removes keeping the order and without ;;', () => {
     expect(removeFromPathList('C:\\a;C:\\X\\;%V%\\b;c:\\x', 'C:\\x')).toBe('C:\\a;%V%\\b');
     expect(removeFromPathList('C:\\x', 'C:\\x')).toBe('');
   });
@@ -76,7 +76,7 @@ describe('install-cli / uninstall-cli', () => {
   });
   afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-  it('instala o shim, atualiza o PATH e é idempotente', () => {
+  it('installs the shim, updates the PATH and is idempotent', () => {
     const bin = path.join(tmp, 'bin');
     const r = installCli({ binDir: bin }, deps());
     expect(r.code).toBe(0);
@@ -90,52 +90,52 @@ describe('install-cli / uninstall-cli', () => {
     calls = [];
     const again = installCli({ binDir: bin }, deps());
     expect(again.code).toBe(0);
-    expect(again.lines.join('\n')).toContain('atualizado');
+    expect(again.lines.join('\n')).toContain('updated');
     expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
   });
 
-  it('PATH com ; sobrando e a pasta já presente: não grava e diz que já está', () => {
+  it('PATH with a stray ; and the folder already present: does not write and says it is already there', () => {
     const bin = path.join(tmp, 'bin');
     userPath = `C:\\a;${bin};`;
     const r = installCli({ binDir: bin }, deps());
-    expect(r.lines.join('\n')).toContain('já está');
-    expect(r.lines.join('\n')).not.toContain('adicionado');
+    expect(r.lines.join('\n')).toContain('already in');
+    expect(r.lines.join('\n')).not.toContain('added');
     expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
 
     const u = uninstallCli({ binDir: bin }, deps());
-    expect(u.lines.join('\n')).toContain('removido do PATH');
+    expect(u.lines.join('\n')).toContain('removed from the user PATH');
     expect(userPath).toBe('C:\\a');
     calls = [];
     userPath = 'C:\\a;;';
     const again = uninstallCli({ binDir: bin }, deps());
-    expect(again.lines.join('\n')).toContain('não estava');
+    expect(again.lines.join('\n')).toContain('was not in');
     expect(calls.filter((c) => c.env.MOCKUP_NEW_PATH)).toHaveLength(0);
   });
 
-  it('recusa sobrescrever um mockup.cmd que não é nosso', () => {
+  it('refuses to overwrite a mockup.cmd that is not ours', () => {
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(bin);
-    fs.writeFileSync(path.join(bin, 'mockup.cmd'), '@echo outro');
+    fs.writeFileSync(path.join(bin, 'mockup.cmd'), '@echo other');
     expect(installCli({ binDir: bin }, deps()).code).toBe(1);
-    expect(fs.readFileSync(path.join(bin, 'mockup.cmd'), 'utf8')).toBe('@echo outro');
+    expect(fs.readFileSync(path.join(bin, 'mockup.cmd'), 'utf8')).toBe('@echo other');
   });
 
-  it('recusa instalar a partir do executável portátil', () => {
+  it('refuses to install from the portable executable', () => {
     const bin = path.join(tmp, 'bin');
     const env = { PORTABLE_EXECUTABLE_DIR: 'C:\\Downloads' };
     const r = installCli({ binDir: bin }, { ...deps(), env });
     expect(r.code).toBe(1);
-    expect(r.lines.join(' ')).toContain('portátil');
+    expect(r.lines.join(' ')).toContain('portable');
     expect(fs.existsSync(bin)).toBe(false);
     expect(calls).toHaveLength(0);
   });
 
-  it('falha do PowerShell devolve código 1', () => {
+  it('PowerShell failure returns code 1', () => {
     fail = true;
     expect(installCli({ binDir: path.join(tmp, 'bin') }, deps()).code).toBe(1);
   });
 
-  it('desinstala: remove shim, pasta vazia e entrada do PATH', () => {
+  it('uninstalls: removes shim, empty folder and PATH entry', () => {
     const bin = path.join(tmp, 'bin');
     installCli({ binDir: bin }, deps());
     const r = uninstallCli({ binDir: bin }, deps());
@@ -144,10 +144,10 @@ describe('install-cli / uninstall-cli', () => {
     expect(userPath).toBe('C:\\a;%USERPROFILE%\\b');
   });
 
-  it('desinstala sem tocar em arquivo alheio', () => {
+  it('uninstalls without touching a foreign file', () => {
     const bin = path.join(tmp, 'bin');
     fs.mkdirSync(bin);
-    fs.writeFileSync(path.join(bin, 'mockup.cmd'), '@echo outro');
+    fs.writeFileSync(path.join(bin, 'mockup.cmd'), '@echo other');
     uninstallCli({ binDir: bin }, deps());
     expect(fs.existsSync(path.join(bin, 'mockup.cmd'))).toBe(true);
   });

@@ -7,40 +7,40 @@ import { runStdioProxy } from './proxy.js';
 import { runSetup, type SetupTarget } from './setup.js';
 import { VERSION } from './version.js';
 
-// parsePort vive em commands.ts (importar este arquivo executa o CLI); reexportado por conveniência.
+// parsePort lives in commands.ts (importing this file runs the CLI); re-exported for convenience.
 export { parsePort };
 
 const HELP = `mockup - Mockup Studio CLI
 
-Uso:
-  mockup mcp                       Servidor MCP por stdio (sobe o daemon se preciso;
-                                   usa o Electron headless quando disponível, com screenshot)
-  mockup serve [--port N] [arq...] Daemon Node em primeiro plano (editor em http://127.0.0.1:PORTA/)
-  mockup serve --render [arq...]   Electron headless em primeiro plano (com screenshot)
-  mockup open <arquivo>            Abre um .mockup.json no daemon
-  mockup new <arquivo> [--name N]  Cria um .mockup.json e abre
-  mockup stop                      Encerra o daemon descoberto (daemon Node ou Electron headless),
-                                   salvando os documentos; o app desktop com janela recusa
+Usage:
+  mockup mcp                       MCP server over stdio (starts the daemon if needed;
+                                   uses headless Electron when available, with screenshots)
+  mockup serve [--port N] [file...] Node daemon in the foreground (editor at http://127.0.0.1:PORT/)
+  mockup serve --render [file...]  Headless Electron in the foreground (with screenshots)
+  mockup open <file>               Opens a .mockup.json in the daemon
+  mockup new <file> [--name N]     Creates a .mockup.json and opens it
+  mockup stop                      Stops the discovered daemon (Node daemon or headless Electron),
+                                   saving the documents; the desktop app with a window refuses
   mockup doctor [--json] [--command K]
-                                   Diagnóstico do ambiente e comandos de registro prontos
+                                   Environment diagnostics and ready-made registration commands
   mockup setup claude|codex|all [--http] [--skill] [--print] [--command K] [--force]
                                 [--approve] [--agents]
-                                   Registra o servidor MCP no Claude Code/Codex. Se já está registrado
-                                   com o mesmo comando, não faz nada; se difere, atualiza preservando
-                                   a config do Codex (--force recria do zero). --print só mostra os
-                                   comandos; --skill instala a skill no Claude Code; --approve (Codex)
-                                   grava default_tools_approval_mode = "approve"; --agents (Codex)
-                                   acrescenta o trecho ao ~/.codex/AGENTS.md;
-                                   K = path|shim|absolute: como o cliente lança o mockup
+                                   Registers the MCP server in Claude Code/Codex. If it is already registered
+                                   with the same command, does nothing; if it differs, updates it while
+                                   preserving the Codex config (--force recreates from scratch). --print
+                                   only shows the commands; --skill installs the skill in Claude Code;
+                                   --approve (Codex) writes default_tools_approval_mode = "approve";
+                                   --agents (Codex) appends the snippet to ~/.codex/AGENTS.md;
+                                   K = path|shim|absolute: how the client launches mockup
   mockup install-cli [--bin-dir D] [--quiet]
-                                   Instala o comando mockup (shim + PATH do usuário)
+                                   Installs the mockup command (shim + user PATH)
   mockup uninstall-cli [--bin-dir D] [--quiet]
-                                   Remove o shim e a entrada do PATH
-  mockup version                   Versão do CLI
+                                   Removes the shim and the PATH entry
+  mockup version                   CLI version
   mockup help
 
-Variáveis: MOCKUP_PORT (padrão 4747), MOCKUP_DATA_DIR (pasta de dados; repassada ao app só se definida),
-           MOCKUP_DESKTOP_EXE (executável do app desktop), MOCKUP_NO_ELECTRON=1 (força o daemon Node).`;
+Variables: MOCKUP_PORT (default 4747), MOCKUP_DATA_DIR (data folder; passed to the app only if set),
+           MOCKUP_DESKTOP_EXE (desktop app executable), MOCKUP_NO_ELECTRON=1 (forces the Node daemon).`;
 
 interface Parsed {
   command: string | undefined;
@@ -48,7 +48,7 @@ interface Parsed {
   flags: Record<string, string | boolean>;
 }
 
-/** Flags sem valor (não consomem o próximo argumento). */
+/** Flags without a value (they do not consume the next argument). */
 const BOOLEAN_FLAGS = new Set([
   'render',
   'http',
@@ -95,11 +95,11 @@ async function main(): Promise<void> {
       await stop();
       return;
     case 'open':
-      if (!positional[0]) throw new Error('Uso: mockup open <arquivo>');
+      if (!positional[0]) throw new Error('Usage: mockup open <file>');
       await open(positional[0]);
       return;
     case 'new':
-      if (!positional[0]) throw new Error('Uso: mockup new <arquivo> [--name Nome]');
+      if (!positional[0]) throw new Error('Usage: mockup new <file> [--name Name]');
       await create(positional[0], typeof flags.name === 'string' ? flags.name : undefined);
       return;
     case 'doctor': {
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       const target = positional[0];
       if (target !== 'claude' && target !== 'codex' && target !== 'all')
         throw new Error(
-          'Uso: mockup setup claude|codex|all [--http] [--skill] [--print] [--command K] [--force] [--approve] [--agents]',
+          'Usage: mockup setup claude|codex|all [--http] [--skill] [--print] [--command K] [--force] [--approve] [--agents]',
         );
       const r = runSetup(target as SetupTarget, {
         http: flags.http === true,
@@ -150,11 +150,11 @@ async function main(): Promise<void> {
       console.error(HELP);
       return;
     default:
-      throw new Error(`Comando desconhecido: ${command}\n\n${HELP}`);
+      throw new Error(`Unknown command: ${command}\n\n${HELP}`);
   }
 }
 
 main().catch((err: unknown) => {
-  console.error('[mockup] erro:', err instanceof Error ? err.message : err);
+  console.error('[mockup] error:', err instanceof Error ? err.message : err);
   process.exit(1);
 });

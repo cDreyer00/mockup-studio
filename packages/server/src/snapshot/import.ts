@@ -1,7 +1,7 @@
 /**
- * Pipeline de importação de snapshots: valida o payload, grava imagens e fontes em `assets/` (ou
- * embute como data URL em documento não salvo), converte a raiz em frame e cria tudo numa única
- * chamada `store.applyOps` (uma entrada no histórico). Usado pelas rotas HTTP e pelas ferramentas MCP.
+ * Snapshot import pipeline: validates the payload, writes images and fonts to `assets/` (or embeds
+ * them as data URLs in an unsaved document), converts the root into a frame and creates everything in
+ * a single `store.applyOps` call (one history entry). Used by the HTTP routes and the MCP tools.
  */
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -38,33 +38,33 @@ import type { DocumentStore } from '../store.js';
 import { guardedFetchBytes } from './netguard.js';
 import { SnapshotImportError, validateSnapshotPayload } from './validate.js';
 
-/** Limite de um arquivo baixado (imagem ou fonte). */
+/** Limit for a downloaded file (image or font). */
 export const MAX_IMPORT_ASSET_BYTES = 20 * 1024 * 1024;
-/** Orçamento total de uma importação: soma dos bytes de imagens e fontes carregadas. */
+/** Total budget of an import: sum of the bytes of loaded images and fonts. */
 export const MAX_IMPORT_TOTAL_BYTES = 150 * 1024 * 1024;
 const ASSET_TIMEOUT_MS = 15_000;
 const ASSET_CONCURRENCY = 4;
-/** Maior imagem embutida como data URL num estilo `url()` (o canvas não resolve caminhos relativos ali). */
+/** Largest image embedded as a data URL in a `url()` style (the canvas does not resolve relative paths there). */
 const MAX_CSS_DATA_URL_BYTES = 2 * 1024 * 1024;
 const GAP_AFTER_LAST = 80;
 const GAP_REFERENCE = 40;
 
 export interface ImportOptions {
   /**
-   * Origem do evento no histórico/WS. As ferramentas MCP passam `'mcp'` (o editor mostra o selo
-   * "IA" trabalhando); as rotas HTTP passam `'editor'`: quem importa é o usuário (extensão, colar
-   * no editor), não um agente, então o editor não deve exibir o selo de IA.
+   * Event source in the history/WS. The MCP tools pass `'mcp'` (the editor shows the "AI"
+   * working badge); the HTTP routes pass `'editor'`: whoever imports is the user (extension, paste
+   * in the editor), not an agent, so the editor must not show the AI badge.
    */
   source: OpSource;
-  /** Como o payload foi obtido (padrão `snapshot`; a conversão sem render usa `html`). */
+  /** How the payload was obtained (default `snapshot`; conversion without render uses `html`). */
   method?: SnapshotImportResult['method'];
-  /** Aviso extra no início da lista (ex.: fidelidade menor na conversão sem render). */
+  /** Extra warning at the start of the list (e.g. lower fidelity when converting without render). */
   warnings?: string[];
-  /** Orçamento total de bytes de assets (padrão `MAX_IMPORT_TOTAL_BYTES`; injetável nos testes). */
+  /** Total byte budget for assets (default `MAX_IMPORT_TOTAL_BYTES`; injectable in tests). */
   maxTotalBytes?: number;
 }
 
-/* ------------------------------ utilidades ------------------------------ */
+/* ------------------------------ utilities ------------------------------ */
 
 async function mapLimit<T, R>(
   items: T[],
@@ -85,7 +85,7 @@ async function mapLimit<T, R>(
 
 const short = (s: string, max = 100): string => (s.length > max ? `${s.slice(0, max)}…` : s);
 
-/** Nome base seguro (sem extensão) a partir de uma URL ou nome. */
+/** Safe base name (no extension) from a URL or name. */
 function stemFrom(raw: string, fallback: string): string {
   let last = '';
   try {
@@ -96,7 +96,7 @@ function stemFrom(raw: string, fallback: string): string {
   try {
     last = decodeURIComponent(last);
   } catch {
-    // mantém como veio
+    // keep as received
   }
   const stem = last
     .replace(/\.[^.]*$/, '')
@@ -111,7 +111,7 @@ const sha8 = (b: Uint8Array): string => createHash('sha256').update(b).digest('h
 const dataUrlOf = (mime: string, bytes: Uint8Array): string =>
   `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
 
-/** Grava sem sobrescrever; arquivo de mesmo conteúdo no destino é reaproveitado. Devolve o nome. */
+/** Writes without overwriting; a file with the same content at the destination is reused. Returns the name. */
 async function writeDedupe(dir: string, name: string, bytes: Buffer): Promise<string> {
   await fs.promises.mkdir(dir, { recursive: true });
   const ext = path.extname(name);
@@ -127,32 +127,32 @@ async function writeDedupe(dir: string, name: string, bytes: Buffer): Promise<st
       try {
         if ((await fs.promises.readFile(file)).equals(bytes)) return finalName;
       } catch {
-        // some entre a checagem e a leitura: tenta o próximo nome
+        // vanished between the check and the read: try the next name
       }
     }
   }
-  throw new Error(`Não foi possível gravar "${name}" em ${dir}: nomes esgotados.`);
+  throw new Error(`Could not write "${name}" in ${dir}: names exhausted.`);
 }
 
 /* ------------------------------ download ------------------------------ */
 
 interface Bytes {
   bytes: Buffer;
-  /** MIME informado (data URL ou resposta HTTP), minúsculo. */
+  /** Reported MIME (data URL or HTTP response), lowercase. */
   mime: string;
 }
 
-/** Estouro do orçamento total da importação (vira um único aviso, não um por asset). */
+/** Overflow of the import's total budget (becomes a single warning, not one per asset). */
 class BudgetExceededError extends Error {}
 
-/** Contabiliza os bytes de imagens e fontes carregados numa importação. */
+/** Tracks the bytes of images and fonts loaded in an import. */
 class ByteBudget {
   private used = 0;
   private exhausted = false;
 
   constructor(private readonly limit: number) {}
 
-  /** Lança `BudgetExceededError` se `n` não cabe mais; depois de estourar, recusa tudo. */
+  /** Throws `BudgetExceededError` if `n` no longer fits; once exceeded, rejects everything. */
   take(n: number): void {
     if (this.exhausted || this.used + n > this.limit) {
       this.exhausted = true;
@@ -164,14 +164,14 @@ class ByteBudget {
   get message(): string {
     const size =
       this.limit >= 1048576 ? `${Math.round(this.limit / 1048576)} MB` : `${this.limit} bytes`;
-    return `orçamento de ${size} da importação esgotado: os assets restantes (imagens e fontes) não foram carregados.`;
+    return `import budget of ${size} exhausted: the remaining assets (images and fonts) were not loaded.`;
   }
 }
 
-/** Contexto de download compartilhado por imagens e fontes de uma importação. */
+/** Download context shared by the images and fonts of an import. */
 interface LoadCtx {
   budget: ByteBudget;
-  /** Origem da página importada: pode apontar para a rede local (ex.: dev server). */
+  /** Origin of the imported page: may point to the local network (e.g. dev server). */
   trustedOrigin?: string;
 }
 
@@ -194,20 +194,20 @@ async function loadBytes(
     const d = parseDataUrl(dataUrl);
     if (d && d.bytes.length > 0) {
       if (d.bytes.length > MAX_IMPORT_ASSET_BYTES)
-        throw new Error(`${what} passa do limite de 20 MB`);
+        throw new Error(`${what} exceeds the 20 MB limit`);
       ctx.budget.take(d.bytes.length);
       return { bytes: d.bytes, mime: d.mime };
     }
   }
   if (url.startsWith('data:')) {
     const d = parseDataUrl(url);
-    if (!d || d.bytes.length === 0) throw new Error(`${what}: data URL inválida`);
-    if (d.bytes.length > MAX_IMPORT_ASSET_BYTES)
-      throw new Error(`${what} passa do limite de 20 MB`);
+    if (!d || d.bytes.length === 0) throw new Error(`${what}: invalid data URL`);
+    if (d.bytes.length > MAX_IMPORT_ASSET_BYTES) throw new Error(`${what} exceeds the 20 MB limit`);
     ctx.budget.take(d.bytes.length);
     return { bytes: d.bytes, mime: d.mime };
   }
-  if (!/^https?:\/\//i.test(url)) throw new Error(`${what}: só http(s) e data: podem ser baixados`);
+  if (!/^https?:\/\//i.test(url))
+    throw new Error(`${what}: only http(s) and data: can be downloaded`);
   const r = await guardedFetchBytes(url, {
     maxBytes: MAX_IMPORT_ASSET_BYTES,
     timeoutMs: ASSET_TIMEOUT_MS,
@@ -223,7 +223,7 @@ interface LoadedImage {
   url: string;
 }
 
-/* ------------------------------ imagens ------------------------------ */
+/* ------------------------------ images ------------------------------ */
 
 class ImageStore {
   private cache = new Map<string, Promise<LoadedImage | null>>();
@@ -255,19 +255,19 @@ class ImageStore {
   private async doLoad(id: string): Promise<LoadedImage | null> {
     const a = this.assets.get(id);
     if (!a) {
-      this.warn(`Imagem "asset:${id}" não consta na lista de assets do snapshot.`);
+      this.warn(`Image "asset:${id}" is not in the snapshot's asset list.`);
       return null;
     }
     if (a.kind !== 'image') {
-      this.warn(`O asset ${id} (${short(a.url, 60)}) é uma fonte, não uma imagem.`);
+      this.warn(`Asset ${id} (${short(a.url, 60)}) is a font, not an image.`);
       return null;
     }
     try {
-      const { bytes } = await loadBytes(a.dataUrl, a.url, 'a imagem', this.ctx);
+      const { bytes } = await loadBytes(a.dataUrl, a.url, 'the image', this.ctx);
       const info = detectImage(bytes);
       if (!info)
         throw new Error(
-          'o conteúdo não é uma imagem reconhecida (PNG, JPEG, GIF, WebP, SVG ou AVIF)',
+          'the content is not a recognized image (PNG, JPEG, GIF, WebP, SVG or AVIF)',
         );
       return { bytes, info, url: a.url };
     } catch (e) {
@@ -276,13 +276,13 @@ class ImageStore {
         return null;
       }
       this.warn(
-        `Imagem não importada (${short(a.url)}): ${e instanceof Error ? e.message : String(e)}`,
+        `Image not imported (${short(a.url)}): ${e instanceof Error ? e.message : String(e)}`,
       );
       return null;
     }
   }
 
-  /** Grava em `assets/` (documento salvo) e devolve o caminho relativo. */
+  /** Writes to `assets/` (saved document) and returns the relative path. */
   async toFile(img: LoadedImage, fallbackStem: string): Promise<string> {
     const hash = sha8(img.bytes);
     const known = this.written.get(`${hash}${img.info.ext}`);
@@ -312,10 +312,10 @@ function collectAssetRefs(root: Node): { img: Set<string>; css: Set<string> } {
   return { img, css };
 }
 
-/** Atributos que carregam URL e não podem executar código (`javascript:`, `data:` não imagem). */
+/** Attributes that carry a URL and must not run code (`javascript:`, non-image `data:`). */
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href']);
 
-/** Remove nós/atributos que o `NodeSchema` recusaria (tags bloqueadas, `on*`...), com aviso. */
+/** Removes nodes/attributes that `NodeSchema` would reject (blocked tags, `on*`...), with a warning. */
 function sanitizeTree(root: Node, warn: (m: string) => void): void {
   const dropped = new Set<string>();
   const walk = (n: Node): void => {
@@ -326,18 +326,18 @@ function sanitizeTree(root: Node, warn: (m: string) => void): void {
       Object.entries(n.attrs ?? {}).filter(([k, v]) => {
         if (typeof v !== 'string') return false;
         if (attrNameProblem(k)) {
-          dropped.add(`atributo ${k}`);
+          dropped.add(`attribute ${k}`);
           return false;
         }
         if (URL_ATTRS.has(k.toLowerCase()) && isUnsafeUrl(v)) {
-          dropped.add(`atributo ${k} com URL perigosa`);
+          dropped.add(`attribute ${k} with dangerous URL`);
           return false;
         }
         return true;
       }),
     );
     if (n.type === 'image' && typeof n.src === 'string' && isUnsafeUrl(n.src)) {
-      dropped.add('src de imagem com URL perigosa');
+      dropped.add('image src with dangerous URL');
       n.src = '';
     }
     n.children = (n.children ?? []).filter((c) => {
@@ -352,11 +352,11 @@ function sanitizeTree(root: Node, warn: (m: string) => void): void {
   };
   walk(root);
   if (dropped.size > 0) {
-    warn(`Itens removidos por segurança: ${[...dropped].slice(0, 8).join(', ')}.`);
+    warn(`Items removed for safety: ${[...dropped].slice(0, 8).join(', ')}.`);
   }
 }
 
-/* ------------------------------ fontes ------------------------------ */
+/* ------------------------------ fonts ------------------------------ */
 
 const FONT_RANK: Record<string, number> = { woff2: 0, woff: 1, ttf: 2, otf: 2 };
 const FONT_MIME_EXT: Record<string, string> = {
@@ -380,7 +380,7 @@ function fontExtOf(a: SnapshotAsset): string | null {
     try {
       pathname = new URL(a.url).pathname;
     } catch {
-      // usa o texto como veio
+      // use the text as received
     }
     const ext = path.posix.extname(pathname).toLowerCase().replace('.', '');
     if (FONT_EXTS.includes(ext)) return ext;
@@ -416,7 +416,7 @@ interface FontEntry {
   style: 'normal' | 'italic' | 'oblique';
 }
 
-/** Escolhe, por peso/estilo, a declaração mais completa (sem `unicode-range` ou a do latim). */
+/** Picks, per weight/style, the most complete declaration (without `unicode-range`, or the Latin one). */
 function pickSlots(fonts: SnapshotFont[]): { slots: SnapshotFont[]; droppedSubsets: number } {
   const groups = new Map<string, SnapshotFont[]>();
   for (const f of fonts) {
@@ -441,7 +441,7 @@ function pickSlots(fonts: SnapshotFont[]): { slots: SnapshotFont[]; droppedSubse
 const FAMILY_UNSAFE = /[<>{};"'\\`\u0000-\u001f\u007f]/g;
 const sanitizeFamily = (f: string): string => f.replace(FAMILY_UNSAFE, '').trim().slice(0, 200);
 
-/** Slug da família; se outra família do documento gera o mesmo slug, acrescenta um sufixo estável. */
+/** Family slug; if another family in the document yields the same slug, appends a stable suffix. */
 function uniqueSlug(family: string, others: string[]): string {
   const slug = fontSlug(family);
   if (!others.some((o) => fontSlug(o) === slug)) return slug;
@@ -451,10 +451,10 @@ function uniqueSlug(family: string, others: string[]): string {
 const clamp400 = (e: { lo: number; hi: number }): number => Math.min(Math.max(400, e.lo), e.hi);
 
 /**
- * Representação para `fontFaceCss`: com todas as entradas estáticas, `weights[i]` é o peso do
- * `files[i]`; com faixas iguais (fonte variável), `weights` guarda os extremos com tamanho diferente
- * de `files` (o @font-face sai com "min max" em todos os arquivos, como o add_font). Misturas não
- * têm representação exata: as faixas viram o peso 400 (ou o mais próximo dentro da faixa).
+ * Representation for `fontFaceCss`: with all entries static, `weights[i]` is the weight of
+ * `files[i]`; with equal ranges (variable font), `weights` holds the extremes with a length different
+ * from `files` (the @font-face comes out with "min max" on every file, like add_font). Mixes have no
+ * exact representation: ranges become weight 400 (or the closest one within the range).
  */
 function buildRef(family: string, entries: FontEntry[], warn: (m: string) => void): FontRef {
   const ranged = entries.filter((e) => e.lo !== e.hi);
@@ -468,7 +468,7 @@ function buildRef(family: string, entries: FontEntry[], warn: (m: string) => voi
     while (weights.length === entries.length) weights.push(entries[0]!.hi);
   } else {
     warn(
-      `Fonte "${family}": faixas de peso misturadas com pesos fixos; as faixas foram registradas como um peso só.`,
+      `Font "${family}": weight ranges mixed with fixed weights; the ranges were registered as a single weight.`,
     );
     weights = entries.map((e) => (e.lo === e.hi ? e.lo : clamp400(e)));
   }
@@ -498,7 +498,7 @@ async function importFonts(
   if (!assetsDir) {
     const names = [...new Set(payload.fonts.map((f) => f.family))];
     warn(
-      `Fontes não importadas (${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}): salve o documento para importar as fontes (elas vão para assets/fonts).`,
+      `Fonts not imported (${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}): save the document to import fonts (they go to assets/fonts).`,
     );
     return none;
   }
@@ -523,7 +523,7 @@ async function importFonts(
     const { slots, droppedSubsets } = pickSlots(g.list);
     if (droppedSubsets > 0)
       warn(
-        `Fonte "${g.family}": ${droppedSubsets} subconjunto(s) (unicode-range) ignorado(s); mantido o principal.`,
+        `Font "${g.family}": ${droppedSubsets} subset(s) (unicode-range) ignored; kept the main one.`,
       );
     for (const font of slots) {
       const candidates = font.assetIds
@@ -535,7 +535,7 @@ async function importFonts(
       const best = candidates[0];
       if (!best) {
         warn(
-          `Fonte "${g.family}" ${font.weight} ${font.style}: nenhum arquivo em woff2, woff, ttf ou otf (eot/svg não são suportados).`,
+          `Font "${g.family}" ${font.weight} ${font.style}: no file in woff2, woff, ttf or otf (eot/svg are not supported).`,
         );
         continue;
       }
@@ -545,9 +545,9 @@ async function importFonts(
 
   const loaded = await mapLimit(jobs, ASSET_CONCURRENCY, async (j) => {
     try {
-      const { bytes } = await loadBytes(j.asset.dataUrl, j.asset.url, 'a fonte', ctx);
+      const { bytes } = await loadBytes(j.asset.dataUrl, j.asset.url, 'the font', ctx);
       if (/^\s*</.test(bytes.subarray(0, 64).toString('latin1')))
-        throw new Error('a resposta não é um arquivo de fonte (HTML?)');
+        throw new Error('the response is not a font file (HTML?)');
       return bytes;
     } catch (e) {
       if (e instanceof BudgetExceededError) {
@@ -555,7 +555,7 @@ async function importFonts(
         return null;
       }
       warn(
-        `Fonte "${j.family}" não importada (${short(j.asset.url)}): ${e instanceof Error ? e.message : String(e)}`,
+        `Font "${j.family}" not imported (${short(j.asset.url)}): ${e instanceof Error ? e.message : String(e)}`,
       );
       return null;
     }
@@ -599,12 +599,12 @@ async function importFonts(
         cur.styles?.length === cur.files.length;
       if (cur.source !== 'file') {
         warn(
-          `Fonte "${cur.family}" já existe no documento (${cur.source ?? 'local'}); não foi alterada.`,
+          `Font "${cur.family}" already exists in the document (${cur.source ?? 'local'}); left unchanged.`,
         );
         continue;
       }
       if (cur.files?.length && !parallel) {
-        warn(`Fonte "${cur.family}" já existe com pesos em faixa; não foi alterada.`);
+        warn(`Font "${cur.family}" already exists with ranged weights; left unchanged.`);
         continue;
       }
       const files = [...(cur.files ?? [])];
@@ -630,7 +630,7 @@ async function importFonts(
     const ok = FontRefSchema.safeParse(ref);
     if (!ok.success) {
       warn(
-        `Fonte "${ref.family}" não registrada: ${ok.error.issues[0]?.message ?? 'dados inválidos'}.`,
+        `Font "${ref.family}" not registered: ${ok.error.issues[0]?.message ?? 'invalid data'}.`,
       );
       continue;
     }
@@ -641,7 +641,7 @@ async function importFonts(
   return { fonts: families.length > 0 ? result : null, families };
 }
 
-/* ------------------------------ posicionamento ------------------------------ */
+/* ------------------------------ placement ------------------------------ */
 
 function widthOf(n: Node): number {
   const m = /^(-?\d*\.?\d+)px$/.exec((n.style.width ?? '').trim());
@@ -657,23 +657,20 @@ function resolveTarget(
     if (!store.list().some((d) => d.docId === docId))
       throw new SnapshotImportError(
         404,
-        `Documento não encontrado: ${docId}. Use list_documents para ver os abertos.`,
+        `Document not found: ${docId}. Use list_documents to see the open ones.`,
       );
   } else {
     docId = store.activeDocId ?? undefined;
     if (!docId || !store.list().some((d) => d.docId === docId))
       throw new SnapshotImportError(
         409,
-        'Nenhum documento aberto. Abra ou crie um documento (open_document / create_document) antes de importar.',
+        'No document is open. Open or create a document (open_document / create_document) before importing.',
       );
   }
   const doc = store.get(docId);
   const page = placement.pageId ? doc.pages.find((p) => p.id === placement.pageId) : doc.pages[0];
   if (!page)
-    throw new SnapshotImportError(
-      404,
-      `Página não encontrada: ${placement.pageId ?? '(primeira)'}.`,
-    );
+    throw new SnapshotImportError(404, `Page not found: ${placement.pageId ?? '(first)'}.`);
   return { docId, doc, page };
 }
 
@@ -691,7 +688,7 @@ const pxText = (n: number): string => `${Math.round(n * 100) / 100}px`;
 
 /* ------------------------------ pipeline ------------------------------ */
 
-/** Ids repetidos no payload (o clone preserva o mapeamento) ganham ids novos. */
+/** Ids repeated in the payload (the clone preserves the mapping) get new ids. */
 function uniqueIds(root: Node): void {
   const seen = new Set<string>();
   const stack: Node[] = [root];
@@ -713,7 +710,7 @@ function countNodes(root: Node): number {
   return n;
 }
 
-/** Importa o snapshot no documento. Lança `SnapshotImportError` (400/404/409) em erros de uso. */
+/** Imports the snapshot into the document. Throws `SnapshotImportError` (400/404/409) on usage errors. */
 export async function importSnapshot(
   store: DocumentStore,
   rawPayload: unknown,
@@ -734,11 +731,9 @@ export async function importSnapshot(
   };
   for (const w of payload.stats.warnings) warn(w);
   if (payload.stats.truncated)
-    warn(
-      'A captura foi truncada (limite de nós ou de profundidade): parte do conteúdo ficou de fora.',
-    );
+    warn('The capture was truncated (node or depth limit): part of the content was left out.');
 
-  // 1) árvore com ids novos; a raiz vira frame
+  // 1) tree with new ids; the root becomes a frame
   let cloned: Node;
   try {
     cloned = cloneNodeWithNewIds(payload.root as unknown as Node).node;
@@ -747,12 +742,12 @@ export async function importSnapshot(
   } catch {
     throw new SnapshotImportError(
       400,
-      'Snapshot inválido: árvore de nós malformada (cada nó precisa de id, type, tag, name, style, attrs e children).',
+      'Invalid snapshot: malformed node tree (each node needs id, type, tag, name, style, attrs and children).',
     );
   }
   const refs = collectAssetRefs(cloned);
 
-  // 2) imagens (no máximo 4 downloads em paralelo)
+  // 2) images (at most 4 parallel downloads)
   const loadCtx: LoadCtx = {
     budget: new ByteBudget(opts.maxTotalBytes ?? MAX_IMPORT_TOTAL_BYTES),
     trustedOrigin: originOf(payload.source.url),
@@ -768,7 +763,7 @@ export async function importSnapshot(
     if (!img) continue;
     imgSrc.set(
       id,
-      assetsDir ? await images.toFile(img, 'imagem') : dataUrlOf(img.info.mime, img.bytes),
+      assetsDir ? await images.toFile(img, 'image') : dataUrlOf(img.info.mime, img.bytes),
     );
   }
   const cssUrl = new Map<string, string>();
@@ -782,11 +777,11 @@ export async function importSnapshot(
       const safe = img.url.replace(/["'\\()\s<>]/g, (c) => encodeURIComponent(c));
       cssUrl.set(id, `url("${safe}")`);
       warn(
-        `Imagem de fundo grande demais para embutir (${(img.bytes.length / 1048576).toFixed(1)} MB): o estilo aponta para a URL original (${short(img.url, 80)}).`,
+        `Background image too large to embed (${(img.bytes.length / 1048576).toFixed(1)} MB): the style points to the original URL (${short(img.url, 80)}).`,
       );
     } else {
       cssUrl.set(id, 'none');
-      warn('Imagem de fundo grande demais para embutir e sem URL http(s): removida.');
+      warn('Background image too large to embed and without an http(s) URL: removed.');
     }
   }
   const usedImages = new Set<string>([
@@ -809,7 +804,7 @@ export async function importSnapshot(
   };
   resolveTree(cloned);
 
-  // 3) fontes
+  // 3) fonts
   const fontsOutcome = await importFonts(payload, doc.fonts, assetsDir, warn, loadCtx);
 
   // 4) frame
@@ -826,7 +821,7 @@ export async function importSnapshot(
     placement.name?.trim() ||
     (payload.source.selector && payload.source.selector !== 'body' ? cloned.name : title) ||
     cloned.name;
-  const name = (picked || 'Importado').slice(0, 120);
+  const name = (picked || 'Imported').slice(0, 120);
   const tag = ['html', 'body', 'head'].includes(String(cloned.tag).toLowerCase())
     ? 'div'
     : cloned.tag;
@@ -858,10 +853,10 @@ export async function importSnapshot(
       : e instanceof Error
         ? e.message
         : String(e);
-    throw new SnapshotImportError(400, `Snapshot inválido: ${detail}.`);
+    throw new SnapshotImportError(400, `Invalid snapshot: ${detail}.`);
   }
 
-  // 5) referência
+  // 5) reference
   const ops: Op[] = [{ type: 'createNode', parentId: null, pageId: page.id, node: frame }];
   let referenceId: string | undefined;
   if (payload.reference && placement.reference !== false) {
@@ -870,17 +865,17 @@ export async function importSnapshot(
       const d = parseDataUrl(ref.dataUrl);
       const info = d ? detectImage(d.bytes) : null;
       if (!d || !info || (info.ext !== '.png' && info.ext !== '.jpg'))
-        throw new Error('a captura de referência não é um PNG/JPEG válido');
+        throw new Error('the reference capture is not a valid PNG/JPEG');
       if (d.bytes.length > MAX_IMPORT_ASSET_BYTES)
-        throw new Error('a captura de referência passa de 20 MB');
+        throw new Error('the reference capture exceeds 20 MB');
       const src = assetsDir
-        ? await writeDedupe(assetsDir, `referencia-${fontSlug(name)}${info.ext}`, d.bytes)
+        ? await writeDedupe(assetsDir, `reference-${fontSlug(name)}${info.ext}`, d.bytes)
         : dataUrlOf(info.mime, d.bytes);
-      const refName = `Referência — ${name}`;
+      const refName = `Reference — ${name}`;
       const w = pxText(ref.width);
       const h = pxText(ref.height);
       const imgNode = createNodeFromTag('img', {
-        name: 'Referência',
+        name: 'Reference',
         src,
         attrs: { alt: refName },
         styles: { display: 'block', width: w, height: h },
@@ -896,19 +891,19 @@ export async function importSnapshot(
       ops.push({ type: 'createNode', parentId: null, pageId: page.id, node: refFrame });
       referenceId = refFrame.id;
     } catch (e) {
-      warn(`Referência não anexada: ${e instanceof Error ? e.message : String(e)}.`);
+      warn(`Reference not attached: ${e instanceof Error ? e.message : String(e)}.`);
     }
   }
 
   if (fontsOutcome.fonts) ops.push({ type: 'setFonts', fonts: fontsOutcome.fonts });
 
-  // 6) tudo numa única entrada do histórico
+  // 6) everything in a single history entry
   try {
-    store.applyOps(docId, ops, { source: opts.source, label: `Importar ${short(name, 40)}` });
+    store.applyOps(docId, ops, { source: opts.source, label: `Import ${short(name, 40)}` });
   } catch (e) {
     throw new SnapshotImportError(
       400,
-      `Não foi possível aplicar a importação: ${e instanceof Error ? e.message : String(e)}`,
+      `Could not apply the import: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
 

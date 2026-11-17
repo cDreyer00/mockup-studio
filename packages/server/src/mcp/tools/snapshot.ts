@@ -15,22 +15,22 @@ const placementFields = {
   name: z
     .string()
     .optional()
-    .describe(
-      'Nome do frame criado, ex.: "Hero do site X" (padrão: título da página ou do elemento).',
-    ),
+    .describe('Name of the created frame, e.g. "Site X hero" (default: page or element title).'),
   reference: z
     .boolean()
     .optional()
-    .describe('Anexar a captura de tela como frame oculto "Referência" ao lado (padrão true).'),
-  pageId: z.string().optional().describe('Id da página, ex.: "pg_ab12cd34" (padrão: a primeira).'),
+    .describe('Attach the screenshot as a hidden "Reference" frame alongside (default true).'),
+  pageId: z.string().optional().describe('Page id, e.g. "pg_ab12cd34" (default: the first).'),
   x: z
     .number()
     .optional()
-    .describe('Posição X do frame no canvas, ex.: 1600 (padrão: à direita do último frame).'),
+    .describe(
+      'X position of the frame on the canvas, e.g. 1600 (default: right of the last frame).',
+    ),
   y: z
     .number()
     .optional()
-    .describe('Posição Y do frame no canvas, ex.: 0 (padrão: y do primeiro frame).'),
+    .describe('Y position of the frame on the canvas, e.g. 0 (default: y of the first frame).'),
   docId: docIdField,
 };
 
@@ -39,7 +39,7 @@ const captureFields = {
     .string()
     .optional()
     .describe(
-      'Seletor CSS do elemento a importar, ex.: "header" ou "#hero" (padrão: body, a página inteira).',
+      'CSS selector of the element to import, e.g. "header" or "#hero" (default: body, the whole page).',
     ),
   width: z
     .number()
@@ -47,7 +47,7 @@ const captureFields = {
     .max(IMPORT_VIEWPORT_LIMITS.maxWidth)
     .optional()
     .describe(
-      `Largura do viewport em px, de ${IMPORT_VIEWPORT_LIMITS.minWidth} a ${IMPORT_VIEWPORT_LIMITS.maxWidth}, ex.: 1440 (padrão 1440); escolhe o breakpoint do site.`,
+      `Viewport width in px, from ${IMPORT_VIEWPORT_LIMITS.minWidth} to ${IMPORT_VIEWPORT_LIMITS.maxWidth}, e.g. 1440 (default 1440); picks the site's breakpoint.`,
     ),
   height: z
     .number()
@@ -55,13 +55,13 @@ const captureFields = {
     .max(IMPORT_VIEWPORT_LIMITS.maxHeight)
     .optional()
     .describe(
-      `Altura do viewport em px, de ${IMPORT_VIEWPORT_LIMITS.minHeight} a ${IMPORT_VIEWPORT_LIMITS.maxHeight}, ex.: 900 (padrão 900).`,
+      `Viewport height in px, from ${IMPORT_VIEWPORT_LIMITS.minHeight} to ${IMPORT_VIEWPORT_LIMITS.maxHeight}, e.g. 900 (default 900).`,
     ),
   timeout_ms: z
     .number()
     .positive()
     .optional()
-    .describe('Tempo máximo da captura em ms, até 60000, ex.: 30000 (padrão 20000).'),
+    .describe('Maximum capture time in ms, up to 60000, e.g. 30000 (default 20000).'),
 };
 
 const viewportOf = (width?: number, height?: number) =>
@@ -74,18 +74,18 @@ export function registerSnapshotTools(ctx: ToolContext): void {
   const describe = (r: SnapshotImportResult, origin: string): string => {
     const doc = store.get(r.docId);
     const frame = findNode(doc, r.frameId)?.node;
-    const fonts = r.fonts.length ? `fontes: ${r.fonts.join(', ')}` : 'sem fontes novas';
+    const fonts = r.fonts.length ? `fonts: ${r.fonts.join(', ')}` : 'no new fonts';
     const head =
-      `Importado de ${origin}: ${r.frameId} "${frame?.name ?? ''}" ` +
-      `(${r.nodes} nós, ${r.images} imagens, ${fonts}).` +
-      (r.referenceId ? ` Referência oculta: ${r.referenceId}.` : '');
+      `Imported from ${origin}: ${r.frameId} "${frame?.name ?? ''}" ` +
+      `(${r.nodes} nodes, ${r.images} images, ${fonts}).` +
+      (r.referenceId ? ` Hidden reference: ${r.referenceId}.` : '');
     const lines = [head];
-    if (r.warnings.length) lines.push('Avisos:', ...r.warnings.map((w) => `- ${w}`));
+    if (r.warnings.length) lines.push('Warnings:', ...r.warnings.map((w) => `- ${w}`));
     lines.push(summaryOf(doc, [r.frameId]));
     lines.push(
-      `Próximos passos: confira com get_screenshot(${r.frameId}) e simplifique com cleanup_imported(${r.frameId}).` +
+      `Next steps: check with get_screenshot(${r.frameId}) and simplify with cleanup_imported(${r.frameId}).` +
         (r.referenceId
-          ? ` Para comparar com o original: set_node_flags em ${r.referenceId} com hidden:false (ou get_screenshot dele).`
+          ? ` To compare with the original: set_node_flags on ${r.referenceId} with hidden:false (or get_screenshot of it).`
           : ''),
     );
     return lines.join('\n');
@@ -94,12 +94,14 @@ export function registerSnapshotTools(ctx: ToolContext): void {
   tool(
     'import_url',
     {
-      title: 'Importar de uma URL',
+      title: 'Import from a URL',
       description:
-        'Importa uma página ou seção de um site (URL http/https) como frame editável, com estilos computados, imagens e fontes. Precisa do motor de render. Depois: get_screenshot e cleanup_imported.',
+        'Imports a page or section of a website (http/https URL) as an editable frame, with computed styles, images and fonts. Needs the render engine. Afterwards: get_screenshot and cleanup_imported.',
       example: { url: 'https://example.com', selector: 'header', width: 1440 },
       inputSchema: {
-        url: z.string().describe('Endereço http(s) da página, ex.: "https://example.com/pricing".'),
+        url: z
+          .string()
+          .describe('http(s) address of the page, e.g. "https://example.com/pricing".'),
         ...captureFields,
         ...placementFields,
       },
@@ -123,7 +125,7 @@ export function registerSnapshotTools(ctx: ToolContext): void {
       } catch (e) {
         if (e instanceof SnapshotImportError && e.message === IMPORT_URL_NEEDS_RENDER)
           throw new ToolError(
-            `${IMPORT_URL_NEEDS_RENDER} Alternativas: import_html (cole o HTML da página; sem render a conversão é mais simples) ou a extensão do navegador.`,
+            `${IMPORT_URL_NEEDS_RENDER} Alternatives: import_html (paste the page HTML; without render the conversion is simpler) or the browser extension.`,
           );
         throw e;
       }
@@ -133,29 +135,27 @@ export function registerSnapshotTools(ctx: ToolContext): void {
   tool(
     'import_html',
     {
-      title: 'Importar HTML',
+      title: 'Import HTML',
       description:
-        'Importa HTML (e CSS opcional) como frame editável. Com render captura estilos computados; sem render usa uma conversão simples (menos fiel). assets_base_url resolve URLs relativas.',
+        'Imports HTML (and optional CSS) as an editable frame. With render it captures computed styles; without render it uses a simple conversion (less faithful). assets_base_url resolves relative URLs.',
       example: {
-        html: '<section><h1>Olá</h1><p>Texto</p></section>',
+        html: '<section><h1>Hello</h1><p>Text</p></section>',
         css: 'h1{color:#6c5ce7}',
         width: 1280,
       },
       inputSchema: {
-        // sem `.min(1)`: vazio e só espaços caem na mesma mensagem clara do serviço
+        // no `.min(1)`: empty and whitespace-only input fall into the same clear service message
         html: z
           .string()
-          .describe('HTML completo ou fragmento, ex.: "<section><h1>Olá</h1></section>".'),
+          .describe('Full HTML or fragment, e.g. "<section><h1>Hello</h1></section>".'),
         css: z
           .string()
           .optional()
-          .describe('CSS extra aplicado ao HTML, ex.: "h1{color:#6c5ce7}".'),
+          .describe('Extra CSS applied to the HTML, e.g. "h1{color:#6c5ce7}".'),
         assets_base_url: z
           .string()
           .optional()
-          .describe(
-            'URL http(s) base para links e imagens relativos, ex.: "https://example.com/".',
-          ),
+          .describe('Base http(s) URL for relative links and images, e.g. "https://example.com/".'),
         ...captureFields,
         ...placementFields,
       },
@@ -192,8 +192,8 @@ export function registerSnapshotTools(ctx: ToolContext): void {
       });
       const how =
         r.method === 'snapshot'
-          ? 'captura com estilos computados (motor de render)'
-          : 'conversão sem render (fidelidade menor)';
+          ? 'capture with computed styles (render engine)'
+          : 'conversion without render (lower fidelity)';
       return describe(r, `HTML (${how})`);
     },
   );
@@ -201,25 +201,27 @@ export function registerSnapshotTools(ctx: ToolContext): void {
   tool(
     'cleanup_imported',
     {
-      title: 'Simplificar frame importado',
+      title: 'Simplify imported frame',
       description:
-        'Limpa a árvore de um frame importado: remove wrappers vazios, desembrulha divs sem estilo e troca larguras/alturas fixas redundantes por automáticas. Uma entrada de histórico (undo desfaz).',
+        'Cleans the tree of an imported frame: removes empty wrappers, unwraps unstyled divs and replaces redundant fixed widths/heights with automatic ones. One history entry (undo reverts it).',
       example: { nodeId: 'fr_ab12cd34', fluid: true },
       inputSchema: {
-        nodeId: z.string().describe('Id do frame ou nó importado a limpar, ex.: "fr_ab12cd34".'),
+        nodeId: z
+          .string()
+          .describe('Id of the imported frame or node to clean, e.g. "fr_ab12cd34".'),
         remove_empty: z
           .boolean()
           .optional()
-          .describe('Remover divs/spans vazios sem estilo visual (padrão true).'),
+          .describe('Remove empty divs/spans with no visual style (default true).'),
         unwrap: z
           .boolean()
           .optional()
-          .describe('Desembrulhar wrappers sem estilo com um único filho (padrão true).'),
+          .describe('Unwrap unstyled wrappers with a single child (default true).'),
         fluid: z
           .boolean()
           .optional()
           .describe(
-            'Tamanhos fluidos: width em px igual ao do pai vira auto e height em px de nós com conteúdo vira min-height (padrão true).',
+            "Fluid sizes: a px width equal to the parent's becomes auto and a px height on nodes with content becomes min-height (default true).",
           ),
         docId: docIdField,
       },
@@ -233,12 +235,12 @@ export function registerSnapshotTools(ctx: ToolContext): void {
         unwrap,
         fluid,
       });
-      if (plan.ops.length === 0) return `Nada a limpar em ${nodeId}.`;
+      if (plan.ops.length === 0) return `Nothing to clean in ${nodeId}.`;
       const r = ctx.apply(id, plan.ops, 'cleanup_imported');
       return [
-        `Limpeza de ${nodeId}: ${plan.removed} nó(s) vazio(s) removido(s), ${plan.unwrapped} wrapper(s) desembrulhado(s), ${plan.fluid} tamanho(s) fixo(s) tornado(s) automático(s).`,
+        `Cleanup of ${nodeId}: ${plan.removed} empty node(s) removed, ${plan.unwrapped} wrapper(s) unwrapped, ${plan.fluid} fixed size(s) made automatic.`,
         summaryOf(r.doc, [nodeId]),
-        `Confira com get_screenshot(${nodeId}); desfaça com undo se algo mudou demais.`,
+        `Check with get_screenshot(${nodeId}); revert with undo if something changed too much.`,
       ].join('\n');
     },
   );

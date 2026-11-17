@@ -1,7 +1,7 @@
 /**
- * Subpacote `@mockup/core/tailwind`: o motor Tailwind v4 (compilador oficial). Fica fora do
- * índice principal do core para que o editor o carregue sob demanda (`import()`), sem pesar no
- * chunk do canvas.
+ * `@mockup/core/tailwind` subpackage: the Tailwind v4 engine (official compiler). It stays out of the
+ * core main index so the editor loads it on demand (`import()`), without weighing on the
+ * canvas chunk.
  */
 export * from './engine.js';
 export * from './apply.js';

@@ -12,7 +12,7 @@ import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context
 import { registerImageEditTools } from './imageEdit.js';
 import { docWithNodes } from '../../component-view.js';
 
-/** Converte erros de dados em `ToolError` (mensagem já em português). */
+/** Converts data errors into `ToolError` (message already in English). */
 async function asToolError<T>(fn: () => Promise<T> | T): Promise<T> {
   try {
     return await fn();
@@ -26,27 +26,27 @@ function describeSource(r: DataReport): string {
   const s = r.source;
   const origin =
     s.kind === 'inline'
-      ? 'dados colados/editados'
+      ? 'pasted/edited data'
       : s.kind === 'url'
         ? `URL ${s.url}`
-        : `arquivo ${s.path}`;
+        : `file ${s.path}`;
   const extra = [
     s.select ? `select "${s.select}"` : '',
     s.limit ? `limit ${s.limit}` : '',
     s.mapping ? `mapping ${JSON.stringify(s.mapping)}` : '',
-    s.fetchedAt ? `lido em ${s.fetchedAt}` : '',
+    s.fetchedAt ? `read at ${s.fetchedAt}` : '',
   ].filter(Boolean);
-  return `Origem: ${origin}${extra.length ? ` (${extra.join('; ')})` : ''}.`;
+  return `Source: ${origin}${extra.length ? ` (${extra.join('; ')})` : ''}.`;
 }
 
 function reportText(r: DataReport): string {
   const lines = [
-    `Repetidor ${r.nodeId}: ${r.count} item(ns).`,
-    `Colunas: ${r.columns.join(', ') || '(nenhuma)'}.`,
-    `Campos do template: ${r.templateFields.length ? r.templateFields.join(', ') : '(nenhum; use {{campo}} nos textos, src e atributos)'}.`,
+    `Repeater ${r.nodeId}: ${r.count} item(s).`,
+    `Columns: ${r.columns.join(', ') || '(none)'}.`,
+    `Template fields: ${r.templateFields.length ? r.templateFields.join(', ') : '(none; use {{field}} in texts, src and attributes)'}.`,
     describeSource(r),
   ];
-  for (const w of r.warnings) lines.push(`Aviso: ${w}`);
+  for (const w of r.warnings) lines.push(`Warning: ${w}`);
   return lines.join('\n');
 }
 
@@ -78,7 +78,7 @@ export function registerDataTools(ctx: ToolContext): void {
     const p = requireNode(doc, nodeId);
     if (p.node.type !== 'repeater') {
       throw new ToolError(
-        `O nó ${nodeId} não é um repetidor. Use bind_data(nodeId, ...) num contêiner com o template ({{campo}}) para ligar dados.`,
+        `Node ${nodeId} is not a repeater. Use bind_data(nodeId, ...) on a container with the template ({{field}}) to bind data.`,
       );
     }
   };
@@ -86,62 +86,66 @@ export function registerDataTools(ctx: ToolContext): void {
   tool(
     'bind_data',
     {
-      title: 'Ligar dados a um contêiner (repetidor)',
+      title: 'Bind data to a container (repeater)',
       description:
-        'Repete o conteúdo de um contêiner por item de dados (JSON, CSV, URL ou lista). Fluxo: escreva UM item com write_html usando {{campo}} em textos/src/atributos e chame bind_data no contêiner (não frame raiz). Ele vira repetidor (id novo). Veja get_guide("data").',
+        'Repeats a container\'s content once per data item (JSON, CSV, URL or list). Flow: write ONE item with write_html using {{field}} in texts/src/attributes and call bind_data on the container (not a root frame). It becomes a repeater (new id). See get_guide("data").',
       example: {
         nodeId: 'el_ab12cd34',
-        path: 'C:/dados/produtos.csv',
-        mapping: { nome: 'title' },
+        path: 'C:/data/products.csv',
+        mapping: { name: 'title' },
         limit: 12,
       },
       inputSchema: {
         nodeId: z
           .string()
-          .describe('Id do contêiner com o template (ou de um repetidor), ex.: "el_ab12cd34".'),
+          .describe(
+            'Id of the container with the template (or of a repeater), e.g. "el_ab12cd34".',
+          ),
         data: z
           .array(z.unknown())
           .optional()
-          .describe('Lista de itens direto, ex.: [{ "nome": "Ana", "foto": "https://..." }].'),
+          .describe('List of items directly, e.g. [{ "name": "Ana", "photo": "https://..." }].'),
         path: z
           .string()
           .optional()
           .describe(
-            'Caminho absoluto de arquivo .json/.csv/.tsv, ex.: "C:/dados/produtos.csv". Pastas e arquivos ocultos (".ssh", ".claude"...) são recusados.',
+            'Absolute path of a .json/.csv/.tsv file, e.g. "C:/data/products.csv". Hidden folders and files (".ssh", ".claude"...) are refused.',
           ),
         url: z
           .string()
           .optional()
           .describe(
-            'URL http(s) que devolve JSON ou CSV, ex.: "https://api.exemplo.com/produtos".',
+            'http(s) URL that returns JSON or CSV, e.g. "https://api.example.com/products".',
           ),
         text: z
           .string()
           .optional()
           .describe(
-            'JSON ou CSV colado como texto (informe também format). Use exatamente uma origem entre data, text, path e url.',
+            'JSON or CSV pasted as text (also pass format). Use exactly one source among data, text, path and url.',
           ),
         format: z
           .enum(['json', 'csv'])
           .optional()
           .describe(
-            'Formato de text/url/path: "json" ou "csv" (padrão: pela extensão, content-type ou conteúdo).',
+            'Format of text/url/path: "json" or "csv" (default: from the extension, content-type or content).',
           ),
         select: z
           .string()
           .optional()
-          .describe('Caminho da lista dentro do JSON, ex.: "data.items" (padrão: acha a lista).'),
+          .describe(
+            'Path to the list inside the JSON, e.g. "data.items" (default: finds the list).',
+          ),
         mapping: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Campo do template -> caminho no item, ex.: { "nome": "user.fullName" }.'),
+          .describe('Template field -> path in the item, e.g. { "name": "user.fullName" }.'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(MAX_DATA_ITEMS)
           .optional()
-          .describe(`Máximo de itens lidos, de 1 a ${MAX_DATA_ITEMS}, ex.: 12.`),
+          .describe(`Maximum items read, from 1 to ${MAX_DATA_ITEMS}, e.g. 12.`),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -165,8 +169,8 @@ export function registerDataTools(ctx: ToolContext): void {
       const out = apply(id, bound.ops, 'bind_data');
       const rep = dataReport(docWithNodes(out.doc, [bound.nodeId]), bound.nodeId);
       const head = bound.converted
-        ? `Contêiner ${nodeId} convertido em repetidor ${rep.nodeId} (os filhos viraram o template).`
-        : `Dados do repetidor ${rep.nodeId} atualizados.`;
+        ? `Container ${nodeId} converted into repeater ${rep.nodeId} (its children became the template).`
+        : `Data of repeater ${rep.nodeId} updated.`;
       return `${head}\n${reportText(rep)}\n${summaryOf(out.doc, [rep.nodeId])}`;
     },
   );
@@ -174,12 +178,12 @@ export function registerDataTools(ctx: ToolContext): void {
   tool(
     'refresh_data',
     {
-      title: 'Atualizar os dados de um repetidor',
+      title: "Refresh a repeater's data",
       description:
-        'Relê o arquivo (path) ou a URL de onde os dados do repetidor vieram e atualiza os itens, mantendo select, mapping e limit. Erro se os dados foram colados/editados (inline): use bind_data de novo.',
+        "Re-reads the file (path) or URL the repeater's data came from and updates the items, keeping select, mapping and limit. Errors if the data was pasted/edited (inline): use bind_data again.",
       example: { nodeId: 'rp_ab12cd34' },
       inputSchema: {
-        nodeId: z.string().describe('Id do repetidor, ex.: "rp_ab12cd34".'),
+        nodeId: z.string().describe('Repeater id, e.g. "rp_ab12cd34".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -194,26 +198,26 @@ export function registerDataTools(ctx: ToolContext): void {
       });
       const out = apply(id, bound.ops, 'refresh_data');
       const rep = dataReport(docWithNodes(out.doc, [nodeId]), nodeId);
-      return `Dados atualizados.\n${reportText(rep)}\n${summaryOf(out.doc, [nodeId])}`;
+      return `Data refreshed.\n${reportText(rep)}\n${summaryOf(out.doc, [nodeId])}`;
     },
   );
 
   tool(
     'get_data',
     {
-      title: 'Ver os dados de um repetidor',
+      title: "View a repeater's data",
       description:
-        'Mostra a origem, as colunas, os campos usados pelo template ({{campo}}) e as primeiras linhas dos dados de um repetidor como tabela compacta.',
+        "Shows the source, the columns, the fields used by the template ({{field}}) and the first rows of a repeater's data as a compact table.",
       example: { nodeId: 'rp_ab12cd34', limit: 10 },
       inputSchema: {
-        nodeId: z.string().describe('Id do repetidor, ex.: "rp_ab12cd34".'),
+        nodeId: z.string().describe('Repeater id, e.g. "rp_ab12cd34".'),
         limit: z
           .number()
           .int()
           .min(1)
           .max(MAX_DATA_ITEMS)
           .optional()
-          .describe('Quantas linhas mostrar, ex.: 10 (padrão 20).'),
+          .describe('How many rows to show, e.g. 10 (default 20).'),
         docId: docIdField,
       },
       annotations: READ,
@@ -225,7 +229,7 @@ export function registerDataTools(ctx: ToolContext): void {
       const data = (findNode(doc, nodeId)?.node.data ?? []) as unknown[];
       const n = limit ?? 20;
       const shown = Math.min(n, data.length);
-      return `${reportText(rep)}\n\nPrimeiras ${shown} de ${data.length} linha(s):\n${tableOf(data, rep.columns, n)}`;
+      return `${reportText(rep)}\n\nFirst ${shown} of ${data.length} row(s):\n${tableOf(data, rep.columns, n)}`;
     },
   );
 

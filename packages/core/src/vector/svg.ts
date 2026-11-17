@@ -1,4 +1,4 @@
-/** Importar SVG para o modelo `Vector` e gerar o markup a partir dele. */
+/** Import SVG into the `Vector` model and generate markup from it. */
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import type { Element } from 'domhandler';
 import { sanitizeSvg, svgRootAttrs } from '../svg.js';
@@ -24,9 +24,9 @@ import {
 import type { Matrix } from './path.js';
 import { GENERATED_SVG_ATTRS, isSafePaintString } from './schema.js';
 
-/* ------------------------------------------------------------------------------- importação */
+/* ------------------------------------------------------------------------------- import */
 
-/** Marca o SVG como "não simples": só `raw` vale, sem paths editáveis. */
+/** Marks the SVG as "not simple": only `raw` counts, with no editable paths. */
 class NotSimple extends Error {}
 
 const bail = (why: string): never => {
@@ -35,7 +35,7 @@ const bail = (why: string): never => {
 
 const IMPORT_PRECISION = 4;
 
-/** Propriedades de tinta herdadas de `svg`/`g`. */
+/** Paint properties inherited from `svg`/`g`. */
 const INHERITED = [
   'fill',
   'stroke',
@@ -46,7 +46,7 @@ const INHERITED = [
   'fill-rule',
 ] as const;
 
-/** Propriedades que o modelo não representa: só valem se estiverem no valor neutro. */
+/** Properties the model does not represent: only valid if they hold the neutral value. */
 const UNSUPPORTED: Record<string, string[]> = {
   'fill-opacity': ['1'],
   'stroke-opacity': ['1'],
@@ -78,31 +78,31 @@ const NUMBER_SRC = '[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?';
 const LEN_RE = new RegExp(`^(${NUMBER_SRC})(?:px)?$`);
 const NUMBERS_RE = new RegExp(NUMBER_SRC, 'g');
 
-/** Comprimento em unidades de usuário (`12`, `12px`); outras unidades = não simples. */
+/** Length in user units (`12`, `12px`); other units = not simple. */
 function parseLen(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   const m = LEN_RE.exec(value.trim());
-  if (!m) return bail(`comprimento "${value}"`);
+  if (!m) return bail(`length "${value}"`);
   return parseFloat(m[1]!);
 }
 
-/** Fração `0.5` ou `50%`. */
+/** Fraction `0.5` or `50%`. */
 function parseFraction(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   const v = value.trim();
   if (v.endsWith('%')) {
     const m = LEN_RE.exec(v.slice(0, -1));
-    if (!m) return bail(`fração "${value}"`);
+    if (!m) return bail(`fraction "${value}"`);
     return parseFloat(m[1]!) / 100;
   }
   const m = LEN_RE.exec(v);
-  if (!m || v.endsWith('px')) return bail(`fração "${value}"`);
+  if (!m || v.endsWith('px')) return bail(`fraction "${value}"`);
   return parseFloat(m[1]!);
 }
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
 
-/** Propriedades de apresentação do elemento: atributos e `style` inline (este vence). */
+/** Presentation properties of the element: attributes and inline `style` (the latter wins). */
 function elementProps(el: Element): Record<string, string> {
   const props: Record<string, string> = {};
   for (const [k, v] of Object.entries(el.attribs)) {
@@ -118,7 +118,7 @@ function elementProps(el: Element): Record<string, string> {
         .slice(i + 1)
         .replace(/!important\s*$/i, '')
         .trim();
-      if (name === 'transform') bail('transform em style');
+      if (name === 'transform') bail('transform in style');
       if (PRESENTATION.has(name) || name === 'pathlength') props[name] = value;
     }
   }
@@ -128,7 +128,7 @@ function elementProps(el: Element): Record<string, string> {
 function assertSupported(props: Record<string, string>): void {
   for (const [k, neutral] of Object.entries(UNSUPPORTED)) {
     const v = props[k] ?? props[k.toLowerCase()];
-    if (v !== undefined && !neutral.includes(v)) bail(`propriedade "${k}"`);
+    if (v !== undefined && !neutral.includes(v)) bail(`property "${k}"`);
   }
 }
 
@@ -140,7 +140,7 @@ const childElements = (el: Element): Element[] =>
 function parseGradient(el: Element): VectorGradient {
   const type = lname(el) === 'lineargradient' ? 'linear' : 'radial';
   const a = el.attribs;
-  for (const k of Object.keys(a)) if (/(^|:)href$/i.test(k)) bail('gradiente com href');
+  for (const k of Object.keys(a)) if (/(^|:)href$/i.test(k)) bail('gradient with href');
   if (a.gradientTransform !== undefined) bail('gradientTransform');
   if (a.gradientUnits !== undefined && a.gradientUnits !== 'objectBoundingBox') {
     bail('gradientUnits');
@@ -162,19 +162,19 @@ function parseGradient(el: Element): VectorGradient {
     setFrac('r');
     const cx = g.cx ?? 0.5;
     const cy = g.cy ?? 0.5;
-    if (a.fx !== undefined && parseFraction(a.fx, cx) !== cx) bail('foco do gradiente');
-    if (a.fy !== undefined && parseFraction(a.fy, cy) !== cy) bail('foco do gradiente');
-    if (a.fr !== undefined && parseFraction(a.fr, 0) !== 0) bail('fr do gradiente');
+    if (a.fx !== undefined && parseFraction(a.fx, cx) !== cx) bail('gradient focus');
+    if (a.fy !== undefined && parseFraction(a.fy, cy) !== cy) bail('gradient focus');
+    if (a.fr !== undefined && parseFraction(a.fr, 0) !== 0) bail('gradient fr');
   }
 
   let last = 0;
   for (const stop of childElements(el)) {
-    if (lname(stop) !== 'stop') bail('filho de gradiente');
+    if (lname(stop) !== 'stop') bail('gradient child');
     const props = elementProps(stop);
     const offset = Math.max(last, clamp01(parseFraction(stop.attribs.offset, 0)));
     last = offset;
     const color = props['stop-color'] ?? '#000';
-    if (!isSafePaintString(color)) bail('cor do stop');
+    if (!isSafePaintString(color)) bail('stop color');
     const s: VectorGradient['stops'][number] = { offset, color };
     if (props['stop-opacity'] !== undefined) {
       const o = clamp01(parseFraction(props['stop-opacity'], 1));
@@ -182,7 +182,7 @@ function parseGradient(el: Element): VectorGradient {
     }
     g.stops.push(s);
   }
-  if (g.stops.length === 0) bail('gradiente sem stops');
+  if (g.stops.length === 0) bail('gradient without stops');
   return g;
 }
 
@@ -191,7 +191,7 @@ interface Walk {
   matrix: Matrix;
 }
 
-/** Elementos de forma → path data (`null`: o elemento não desenha nada). */
+/** Shape elements → path data (`null`: the element draws nothing). */
 function shapeToD(el: Element, name: string): string | null {
   const a = el.attribs;
   try {
@@ -237,7 +237,7 @@ function shapeToD(el: Element, name: string): string | null {
     }
   } catch (err) {
     if (err instanceof NotSimple) throw err;
-    return bail(`geometria de <${name}>`);
+    return bail(`geometry of <${name}>`);
   }
   return null;
 }
@@ -257,7 +257,7 @@ function importShape(
   try {
     data = transformPathData(d, w.matrix, IMPORT_PRECISION);
   } catch {
-    return bail('path inválido');
+    return bail('invalid path');
   }
   if (!data) return;
 
@@ -271,10 +271,10 @@ function importShape(
     const m = /^url\(\s*['"]?#([^)'"\s]+)['"]?\s*\)\s*(.*)$/i.exec(value);
     if (m) {
       const g = gradients.get(m[1]!);
-      if (!g || m[2]!.trim() || !axisAligned) return bail('gradiente');
+      if (!g || m[2]!.trim() || !axisAligned) return bail('gradient');
       return JSON.parse(JSON.stringify(g)) as VectorGradient;
     }
-    if (!isSafePaintString(value)) return bail(`tinta "${value}"`);
+    if (!isSafePaintString(value)) return bail(`paint "${value}"`);
     return value;
   };
 
@@ -283,12 +283,12 @@ function importShape(
   if (w.inh.stroke !== undefined) path.stroke = paint(w.inh.stroke);
   const hasStroke = path.stroke !== undefined && path.stroke !== 'none';
   if (hasStroke && Math.abs(scale - scaleY) > 1e-6 * Math.max(1, scale))
-    bail('traço em escala anisotrópica');
+    bail('stroke with anisotropic scale');
   const scaled = Math.abs(scale - 1) > 1e-9;
 
   if (w.inh['stroke-width'] !== undefined || (hasStroke && scaled)) {
     const sw = parseLen(w.inh['stroke-width'], 1);
-    if (sw < 0) bail('stroke-width negativo');
+    if (sw < 0) bail('negative stroke-width');
     path.strokeWidth = Number(formatNumber(hasStroke ? sw * scale : sw, IMPORT_PRECISION));
   }
   const cap = w.inh['stroke-linecap'];
@@ -329,20 +329,20 @@ function walkElement(
   isRoot = false,
 ): void {
   const name = lname(el);
-  if (name.includes(':')) bail(`elemento <${el.name}>`);
+  if (name.includes(':')) bail(`element <${el.name}>`);
   if (name === 'title' || name === 'desc') return;
   if (name === 'lineargradient' || name === 'radialgradient') return;
   if (name === 'defs') {
     for (const child of childElements(el)) {
       const n = lname(child);
-      if (n !== 'lineargradient' && n !== 'radialgradient') bail(`<${n}> em defs`);
+      if (n !== 'lineargradient' && n !== 'radialgradient') bail(`<${n}> in defs`);
     }
     return;
   }
   const isShape = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'].includes(
     name,
   );
-  if (!isShape && name !== 'g' && !(isRoot && name === 'svg')) bail(`elemento <${name}>`);
+  if (!isShape && name !== 'g' && !(isRoot && name === 'svg')) bail(`element <${name}>`);
 
   const own = elementProps(el);
   assertSupported(own);
@@ -356,7 +356,7 @@ function walkElement(
     try {
       matrix = multiplyMatrix(matrix, parseTransform(el.attribs.transform));
     } catch {
-      bail('transform inválido');
+      bail('invalid transform');
     }
   }
   const here: Walk = { inh, matrix };
@@ -365,8 +365,8 @@ function walkElement(
     importShape(el, name, here, gradients, paths);
     return;
   }
-  // `opacity` de grupo compõe com os filhos de um jeito que `VectorPath.opacity` não reproduz
-  if (own.opacity !== undefined && parseFraction(own.opacity, 1) !== 1) bail('opacity em grupo');
+  // group `opacity` composes with the children in a way that `VectorPath.opacity` does not reproduce
+  if (own.opacity !== undefined && parseFraction(own.opacity, 1) !== 1) bail('group opacity');
   for (const child of childElements(el)) walkElement(child, here, gradients, paths);
 }
 
@@ -377,7 +377,7 @@ function parseViewBox(value: string | undefined): VectorViewBox | null {
   return { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
 }
 
-/** Atributos do `<svg>` raiz que continuam valendo na regeneração (ex.: `preserveAspectRatio`). */
+/** Attributes of the root `<svg>` that remain valid on regeneration (e.g. `preserveAspectRatio`). */
 function extraRootAttrs(root: Element): Record<string, string> | undefined {
   const skip = new Set<string>([
     ...GENERATED_SVG_ATTRS,
@@ -398,25 +398,25 @@ function extraRootAttrs(root: Element): Record<string, string> | undefined {
 }
 
 /**
- * Importa markup SVG. Sanitiza (`sanitizeSvg`) e guarda o resultado em `raw`, intacto.
- * `viewBox`: o do `<svg>` (ou `0 0 width height`, ou a caixa dos paths).
- * `paths`: extraídos quando o SVG é simples: só `svg`, `g`, `path`, `rect`, `circle`, `ellipse`,
- * `line`, `polyline`, `polygon`, `title`, `desc` e `defs` contendo apenas `linearGradient`/
- * `radialGradient` com `stop` (usados por `fill`/`stroke` `url(#id)`). Formas viram `d`;
- * `transform` de elementos e grupos é aplicado aos pontos; atributos de apresentação (e `style`
- * inline com as mesmas propriedades) herdados de `svg`/`g` são resolvidos em cada path
- * (`fill` padrão `#000` como no SVG). Qualquer outra coisa (filtros, máscaras, clipPath, `use`,
- * texto, imagem, gradientes com `href`/`gradientTransform`/`userSpaceOnUse` complexos) = `paths: []`.
- * Também contam como "não simples" o que `VectorPath` não representa (`fill-opacity`,
- * `stroke-opacity`, `stroke-dashoffset`, marcadores, `opacity` de grupo, traço com escala
- * anisotrópica, gradiente sob rotação/espelho...). Lança se não houver `<svg>`.
+ * Imports SVG markup. Sanitizes (`sanitizeSvg`) and stores the result in `raw`, intact.
+ * `viewBox`: that of the `<svg>` (or `0 0 width height`, or the box of the paths).
+ * `paths`: extracted when the SVG is simple: only `svg`, `g`, `path`, `rect`, `circle`, `ellipse`,
+ * `line`, `polyline`, `polygon`, `title`, `desc` and `defs` containing only `linearGradient`/
+ * `radialGradient` with `stop` (used by `fill`/`stroke` `url(#id)`). Shapes become `d`;
+ * `transform` of elements and groups is applied to the points; presentation attributes (and inline `style`
+ * with the same properties) inherited from `svg`/`g` are resolved on each path
+ * (`fill` defaults to `#000` as in SVG). Anything else (filters, masks, clipPath, `use`,
+ * text, image, gradients with `href`/`gradientTransform`/complex `userSpaceOnUse`) = `paths: []`.
+ * Also counted as "not simple" is what `VectorPath` does not represent (`fill-opacity`,
+ * `stroke-opacity`, `stroke-dashoffset`, markers, group `opacity`, stroke with
+ * anisotropic scale, gradient under rotation/mirroring...). Throws if there is no `<svg>`.
  */
 export function svgToVector(markup: string): Vector {
   const raw = sanitizeSvg(markup);
-  if (!raw) throw new Error('SVG inválido: não há elemento <svg>');
+  if (!raw) throw new Error('Invalid SVG: there is no <svg> element');
   const dom = parseXml(raw, { xmlMode: true });
   const root = DomUtils.findOne((e) => lname(e) === 'svg', dom.children, true);
-  if (!root) throw new Error('SVG inválido: não há elemento <svg>');
+  if (!root) throw new Error('Invalid SVG: there is no <svg> element');
 
   let paths: VectorPath[] = [];
   try {
@@ -453,24 +453,24 @@ export function svgToVector(markup: string): Vector {
 
   const v: Vector = { viewBox, paths, raw };
   const attrs = extraRootAttrs(root) ?? {};
-  // Sem preserveAspectRatio no original, o navegador usa "xMidYMid meet": gravamos para que o
-  // markup regenerado (que por padrão usa "none") mantenha o mesmo desenho.
+  // Without preserveAspectRatio in the original, the browser uses "xMidYMid meet": we store it so that the
+  // regenerated markup (which uses "none" by default) keeps the same drawing.
   if (attrs.preserveAspectRatio === undefined) attrs.preserveAspectRatio = 'xMidYMid meet';
   v.attrs = attrs;
   return v;
 }
 
-/** O vetor tem paths editáveis? */
+/** Does the vector have editable paths? */
 export function isVectorEditable(v: Vector): boolean {
   return v.paths.length > 0;
 }
 
-/** Markup do vetor: `raw` quando presente (sem edição), senão `generateVectorSvg`. */
+/** Vector markup: `raw` when present (unedited), otherwise `generateVectorSvg`. */
 export function vectorToSvg(v: Vector): string {
   return v.raw ?? generateVectorSvg(v);
 }
 
-/* ------------------------------------------------------------------------------- geração */
+/* ------------------------------------------------------------------------------- generation */
 
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -494,8 +494,8 @@ function gradientMarkup(id: string, g: VectorGradient): string {
 }
 
 /**
- * Gera `<svg xmlns viewBox width="100%" height="100%" ...attrs>` com um `<path>` por item
- * (gradientes em `<defs>` com ids determinísticos). Saída já sanitizada e estável.
+ * Generates `<svg xmlns viewBox width="100%" height="100%" ...attrs>` with one `<path>` per item
+ * (gradients in `<defs>` with deterministic ids). Output already sanitized and stable.
  */
 export function generateVectorSvg(v: Vector): string {
   const n = (x: number): string => formatNumber(x, 4);
@@ -545,7 +545,7 @@ export function generateVectorSvg(v: Vector): string {
   return sanitizeSvg(`${head}${defsMarkup}${body.join('')}</svg>`);
 }
 
-/** Interpreta um valor de `preserveAspectRatio` (`defer` ignorado). */
+/** Parses a `preserveAspectRatio` value (`defer` ignored). */
 function parsePreserveAspectRatio(value: string): { align: string; slice: boolean } | 'none' {
   const parts = value
     .trim()
@@ -557,10 +557,10 @@ function parsePreserveAspectRatio(value: string): { align: string; slice: boolea
 }
 
 /**
- * Como o vetor é desenhado dentro do nó: `'none'` (estica até preencher) ou `{ align, slice }`
- * (ex. `{ align: 'xMidYMid', slice: false }` = `meet`). Lê `preserveAspectRatio` do `<svg>` raiz de
- * `raw` (ausente = padrão do navegador, `xMidYMid meet`); sem `raw`, de `attrs`; sem nenhum dos
- * dois, `'none'` (markup gerado).
+ * How the vector is drawn inside the node: `'none'` (stretches to fill) or `{ align, slice }`
+ * (e.g. `{ align: 'xMidYMid', slice: false }` = `meet`). Reads `preserveAspectRatio` from the root `<svg>` of
+ * `raw` (absent = browser default, `xMidYMid meet`); without `raw`, from `attrs`; with neither,
+ * `'none'` (generated markup).
  */
 export function vectorPreserveAspectRatio(v: Vector): { align: string; slice: boolean } | 'none' {
   if (v.raw !== undefined) {
@@ -571,13 +571,13 @@ export function vectorPreserveAspectRatio(v: Vector): { align: string; slice: bo
   return par === undefined ? 'none' : parsePreserveAspectRatio(par);
 }
 
-/** `node.vector`, ou o vetor importado de `node.svg` (nós svg sem modelo); `null` se não há markup. */
+/** `node.vector`, or the vector imported from `node.svg` (svg nodes without a model); `null` if there is no markup. */
 export function ensureVector(node: Node): Vector | null {
   if (node.vector) return node.vector;
   return node.svg ? svgToVector(node.svg) : null;
 }
 
-/** Nova versão do vetor com as mudanças aplicadas e sem `raw` (passa a ser regenerado). */
+/** New version of the vector with the changes applied and without `raw` (it is regenerated). */
 export function editVector(
   v: Vector,
   patch: Partial<Pick<Vector, 'paths' | 'viewBox' | 'attrs'>>,
@@ -587,9 +587,9 @@ export function editVector(
   return { ...rest, ...patch };
 }
 
-/* ------------------------------------------------------------------------------- tinta */
+/* ------------------------------------------------------------------------------- paint */
 
-/** Mudança de tinta/traço; `null` remove a propriedade do path. */
+/** Paint/stroke change; `null` removes the property from the path. */
 export interface VectorPaintPatch {
   fill?: VectorPaint | null;
   stroke?: VectorPaint | null;
@@ -612,12 +612,12 @@ const PAINT_KEYS = [
   'fillRule',
 ] as const;
 
-/** Aplica a tinta aos paths `pathIds` (padrão: todos); devolve um vetor editado (sem `raw`). */
+/** Applies the paint to the paths `pathIds` (default: all); returns an edited vector (without `raw`). */
 export function setVectorPaint(v: Vector, patch: VectorPaintPatch, pathIds?: string[]): Vector {
   if (pathIds) {
     const known = new Set(v.paths.map((p) => p.id));
     const missing = pathIds.find((id) => !known.has(id));
-    if (missing !== undefined) throw new Error(`O path "${missing}" não existe no vetor`);
+    if (missing !== undefined) throw new Error(`Path "${missing}" does not exist in the vector`);
   }
   const target = pathIds ? new Set(pathIds) : null;
   const paths = v.paths.map((p) => {
@@ -637,10 +637,10 @@ export function setVectorPaint(v: Vector, patch: VectorPaintPatch, pathIds?: str
 const DASH_RE = /^(?:none|[0-9eE.,+\-\s]+)$/;
 
 /**
- * Converte estilos CSS de tinta (`fill`, `stroke`, `stroke-width`, `stroke-linecap`,
- * `stroke-linejoin`, `stroke-dasharray`, `fill-rule`, `fill-opacity` não) num patch; devolve o
- * patch e os estilos restantes (que são do nó). Usado por `create_shape` e pelo painel.
- * Valor vazio remove a propriedade; valor que o modelo não aceita fica em `rest`.
+ * Converts CSS paint styles (`fill`, `stroke`, `stroke-width`, `stroke-linecap`,
+ * `stroke-linejoin`, `stroke-dasharray`, `fill-rule`, `fill-opacity` excluded) into a patch; returns the
+ * patch and the remaining styles (which belong to the node). Used by `create_shape` and by the panel.
+ * Empty value removes the property; a value the model does not accept stays in `rest`.
  */
 export function splitPaintStyles(styles: Record<string, string>): {
   paint: VectorPaintPatch;

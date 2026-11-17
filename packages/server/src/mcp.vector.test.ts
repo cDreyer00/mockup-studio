@@ -17,7 +17,7 @@ const textOf = (r: unknown): string =>
 const LUCIDE_CHECK =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
-describe('MCP vetores', () => {
+describe('MCP vectors', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -25,7 +25,7 @@ describe('MCP vetores', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -41,7 +41,7 @@ describe('MCP vetores', () => {
   const children = (): Node[] => doc().pages[0]!.frames[0]!.children;
   const idIn = (re: RegExp, t: string): string => {
     const m = re.exec(t);
-    if (!m) throw new Error(`id não encontrado em: ${t}`);
+    if (!m) throw new Error(`id not found in: ${t}`);
     return m[1]!;
   };
   const shape = async (args: Record<string, unknown>): Promise<string> => {
@@ -51,7 +51,7 @@ describe('MCP vetores', () => {
   };
   const nodeOf = (id: string): Node => children().find((n) => n.id === id)!;
 
-  it('create_shape cria cada forma com vetor editável', async () => {
+  it('create_shape creates each shape with an editable vector', async () => {
     for (const kind of ['rect', 'ellipse', 'line', 'polygon', 'star'] as const) {
       const id = await shape({
         shape: kind,
@@ -70,7 +70,7 @@ describe('MCP vetores', () => {
     expect(star.vector!.paths[0]!.d).toMatch(/^M/);
   });
 
-  it('create_shape separa a tinta do vetor dos estilos do nó e posiciona', async () => {
+  it('create_shape separates the vector paint from the node styles and positions it', async () => {
     const id = await shape({
       shape: 'rect',
       width: 120,
@@ -98,12 +98,12 @@ describe('MCP vetores', () => {
     expect(n.style['width']).toBe('120px');
   });
 
-  it('create_shape com polígono de 6 lados e erros de parâmetro', async () => {
+  it('create_shape with a 6-sided polygon and parameter errors', async () => {
     const id = await shape({ shape: 'polygon', sides: 6, width: 100, height: 100 });
     expect((nodeOf(id).vector!.paths[0]!.d.match(/L/g) ?? []).length).toBe(5);
-    const bad = await call('create_shape', { parentId: 'nada', shape: 'rect' });
+    const bad = await call('create_shape', { parentId: 'nothing', shape: 'rect' });
     expect(bad.isError).toBe(true);
-    expect(textOf(bad)).toContain('Nó não encontrado');
+    expect(textOf(bad)).toContain('Node not found');
     const zero = await call('create_shape', {
       parentId: ws.frameId,
       shape: 'rect',
@@ -111,10 +111,10 @@ describe('MCP vetores', () => {
       height: 10,
     });
     expect(zero.isError).toBe(true);
-    expect(textOf(zero)).toContain('maiores que 0');
+    expect(textOf(zero)).toContain('greater than 0');
   });
 
-  it('insert_svg com ícone Lucide preserva o raw e get_svg informa', async () => {
+  it('insert_svg with a Lucide icon preserves the raw markup and get_svg reports it', async () => {
     const r = await call('insert_svg', {
       parentId: ws.frameId,
       svg: LUCIDE_CHECK,
@@ -122,7 +122,7 @@ describe('MCP vetores', () => {
       width: 32,
     });
     expect(r.isError, textOf(r)).toBeFalsy();
-    expect(textOf(r)).toContain('editáveis');
+    expect(textOf(r)).toContain('editable');
     const id = idIn(/(sv_[0-9a-z]+)/, textOf(r));
     const n = nodeOf(id);
     expect(n.vector!.raw).toBeTruthy();
@@ -130,24 +130,24 @@ describe('MCP vetores', () => {
     expect(n.style['width']).toBe('32px');
     expect(n.style['height']).toBe('32px');
     const g = textOf(await call('get_svg', { nodeId: id }));
-    expect(g).toContain('original preservado');
+    expect(g).toContain('original markup preserved');
     expect(g).toContain('p1');
     expect(g).toContain('M20 6 9 17l-5-5');
     expect(g).toContain('<svg');
   });
 
-  it('insert_svg avisa quando o SVG não é editável e rejeita lixo', async () => {
+  it('insert_svg warns when the SVG is not editable and rejects garbage', async () => {
     const svg =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><filter id="f"><feGaussianBlur stdDeviation="2"/></filter><rect width="10" height="10" filter="url(#f)"/></svg>';
     const r = await call('insert_svg', { parentId: ws.frameId, svg });
     expect(r.isError, textOf(r)).toBeFalsy();
-    expect(textOf(r)).toContain('NÃO editável');
-    const bad = await call('insert_svg', { parentId: ws.frameId, svg: '<div>oi</div>' });
+    expect(textOf(r)).toContain('NOT editable');
+    const bad = await call('insert_svg', { parentId: ws.frameId, svg: '<div>hi</div>' });
     expect(bad.isError).toBe(true);
-    expect(textOf(bad)).toContain('SVG inválido');
+    expect(textOf(bad)).toContain('Invalid SVG');
   });
 
-  it('set_vector_paint muda a cor, regenera o markup e aceita gradiente', async () => {
+  it('set_vector_paint changes the color, regenerates the markup and accepts a gradient', async () => {
     const ins = await call('insert_svg', { parentId: ws.frameId, svg: LUCIDE_CHECK });
     const id = idIn(/(sv_[0-9a-z]+)/, textOf(ins));
     const r = await call('set_vector_paint', { nodeId: id, stroke: '#ff0000', strokeWidth: 4 });
@@ -156,7 +156,7 @@ describe('MCP vetores', () => {
     expect(n.vector!.raw).toBeUndefined();
     expect(n.vector!.paths[0]).toMatchObject({ stroke: '#ff0000', strokeWidth: 4 });
     expect(n.svg).toContain('stroke="#ff0000"');
-    expect(textOf(await call('get_svg', { nodeId: id }))).toContain('regenerado');
+    expect(textOf(await call('get_svg', { nodeId: id }))).toContain('regenerated');
 
     const g = await call('set_vector_paint', {
       nodeId: id,
@@ -170,7 +170,7 @@ describe('MCP vetores', () => {
     });
     expect(g.isError, textOf(g)).toBeFalsy();
     expect(nodeOf(id).svg).toContain('linearGradient');
-    expect(textOf(await call('get_svg', { nodeId: id }))).toContain('gradiente linear');
+    expect(textOf(await call('get_svg', { nodeId: id }))).toContain('linear gradient');
 
     const none = await call('set_vector_paint', { nodeId: id });
     expect(none.isError).toBe(true);
@@ -179,7 +179,7 @@ describe('MCP vetores', () => {
     expect(textOf(unknown)).toContain('zz');
   });
 
-  it('set_path substitui o d, valida e ajusta o viewBox com fit', async () => {
+  it('set_path replaces d, validates and fits the viewBox with fit', async () => {
     const id = await shape({ shape: 'rect', x: 10, y: 10, width: 100, height: 100 });
     const r = await call('set_path', { nodeId: id, d: 'M 0 0 L 50 0 L 25 40 Z' });
     expect(r.isError, textOf(r)).toBeFalsy();
@@ -193,23 +193,23 @@ describe('MCP vetores', () => {
     expect(vb.height).toBeCloseTo(40, 0);
     expect(parseFloat(nodeOf(id).style['width']!)).toBeCloseTo(50, 0);
 
-    const bad = await call('set_path', { nodeId: id, d: 'isso não é path' });
+    const bad = await call('set_path', { nodeId: id, d: 'this is not a path' });
     expect(bad.isError).toBe(true);
-    expect(textOf(bad)).toContain('Path data');
+    expect(textOf(bad)).toContain('path data');
     const nope = await call('set_path', { nodeId: id, d: 'M 0 0 L 1 1', pathId: 'x9' });
     expect(nope.isError).toBe(true);
     expect(textOf(nope)).toContain('p1');
   });
 
-  it('boolean_op union de 2 formas e flatten', async () => {
+  it('boolean_op union of 2 shapes and flatten', async () => {
     const a = await shape({ shape: 'rect', x: 0, y: 0, width: 100, height: 100 });
     const b = await shape({ shape: 'ellipse', x: 50, y: 50, width: 100, height: 100 });
     const before = children().length;
-    const r = await call('boolean_op', { nodeIds: [a, b], op: 'union', name: 'Uniao' });
+    const r = await call('boolean_op', { nodeIds: [a, b], op: 'union', name: 'Union' });
     expect(r.isError, textOf(r)).toBeFalsy();
     expect(children()).toHaveLength(before - 1);
     expect(children().some((n) => n.id === a || n.id === b)).toBe(false);
-    const res = children().find((n) => n.name === 'Uniao')!;
+    const res = children().find((n) => n.name === 'Union')!;
     expect(res.vector!.paths.length).toBeGreaterThan(0);
     expect(res.vector!.paths[0]!.d).toMatch(/^M/);
 
@@ -223,7 +223,7 @@ describe('MCP vetores', () => {
     expect(children().some((n) => n.type === 'svg')).toBe(true);
   });
 
-  it('flatten de um nó junta os paths num só', async () => {
+  it('flatten of a node merges the paths into one', async () => {
     const a = await shape({ shape: 'rect', width: 20, height: 20, x: 0, y: 0 });
     const b = await shape({ shape: 'rect', width: 20, height: 20, x: 30, y: 0 });
     const f = await call('flatten', { nodeIds: [a, b] });
@@ -235,35 +235,35 @@ describe('MCP vetores', () => {
     expect(children().find((n) => n.id === flat.id)!.vector!.paths).toHaveLength(1);
   });
 
-  it('boolean_op e flatten recusam nó em fluxo sem render, com mensagem clara', async () => {
+  it('boolean_op and flatten refuse an in-flow node without render, with a clear message', async () => {
     const a = await shape({ shape: 'rect', x: 0, y: 0, width: 20, height: 20 });
-    const b = await shape({ shape: 'rect', width: 20, height: 20 }); // em fluxo
+    const b = await shape({ shape: 'rect', width: 20, height: 20 }); // in flow
     const before = children().length;
     const r = await call('boolean_op', { nodeIds: [a, b], op: 'union' });
     expect(r.isError).toBe(true);
-    expect(textOf(r)).toMatch(/em fluxo.*position: absolute.*antes da booleana/);
+    expect(textOf(r)).toMatch(/in flow.*position: absolute.*before the boolean operation/);
     const f = await call('flatten', { nodeIds: [a, b] });
     expect(f.isError).toBe(true);
-    expect(textOf(f)).toMatch(/em fluxo.*antes de achatar/);
+    expect(textOf(f)).toMatch(/in flow.*before flattening/);
     expect(children()).toHaveLength(before);
   });
 
-  it('get_svg em nó não svg dá erro acionável', async () => {
+  it('get_svg on a non-svg node gives an actionable error', async () => {
     const r = await call('get_svg', { nodeId: ws.frameId });
     expect(r.isError).toBe(true);
-    expect(textOf(r)).toContain('não um svg');
+    expect(textOf(r)).toContain('not an svg');
   });
 
-  it('text_to_outlines: converte quando há fonte ou explica o erro', async () => {
+  it('text_to_outlines: converts when a font is available or explains the error', async () => {
     await call('write_html', {
-      html: '<p style="font-family: Arial, sans-serif; font-size: 24px">Olá</p>',
+      html: '<p style="font-family: Arial, sans-serif; font-size: 24px">Hello</p>',
       parentId: ws.frameId,
     });
     const tx = children().find((n) => n.type === 'text')!;
     const r = await call('text_to_outlines', { nodeIds: [tx.id] });
     const t = textOf(r);
     if (r.isError) {
-      expect(t).toMatch(/fonte|font/i);
+      expect(t).toMatch(/font/i);
     } else {
       expect(children().some((n) => n.type === 'svg')).toBe(true);
       expect(children().some((n) => n.id === tx.id)).toBe(false);
@@ -273,7 +273,7 @@ describe('MCP vetores', () => {
     expect(textOf(none)).toContain('nodeIds');
   });
 
-  it('rota text-to-outlines: nó inexistente 404 e corpo inválido 400', async () => {
+  it('text-to-outlines route: missing node 404 and invalid body 400', async () => {
     const docId = daemon.store.resolveDocId();
     const url = `${daemon.url}/api/docs/${docId}/text-to-outlines`;
     const post = (body: unknown) =>
@@ -282,7 +282,7 @@ describe('MCP vetores', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-    const miss = await post({ nodeIds: ['tx_naoexiste'] });
+    const miss = await post({ nodeIds: ['tx_missing'] });
     expect(miss.status).toBe(404);
     expect(((await miss.json()) as { error: string }).error).toBeTruthy();
     expect((await post({})).status).toBe(400);
@@ -295,7 +295,7 @@ describe('MCP vetores', () => {
   });
 });
 
-describe('MCP vetores: nós em fluxo medidos pelo render', () => {
+describe('MCP vectors: in-flow nodes measured by render', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -313,10 +313,10 @@ describe('MCP vetores: nós em fluxo medidos pelo render', () => {
     children: [],
   });
 
-  // o pai fica em (10, 10) no frame, com borda de 2px; o filho em fluxo em (12, 12)+(40, 0)
+  // the parent sits at (10, 10) in the frame, with a 2px border; the in-flow child at (12, 12)+(40, 0)
   const render: RenderProvider = {
     async capture() {
-      throw new Error('sem captura');
+      throw new Error('no capture');
     },
     async measure({ doc, nodeId }): Promise<LayoutNode> {
       const kids = doc.pages[0]!.frames[0]!.children.filter((n) => n.type === 'svg');
@@ -333,7 +333,7 @@ describe('MCP vetores: nós em fluxo medidos pelo render', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -343,7 +343,7 @@ describe('MCP vetores: nós em fluxo medidos pelo render', () => {
     ws.cleanup();
   });
 
-  it('flatten de dois nós em fluxo usa as caixas medidas (padding box do pai)', async () => {
+  it('flatten of two in-flow nodes uses the measured boxes (parent padding box)', async () => {
     const make = async (): Promise<string> => {
       const r = await client.callTool({
         name: 'create_shape',
@@ -355,12 +355,12 @@ describe('MCP vetores: nós em fluxo medidos pelo render', () => {
     const b = await make();
     const f = await client.callTool({
       name: 'flatten',
-      arguments: { nodeIds: [a, b], name: 'Junto' },
+      arguments: { nodeIds: [a, b], name: 'Together' },
     });
     expect(f.isError, textOf(f)).toBeFalsy();
     const frame = daemon.store.get(daemon.store.resolveDocId()).pages[0]!.frames[0]!;
-    const res = frame.children.find((n) => n.name === 'Junto')!;
-    // a em (12-10-2, 12-10-2) = (0, 0); b em (40, 5), ambos 20x20
+    const res = frame.children.find((n) => n.name === 'Together')!;
+    // a at (12-10-2, 12-10-2) = (0, 0); b at (40, 5), both 20x20
     expect(res.style).toMatchObject({
       position: 'absolute',
       left: '0px',

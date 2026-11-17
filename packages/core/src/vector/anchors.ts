@@ -1,6 +1,6 @@
 /**
- * Modelo de pontos âncora (caneta e edição de pontos): cada âncora tem posição e alças Bézier
- * absolutas opcionais (`in` = alça que chega, `out` = alça que sai).
+ * Anchor point model (pen tool and point editing): each anchor has a position and optional absolute
+ * Bézier handles (`in` = incoming handle, `out` = outgoing handle).
  */
 import { parsePathData, serializePathData } from './path.js';
 import type { PathCommand } from './path.js';
@@ -13,9 +13,9 @@ export interface VectorPoint {
 export interface PathAnchor {
   x: number;
   y: number;
-  /** Alça de entrada (controle do segmento que chega nesta âncora). Ausente = canto. */
+  /** Incoming handle (control of the segment arriving at this anchor). Absent = corner. */
   in?: VectorPoint;
-  /** Alça de saída (controle do segmento que sai desta âncora). Ausente = canto. */
+  /** Outgoing handle (control of the segment leaving this anchor). Absent = corner. */
   out?: VectorPoint;
 }
 
@@ -29,8 +29,8 @@ const samePoint = (a: VectorPoint, b: VectorPoint): boolean =>
   Math.abs(a.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS;
 
 /**
- * Converte `d` em subpaths de âncoras. Segmentos retos viram âncoras sem alças; C vira alças;
- * Q é elevado a cúbica. Num subpath fechado, o último ponto igual ao primeiro é fundido.
+ * Converts `d` into anchor subpaths. Straight segments become anchors without handles; C becomes handles;
+ * Q is elevated to cubic. In a closed subpath, a last point equal to the first is merged.
  */
 export function pathToSubpaths(d: string): Subpath[] {
   const subpaths: Subpath[] = [];
@@ -72,7 +72,7 @@ export function pathToSubpaths(d: string): Subpath[] {
         py = c.y;
         break;
       case 'Q':
-        // quadrática elevada a cúbica
+        // quadratic elevated to cubic
         addCurve(
           { x: px + (2 / 3) * (c.x1 - px), y: py + (2 / 3) * (c.y1 - py) },
           { x: c.x + (2 / 3) * (c.x1 - c.x), y: c.y + (2 / 3) * (c.y1 - c.y) },
@@ -88,7 +88,7 @@ export function pathToSubpaths(d: string): Subpath[] {
         const first = cur.anchors[0]!;
         const end = cur.anchors[cur.anchors.length - 1]!;
         if (cur.anchors.length > 1 && samePoint(first, end)) {
-          // o último ponto repete o primeiro: funde (a alça de entrada vira a do primeiro)
+          // the last point repeats the first: merge (the incoming handle becomes the first's)
           if (end.in) first.in = end.in;
           cur.anchors.pop();
         }
@@ -104,8 +104,8 @@ export function pathToSubpaths(d: string): Subpath[] {
 }
 
 /**
- * Converte subpaths em `d`: segmento sem alças (out da origem e in do destino ausentes) = L,
- * senão C (alça ausente = o próprio ponto). Fechado termina com o segmento de volta e Z.
+ * Converts subpaths into `d`: a segment without handles (origin's out and destination's in absent) = L,
+ * otherwise C (absent handle = the point itself). A closed subpath ends with the segment back and Z.
  */
 export function subpathsToPath(subpaths: Subpath[], precision = 3): string {
   const cmds: PathCommand[] = [];

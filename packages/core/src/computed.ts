@@ -53,18 +53,18 @@ function resolve(value: string, tokens: Record<string, string>, level: number): 
   return out;
 }
 
-/** Resolve `var(--x)` e `var(--x, fallback)` recursivamente (até 10 níveis). */
+/** Resolves `var(--x)` and `var(--x, fallback)` recursively (up to 10 levels). */
 export function resolveVars(value: string, tokens: Record<string, string>): string {
   return resolve(value, tokens, 0);
 }
 
 /**
- * Estilos próprios + propriedades herdadas dos ancestrais, com `var()` resolvido como no CSS: cada
- * valor no escopo do nó que o declara (uma propriedade herdada chega ao descendente já calculada
- * no ancestral; um `data-theme` no descendente não a altera). O escopo inclui tokens base, tema
- * via `data-theme` e custom properties dos ancestrais; `calc()`/`color-mix()` são avaliados quando
- * possível. `theme` força um tema no próprio nó (como se ele tivesse `data-theme="<tema>"`);
- * `evaluate: false` mantém `calc()`/`color-mix()` como texto.
+ * Own styles + properties inherited from ancestors, with `var()` resolved as in CSS: each
+ * value in the scope of the node that declares it (an inherited property reaches the descendant
+ * already computed in the ancestor; a `data-theme` on the descendant does not change it). The scope
+ * includes base tokens, the theme via `data-theme` and custom properties of the ancestors;
+ * `calc()`/`color-mix()` are evaluated when possible. `theme` forces a theme on the node itself
+ * (as if it had `data-theme="<theme>"`); `evaluate: false` keeps `calc()`/`color-mix()` as text.
  */
 export function getComputedLike(
   doc: Document,

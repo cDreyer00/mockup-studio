@@ -14,7 +14,7 @@ import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
 const EXT = `chrome-extension://${MOCKUP_EXTENSION_ID}`;
-/** Id válido (32 letras a-p) que não é o da extensão do Mockup Studio. */
+/** Valid id (32 letters a-p) that is not the Mockup Studio extension's. */
 const OTHER_EXT = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
 
 function pngBytes(w: number, h: number, extra = 0): Buffer {
@@ -46,8 +46,8 @@ function payload(extraBytes = 0): SnapshotPayload {
     format: SNAPSHOT_FORMAT,
     version: SNAPSHOT_VERSION,
     source: {
-      url: 'https://exemplo.com/',
-      title: 'Exemplo',
+      url: 'https://example.com/',
+      title: 'Example',
       capturedAt: new Date().toISOString(),
       viewport: { width: 1440, height: 900 },
       devicePixelRatio: 1,
@@ -57,18 +57,18 @@ function payload(extraBytes = 0): SnapshotPayload {
       styles: { width: '800px', height: '400px' },
       children: [
         createNodeFromTag('img', { src: 'asset:a1', attrs: { alt: 'x' } }),
-        createNodeFromTag('h1', { text: 'Olá' }),
+        createNodeFromTag('h1', { text: 'Hello' }),
       ],
     }),
     width: 800,
     height: 400,
-    assets: [{ id: 'a1', kind: 'image', url: 'https://cdn.exemplo.com/a.png', dataUrl }],
+    assets: [{ id: 'a1', kind: 'image', url: 'https://cdn.example.com/a.png', dataUrl }],
     fonts: [],
     stats: { nodes: 3, truncated: false, warnings: [] },
   };
 }
 
-describe('rotas de importação', () => {
+describe('import routes', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
 
@@ -93,9 +93,9 @@ describe('rotas de importação', () => {
       body: typeof body === 'string' ? body : JSON.stringify(body),
     });
 
-  it('POST /api/snapshot aceita o corpo SnapshotImportRequest e o payload puro', async () => {
+  it('POST /api/snapshot accepts the SnapshotImportRequest body and the bare payload', async () => {
     await start();
-    const r = await post('/api/snapshot', { payload: payload(), name: 'Meu frame', x: 10, y: 20 });
+    const r = await post('/api/snapshot', { payload: payload(), name: 'My frame', x: 10, y: 20 });
     expect(r.status).toBe(200);
     const body = (await r.json()) as SnapshotImportResult;
     expect(body.method).toBe('snapshot');
@@ -103,7 +103,7 @@ describe('rotas de importação', () => {
     expect(body.images).toBe(1);
     const doc = daemon.store.get(body.docId);
     const frame = doc.pages[0]!.frames.find((f) => f.id === body.frameId)!;
-    expect(frame.name).toBe('Meu frame');
+    expect(frame.name).toBe('My frame');
     expect(frame.position).toEqual({ x: 10, y: 20 });
 
     const pure = await post('/api/snapshot', payload());
@@ -111,7 +111,7 @@ describe('rotas de importação', () => {
     expect(daemon.store.get(body.docId).pages[0]!.frames).toHaveLength(3);
   });
 
-  it('usa a origem editor nas mudanças (sem selo de IA)', async () => {
+  it('uses the editor source for changes (no AI badge)', async () => {
     await start();
     const sources: string[] = [];
     daemon.store.on('doc:changed', (e) => sources.push(e.source));
@@ -119,22 +119,22 @@ describe('rotas de importação', () => {
     expect(sources).toEqual(['editor']);
   });
 
-  it('aceita corpo acima de 20 MB (limite próprio de 64 MB)', async () => {
+  it('accepts a body above 20 MB (own limit of 64 MB)', async () => {
     await start();
     const r = await post('/api/snapshot', payload(18 * 1024 * 1024));
     expect(r.status).toBe(200);
     expect(fs.existsSync(path.join(ws.dir, 'assets'))).toBe(true);
   });
 
-  describe('origem da extensão (chrome-extension://)', () => {
-    it('é aceita em POST /api/snapshot, com CORS refletindo a origem', async () => {
+  describe('extension origin (chrome-extension://)', () => {
+    it('is accepted on POST /api/snapshot, with CORS reflecting the origin', async () => {
       await start();
       const r = await post('/api/snapshot', payload(), { origin: EXT });
       expect(r.status).toBe(200);
       expect(r.headers.get('access-control-allow-origin')).toBe(EXT);
     });
 
-    it('preflight OPTIONS de /api/snapshot responde com a origem e content-type', async () => {
+    it('OPTIONS preflight of /api/snapshot answers with the origin and content-type', async () => {
       await start();
       const r = await fetch(`${daemon.url}/api/snapshot`, {
         method: 'OPTIONS',
@@ -152,7 +152,7 @@ describe('rotas de importação', () => {
       expect(r.headers.get('access-control-allow-methods')).toContain('POST');
     });
 
-    it('é recusada nas demais rotas (e no preflight delas)', async () => {
+    it('is rejected on the other routes (and on their preflight)', async () => {
       await start();
       for (const route of [
         '/api/open',
@@ -182,7 +182,7 @@ describe('rotas de importação', () => {
       expect(other.headers.get('access-control-allow-origin')).toBeNull();
     });
 
-    it('outro id de extensão é recusado, mas passa se estiver em MOCKUP_EXTENSION_IDS', async () => {
+    it('another extension id is rejected, but passes if it is in MOCKUP_EXTENSION_IDS', async () => {
       await start();
       const denied = await post('/api/snapshot', payload(), { origin: OTHER_EXT });
       expect(denied.status).toBe(403);
@@ -198,7 +198,7 @@ describe('rotas de importação', () => {
       }
     });
 
-    it('formato de id inválido e sites comuns continuam recusados em /api/snapshot', async () => {
+    it('invalid id format and regular sites are still rejected on /api/snapshot', async () => {
       await start();
       for (const origin of [
         'chrome-extension://abc',
@@ -212,7 +212,7 @@ describe('rotas de importação', () => {
         const r = await post('/api/snapshot', payload(), { origin });
         expect(r.status, origin).toBe(403);
       }
-      // outros métodos de origem da extensão não passam
+      // other methods from the extension origin do not pass
       const put = await fetch(`${daemon.url}/api/snapshot`, {
         method: 'PUT',
         headers: { origin: EXT, 'content-type': 'application/json' },
@@ -221,10 +221,10 @@ describe('rotas de importação', () => {
       expect(put.status).toBe(403);
     });
 
-    it('origem local (editor em outra porta) também recebe CORS nas três rotas', async () => {
+    it('local origin (editor on another port) also gets CORS on the three routes', async () => {
       await start();
       for (const route of ['/api/snapshot', '/api/import/html']) {
-        const r = await post(route, route === '/api/snapshot' ? payload() : { html: '<p>oi</p>' }, {
+        const r = await post(route, route === '/api/snapshot' ? payload() : { html: '<p>hi</p>' }, {
           origin: 'http://localhost:5173',
         });
         expect(r.status, route).toBe(200);
@@ -233,43 +233,43 @@ describe('rotas de importação', () => {
     });
   });
 
-  describe('erros', () => {
-    it('400 para payload inválido, corpo que não é objeto e versão errada', async () => {
+  describe('errors', () => {
+    it('400 for invalid payload, non-object body and wrong version', async () => {
       await start();
-      const bad = await post('/api/snapshot', { payload: { format: 'outro' } });
+      const bad = await post('/api/snapshot', { payload: { format: 'other' } });
       expect(bad.status).toBe(400);
-      expect(((await bad.json()) as { error: string }).error).toContain('Snapshot inválido');
+      expect(((await bad.json()) as { error: string }).error).toContain('Invalid snapshot');
       expect((await post('/api/snapshot', '[1,2]')).status).toBe(400);
       expect((await post('/api/snapshot', '{"a":')).status).toBe(400);
       const v = await post('/api/snapshot', { ...payload(), version: 9 });
       expect(v.status).toBe(400);
-      expect(((await v.json()) as { error: string }).error).toContain('versão');
+      expect(((await v.json()) as { error: string }).error).toContain('version');
       const placement = await post('/api/snapshot', { payload: payload(), x: 'a' });
       expect(placement.status).toBe(400);
     });
 
-    it('404 para documento/página inexistente e 409 sem documento aberto', async () => {
+    it('404 for a nonexistent document/page and 409 with no open document', async () => {
       await start();
-      expect((await post('/api/snapshot', { payload: payload(), docId: 'doc_nao' })).status).toBe(
-        404,
-      );
-      expect((await post('/api/snapshot', { payload: payload(), pageId: 'pg_nao' })).status).toBe(
-        404,
-      );
+      expect(
+        (await post('/api/snapshot', { payload: payload(), docId: 'doc_missing' })).status,
+      ).toBe(404);
+      expect(
+        (await post('/api/snapshot', { payload: payload(), pageId: 'pg_missing' })).status,
+      ).toBe(404);
       await daemon.close();
       ws.cleanup();
       await start(false);
       const r = await post('/api/snapshot', { payload: payload() });
       expect(r.status).toBe(409);
-      expect(((await r.json()) as { error: string }).error).toContain('Nenhum documento aberto');
+      expect(((await r.json()) as { error: string }).error).toContain('No document is open');
     });
 
-    it('/api/import/url: 503 sem render (mensagem orienta), 400 para protocolos não http(s) e viewport inválido', async () => {
+    it('/api/import/url: 503 without render (the message guides the user), 400 for non-http(s) protocols and invalid viewport', async () => {
       await start();
-      const r = await post('/api/import/url', { url: 'https://exemplo.com' });
+      const r = await post('/api/import/url', { url: 'https://example.com' });
       expect(r.status).toBe(503);
       const msg = ((await r.json()) as { error: string }).error;
-      expect(msg).toContain('app desktop');
+      expect(msg).toContain('desktop app');
       expect(msg).toContain('mockup serve --render');
       for (const url of [
         'file:///etc/passwd',
@@ -295,22 +295,22 @@ describe('rotas de importação', () => {
       );
     });
 
-    it('/api/import/html cai na conversão do core sem render (method html, com aviso)', async () => {
+    it('/api/import/html falls back to the core conversion without render (method html, with warning)', async () => {
       await start();
       const r = await post('/api/import/html', {
-        html: '<section><h1>Olá</h1><p>texto</p></section>',
+        html: '<section><h1>Hello</h1><p>text</p></section>',
         css: 'h1{color:red}',
         viewport: { width: 1024 },
-        name: 'Cartão',
+        name: 'Card',
       });
       expect(r.status).toBe(200);
       const body = (await r.json()) as SnapshotImportResult;
       expect(body.method).toBe('html');
-      expect(body.warnings.join('\n')).toContain('fidelidade menor');
+      expect(body.warnings.join('\n')).toContain('lower fidelity');
       const frame = daemon.store
         .get(body.docId)
         .pages[0]!.frames.find((f) => f.id === body.frameId)!;
-      expect(frame.name).toBe('Cartão');
+      expect(frame.name).toBe('Card');
       expect(frame.style.width).toBe('1024px');
       expect(frame.children.length).toBeGreaterThan(0);
       expect((await post('/api/import/html', { html: '' })).status).toBe(400);

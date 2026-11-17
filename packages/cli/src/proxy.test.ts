@@ -7,7 +7,7 @@ import { isMockupHealth } from './discover.js';
 import { isConnectionError } from './proxy.js';
 
 describe('isConnectionError', () => {
-  it('aceita erros de conexão', () => {
+  it('accepts connection errors', () => {
     expect(isConnectionError(Object.assign(new Error('x'), { code: 'ECONNREFUSED' }))).toBe(true);
     expect(
       isConnectionError(
@@ -18,16 +18,16 @@ describe('isConnectionError', () => {
     ).toBe(true);
     expect(isConnectionError(new StreamableHTTPError(404, 'Session not found'))).toBe(true);
   });
-  it('rejeita os demais (sem repetir chamadas)', () => {
+  it('rejects the others (without retrying calls)', () => {
     expect(isConnectionError(new StreamableHTTPError(500, 'x'))).toBe(false);
     expect(isConnectionError(new McpError(-32001, 'Request timed out'))).toBe(false);
-    expect(isConnectionError(new Error('ferramenta falhou'))).toBe(false);
+    expect(isConnectionError(new Error('tool failed'))).toBe(false);
     expect(isConnectionError(null)).toBe(false);
   });
 });
 
 describe('isMockupHealth', () => {
-  it('exige ok, name e version', () => {
+  it('requires ok, name and version', () => {
     expect(isMockupHealth({ ok: true, name: 'mockup-studio', version: '0.1.0' })).toBe(true);
     expect(isMockupHealth({ ok: true })).toBe(false);
     expect(isMockupHealth({ status: 'ok' })).toBe(false);
@@ -36,24 +36,24 @@ describe('isMockupHealth', () => {
 });
 
 describe('parsePort', () => {
-  it('aceita número válido e undefined', () => {
+  it('accepts a valid number and undefined', () => {
     expect(parsePort('4747')).toBe(4747);
     expect(parsePort(undefined)).toBeUndefined();
   });
-  it('rejeita valores inválidos', () => {
+  it('rejects invalid values', () => {
     for (const v of ['abc', '-1', '70000', '1.5']) {
-      expect(() => parsePort(v)).toThrow('--port exige um número inteiro entre 0 e 65535.');
+      expect(() => parsePort(v)).toThrow('--port requires an integer between 0 and 65535.');
     }
   });
 });
 
 describe('resolveNewDocument', () => {
-  it('normaliza a extensão e deriva o nome', () => {
+  it('normalizes the extension and derives the name', () => {
     const a = resolveNewDocument('foo.json');
     expect(a.target).toBe(path.resolve('foo.mockup.json'));
     expect(a.docName).toBe('foo');
     expect(resolveNewDocument('a.mockup.json').target).toBe(path.resolve('a.mockup.json'));
     expect(resolveNewDocument('b').target).toBe(path.resolve('b.mockup.json'));
-    expect(resolveNewDocument('b', 'Meu').docName).toBe('Meu');
+    expect(resolveNewDocument('b', 'Mine').docName).toBe('Mine');
   });
 });

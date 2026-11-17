@@ -15,12 +15,12 @@ function base(): { doc: Document; pageId: string } {
 }
 
 describe('History', () => {
-  it('apply/undo/redo e revision', () => {
+  it('apply/undo/redo and revision', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     expect(h.canUndo).toBe(false);
     const frame = createNodeFromTag('div', { isRoot: true });
-    const r = h.apply([{ type: 'createNode', pageId, node: frame }], 'criar');
+    const r = h.apply([{ type: 'createNode', pageId, node: frame }], 'create');
     expect(r.appliedOps).toHaveLength(1);
     expect(h.revision).toBe(1);
     expect(h.doc.pages[0].frames).toHaveLength(1);
@@ -35,7 +35,7 @@ describe('History', () => {
     expect(h.redo()).toBeNull();
   });
 
-  it('nova ação limpa a pilha de redo', () => {
+  it('a new action clears the redo stack', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     h.apply([{ type: 'renamePage', pageId, name: 'A' }]);
@@ -44,7 +44,7 @@ describe('History', () => {
     expect(h.canRedo).toBe(false);
   });
 
-  it('duplicate: redo mantém os mesmos ids', () => {
+  it('duplicate: redo keeps the same ids', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     const frame = createNodeFromTag('div', { isRoot: true });
@@ -58,7 +58,7 @@ describe('History', () => {
     expect(h.doc.pages[0].frames.map((f) => f.id)).toContain(newId);
   });
 
-  it('respeita limit', () => {
+  it('respects limit', () => {
     const { doc, pageId } = base();
     const h = new History(doc, { limit: 2 });
     for (const n of ['A', 'B', 'C']) h.apply([{ type: 'renamePage', pageId, name: n }]);
@@ -68,14 +68,14 @@ describe('History', () => {
     expect(h.doc.pages[0].name).toBe('A');
   });
 
-  it('replace/clear limpam as pilhas; falha não altera estado', () => {
+  it('replace/clear empty the stacks; a failure does not change state', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     h.apply([{ type: 'renamePage', pageId, name: 'A' }]);
     const rev = h.revision;
     expect(() => h.apply([{ type: 'deleteNodes', nodeIds: ['el_zz'] }])).toThrow();
     expect(h.revision).toBe(rev);
-    h.replace(createDocument('Outro'));
+    h.replace(createDocument('Other'));
     expect(h.canUndo).toBe(false);
     expect(h.revision).toBeGreaterThan(rev);
     h.apply([{ type: 'renamePage', pageId: h.doc.pages[0].id, name: 'Z' }]);
@@ -83,7 +83,7 @@ describe('History', () => {
     expect(h.canUndo).toBe(false);
   });
 
-  it('grupo: aplicações seguidas do mesmo grupo viram uma entrada; undo desfaz todas', () => {
+  it('group: consecutive applications of the same group become one entry; undo reverts them all', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     const a = createNodeFromTag('div', { isRoot: true });
@@ -102,13 +102,13 @@ describe('History', () => {
     expect(h.canUndo).toBe(false);
     h.redo();
     expect(h.doc.pages[0].frames.map((f) => f.name)).toContain('A2');
-    // depois de undo/redo o grupo fecha: outra aplicação do mesmo grupo é entrada nova
+    // after undo/redo the group closes: another application of the same group is a new entry
     h.apply([{ type: 'createNode', pageId, node: c }], 'd', { group: 't1' });
     h.undo();
     expect(h.doc.pages[0].frames).toHaveLength(2);
   });
 
-  it('grupo: aplicação sem grupo no meio quebra a fusão; closeGroup encerra', () => {
+  it('group: an application without a group in the middle breaks the merge; closeGroup ends it', () => {
     const { doc, pageId } = base();
     const h = new History(doc);
     const n = () => createNodeFromTag('div', { isRoot: true });

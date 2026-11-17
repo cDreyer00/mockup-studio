@@ -2,7 +2,7 @@
   "name": "@mockup/server",
   "version": "0.1.0",
   "private": true,
-  "description": "Daemon local do Mockup Studio: documentos abertos, HTTP, WebSocket e servidor MCP.",
+  "description": "Mockup Studio local daemon: open documents, HTTP, WebSocket and MCP server.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

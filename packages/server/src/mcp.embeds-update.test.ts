@@ -21,7 +21,7 @@ function find(node: Node, pred: (n: Node) => boolean): Node | undefined {
   return undefined;
 }
 
-describe('update_media: troca de URL de embed YouTube', () => {
+describe('update_media: swapping the URL of a YouTube embed', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
   let client: Client;
@@ -29,7 +29,7 @@ describe('update_media: troca de URL de embed YouTube', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -51,7 +51,7 @@ describe('update_media: troca de URL de embed YouTube', () => {
     return embed().id;
   };
 
-  it('recalcula start a partir da nova URL', async () => {
+  it('recomputes start from the new URL', async () => {
     const nodeId = await insert('https://youtu.be/dQw4w9WgXcQ?t=42');
     const r = await call('update_media', {
       nodeId,
@@ -65,14 +65,14 @@ describe('update_media: troca de URL de embed YouTube', () => {
     });
   });
 
-  it('remove o start antigo quando a nova URL não tem t=/start=', async () => {
+  it('removes the old start when the new URL has no t=/start=', async () => {
     const nodeId = await insert('https://youtu.be/dQw4w9WgXcQ?t=42');
     await call('update_media', { nodeId, url: 'https://youtu.be/abcdefghijk' });
     expect(embed().embed?.url).toBe('https://youtu.be/abcdefghijk');
     expect(embed().embed?.params?.['start']).toBeUndefined();
   });
 
-  it('params.start explícito prevalece sobre o da URL', async () => {
+  it('explicit params.start takes precedence over the URL one', async () => {
     const nodeId = await insert('https://youtu.be/dQw4w9WgXcQ');
     await call('update_media', {
       nodeId,
@@ -82,7 +82,7 @@ describe('update_media: troca de URL de embed YouTube', () => {
     expect(embed().embed?.params).toMatchObject({ start: 99 });
   });
 
-  it('mantém os outros params ao recalcular o start', async () => {
+  it('keeps the other params when recomputing start', async () => {
     const nodeId = await insert('https://youtu.be/dQw4w9WgXcQ?t=42');
     await call('update_media', { nodeId, params: { mute: true } });
     await call('update_media', { nodeId, url: 'https://youtu.be/abcdefghijk' });

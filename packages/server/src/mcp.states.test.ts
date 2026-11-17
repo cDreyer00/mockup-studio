@@ -14,7 +14,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-describe('MCP estados: breakpoints customizados e tema dark', () => {
+describe('MCP states: custom breakpoints and dark theme', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -33,7 +33,7 @@ describe('MCP estados: breakpoints customizados e tema dark', () => {
       };
     },
     async measure() {
-      throw new Error('não usado');
+      throw new Error('not used');
     },
   };
 
@@ -41,7 +41,7 @@ describe('MCP estados: breakpoints customizados e tema dark', () => {
     ws = makeWorkspace();
     captures = [];
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -59,7 +59,7 @@ describe('MCP estados: breakpoints customizados e tema dark', () => {
     expect(r.isError, textOf(r)).toBeFalsy();
     return textOf(r);
   };
-  const created = (t: string): string => /Nós criados: ([^.\n,]+)/.exec(t)![1]!.trim();
+  const created = (t: string): string => /Nodes created: ([^.\n,]+)/.exec(t)![1]!.trim();
 
   async function nodeIn(parentId: string, style: string): Promise<string> {
     return created(
@@ -71,30 +71,30 @@ describe('MCP estados: breakpoints customizados e tema dark', () => {
     );
   }
 
-  it('breakpoint customizado: md só vale a partir do --breakpoint-md do documento', async () => {
+  it('custom breakpoint: md only applies from the document --breakpoint-md', async () => {
     await ok('set_tokens', { tokens: { '--breakpoint-md': '900px' } });
-    const frame = /Frame criado: (\S+)/.exec(
-      await ok('create_frame', { name: 'Tela', width: 800, height: 600 }),
+    const frame = /Frame created: (\S+)/.exec(
+      await ok('create_frame', { name: 'Screen', width: 800, height: 600 }),
     )![1]!;
     const id = await nodeIn(frame, 'padding: 8px');
     await ok('update_styles', { nodeIds: [id], state: 'md', styles: { padding: '32px' } });
-    // 800px < 900px: o frame não ativa md (com o padrão de 768px ativaria).
+    // 800px < 900px: the frame does not activate md (with the 768px default it would).
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('padding: 8px');
-    // state:'md' simula o breakpoint (largura mínima = 900px).
+    // state:'md' simulates the breakpoint (minimum width = 900px).
     expect(await ok('get_styles', { nodeIds: [id], state: 'md' })).toContain('padding: 32px');
   });
 
-  it('breakpoint customizado menor ativa no frame que o padrão não ativaria', async () => {
+  it('a smaller custom breakpoint activates on a frame the default would not', async () => {
     await ok('set_tokens', { tokens: { '--breakpoint-md': '700px' } });
-    const frame = /Frame criado: (\S+)/.exec(
-      await ok('create_frame', { name: 'Tela', width: 720, height: 600 }),
+    const frame = /Frame created: (\S+)/.exec(
+      await ok('create_frame', { name: 'Screen', width: 720, height: 600 }),
     )![1]!;
     const id = await nodeIn(frame, 'padding: 8px');
     await ok('update_styles', { nodeIds: [id], state: 'md', styles: { padding: '32px' } });
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('padding: 32px');
   });
 
-  it('get_styles com state dark troca para o tema dark do documento', async () => {
+  it('get_styles with state dark switches to the document dark theme', async () => {
     await ok('set_tokens', { tokens: { '--surface': '#ffffff' } });
     await ok('create_theme', { name: 'dark', overrides: { '--surface': '#0f172a' } });
     const id = await nodeIn(ws.frameId, 'background-color: var(--surface)');
@@ -104,7 +104,7 @@ describe('MCP estados: breakpoints customizados e tema dark', () => {
     expect(dark).not.toContain('#ffffff');
   });
 
-  it('get_screenshot com state dark repassa o estado ao render', async () => {
+  it('get_screenshot with state dark passes the state on to the render', async () => {
     await ok('create_theme', { name: 'dark', overrides: { '--surface': '#0f172a' } });
     await ok('get_screenshot', { nodeId: ws.frameId, state: 'dark' });
     expect(captures.at(-1)?.state).toBe('dark');

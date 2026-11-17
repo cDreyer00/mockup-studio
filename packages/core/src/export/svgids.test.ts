@@ -37,15 +37,15 @@ function svgNode(id: string, v: Vector): Node {
 }
 
 function docWith(children: Node[]) {
-  const doc = createDocument('Teste', { id: 'doc_test' });
+  const doc = createDocument('Test', { id: 'doc_test' });
   doc.pages[0].frames.push(
-    createNode({ id: 'fr_test0001', tag: 'div', type: 'frame', name: 'Tela', children }),
+    createNode({ id: 'fr_test0001', tag: 'div', type: 'frame', name: 'Screen', children }),
   );
   return doc;
 }
 
 describe('scopeSvgIds', () => {
-  it('prefixa ids e reescreve url(#), href e xlink:href', () => {
+  it('prefixes ids and rewrites url(#), href and xlink:href', () => {
     const out = scopeSvgIds(
       '<svg><defs><linearGradient id="a"/><linearGradient id="ab"/></defs><path fill="url(#a)" stroke="url(&quot;#ab&quot;)"/><use href="#a"/><use xlink:href="#ab"/><a href="#zzz"/></svg>',
       'n1',
@@ -59,13 +59,13 @@ describe('scopeSvgIds', () => {
     expect(out).toContain('href="#zzz"');
   });
 
-  it('sem ids devolve igual', () => {
+  it('without ids returns it unchanged', () => {
     const m = '<svg><path d="M0 0"/></svg>';
     expect(scopeSvgIds(m, 'x')).toBe(m);
   });
 });
 
-describe('ids de gradiente em svgs exportados juntos', () => {
+describe('gradient ids in svgs exported together', () => {
   const doc = docWith([svgNode('sv_aaaaaaaa', grad('#f00')), svgNode('sv_bbbbbbbb', grad('#0f0'))]);
 
   const check = (text: string): void => {
@@ -86,7 +86,7 @@ describe('ids de gradiente em svgs exportados juntos', () => {
   });
 });
 
-describe('ids de gradiente no export svg', () => {
+describe('gradient ids in svg export', () => {
   const doc = docWith([svgNode('sv_aaaaaaaa', grad('#f00')), svgNode('sv_bbbbbbbb', grad('#0f0'))]);
   const lay = (
     id: string,
@@ -117,11 +117,11 @@ describe('ids de gradiente no export svg', () => {
     for (const m of text.matchAll(/url\(#([^)]+)\)/g)) expect(ids).toContain(m[1]!);
   };
 
-  it('fallback (sem layout)', () => {
+  it('fallback (no layout)', () => {
     check(exportSvg(doc, { nodeId: 'fr_test0001' }));
   });
 
-  it('com layout (render): ids únicos entre vetores', () => {
+  it('with layout (render): unique ids across vectors', () => {
     check(exportSvg(doc, { nodeId: 'fr_test0001', layout }));
   });
 });

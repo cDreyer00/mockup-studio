@@ -1,7 +1,7 @@
 /**
- * Componentes com os nós e as ops das fases 6 a 8: repetidor (`setData`), vetor (`setVector`) e
- * mídia (`setMedia`) dentro de um principal, editados pela instância (ids virtuais viram
- * overrides), pelo principal e por variantes; leitura de arquivo e exportadores.
+ * Components with the nodes and ops of phases 6 to 8: repeater (`setData`), vector (`setVector`)
+ * and media (`setMedia`) inside a main component, edited through the instance (virtual ids
+ * become overrides), through the main component and through variants; file reading and exporters.
  */
 import { describe, expect, it } from 'vitest';
 import { applyOp } from '../apply.js';
@@ -58,8 +58,8 @@ function fixture(): Document {
             n('sv_icon001', 'svg', 'svg', { vector: SQUARE, style: { width: '24px' } }),
             n('vd_clip001', 'video', 'video', { video: { src: 'clips/a.mp4', muted: true } }),
             n('rp_list001', 'repeater', 'ul', {
-              data: [{ nome: 'Ana' }, { nome: 'Bia' }],
-              children: [n('tx_item001', 'text', 'li', { text: '{{nome}}' })] as Node[],
+              data: [{ name: 'Ana' }, { name: 'Bia' }],
+              children: [n('tx_item001', 'text', 'li', { text: '{{name}}' })] as Node[],
             }),
           ] as Node[],
         }),
@@ -93,12 +93,12 @@ function fixture(): Document {
 
 const view = (doc: Document, id: string): Node => {
   const p = findNode(expandDocument(doc), id);
-  if (!p) throw new Error(`sem ${id}`);
+  if (!p) throw new Error(`no ${id}`);
   return p.node;
 };
 
-describe('componentes × repetidor, vetor e mídia', () => {
-  it('setMedia num efeito da instância vira override; a outra instância e o principal não mudam', () => {
+describe('components × repeater, vector and media', () => {
+  it('setMedia on an instance effect becomes an override; the other instance and the main component are unchanged', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setMedia',
@@ -111,29 +111,29 @@ describe('componentes × repetidor, vetor e mídia', () => {
     expect(view(r.doc, 'in_a/fx_bg0001').effect?.kind).toBe('grain');
     expect(view(r.doc, 'in_b/fx_bg0001').effect?.kind).toBe('mesh-gradient');
     expect(getComponent(r.doc, 'cp_hero')!.root.children[0]!.effect?.kind).toBe('mesh-gradient');
-    // o inverso desfaz exatamente
+    // the inverse undoes it exactly
     const back = applyOp(r.doc, r.inverse[0]!);
     expect(findNode(back.doc, 'in_a')!.node.overrides).toBeUndefined();
     expect(view(back.doc, 'in_a/fx_bg0001').effect?.kind).toBe('mesh-gradient');
   });
 
-  it('setMedia com o campo errado ou efeito desconhecido é recusado no id virtual', () => {
+  it('setMedia with the wrong field or an unknown effect is rejected on a virtual id', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, {
         type: 'setMedia',
         changes: [{ nodeId: 'in_a/fx_bg0001', video: { src: 'x.mp4' } }],
       }),
-    ).toThrow(/video só vale em nós video/);
+    ).toThrow(/video only applies to video nodes/);
     expect(() =>
       applyOp(doc, {
         type: 'setMedia',
-        changes: [{ nodeId: 'in_a/fx_bg0001', effect: { kind: 'nao-existe', params: {} } }],
+        changes: [{ nodeId: 'in_a/fx_bg0001', effect: { kind: 'does-not-exist', params: {} } }],
       }),
-    ).toThrow(/Efeito desconhecido/);
+    ).toThrow(/Unknown effect/);
   });
 
-  it('setMedia em vídeo e a variante do efeito', () => {
+  it('setMedia on a video and the effect variant', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setMedia',
@@ -141,7 +141,7 @@ describe('componentes × repetidor, vetor e mídia', () => {
     });
     expect(view(r.doc, 'in_b/vd_clip001').video).toEqual({ src: 'clips/b.mp4', loop: true });
     expect(view(r.doc, 'in_a/vd_clip001').video?.src).toBe('clips/a.mp4');
-    // variante loud troca o efeito; o override da instância vence a variante
+    // the loud variant swaps the effect; the instance override beats the variant
     const loud = applyOp(r.doc, {
       type: 'setInstanceProps',
       changes: [{ nodeId: 'in_a', set: { tone: 'loud' } }],
@@ -159,7 +159,7 @@ describe('componentes × repetidor, vetor e mídia', () => {
     });
   });
 
-  it('setVector no svg da instância grava vetor e markup gerado; vector null volta ao principal', () => {
+  it('setVector on the instance svg stores the vector and generated markup; null vector goes back to the main component', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setVector',
@@ -181,7 +181,7 @@ describe('componentes × repetidor, vetor e mídia', () => {
     expect(view(reset.doc, 'in_a/sv_icon001').svg).toContain('#ff0000');
   });
 
-  it('setSvg sem vetor na instância descarta o vetor do principal na visão', () => {
+  it('setSvg without a vector on the instance discards the main component vector in the view', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setSvg',
@@ -198,13 +198,13 @@ describe('componentes × repetidor, vetor e mídia', () => {
     expect(view(r.doc, 'in_b/sv_icon001').vector).toBeDefined();
   });
 
-  it('setData no repetidor da instância troca os itens (lista vazia é um valor)', () => {
+  it('setData on the instance repeater replaces the items (an empty list is a value)', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setData',
-      changes: [{ nodeId: 'in_a/rp_list001', data: [{ nome: 'Caio' }] }],
+      changes: [{ nodeId: 'in_a/rp_list001', data: [{ name: 'Caio' }] }],
     });
-    expect(view(r.doc, 'in_a/rp_list001').data).toEqual([{ nome: 'Caio' }]);
+    expect(view(r.doc, 'in_a/rp_list001').data).toEqual([{ name: 'Caio' }]);
     expect(view(r.doc, 'in_b/rp_list001').data).toHaveLength(2);
     const empty = applyOp(r.doc, {
       type: 'setData',
@@ -212,10 +212,10 @@ describe('componentes × repetidor, vetor e mídia', () => {
     });
     expect(findNode(empty.doc, 'in_a')!.node.overrides).toEqual({ rp_list001: { data: [] } });
     expect(view(empty.doc, 'in_a/rp_list001').data).toEqual([]);
-    // o undo restaura o override anterior
+    // undo restores the previous override
     const back = applyOp(empty.doc, empty.inverse[0]!);
-    expect(view(back.doc, 'in_a/rp_list001').data).toEqual([{ nome: 'Caio' }]);
-    // fonte de dados também é sobrescrevível; null remove
+    expect(view(back.doc, 'in_a/rp_list001').data).toEqual([{ name: 'Caio' }]);
+    // the data source can also be overridden; null removes it
     const src = applyOp(r.doc, {
       type: 'setData',
       changes: [{ nodeId: 'in_a/rp_list001', source: { kind: 'inline' } }],
@@ -228,16 +228,16 @@ describe('componentes × repetidor, vetor e mídia', () => {
     expect(view(noSrc.doc, 'in_a/rp_list001').dataSource).toBeUndefined();
   });
 
-  it('setData em nó que não é repetidor é recusado no id virtual', () => {
+  it('setData on a non-repeater node is rejected on a virtual id', () => {
     expect(() =>
       applyOp(fixture(), {
         type: 'setData',
         changes: [{ nodeId: 'in_a/vd_clip001', data: [] }],
       }),
-    ).toThrow(/não é um repetidor/);
+    ).toThrow(/is not a repeater/);
   });
 
-  it('as ops em nós do principal editam o principal (todas as instâncias mudam)', () => {
+  it('ops on main component nodes edit the main component (all instances change)', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setMedia',
@@ -248,21 +248,21 @@ describe('componentes × repetidor, vetor e mídia', () => {
     expect(view(r.doc, 'in_b/fx_bg0001').effect?.kind).toBe('grain');
     const d2 = applyOp(r.doc, {
       type: 'setData',
-      changes: [{ nodeId: 'rp_list001', data: [{ nome: 'Zé' }] }],
+      changes: [{ nodeId: 'rp_list001', data: [{ name: 'Zed' }] }],
     });
-    expect(view(d2.doc, 'in_b/rp_list001').data).toEqual([{ nome: 'Zé' }]);
+    expect(view(d2.doc, 'in_b/rp_list001').data).toEqual([{ name: 'Zed' }]);
     const d3 = applyOp(d2.doc, {
       type: 'setVector',
       changes: [{ nodeId: 'sv_icon001', vector: CIRCLE }],
     });
     expect(view(d3.doc, 'in_a/sv_icon001').svg).toContain('#00ff00');
-    // undo de cada passo
+    // undo of each step
     expect(
       getComponent(applyOp(d3.doc, d3.inverse[0]!).doc, 'cp_hero')!.root.children[1]!.vector,
     ).toEqual(SQUARE);
   });
 
-  it('os overrides novos sobrevivem a salvar e reabrir; inválidos são descartados na leitura', () => {
+  it('the new overrides survive save and reopen; invalid ones are dropped on read', () => {
     let doc = fixture();
     doc = applyOp(doc, {
       type: 'setMedia',
@@ -282,20 +282,20 @@ describe('componentes × repetidor, vetor e mídia', () => {
     const raw = JSON.parse(serializeDocument(doc));
     raw.pages[0].frames[0].children[0].overrides.fx_bg0001.video = { src: 'javascript:x' };
     expect(() => parseDocument(raw)).toThrow();
-    raw.pages[0].frames[0].children[0].overrides.fx_bg0001 = { vector: { lixo: true } };
+    raw.pages[0].frames[0].children[0].overrides.fx_bg0001 = { vector: { junk: true } };
     const loose = parseDocument(raw);
     expect(findNode(loose, 'in_a')!.node.overrides!.fx_bg0001).toBeUndefined();
   });
 
-  it('normalizeOverride valida os campos novos com as regras das ops', () => {
+  it('normalizeOverride validates the new fields with the ops rules', () => {
     expect(() => normalizeOverride({ video: { src: 'javascript:alert(1)' } })).toThrow(/video/);
-    expect(() => normalizeOverride({ effect: { kind: 'nao-existe', params: {} } })).toThrow(
-      /desconhecido/,
+    expect(() => normalizeOverride({ effect: { kind: 'does-not-exist', params: {} } })).toThrow(
+      /Unknown/,
     );
     expect(normalizeOverride({ data: [] })).toEqual({ data: [] });
   });
 
-  it('o export HTML expande a instância com o efeito, o vetor e os itens sobrescritos', () => {
+  it('the HTML export expands the instance with the overridden effect, vector and items', () => {
     let doc = fixture();
     doc = applyOp(doc, {
       type: 'setMedia',
@@ -303,7 +303,7 @@ describe('componentes × repetidor, vetor e mídia', () => {
     }).doc;
     doc = applyOp(doc, {
       type: 'setData',
-      changes: [{ nodeId: 'in_a/rp_list001', data: [{ nome: 'Caio' }, { nome: 'Duda' }] }],
+      changes: [{ nodeId: 'in_a/rp_list001', data: [{ name: 'Caio' }, { name: 'Duda' }] }],
     }).doc;
     doc = applyOp(doc, {
       type: 'setVector',

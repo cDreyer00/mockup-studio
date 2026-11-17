@@ -17,15 +17,15 @@ const keys = (d: ReturnType<typeof parseDoc>, sub?: string) =>
   findSection(d, sub)?.entries.map((e) => `${e.key}@${e.from}-${e.to}`);
 
 describe('scanValue', () => {
-  it('comentário no fim da linha, fora de string', () => {
+  it('end-of-line comment, outside a string', () => {
     expect(scanValue(' "a#b" # c')).toEqual({ complete: true, comment: '# c' });
     expect(scanValue(" 'x' ")).toEqual({ complete: true, comment: undefined });
   });
-  it('array com comentário dentro continua até fechar', () => {
+  it('array with a comment inside continues until closed', () => {
     expect(scanValue(' [ # c ]').complete).toBe(false);
-    expect(scanValue(' [ # c ]\n "a",\n] # fim')).toEqual({ complete: true, comment: '# fim' });
+    expect(scanValue(' [ # c ]\n "a",\n] # end')).toEqual({ complete: true, comment: '# end' });
   });
-  it('string de várias linhas', () => {
+  it('multi-line string', () => {
     expect(scanValue(' """abc').complete).toBe(false);
     expect(scanValue(' """abc\n[x] = 1\n"""').complete).toBe(true);
     expect(scanValue(" '''a\\'''").complete).toBe(true);
@@ -34,42 +34,42 @@ describe('scanValue', () => {
 });
 
 describe('findSection', () => {
-  it('array em várias linhas com comentário dentro', () => {
-    const d = doc('[mcp_servers.mockup-studio]', 'args = [ # lista', '  "a", # um', ']', 'x = 1');
+  it('multi-line array with a comment inside', () => {
+    const d = doc('[mcp_servers.mockup-studio]', 'args = [ # list', '  "a", # one', ']', 'x = 1');
     expect(keys(d)).toEqual(['args@1-4', 'x@4-5']);
   });
-  it('string """ com linha que parece cabeçalho ou chave', () => {
+  it('""" string with a line that looks like a header or key', () => {
     const d = doc(
       '[mcp_servers.mockup-studio]',
       'command = """',
-      '[falso]',
-      'url = "não"',
+      '[fake]',
+      'url = "no"',
       '"""',
       'args = []',
-      '[mcp_servers.outro]',
+      '[mcp_servers.other]',
     );
     expect(keys(d)).toEqual(['command@1-5', 'args@5-6']);
     expect(findSection(d)?.end).toBe(6);
   });
-  it('subtabela env com cabeçalho entre aspas', () => {
+  it('env subtable with a quoted header', () => {
     const d = doc('[mcp_servers."mockup-studio".env] # c', 'A = "1"');
     expect(keys(d, 'env')).toEqual(['A@1-2']);
   });
 });
 
 describe('setKey', () => {
-  it('preserva o comentário do fim da linha e é idempotente', () => {
-    const d = doc('[mcp_servers.mockup-studio]', 'command = "velho" # meu comentário', '');
-    expect(setKey(d, 'command', '"novo"')).toBe(true);
-    expect(d.lines[1]).toBe('command = "novo" # meu comentário');
-    expect(setKey(d, 'command', '"novo"')).toBe(false);
+  it('preserves the end-of-line comment and is idempotent', () => {
+    const d = doc('[mcp_servers.mockup-studio]', 'command = "old" # my comment', '');
+    expect(setKey(d, 'command', '"new"')).toBe(true);
+    expect(d.lines[1]).toBe('command = "new" # my comment');
+    expect(setKey(d, 'command', '"new"')).toBe(false);
   });
-  it('troca array de várias linhas por uma linha, mantendo o comentário final', () => {
-    const d = doc('[mcp_servers.mockup-studio]', 'args = [ # x', '  "a",', '] # fim', 'y = 2');
+  it('replaces a multi-line array with one line, keeping the final comment', () => {
+    const d = doc('[mcp_servers.mockup-studio]', 'args = [ # x', '  "a",', '] # end', 'y = 2');
     setKey(d, 'args', '["mcp"]');
-    expect(renderDoc(d)).toBe('[mcp_servers.mockup-studio]\nargs = ["mcp"] # fim\ny = 2');
+    expect(renderDoc(d)).toBe('[mcp_servers.mockup-studio]\nargs = ["mcp"] # end\ny = 2');
   });
-  it('troca string """ inteira', () => {
+  it('replaces a whole """ string', () => {
     const d = doc('[mcp_servers.mockup-studio]', 'command = """', 'a', '"""', 'z = 1');
     setKey(d, 'command', '"b"');
     expect(renderDoc(d)).toBe('[mcp_servers.mockup-studio]\ncommand = "b"\nz = 1');
@@ -77,7 +77,7 @@ describe('setKey', () => {
 });
 
 describe('removeKeyOrTable', () => {
-  it('remove a chave em linha e a subtabela, mantendo as outras seções e a quebra final', () => {
+  it('removes the inline key and the subtable, keeping the other sections and the final break', () => {
     const d = doc(
       '[mcp_servers.mockup-studio]',
       'command = "x"',
@@ -86,16 +86,16 @@ describe('removeKeyOrTable', () => {
       '[mcp_servers.mockup-studio.env]',
       'B = "2"',
       '',
-      '[mcp_servers.outro]',
+      '[mcp_servers.other]',
       'command = "o"',
       '',
     );
     expect(removeKeyOrTable(d, 'env')).toEqual(['env', '[mcp_servers.mockup-studio.env]']);
     expect(renderDoc(d)).toBe(
-      '[mcp_servers.mockup-studio]\ncommand = "x"\n\n[mcp_servers.outro]\ncommand = "o"\n',
+      '[mcp_servers.mockup-studio]\ncommand = "x"\n\n[mcp_servers.other]\ncommand = "o"\n',
     );
   });
-  it('subtabela no fim do arquivo', () => {
+  it('subtable at the end of the file', () => {
     const d = doc(
       '[mcp_servers.mockup-studio]',
       'url = "u"',
@@ -110,7 +110,7 @@ describe('removeKeyOrTable', () => {
 });
 
 describe('setEnv', () => {
-  it('env em linha: reescreve em linha, sem criar subtabela', () => {
+  it('inline env: rewrites inline, without creating a subtable', () => {
     const d = doc(
       '[mcp_servers.mockup-studio]',
       'command = "x"',
@@ -125,17 +125,17 @@ describe('setEnv', () => {
     expect(tomlError(text)).toBeNull();
     expect(setEnv(d, { ELECTRON_RUN_AS_NODE: '1' }, tomlString)).toBe(false);
   });
-  it('sem env: cria a subtabela depois da seção', () => {
-    const d = doc('[mcp_servers.mockup-studio]', 'command = "x"', '', '[outro]', '');
+  it('without env: creates the subtable after the section', () => {
+    const d = doc('[mcp_servers.mockup-studio]', 'command = "x"', '', '[other]', '');
     setEnv(d, { A: '1' }, tomlString);
     expect(renderDoc(d)).toBe(
-      '[mcp_servers.mockup-studio]\ncommand = "x"\n\n[mcp_servers.mockup-studio.env]\nA = "1"\n\n[outro]\n',
+      '[mcp_servers.mockup-studio]\ncommand = "x"\n\n[mcp_servers.mockup-studio.env]\nA = "1"\n\n[other]\n',
     );
   });
-  it('env com chave pontilhada: lança; a subtabela nova vai para o fim da seção', () => {
+  it('env with a dotted key: throws; the new subtable goes to the end of the section', () => {
     expect(() =>
       setEnv(doc('[mcp_servers.mockup-studio]', 'env.A = "1"'), { B: '2' }, tomlString),
-    ).toThrow(/pontilhadas/);
+    ).toThrow(/dotted keys/);
     const d = doc('[mcp_servers.mockup-studio]', 'command = "x"', 'x.y = 1', '', '[o]');
     expect(keys(d)).toEqual(['command@1-2', 'x.y@2-3']);
     setEnv(d, { B: '2' }, tomlString);
@@ -146,18 +146,18 @@ describe('setEnv', () => {
     expect(removeKeyOrTable(e, 'env')).toEqual(['env.A', 'env.B']);
     expect(renderDoc(e)).toBe('[mcp_servers.mockup-studio]\nurl = "u"');
   });
-  it('env em linha ilegível: lança', () => {
-    const d = doc('[mcp_servers.mockup-studio]', 'env = "não é tabela"');
+  it('unreadable inline env: throws', () => {
+    const d = doc('[mcp_servers.mockup-studio]', 'env = "not a table"');
     expect(() => setEnv(d, { A: '1' }, tomlString)).toThrow(/env/);
   });
 });
 
-describe('tomlError e readServerTable', () => {
-  it('erro com linha e coluna', () => {
-    expect(tomlError('a = 1\na = 2\n')).toMatch(/^linha 2, coluna 1: /);
+describe('tomlError and readServerTable', () => {
+  it('error with line and column', () => {
+    expect(tomlError('a = 1\na = 2\n')).toMatch(/^line 2, column 1: /);
     expect(tomlError('a = 1\n')).toBeNull();
   });
-  it('lê """, env em linha e comentários como o Codex', () => {
+  it('reads """, inline env and comments like Codex', () => {
     const t = readServerTable(
       [
         '[mcp_servers.mockup-studio]',

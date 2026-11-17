@@ -24,14 +24,14 @@ export interface TreeCtx {
   root: Element;
   defaults: Defaults;
   assets: AssetRegistry;
-  /** Famílias de fonte usadas (minúsculas, sem aspas). */
+  /** Font families used (lowercase, no quotes). */
   families: Set<string>;
   maxNodes: number;
   maxDepth: number;
   count: number;
   truncated: boolean;
   warnings: string[];
-  /** Muitos nós: pula o teste de `height` automático. */
+  /** Many nodes: skips the automatic `height` test. */
   cheap: boolean;
 }
 
@@ -43,7 +43,7 @@ const num = (v: string | undefined): number => {
 function take(ctx: TreeCtx): boolean {
   if (ctx.count >= ctx.maxNodes) {
     if (!ctx.truncated)
-      ctx.warnings.push(`Limite de ${ctx.maxNodes} nós atingido: o resto foi cortado.`);
+      ctx.warnings.push(`Limit of ${ctx.maxNodes} nodes reached: the rest was cut off.`);
     ctx.truncated = true;
     return false;
   }
@@ -92,7 +92,7 @@ function collectAttrs(el: Element, tag: string): Record<string, string> {
   return attrs;
 }
 
-/** Medidas usadas da caixa (border-box) em px: `offsetWidth/Height`, afinados pelo computado. */
+/** Used box measurements (border-box) in px: `offsetWidth/Height`, refined by the computed style. */
 function usedBox(el: Element, cs: CSSStyleDeclaration, rec: StyleRec): { w: number; h: number } {
   const he = el as HTMLElement;
   let w = typeof he.offsetWidth === 'number' ? he.offsetWidth : NaN;
@@ -119,8 +119,8 @@ function usedBox(el: Element, cs: CSSStyleDeclaration, rec: StyleRec): { w: numb
 }
 
 /**
- * Aplica `prop: auto !important`, mede e restaura EXATAMENTE o atributo `style` original.
- * Verdadeiro se o tamanho não muda (o tamanho é "auto" para o canvas também).
+ * Applies `prop: auto !important`, measures and restores EXACTLY the original `style` attribute.
+ * True if the size does not change (the size is "auto" for the canvas too).
  */
 function isAutoSize(el: HTMLElement, prop: 'width' | 'height'): boolean {
   const read = (): number => (prop === 'width' ? el.offsetWidth : el.offsetHeight);
@@ -141,7 +141,7 @@ function hasElementChildren(el: Element): boolean {
   return el.firstElementChild !== null;
 }
 
-/** Margens laterais declaradas como `auto` (via `computedStyleMap`, quando existe). */
+/** Side margins declared as `auto` (via `computedStyleMap`, when available). */
 function autoMargins(el: Element, rec: StyleRec): { left: boolean; right: boolean } | undefined {
   if (num(rec['margin-left']) === 0 && num(rec['margin-right']) === 0) return undefined;
   const map = (
@@ -158,7 +158,7 @@ function autoMargins(el: Element, rec: StyleRec): { left: boolean; right: boolea
   }
 }
 
-/** Offsets `top/right/bottom/left` computados (px) diferentes de `auto`. */
+/** Computed `top/right/bottom/left` offsets (px) other than `auto`. */
 function computedOffsets(out: Record<string, string>, rec: StyleRec): void {
   for (const k of OFFSETS) {
     const v = rec[k];
@@ -167,11 +167,11 @@ function computedOffsets(out: Record<string, string>, rec: StyleRec): void {
 }
 
 interface PositionResult {
-  /** O nó vira bloco de contenção dos filhos (posicionado ou com transform). */
+  /** The node becomes the containing block of its children (positioned or with transform). */
   isCb: boolean;
 }
 
-/** Posição de um descendente (a raiz é tratada em `visit`). */
+/** Position of a descendant (the root is handled in `visit`). */
 function applyPosition(
   out: Record<string, string>,
   rec: StyleRec,
@@ -192,7 +192,7 @@ function applyPosition(
     const inside = pos === 'absolute' && !!parent && ctx.root.contains(parent);
     if (inside) computedOffsets(out, rec);
     else {
-      // O bloco de contenção original está fora da subárvore: posição relativa ao bloco atual.
+      // The original containing block is outside the subtree: position relative to the current block.
       const r = el.getBoundingClientRect();
       const c = cb.getBoundingClientRect();
       const cx = r.left + r.width / 2 - box.w / 2;
@@ -303,7 +303,7 @@ function buildChildren(
     else if (c.nodeType === 1) {
       if (!canDescend) {
         if (!ctx.truncated) {
-          ctx.warnings.push(`Profundidade máxima (${ctx.maxDepth}) atingida: o resto foi cortado.`);
+          ctx.warnings.push(`Maximum depth (${ctx.maxDepth}) reached: the rest was cut off.`);
         }
         ctx.truncated = true;
         continue;
@@ -331,14 +331,14 @@ function buildChildren(
     }
     let value = preserve ? p.raw : cleanText(p.raw);
     if (value === '' && !preserve && p.raw !== '' && flow) {
-      // Espaço entre dois elementos inline conta ("<b>a</b> <i>b</i>").
+      // Space between two inline elements counts ("<b>a</b> <i>b</i>").
       if (isInlineLevel(p.dom.previousSibling) && isInlineLevel(p.dom.nextSibling)) value = ' ';
     }
     if (value === '' || !take(ctx)) continue;
     children.push(
       createNodeFromTag('span', {
         text: value,
-        name: value.trim() ? truncate(value.trim(), NAME_TEXT_MAX) : 'Espaço',
+        name: value.trim() ? truncate(value.trim(), NAME_TEXT_MAX) : 'Space',
       }),
     );
   }
@@ -346,7 +346,7 @@ function buildChildren(
   return { children };
 }
 
-/** Serializa um elemento (e a subárvore) num nó do core; `null` se não gera nó. */
+/** Serializes an element (and its subtree) into a core node; `null` if it produces no node. */
 export function visit(
   el: Element,
   parentRec: StyleRec | null,
@@ -369,7 +369,7 @@ export function visit(
     const img = el.querySelector('img');
     return img ? visit(img, parentRec, depth, cb, ctx, false) : null;
   }
-  if (tag === 'br') return take(ctx) ? createNodeFromTag('br', { name: 'Quebra' }) : null;
+  if (tag === 'br') return take(ctx) ? createNodeFromTag('br', { name: 'Break' }) : null;
 
   const cs = getComputedStyle(el);
   if (cs.display === 'none') return null;
@@ -381,7 +381,7 @@ export function visit(
   if (placeholder) nodeTag = 'div';
   else if (tag.includes('-')) nodeTag = rec['display']!.startsWith('inline') ? 'span' : 'div';
 
-  // Imagem sem fonte: sem nó.
+  // Image without a source: no node.
   let imgUrl = '';
   if (tag === 'img') {
     const img = el as HTMLImageElement;
@@ -390,7 +390,7 @@ export function visit(
   }
 
   const box = usedBox(el, cs, rec);
-  if (isSvg && !isRoot && box.w === 0 && box.h === 0) return null; // sprite oculto
+  if (isSvg && !isRoot && box.w === 0 && box.h === 0) return null; // hidden sprite
   if (!take(ctx)) return null;
 
   const variant =
@@ -412,7 +412,7 @@ export function visit(
     box,
   });
 
-  // Tamanho.
+  // Size.
   const replaced = REPLACED_TAGS.has(tag) || !!placeholder;
   const display = rec['display']!;
   const positioned = rec['position'] === 'absolute' || rec['position'] === 'fixed';
@@ -430,7 +430,7 @@ export function visit(
     }
   }
 
-  // Posição e raiz.
+  // Position and root.
   let isCb = false;
   if (isRoot) {
     for (const k of ['margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left']) {

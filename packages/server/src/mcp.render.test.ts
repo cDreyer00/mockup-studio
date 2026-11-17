@@ -19,7 +19,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-/** PNG válido (IHDR com as dimensões pedidas, pixels transparentes). */
+/** Valid PNG (IHDR with the requested dimensions, transparent pixels). */
 function fakePng(w: number, h: number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const len = Buffer.alloc(4);
@@ -43,7 +43,7 @@ function fakePng(w: number, h: number): Buffer {
   ]);
 }
 
-describe('MCP render, export e guias', () => {
+describe('MCP render, export and guides', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -80,7 +80,7 @@ describe('MCP render, export e guias', () => {
         children: [
           {
             id: 'el_head',
-            name: 'Cabeçalho',
+            name: 'Header',
             type: 'element',
             tag: 'header',
             x: 0,
@@ -91,7 +91,7 @@ describe('MCP render, export e guias', () => {
             children: [
               {
                 id: 'tx_title',
-                name: 'Título',
+                name: 'Title',
                 type: 'text',
                 tag: 'h1',
                 x: 24,
@@ -100,14 +100,14 @@ describe('MCP render, export e guias', () => {
                 height: 40,
                 style,
                 lines: [
-                  { text: 'Olá', x: 24, y: 20, width: 40, height: 40, baseline: 30 },
-                  { text: 'mundo', x: 24, y: 60, width: 80, height: 40, baseline: 30 },
+                  { text: 'Hello', x: 24, y: 20, width: 40, height: 40, baseline: 30 },
+                  { text: 'world', x: 24, y: 60, width: 80, height: 40, baseline: 30 },
                 ],
                 children: [],
               },
               {
                 id: 'el_deep',
-                name: 'Fundo',
+                name: 'Background',
                 type: 'element',
                 tag: 'div',
                 x: 0,
@@ -146,7 +146,7 @@ describe('MCP render, export e guias', () => {
       writeInfo: false,
       render: withRender ? render : undefined,
     });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   };
@@ -158,11 +158,11 @@ describe('MCP render, export e guias', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  describe('com render', () => {
+  describe('with render', () => {
     beforeEach(() => start(true));
     afterEach(stop);
 
-    it('get_screenshot devolve imagem base64 e texto com tamanhos', async () => {
+    it('get_screenshot returns a base64 image and text with sizes', async () => {
       const r = await call('get_screenshot', { nodeId: ws.frameId });
       expect(r.isError).toBeFalsy();
       const [img, txt] = contentOf(r);
@@ -171,16 +171,16 @@ describe('MCP render, export e guias', () => {
       const bytes = Buffer.from(img!.data!, 'base64');
       expect(bytes.readUInt32BE(16)).toBe(160);
       expect(txt!.text).toMatch(
-        new RegExp(`^${ws.frameId} "Desktop": 1440x900 px \\(imagem 160x90 png, \\d+ KB\\)$`),
+        new RegExp(`^${ws.frameId} "Desktop": 1440x900 px \\(image 160x90 png, \\d+ KB\\)$`),
       );
       expect(captures[0]).toMatchObject({ scale: 1, format: 'png', nodeId: ws.frameId });
     });
 
-    it('sem nodeId usa a seleção e, sem seleção, o primeiro frame; repassa scale e format', async () => {
+    it('without nodeId uses the selection and, with no selection, the first frame; forwards scale and format', async () => {
       await call('get_screenshot');
       expect(captures[0]!.nodeId).toBe(ws.frameId);
 
-      const child = await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Caixa' });
+      const child = await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Box' });
       const id = /(el_[0-9a-z]+)/.exec(textOf(child))![1]!;
       await call('set_selection', { nodeIds: [id] });
       const r = await call('get_screenshot', { scale: 2, format: 'jpg', maxWidth: 200 });
@@ -189,27 +189,27 @@ describe('MCP render, export e guias', () => {
       expect(textOf(r)).toContain('jpg');
     });
 
-    it('get_screenshot com nó inexistente dá erro útil', async () => {
-      const r = await call('get_screenshot', { nodeId: 'el_naoexiste' });
+    it('get_screenshot with a nonexistent node gives a useful error', async () => {
+      const r = await call('get_screenshot', { nodeId: 'el_missing' });
       expect(r.isError).toBe(true);
       expect(textOf(r)).toContain('get_tree_summary');
     });
 
-    it('get_layout formata uma linha por nó e colapsa além da profundidade', async () => {
+    it('get_layout formats one line per node and collapses beyond the depth', async () => {
       const r = await call('get_layout', { nodeId: ws.frameId, depth: 1 });
       const t = textOf(r);
       expect(t).toContain(`${ws.frameId} "Desktop" div 0,0 1440x900`);
-      expect(t).toContain('  el_head "Cabeçalho" header 0,0 1440x80');
-      expect(t).toContain('2 filho(s)');
+      expect(t).toContain('  el_head "Header" header 0,0 1440x80');
+      expect(t).toContain('2 child(ren)');
       expect(t).not.toContain('tx_title');
 
       const full = textOf(await call('get_layout', { nodeId: ws.frameId, depth: 2 }));
-      expect(full).toContain('    tx_title "Título" h1 24,20 200x40 "Olá mundo"');
-      expect(full).toContain('      … 1 filho(s)');
+      expect(full).toContain('    tx_title "Title" h1 24,20 200x40 "Hello world"');
+      expect(full).toContain('      … 1 child(ren)');
     });
 
-    it('export png e jpg gravam arquivos com o slug do nó', async () => {
-      const out = path.join(ws.dir, 'saida');
+    it('export png and jpg write files with the node slug', async () => {
+      const out = path.join(ws.dir, 'output');
       const r = await call('export', { nodeIds: [ws.frameId], format: 'png', outputDir: out });
       expect(r.isError).toBeFalsy();
       expect(fs.existsSync(path.join(out, 'desktop.png'))).toBe(true);
@@ -219,18 +219,18 @@ describe('MCP render, export e guias', () => {
       expect(captures[1]).toMatchObject({ scale: 2, format: 'jpg' });
     });
 
-    it('export usa <pasta do documento>/exports por padrão', async () => {
+    it('export uses <document folder>/exports by default', async () => {
       await call('export', { nodeIds: [ws.frameId], format: 'png' });
       expect(fs.existsSync(path.join(ws.dir, 'exports', 'desktop.png'))).toBe(true);
     });
 
-    it('export rejeita outputDir relativo', async () => {
+    it('export rejects a relative outputDir', async () => {
       const r = await call('export', { nodeIds: [ws.frameId], format: 'png', outputDir: 'rel' });
       expect(r.isError).toBe(true);
-      expect(textOf(r)).toContain('absoluto');
+      expect(textOf(r)).toContain('absolute');
     });
 
-    it('finish_working emite agent:finished', async () => {
+    it('finish_working emits agent:finished', async () => {
       const seen: { docId: string; nodeIds: string[] }[] = [];
       daemon.store.on('agent:finished', (e) => seen.push(e));
       const r = await call('finish_working', { nodeIds: [ws.frameId] });
@@ -242,33 +242,33 @@ describe('MCP render, export e guias', () => {
     });
   });
 
-  describe('exportadores de código (dependem do core)', () => {
+  describe('code exporters (depend on core)', () => {
     beforeEach(() => start(true));
     afterEach(stop);
 
     const prepare = async () => {
       await call('write_html', {
-        html: '<section class="hero"><h1>Olá</h1><p>Texto</p></section>',
+        html: '<section class="hero"><h1>Hello</h1><p>Text</p></section>',
         css: '.hero{display:flex;gap:16px;padding:24px}',
         parentId: ws.frameId,
       });
     };
 
-    it('export svg grava o arquivo', async () => {
+    it('export svg writes the file', async () => {
       await prepare();
       const out = path.join(ws.dir, 'svg');
       const r = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
       expect(r.isError, textOf(r)).toBeFalsy();
       expect(fs.readFileSync(path.join(out, 'desktop.svg'), 'utf8')).toContain('<svg');
-      expect(textOf(r)).not.toContain('(substituído)');
+      expect(textOf(r)).not.toContain('(replaced)');
       const again = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
-      expect(textOf(again)).toContain('desktop.svg (substituído)');
+      expect(textOf(again)).toContain('desktop.svg (replaced)');
     });
 
-    it('export svg embute as fontes registradas em doc.fonts como data URL', async () => {
+    it('export svg embeds the fonts registered in doc.fonts as data URLs', async () => {
       await prepare();
       fs.mkdirSync(path.join(ws.dir, 'assets', 'fonts'), { recursive: true });
-      fs.writeFileSync(path.join(ws.dir, 'assets', 'fonts', 'x.woff2'), 'bytes-falsos');
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'fonts', 'x.woff2'), 'fake-bytes');
       daemon.store.applyOps(
         daemon.store.resolveDocId(undefined),
         [
@@ -279,43 +279,43 @@ describe('MCP render, export e guias', () => {
         ],
         { source: 'mcp' },
       );
-      const out = path.join(ws.dir, 'svg-fonte');
+      const out = path.join(ws.dir, 'svg-font');
       const r = await call('export', { nodeIds: [ws.frameId], format: 'svg', outputDir: out });
       expect(r.isError, textOf(r)).toBeFalsy();
       const svg = fs.readFileSync(path.join(out, 'desktop.svg'), 'utf8');
       expect(svg).toContain('@font-face');
       expect(svg).toContain(
-        'data:font/woff2;base64,' + Buffer.from('bytes-falsos').toString('base64'),
+        'data:font/woff2;base64,' + Buffer.from('fake-bytes').toString('base64'),
       );
     });
 
-    it('export html e tailwind gravam arquivos e copiam assets usados', async () => {
+    it('export html and tailwind write files and copy the used assets', async () => {
       await prepare();
-      fs.writeFileSync(path.join(ws.dir, 'foto.png'), fakePng(4, 4));
+      fs.writeFileSync(path.join(ws.dir, 'photo.png'), fakePng(4, 4));
       await call('insert_image', {
         parentId: ws.frameId,
-        source: path.join(ws.dir, 'foto.png'),
+        source: path.join(ws.dir, 'photo.png'),
       });
-      const out = path.join(ws.dir, 'codigo');
+      const out = path.join(ws.dir, 'code');
       const h = await call('export', { nodeIds: [ws.frameId], format: 'html', outputDir: out });
       expect(h.isError, textOf(h)).toBeFalsy();
-      expect(fs.readFileSync(path.join(out, 'desktop.html'), 'utf8')).toContain('Olá');
-      expect(fs.existsSync(path.join(out, 'assets', 'foto.png'))).toBe(true);
+      expect(fs.readFileSync(path.join(out, 'desktop.html'), 'utf8')).toContain('Hello');
+      expect(fs.existsSync(path.join(out, 'assets', 'photo.png'))).toBe(true);
       const t = await call('export', { nodeIds: [ws.frameId], format: 'tailwind', outputDir: out });
       expect(t.isError, textOf(t)).toBeFalsy();
-      expect(fs.readFileSync(path.join(out, 'desktop.tailwind.html'), 'utf8')).toContain('Olá');
+      expect(fs.readFileSync(path.join(out, 'desktop.tailwind.html'), 'utf8')).toContain('Hello');
     });
 
-    it('export de vários frames não repete todo o código na resposta (orçamento de contexto)', async () => {
+    it('export of several frames does not repeat all the code in the response (context budget)', async () => {
       const ids: string[] = [];
       for (let i = 0; i < 4; i++) {
         const f = textOf(
-          await call('create_frame', { name: `Tela ${i}`, width: 400, height: 300 }),
+          await call('create_frame', { name: `Screen ${i}`, width: 400, height: 300 }),
         );
         const id = f.match(/fr_\w+/)![0];
         ids.push(id);
-        // ~12 KB de HTML por frame: dois cabem no orçamento, o resto não
-        const items = Array.from({ length: 120 }, (_, k) => `<p class="l${k}">Linha ${k}</p>`).join(
+        // ~12 KB of HTML per frame: two fit in the budget, the rest do not
+        const items = Array.from({ length: 120 }, (_, k) => `<p class="l${k}">Line ${k}</p>`).join(
           '',
         );
         const css = Array.from(
@@ -327,15 +327,15 @@ describe('MCP render, export e guias', () => {
       const out = path.join(ws.dir, 'multi');
       const r = textOf(await call('export', { nodeIds: ids, format: 'html', outputDir: out }));
       expect(fs.readdirSync(out).filter((f) => f.endsWith('.html'))).toHaveLength(4);
-      expect(r).toContain('Exportado(s) 4 arquivo(s)');
-      expect(r).toMatch(/arquivo\(s\) de código não foram repetidos na resposta/);
+      expect(r).toContain('Exported 4 file(s)');
+      expect(r).toMatch(/code file\(s\) were not repeated in the response/);
       expect(Buffer.byteLength(r)).toBeLessThan(40 * 1024);
     });
 
-    it('export react e get_code aceitam assetsBase para projetos Vite (public/assets)', async () => {
+    it('export react and get_code accept assetsBase for Vite projects (public/assets)', async () => {
       await prepare();
-      fs.writeFileSync(path.join(ws.dir, 'foto.png'), fakePng(4, 4));
-      await call('insert_image', { parentId: ws.frameId, source: path.join(ws.dir, 'foto.png') });
+      fs.writeFileSync(path.join(ws.dir, 'photo.png'), fakePng(4, 4));
+      await call('insert_image', { parentId: ws.frameId, source: path.join(ws.dir, 'photo.png') });
       const out = path.join(ws.dir, 'react-base');
       const r = await call('export', {
         nodeIds: [ws.frameId],
@@ -345,14 +345,14 @@ describe('MCP render, export e guias', () => {
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       const tsx = fs.readdirSync(out).find((f) => f.endsWith('.tsx'))!;
-      expect(fs.readFileSync(path.join(out, tsx), 'utf8')).toContain('src="/assets/foto.png"');
+      expect(fs.readFileSync(path.join(out, tsx), 'utf8')).toContain('src="/assets/photo.png"');
       const code = textOf(
         await call('get_code', { nodeId: ws.frameId, format: 'react', assetsBase: '/img/' }),
       );
-      expect(code).toContain('/img/foto.png');
+      expect(code).toContain('/img/photo.png');
     });
 
-    it('export react grava o componente', async () => {
+    it('export react writes the component', async () => {
       await prepare();
       const out = path.join(ws.dir, 'react');
       const r = await call('export', {
@@ -369,15 +369,15 @@ describe('MCP render, export e guias', () => {
       await prepare();
       const r = await call('get_code', { nodeId: ws.frameId, format });
       expect(r.isError, textOf(r)).toBeFalsy();
-      expect(textOf(r)).toContain('Olá');
+      expect(textOf(r)).toContain('Hello');
     });
   });
 
-  describe('sem render', () => {
+  describe('without render', () => {
     beforeEach(() => start(false));
     afterEach(stop);
 
-    it('screenshot, layout e export png dão isError com a mensagem de render', async () => {
+    it('screenshot, layout and export png give isError with the render message', async () => {
       for (const [name, args] of [
         ['get_screenshot', {}],
         ['get_layout', { nodeId: ws.frameId }],
@@ -390,11 +390,11 @@ describe('MCP render, export e guias', () => {
     });
   });
 
-  describe('guias e tokens', () => {
+  describe('guides and tokens', () => {
     beforeEach(() => start(false));
     afterEach(stop);
 
-    it('get_guide dos novos tópicos e resources', async () => {
+    it('get_guide for the new topics and resources', async () => {
       const a = textOf(await call('get_guide', { topic: 'screenshot-loop' }));
       expect(a).toContain('get_screenshot');
       expect(a).toContain('finish_working');
@@ -411,7 +411,7 @@ describe('MCP render, export e guias', () => {
       expect((res.contents[0] as { text: string }).text).toContain('get_code');
     });
 
-    it('set_tokens acrescenta o prefixo -- automaticamente', async () => {
+    it('set_tokens adds the -- prefix automatically', async () => {
       const r = await call('set_tokens', { tokens: { primary: '#6c5ce7', '--gap': '8px' } });
       expect(r.isError).toBeFalsy();
       const t = textOf(await call('get_tokens'));
@@ -421,7 +421,7 @@ describe('MCP render, export e guias', () => {
       expect(textOf(await call('get_tokens'))).not.toContain('--primary');
     });
 
-    it('lista as ferramentas novas', async () => {
+    it('lists the new tools', async () => {
       const names = (await client.listTools()).tools.map((t) => t.name);
       for (const n of [
         'get_screenshot',

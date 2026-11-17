@@ -1,6 +1,6 @@
 /**
- * Placeholders SVG num nó: troca o `src` de uma imagem ou cria uma imagem dentro de um contêiner.
- * Compartilhado pela ferramenta MCP `generate_placeholder` e pela rota HTTP do editor.
+ * SVG placeholders on a node: swaps the `src` of an image or creates an image inside a container.
+ * Shared by the MCP tool `generate_placeholder` and the editor's HTTP route.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -31,15 +31,15 @@ export interface PlaceholderInput {
 
 export interface PlaceholderResult {
   ops: Op[];
-  /** Valor do `src` aplicado (caminho relativo a `assets/` ou data URL). */
+  /** Applied `src` value (path relative to `assets/` or data URL). */
   src: string;
-  /** Id do nó com o placeholder (o `img` criado, quando o alvo era um contêiner). */
+  /** Id of the node with the placeholder (the created `img`, when the target was a container). */
   nodeId: string;
-  /** Descrição de onde o SVG ficou. */
+  /** Description of where the SVG ended up. */
   where: string;
 }
 
-/** Grava o SVG em `assets/placeholders/` (reutiliza igual, nunca sobrescreve diferente). */
+/** Writes the SVG to `assets/placeholders/` (reuses an identical one, never overwrites a different one). */
 async function storeSvg(assetsDir: string, fileName: string, svg: string): Promise<string> {
   const dir = path.join(assetsDir, 'placeholders');
   const bytes = Buffer.from(svg, 'utf8');
@@ -47,7 +47,7 @@ async function storeSvg(assetsDir: string, fileName: string, svg: string): Promi
     const existing = await fs.promises.readFile(path.join(dir, fileName));
     if (existing.equals(bytes)) return `placeholders/${fileName}`;
   } catch {
-    // não existe ainda
+    // does not exist yet
   }
   const finalName = await writeAsset(dir, fileName, bytes);
   return `placeholders/${finalName}`;
@@ -60,19 +60,19 @@ export async function buildPlaceholder(
 ): Promise<PlaceholderResult> {
   if (!PLACEHOLDER_KINDS.includes(input.kind)) {
     throw new PlaceholderError(
-      `kind inválido: "${String(input.kind)}". Use ${PLACEHOLDER_KINDS.join(', ')}.`,
+      `Invalid kind: "${String(input.kind)}". Use ${PLACEHOLDER_KINDS.join(', ')}.`,
     );
   }
   const p = findNode(doc, input.nodeId);
   if (!p) {
     throw new PlaceholderError(
-      `Nó não encontrado: "${input.nodeId}". Use get_tree_summary para listar ids válidos.`,
+      `Node not found: "${input.nodeId}". Use get_tree_summary to list valid ids.`,
     );
   }
   const t = p.node.type;
   if (t === 'text' || t === 'svg') {
     throw new PlaceholderError(
-      `O nó ${input.nodeId} é ${t}; use um nó de imagem (troca o src) ou um contêiner (ganha uma imagem filha).`,
+      `Node ${input.nodeId} is ${t}; use an image node (swaps the src) or a container (gets a child image).`,
     );
   }
   const opts = {
@@ -89,7 +89,7 @@ export async function buildPlaceholder(
     where = `assets/${src}`;
   } else {
     src = svgDataUrl(svg);
-    where = 'data URL embutida (documento sem caminho em disco)';
+    where = 'embedded data URL (document has no path on disk)';
   }
   if (t === 'image') {
     return {

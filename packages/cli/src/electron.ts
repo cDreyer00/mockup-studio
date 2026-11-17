@@ -1,6 +1,6 @@
 /**
- * Localiza e sobe o app desktop (Electron) em modo headless: ele embute o daemon e o motor de
- * render (screenshot). Sem Electron, o CLI cai para o daemon Node puro (sem screenshot).
+ * Locates and starts the desktop app (Electron) in headless mode: it embeds the daemon and the render
+ * engine (screenshots). Without Electron, the CLI falls back to the plain Node daemon (no screenshots).
  */
 import fs from 'node:fs';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -9,19 +9,19 @@ import path from 'node:path';
 import { checkHealth, getDataDir } from '@mockup/server';
 
 export interface ElectronLaunch {
-  /** Executável (app empacotado ou binário do Electron). */
+  /** Executable (packaged app or Electron binary). */
   exe: string;
-  /** Argumentos antes das opções do app (caminho do app em dev). */
+  /** Arguments before the app options (app path in dev). */
   args: string[];
-  /** De onde veio (para log). */
-  source: 'MOCKUP_DESKTOP_EXE' | 'embutido' | 'instalado' | 'dev';
+  /** Where it came from (for logging). */
+  source: 'MOCKUP_DESKTOP_EXE' | 'embedded' | 'installed' | 'dev';
 }
 
 const PRODUCT_NAME = 'Mockup Studio';
 
 const UNINSTALL = String.raw`Software\Microsoft\Windows\CurrentVersion\Uninstall`;
 
-/** Linhas `HKEY_...` de uma saída de `reg query` (as chaves encontradas). */
+/** `HKEY_...` lines of a `reg query` output (the keys found). */
 export function parseRegKeys(out: string): string[] {
   return out
     .split(/\r?\n/)
@@ -29,7 +29,7 @@ export function parseRegKeys(out: string): string[] {
     .filter((l) => /^HKEY_/i.test(l));
 }
 
-/** Valor `InstallLocation` (REG_SZ/REG_EXPAND_SZ) de uma saída de `reg query`, ou null. */
+/** `InstallLocation` value (REG_SZ/REG_EXPAND_SZ) from a `reg query` output, or null. */
 export function parseInstallLocation(out: string): string | null {
   for (const line of out.split(/\r?\n/)) {
     const m = /^\s*InstallLocation\s+REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/i.exec(line);
@@ -44,9 +44,9 @@ function reg(args: string[]): string {
 }
 
 /**
- * Pastas de instalação gravadas pelo instalador NSIS no registro (`InstallLocation` da chave de
- * desinstalação cujo nome de exibição contém "Mockup Studio"): vale para pasta personalizada.
- * HKCU primeiro (instalação por usuário), depois HKLM.
+ * Install folders written by the NSIS installer in the registry (`InstallLocation` of the
+ * uninstall key whose display name contains "Mockup Studio"): works for a custom folder.
+ * HKCU first (per-user install), then HKLM.
  */
 export function registryInstallDirs(run: (args: string[]) => string = reg): string[] {
   const dirs: string[] = [];
@@ -65,9 +65,9 @@ export function registryInstallDirs(run: (args: string[]) => string = reg): stri
 }
 
 /**
- * Procura o app: (1) MOCKUP_DESKTOP_EXE, (1b) o próprio processo quando roda como Node dentro do
- * Electron (app empacotado: `process.execPath` é o app), (2) instalação registrada (pasta personalizada),
- * (3) instalação NSIS padrão por usuário, (4) pacote do monorepo + electron.
+ * Looks for the app: (1) MOCKUP_DESKTOP_EXE, (1b) the process itself when it runs as Node inside
+ * Electron (packaged app: `process.execPath` is the app), (2) registered install (custom folder),
+ * (3) default per-user NSIS install, (4) monorepo package + electron.
  */
 export function locateElectron(
   env: NodeJS.ProcessEnv = process.env,
@@ -80,38 +80,38 @@ export function locateElectron(
   if (fromEnv && fs.existsSync(fromEnv))
     return { exe: fromEnv, args: [], source: 'MOCKUP_DESKTOP_EXE' };
 
-  if (self.versions.electron) return { exe: self.execPath, args: [], source: 'embutido' };
+  if (self.versions.electron) return { exe: self.execPath, args: [], source: 'embedded' };
 
   if (process.platform === 'win32') {
     for (const dir of installDirs()) {
       const exe = path.join(dir, `${PRODUCT_NAME}.exe`);
-      if (fs.existsSync(exe)) return { exe, args: [], source: 'instalado' };
+      if (fs.existsSync(exe)) return { exe, args: [], source: 'installed' };
     }
   }
 
   if (process.platform === 'win32' && env.LOCALAPPDATA) {
     const exe = path.join(env.LOCALAPPDATA, 'Programs', PRODUCT_NAME, `${PRODUCT_NAME}.exe`);
-    if (fs.existsSync(exe)) return { exe, args: [], source: 'instalado' };
+    if (fs.existsSync(exe)) return { exe, args: [], source: 'installed' };
   }
 
   try {
     const req = createRequire(import.meta.url);
     const appDir = path.dirname(req.resolve('@mockup/desktop/package.json'));
     if (!fs.existsSync(path.join(appDir, 'out', 'main', 'index.js'))) return null;
-    // No Node, `require('electron')` devolve o caminho do executável.
+    // In Node, `require('electron')` returns the executable path.
     const electronPath = createRequire(path.join(appDir, 'package.json'))('electron') as unknown;
     if (typeof electronPath === 'string' && fs.existsSync(electronPath))
       return { exe: electronPath, args: [appDir], source: 'dev' };
   } catch {
-    /* sem pacote desktop/electron instalado */
+    /* no desktop/electron package installed */
   }
   return null;
 }
 
 /**
- * Ambiente do Electron: nunca herda ELECTRON_RUN_AS_NODE (faria o exe rodar como Node puro).
- * `MOCKUP_DATA_DIR` só chega ao app se o usuário o definiu: forçá-lo trocaria o `userData` e o
- * lock de instância única, e o headless viraria uma segunda instância ao lado do app aberto.
+ * Electron environment: never inherits ELECTRON_RUN_AS_NODE (it would make the exe run as plain Node).
+ * `MOCKUP_DATA_DIR` only reaches the app if the user set it: forcing it would change `userData` and the
+ * single-instance lock, and the headless one would become a second instance next to the open app.
  */
 export function electronEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base };
@@ -124,8 +124,8 @@ export function electronArgs(l: ElectronLaunch, port: number, files: string[] = 
 }
 
 /**
- * Sobe o Electron headless destacado e espera `/api/health` com `render: true`.
- * Lança se o processo sair antes ou o tempo esgotar (o chamador cai para o daemon Node).
+ * Starts the detached headless Electron and waits for `/api/health` with `render: true`.
+ * Throws if the process exits first or the time runs out (the caller falls back to the Node daemon).
  */
 export async function spawnElectronHeadless(
   l: ElectronLaunch,
@@ -139,7 +139,7 @@ export async function spawnElectronHeadless(
     logFd = fs.openSync(path.join(dataDir, 'daemon.log'), 'a');
     fs.writeSync(
       logFd,
-      `[mockup] ${new Date().toISOString()} iniciando Electron headless (${l.source}) na porta ${port}\n`,
+      `[mockup] ${new Date().toISOString()} starting headless Electron (${l.source}) on port ${port}\n`,
     );
   } catch {
     logFd = undefined;
@@ -154,7 +154,7 @@ export async function spawnElectronHeadless(
     try {
       fs.closeSync(logFd);
     } catch {
-      /* ignorado */
+      /* ignored */
     }
   }
   let exited: number | null = null;
@@ -165,8 +165,7 @@ export async function spawnElectronHeadless(
   const url = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (exited !== null)
-      throw new Error(`o Electron encerrou antes de responder (código ${exited})`);
+    if (exited !== null) throw new Error(`Electron exited before responding (code ${exited})`);
     const h = await checkHealth(url, 1000);
     if (h?.ok && h.name === 'mockup-studio' && h.render) return { pid: child.pid };
     await new Promise((r) => setTimeout(r, 250));
@@ -174,14 +173,14 @@ export async function spawnElectronHeadless(
   try {
     if (child.pid) process.kill(child.pid);
   } catch {
-    /* já encerrou */
+    /* already exited */
   }
   throw new Error(
-    `o Electron não respondeu em ${url}/api/health (render: true) após ${timeoutMs} ms`,
+    `Electron did not respond at ${url}/api/health (render: true) after ${timeoutMs} ms`,
   );
 }
 
-/** `mockup serve --render`: Electron headless em primeiro plano (stdio herdado); devolve o código de saída. */
+/** `mockup serve --render`: headless Electron in the foreground (inherited stdio); returns the exit code. */
 export function runElectronForeground(
   l: ElectronLaunch,
   port: number,

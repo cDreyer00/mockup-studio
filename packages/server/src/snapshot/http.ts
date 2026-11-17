@@ -1,7 +1,7 @@
 /**
- * Rotas HTTP de importação: `POST /api/snapshot`, `/api/import/url` e `/api/import/html`.
- * Registradas por `registerSnapshotRoutes`, chamada em `http.ts` antes do CORS global e do
- * `express.json` de 20 MB (um payload de snapshot com imagens passa disso: o parser daqui aceita 64 MB).
+ * HTTP import routes: `POST /api/snapshot`, `/api/import/url` and `/api/import/html`.
+ * Registered by `registerSnapshotRoutes`, called in `http.ts` before the global CORS and the
+ * 20 MB `express.json` (a snapshot payload with images exceeds that: the parser here accepts 64 MB).
  */
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
@@ -23,7 +23,7 @@ export const SNAPSHOT_BODY_LIMIT = '64mb';
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const EXTENSION_ID = /^[a-p]{32}$/;
 
-/** Ids aceitos: o fixo da extensão (pela `key` do manifest) mais `MOCKUP_EXTENSION_IDS` (lida a cada chamada). */
+/** Accepted ids: the extension's fixed one (from the manifest `key`) plus `MOCKUP_EXTENSION_IDS` (read on every call). */
 function allowedExtensionIds(): string[] {
   const extra = (process.env.MOCKUP_EXTENSION_IDS ?? '')
     .split(/[\s,]+/)
@@ -31,15 +31,15 @@ function allowedExtensionIds(): string[] {
   return [MOCKUP_EXTENSION_ID, ...extra];
 }
 
-/** `Origin` da extensão do Mockup Studio (`chrome-extension://<id>`); outras extensões são recusadas. */
+/** `Origin` of the Mockup Studio extension (`chrome-extension://<id>`); other extensions are rejected. */
 export function isExtensionOrigin(origin: string | undefined): boolean {
   if (!origin) return false;
   return allowedExtensionIds().some((id) => origin === `chrome-extension://${id}`);
 }
 
 /**
- * Rota que aceita a origem da extensão: só `POST /api/snapshot` (e o preflight dela). O guard de
- * escrita do `http.ts` chama isto; as demais rotas continuam recusando `chrome-extension://`.
+ * Route that accepts the extension origin: only `POST /api/snapshot` (and its preflight). The write
+ * guard in `http.ts` calls this; all other routes keep rejecting `chrome-extension://`.
  */
 export function allowsExtensionOrigin(method: string, route: string): boolean {
   return method === 'POST' && route === SNAPSHOT_ROUTES.snapshot;
@@ -54,7 +54,7 @@ export function registerSnapshotRoutes(
   store: DocumentStore,
   ctx: SnapshotRoutesCtx = {},
 ): void {
-  // CORS próprio: o global fica depois destas rotas. A extensão só é aceita em /api/snapshot.
+  // Own CORS: the global one comes after these routes. The extension is only accepted on /api/snapshot.
   const localCors = cors({ origin: (o, cb) => cb(null, !o || LOCAL_ORIGIN.test(o)) });
   const snapshotCors = cors({
     origin: (o, cb) => cb(null, !o || LOCAL_ORIGIN.test(o) || isExtensionOrigin(o)),
@@ -63,8 +63,8 @@ export function registerSnapshotRoutes(
   });
   const bigJson = express.json({ limit: SNAPSHOT_BODY_LIMIT });
 
-  // Origem das mudanças: 'editor'. Quem importa pelas rotas é o usuário (extensão, colar no editor,
-  // botão de importar), não um agente; com 'mcp' o editor mostraria o selo "IA trabalhando".
+  // Change source: 'editor'. Whoever imports through these routes is the user (extension, paste in the
+  // editor, import button), not an agent; with 'mcp' the editor would show the "AI working" badge.
   const service = { store, render: ctx.render, source: 'editor' } as const;
 
   const handle =
@@ -75,7 +75,7 @@ export function registerSnapshotRoutes(
         next(
           new SnapshotImportError(
             400,
-            'Corpo inválido: envie um objeto JSON (Content-Type: application/json).',
+            'Invalid body: send a JSON object (Content-Type: application/json).',
           ),
         );
         return;
@@ -85,7 +85,7 @@ export function registerSnapshotRoutes(
         .then(
           (result) => void res.json(result),
           (e: unknown) => {
-            // 502/503 também precisam sair com a mensagem (o handler global só expõe 4xx)
+            // 502/503 must also return the message (the global handler only exposes 4xx)
             if (e instanceof SnapshotImportError) res.status(e.status).json({ error: e.message });
             else next(e);
           },
@@ -98,7 +98,7 @@ export function registerSnapshotRoutes(
     snapshotCors,
     bigJson,
     handle((body) => {
-      // aceita `{ payload, docId?, ... }` (SnapshotImportRequest) ou o payload puro no corpo
+      // accepts `{ payload, docId?, ... }` (SnapshotImportRequest) or the bare payload as the body
       const request: SnapshotImportRequest =
         body.payload === undefined && (isSnapshotPayload(body) || 'format' in body)
           ? { payload: body as unknown as SnapshotImportRequest['payload'] }

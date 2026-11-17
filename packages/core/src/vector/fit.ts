@@ -1,14 +1,14 @@
-/** Ajuste do viewBox ao conteúdo, mantendo a escala entre o viewBox e a caixa do nó. */
+/** Fits the viewBox to the content, keeping the scale between the viewBox and the node box. */
 import type { Vector } from '../types.js';
 import { editVector } from './svg.js';
 import { pathBounds } from './path.js';
 import type { Box } from './path.js';
 
 /**
- * Recalcula o viewBox como a caixa dos paths (mais `padding`, padrão: metade do maior traço) e
- * devolve a nova caixa do nó em px no pai, com a mesma escala `box.width / viewBox.width` (e
- * altura) de antes, de modo que o desenho fique parado na tela. Paths vazios: devolve igual.
- * O vetor resultante não tem `raw`.
+ * Recomputes the viewBox as the box of the paths (plus `padding`, default: half of the largest stroke) and
+ * returns the new node box in px in the parent, with the same `box.width / viewBox.width` scale (and
+ * height) as before, so that the drawing stays still on screen. Empty paths: returns it unchanged.
+ * The resulting vector has no `raw`.
  */
 export function fitVectorToContent(
   v: Vector,

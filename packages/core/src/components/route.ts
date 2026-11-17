@@ -1,15 +1,15 @@
 /**
- * Roteamento de ops cujos alvos não são nós reais das páginas (ver `docs/COMPONENTES.md`,
- * "Edição pelo id expandido"). Chamado no início de `applyOp`:
+ * Routing of ops whose targets are not real page nodes (see `docs/COMPONENTS.md`,
+ * "Editing by expanded id"). Called at the start of `applyOp`:
  *
- * - id virtual (`in_x/caminho`): edições de conteúdo viram `setInstanceOverrides` na instância
- *   dona; estrutura é recusada (exceto inserir num contêiner de slot virtual, que cria o
- *   contêiner real da instância e insere nele);
- * - nó real da raiz de um principal: a op é aplicada a um documento temporário (a raiz como
- *   frame de uma página temporária) e vira `updateComponent { root }`;
- * - ops com vários alvos de donos diferentes são particionadas e aplicadas em sequência.
+ * - virtual id (`in_x/path`): content edits become `setInstanceOverrides` on the owning
+ *   instance; structure edits are rejected (except inserting into a virtual slot container,
+ *   which creates the instance's real container and inserts into it);
+ * - real node in a main component's root: the op is applied to a temporary document (the root
+ *   as a frame of a temporary page) and becomes `updateComponent { root }`;
+ * - ops with several targets owned by different owners are partitioned and applied in sequence.
  *
- * O inverso é sempre o das ops roteadas (exato), então undo/redo funcionam como nas demais.
+ * The inverse is always that of the routed ops (exact), so undo/redo work like any other op.
  */
 import { deepClone } from '../clone.js';
 import type { ApplyResult, Op, StyleChange } from '../ops.js';
@@ -31,14 +31,14 @@ import { documentNodeIds, normalizeOverride, normalizePropValue, slotNames } fro
 type ApplyFn = (doc: Document, op: Op) => ApplyResult;
 type Result = Record<string, unknown> | undefined;
 
-/** Id da página temporária usada para aplicar ops na raiz de um principal. */
+/** Id of the temporary page used to apply ops to a main component's root. */
 export const COMPONENT_EDIT_PAGE_ID = 'pg__component';
 
 function fail(message: string): never {
   throw new Error(message);
 }
 
-/* ---------------- ids derivados ---------------- */
+/* ---------------- derived ids ---------------- */
 
 const ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
 
@@ -61,8 +61,8 @@ function base36(n: number, len: number): string {
 }
 
 /**
- * Id determinístico `<prefixo>` + 8 chars [0-9a-z] derivado de `key` por hash; se já estiver em
- * `taken`, tenta de novo com um sal (o resultado depende só de `key` e de `taken`).
+ * Deterministic id `<prefix>` + 8 chars [0-9a-z] derived from `key` by hashing; if already in
+ * `taken`, retries with a salt (the result depends only on `key` and `taken`).
  */
 export function derivedNodeId(prefix: string, key: string, taken: Set<string>): string {
   for (let salt = 0; ; salt++) {
@@ -75,12 +75,12 @@ export function derivedNodeId(prefix: string, key: string, taken: Set<string>): 
   }
 }
 
-/** Id do contêiner real do slot `slot` da instância (determinístico; ver `derivedNodeId`). */
+/** Id of the instance's real container for slot `slot` (deterministic; see `derivedNodeId`). */
 export function slotContainerId(doc: Document, instanceId: string, slot: string): string {
   return derivedNodeId('el_', `${instanceId}\u0000slot\u0000${slot}`, documentNodeIds(doc));
 }
 
-/** Contêiner de slot como a instância guarda (`Slot <nome>`, `data-slot`). */
+/** Slot container as the instance stores it (`Slot <name>`, `data-slot`). */
 export function slotContainerNode(id: string, slot: string, children: Node[] = []): Node {
   return {
     id,
@@ -95,7 +95,7 @@ export function slotContainerNode(id: string, slot: string, children: Node[] = [
   };
 }
 
-/* ---------------- classificação dos alvos ---------------- */
+/* ---------------- target classification ---------------- */
 
 type Owner = { kind: 'page' } | { kind: 'component'; id: string } | { kind: 'virtual'; id: string };
 
@@ -106,7 +106,7 @@ function ownerKey(o: Owner): string {
 function classify(index: Map<string, string> | undefined, id: string): Owner {
   if (isVirtualId(id)) {
     const s = splitVirtualId(id);
-    if (!s) fail(`Nó "${id}" não encontrado`);
+    if (!s) fail(`Node "${id}" not found`);
     return { kind: 'virtual', id: s.instanceId };
   }
   const cid = index?.get(id);
@@ -114,8 +114,8 @@ function classify(index: Map<string, string> | undefined, id: string): Owner {
 }
 
 /**
- * Alvos prováveis de uma op que o roteador não conhece, pelos nomes de campo usuais (`nodeId`,
- * `nodeIds`, `parentId`, `changes[].nodeId`): só para recusar com mensagem clara.
+ * Likely targets of an op the router does not know, by the usual field names (`nodeId`,
+ * `nodeIds`, `parentId`, `changes[].nodeId`): only used to reject with a clear message.
  */
 function guessTargetIds(op: Op): string[] {
   const o = op as unknown as Record<string, unknown>;
@@ -133,9 +133,10 @@ function guessTargetIds(op: Op): string[] {
 }
 
 /**
- * Alvos das ops que o roteador conhece; `null` para as demais. Uma op nova que mire nós precisa
- * entrar aqui (e, se for de conteúdo, em `virtualToOverrides`); até lá, mirar um nó de instância
- * ou de principal com ela falha com mensagem clara (ver `docs/COMPONENTES.md`, "Estendendo").
+ * Targets of the ops the router knows; `null` for the rest. A new op that targets nodes must be
+ * added here (and, if it edits content, to `virtualToOverrides`); until then, targeting an
+ * instance or main-component node with it fails with a clear message (see
+ * `docs/COMPONENTS.md`, "Extending").
  */
 function targetIds(op: Op): string[] | null {
   switch (op.type) {
@@ -171,7 +172,7 @@ function targetIds(op: Op): string[] | null {
   }
 }
 
-/* ---------------- aplicação em sequência ---------------- */
+/* ---------------- sequential application ---------------- */
 
 type Step = (cur: Document) => ApplyResult;
 
@@ -188,7 +189,7 @@ function runSteps(doc: Document, steps: Step[]): { r: ApplyResult; results: Resu
   return { r: { doc: cur, inverse: groups.reverse().flat() }, results };
 }
 
-/** Junta os resultados das partes (nodeIds concatenados, idMap mesclado). */
+/** Merges the results of the parts (nodeIds concatenated, idMap merged). */
 function mergeResults(results: Result[]): Result {
   const present = results.filter((r): r is Record<string, unknown> => !!r);
   if (present.length === 0) return undefined;
@@ -206,26 +207,27 @@ function mergeResults(results: Result[]): Result {
   return out;
 }
 
-/* ---------------- nós de um principal ---------------- */
+/* ---------------- main component nodes ---------------- */
 
 function applyInComponent(doc: Document, componentId: string, op: Op, apply: ApplyFn): ApplyResult {
   const c = getComponent(doc, componentId);
-  if (!c) fail(`Componente "${componentId}" não encontrado`);
+  if (!c) fail(`Component "${componentId}" not found`);
   const rootId = c.root.id;
-  const rootMsg = `A raiz do principal "${c.name}" (${rootId})`;
+  const rootMsg = `The root of main component "${c.name}" (${rootId})`;
   switch (op.type) {
     case 'deleteNodes':
-      if (op.nodeIds.includes(rootId)) fail(`${rootMsg} não pode ser apagada: exclua o componente`);
+      if (op.nodeIds.includes(rootId))
+        fail(`${rootMsg} cannot be deleted: delete the component instead`);
       break;
     case 'duplicateNodes':
-      if (op.nodeIds.includes(rootId)) fail(`${rootMsg} não pode ser duplicada`);
+      if (op.nodeIds.includes(rootId)) fail(`${rootMsg} cannot be duplicated`);
       break;
     case 'moveNodes':
-      if (op.nodeIds.includes(rootId)) fail(`${rootMsg} não pode ser movida`);
+      if (op.nodeIds.includes(rootId)) fail(`${rootMsg} cannot be moved`);
       break;
     case 'setPosition':
       if (op.changes.some((ch) => ch.nodeId === rootId)) {
-        fail(`${rootMsg} não tem posição (a posição é de cada instância)`);
+        fail(`${rootMsg} has no position (position belongs to each instance)`);
       }
       break;
     default:
@@ -244,13 +246,13 @@ function applyInComponent(doc: Document, componentId: string, op: Op, apply: App
   const r = apply(temp, op);
   const page = r.doc.pages[0];
   if (!page || page.id !== COMPONENT_EDIT_PAGE_ID || page.frames.length !== 1) {
-    fail(`A operação mudaria a raiz do principal "${c.name}"`);
+    fail(`The operation would change the root of main component "${c.name}"`);
   }
   const u = apply(doc, { type: 'updateComponent', componentId, root: page.frames[0]! });
   return { doc: u.doc, inverse: u.inverse, result: r.result };
 }
 
-/* ---------------- ids virtuais ---------------- */
+/* ---------------- virtual ids ---------------- */
 
 interface VirtualCtx {
   owner: Node;
@@ -261,10 +263,10 @@ interface VirtualCtx {
 
 function virtualCtx(doc: Document, instanceId: string): VirtualCtx {
   const owner = findInstanceNode(doc, instanceId);
-  if (!owner) fail(`Nó "${instanceId}" não encontrado ou não é uma instância`);
+  if (!owner) fail(`Node "${instanceId}" not found or is not an instance`);
   const def = getComponent(doc, owner.componentId);
   if (!def)
-    fail(`O componente "${owner.componentId ?? ''}" da instância "${instanceId}" não existe`);
+    fail(`Component "${owner.componentId ?? ''}" of instance "${instanceId}" does not exist`);
   const byId = new Map<string, Node>();
   const visit = (n: Node): void => {
     byId.set(n.id, n);
@@ -275,8 +277,8 @@ function virtualCtx(doc: Document, instanceId: string): VirtualCtx {
 }
 
 function structureMessage(id: string, ctx: { ownerId: string; componentName?: string }): string {
-  const comp = ctx.componentName ? ` (componente "${ctx.componentName}")` : '';
-  return `O nó "${id}" é interno da instância "${ctx.ownerId}"${comp}: edite o principal ou destaque a instância`;
+  const comp = ctx.componentName ? ` (component "${ctx.componentName}")` : '';
+  return `Node "${id}" is internal to instance "${ctx.ownerId}"${comp}: edit the main component or detach the instance`;
 }
 
 function refuseStructure(doc: Document, id: string): never {
@@ -304,23 +306,23 @@ function isEmptyOverride(ov: NodeOverride): boolean {
   return Object.entries(ov).every(
     ([k, v]) =>
       v === undefined ||
-      // `data: []` é um valor (repetidor sem itens), não ausência
+      // `data: []` is a value (a repeater with no items), not an absence
       (k !== 'data' && Array.isArray(v) && v.length === 0) ||
       (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0),
   );
 }
 
-/** Converte a parte virtual de uma op (todos os alvos com a mesma instância dona) em overrides. */
+/** Converts the virtual part of an op (all targets owned by the same instance) into overrides. */
 function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
   const ctx = virtualCtx(doc, instanceId);
   const map: Record<string, NodeOverride> = deepClone(ctx.owner.overrides ?? {});
   const prefix = `${instanceId}/`;
   const target = (nodeId: string): { node: Node; path: string } => {
     const node = ctx.byId.get(nodeId);
-    if (!node || !nodeId.startsWith(prefix)) fail(`Nó "${nodeId}" não encontrado`);
+    if (!node || !nodeId.startsWith(prefix)) fail(`Node "${nodeId}" not found`);
     const path = nodeId.slice(prefix.length);
     if (path.split('/').pop() === '__missing')
-      fail(`O nó "${nodeId}" é um aviso de componente ausente`);
+      fail(`Node "${nodeId}" is a missing-component warning`);
     return { node, path };
   };
   const edit = (path: string): NodeOverride => (map[path] ??= {});
@@ -370,7 +372,7 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
         const { path } = target(ch.nodeId);
         if (ch.locked !== undefined) {
           fail(
-            `O nó "${ch.nodeId}" é interno da instância "${instanceId}": "locked" não se aplica (só "hidden")`,
+            `Node "${ch.nodeId}" is internal to instance "${instanceId}": "locked" does not apply (only "hidden")`,
           );
         }
         if (ch.hidden !== undefined) edit(path).hidden = ch.hidden;
@@ -397,14 +399,14 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
     case 'setSrc':
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
-        if (node.type !== 'image') fail(`O nó "${ch.nodeId}" não é uma imagem`);
+        if (node.type !== 'image') fail(`Node "${ch.nodeId}" is not an image`);
         edit(path).src = ch.src;
       }
       break;
     case 'setSvg':
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
-        if (node.type !== 'svg') fail(`O nó "${ch.nodeId}" não é um SVG`);
+        if (node.type !== 'svg') fail(`Node "${ch.nodeId}" is not an SVG`);
         const ov = edit(path);
         ov.svg = normalizeOverride({ svg: ch.svg }, `"${ch.nodeId}"`).svg;
         if (ch.attrs)
@@ -417,7 +419,7 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
     case 'setVector':
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
-        if (node.type !== 'svg') fail(`O nó "${ch.nodeId}" não é um svg`);
+        if (node.type !== 'svg') fail(`Node "${ch.nodeId}" is not an svg`);
         const ov = edit(path);
         if (ch.vector) {
           const n = normalizeOverride(
@@ -438,17 +440,17 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
         const { node, path } = target(ch.nodeId);
         const given = (['effect', 'video', 'embed'] as const).filter((k) => ch[k] !== undefined);
         if (given.length !== 1)
-          fail(`setMedia em "${ch.nodeId}": informe exatamente um de effect, video ou embed`);
+          fail(`setMedia on "${ch.nodeId}": provide exactly one of effect, video or embed`);
         const field = given[0]!;
         if (node.type !== field)
-          fail(`O nó "${ch.nodeId}" é ${node.type}; ${field} só vale em nós ${field}`);
+          fail(`Node "${ch.nodeId}" is ${node.type}; ${field} only applies to ${field} nodes`);
         Object.assign(edit(path), normalizeOverride({ [field]: ch[field] }, `"${ch.nodeId}"`));
       }
       break;
     case 'setData':
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
-        if (node.type !== 'repeater') fail(`O nó "${ch.nodeId}" não é um repetidor`);
+        if (node.type !== 'repeater') fail(`Node "${ch.nodeId}" is not a repeater`);
         const ov = edit(path);
         if (ch.data === null) delete ov.data;
         else if (ch.data !== undefined)
@@ -462,7 +464,7 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
         const def = getComponent(doc, node.componentId);
-        if (!node.componentId) fail(`O nó "${ch.nodeId}" não é uma instância de componente`);
+        if (!node.componentId) fail(`Node "${ch.nodeId}" is not a component instance`);
         const ov = edit(path);
         const props: Record<string, PropValue> = { ...(ov.props ?? {}) };
         for (const k of ch.unset ?? []) delete props[k];
@@ -475,8 +477,7 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
       for (const ch of op.changes) {
         const { node, path } = target(ch.nodeId);
         const def = getComponent(doc, node.componentId);
-        if (!node.componentId || !def)
-          fail(`O nó "${ch.nodeId}" não é uma instância de componente`);
+        if (!node.componentId || !def) fail(`Node "${ch.nodeId}" is not a component instance`);
         for (const k of Object.keys(map)) if (k.startsWith(`${path}/`)) delete map[k];
         for (const [k, ov] of Object.entries(ch.overrides ?? {})) {
           map[`${path}/${k === '' ? def.root.id : k}`] = ov;
@@ -496,8 +497,9 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
 }
 
 /**
- * Contêiner de slot virtual: id `<instância>/<nó do principal>` onde o nó é o contêiner
- * `data-slot` de uma prop slot do componente (e não o contêiner de uma instância aninhada).
+ * Virtual slot container: id `<instance>/<main component node>` where the node is the
+ * `data-slot` container of a slot prop of the component (and not the container of a nested
+ * instance).
  */
 function virtualSlot(
   doc: Document,
@@ -528,7 +530,7 @@ function virtualSlot(
   return { instanceId: s.instanceId, slot, ...(existing && { existing: existing.id }) };
 }
 
-/** Garante o contêiner real do slot e devolve o passo que o cria (ou nenhum) e o id. */
+/** Ensures the slot's real container and returns the step that creates it (or none) and its id. */
 function ensureSlotContainer(
   doc: Document,
   parentId: string,
@@ -540,7 +542,7 @@ function ensureSlotContainer(
     const owner = s ? findInstanceNode(doc, s.instanceId) : undefined;
     const name = getComponent(doc, owner?.componentId)?.name;
     fail(
-      `${structureMessage(parentId, { ownerId: s?.instanceId ?? parentId, componentName: name })} (só os slots aceitam conteúdo: insira dentro de um slot)`,
+      `${structureMessage(parentId, { ownerId: s?.instanceId ?? parentId, componentName: name })} (only slots accept content: insert inside a slot)`,
     );
   }
   if (slot.existing) return { steps: [], containerId: slot.existing };
@@ -552,7 +554,7 @@ function ensureSlotContainer(
   };
 }
 
-/* ---------------- roteamento ---------------- */
+/* ---------------- routing ---------------- */
 
 interface Group<T> {
   owner: Owner;
@@ -584,21 +586,21 @@ function withChanges(op: Op, changes: unknown[]): Op {
   return { ...op, changes } as unknown as Op;
 }
 
-/** Op fora de `targetIds` mirando nó de instância ou de principal. */
+/** Op outside `targetIds` targeting an instance or main-component node. */
 function refuseUnrouted(type: string, owners: Owner[]): never {
   if (owners.some((o) => o.kind === 'virtual')) {
     fail(
-      `Operação "${type}" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)`,
+      `Operation "${type}" is not supported on instance nodes; use set_instance_override or detach the instance (detach_instance)`,
     );
   }
   fail(
-    `Operação "${type}" não é suportada em nós de um principal; edite o principal com update_component_html ou update_component`,
+    `Operation "${type}" is not supported on main component nodes; edit the main component with update_component_html or update_component`,
   );
 }
 
 /**
- * Roteia a op se algum alvo for id virtual ou nó de um principal; `null` quando todos os alvos
- * são nós das páginas (o caminho normal de `applyOp`). Barato sem componentes: só procura `/`.
+ * Routes the op if any target is a virtual id or a main-component node; `null` when all targets
+ * are page nodes (the normal path of `applyOp`). Cheap without components: it only looks for `/`.
  */
 export function routeComponentOp(doc: Document, op: Op, apply: ApplyFn): ApplyResult | null {
   const listed = targetIds(op);
@@ -638,7 +640,9 @@ export function routeComponentOp(doc: Document, op: Op, apply: ApplyFn): ApplyRe
       if (op.parentId !== undefined) {
         const dest = op.parentId ? ownerKey(ownerOf(op.parentId)) : 'page';
         if (op.nodeIds.some((id) => ownerKey(ownerOf(id)) !== dest)) {
-          fail('Não é possível mover nós entre um principal e uma página (ou entre principais)');
+          fail(
+            'Cannot move nodes between a main component and a page (or between main components)',
+          );
         }
         const owner = op.parentId ? ownerOf(op.parentId) : ({ kind: 'page' } as Owner);
         return applyGroup(doc, owner, op, apply);
@@ -697,12 +701,12 @@ export function routeComponentOp(doc: Document, op: Op, apply: ApplyFn): ApplyRe
   }
 }
 
-/** Atalho usado pelos planejadores: `true` se o id é de um nó real dentro de um principal. */
+/** Shortcut used by the planners: `true` if the id is a real node inside a main component. */
 export function isComponentNodeId(doc: Document, id: string): boolean {
   return !!doc.components?.length && componentNodeIndex(doc).has(id);
 }
 
-/** Nó real dentro de um principal (ou `undefined`). */
+/** Real node inside a main component (or `undefined`). */
 export function componentNodeById(doc: Document, id: string): Node | undefined {
   const cid = doc.components?.length ? componentNodeIndex(doc).get(id) : undefined;
   const def = getComponent(doc, cid);

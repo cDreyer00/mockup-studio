@@ -1,6 +1,6 @@
 /**
- * Aplicação das classes Tailwind nos nós: import de HTML (`write_html`, colar), `set_classes` e
- * detecção automática de markup Tailwind.
+ * Applying Tailwind classes to nodes: HTML import (`write_html`, paste), `set_classes` and
+ * automatic detection of Tailwind markup.
  */
 import { walk } from '../document.js';
 import type { Op } from '../ops.js';
@@ -9,11 +9,11 @@ import type { Node } from '../types.js';
 import type { TailwindEngine, TailwindStyles } from './engine.js';
 
 export interface TailwindReport {
-  /** Nós com classes Tailwind aplicadas. */
+  /** Nodes with Tailwind classes applied. */
   nodes: number;
-  /** Classes que o Tailwind não reconhece (ficam só em `node.classes`). */
+  /** Classes Tailwind does not recognize (kept only in `node.classes`). */
   unknown: string[];
-  /** Classes Tailwind sem equivalente no modelo, com o motivo (ficam só em `node.classes`). */
+  /** Tailwind classes with no equivalent in the model, with the reason (kept only in `node.classes`). */
   unsupported: { cls: string; reason: string }[];
 }
 
@@ -39,17 +39,17 @@ function mergeReport(into: TailwindReport, r: TailwindStyles): void {
 
 export interface ApplyTailwindOptions {
   /**
-   * Cor de borda padrão para nós com largura de borda e sem cor (o shadcn usa
-   * `* { border-color: var(--color-border) }`). Ausente: cor atual do texto, como no preflight.
+   * Default border color for nodes with a border width and no color (shadcn uses
+   * `* { border-color: var(--color-border) }`). Absent: current text color, as in preflight.
    */
   defaultBorderColor?: string;
 }
 
 /**
- * Compila `node.classes` de cada nó da árvore (criada por `htmlToNodes` com `keepClasses`) e
- * aplica em `style`/`states`. O CSS escrito no HTML (`style=""` e regras do `<style>`) vence as
- * classes, como no navegador; classes de filhos (`space-y-2`, `*:p-2`) vão para os filhos, abaixo
- * das classes deles.
+ * Compiles `node.classes` of each tree node (created by `htmlToNodes` with `keepClasses`) and
+ * applies them to `style`/`states`. CSS written in the HTML (`style=""` and `<style>` rules) wins over the
+ * classes, as in the browser; child classes (`space-y-2`, `*:p-2`) go to the children, below
+ * their own classes.
  */
 export function applyTailwindToNodes(
   nodes: Node[],
@@ -87,7 +87,7 @@ export function applyTailwindToNodes(
   return report;
 }
 
-/** Classes que aparecem num HTML (`class="..."`). */
+/** Classes that appear in an HTML (`class="..."`). */
 export function htmlClasses(html: string): string[] {
   const out = new Set<string>();
   const re = /\bclass\s*=\s*("([^"]*)"|'([^']*)')/gi;
@@ -97,7 +97,7 @@ export function htmlClasses(html: string): string[] {
   return [...out];
 }
 
-/** Classes usadas como seletor num CSS (`.hero`, `.card > h3`). */
+/** Classes used as selectors in a CSS (`.hero`, `.card > h3`). */
 function cssClassSelectors(css: string): Set<string> {
   const out = new Set<string>();
   const re = /\.(-?[_a-zA-Z][_a-zA-Z0-9-]*)/g;
@@ -107,17 +107,17 @@ function cssClassSelectors(css: string): Set<string> {
 }
 
 export interface TailwindDetection {
-  /** O HTML parece Tailwind (maioria das classes sem regra no CSS é Tailwind). */
+  /** The HTML looks like Tailwind (most classes without a CSS rule are Tailwind). */
   tailwind: boolean;
-  /** Classes Tailwind encontradas. */
+  /** Tailwind classes found. */
   classes: string[];
-  /** Total de classes consideradas (sem regra no CSS). */
+  /** Total classes considered (without a CSS rule). */
   total: number;
 }
 
 /**
- * Detecta markup Tailwind: há classes que o Tailwind reconhece e elas são ao menos metade das
- * classes que não têm regra no CSS informado (no `<style>` do HTML ou no parâmetro `css`).
+ * Detects Tailwind markup: there are classes Tailwind recognizes and they are at least half of the
+ * classes that have no rule in the given CSS (in the HTML `<style>` or the `css` parameter).
  */
 export function detectTailwind(html: string, engine: TailwindEngine, css = ''): TailwindDetection {
   const styleBlocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
@@ -137,7 +137,7 @@ function splitClasses(s: string | undefined): string[] {
   return (s ?? '').split(/\s+/).filter(Boolean);
 }
 
-/** Ops que levam `from` até `to` (set do que mudou, unset do que saiu). */
+/** Ops that take `from` to `to` (set what changed, unset what went away). */
 function styleDiff(
   nodeId: string,
   from: Record<string, string>,
@@ -154,17 +154,17 @@ function styleDiff(
   return change;
 }
 
-/** Propriedades de posicionamento preservadas por `replace` quando o nó tem `position`. */
+/** Positioning props preserved by `replace` when the node has `position`. */
 const POSITION_PROPS = ['position', 'left', 'top', 'right', 'bottom', 'z-index'] as const;
 
 type ChildStyles = NonNullable<TailwindStyles['children']>;
 
-/** Propriedades gravadas num filho (`all` + `notLast` se não for o último). */
+/** Props written to a child (`all` + `notLast` if it is not the last). */
 function childExtra(c: ChildStyles | undefined, last: boolean): Record<string, string> {
   return { ...(c?.all ?? {}), ...(last ? {} : (c?.notLast ?? {})) };
 }
 
-/** Propriedades que as classes produzem (base e por estado). */
+/** Props that the classes produce (base and per state). */
 function producedProps(r: TailwindStyles): { base: Set<string>; states: Map<string, Set<string>> } {
   const states = new Map<string, Set<string>>();
   for (const [k, v] of Object.entries(r.states)) states.set(k, new Set(Object.keys(v)));
@@ -174,17 +174,17 @@ function producedProps(r: TailwindStyles): { base: Set<string>; states: Map<stri
 export interface SetClassesPlan {
   ops: Op[];
   report: TailwindReport;
-  /** Classes finais por nó. */
+  /** Final classes per node. */
   classes: Record<string, string>;
 }
 
 /**
- * Planeja `set_classes`: classes → `style`, `states` e `node.classes` dos nós (um undo só).
+ * Plans `set_classes`: classes → `style`, `states` and `node.classes` of the nodes (a single undo).
  *
- * - `replace`: as classes passam a ser todo o estilo do nó (frames raiz mantêm `width`/`height`
- *   se as classes não definirem);
- * - `add`: acrescenta (classes antigas com as mesmas propriedades no mesmo estado saem);
- * - `remove`: tira as classes e as propriedades que só elas produziam.
+ * - `replace`: the classes become the whole style of the node (root frames keep `width`/`height`
+ *   if the classes do not define them);
+ * - `add`: appends (old classes with the same props in the same state are dropped);
+ * - `remove`: removes the classes and the props only they produced.
  */
 export function planSetClasses(
   nodes: { node: Node; root: boolean }[],
@@ -217,14 +217,14 @@ export function planSetClasses(
           if (style[k] === undefined && node.style[k] !== undefined) style[k] = node.style[k];
         }
       }
-      // Posicionamento absoluto do modelo (`position` + left/top): as classes novas não o apagam.
+      // Model absolute positioning (`position` + left/top): the new classes do not erase it.
       if (node.style.position !== undefined) {
         for (const k of POSITION_PROPS) {
           if (style[k] === undefined && node.style[k] !== undefined) style[k] = node.style[k];
         }
       }
-      // CSS sem classe equivalente (fica em `style=""` no export) não pode ser escrito em classes:
-      // trocar as classes não o apaga (remova com `update_styles`/`unset`).
+      // CSS with no equivalent class (stays in `style=""` on export) cannot be written as classes:
+      // swapping the classes does not erase it (remove it with `update_styles`/`unset`).
       for (const [k, v] of Object.entries(engine.nodeClasses(node).rest)) {
         if (style[k] === undefined) style[k] = v;
       }
@@ -275,8 +275,8 @@ export function planSetClasses(
       classChanges.push({ nodeId: node.id, classes: joined || null });
     finalClasses[node.id] = joined;
 
-    // Classes de filhos (`space-y-2`, `*:p-2`): as antigas que saem limpam o que gravaram (se o
-    // filho ainda tem o valor delas) e as novas/restantes valem para os filhos.
+    // Child classes (`space-y-2`, `*:p-2`): the old ones that go away clear what they wrote (if the
+    // child still has their value) and the new/remaining ones apply to the children.
     let oldKids: ChildStyles | undefined;
     let newKids: ChildStyles | undefined = mode === 'remove' ? undefined : add.children;
     if (mode === 'replace') {
@@ -309,7 +309,7 @@ export function planSetClasses(
   return { ops, report, classes: finalClasses };
 }
 
-/** Nós da árvore que têm classes Tailwind (para relatórios). */
+/** Tree nodes that have Tailwind classes (for reports). */
 export function nodesWithClasses(root: Node | Node[]): Node[] {
   const out: Node[] = [];
   walk(root, (n) => {

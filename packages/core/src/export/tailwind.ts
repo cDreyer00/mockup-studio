@@ -19,39 +19,39 @@ import {
 } from './common.js';
 
 export interface TailwindExportOptions {
-  /** Nós a exportar (padrão: frames da página `pageId` ou da primeira página). */
+  /** Nodes to export (default: frames of page `pageId` or of the first page). */
   nodeIds?: string[];
   pageId?: string;
   title?: string;
-  /** `true`: só o markup (sem `<!doctype>`/`<head>`). Padrão `false` (documento completo). */
+  /** `true`: markup only (no `<!doctype>`/`<head>`). Default `false` (full document). */
   fragment?: boolean;
   /**
-   * `true` (padrão): o documento completo inclui `<script>` do `@tailwindcss/browser@4` e o tema em
-   * `<style type="text/tailwindcss">`. `false` remove o script (o tema continua no `<style>`).
+   * `true` (default): the full document includes the `@tailwindcss/browser@4` `<script>` and the theme in
+   * `<style type="text/tailwindcss">`. `false` removes the script (the theme stays in the `<style>`).
    */
   cdn?: boolean;
   /**
-   * Motor Tailwind do documento (`getTailwindEngine(doc)` de `@mockup/core/tailwind`). Com ele as
-   * classes saem canonicalizadas, conferidas contra o compilador e reaproveitando `node.classes`;
-   * sem ele, o mapeamento estático (`cssToTailwind`).
+   * Document Tailwind engine (`getTailwindEngine(doc)` from `@mockup/core/tailwind`). With it the
+   * classes come out canonicalized, checked against the compiler and reusing `node.classes`;
+   * without it, the static mapping (`cssToTailwind`).
    */
   tailwind?: TailwindEngine;
-  /** Lê um arquivo de `assets/`: embute no HTML o JSON de animações Lottie de até 512 KB. */
+  /** Reads a file from `assets/`: embeds Lottie animation JSON of up to 512 KB in the HTML. */
   readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 export interface TailwindMapping {
-  /** Classes Tailwind v4 equivalentes. */
+  /** Equivalent Tailwind v4 classes. */
   classes: string[];
-  /** Propriedades sem classe equivalente (já cobertas por `[prop:valor]` em `classes` quando possível). */
+  /** Props with no equivalent class (already covered by `[prop:value]` in `classes` when possible). */
   rest: Record<string, string>;
 }
 
 /* ====================================================================== */
-/* Utilitários de valor                                                    */
+/* Value utilities                                                        */
 /* ====================================================================== */
 
-/** Divide em tokens no nível superior (fora de parênteses e aspas) por espaço ou vírgula. */
+/** Splits into top-level tokens (outside parentheses and quotes) by space or comma. */
 function splitTop(value: string, sep: 'space' | 'comma'): string[] {
   const out: string[] = [];
   let buf = '';
@@ -93,7 +93,7 @@ function parseVar(value: string): VarRef | null {
 type Namespace =
   'color' | 'font' | 'text' | 'weight' | 'radius' | 'shadow' | 'spacing' | 'leading' | 'tracking';
 
-/** Prefixos de variável de tema do Tailwind v4 (o mais específico primeiro). */
+/** Tailwind v4 theme variable prefixes (most specific first). */
 const NAMESPACES: [string, Namespace][] = [
   ['--font-weight-', 'weight'],
   ['--color-', 'color'],
@@ -108,7 +108,7 @@ const NAMESPACES: [string, Namespace][] = [
 
 const SHORT_NAME_RE = /^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/;
 
-/** Namespace de tema de um token (`--color-primary` → color/`primary`); `null` fora dos namespaces. */
+/** Theme namespace of a token (`--color-primary` → color/`primary`); `null` outside the namespaces. */
 export function themeNamespace(name: string): { ns: Namespace; short: string } | null {
   for (const [prefix, ns] of NAMESPACES) {
     if (name.startsWith(prefix)) {
@@ -120,7 +120,7 @@ export function themeNamespace(name: string): { ns: Namespace; short: string } |
   return null;
 }
 
-/** Nome curto de tema se `value` é `var(--ns-x)` do namespace esperado (e o token existe). */
+/** Short theme name if `value` is `var(--ns-x)` of the expected namespace (and the token exists). */
 function themeShort(value: string, want: Namespace, ctx: Ctx): string | null {
   const v = parseVar(value);
   if (!v || v.fallback !== undefined) return null;
@@ -130,7 +130,7 @@ function themeShort(value: string, want: Namespace, ctx: Ctx): string | null {
   return t.short;
 }
 
-/** Escapa um valor para uso dentro de `[...]`: espaços viram `_`, `_` literal vira `\_`. `null` se inseguro. */
+/** Escapes a value for use inside `[...]`: spaces become `_`, a literal `_` becomes `\_`. `null` if unsafe. */
 function arb(value: string): string | null {
   const v = value.trim().replace(/\s*,\s*/g, ',');
   if (v === '' || /[{};<>`\n\r]/.test(v)) return null;
@@ -147,14 +147,14 @@ function toPx(value: string): number | null {
   return null;
 }
 
-/** Lookup que ignora chaves herdadas de `Object.prototype`. */
+/** Lookup that ignores keys inherited from `Object.prototype`. */
 function own<T>(table: Record<string, T>, key: string): T | undefined {
   return Object.hasOwn(table, key) ? table[key] : undefined;
 }
 
 const fmt = (n: number): string => String(Math.round(n * 1000) / 1000);
 
-/** Passo da escala de espaçamento do v4 (`--spacing: 0.25rem`): 4px = 1; aceita meio passo. */
+/** Step of the v4 spacing scale (`--spacing: 0.25rem`): 4px = 1; accepts half steps. */
 function scaleStep(px: number): string | null {
   if (px === 0) return '0';
   if (px === 1) return 'px';
@@ -177,15 +177,15 @@ const FRACTIONS: [number, string][] = [
 ];
 
 interface SpacingOpts {
-  /** Aceita `%` (`full`, `1/2`) e keywords de tamanho. */
+  /** Accepts `%` (`full`, `1/2`) and size keywords. */
   percent?: boolean;
-  /** Maior valor em px que ainda usa a escala (acima disso, valor arbitrário). */
+  /** Largest px value that still uses the scale (above that, an arbitrary value). */
   maxScale?: number;
-  /** Aceita `auto`. */
+  /** Accepts `auto`. */
   auto?: boolean;
 }
 
-/** Sufixo de um valor de espaçamento/tamanho: `4`, `[13px]`, `(--x)`, `full`, `1/2`, tema. */
+/** Suffix of a spacing/size value: `4`, `[13px]`, `(--x)`, `full`, `1/2`, theme. */
 function spacingSuffix(value: string, ctx: Ctx, opts: SpacingOpts = {}): string | null {
   const v = value.trim();
   if (v === 'auto') return opts.auto ? 'auto' : null;
@@ -214,7 +214,7 @@ function spacingSuffix(value: string, ctx: Ctx, opts: SpacingOpts = {}): string 
   return a === null ? null : `[${a}]`;
 }
 
-/** `prefix-sufixo`, com sinal negativo movido para a frente (`-mt-2`). */
+/** `prefix-suffix`, with the negative sign moved to the front (`-mt-2`). */
 function withPrefix(prefix: string, suffix: string): string {
   return suffix.startsWith('-') ? `-${prefix}-${suffix.slice(1)}` : `${prefix}-${suffix}`;
 }
@@ -224,7 +224,7 @@ function spacing(prefix: string, value: string, ctx: Ctx, opts: SpacingOpts = {}
   return s === null ? null : withPrefix(prefix, s);
 }
 
-/** Expande 1–4 valores (estilo `margin`/`padding`) em [top, right, bottom, left]. */
+/** Expands 1–4 values (`margin`/`padding` style) into [top, right, bottom, left]. */
 function expandSides(values: string[]): [string, string, string, string] | null {
   const [a, b, c, d] = values;
   switch (values.length) {
@@ -241,7 +241,7 @@ function expandSides(values: string[]): [string, string, string, string] | null 
   }
 }
 
-/** Lados de `padding`/`margin`/`inset`/`border-radius`...: junta lados iguais (`p-4`, `py-5 px-16`). */
+/** Sides of `padding`/`margin`/`inset`/`border-radius`...: merges equal sides (`p-4`, `py-5 px-16`). */
 function sides(
   base: string,
   value: string,
@@ -275,11 +275,11 @@ const INSET_NAMES = {
   l: 'left',
 };
 
-/* ---------------------------- cores ---------------------------- */
+/* ---------------------------- colors --------------------------- */
 
 const NAMED_COLOR_PASSTHROUGH = new Set(['transparent', 'white', 'black']);
 
-/** Sufixo de cor: `primary`, `[#6c5ce7]`, `(color:--x)`, `transparent`, `current`. */
+/** Color suffix: `primary`, `[#6c5ce7]`, `(color:--x)`, `transparent`, `current`. */
 function colorSuffix(value: string, ctx: Ctx): string | null {
   const v = value.trim();
   const lower = v.toLowerCase();
@@ -311,7 +311,7 @@ const colorClass = (prefix: string, value: string, ctx: Ctx): string[] | null =>
   return s === null ? null : [`${prefix}-${s}`];
 };
 
-/* ---------------------------- tabelas de palavras-chave ---------------------------- */
+/* ---------------------------- keyword tables ---------------------------- */
 
 const same = (prefix: string, values: string[]): Record<string, string> =>
   Object.fromEntries(values.map((v) => [v, `${prefix}${v}`]));
@@ -529,7 +529,7 @@ const FONT_SIZES: Record<number, string> = {
   128: '9xl',
 };
 
-/** Tamanhos de `font-size` (px) que têm classe nomeada. */
+/** `font-size` sizes (px) that have a named class. */
 export function namedFontSize(value: string): string | null {
   const px = toPx(value);
   return px !== null && FONT_SIZES[px] ? FONT_SIZES[px] : null;
@@ -653,7 +653,7 @@ function letterSpacingClass(value: string, ctx: Ctx): string[] | null {
   return a === null ? null : [`tracking-[${a}]`];
 }
 
-/* ---------------------------- bordas ---------------------------- */
+/* ---------------------------- borders ---------------------------- */
 
 const BORDER_STYLES = new Set([
   'none',
@@ -690,7 +690,7 @@ function borderStyleClass(side: Side, style: string): string | null {
   if (side === '') {
     return own(KEYWORDS['border-style'], style) ?? null;
   }
-  if (style === 'solid') return ''; // padrão (preflight)
+  if (style === 'solid') return ''; // default (preflight)
   const prop = { t: 'top', r: 'right', b: 'bottom', l: 'left', x: '', y: '' }[side];
   return prop ? `[border-${prop}-style:${style}]` : null;
 }
@@ -715,11 +715,11 @@ function borderShorthand(side: Side, value: string, ctx: Ctx): string[] | null {
     if (c === null) return null;
     if (c !== '') out.push(c);
   }
-  // `border: solid red` sem largura: a largura inicial é `medium` (3px); só um `border` explícito vale 1px
+  // `border: solid red` without a width: the initial width is `medium` (3px); only an explicit `border` is 1px
   return out.length > 0 ? out : null;
 }
 
-/* ---------------------------- raio ---------------------------- */
+/* ---------------------------- radius -------------------------- */
 
 function radiusSuffix(value: string, ctx: Ctx): string | null {
   const v = value.trim();
@@ -744,9 +744,9 @@ function radiusClasses(corner: string, value: string, ctx: Ctx): string[] | null
   return s === null ? null : [`${prefix}-${s}`];
 }
 
-/* ---------------------------- tamanhos ---------------------------- */
+/* ---------------------------- sizes ---------------------------- */
 
-/** Sufixo de `width`/`height` (compartilhado com `size-*`). */
+/** Suffix of `width`/`height` (shared with `size-*`). */
 function sizeSuffix(axis: 'w' | 'h', value: string, ctx: Ctx): string | null {
   const v = value.trim();
   const special: Record<string, string> = {
@@ -778,12 +778,12 @@ function minMaxSize(prefix: string, axis: 'w' | 'h', value: string, ctx: Ctx): s
   }
   const s = sizeSuffix(axis, v, ctx);
   if (s === null) return null;
-  // `min-w-auto`/`max-w-auto` não existem em todas as versões: usa valor arbitrário
+  // `min-w-auto`/`max-w-auto` do not exist in all versions: uses an arbitrary value
   if (s === 'auto') return [`${prefix}-[auto]`];
   return [`${prefix}-${s}`];
 }
 
-/* ---------------------------- sombras, opacidade, grid, flex ---------------------------- */
+/* ---------------------------- shadows, opacity, grid, flex ---------------------------- */
 
 function shadowClass(value: string, ctx: Ctx): string[] | null {
   const v = value.trim();
@@ -815,14 +815,14 @@ function gridTemplate(kind: 'cols' | 'rows', value: string): string[] | null {
   const v = value.trim();
   if (v === 'none') return [`grid-${kind}-none`];
   if (v === 'subgrid') return [`grid-${kind}-subgrid`];
-  // `grid-cols-N` do Tailwind é `repeat(N, minmax(0, 1fr))`; `repeat(N, 1fr)` (mínimo auto) é outra coisa
+  // Tailwind `grid-cols-N` is `repeat(N, minmax(0, 1fr))`; `repeat(N, 1fr)` (auto minimum) is something else
   const m = /^repeat\(\s*(\d+)\s*,\s*minmax\(\s*0(?:px)?\s*,\s*1fr\s*\)\s*\)$/.exec(v);
   if (m) return [`grid-${kind}-${m[1]}`];
   const a = arb(v);
   return a === null ? null : [`grid-${kind}-[${a}]`];
 }
 
-/** `grid-column`/`grid-row`: `span N` → `col-span-N`, `N` → `col-N`, o resto vira `col-[2/span_3]`. */
+/** `grid-column`/`grid-row`: `span N` → `col-span-N`, `N` → `col-N`, anything else becomes `col-[2/span_3]`. */
 function gridSpan(kind: 'col' | 'row', value: string): string[] | null {
   const v = value.trim();
   let m = /^span\s+(\d+)$/.exec(v);
@@ -835,7 +835,7 @@ function gridSpan(kind: 'col' | 'row', value: string): string[] | null {
   return a === null ? null : [`${kind}-[${a}]`];
 }
 
-/** `grid-column-start`/`end` (e de linha): `col-start-2`, `col-end-auto`, `row-start-[span_2]`. */
+/** `grid-column-start`/`end` (and row): `col-start-2`, `col-end-auto`, `row-start-[span_2]`. */
 function gridLine(prefix: string, value: string): string[] | null {
   const v = value.trim();
   if (v === 'auto' || /^-?\d+$/.test(v)) return [withPrefix(prefix, v)];
@@ -926,7 +926,7 @@ function zIndex(value: string): string[] | null {
 }
 
 /* ====================================================================== */
-/* Mapa principal                                                          */
+/* Main map                                                                */
 /* ====================================================================== */
 
 type Handler = (value: string, ctx: Ctx) => string[] | null;
@@ -1038,7 +1038,7 @@ const HANDLERS: Record<string, Handler> = {
     if (v.includes('/')) return null;
     const exp = expandSides(vals);
     if (!exp) return null;
-    // ordem CSS: tl, tr, br, bl
+    // CSS order: tl, tr, br, bl
     const [tl, tr, br, bl] = exp;
     const out: string[] = [];
     for (const [corner, val] of [
@@ -1061,12 +1061,12 @@ const HANDLERS: Record<string, Handler> = {
   opacity: (v) => opacityClass(v),
 };
 
-/** Sufixo `!` do Tailwind v4 para `!important`. */
+/** Tailwind v4 `!` suffix for `!important`. */
 function applyImportant(classes: string[], important: boolean): string[] {
   return important ? classes.map((c) => `${c}!`) : classes;
 }
 
-/** Converte um objeto de estilo CSS (kebab-case) em classes Tailwind v4. */
+/** Converts a CSS style object (kebab-case) into Tailwind v4 classes. */
 export function cssToTailwind(
   style: Record<string, string>,
   opts: { tokens?: Record<string, string> } = {},
@@ -1079,7 +1079,7 @@ export function cssToTailwind(
     for (const c of list) if (c !== '' && !classes.includes(c)) classes.push(c);
   };
 
-  // width + height iguais viram `size-*`
+  // equal width + height become `size-*`
   if (style.width !== undefined && style.height !== undefined) {
     const w = sizeSuffix('w', style.width.replace(/\s*!important\s*$/, ''), ctx);
     const h = sizeSuffix('h', style.height.replace(/\s*!important\s*$/, ''), ctx);
@@ -1117,10 +1117,10 @@ export function cssToTailwind(
 }
 
 /* ====================================================================== */
-/* Tema                                                                    */
+/* Theme                                                                   */
 /* ====================================================================== */
 
-/** `line-height` padrão do Tailwind v4 por tamanho (razão sobre o `font-size`) e o px equivalente. */
+/** Tailwind v4 default `line-height` per size (ratio over `font-size`) and the equivalent px. */
 const DEFAULT_LEADING: Record<string, { ratio: number; px?: number }> = {
   xs: { ratio: 1 / 0.75, px: 16 },
   sm: { ratio: 1.25 / 0.875, px: 20 },
@@ -1137,7 +1137,7 @@ const DEFAULT_LEADING: Record<string, { ratio: number; px?: number }> = {
   '9xl': { ratio: 1 },
 };
 
-/** O `line-height` do nó é exatamente o que o Tailwind aplicaria com `text-<size>`? */
+/** Is the node `line-height` exactly what Tailwind would apply with `text-<size>`? */
 function hasDefaultLeading(size: string, lineHeight: string | undefined): boolean {
   if (lineHeight === undefined) return false;
   const def = own(DEFAULT_LEADING, size);
@@ -1163,9 +1163,9 @@ function collectNeutralSizes(nodes: Node[], into: Set<string>): void {
 }
 
 /**
- * Tamanhos `text-*` que o tema exportado precisa neutralizar (`--text-X--line-height: inherit`): os
- * usados por algum nó cujo `line-height` não é o padrão do Tailwind para aquele tamanho (ou que não
- * tem `line-height`). Nós vindos do Tailwind (`font-size: 0.875rem` + `line-height: 1.4286`) dispensam.
+ * `text-*` sizes that the exported theme needs to neutralize (`--text-X--line-height: inherit`): those
+ * used by some node whose `line-height` is not the Tailwind default for that size (or that does not
+ * have a `line-height`). Nodes coming from Tailwind (`font-size: 0.875rem` + `line-height: 1.4286`) do not need it.
  */
 export function neutralLeadingSizes(doc: Document): Set<string> {
   const sizes = new Set<string>();
@@ -1178,13 +1178,13 @@ function usesDark(doc: Document): boolean {
 }
 
 /**
- * CSS de tema do Tailwind v4 para o documento: `@import "tailwindcss";`, o `@custom-variant dark`
- * (quando algum nó tem estado `dark`), `@theme { ... }` com os tokens que caem num namespace de
- * tema (`--color-*`, `--font-*`, `--radius-*`...), `:root { ... }` com os demais e `@font-face` das
- * fontes embutidas (`assets/<arquivo>`).
+ * Tailwind v4 theme CSS for the document: `@import "tailwindcss";`, the `@custom-variant dark`
+ * (when some node has a `dark` state), `@theme { ... }` with the tokens that fall in a theme
+ * namespace (`--color-*`, `--font-*`, `--radius-*`...), `:root { ... }` with the rest and `@font-face` for the
+ * embedded fonts (`assets/<file>`).
  *
- * Os tamanhos `text-*` usados por nós sem o `line-height` padrão do Tailwind têm a altura de linha
- * neutralizada (`--text-sm--line-height: inherit`), para que ela continue a do documento.
+ * `text-*` sizes used by nodes without the Tailwind default `line-height` have their line height
+ * neutralized (`--text-sm--line-height: inherit`), so it stays the document's.
  */
 export function tailwindThemeCss(
   doc: Document,
@@ -1218,25 +1218,25 @@ export function tailwindThemeCss(
 
 export interface TailwindAttrOptions {
   engine?: TailwindEngine;
-  /** Tamanhos `text-*` com o `line-height` neutralizado no tema (ver `neutralLeadingSizes`). */
+  /** `text-*` sizes with the `line-height` neutralized in the theme (see `neutralLeadingSizes`). */
   neutralLeading?: ReadonlySet<string>;
 }
 
-/** Classes das variantes de um nó sem o motor: `hover:`, `md:`, `dark:`, `md:hover:`... */
+/** Variant classes of a node without the engine: `hover:`, `md:`, `dark:`, `md:hover:`... */
 function stateClasses(node: Node, tokens: Record<string, string>): string[] {
   const out: string[] = [];
   for (const key of sortStateKeys(Object.keys(node.states ?? {}))) {
     const parts = parseStateKey(key);
     if (!parts) continue;
     const prefix = formatStateKey(parts);
-    // o estado só traz o que muda: o que não tem classe (`rest`) não cabe em `style=""` e é descartado
+    // the state only brings what changes: what has no class (`rest`) does not fit in `style=""` and is dropped
     for (const c of cssToTailwind(node.states![key], { tokens }).classes)
       out.push(`${prefix}:${c}`);
   }
   return out;
 }
 
-/** Classes (com variantes) de um nó e o que não virou classe (`rest`, vai para `style`). */
+/** Classes (with variants) of a node and what did not become a class (`rest`, goes to `style`). */
 export function tailwindNodeParts(
   node: Node,
   tokens: Record<string, string>,
@@ -1247,7 +1247,7 @@ export function tailwindNodeParts(
   const { engine, neutralLeading } = opts;
   if (engine) {
     ({ classes, rest } = engine.nodeClasses(node, { neutralLeading }));
-    // `text-sm` reaproveitado de `node.classes` não pode trazer o `line-height` padrão se o tema o neutraliza
+    // `text-sm` reused from `node.classes` cannot bring the default `line-height` if the theme neutralizes it
     const lh = node.style['line-height'];
     if (lh && neutralLeading?.size && !classes.some((c) => /^leading-|^text-[a-z0-9]+\//.test(c))) {
       if (classes.some((c) => /^text-[a-z0-9]+$/.test(c) && neutralLeading.has(c.slice(5)))) {
@@ -1261,7 +1261,7 @@ export function tailwindNodeParts(
   return { classes, rest };
 }
 
-/** Classe e `style` (para o que não tem classe) de um nó, no formato do renderizador de HTML. */
+/** Class and `style` (for what has no class) of a node, in the HTML renderer format. */
 export function tailwindAttrs(
   node: Node,
   tokens: Record<string, string>,
@@ -1276,9 +1276,9 @@ export function tailwindAttrs(
   };
 }
 
-/** HTML com `class` Tailwind v4 (documento completo ou fragmento). */
+/** HTML with Tailwind v4 `class` (full document or fragment). */
 export function exportTailwind(source: Document, options: TailwindExportOptions = {}): string {
-  // instâncias de componentes expandidas (igual ao canvas); aceita ids virtuais
+  // expanded component instances (same as the canvas); accepts virtual ids
   const doc = expandDocument(source);
   const selection: RootSelection = { pageId: options.pageId, nodeIds: options.nodeIds };
   const roots = resolveRoots(doc, selection);
@@ -1291,7 +1291,7 @@ export function exportTailwind(source: Document, options: TailwindExportOptions 
     readAsset: options.readAsset,
   });
   const scripts = mediaScripts(media);
-  // nós de mídia: os scripts (runtime dos efeitos, CDNs) vão também no fragmento, logo após o markup
+  // media nodes: the scripts (effects runtime, CDNs) also go in the fragment, right after the markup
   if (options.fragment) return markup + '\n' + (scripts ? scripts + '\n' : '');
 
   const head = [
@@ -1308,7 +1308,7 @@ export function exportTailwind(source: Document, options: TailwindExportOptions 
   }
   return [
     '<!doctype html>',
-    '<html lang="pt-BR">',
+    '<html lang="en">',
     '<head>',
     ...head,
     '</head>',

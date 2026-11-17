@@ -1,4 +1,4 @@
-/** Localiza e executa ferramentas externas (`claude`, `codex`, `mockup`) de forma injetável. */
+/** Locates and runs external tools (`claude`, `codex`, `mockup`) in an injectable way. */
 import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
 
 export type SpawnSyncFn = (
@@ -28,7 +28,7 @@ const defaultSpawn: SpawnSyncFn = (cmd, args, opts) => spawnSync(cmd, args, opts
 
 const text = (v: string | Buffer | null | undefined): string => (v ? v.toString() : '');
 
-/** Primeira linha de `where` que termina em .exe, .cmd ou .bat. */
+/** First `where` line that ends in .exe, .cmd or .bat. */
 export function pickWindowsExecutable(out: string): string | null {
   for (const line of out.split(/\r?\n/)) {
     const l = line.trim();
@@ -37,7 +37,7 @@ export function pickWindowsExecutable(out: string): string | null {
   return null;
 }
 
-/** Caminho completo do executável no PATH (`where` no Windows, `command -v` no resto) ou `null`. */
+/** Full path of the executable on the PATH (`where` on Windows, `command -v` elsewhere) or `null`. */
 export function findOnPath(name: string, env: ToolEnv = {}): string | null {
   const platform = env.platform ?? process.platform;
   const spawn = env.spawn ?? defaultSpawn;
@@ -60,27 +60,27 @@ export function findOnPath(name: string, env: ToolEnv = {}): string | null {
   }
 }
 
-/** Argumento entre aspas para o `cmd.exe`. */
+/** Quoted argument for `cmd.exe`. */
 export function quoteCmdArg(a: string): string {
   return `"${a.replace(/"/g, '""')}"`;
 }
 
 export interface RunToolOptions extends ToolEnv {
   timeoutMs?: number;
-  /** Resolve o caminho completo (padrão: `findOnPath`). */
+  /** Resolves the full path (default: `findOnPath`). */
   resolve?: (name: string) => string | null;
 }
 
 /**
- * Executa `name args...` sem shell, resolvendo o caminho completo. No Windows, `.cmd`/`.bat` rodam
- * por `cmd.exe /d /s /c` com o quoting correto.
+ * Runs `name args...` without a shell, resolving the full path. On Windows, `.cmd`/`.bat` run
+ * through `cmd.exe /d /s /c` with correct quoting.
  */
 export function runTool(name: string, args: string[], o: RunToolOptions = {}): ToolResult {
   const platform = o.platform ?? process.platform;
   const spawn = o.spawn ?? defaultSpawn;
   const full = (o.resolve ?? ((n) => findOnPath(n, o)))(name);
   if (!full)
-    return { status: null, stdout: '', stderr: '', error: `${name} não encontrado no PATH` };
+    return { status: null, stdout: '', stderr: '', error: `${name} not found on the PATH` };
   const opts: SpawnSyncOptions = {
     encoding: 'utf8',
     timeout: o.timeoutMs ?? 15000,

@@ -2,9 +2,9 @@ import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import type { AnyNode, Element } from 'domhandler';
 
 /**
- * Elementos SVG permitidos (lista de permissão). Tudo o que não estiver aqui é removido,
- * inclusive `script`, `style`, `foreignObject`, `animate`/`set` (podem trocar `href` em runtime)
- * e tags HTML (`p`, `iframe`, `embed`...) que fariam o parser HTML sair do contexto SVG no export.
+ * Allowed SVG elements (allowlist). Everything not listed here is removed,
+ * including `script`, `style`, `foreignObject`, `animate`/`set` (they can swap `href` at runtime)
+ * and HTML tags (`p`, `iframe`, `embed`...) that would make the HTML parser leave the SVG context on export.
  */
 const ALLOWED_ELEMENTS = new Set([
   'svg',
@@ -37,7 +37,7 @@ const ALLOWED_ELEMENTS = new Set([
   'switch',
 ]);
 
-/** Nome local do elemento, sem prefixo de namespace (`svg:script` → `script`). */
+/** Local element name, without a namespace prefix (`svg:script` → `script`). */
 function localName(name: string): string {
   const i = name.indexOf(':');
   return (i >= 0 ? name.slice(i + 1) : name).toLowerCase();
@@ -54,7 +54,7 @@ function unsafeHref(value: string): boolean {
   return v.startsWith('javascript:') || (v.startsWith('data:') && !v.startsWith('data:image/'));
 }
 
-/** `href`, `xlink:href` ou qualquer `prefixo:href` (namespace xlink com outro prefixo). */
+/** `href`, `xlink:href` or any `prefix:href` (xlink namespace with another prefix). */
 const HREF_RE = /(^|:)href$/i;
 
 function clean(node: Element): void {
@@ -66,7 +66,7 @@ function clean(node: Element): void {
     }
   }
   if (localName(node.name) === 'use') {
-    // `use` só pode apontar para um fragmento do próprio SVG (sem URLs externas ou data:)
+    // `use` may only point to a fragment of the SVG itself (no external URLs or data:)
     for (const key of Object.keys(node.attribs)) {
       if (HREF_RE.test(key) && !node.attribs[key]!.trim().startsWith('#')) delete node.attribs[key];
     }
@@ -76,19 +76,19 @@ function clean(node: Element): void {
       if (!isAllowedElement(child.name)) DomUtils.removeElement(child);
       else clean(child);
     } else if (!DomUtils.isText(child)) {
-      // comentários, CDATA e diretivas: o parser HTML fecha comentário também em `--!>`,
-      // o que permitiria sair do contexto SVG no HTML exportado
+      // comments, CDATA and directives: the HTML parser also closes a comment on `--!>`,
+      // which would allow leaving the SVG context in the exported HTML
       DomUtils.removeElement(child);
     }
   }
 }
 
 /**
- * Sanitiza markup SVG: devolve só o primeiro `<svg>`, mantendo apenas elementos da lista de
- * permissão (formas, texto, gradientes, máscaras, filtros, `use`, `image`...), sem atributos
- * `on*` e sem `href` (com qualquer prefixo) apontando para `javascript:` ou `data:` não-imagem.
- * Comentários, CDATA e diretivas são removidos; `use` só aceita `href="#fragmento"`.
- * Devolve string vazia se não houver `<svg>`.
+ * Sanitizes SVG markup: returns only the first `<svg>`, keeping only elements from the
+ * allowlist (shapes, text, gradients, masks, filters, `use`, `image`...), without `on*` attributes
+ * and without `href` (with any prefix) pointing to `javascript:` or non-image `data:`.
+ * Comments, CDATA and directives are removed; `use` only accepts `href="#fragment"`.
+ * Returns an empty string if there is no `<svg>`.
  */
 export function sanitizeSvg(svg: string): string {
   const dom = parseXml(svg, { xmlMode: true });
@@ -98,7 +98,7 @@ export function sanitizeSvg(svg: string): string {
   return DomUtils.getOuterHTML(root, { xmlMode: true });
 }
 
-/** Atributos do `<svg>` raiz de um markup (vazio se não houver `<svg>`). */
+/** Attributes of the root `<svg>` of a markup (empty if there is no `<svg>`). */
 export function svgRootAttrs(svg: string): Record<string, string> {
   const dom = parseXml(svg, { xmlMode: true });
   const root = DomUtils.findOne((e) => localName(e.name) === 'svg', dom.children, true);
@@ -106,8 +106,8 @@ export function svgRootAttrs(svg: string): Record<string, string> {
 }
 
 /**
- * Adiciona/substitui (`set`) e remove (`unset`) atributos do `<svg>` raiz e devolve o markup
- * sanitizado de novo; os valores são escapados na serialização. Markup sem `<svg>` volta igual.
+ * Adds/replaces (`set`) and removes (`unset`) attributes of the root `<svg>` and returns the markup
+ * sanitized again; values are escaped on serialization. Markup without `<svg>` is returned unchanged.
  */
 export function setSvgRootAttrs(svg: string, set: Record<string, string>, unset: string[]): string {
   const dom = parseXml(svg, { xmlMode: true });
@@ -121,10 +121,10 @@ export function setSvgRootAttrs(svg: string, set: Record<string, string>, unset:
 const escRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Prefixa todo `id="x"` do markup com `${prefix}-` e reescreve as referências internas
- * (`url(#x)`, com ou sem aspas, `href="#x"` e `xlink:href="#x"`). Usado na exportação inline,
- * onde vários svgs dividem o mesmo documento e ids iguais (ex. `g-p1-fill`) colidiriam.
- * Referências a ids que não existem no markup ficam intactas.
+ * Prefixes every `id="x"` of the markup with `${prefix}-` and rewrites internal references
+ * (`url(#x)`, with or without quotes, `href="#x"` and `xlink:href="#x"`). Used in inline export,
+ * where several svgs share the same document and equal ids (e.g. `g-p1-fill`) would collide.
+ * References to ids that do not exist in the markup are left intact.
  */
 export function scopeSvgIds(markup: string, prefix: string): string {
   const ids = new Set<string>();

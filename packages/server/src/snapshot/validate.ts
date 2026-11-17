@@ -1,6 +1,6 @@
 /**
- * Validação do payload de snapshot e das requisições de importação (zod), com mensagens em pt-BR.
- * O formato completo está em `@mockup/snapshot-core` (`format.ts` e `api.ts`).
+ * Validation of the snapshot payload and import requests (zod).
+ * The full format is in `@mockup/snapshot-core` (`format.ts` e `api.ts`).
  */
 import { z } from 'zod';
 import {
@@ -15,9 +15,9 @@ import {
   type SnapshotViewport,
 } from '@mockup/snapshot-core';
 
-/** Erro de uso da importação: `status` é o código HTTP; a mensagem vai direto ao usuário/agente. */
+/** Import usage error: `status` is the HTTP code; the message goes straight to the user/agent. */
 export class SnapshotImportError extends Error {
-  /** Lido pelo handler de erros do `http.ts` (4xx com mensagem). */
+  /** Read by the `http.ts` error handler (4xx with message). */
   readonly expose = true;
   constructor(
     public readonly status: number,
@@ -38,9 +38,9 @@ const MAX_CSS_PX = 100_000;
 const px = z.number().finite().positive().max(MAX_CSS_PX);
 
 const PayloadSchema = z.object({
-  format: z.literal(SNAPSHOT_FORMAT, { error: `format deve ser "${SNAPSHOT_FORMAT}"` }),
+  format: z.literal(SNAPSHOT_FORMAT, { error: `format must be "${SNAPSHOT_FORMAT}"` }),
   version: z.literal(SNAPSHOT_VERSION, {
-    error: `versão do snapshot não suportada (este daemon lê a versão ${SNAPSHOT_VERSION})`,
+    error: `unsupported snapshot version (this daemon reads version ${SNAPSHOT_VERSION})`,
   }),
   source: z.object({
     url: z.string().max(8192),
@@ -56,14 +56,14 @@ const PayloadSchema = z.object({
   assets: z
     .array(
       z.object({
-        id: z.string().regex(/^[\w-]{1,32}$/, { error: 'id de asset inválido' }),
+        id: z.string().regex(/^[\w-]{1,32}$/, { error: 'invalid asset id' }),
         kind: z.enum(['image', 'font']),
         url: z.string().max(MAX_STRING),
         dataUrl: z.string().max(MAX_STRING).optional(),
         mime: z.string().max(200).optional(),
       }),
     )
-    .max(MAX_ASSETS, { error: `snapshot com assets demais (máximo ${MAX_ASSETS})` }),
+    .max(MAX_ASSETS, { error: `snapshot has too many assets (max ${MAX_ASSETS})` }),
   fonts: z
     .array(
       z.object({
@@ -74,7 +74,7 @@ const PayloadSchema = z.object({
         unicodeRange: z.string().max(2000).optional(),
       }),
     )
-    .max(MAX_FONTS, { error: `snapshot com fontes demais (máximo ${MAX_FONTS})` })
+    .max(MAX_FONTS, { error: `snapshot has too many fonts (max ${MAX_FONTS})` })
     .default([]),
   reference: z
     .object({
@@ -102,7 +102,7 @@ function describeIssues(error: z.ZodError): string {
     .join('; ');
 }
 
-/** Conta nós e profundidade sem recursão (árvores muito fundas não estouram a pilha). */
+/** Counts nodes and depth without recursion (very deep trees do not overflow the stack). */
 export function measureTree(root: unknown): { nodes: number; depth: number } {
   let nodes = 0;
   let depth = 0;
@@ -119,31 +119,31 @@ export function measureTree(root: unknown): { nodes: number; depth: number } {
 }
 
 /**
- * Valida o payload: formato/versão, limites de tamanho e de nós (~5000) e profundidade. A validação
- * do conteúdo de cada nó (tags, atributos, estilos) fica com o `NodeSchema` do core, na importação.
+ * Validates the payload: format/version, size and node limits (~5000) and depth. Validation of each
+ * node's content (tags, attributes, styles) is left to the core `NodeSchema`, at import time.
  */
 export function validateSnapshotPayload(input: unknown): SnapshotPayload {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new SnapshotImportError(
       400,
-      'Snapshot inválido: esperado um objeto JSON no formato "mockup-snapshot".',
+      'Invalid snapshot: expected a JSON object in the "mockup-snapshot" format.',
     );
   }
   const parsed = PayloadSchema.safeParse(input);
   if (!parsed.success) {
-    throw new SnapshotImportError(400, `Snapshot inválido: ${describeIssues(parsed.error)}.`);
+    throw new SnapshotImportError(400, `Invalid snapshot: ${describeIssues(parsed.error)}.`);
   }
   const { nodes, depth } = measureTree(parsed.data.root);
   if (nodes > MAX_SNAPSHOT_NODES) {
     throw new SnapshotImportError(
       400,
-      `Snapshot grande demais: mais de ${MAX_SNAPSHOT_NODES} nós. Capture um elemento menor (seletor) ou uma largura menor.`,
+      `Snapshot too large: more than ${MAX_SNAPSHOT_NODES} nodes. Capture a smaller element (selector) or a smaller width.`,
     );
   }
   if (depth > MAX_SNAPSHOT_DEPTH) {
     throw new SnapshotImportError(
       400,
-      `Snapshot inválido: árvore com mais de ${MAX_SNAPSHOT_DEPTH} níveis de profundidade.`,
+      `Invalid snapshot: tree deeper than ${MAX_SNAPSHOT_DEPTH} levels.`,
     );
   }
   return parsed.data as unknown as SnapshotPayload;
@@ -158,7 +158,7 @@ const PlacementSchema = z.object({
   name: z.string().max(200).optional(),
 });
 
-/** Extrai e valida os campos de posicionamento de um objeto (corpo da requisição). */
+/** Extracts and validates the placement fields of an object (request body). */
 export function parsePlacement(input: unknown): ImportPlacement {
   const raw = (input ?? {}) as Record<string, unknown>;
   const picked = Object.fromEntries(
@@ -171,25 +171,25 @@ export function parsePlacement(input: unknown): ImportPlacement {
   );
   const r = PlacementSchema.safeParse(picked);
   if (!r.success)
-    throw new SnapshotImportError(400, `Parâmetros inválidos: ${describeIssues(r.error)}.`);
+    throw new SnapshotImportError(400, `Invalid parameters: ${describeIssues(r.error)}.`);
   return r.data;
 }
 
-/** Só http/https; devolve a URL normalizada. */
+/** Only http/https; returns the normalized URL. */
 export function parseHttpUrl(value: unknown, field = 'url'): string {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new SnapshotImportError(400, `Campo obrigatório ausente: ${field}.`);
+    throw new SnapshotImportError(400, `Missing required field: ${field}.`);
   }
   let u: URL;
   try {
     u = new URL(value.trim());
   } catch {
-    throw new SnapshotImportError(400, `${field} inválida: "${value.slice(0, 200)}".`);
+    throw new SnapshotImportError(400, `Invalid ${field}: "${value.slice(0, 200)}".`);
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') {
     throw new SnapshotImportError(
       400,
-      `${field} com protocolo não permitido (${u.protocol}): só http: e https: podem ser importados (file:, data:, javascript: e chrome: são recusados).`,
+      `${field} has a disallowed protocol (${u.protocol}): only http: and https: can be imported (file:, data:, javascript: and chrome: are rejected).`,
     );
   }
   return u.href;
@@ -201,7 +201,7 @@ export interface CaptureParams {
   selector?: string;
 }
 
-/** Viewport (largura e altura dentro de `IMPORT_VIEWPORT_LIMITS`), timeout (limitado) e seletor. */
+/** Viewport (width and height within `IMPORT_VIEWPORT_LIMITS`), timeout (capped) and selector. */
 export function parseCaptureParams(input: {
   viewport?: Partial<SnapshotViewport>;
   timeoutMs?: unknown;
@@ -218,7 +218,7 @@ export function parseCaptureParams(input: {
   ) {
     throw new SnapshotImportError(
       400,
-      `Largura do viewport inválida (${String(width)}): use de ${lim.minWidth} a ${lim.maxWidth} px.`,
+      `Invalid viewport width (${String(width)}): use ${lim.minWidth} to ${lim.maxWidth} px.`,
     );
   }
   if (
@@ -229,7 +229,7 @@ export function parseCaptureParams(input: {
   ) {
     throw new SnapshotImportError(
       400,
-      `Altura do viewport inválida (${String(height)}): use de ${lim.minHeight} a ${lim.maxHeight} px.`,
+      `Invalid viewport height (${String(height)}): use ${lim.minHeight} to ${lim.maxHeight} px.`,
     );
   }
   let timeoutMs = DEFAULT_IMPORT_TIMEOUT_MS;
@@ -241,7 +241,7 @@ export function parseCaptureParams(input: {
     ) {
       throw new SnapshotImportError(
         400,
-        'timeoutMs inválido: use um número de milissegundos maior que 0.',
+        'Invalid timeoutMs: use a number of milliseconds greater than 0.',
       );
     }
     timeoutMs = Math.min(input.timeoutMs, MAX_IMPORT_TIMEOUT_MS);
@@ -251,7 +251,7 @@ export function parseCaptureParams(input: {
     if (typeof input.selector !== 'string' || input.selector.length > 2000) {
       throw new SnapshotImportError(
         400,
-        'selector inválido: use um seletor CSS (texto de até 2000 caracteres).',
+        'Invalid selector: use a CSS selector (text of up to 2000 characters).',
       );
     }
     selector = input.selector;

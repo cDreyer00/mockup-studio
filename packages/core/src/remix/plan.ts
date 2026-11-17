@@ -1,8 +1,8 @@
 /**
- * Planejador do remix local: gera variações de um nó lado a lado (clones do frame raiz com uma
- * transformação aplicada). Puro e determinístico (mesma entrada, mesmas ops; os ids vêm de
- * `newId`, injetável nos testes). Todas as ops de um remix ficam numa lista só, para o chamador
- * aplicar numa única chamada (uma entrada de undo). O remix com IA (`ai`) fica no servidor.
+ * Local remix planner: generates side-by-side variations of a node (clones of the root frame with a
+ * transformation applied). Pure and deterministic (same input, same ops; ids come from
+ * `newId`, injectable in tests). All ops of a remix go in a single list, so the caller can
+ * apply them in one call (one undo entry). The AI remix (`ai`) lives on the server.
  */
 import { parseCssColor } from '../cssEval.js';
 import { getComputedLike } from '../computed.js';
@@ -15,28 +15,28 @@ import { colorScale, COLOR_STOPS } from './color.js';
 import { FONT_PAIRS, fontFamilyValue } from './fontPairs.js';
 
 export interface PlanRemixOptions {
-  /** Quantidade de variações (cada tipo tem seu padrão e seu máximo). */
+  /** Number of variations (each kind has its own default and maximum). */
   count?: number;
-  /** Famílias de fonte disponíveis localmente (`font-pairs`); ausente = não filtra. */
+  /** Font families available locally (`font-pairs`); absent = no filtering. */
   fonts?: string[];
-  /** Gerador de ids dos nós clonados (padrão: `newNodeId`). */
+  /** Id generator for the cloned nodes (default: `newNodeId`). */
   newId?: (type: NodeType) => string;
 }
 
 export interface RemixPlan {
   ops: Op[];
-  /** Frames raiz criados, na ordem das variações. */
+  /** Root frames created, in variation order. */
   frameIds: string[];
-  /** Nome de cada variação, paralelo a `frameIds`. */
+  /** Name of each variation, parallel to `frameIds`. */
   labels: string[];
 }
 
-/** Espaço horizontal entre os frames lado a lado, em px. */
+/** Horizontal gap between the side-by-side frames, in px. */
 export const REMIX_GAP = 80;
-/** Medida usada quando o frame não tem largura/altura em px. */
+/** Size used when the frame has no width/height in px. */
 const DEFAULT_FRAME_SIZE = 400;
 
-/** Edição de estilo e reordenação, descritas pelos ids ORIGINAIS (traduzidos para o clone depois). */
+/** Style edit and reordering, described by the ORIGINAL ids (translated to the clone later). */
 interface Variation {
   label: string;
   styles: { nodeId: string; set?: Record<string, string>; unset?: string[] }[];
@@ -53,7 +53,7 @@ const positive = (n: number | undefined): n is number => n !== undefined && n > 
 function checkCount(count: number | undefined, def: number, max: number): number {
   if (count === undefined) return Math.min(def, max);
   if (!Number.isInteger(count) || count < 1)
-    throw new Error(`count inválido (${String(count)}): use um inteiro a partir de 1.`);
+    throw new Error(`Invalid count (${String(count)}): use an integer starting at 1.`);
   return Math.min(count, max);
 }
 
@@ -61,7 +61,7 @@ function checkCount(count: number | undefined, def: number, max: number): number
 
 const COLOR_PROPS = ['background-color', 'background', 'color', 'border-color', 'fill'] as const;
 
-/** Índices espaçados de `count` itens entre `total` (1 item = o do meio, o stop 500). */
+/** Evenly spaced indices of `count` items out of `total` (1 item = the middle one, the 500 stop). */
 function spacedIndexes(count: number, total: number): number[] {
   if (count >= total) return Array.from({ length: total }, (_, i) => i);
   if (count === 1) return [Math.min(5, total - 1)];
@@ -82,13 +82,13 @@ function planColorScale(doc: Document, node: Node, count: number | undefined): V
   }
   if (!found)
     throw new Error(
-      'O nó não tem cor sólida (background-color, background, color, border-color ou fill) para gerar a escala de tons. Escolha um nó com cor definida em hex, rgb(), hsl() ou token.',
+      'The node has no solid color (background-color, background, color, border-color or fill) to generate the shade scale. Pick a node with a color defined in hex, rgb(), hsl() or a token.',
     );
   const { prop, value } = found;
   const scale = colorScale(value);
   const n = checkCount(count, COLOR_STOPS.length, COLOR_STOPS.length);
   return spacedIndexes(n, scale.length).map((i) => ({
-    label: `tom ${scale[i]!.stop}`,
+    label: `shade ${scale[i]!.stop}`,
     styles: [{ nodeId: node.id, set: { [prop]: scale[i]!.color } }],
   }));
 }
@@ -125,11 +125,11 @@ function planFontPairs(
   );
   if (pairs.length === 0)
     throw new Error(
-      'Nenhum par de fontes da lista curada tem as duas famílias disponíveis. Instale ou embuta fontes (ex.: Inter, Playfair Display) com add_font e tente de novo.',
+      'None of the curated font pairs has both families available. Install or embed fonts (e.g. Inter, Playfair Display) with add_font and try again.',
     );
   const n = checkCount(count, 4, pairs.length);
 
-  // Quem recebe a fonte: a raiz e os nós com texto; título = h1–h6, fonte >= 24px ou peso >= 600.
+  // Who gets the font: the root and the nodes with text; heading = h1–h6, font size >= 24px or weight >= 600.
   const targets: { nodeId: string; heading: boolean }[] = [];
   let anyText = false;
   const visit = (cur: Node, tagHeading: boolean): void => {
@@ -151,7 +151,7 @@ function planFontPairs(
     node,
     ancestors.some((a) => isHeadingTag(a.tag)),
   );
-  if (!anyText) throw new Error('O nó não tem texto para trocar a fonte.');
+  if (!anyText) throw new Error('The node has no text to change the font on.');
 
   return pairs.slice(0, n).map((p) => ({
     label: `${p.heading} + ${p.body}`,
@@ -184,7 +184,7 @@ const SPACING_PROPS = new Set([
   'column-gap',
 ]);
 
-/** Arredonda à grade sem zerar valores positivos (mantém o sinal de margens negativas). */
+/** Rounds to the grid without zeroing positive values (keeps the sign of negative margins). */
 function snap(v: number, grid: number): number {
   const abs = Math.abs(v);
   const r = Math.round(abs / grid) * grid;
@@ -192,11 +192,11 @@ function snap(v: number, grid: number): number {
 }
 
 const SPACING_VARIATIONS: { label: string; fn: (v: number) => number }[] = [
-  { label: 'compacto', fn: (v) => snap(v * 0.5, 4) },
-  { label: 'grade 4', fn: (v) => snap(v, 4) },
-  { label: 'grade 8', fn: (v) => snap(v, 8) },
-  { label: 'confortável', fn: (v) => snap(v * 1.5, 8) },
-  { label: 'espaçoso', fn: (v) => snap(v * 2, 8) },
+  { label: 'compact', fn: (v) => snap(v * 0.5, 4) },
+  { label: 'grid 4', fn: (v) => snap(v, 4) },
+  { label: 'grid 8', fn: (v) => snap(v, 8) },
+  { label: 'comfortable', fn: (v) => snap(v * 1.5, 8) },
+  { label: 'spacious', fn: (v) => snap(v * 2, 8) },
 ];
 
 const formatPx = (n: number): string => `${+n.toFixed(2)}px`;
@@ -217,7 +217,7 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
   });
   if (entries.length === 0)
     throw new Error(
-      'O nó não tem espaçamento em px (padding, margin, gap) para variar. Defina valores como "16px" no nó ou nos filhos.',
+      'The node has no spacing in px (padding, margin, gap) to vary. Set values like "16px" on the node or its children.',
     );
   const n = checkCount(count, 4, SPACING_VARIATIONS.length);
   const all = SPACING_VARIATIONS.map(({ label, fn }) => ({
@@ -232,7 +232,7 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
       return value === e.raw ? [] : [{ nodeId: e.nodeId, set: { [e.prop]: value } }];
     }),
   }));
-  // Descarta variações iguais ao original (nada muda) ou a uma anterior: evita frames duplicados.
+  // Drops variations equal to the original (nothing changes) or to a previous one: avoids duplicate frames.
   const seen = new Set<string>();
   const distinct = all.filter((v) => {
     if (v.styles.length === 0) return false;
@@ -243,7 +243,7 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
   });
   if (distinct.length === 0)
     throw new Error(
-      'Nenhuma variação de espaçamento difere do original: os valores já estão na grade e no mínimo.',
+      'No spacing variation differs from the original: the values are already on the grid and at the minimum.',
     );
   return distinct.slice(0, n);
 }
@@ -253,7 +253,7 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
 const isFlex = (n: Node): boolean =>
   n.type !== 'instance' && /^(inline-)?flex$/i.test((n.style['display'] ?? '').trim());
 
-/** `justify-content` → `align-items` ao trocar os eixos (`undefined` = remover). */
+/** `justify-content` → `align-items` when swapping the axes (`undefined` = remove). */
 function justifyToAlign(j: string | undefined): string | undefined {
   switch (j?.trim()) {
     case 'flex-start':
@@ -275,7 +275,7 @@ function justifyToAlign(j: string | undefined): string | undefined {
   }
 }
 
-/** `align-items` → `justify-content` ao trocar os eixos (`undefined` = remover). */
+/** `align-items` → `justify-content` when swapping the axes (`undefined` = remove). */
 function alignToJustify(a: string | undefined): string | undefined {
   switch (a?.trim()) {
     case 'flex-start':
@@ -304,7 +304,7 @@ function planLayout(node: Node, ancestors: Node[], count: number | undefined): V
   const container = [node, ...[...ancestors].reverse()].find(isFlex);
   if (!container)
     throw new Error(
-      'Nem o nó nem seus ancestrais usam flex (display: flex). O remix de layout só rearranja containers flex.',
+      'Neither the node nor its ancestors use flex (display: flex). The layout remix only rearranges flex containers.',
     );
   const style = container.style;
   const dir = flexDirection(style);
@@ -314,7 +314,7 @@ function planLayout(node: Node, ancestors: Node[], count: number | undefined): V
   const newAlign = justifyToAlign(style['justify-content']);
   const newJustify = alignToJustify(style['align-items']);
   variations.push({
-    label: 'direção invertida',
+    label: 'reversed direction',
     styles: [
       {
         nodeId: container.id,
@@ -331,10 +331,10 @@ function planLayout(node: Node, ancestors: Node[], count: number | undefined): V
       },
     ],
   });
-  // Com menos de 2 filhos a ordem invertida seria um clone idêntico: fica de fora.
+  // With fewer than 2 children the reversed order would be an identical clone: left out.
   if (container.children.length >= 2) {
     variations.push({
-      label: 'ordem invertida',
+      label: 'reversed order',
       styles: [],
       reorder: {
         parentId: container.id,
@@ -343,7 +343,7 @@ function planLayout(node: Node, ancestors: Node[], count: number | undefined): V
     });
   }
   variations.push({
-    label: 'centralizado com quebra',
+    label: 'centered with wrap',
     styles: [
       {
         nodeId: container.id,
@@ -360,7 +360,7 @@ function planLayout(node: Node, ancestors: Node[], count: number | undefined): V
   return variations.slice(0, checkCount(count, 3, 3));
 }
 
-/* ---------------- montagem ---------------- */
+/* ---------------- assembly ---------------- */
 
 function frameSize(frame: Node): { w: number; h: number } {
   const s = frame.style;
@@ -370,10 +370,10 @@ function frameSize(frame: Node): { w: number; h: number } {
 }
 
 /**
- * Cria variações do frame raiz que contém `nodeId`, lado a lado à direita, aplicando a
- * transformação de `kind` ao nó correspondente em cada clone. Lança `Error` (mensagem em
- * português) para nó inexistente/virtual, ou quando o tipo não se aplica ao nó (sem cor, sem
- * flex, sem espaçamento, sem texto). `ai` não é local: veja `RemixService`.
+ * Creates variations of the root frame that contains `nodeId`, side by side to the right, applying the
+ * transformation of `kind` to the matching node in each clone. Throws `Error` (message in
+ * English) for a nonexistent/virtual node, or when the kind does not apply to the node (no color, no
+ * flex, no spacing, no text). `ai` is not local: see `RemixService`.
  */
 export function planRemix(
   doc: Document,
@@ -382,15 +382,15 @@ export function planRemix(
   opts: PlanRemixOptions = {},
 ): RemixPlan {
   if (kind === 'ai')
-    throw new Error('O remix com IA é executado pelo assistente (kind "ai"), não por planRemix.');
+    throw new Error('The AI remix is run by the assistant (kind "ai"), not by planRemix.');
   if (nodeId.includes('/'))
     throw new Error(
-      `O nó "${nodeId}" está dentro de uma instância de componente e não pode ser remixado. Edite o componente principal ou escolha um nó real.`,
+      `Node "${nodeId}" is inside a component instance and cannot be remixed. Edit the main component or pick a real node.`,
     );
   const path = findNode(doc, nodeId);
   if (!path)
     throw new Error(
-      `Nó não encontrado: "${nodeId}". Use get_basic_info ou get_tree_summary para ver os ids.`,
+      `Node not found: "${nodeId}". Use get_basic_info or get_tree_summary to see the ids.`,
     );
   const node = path.node;
   const frame = path.ancestors[0] ?? node;
@@ -410,10 +410,10 @@ export function planRemix(
       variations = planLayout(node, path.ancestors, opts.count);
       break;
     default:
-      throw new Error(`Tipo de remix desconhecido: "${String(kind)}".`);
+      throw new Error(`Unknown remix kind: "${String(kind)}".`);
   }
 
-  // Posição: depois do frame mais à direita que se sobrepõe verticalmente ao de origem.
+  // Position: after the rightmost frame that overlaps vertically with the source one.
   const { w, h } = frameSize(frame);
   const y = frame.position?.y ?? 0;
   let right = (frame.position?.x ?? 0) + w;
@@ -439,7 +439,7 @@ export function planRemix(
   const styleChanges: StyleChange[] = [];
   const moves: Op[] = [];
 
-  // Cada clone é duplicado do anterior (o primeiro, do original): a ordem das camadas fica natural.
+  // Each clone is duplicated from the previous one (the first, from the original): layer order stays natural.
   let sourceIds = subtree.map((n) => n.id);
   variations.forEach((v, i) => {
     const cloneIds = subtree.map((n) => newId(n.type));

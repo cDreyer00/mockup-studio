@@ -20,11 +20,11 @@ const textOf = (r: unknown): string =>
     .join('\n');
 const idOf = (re: RegExp, text: string): string => {
   const id = re.exec(text)?.[1];
-  if (!id) throw new Error('id não encontrado em: ' + text);
+  if (!id) throw new Error('id not found in: ' + text);
   return id;
 };
 
-/** PNG válido w x h (cinza semitransparente). */
+/** Valid w x h PNG (semi-transparent gray). */
 function fakePng(w: number, h: number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const len = Buffer.alloc(4);
@@ -65,7 +65,7 @@ function find(node: Node, pred: (n: Node) => boolean): Node | undefined {
   return undefined;
 }
 
-describe('MCP efeitos, vídeo e embeds', () => {
+describe('MCP effects, video and embeds', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -85,7 +85,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       };
     },
     async measure() {
-      throw new Error('não usado');
+      throw new Error('not used');
     },
     async captureFrames(req, onFrame) {
       frameReqs.push(req);
@@ -106,7 +106,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       writeInfo: false,
       render: mode === 'none' ? undefined : mode === 'basic' ? renderBasic : render,
     });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   };
@@ -122,13 +122,13 @@ describe('MCP efeitos, vídeo e embeds', () => {
   const frame = (): Node => doc().pages[0]!.frames[0]!;
   const byId = (id: string): Node => find(frame(), (n) => n.id === id)!;
 
-  describe('efeitos', () => {
+  describe('effects', () => {
     beforeEach(() => start('basic'));
     afterEach(stop);
 
-    it('list_effects lista efeitos com parâmetros e presets', async () => {
+    it('list_effects lists effects with params and presets', async () => {
       const t = textOf(await call('list_effects'));
-      expect(t).toContain(`${EFFECTS.length} efeito(s)`);
+      expect(t).toContain(`${EFFECTS.length} effect(s)`);
       for (const e of EFFECTS) expect(t).toContain(`- ${e.kind} [${e.category}]`);
       expect(t).toContain('params:');
       expect(t).toContain('color1:color="#0d1b4c"');
@@ -137,8 +137,8 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(t).toMatch(/presets: aurora, sunset/);
     });
 
-    it('add_effect em background: primeiro filho, pai relative/isolate e um undo desfaz tudo', async () => {
-      await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Conteúdo' });
+    it('add_effect as background: first child, parent relative/isolate and one undo reverts everything', async () => {
+      await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Content' });
       const before = frame().children.length;
       const r = await call('add_effect', {
         nodeId: ws.frameId,
@@ -166,7 +166,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(after.style['isolation']).toBeUndefined();
     });
 
-    it('add_effect placement child usa 100% x 240px, index e nome', async () => {
+    it('add_effect placement child uses 100% x 240px, index and name', async () => {
       await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'A' });
       await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'B' });
       const r = await call('add_effect', {
@@ -174,22 +174,22 @@ describe('MCP efeitos, vídeo e embeds', () => {
         kind: 'particles',
         placement: 'child',
         index: 1,
-        name: 'Neve',
+        name: 'Snow',
         styles: { height: '320px' },
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       const ef = frame().children[1]!;
       expect(ef.type).toBe('effect');
-      expect(ef.name).toBe('Neve');
+      expect(ef.name).toBe('Snow');
       expect(ef.style).toMatchObject({ width: '100%', height: '320px' });
       expect(ef.style['position']).toBeUndefined();
       expect(frame().style['isolation']).toBeUndefined();
     });
 
-    it('add_effect: kind, preset e params inválidos dão erro com os problemas', async () => {
-      const badKind = await call('add_effect', { nodeId: ws.frameId, kind: 'nao-existe' });
+    it('add_effect: invalid kind, preset and params give an error with the problems', async () => {
+      const badKind = await call('add_effect', { nodeId: ws.frameId, kind: 'does-not-exist' });
       expect(badKind.isError).toBe(true);
-      expect(textOf(badKind)).toContain('efeito inexistente');
+      expect(textOf(badKind)).toContain('unknown effect');
       expect(textOf(badKind)).toContain('list_effects');
 
       const badPreset = await call('add_effect', {
@@ -203,30 +203,30 @@ describe('MCP efeitos, vídeo e embeds', () => {
       const badParams = await call('add_effect', {
         nodeId: ws.frameId,
         kind: 'particles',
-        params: { count: 'muitas', color: 'azulzinho', foo: 1, direction: 'sideways' },
+        params: { count: 'lots', color: 'bluish', foo: 1, direction: 'sideways' },
       });
       expect(badParams.isError).toBe(true);
       const t = textOf(badParams);
-      expect(t).toContain('Parâmetros inválidos');
+      expect(t).toContain('Invalid params');
       expect(t).toContain('"count"');
       expect(t).toContain('"color"');
-      expect(t).toContain('parâmetro desconhecido');
+      expect(t).toContain('unknown param');
       expect(t).toContain('"direction"');
       expect(t).toContain('list_effects');
       expect(find(frame(), (n) => n.type === 'effect')).toBeUndefined();
     });
 
-    it('add_effect recusa nó inexistente e nó folha', async () => {
-      const missing = await call('add_effect', { nodeId: 'el_naoexiste', kind: 'grain' });
+    it('add_effect rejects a missing node and a leaf node', async () => {
+      const missing = await call('add_effect', { nodeId: 'el_missing00', kind: 'grain' });
       expect(missing.isError).toBe(true);
       const eff = await call('add_effect', { nodeId: ws.frameId, kind: 'grain' });
       const efId = idOf(/(fx_[0-9a-z]+)/, textOf(eff));
       const leaf = await call('add_effect', { nodeId: efId, kind: 'grain' });
       expect(leaf.isError).toBe(true);
-      expect(textOf(leaf)).toContain('não aceita filhos');
+      expect(textOf(leaf)).toContain('does not accept children');
     });
 
-    it('update_effect mescla params, troca kind e faz reset', async () => {
+    it('update_effect merges params, switches kind and resets', async () => {
       const r = await call('add_effect', {
         nodeId: ws.frameId,
         kind: 'mesh-gradient',
@@ -253,53 +253,53 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(eff().params).not.toHaveProperty('grain');
     });
 
-    it('update_effect: erros (nó que não é efeito, params, kind e preset inválidos)', async () => {
+    it('update_effect: errors (node that is not an effect, invalid params, kind and preset)', async () => {
       const notEffect = await call('update_effect', { nodeId: ws.frameId, params: {} });
       expect(notEffect.isError).toBe(true);
-      expect(textOf(notEffect)).toContain('não um efeito');
+      expect(textOf(notEffect)).toContain('not an effect');
       const r = await call('add_effect', { nodeId: ws.frameId, kind: 'grain' });
       const id = idOf(/(fx_[0-9a-z]+)/, textOf(r));
       const bad = await call('update_effect', { nodeId: id, params: { foo: 1 } });
       expect(bad.isError).toBe(true);
-      expect(textOf(bad)).toContain('parâmetro desconhecido');
-      expect((await call('update_effect', { nodeId: id, kind: 'nada' })).isError).toBe(true);
-      expect((await call('update_effect', { nodeId: id, preset: 'nada' })).isError).toBe(true);
+      expect(textOf(bad)).toContain('unknown param');
+      expect((await call('update_effect', { nodeId: id, kind: 'nothing' })).isError).toBe(true);
+      expect((await call('update_effect', { nodeId: id, preset: 'nothing' })).isError).toBe(true);
     });
   });
 
-  describe('vídeo', () => {
+  describe('video', () => {
     beforeEach(() => start('basic'));
     afterEach(stop);
 
-    it('insert_video com caminho absoluto copia para assets/videos/', async () => {
-      const src = path.join(ws.dir, 'Meu Clipe.mp4');
+    it('insert_video with an absolute path copies to assets/videos/', async () => {
+      const src = path.join(ws.dir, 'My Clip.mp4');
       fs.writeFileSync(src, MP4_HEAD);
-      const r = await call('insert_video', { parentId: ws.frameId, source: src, name: 'Clipe' });
+      const r = await call('insert_video', { parentId: ws.frameId, source: src, name: 'Clip' });
       expect(r.isError, textOf(r)).toBeFalsy();
       const v = find(frame(), (n) => n.type === 'video')!;
       expect(v.video).toMatchObject({
-        src: 'videos/Meu-Clipe.mp4',
+        src: 'videos/My-Clip.mp4',
         autoplay: true,
         loop: true,
         muted: true,
         controls: false,
       });
-      expect(v.name).toBe('Clipe');
+      expect(v.name).toBe('Clip');
       expect(v.style).toMatchObject({ width: '640px', height: '360px', 'object-fit': 'cover' });
-      expect(fs.readFileSync(path.join(ws.dir, 'assets', 'videos', 'Meu-Clipe.mp4'))).toEqual(
+      expect(fs.readFileSync(path.join(ws.dir, 'assets', 'videos', 'My-Clip.mp4'))).toEqual(
         MP4_HEAD,
       );
       await call('insert_video', { parentId: ws.frameId, source: src });
       expect(fs.readdirSync(path.join(ws.dir, 'assets', 'videos')).sort()).toEqual([
-        'Meu-Clipe-1.mp4',
-        'Meu-Clipe.mp4',
+        'My-Clip-1.mp4',
+        'My-Clip.mp4',
       ]);
     });
 
-    it('insert_video com URL referencia direto, sem copiar, e aplica opções', async () => {
+    it('insert_video with a URL references it directly, without copying, and applies options', async () => {
       const r = await call('insert_video', {
         parentId: ws.frameId,
-        source: 'https://exemplo.com/v.mp4',
+        source: 'https://example.com/v.mp4',
         autoplay: false,
         loop: false,
         controls: true,
@@ -307,7 +307,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       expect(frame().children[0]!.video).toMatchObject({
-        src: 'https://exemplo.com/v.mp4',
+        src: 'https://example.com/v.mp4',
         autoplay: false,
         loop: false,
         controls: true,
@@ -315,12 +315,12 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(fs.existsSync(path.join(ws.dir, 'assets', 'videos'))).toBe(false);
     });
 
-    it('insert_video com poster PNG copia a imagem para assets/', async () => {
-      const poster = path.join(ws.dir, 'capa.png');
+    it('insert_video with a PNG poster copies the image to assets/', async () => {
+      const poster = path.join(ws.dir, 'cover.png');
       fs.writeFileSync(poster, fakePng(4, 4));
       const r = await call('insert_video', {
         parentId: ws.frameId,
-        source: 'https://exemplo.com/v.mp4',
+        source: 'https://example.com/v.mp4',
         poster,
       });
       expect(r.isError, textOf(r)).toBeFalsy();
@@ -329,33 +329,33 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(fs.existsSync(path.join(ws.dir, 'assets', v.video!.poster!))).toBe(true);
     });
 
-    it('insert_video recusa conteúdo/extensão inválida, caminho relativo, ausente e esquema ftp', async () => {
+    it('insert_video rejects invalid content/extension, relative path, missing file and ftp scheme', async () => {
       const txt = path.join(ws.dir, 'nota.txt');
-      fs.writeFileSync(txt, 'oi');
+      fs.writeFileSync(txt, 'hi');
       const a = await call('insert_video', { parentId: ws.frameId, source: txt });
       expect(a.isError).toBe(true);
-      expect(textOf(a)).toContain('não é um vídeo reconhecido');
-      const fake = path.join(ws.dir, 'falso.mp4');
-      fs.writeFileSync(fake, 'isto nao e video');
+      expect(textOf(a)).toContain('not a recognized video');
+      const fake = path.join(ws.dir, 'fake.mp4');
+      fs.writeFileSync(fake, 'this is not a video');
       expect((await call('insert_video', { parentId: ws.frameId, source: fake })).isError).toBe(
         true,
       );
       const rel = await call('insert_video', { parentId: ws.frameId, source: 'v.mp4' });
       expect(rel.isError).toBe(true);
-      expect(textOf(rel)).toContain('caminho absoluto');
+      expect(textOf(rel)).toContain('absolute path');
       const none = await call('insert_video', {
         parentId: ws.frameId,
-        source: path.join(ws.dir, 'nao-existe.mp4'),
+        source: path.join(ws.dir, 'does-not-exist.mp4'),
       });
       expect(none.isError).toBe(true);
-      expect(textOf(none)).toContain('não encontrado');
+      expect(textOf(none)).toContain('not found');
       const ftp = await call('insert_video', { parentId: ws.frameId, source: 'ftp://x/v.mp4' });
       expect(ftp.isError).toBe(true);
       expect(find(frame(), (n) => n.type === 'video')).toBeUndefined();
     });
 
-    it('documento sem caminho em disco só aceita URL', async () => {
-      const mem = createDocument('Memória');
+    it('a document without a path on disk only accepts URLs', async () => {
+      const mem = createDocument('Memory');
       const fr = createNodeFromTag('div', {
         isRoot: true,
         name: 'F',
@@ -371,19 +371,19 @@ describe('MCP efeitos, vídeo e embeds', () => {
       fs.writeFileSync(src, MP4_HEAD);
       const local = await call('insert_video', { parentId: fr.id, source: src, docId: mem.id });
       expect(local.isError).toBe(true);
-      expect(textOf(local)).toContain('caminho em disco');
+      expect(textOf(local)).toContain('path on disk');
       const url = await call('insert_video', {
         parentId: fr.id,
-        source: 'https://exemplo.com/v.webm',
+        source: 'https://example.com/v.webm',
         docId: mem.id,
       });
       expect(url.isError, textOf(url)).toBeFalsy();
     });
 
-    it('update_media altera vídeo: flags, time, poster e remoção do poster', async () => {
+    it('update_media changes a video: flags, time, poster and poster removal', async () => {
       const r = await call('insert_video', {
         parentId: ws.frameId,
-        source: 'https://exemplo.com/v.mp4',
+        source: 'https://example.com/v.mp4',
       });
       const id = idOf(/(vd_[0-9a-z]+)/, textOf(r));
       const vid = () => byId(id).video!;
@@ -402,7 +402,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
         muted: false,
         autoplay: false,
         time: 2.5,
-        src: 'https://exemplo.com/v.mp4',
+        src: 'https://example.com/v.mp4',
       });
       const poster = path.join(ws.dir, 'p.png');
       fs.writeFileSync(poster, fakePng(2, 2));
@@ -413,7 +413,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(vid().time).toBe(2.5);
     });
 
-    it('update_media recusa nó que não é vídeo nem embed', async () => {
+    it('update_media rejects a node that is neither video nor embed', async () => {
       const r = await call('update_media', { nodeId: ws.frameId, loop: true });
       expect(r.isError).toBe(true);
       expect(textOf(r)).toContain('update_effect');
@@ -424,7 +424,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
     beforeEach(() => start('basic'));
     afterEach(stop);
 
-    it('YouTube: detecta o provedor e usa start do ?t=', async () => {
+    it('YouTube: detects the provider and uses start from ?t=', async () => {
       const r = await call('insert_embed', {
         parentId: ws.frameId,
         url: 'https://youtu.be/dQw4w9WgXcQ?t=42',
@@ -439,7 +439,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(e.style).toMatchObject({ width: '560px', height: '315px' });
     });
 
-    it('YouTube: start explícito prevalece; URL inválida dá erro', async () => {
+    it('YouTube: explicit start takes precedence; invalid URL gives an error', async () => {
       await call('insert_embed', {
         parentId: ws.frameId,
         url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10',
@@ -455,7 +455,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(textOf(bad)).toContain('YouTube');
     });
 
-    it('Lottie local: valida e copia para assets/lottie/', async () => {
+    it('Local Lottie: validates and copies to assets/lottie/', async () => {
       const f = path.join(ws.dir, 'Loader Anim.json');
       fs.writeFileSync(f, LOTTIE);
       const r = await call('insert_embed', { parentId: ws.frameId, url: f });
@@ -467,7 +467,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       ).toBe(LOTTIE);
     });
 
-    it('Lottie: JSON que não é Lottie é recusado; src vale como alternativa a url', async () => {
+    it('Lottie: JSON that is not Lottie is rejected; src works as an alternative to url', async () => {
       const bad = path.join(ws.dir, 'x.json');
       fs.writeFileSync(bad, '{"a":1}');
       const r = await call('insert_embed', { parentId: ws.frameId, url: bad });
@@ -479,7 +479,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(r2.isError, textOf(r2)).toBeFalsy();
     });
 
-    it('Rive local: exige assinatura RIVE e copia para assets/rive/', async () => {
+    it('Local Rive: requires the RIVE signature and copies to assets/rive/', async () => {
       const f = path.join(ws.dir, 'hero.riv');
       fs.writeFileSync(f, RIVE);
       const r = await call('insert_embed', { parentId: ws.frameId, url: f });
@@ -487,46 +487,46 @@ describe('MCP efeitos, vídeo e embeds', () => {
       const e = find(frame(), (n) => n.type === 'embed')!;
       expect(e.embed).toMatchObject({ provider: 'rive', src: 'rive/hero.riv' });
       expect(fs.existsSync(path.join(ws.dir, 'assets', 'rive', 'hero.riv'))).toBe(true);
-      const fake = path.join(ws.dir, 'falso.riv');
-      fs.writeFileSync(fake, 'nao-rive');
+      const fake = path.join(ws.dir, 'fake.riv');
+      fs.writeFileSync(fake, 'not-rive');
       const bad = await call('insert_embed', { parentId: ws.frameId, url: fake });
       expect(bad.isError).toBe(true);
       expect(textOf(bad)).toContain('RIVE');
     });
 
-    it('outra URL vira iframe; sem url, vídeo, desconhecido e three dão erro', async () => {
+    it('another URL becomes an iframe; no url, video, unknown and three give an error', async () => {
       const r = await call('insert_embed', {
         parentId: ws.frameId,
-        url: 'https://exemplo.com/widget',
+        url: 'https://example.com/widget',
         styles: { width: '300px' },
       });
       expect(r.isError, textOf(r)).toBeFalsy();
       const e = find(frame(), (n) => n.type === 'embed')!;
-      expect(e.embed).toMatchObject({ provider: 'iframe', url: 'https://exemplo.com/widget' });
+      expect(e.embed).toMatchObject({ provider: 'iframe', url: 'https://example.com/widget' });
       expect(e.style).toMatchObject({ width: '300px', height: '320px' });
 
       expect((await call('insert_embed', { parentId: ws.frameId })).isError).toBe(true);
       const vid = await call('insert_embed', {
         parentId: ws.frameId,
-        url: 'https://exemplo.com/v.mp4',
+        url: 'https://example.com/v.mp4',
       });
       expect(vid.isError).toBe(true);
       expect(textOf(vid)).toContain('insert_video');
-      const unknown = await call('insert_embed', { parentId: ws.frameId, url: 'qualquer coisa' });
+      const unknown = await call('insert_embed', { parentId: ws.frameId, url: 'anything at all' });
       expect(unknown.isError).toBe(true);
       const three = await call('insert_embed', {
         parentId: ws.frameId,
-        url: 'https://exemplo.com',
+        url: 'https://example.com',
         provider: 'three',
       });
       expect(three.isError).toBe(true);
       expect(textOf(three)).toContain('insert_three');
     });
 
-    it('insert_three sem code usa o padrão; com code e params grava em node.embed', async () => {
+    it('insert_three without code uses the default; with code and params it writes to node.embed', async () => {
       const a = await call('insert_three', { parentId: ws.frameId });
       expect(a.isError, textOf(a)).toBeFalsy();
-      expect(textOf(a)).toContain('código padrão');
+      expect(textOf(a)).toContain('default code');
       const e1 = find(frame(), (n) => n.type === 'embed')!;
       expect(e1.embed!.provider).toBe('three');
       expect(e1.embed!.code).toContain('THREE');
@@ -539,7 +539,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
         params: { color: '#ff6b6b', speed: 2 },
         index: 0,
       });
-      expect(textOf(b)).toContain('código próprio');
+      expect(textOf(b)).toContain('custom code');
       expect(frame().children[0]!.embed).toMatchObject({
         provider: 'three',
         code,
@@ -547,13 +547,13 @@ describe('MCP efeitos, vídeo e embeds', () => {
       });
     });
 
-    it('insert_three recusa código grande demais', async () => {
+    it('insert_three rejects code that is too large', async () => {
       const r = await call('insert_three', { parentId: ws.frameId, code: 'x'.repeat(200_001) });
       expect(r.isError).toBe(true);
-      expect(textOf(r)).toContain('limite');
+      expect(textOf(r)).toContain('limit');
     });
 
-    it('update_media altera embed: url, params mesclados, code e src', async () => {
+    it('update_media changes embed: url, merged params, code and src', async () => {
       const yt = await call('insert_embed', {
         parentId: ws.frameId,
         url: 'https://youtu.be/dQw4w9WgXcQ?t=7',
@@ -571,7 +571,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       });
       const noSrc = await call('update_media', { nodeId: ytId, src: '/x.json' });
       expect(noSrc.isError).toBe(true);
-      expect(textOf(noSrc)).toContain('lottie e rive');
+      expect(textOf(noSrc)).toContain('lottie and rive');
 
       const th = await call('insert_three', { parentId: ws.frameId });
       const thId = idOf(/(eb_[0-9a-z]+)/, textOf(th));
@@ -591,11 +591,11 @@ describe('MCP efeitos, vídeo e embeds', () => {
     });
   });
 
-  describe('get_screenshot com time', () => {
+  describe('get_screenshot with time', () => {
     beforeEach(() => start('basic'));
     afterEach(stop);
 
-    it('repassa time ao render e omite quando não informado', async () => {
+    it('passes time to the render and omits it when not given', async () => {
       await call('get_screenshot', { nodeId: ws.frameId, time: 1.5 });
       expect(captures[0]).toMatchObject({ nodeId: ws.frameId, time: 1.5 });
       await call('get_screenshot', { nodeId: ws.frameId, time: 0 });
@@ -608,32 +608,32 @@ describe('MCP efeitos, vídeo e embeds', () => {
     });
   });
 
-  describe('export animado e react estático', () => {
+  describe('animated export and static react', () => {
     afterEach(stop);
 
     for (const format of ['mp4', 'webm', 'gif'] as const) {
-      it(`${format} sem render devolve render indisponível`, async () => {
+      it(`${format} without render returns render unavailable`, async () => {
         await start('none');
         const r = await call('export', { nodeIds: [ws.frameId], format });
         expect(r.isError).toBe(true);
-        expect(textOf(r)).toContain('motor de render não está disponível');
+        expect(textOf(r)).toContain('render engine is not available');
       });
 
-      it(`${format} com render sem captureFrames explica o motivo`, async () => {
+      it(`${format} with render but no captureFrames explains why`, async () => {
         await start('basic');
         const r = await call('export', { nodeIds: [ws.frameId], format });
         expect(r.isError).toBe(true);
-        expect(textOf(r)).toContain('não captura quadros');
+        expect(textOf(r)).toContain('does not capture animated frames');
       });
     }
 
     const ffmpeg = locateFfmpeg();
     for (const format of ['mp4', 'webm', 'gif'] as const) {
       it.skipIf(!ffmpeg)(
-        `${format} com captureFrames e ffmpeg gera arquivo não vazio`,
+        `${format} with captureFrames and ffmpeg produces a non-empty file`,
         async () => {
           await start('frames');
-          const out = path.join(ws.dir, 'saida');
+          const out = path.join(ws.dir, 'output');
           const r = await call('export', {
             nodeIds: [ws.frameId],
             format,
@@ -647,7 +647,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
           expect(r.isError, textOf(r)).toBeFalsy();
           const file = path.join(out, `desktop.${format}`);
           expect(fs.statSync(file).size).toBeGreaterThan(0);
-          expect(textOf(r)).toContain('5 quadro(s) a 5 fps');
+          expect(textOf(r)).toContain('5 frame(s) at 5 fps');
           expect(frameReqs[0]).toMatchObject({
             nodeId: ws.frameId,
             fps: 5,
@@ -665,12 +665,12 @@ describe('MCP efeitos, vídeo e embeds', () => {
       );
     }
 
-    it('gif usa 15 fps por padrão, limita a 30 e a falha do ffmpeg não deixa arquivo', async () => {
+    it('gif uses 15 fps by default, caps at 30 and an ffmpeg failure leaves no file', async () => {
       await start('frames');
       const old = process.env['MOCKUP_FFMPEG'];
-      process.env['MOCKUP_FFMPEG'] = path.join(ws.dir, 'ffmpeg-inexistente.exe');
+      process.env['MOCKUP_FFMPEG'] = path.join(ws.dir, 'ffmpeg-missing.exe');
       try {
-        const out = path.join(ws.dir, 'saida');
+        const out = path.join(ws.dir, 'output');
         const r = await call('export', {
           nodeIds: [ws.frameId],
           format: 'gif',
@@ -678,7 +678,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
           outputDir: out,
         });
         expect(r.isError).toBe(true);
-        expect(textOf(r)).toContain('Falha ao exportar gif');
+        expect(textOf(r)).toContain('Failed to export gif');
         expect(frameReqs[0]!.fps).toBe(15);
         expect(fs.existsSync(path.join(out, 'desktop.gif'))).toBe(false);
         await call('export', {
@@ -695,7 +695,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       }
     });
 
-    it('export rejeita duration acima de 30 s e fps acima de 60', async () => {
+    it('export rejects duration above 30 s and fps above 60', async () => {
       await start('frames');
       const a = await call('export', { nodeIds: [ws.frameId], format: 'mp4', duration: 31 });
       const b = await call('export', { nodeIds: [ws.frameId], format: 'mp4', fps: 61 });
@@ -704,11 +704,11 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(frameReqs).toHaveLength(0);
     });
 
-    it('react com effects "static" usa o render e grava PNG em assets/effects/', async () => {
+    it('react with effects "static" uses the render and writes a PNG to assets/effects/', async () => {
       await start('basic');
       const r = await call('add_effect', { nodeId: ws.frameId, kind: 'mesh-gradient' });
       const efId = idOf(/(fx_[0-9a-z]+)/, textOf(r));
-      const out = path.join(ws.dir, 'saida');
+      const out = path.join(ws.dir, 'output');
       const e = await call('export', {
         nodeIds: [ws.frameId],
         format: 'react',
@@ -721,7 +721,7 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(fs.readFileSync(png).subarray(1, 4).toString('ascii')).toBe('PNG');
       expect(captures).toHaveLength(1);
       expect(captures[0]).toMatchObject({ nodeId: efId, format: 'png', time: 0 });
-      expect(textOf(e)).toContain('Efeitos estáticos: 1 PNG');
+      expect(textOf(e)).toContain('Static effects: 1 PNG');
       const tsx = fs.readdirSync(out).find((f) => f.endsWith('.tsx'))!;
       const code = fs.readFileSync(path.join(out, tsx), 'utf8');
       expect(code).toContain(`assets/effects/${efId}.png`);
@@ -729,10 +729,10 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(fs.existsSync(path.join(out, 'mockup-effects.js'))).toBe(false);
     });
 
-    it('react com effects "live" (padrão) não usa o render nem grava PNG', async () => {
+    it('react with effects "live" (default) does not use the render or write a PNG', async () => {
       await start('basic');
       await call('add_effect', { nodeId: ws.frameId, kind: 'grain' });
-      const out = path.join(ws.dir, 'saida');
+      const out = path.join(ws.dir, 'output');
       const e = await call('export', { nodeIds: [ws.frameId], format: 'react', outputDir: out });
       expect(e.isError, textOf(e)).toBeFalsy();
       expect(captures).toHaveLength(0);
@@ -743,17 +743,17 @@ describe('MCP efeitos, vídeo e embeds', () => {
       expect(fs.existsSync(path.join(out, 'mockup-effects.d.ts'))).toBe(true);
     });
 
-    it('react estático sem render dá erro de render indisponível', async () => {
+    it('static react without render gives a render-unavailable error', async () => {
       await start('none');
       await call('add_effect', { nodeId: ws.frameId, kind: 'grain' });
       const e = await call('export', {
         nodeIds: [ws.frameId],
         format: 'react',
         effects: 'static',
-        outputDir: path.join(ws.dir, 'saida'),
+        outputDir: path.join(ws.dir, 'output'),
       });
       expect(e.isError).toBe(true);
-      expect(textOf(e)).toContain('motor de render não está disponível');
+      expect(textOf(e)).toContain('render engine is not available');
     });
   });
 });

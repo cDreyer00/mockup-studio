@@ -1,7 +1,7 @@
 /**
- * `renameToken` nos componentes: referências `var(--x)` (e declarações locais da variável) nas
- * raízes dos principais, nas variantes e nos overrides das instâncias. Chamado por
- * `doRenameToken` (apply.ts), que cuida das páginas e dos tokens.
+ * `renameToken` in components: `var(--x)` references (and local declarations of the variable) in the
+ * roots of main components, in variants and in instance overrides. Called by
+ * `doRenameToken` (apply.ts), which handles the pages and the tokens.
  */
 import { deepClone } from '../clone.js';
 import { walk } from '../document.js';
@@ -80,7 +80,7 @@ function renameClasses(classes: string, from: string, to: string, count: Counter
   return r.classes;
 }
 
-/** Renomeia na sobrescrita (mutando); `true` se mudou. */
+/** Renames in the override (mutating); `true` if it changed. */
 function renameInOverride(ov: NodeOverride, from: string, to: string, count: Counter): boolean {
   let changed = false;
   if (ov.style) {
@@ -121,7 +121,7 @@ function renameInOverrides(
   return changed;
 }
 
-/** Renomeia no nó (mutando, sem descer nos filhos); `true` se mudou. */
+/** Renames on the node (mutating, without descending into children); `true` if it changed. */
 function renameInNode(node: Node, from: string, to: string, count: Counter): boolean {
   let changed = false;
   const st = renameStyle(node.style, from, to, count);
@@ -145,9 +145,9 @@ function renameInNode(node: Node, from: string, to: string, count: Counter): boo
 }
 
 /**
- * Aplica o rename (mutando `d`) nas raízes/variantes dos componentes e nos overrides das
- * instâncias das páginas. Devolve os inversos (`updateComponent` com raiz/variantes anteriores,
- * `setInstanceOverrides` com o mapa anterior), ids dos nós tocados e referências trocadas.
+ * Applies the rename (mutating `d`) to the component roots/variants and to the overrides of
+ * page instances. Returns the inverses (`updateComponent` with the previous root/variants,
+ * `setInstanceOverrides` with the previous map), the ids of touched nodes and replaced references.
  */
 export function renameTokenInComponents(
   d: Document,

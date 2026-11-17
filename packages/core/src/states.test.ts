@@ -24,7 +24,7 @@ function strip(doc: Document): unknown {
 }
 
 function fixture(): Document {
-  const doc = createDocument('Estados', { id: 'doc_state001' });
+  const doc = createDocument('States', { id: 'doc_state001' });
   const frame = createNodeFromTag('div', { isRoot: true });
   frame.id = 'fr_state0001';
   const btn = createNodeFromTag('button', {
@@ -39,21 +39,21 @@ function fixture(): Document {
 
 type RawDoc = { pages: { frames: { children: Record<string, unknown>[] }[] }[]; cssBase?: string };
 
-describe('chaves de estado', () => {
-  it('parse e format aceitam qualquer ordem e canonicalizam', () => {
+describe('state keys', () => {
+  it('parse and format accept any order and canonicalize', () => {
     expect(parseStateKey('hover')).toEqual({ pseudo: 'hover' });
     expect(parseStateKey('hover:md')).toEqual({ pseudo: 'hover', breakpoint: 'md' });
     expect(normalizeStateKey('hover:dark:lg')).toBe('lg:dark:hover');
     expect(formatStateKey({ breakpoint: 'md', pseudo: 'hover' })).toBe('md:hover');
   });
 
-  it('rejeita chaves inválidas, repetidas ou vazias', () => {
+  it('rejects invalid, repeated or empty keys', () => {
     for (const k of ['', ':', 'foo', 'hover:focus', 'md:lg', 'dark:dark', 'hover:', 'group-hover'])
       expect(parseStateKey(k)).toBeNull();
     expect(normalizeStateKey('foo')).toBeNull();
   });
 
-  it('sortStateKeys: dark e breakpoints (menores primeiro) antes das pseudo-classes', () => {
+  it('sortStateKeys: dark and breakpoints (smaller first) before pseudo-classes', () => {
     expect(sortStateKeys(['hover', 'md', 'dark', 'sm', 'md:hover', 'lg'])).toEqual([
       'dark',
       'sm',
@@ -76,14 +76,14 @@ describe('stateMatches / resolveStateStyle', () => {
     },
   };
 
-  it('breakpoints são mobile first e dependem da largura do frame', () => {
+  it('breakpoints are mobile first and depend on the frame width', () => {
     expect(stateMatches('md', { frameWidth: BREAKPOINT_PX.md })).toBe(true);
     expect(stateMatches('md', { frameWidth: BREAKPOINT_PX.md - 1 })).toBe(false);
     expect(stateMatches('md', {})).toBe(false);
     expect(stateMatches('lg', { frameWidth: 800, breakpoints: { lg: 700 } })).toBe(true);
   });
 
-  it('breakpointsOf lê --breakpoint-* (px/rem) do documento e cai no padrão', () => {
+  it('breakpointsOf reads --breakpoint-* (px/rem) from the document and falls back to the default', () => {
     expect(breakpointsOf({ tokens: {} })).toEqual(BREAKPOINT_PX);
     const bp = breakpointsOf({
       tokens: {
@@ -97,22 +97,22 @@ describe('stateMatches / resolveStateStyle', () => {
     expect(stateMatches('md', { frameWidth: 900, breakpoints: bp })).toBe(true);
   });
 
-  it('dark e pseudo dependem do contexto', () => {
+  it('dark and pseudo depend on the context', () => {
     expect(stateMatches('dark', { dark: true })).toBe(true);
     expect(stateMatches('dark', {})).toBe(false);
     expect(stateMatches('hover', { pseudo: 'hover' })).toBe(true);
     expect(stateMatches('hover', { pseudo: 'focus' })).toBe(false);
     expect(stateMatches('md:hover', { frameWidth: 800, pseudo: 'hover' })).toBe(true);
     expect(stateMatches('md:hover', { frameWidth: 400, pseudo: 'hover' })).toBe(false);
-    expect(stateMatches('invalido', { dark: true })).toBe(false);
+    expect(stateMatches('invalid', { dark: true })).toBe(false);
   });
 
-  it('sem contexto ativo devolve o próprio estilo', () => {
+  it('without an active context returns the style itself', () => {
     expect(resolveStateStyle(node, {})).toBe(node.style);
     expect(resolveStateStyle(createNodeFromTag('div'), { dark: true })).toEqual({});
   });
 
-  it('aplica os estados ativos por cima, na ordem de aplicação', () => {
+  it('applies the active states on top, in application order', () => {
     expect(resolveStateStyle(node, { frameWidth: 800 })).toEqual({
       padding: '16px',
       color: 'black',
@@ -122,10 +122,10 @@ describe('stateMatches / resolveStateStyle', () => {
       color: 'blue',
     });
     expect(resolveStateStyle(node, { dark: true, pseudo: 'hover' }).color).toBe('red');
-    expect(node.style).toEqual({ padding: '8px', color: 'black' }); // não muta
+    expect(node.style).toEqual({ padding: '8px', color: 'black' }); // does not mutate
   });
 
-  it('hasStates ignora estados vazios', () => {
+  it('hasStates ignores empty states', () => {
     expect(hasStates(node)).toBe(true);
     expect(hasStates({ ...node, states: { hover: {} } })).toBe(false);
     expect(hasStates(createNodeFromTag('div'))).toBe(false);
@@ -133,7 +133,7 @@ describe('stateMatches / resolveStateStyle', () => {
 });
 
 describe('ops setClasses / setStates / setCssBase', () => {
-  it('setClasses normaliza, remove com null e tem inverso exato', () => {
+  it('setClasses normalizes, removes with null and has an exact inverse', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setClasses',
@@ -149,7 +149,7 @@ describe('ops setClasses / setStates / setCssBase', () => {
     expect(strip(applyOps(cleared.doc, cleared.inverse).doc)).toStrictEqual(strip(r.doc));
   });
 
-  it('setClasses aceita variantes arbitrárias do shadcn e recusa caracteres perigosos', () => {
+  it('setClasses accepts arbitrary shadcn variants and rejects dangerous characters', () => {
     const ok = applyOp(fixture(), {
       type: 'setClasses',
       changes: [
@@ -165,10 +165,10 @@ describe('ops setClasses / setStates / setCssBase', () => {
         type: 'setClasses',
         changes: [{ nodeId: 'el_state0001', classes: 'a"><script>' }],
       }),
-    ).toThrow(/Classes inválidas/);
+    ).toThrow(/Invalid classes/);
   });
 
-  it('setStates normaliza chaves e propriedades, remove com null e tem inverso exato', () => {
+  it('setStates normalizes keys and properties, removes with null and has an exact inverse', () => {
     const doc = fixture();
     const r = applyOp(doc, {
       type: 'setStates',
@@ -193,22 +193,22 @@ describe('ops setClasses / setStates / setCssBase', () => {
     expect(strip(applyOps(cleared.doc, cleared.inverse).doc)).toStrictEqual(strip(r.doc));
   });
 
-  it('setStates recusa estado e valor inválidos', () => {
+  it('setStates rejects an invalid state and value', () => {
     expect(() =>
       applyOp(fixture(), {
         type: 'setStates',
         changes: [{ nodeId: 'el_state0001', states: { foo: { color: 'red' } } }],
       }),
-    ).toThrow(/Estado inválido/);
+    ).toThrow(/Invalid state/);
     expect(() =>
       applyOp(fixture(), {
         type: 'setStates',
         changes: [{ nodeId: 'el_state0001', states: { hover: { color: 'red; x: y' } } }],
       }),
-    ).toThrow(/Valor inválido/);
+    ).toThrow(/Invalid value/);
   });
 
-  it('setCssBase liga e desliga o preflight com inverso exato', () => {
+  it('setCssBase turns the preflight on and off with an exact inverse', () => {
     const doc = fixture();
     expect(doc.cssBase).toBeUndefined();
     const on = applyOp(doc, { type: 'setCssBase', base: 'tailwind' });
@@ -219,7 +219,7 @@ describe('ops setClasses / setStates / setCssBase', () => {
     expect(strip(applyOps(off.doc, off.inverse).doc)).toStrictEqual(strip(on.doc));
   });
 
-  it('renameToken também atualiza os estados (e o inverso devolve)', () => {
+  it('renameToken also updates the states (and the inverse restores them)', () => {
     const doc = fixture();
     const node = findNode(doc, 'el_state0001')!.node;
     node.states = {
@@ -236,10 +236,10 @@ describe('ops setClasses / setStates / setCssBase', () => {
   });
 });
 
-describe('schema: classes, states e cssBase', () => {
+describe('schema: classes, states and cssBase', () => {
   const raw = (): RawDoc => JSON.parse(serializeDocument(fixture())) as RawDoc;
 
-  it('parseDocument normaliza e descarta chaves de estado inválidas', () => {
+  it('parseDocument normalizes and discards invalid state keys', () => {
     const json = raw();
     const child = json.pages[0].frames[0].children[0];
     child.classes = '  p-4    hover:bg-red-500  ';
@@ -259,7 +259,7 @@ describe('schema: classes, states e cssBase', () => {
     expect(doc.cssBase).toBe('tailwind');
   });
 
-  it('classes vazias e estados vazios somem do nó', () => {
+  it('empty classes and empty states disappear from the node', () => {
     const json = raw();
     const child = json.pages[0].frames[0].children[0];
     child.classes = '   ';
@@ -269,7 +269,7 @@ describe('schema: classes, states e cssBase', () => {
     expect('states' in node).toBe(false);
   });
 
-  it('parseDocument descarta só as classes com caracteres proibidos e mantém as válidas', () => {
+  it('parseDocument discards only the classes with forbidden characters and keeps the valid ones', () => {
     const json = raw();
     const child = json.pages[0].frames[0].children[0];
     child.classes = 'p-4 bg-[url("x")] hover:bg-red-500 a;b {x} <y>';
@@ -280,7 +280,7 @@ describe('schema: classes, states e cssBase', () => {
     expect('classes' in findNode(parseDocument(json), 'el_state0001')!.node).toBe(false);
   });
 
-  it('serializeDocument mantém classes, states e cssBase (round-trip estável)', () => {
+  it('serializeDocument keeps classes, states and cssBase (stable round-trip)', () => {
     const doc = fixture();
     const node = findNode(doc, 'el_state0001')!.node;
     node.classes = 'p-4 hover:bg-red-500';
@@ -299,15 +299,15 @@ describe('schema: classes, states e cssBase', () => {
   });
 });
 
-describe('documentBaseCss com preflight', () => {
-  it('sem preflight é a base de sempre', () => {
+describe('documentBaseCss with preflight', () => {
+  it('without preflight is the usual base', () => {
     const css = documentBaseCss();
     expect(css).toContain('*,*::before,*::after{box-sizing:border-box;margin:0}');
     expect(css).not.toContain('border:0 solid');
     expect(documentBaseCssFor({})).toBe(css);
   });
 
-  it('com preflight global traz o reset do Tailwind e a raiz tipográfica do Tailwind', () => {
+  it('with global preflight brings the Tailwind reset and the Tailwind typographic root', () => {
     const css = documentBaseCss(undefined, undefined, { preflight: true });
     expect(css).toContain('box-sizing:border-box;margin:0;padding:0;border:0 solid');
     expect(css).toContain('h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}');
@@ -316,7 +316,7 @@ describe('documentBaseCss com preflight', () => {
     expect(documentBaseCssFor({ cssBase: 'tailwind' })).toBe(css);
   });
 
-  it('com escopo os seletores ficam dentro do contêiner e pseudo-elementos viram *::x', () => {
+  it('with scope the selectors stay inside the container and pseudo-elements become *::x', () => {
     const css = documentBaseCss('.cv-world', '.cv-frame', { preflight: true });
     expect(css).toContain('.cv-world *,.cv-world *::after,.cv-world *::before');
     expect(css).toContain('.cv-world h1,.cv-world h2');
@@ -327,21 +327,21 @@ describe('documentBaseCss com preflight', () => {
     expect(css).not.toMatch(/(^|\n)(\*|body|h1|button)[,{]/);
   });
 
-  it('documentRootDeclarations segue cssBase', () => {
+  it('documentRootDeclarations follows cssBase', () => {
     expect(documentRootDeclarations({})).toContain('system-ui');
     expect(documentRootDeclarations({ cssBase: 'tailwind' })).toContain('-apple-system');
   });
 });
 
 describe('summarizeNode', () => {
-  it('marca tw e states', () => {
+  it('marks tw and states', () => {
     const n = createNodeFromTag('div', { styles: { width: '10px', height: '10px' } });
     n.id = 'el_sum00001';
     expect(summarizeNode(n)).not.toMatch(/ tw|states:/);
     n.classes = 'p-4';
     n.states = { md: { padding: '8px' }, hover: { color: 'red' }, active: {} };
     expect(summarizeNode(n)).toContain(' tw states:md,hover');
-    const t = createNodeFromTag('p', { text: 'oi' });
+    const t = createNodeFromTag('p', { text: 'hi' });
     t.classes = 'text-sm';
     expect(summarizeNode(t)).toContain(' tw');
     expect(getTreeSummary(n, 0)).toContain('states:md,hover');

@@ -1,7 +1,7 @@
 import { documentBaseCss } from '@mockup/core';
 import { ALL_PROPS } from './props.js';
 
-/** Estilo computado lido numa tabela propriedade → valor. */
+/** Computed style read into a property → value table. */
 export type StyleRec = Record<string, string>;
 
 export function readStyle(cs: CSSStyleDeclaration): StyleRec {
@@ -13,15 +13,15 @@ export function readStyle(cs: CSSStyleDeclaration): StyleRec {
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
- * Padrões por tag: um iframe oculto `about:blank` (mesma origem) com o CSS base do documento, no
- * qual cada tag usada é criada uma vez e lida via `getComputedStyle`. É assim que o canvas vai
- * renderizar um nó sem estilo autoral (UA + `documentBaseCss`).
+ * Per-tag defaults: a hidden `about:blank` iframe (same origin) with the document base CSS, in
+ * which each used tag is created once and read via `getComputedStyle`. This is how the canvas will
+ * render a node with no author style (UA + `documentBaseCss`).
  */
 export class Defaults {
   private iframe: HTMLIFrameElement | null = null;
   private doc: Document | null = null;
   private cache = new Map<string, StyleRec>();
-  /** Computado do `body` do iframe: base da herança na raiz. */
+  /** Computed from the iframe's `body`: base of the inheritance at the root. */
   body: StyleRec = {};
 
   init(): void {
@@ -30,12 +30,12 @@ export class Defaults {
     iframe.tabIndex = -1;
     iframe.style.cssText =
       'position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden;pointer-events:none';
-    // Fora do `body` (não entra na captura de `body` nem mexe no fluxo dele); a travessia ainda
-    // ignora o elemento via `isOwn`, porque capturar `html` o alcançaria.
+    // Outside the `body` (it is not part of a `body` capture nor does it affect its flow); the traversal still
+    // ignores the element via `isOwn`, because capturing `html` would reach it.
     document.documentElement.appendChild(iframe);
     this.iframe = iframe;
     const doc = iframe.contentDocument;
-    if (!doc) throw new Error('Não foi possível criar o documento de padrões (iframe).');
+    if (!doc) throw new Error('Could not create the defaults document (iframe).');
     doc.open();
     doc.write(
       `<!doctype html><html><head><style>${documentBaseCss()}</style></head><body></body></html>`,
@@ -45,7 +45,7 @@ export class Defaults {
     this.body = readStyle(doc.defaultView!.getComputedStyle(doc.body));
   }
 
-  /** Padrão da tag (`variant`: `type` dos inputs; `href` para links, que ganham sublinhado e cor). */
+  /** Default of the tag (`variant`: the `type` of inputs; `href` for links, which get underline and color). */
   get(tag: string, variant = ''): StyleRec {
     const key = variant ? `${tag}:${variant}` : tag;
     let rec = this.cache.get(key);
@@ -61,7 +61,7 @@ export class Defaults {
     return rec;
   }
 
-  /** O elemento de medição é do próprio capturador (a travessia o ignora). */
+  /** The measurement element belongs to the capturer itself (the traversal ignores it). */
   isOwn(el: Element): boolean {
     return el === this.iframe;
   }

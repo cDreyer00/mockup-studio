@@ -1,6 +1,6 @@
 /**
- * Ferramentas das fases 6 a 8 em nós de componentes: o id virtual de um nó dentro de uma instância
- * (`in_x/...`) vira override; o id de um nó do principal edita o principal.
+ * Phase 6 to 8 tools on component nodes: the virtual id of a node inside an instance
+ * (`in_x/...`) becomes an override; the id of a main component node edits the main component.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -29,7 +29,7 @@ const node = (id: string, type: Node['type'], tag: string, extra: Partial<Node> 
   ...extra,
 });
 
-describe('MCP: dados, efeitos e vetores dentro de componentes', () => {
+describe('MCP: data, effects and vectors inside components', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -37,7 +37,7 @@ describe('MCP: dados, efeitos e vetores dentro de componentes', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
     daemon.store.applyOps(
@@ -46,20 +46,20 @@ describe('MCP: dados, efeitos e vetores dentro de componentes', () => {
         {
           type: 'addComponent',
           component: {
-            id: 'cp_lista01',
-            name: 'Lista',
+            id: 'cp_list01',
+            name: 'List',
             props: [],
             variants: [],
-            root: node('el_lista01', 'element', 'section', {
+            root: node('el_list01', 'element', 'section', {
               children: [
-                node('fx_fundo001', 'effect', 'canvas', {
+                node('fx_bg000001', 'effect', 'canvas', {
                   effect: { kind: 'mesh-gradient', params: {} },
                 }),
-                node('rp_itens001', 'repeater', 'ul', {
-                  data: [{ nome: 'Ana' }],
-                  children: [node('tx_item0001', 'text', 'li', { text: '{{nome}}' })],
+                node('rp_items001', 'repeater', 'ul', {
+                  data: [{ name: 'Ana' }],
+                  children: [node('tx_item0001', 'text', 'li', { text: '{{name}}' })],
                 }),
-                node('sv_icone001', 'svg', 'svg', {
+                node('sv_icon0001', 'svg', 'svg', {
                   svg: '<svg viewBox="0 0 24 24"><rect width="24" height="24" fill="#ff0000"/></svg>',
                 }),
               ],
@@ -69,7 +69,7 @@ describe('MCP: dados, efeitos e vetores dentro de componentes', () => {
         {
           type: 'createNode',
           parentId: ws.frameId,
-          node: node('in_lista01', 'instance', 'section', { componentId: 'cp_lista01' }),
+          node: node('in_list01', 'instance', 'section', { componentId: 'cp_list01' }),
         },
       ],
       { source: 'mcp', label: 'fixture' },
@@ -86,48 +86,48 @@ describe('MCP: dados, efeitos e vetores dentro de componentes', () => {
   const docId = () => daemon.store.resolveDocId();
   const doc = () => daemon.store.get(docId());
   const view = (id: string): Node => findNode(expandDocument(doc()), id)!.node;
-  const overrides = () => findNode(doc(), 'in_lista01')!.node.overrides;
+  const overrides = () => findNode(doc(), 'in_list01')!.node.overrides;
 
-  it('bind_data e get_data no repetidor da instância gravam e leem o override', async () => {
+  it('bind_data and get_data on the instance repeater write and read the override', async () => {
     const r = await call('bind_data', {
-      nodeId: 'in_lista01/rp_itens001',
-      data: [{ nome: 'Caio' }, { nome: 'Duda' }],
+      nodeId: 'in_list01/rp_items001',
+      data: [{ name: 'Caio' }, { name: 'Duda' }],
     });
     expect(r.isError, textOf(r)).toBeFalsy();
-    expect(overrides()?.['rp_itens001']?.data).toEqual([{ nome: 'Caio' }, { nome: 'Duda' }]);
-    expect(getComponent(doc(), 'cp_lista01')!.root.children[1]!.data).toEqual([{ nome: 'Ana' }]);
-    const g = await call('get_data', { nodeId: 'in_lista01/rp_itens001' });
+    expect(overrides()?.['rp_items001']?.data).toEqual([{ name: 'Caio' }, { name: 'Duda' }]);
+    expect(getComponent(doc(), 'cp_list01')!.root.children[1]!.data).toEqual([{ name: 'Ana' }]);
+    const g = await call('get_data', { nodeId: 'in_list01/rp_items001' });
     expect(g.isError, textOf(g)).toBeFalsy();
     expect(textOf(g)).toContain('Caio');
-    // undo volta a instância ao principal
+    // undo returns the instance to the main component
     await call('undo');
     expect(overrides()).toBeUndefined();
   });
 
-  it('bind_data no nó do principal muda todas as instâncias', async () => {
-    const r = await call('bind_data', { nodeId: 'rp_itens001', data: [{ nome: 'Zé' }] });
+  it('bind_data on the main component node changes all instances', async () => {
+    const r = await call('bind_data', { nodeId: 'rp_items001', data: [{ name: 'Ze' }] });
     expect(r.isError, textOf(r)).toBeFalsy();
-    expect(view('in_lista01/rp_itens001').data).toEqual([{ nome: 'Zé' }]);
+    expect(view('in_list01/rp_items001').data).toEqual([{ name: 'Ze' }]);
   });
 
-  it('update_effect no efeito da instância vira override', async () => {
-    const r = await call('update_effect', { nodeId: 'in_lista01/fx_fundo001', kind: 'grain' });
+  it('update_effect on the instance effect becomes an override', async () => {
+    const r = await call('update_effect', { nodeId: 'in_list01/fx_bg000001', kind: 'grain' });
     expect(r.isError, textOf(r)).toBeFalsy();
-    expect(overrides()?.['fx_fundo001']?.effect?.kind).toBe('grain');
-    expect(view('in_lista01/fx_fundo001').effect?.kind).toBe('grain');
-    expect(getComponent(doc(), 'cp_lista01')!.root.children[0]!.effect?.kind).toBe('mesh-gradient');
+    expect(overrides()?.['fx_bg000001']?.effect?.kind).toBe('grain');
+    expect(view('in_list01/fx_bg000001').effect?.kind).toBe('grain');
+    expect(getComponent(doc(), 'cp_list01')!.root.children[0]!.effect?.kind).toBe('mesh-gradient');
   });
 
-  it('get_html marca o repetidor dentro da instância e set_path vira override', async () => {
-    const h = await call('get_html', { nodeId: 'in_lista01' });
-    expect(textOf(h)).toContain('data-mockup-repeat="in_lista01/rp_itens001"');
+  it('get_html marks the repeater inside the instance and set_path becomes an override', async () => {
+    const h = await call('get_html', { nodeId: 'in_list01' });
+    expect(textOf(h)).toContain('data-mockup-repeat="in_list01/rp_items001"');
     const s = await call('set_path', {
-      nodeId: 'in_lista01/sv_icone001',
+      nodeId: 'in_list01/sv_icon0001',
       d: 'M0 0H12V12H0Z',
     });
     expect(s.isError, textOf(s)).toBeFalsy();
-    expect(overrides()?.['sv_icone001']?.vector).toBeDefined();
-    expect(view('in_lista01/sv_icone001').svg).toContain('M 0 0 L 12 0 L 12 12 L 0 12 Z');
-    expect(getComponent(doc(), 'cp_lista01')!.root.children[2]!.svg).toContain('width="24"');
+    expect(overrides()?.['sv_icon0001']?.vector).toBeDefined();
+    expect(view('in_list01/sv_icon0001').svg).toContain('M 0 0 L 12 0 L 12 12 L 0 12 Z');
+    expect(getComponent(doc(), 'cp_list01')!.root.children[2]!.svg).toContain('width="24"');
   });
 });

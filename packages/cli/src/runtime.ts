@@ -1,4 +1,4 @@
-/** Descreve como este CLI está rodando: Node puro ou o Electron como Node (app empacotado). */
+/** Describes how this CLI is running: plain Node or Electron as Node (packaged app). */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,15 +6,15 @@ import { VERSION } from './version.js';
 
 export interface CliRuntime {
   kind: 'node' | 'electron';
-  /** Executável que roda o script (`process.execPath`). */
+  /** Executable that runs the script (`process.execPath`). */
   execPath: string;
-  /** Caminho real do script do CLI (`bin.js` ou o bundle `mockup.mjs`). */
+  /** Real path of the CLI script (`bin.js` or the `mockup.mjs` bundle). */
   script: string;
-  /** Versão do CLI. */
+  /** CLI version. */
   version: string;
-  /** Versão do Node embutido (no Electron, a do Node dele). */
+  /** Embedded Node version (in Electron, its own Node's). */
   nodeVersion: string;
-  /** Versão do Electron (só `kind: 'electron'`). */
+  /** Electron version (only `kind: 'electron'`). */
   electronVersion?: string;
 }
 
@@ -25,7 +25,7 @@ export interface RuntimeSource {
   realpath?: (p: string) => string;
 }
 
-/** `true` quando rodando dentro do Electron (com `ELECTRON_RUN_AS_NODE=1`). */
+/** `true` when running inside Electron (with `ELECTRON_RUN_AS_NODE=1`). */
 export function isElectronRuntime(versions: NodeJS.ProcessVersions = process.versions): boolean {
   return typeof versions.electron === 'string' && versions.electron !== '';
 }

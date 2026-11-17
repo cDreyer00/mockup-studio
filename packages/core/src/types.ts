@@ -1,17 +1,17 @@
 /**
- * Modelo de documento do Mockup Studio (esquema versão 1).
+ * Mockup Studio document model (schema version 1).
  *
- * Um documento é um JSON legível (`*.mockup.json`) com páginas; cada página tem
- * frames (nós raiz, que funcionam como artboards/breakpoints) e cada frame tem
- * uma árvore de nós que correspondem a elementos HTML reais com CSS real.
+ * A document is readable JSON (`*.mockup.json`) with pages; each page has
+ * frames (root nodes that work as artboards/breakpoints) and each frame has
+ * a tree of nodes that map to real HTML elements with real CSS.
  */
 
 export const DOCUMENT_VERSION = 1 as const;
 
 /**
- * `instance`: instância de um componente do documento (`componentId`); os filhos são só os
- * contêineres de slot (ver `docs/COMPONENTES.md`). Render, export e screenshot usam a árvore
- * concreta de `expandInstance`.
+ * `instance`: instance of a document component (`componentId`); the children are only the
+ * slot containers (see `docs/COMPONENTS.md`). Render, export and screenshot use the concrete
+ * tree from `expandInstance`.
  */
 export type NodeType =
   | 'frame'
@@ -25,43 +25,43 @@ export type NodeType =
   | 'video'
   | 'embed';
 
-/** Valor de parâmetro de efeito/embed: número, texto (cor, opção) ou booleano. */
+/** Effect/embed parameter value: number, text (color, option) or boolean. */
 export type MediaParamValue = number | string | boolean;
 
-/** Efeito visual (shader WebGL ou partículas) de um nó `type: 'effect'` (ver `effects/catalog.ts`). */
+/** Visual effect (WebGL shader or particles) of a `type: 'effect'` node (see `effects/catalog.ts`). */
 export interface EffectSpec {
-  /** Tipo do efeito, ex.: `mesh-gradient`, `grain`, `particles` (ver `list_effects`). */
+  /** Effect type, e.g. `mesh-gradient`, `grain`, `particles` (see `list_effects`). */
   kind: string;
-  /** Parâmetros do efeito; os ausentes usam o padrão do catálogo. */
+  /** Effect parameters; missing ones use the catalog default. */
   params: Record<string, MediaParamValue>;
 }
 
-/** Vídeo de um nó `type: 'video'`. */
+/** Video of a `type: 'video'` node. */
 export interface VideoSpec {
-  /** Caminho relativo a `assets/` ou URL http(s). */
+  /** Path relative to `assets/` or an http(s) URL. */
   src: string;
-  /** Imagem de capa (relativa a `assets/` ou URL http(s)). */
+  /** Poster image (relative to `assets/` or an http(s) URL). */
   poster?: string;
   autoplay?: boolean;
   loop?: boolean;
   muted?: boolean;
   controls?: boolean;
-  /** Momento (s) mostrado no screenshot quando não há `poster` (padrão 0). */
+  /** Time (s) shown in the screenshot when there is no `poster` (default 0). */
   time?: number;
 }
 
 export type EmbedProvider = 'lottie' | 'rive' | 'youtube' | 'three' | 'iframe';
 
-/** Conteúdo incorporado de um nó `type: 'embed'`. */
+/** Embedded content of a `type: 'embed'` node. */
 export interface EmbedSpec {
   provider: EmbedProvider;
-  /** Arquivo local relativo a `assets/` ou URL http(s) (lottie `.json`, rive `.riv`). */
+  /** Local file relative to `assets/` or an http(s) URL (lottie `.json`, rive `.riv`). */
   src?: string;
   /** URL http(s) (youtube, iframe). */
   url?: string;
-  /** Código JavaScript da ilha Three.js (corpo de função; ver docs/EMBEDS.md). */
+  /** JavaScript code of the Three.js island (function body; see docs/EMBEDS.md). */
   code?: string;
-  /** Opções do provedor (ex.: `autoplay`, `loop`, `artboard`, `stateMachine`, `start`). */
+  /** Provider options (e.g.: `autoplay`, `loop`, `artboard`, `stateMachine`, `start`). */
   params?: Record<string, MediaParamValue>;
 }
 
@@ -73,149 +73,149 @@ export interface Position {
 export interface Node {
   id: string;
   type: NodeType;
-  /** Nome legível (camada). */
+  /** Readable name (layer). */
   name: string;
   /** Tag HTML: div, section, button, img, h1, p, span... */
   tag: string;
-  /** Atributos HTML (sem `style`, sem `class`). */
+  /** HTML attributes (without `style`, without `class`). */
   attrs: Record<string, string>;
-  /** Propriedades CSS em kebab-case com valores CSS reais, ex. { 'display': 'flex', 'gap': '24px' }. */
+  /** CSS properties in kebab-case with real CSS values, e.g. { 'display': 'flex', 'gap': '24px' }. */
   style: Record<string, string>;
-  /** Conteúdo textual (type 'text'). */
+  /** Text content (type 'text'). */
   text?: string;
-  /** Imagem: caminho relativo em `assets/` ou data URL (type 'image'). */
+  /** Image: path relative to `assets/` or data URL (type 'image'). */
   src?: string;
   /** Markup SVG inline (type 'svg'). */
   svg?: string;
   /**
-   * Modelo vetorial editável (type 'svg'). Quando presente, `svg` é o markup gerado a partir dele
-   * (`vectorToSvg`): `raw` intacto enquanto não houver edição, senão regenerado dos `paths`.
+   * Editable vector model (type 'svg'). When present, `svg` is the markup generated from it
+   * (`vectorToSvg`): `raw` intact until there is an edit, otherwise regenerated from `paths`.
    */
   vector?: Vector;
-  /** Efeito (type 'effect'). */
+  /** Effect (type 'effect'). */
   effect?: EffectSpec;
-  /** Vídeo (type 'video'). */
+  /** Video (type 'video'). */
   video?: VideoSpec;
-  /** Embed: Lottie, Rive, YouTube, Three.js ou iframe (type 'embed'). */
+  /** Embed: Lottie, Rive, YouTube, Three.js or iframe (type 'embed'). */
   embed?: EmbedSpec;
   children: Node[];
   locked: boolean;
   hidden: boolean;
-  /** Posição no canvas (frames raiz) ou x/y de filhos com `position: absolute`. */
+  /** Position on the canvas (root frames) or x/y of children with `position: absolute`. */
   position?: Position;
   /**
-   * Classes Tailwind como foram escritas (`write_html`, `set_classes`, colar). É uma dica de
-   * round-trip: o render usa `style`/`states`; a exportação Tailwind reaproveita as classes que
-   * ainda batem com o estilo atual. Ver `docs/TAILWIND.md`.
+   * Tailwind classes as written (`write_html`, `set_classes`, paste). It is a round-trip
+   * hint: render uses `style`/`states`; the Tailwind export reuses the classes that
+   * still match the current style. See `docs/TAILWIND.md`.
    */
   classes?: string;
   /**
-   * Estilos condicionais por variante (`hover`, `dark`, `md`, `md:hover`...; ver `states.ts`).
-   * Ausente quando vazio.
+   * Conditional styles per variant (`hover`, `dark`, `md`, `md:hover`...; see `states.ts`).
+   * Absent when empty.
    */
   states?: Record<string, Record<string, string>>;
   /**
-   * Componente da instância (`type: 'instance'`). Na árvore expandida (`expandInstance`) o nó raiz
-   * concreto mantém `componentId` e `props` como marcador de instância.
+   * Component of the instance (`type: 'instance'`). In the expanded tree (`expandInstance`) the concrete
+   * root node keeps `componentId` and `props` as an instance marker.
    */
   componentId?: string;
-  /** Valores das props da instância (só as que diferem do padrão do componente). */
+  /** Values of the instance props (only those that differ from the component default). */
   props?: Record<string, PropValue>;
   /**
-   * Sobrescritas por caminho de nó do componente principal: chave = ids dos nós do principal
-   * separados por `/` (atravessando instâncias aninhadas), ex. `el_label01` ou `el_btn0001/el_label01`.
+   * Overrides by node path of the main component: key = ids of the main component's nodes
+   * separated by `/` (crossing nested instances), e.g. `el_label01` or `el_btn0001/el_label01`.
    */
   overrides?: Record<string, NodeOverride>;
   /**
-   * Repetidor (type 'repeater'): itens de dados. Os filhos são o template, repetido uma vez por
-   * item, com bindings `{{campo}}` resolvidos em textos, `src` e atributos (ver `data.ts`).
+   * Repeater (type 'repeater'): data items. The children are the template, repeated once per
+   * item, with `{{field}}` bindings resolved in texts, `src` and attributes (see `data.ts`).
    */
   data?: unknown[];
-  /** Repetidor: origem dos dados (para atualizar) e mapeamento de campos. */
+  /** Repeater: data source (for refreshing) and field mapping. */
   dataSource?: DataSource;
 }
 
-/** Origem dos dados de um repetidor. */
+/** Data source of a repeater. */
 export interface DataSource {
-  /** `inline`: dados colados/editados; `json`/`csv`: arquivo local; `url`: HTTP(S) (JSON ou CSV). */
+  /** `inline`: pasted/edited data; `json`/`csv`: local file; `url`: HTTP(S) (JSON or CSV). */
   kind: 'inline' | 'json' | 'csv' | 'url';
-  /** Caminho absoluto do arquivo (`json`/`csv`). */
+  /** Absolute path of the file (`json`/`csv`). */
   path?: string;
   /** URL http(s) (`url`). */
   url?: string;
-  /** Caminho até a lista dentro do JSON, ex.: `data.items`. */
+  /** Path to the list inside the JSON, e.g.: `data.items`. */
   select?: string;
-  /** Campo do template → caminho no item, ex.: `{ "nome": "user.fullName" }`. */
+  /** Template field → path in the item, e.g.: `{ "name": "user.fullName" }`. */
   mapping?: Record<string, string>;
-  /** Máximo de itens lidos da origem. */
+  /** Maximum items read from the source. */
   limit?: number;
-  /** Quando os dados foram lidos da origem (ISO 8601). */
+  /** When the data was read from the source (ISO 8601). */
   fetchedAt?: string;
 }
 
-/* ---------------- Componentes ---------------- */
+/* ---------------- Components ---------------- */
 
 export type PropType = 'string' | 'number' | 'boolean' | 'enum' | 'color' | 'slot';
 export type PropValue = string | number | boolean;
 
-/** Propriedade de um componente. Strings/números/cores entram por `{{nome}}`; slots por `data-slot`. */
+/** Prop of a component. Strings/numbers/colors enter via `{{name}}`; slots via `data-slot`. */
 export interface PropDef {
   name: string;
   type: PropType;
-  /** Valor padrão (ausente em `slot`). */
+  /** Default value (absent for `slot`). */
   default?: PropValue;
-  /** Opções de `enum`. */
+  /** `enum` options. */
   options?: string[];
   description?: string;
 }
 
-/** Sobrescrita de um nó da árvore do componente (numa variante ou numa instância). */
+/** Override of a node in the component tree (in a variant or an instance). */
 export interface NodeOverride {
-  /** Estilos mesclados sobre o do principal. */
+  /** Styles merged over the main component's. */
   style?: Record<string, string>;
-  /** Propriedades de estilo removidas do principal. */
+  /** Style properties removed from the main component. */
   unsetStyle?: string[];
   text?: string;
-  /** Atributos mesclados sobre os do principal. */
+  /** Attributes merged over the main component's. */
   attrs?: Record<string, string>;
   hidden?: boolean;
   classes?: string;
-  /** Estados mesclados por variante (`hover`, `dark`...). */
+  /** States merged per variant (`hover`, `dark`...). */
   states?: Record<string, Record<string, string>>;
   src?: string;
   svg?: string;
-  /** Props de uma instância aninhada no principal. */
+  /** Props of an instance nested in the main component. */
   props?: Record<string, PropValue>;
-  /** Modelo vetorial (só nó svg); o markup vem de `svg` ou é gerado do vetor. */
+  /** Vector model (svg node only); the markup comes from `svg` or is generated from the vector. */
   vector?: Vector;
-  /** Efeito inteiro (só nó effect; substitui o do principal). */
+  /** Whole effect (effect node only; replaces the main component's). */
   effect?: EffectSpec;
-  /** Vídeo inteiro (só nó video). */
+  /** Whole video (video node only). */
   video?: VideoSpec;
-  /** Embed inteiro (só nó embed). */
+  /** Whole embed (embed node only). */
   embed?: EmbedSpec;
-  /** Itens do repetidor (só nó repeater; substituem os do principal). */
+  /** Repeater items (repeater node only; replace the main component's). */
   data?: unknown[];
-  /** Origem dos dados do repetidor (só nó repeater). */
+  /** Repeater data source (repeater node only). */
   dataSource?: DataSource;
 }
 
-/** Variante: quando as props batem com `when`, aplica `overrides` (chave `''` = nó raiz). */
+/** Variant: when the props match `when`, applies `overrides` (key `''` = root node). */
 export interface ComponentVariant {
   when: Record<string, PropValue>;
   overrides: Record<string, NodeOverride>;
 }
 
-/** Componente principal (biblioteca do documento). */
+/** Main component (document library). */
 export interface ComponentDef {
   /** Id `cp_xxxxxxxx`. */
   id: string;
   name: string;
   description?: string;
-  /** Kit de origem (`shadcn-like`), quando importado de um kit. */
+  /** Source kit (`shadcn-like`), when imported from a kit. */
   kit?: string;
   props: PropDef[];
-  /** Árvore do principal; ids únicos no documento inteiro (páginas e componentes). */
+  /** Main component tree; ids unique across the whole document (pages and components). */
   root: Node;
   variants: ComponentVariant[];
 }
@@ -223,33 +223,33 @@ export interface ComponentDef {
 export interface Page {
   id: string;
   name: string;
-  /** Nós raiz da página (frames). */
+  /** Root nodes of the page (frames). */
   frames: Node[];
-  /** Cor/fundo do canvas da página (valor CSS). */
+  /** Page canvas color/background (CSS value). */
   background: string;
 }
 
 export interface FontRef {
   family: string;
   source?: 'local' | 'file' | 'google';
-  /** Arquivos de fonte relativos a `assets/` (ex.: `fonts/inter-400.woff2`). */
+  /** Font files relative to `assets/` (e.g.: `fonts/inter-400.woff2`). */
   files?: string[];
-  /** Peso de cada arquivo (paralelo a `files`) ou o intervalo coberto. */
+  /** Weight of each file (parallel to `files`) or the range covered. */
   weights?: number[];
-  /** Estilo de cada arquivo (`normal` | `italic`), paralelo a `files`. */
+  /** Style of each file (`normal` | `italic`), parallel to `files`. */
   styles?: string[];
 }
 
-/** Metadados de um token: grupo (cores, tipografia...) e descrição. Ver `tokens.ts`. */
+/** Token metadata: group (colors, typography...) and description. See `tokens.ts`. */
 export interface TokenMeta {
-  /** Grupo do token: `color`, `typography`, `spacing`, `radius`, `shadow`, `other` ou um nome livre. Ausente = inferido pelo nome/valor. */
+  /** Token group: `color`, `typography`, `spacing`, `radius`, `shadow`, `other` or a free name. Absent = inferred from the name/value. */
   group?: string;
   description?: string;
 }
 
 /**
- * Tema: sobrescreve valores de tokens dentro de nós com `data-theme="<name>"` (CSS real:
- * `[data-theme="dark"] { --color-bg: #0b0b0b }`). Os tokens base valem fora de qualquer tema.
+ * Theme: overrides token values inside nodes with `data-theme="<name>"` (real CSS:
+ * `[data-theme="dark"] { --color-bg: #0b0b0b }`). Base tokens apply outside any theme.
  */
 export interface Theme {
   name: string;
@@ -267,38 +267,38 @@ export interface Document {
   id: string;
   name: string;
   pages: Page[];
-  /** Variáveis CSS do documento, ex. { '--color-primary': '#6c5ce7' }. */
+  /** Document CSS variables, e.g. { '--color-primary': '#6c5ce7' }. */
   tokens: Record<string, string>;
-  /** Grupo/descrição por token (chave = nome do token). Ausente quando vazio. */
+  /** Group/description per token (key = token name). Absent when empty. */
   tokenMeta?: Record<string, TokenMeta>;
-  /** Temas do documento, na ordem de exibição. Ausente quando vazio. */
+  /** Document themes, in display order. Absent when empty. */
   themes?: Theme[];
   fonts: FontRef[];
   /**
-   * CSS base do documento: ausente (padrão do Mockup Studio) ou `tailwind` (acrescenta o preflight
-   * do Tailwind v4 no canvas, no render e no código exportado).
+   * Document base CSS: absent (Mockup Studio default) or `tailwind` (adds the Tailwind v4
+   * preflight on the canvas, in the render and in the exported code).
    */
   cssBase?: 'tailwind';
-  /** Biblioteca de componentes do documento. Ausente quando vazia (arquivos antigos). */
+  /** Document component library. Absent when empty (old files). */
   components?: ComponentDef[];
   meta: DocumentMeta;
 }
 
-/** Localização de um nó dentro do documento. */
+/** Location of a node inside the document. */
 export interface NodePath {
   node: Node;
   page: Page;
-  /** Pai imediato; `null` quando o nó é um frame raiz da página. */
+  /** Immediate parent; `null` when the node is a root frame of the page. */
   parent: Node | null;
-  /** Índice do nó em `parent.children` (ou em `page.frames` quando raiz). */
+  /** Index of the node in `parent.children` (or in `page.frames` when root). */
   index: number;
-  /** Cadeia de ancestrais, do frame raiz até o pai imediato (vazia para frames raiz). */
+  /** Ancestor chain, from the root frame to the immediate parent (empty for root frames). */
   ancestors: Node[];
 }
 
-/* -------------------------------------------------------------------------------- vetores */
+/* -------------------------------------------------------------------------------- vectors */
 
-/** Retângulo do viewBox de um vetor (unidades do SVG). */
+/** viewBox rectangle of a vector (SVG units). */
 export interface VectorViewBox {
   x: number;
   y: number;
@@ -307,56 +307,56 @@ export interface VectorViewBox {
 }
 
 export interface VectorGradientStop {
-  /** 0 a 1. */
+  /** 0 to 1. */
   offset: number;
-  /** Cor CSS. */
+  /** CSS color. */
   color: string;
-  /** 0 a 1 (padrão 1). */
+  /** 0 to 1 (default 1). */
   opacity?: number;
 }
 
-/** Gradiente de preenchimento/traço. Coordenadas em fração da caixa do path (objectBoundingBox). */
+/** Fill/stroke gradient. Coordinates as a fraction of the path box (objectBoundingBox). */
 export interface VectorGradient {
   type: 'linear' | 'radial';
   stops: VectorGradientStop[];
-  /** Linear: início e fim (padrão 0,0 → 1,0). */
+  /** Linear: start and end (default 0,0 → 1,0). */
   x1?: number;
   y1?: number;
   x2?: number;
   y2?: number;
-  /** Radial: centro e raio (padrão 0.5, 0.5, 0.5). */
+  /** Radial: center and radius (default 0.5, 0.5, 0.5). */
   cx?: number;
   cy?: number;
   r?: number;
 }
 
-/** Tinta: cor CSS (`#111`, `none`, `currentColor`, `var(--x)`) ou gradiente. */
+/** Paint: CSS color (`#111`, `none`, `currentColor`, `var(--x)`) or gradient. */
 export type VectorPaint = string | VectorGradient;
 
-/** Um `<path>` editável, com estilos já resolvidos (sem herança de `<g>`/`<svg>`). */
+/** An editable `<path>`, with already-resolved styles (no inheritance from `<g>`/`<svg>`). */
 export interface VectorPath {
-  /** Id estável dentro do vetor (ex.: `p1`). */
+  /** Stable id within the vector (e.g.: `p1`). */
   id: string;
   /** Path data SVG (`M 0 0 L 10 0 Z`). */
   d: string;
   fill?: VectorPaint;
   stroke?: VectorPaint;
   strokeWidth?: number;
-  /** 0 a 1. */
+  /** 0 to 1. */
   opacity?: number;
   strokeLinecap?: 'butt' | 'round' | 'square';
   strokeLinejoin?: 'miter' | 'round' | 'bevel';
-  /** Ex.: `4 2`. */
+  /** E.g.: `4 2`. */
   strokeDasharray?: string;
   fillRule?: 'nonzero' | 'evenodd';
 }
 
 export interface Vector {
   viewBox: VectorViewBox;
-  /** Paths editáveis. Vazio quando o SVG importado não é simples (só `raw` vale). */
+  /** Editable paths. Empty when the imported SVG is not simple (only `raw` applies). */
   paths: VectorPath[];
-  /** Markup original (sanitizado), preservado intacto até a primeira edição dos paths. */
+  /** Original markup (sanitized), preserved intact until the first edit of the paths. */
   raw?: string;
-  /** Atributos extras do `<svg>` raiz mantidos na regeneração (ex.: `preserveAspectRatio`). */
+  /** Extra attributes of the root `<svg>` kept on regeneration (e.g.: `preserveAspectRatio`). */
   attrs?: Record<string, string>;
 }

@@ -1,13 +1,13 @@
 /**
- * Componentes no export React (ver `docs/COMPONENTES.md`, seção Exportação, e `docs/EXPORT.md`).
+ * Components in the React export (see `docs/COMPONENTS.md`, Export section, and `docs/EXPORT.md`).
  *
- * Cada principal usado pelas raízes exportadas vira `export interface XProps` + `export function X`,
- * com as props tipadas, as variantes como estilos/classes condicionais e os slots como
- * `ReactNode`. As instâncias viram JSX (`<Button variant="outline" label="Salvar" />`). Instância com
- * overrides em nós internos (ou qualquer coisa que as props não expressem) sai expandida no lugar.
+ * Each main component used by the exported roots becomes `export interface XProps` + `export function X`,
+ * with typed props, variants as conditional styles/classes and slots as `ReactNode`. Instances
+ * become JSX (`<Button variant="outline" label="Save" />`). An instance with overrides on inner
+ * nodes (or anything the props cannot express) is emitted expanded in place.
  *
- * Este módulo é chamado pelo `react.ts` por ganchos em `RenderCtx` (`components` e `scope`) e usa os
- * helpers de emissão dele (há um ciclo de import só entre funções, resolvido em tempo de chamada).
+ * This module is called by `react.ts` through hooks in `RenderCtx` (`components` and `scope`) and
+ * uses its emission helpers (there is an import cycle only between functions, resolved at call time).
  */
 import { expandInstance, getComponent, resolveProps, SLOT_ATTR } from '../components/expand.js';
 import { cssValueProblem } from '../styles.js';
@@ -30,18 +30,18 @@ import {
 } from './react.js';
 import type { RenderCtx } from './react.js';
 
-/** Ganchos usados pelo `renderNode` enquanto renderiza o corpo de um principal. */
+/** Hooks used by `renderNode` while rendering the body of a main component. */
 export interface ScopeHooks {
-  /** `className`/`style` do nó (props mescladas na raiz, variantes e `{{prop}}`). */
+  /** `className`/`style` of the node (props merged on the root, variants and `{{prop}}`). */
   styleProps(node: Node, ctx: RenderCtx): string[];
-  /** Valor de atributo (`"literal"` ou `{expressão}`) para um texto que pode ter `{{prop}}`. */
+  /** Attribute value (`"literal"` or `{expression}`) for a text that may contain `{{prop}}`. */
   attrValue(v: string, attr?: string): string;
   hasPlaceholder(v: string): boolean;
-  /** Filhos de texto do nó; `undefined` quando o texto é estático. */
+  /** Text children of the node; `undefined` when the text is static. */
   textChildren(node: Node, pre: boolean): string[] | undefined;
-  /** Filhos de um contêiner de slot (`{content ?? ...}`); `undefined` se o nó não é contêiner. */
+  /** Children of a slot container (`{content ?? ...}`); `undefined` if the node is not a container. */
   slotChildren(node: Node, depth: number, ctx: RenderCtx, pre: boolean): string[][] | undefined;
-  /** Expressão JS de um valor de estilo que pode ter `{{prop}}`. */
+  /** JS expression for a style value that may contain `{{prop}}`. */
   valueExpr(v: string): string;
 }
 
@@ -54,7 +54,7 @@ export interface ComponentSupport {
     isRoot: boolean,
     extraProps: string[],
   ): string[];
-  /** Código (interface + função) de cada principal usado, incluindo os usados por outros principais. */
+  /** Code (interface + function) of each main component used, including those used by other main components. */
   renderAll(): string[];
 }
 
@@ -62,12 +62,12 @@ export interface ComponentSupport {
 /* Props                                                                   */
 /* ====================================================================== */
 
-/** Atributos de URL (mesmo conjunto do `safeAttrs`). */
+/** URL attributes (same set as `safeAttrs`). */
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcdoc']);
 
 const PLACEHOLDER_RE = /\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g;
 
-/** Nomes que não servem de prop gerada (colidem com o que o componente já declara ou com JS). */
+/** Names unusable as a generated prop (they clash with what the component already declares or with JS). */
 const EXTRA_BAD_PROP_NAMES = [
   'className',
   'style',
@@ -86,11 +86,11 @@ const EXTRA_BAD_PROP_NAMES = [
 
 interface PropInfo {
   def: PropDef;
-  /** Identificador JS (nome da prop no JSX e variável no corpo). */
+  /** JS identifier (prop name in JSX and variable in the body). */
   ident: string;
-  /** Valores aceitos de um enum (opções + padrão). */
+  /** Accepted values of an enum (options + default). */
   options: string[];
-  /** Padrão tipado (ausente em slots). */
+  /** Typed default (absent for slots). */
   fallback?: PropValue;
 }
 
@@ -124,7 +124,7 @@ function literalOf(v: PropValue): string {
   return typeof v === 'string' ? jsString(v) : String(v);
 }
 
-/** `abre a, b fecha` numa linha; se passar de 90 colunas, um item por linha (o `emitElement` recua). */
+/** `open a, b close` on one line; if it exceeds 90 columns, one item per line (`emitElement` indents). */
 function listProp(open: string, items: string[], close: string, spaced = false): string {
   const flat = `${open}${spaced ? ' ' : ''}${items.join(', ')}${spaced ? ' ' : ''}${close}`;
   if (flat.length <= 90) return flat;
@@ -137,7 +137,7 @@ const jsDoc = (text: string, indent = '  '): string =>
     .replace(/\s*\n\s*/g, ' ')
     .trim()} */`;
 
-/** Textos de `{{prop}}`: pedaços literais e props conhecidas (placeholders desconhecidos ficam literais). */
+/** `{{prop}}` texts: literal pieces and known props (unknown placeholders stay literal). */
 type Part = { lit: string } | { prop: PropInfo };
 
 function splitParts(value: string, props: Map<string, PropInfo>): Part[] {
@@ -174,19 +174,19 @@ function templateLiteral(s: string): string {
 }
 
 /* ====================================================================== */
-/* Variantes                                                               */
+/* Variants                                                                */
 /* ====================================================================== */
 
 interface ChainItem {
   when: Record<string, PropValue>;
-  /** `undefined` remove a propriedade (`unsetStyle`). */
+  /** `undefined` removes the property (`unsetStyle`). */
   value: string | undefined;
 }
 
-/** Sobrescritas de variante de um nó do principal, por propriedade, na ordem das variantes. */
+/** Variant overrides of a main-component node, per property, in variant order. */
 interface NodePlan {
   style: Map<string, ChainItem[]>;
-  /** estado → propriedade → cadeia. */
+  /** state → property → chain. */
   states: Map<string, Map<string, ChainItem[]>>;
   text: ChainItem[];
 }
@@ -198,7 +198,7 @@ function push<K, V>(map: Map<K, V[]>, key: K, item: V): void {
 }
 
 /* ====================================================================== */
-/* Registro dos componentes                                                */
+/* Component registry                                                       */
 /* ====================================================================== */
 
 interface CompInfo {
@@ -208,14 +208,14 @@ interface CompInfo {
   props: PropInfo[];
   byName: Map<string, PropInfo>;
   slots: PropInfo[];
-  /** Árvore do principal já preparada (sem ocultos, estilos seguros). */
+  /** Prepared main-component tree (no hidden nodes, safe styles). */
   tree: Node;
-  /** Nós do principal fora de instâncias aninhadas, por id. */
+  /** Main-component nodes outside nested instances, by id. */
   own: Map<string, Node>;
-  /** Contêiner de slot (id do nó) → slot. */
+  /** Slot container (node id) → slot. */
   slotNodes: Map<string, PropInfo>;
   plans: Map<string, NodePlan>;
-  /** Avisos de overrides de variante que a exportação não representa. */
+  /** Warnings for variant overrides the export does not represent. */
   ignored: string[];
 }
 
@@ -227,7 +227,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   const infos = new Map<string, CompInfo>();
   const order: CompInfo[] = [];
 
-  /** Nome único do componente (e de `XProps`) entre os nomes já usados no arquivo. */
+  /** Unique component name (and of `XProps`) among the names already used in the file. */
   function allocName(def: ComponentDef): { name: string; propsName: string } {
     const stem = componentIdent(def.name);
     let name = stem;
@@ -262,7 +262,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     );
     const walk = (n: Node, isRoot: boolean): void => {
       own.set(n.id, n);
-      if (n.type === 'instance') return; // filhos de instância são conteúdo de slot dela
+      if (n.type === 'instance') return; // children of an instance are its slot content
       const s = isRoot ? undefined : isSlotContainer(n);
       const p = s === undefined ? undefined : slotProps.get(s);
       if (p && ![...slotNodes.values()].includes(p)) slotNodes.set(n.id, p);
@@ -327,13 +327,13 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
           ov.svg !== undefined ||
           ov.props
         ) {
-          info.ignored.push(key === '' ? '(raiz)' : key);
+          info.ignored.push(key === '' ? '(root)' : key);
         }
       }
     }
   }
 
-  /* ------------------------------ corpo ------------------------------ */
+  /* ------------------------------ body ------------------------------- */
 
   function makeScope(info: CompInfo): {
     hooks: ScopeHooks;
@@ -350,7 +350,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     };
     const hasPlaceholder = (v: string): boolean =>
       splitParts(v, info.byName).some((p) => 'prop' in p);
-    /** Expressão de string do valor: literal, a própria prop (string) ou template literal. */
+    /** String expression of the value: a literal, the prop itself (string) or a template literal. */
     const strExpr = (v: string, numberAsString: boolean): string => {
       const parts = splitParts(v, info.byName);
       if (!parts.some((p) => 'prop' in p)) return jsString(v);
@@ -367,7 +367,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
       );
     };
 
-    /** Condição de uma variante; `null` se ela cita props que não existem ou valores fora do tipo. */
+    /** Condition of a variant; `null` if it cites props that do not exist or values outside the type. */
     const cond = (when: Record<string, PropValue>): string | null => {
       const terms: string[] = [];
       const touched: PropInfo[] = [];
@@ -394,7 +394,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
       return terms.join(' && ');
     };
 
-    /** `c2 ? v2 : c1 ? v1 : base` (a última variante que bate ganha, como na expansão). */
+    /** `c2 ? v2 : c1 ? v1 : base` (the last matching variant wins, as in expansion). */
     const chain = (
       items: ChainItem[],
       baseValue: string | undefined,
@@ -419,7 +419,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
       const classExprs: string[] = [];
       const bare = (n: Node): Node => ({ ...n, children: [], classes: undefined });
 
-      // chaves com variantes (só as que alguma variante utilizável altera)
+      // keys with variants (only those that some usable variant changes)
       const styleChains = new Map<string, ChainItem[]>();
       for (const [k, items] of plan?.style ?? []) {
         const usable = hasUsableCond(items);
@@ -436,14 +436,14 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
         }
       }
 
-      // `{{prop}}` no estilo base: expressão inline (nunca vira classe)
+      // `{{prop}}` in the base style: inline expression (never becomes a class)
       for (const k of Object.keys(style)) {
         if (!styleChains.has(k) && hasPlaceholder(style[k])) {
           dyn.push([k, strExpr(style[k], true)]);
           delete style[k];
         }
       }
-      // estados: placeholders ficam com o valor padrão; propriedades com variante saem do estado base
+      // states: placeholders keep the default value; properties with a variant are left out of the base state
       let states: Record<string, Record<string, string>> | undefined;
       if (node.states) {
         states = {};
@@ -534,7 +534,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
         if (!isCompRoot && dyn.length === 0) out.push(styleProp(staticStyle, ctx.usage));
         else if (entries.length === 1 && isCompRoot) out.push('style={style}');
         else {
-          // valores vindos de props podem ser `string` onde o CSSProperties espera uma união de literais
+          // values coming from props may be `string` where CSSProperties expects a union of literals
           ctx.usage.cssProperties = true;
           out.push(listProp('style={{', entries, '} as CSSProperties}', true));
         }
@@ -548,7 +548,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
       valueExpr: (v) => strExpr(v, true),
       attrValue: (v, attr) => {
         if (!hasPlaceholder(v)) return attrValue(v);
-        // atributo de URL com `{{prop}}`: a prop pode trazer `javascript:`; passa pelo `safeUrl`
+        // URL attribute with `{{prop}}`: the prop may carry `javascript:`; it goes through `safeUrl`
         if (attr !== undefined && URL_ATTRS.has(attr.toLowerCase())) {
           base.usage.safeUrl = true;
           return `{safeUrl(${strExpr(v, false)})}`;
@@ -601,14 +601,14 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   function generate(info: CompInfo): string {
     const { hooks, used, usesChildren } = makeScope(info);
     const ctx: RenderCtx = { ...base, extractRepeats: false, slots: undefined, scope: hooks };
-    ctx.usage.cssProperties = true; // `style?: CSSProperties` em todo componente
+    ctx.usage.cssProperties = true; // `style?: CSSProperties` on every component
     const body = renderNode(info.tree, 2, ctx, false, false);
     const children = usesChildren();
 
     const out: string[] = [];
     if (info.ignored.length > 0) {
       out.push(
-        `// Nota: overrides de variante não exportados (atributos, ocultar, classes, imagem/svg ou props de aninhadas) em: ${[...new Set(info.ignored)].join(', ')}.`,
+        `// Note: variant overrides not exported (attributes, hidden, classes, image/svg or nested props) in: ${[...new Set(info.ignored)].join(', ')}.`,
       );
     }
     out.push(`export interface ${info.propsName} {`);
@@ -636,7 +636,10 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     }
     if (info.slots.length > 0) {
       base.usage.reactNode = true;
-      out.push(jsDoc(`Atalho para o slot "${info.slots[0].def.name}".`), '  children?: ReactNode;');
+      out.push(
+        jsDoc(`Shortcut for the "${info.slots[0].def.name}" slot.`),
+        '  children?: ReactNode;',
+      );
     }
     out.push('  className?: string;', '  style?: CSSProperties;', '}', '');
 
@@ -659,9 +662,9 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     return out.join('\n');
   }
 
-  /* --------------------------- instâncias ---------------------------- */
+  /* --------------------------- instances ----------------------------- */
 
-  /** Atributo JSX de uma prop da instância; `null` se o valor não cabe no tipo da prop. */
+  /** JSX attribute of an instance prop; `null` if the value does not fit the prop type. */
   function propAttr(p: PropInfo, value: PropValue, ctx: RenderCtx): string | null {
     if (typeof value === 'string' && ctx.scope?.hasPlaceholder(value)) {
       return p.def.type === 'string' || p.def.type === 'color'
@@ -692,11 +695,11 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   interface InstancePlan {
     info: CompInfo;
     attrs: string[];
-    /** Conteúdo por slot (apenas os preenchidos). */
+    /** Content per slot (only the filled ones). */
     slots: { prop: PropInfo; node: Node }[];
   }
 
-  /** Plano da instância como JSX, ou `null` se ela precisa sair expandida. */
+  /** Plan of the instance as JSX, or `null` if it must be emitted expanded. */
   function planInstance(node: Node, ctx: RenderCtx): InstancePlan | null {
     const def = getComponent(doc, node.componentId);
     if (!def) return null;
@@ -708,7 +711,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     const attrs: string[] = [];
     for (const k of Object.keys(node.props ?? {})) {
       const p = info.byName.get(k);
-      if (!p || p.def.type === 'slot') return null; // prop não declarada: só a expansão a aplica
+      if (!p || p.def.type === 'slot') return null; // undeclared prop: only the expansion applies it
     }
     for (const p of info.props) {
       if (p.def.type === 'slot' || !node.props || !(p.def.name in node.props)) continue;
@@ -734,7 +737,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   }
 
   function instanceStyle(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
-    // o estilo da instância vai sempre inline: ganha das classes do componente (ex. `w-full` x `width`)
+    // the instance style is always inline: it beats the component's classes (e.g. `w-full` vs `width`)
     const { style } = styleParts(
       { ...node, children: [], states: undefined, classes: undefined },
       { ...ctx, mode: 'inline' },
@@ -753,7 +756,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   }
 
   function slotPropValue(node: Node, ctx: RenderCtx, pre: boolean, name: string): string {
-    // linhas relativas à prop; o `emitElement` recua as continuações
+    // lines relative to the prop; `emitElement` indents the continuations
     const entries = renderChildren(node.children, 1, ctx, pre, node);
     const single = entries.length === 1 && !entries[0][0].trimStart().startsWith('{');
     const lines = single
@@ -772,11 +775,11 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   ): string[] {
     const def = getComponent(doc, node.componentId);
     const expanded = prepareTree(expandInstance(doc, node));
-    // `componentId`/`props` ficam como marcador na raiz expandida; o tipo já é o da raiz do principal
+    // `componentId`/`props` stay as a marker on the expanded root; the type is already the main component root's
     const lines = renderNode(expanded, depth, ctx, pre, isRoot, extraProps);
     if (isRoot || extraProps.length > 0 || !def) return lines;
     return [
-      `${pad(depth)}{/* instância de ${def.name.replace(/\*\//g, '* /')} com overrides */}`,
+      `${pad(depth)}{/* instance of ${def.name.replace(/\*\//g, '* /')} with overrides */}`,
       ...lines,
     ];
   }
@@ -798,7 +801,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     },
     renderAll() {
       const out: string[] = [];
-      // `order` cresce enquanto os principais registram os que usam
+      // `order` grows while the main components register the ones they use
       for (let i = 0; i < order.length; i++) out.push(generate(order[i]));
       return out;
     },
@@ -806,7 +809,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
   return support;
 }
 
-/** Valor com os `{{prop}}` trocados pelo padrão do componente (estados, que não aceitam expressão). */
+/** Value with the `{{prop}}` replaced by the component default (states, which do not accept expressions). */
 function defaultsOf(info: CompInfo, v: string): string {
   return v.replace(PLACEHOLDER_RE, (m, name: string) => {
     const p = info.byName.get(name);
@@ -814,7 +817,7 @@ function defaultsOf(info: CompInfo, v: string): string {
   });
 }
 
-/** A condição da variante cita só props existentes e valores do tipo (mesmas regras do `cond`). */
+/** The variant condition cites only existing props and values of the right type (same rules as `cond`). */
 function validCond(info: CompInfo, when: Record<string, PropValue>): boolean {
   const entries = Object.entries(when);
   if (entries.length === 0) return false;

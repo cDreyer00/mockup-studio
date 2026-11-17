@@ -1,6 +1,6 @@
 /**
- * Busca de nós num documento (texto, nome, tag HTML, classe exportada, id e atributos) e texto
- * pesquisável do documento (para a busca de arquivos). Sem acento e sem diferenciar caixa.
+ * Node search in a document (text, name, HTML tag, exported class, id and attributes) and the
+ * document's searchable text (for file search). Accent-insensitive and case-insensitive.
  */
 import { classNameFor } from './html.js';
 import type { Document, Node, Page } from './types.js';
@@ -14,15 +14,15 @@ export interface NodeMatch {
   tag: string;
   pageId: string;
   pageName: string;
-  /** Frame raiz que contém o nó. */
+  /** Root frame that contains the node. */
   frameId: string;
-  /** Campo que casou primeiro. */
+  /** Field that matched first. */
   field: SearchField;
-  /** Trecho do valor que casou (até ~80 caracteres). */
+  /** Excerpt of the value that matched (up to ~80 characters). */
   snippet: string;
 }
 
-/** Minúsculas e sem acentos/diacríticos. */
+/** Lowercase and without accents/diacritics. */
 export function foldText(s: string): string {
   return s
     .normalize('NFD')
@@ -31,27 +31,28 @@ export function foldText(s: string): string {
 }
 
 interface ParsedQuery {
-  /** Termos livres (todos precisam aparecer em algum campo). */
+  /** Free terms (all must appear in some field). */
   terms: string[];
-  /** Filtros por campo: `tag:button`, `name:hero`, `text:preço`, `class:card`, `id:tx_`. */
+  /** Per-field filters: `tag:button`, `name:hero`, `text:price`, `class:card`, `id:tx_`. */
   fields: Partial<Record<SearchField, string[]>>;
 }
 
 const FIELD_ALIASES: Record<string, SearchField> = {
   text: 'text',
-  texto: 'text',
   name: 'name',
-  nome: 'name',
   tag: 'tag',
   class: 'class',
-  classe: 'class',
   id: 'id',
   attr: 'attr',
   data: 'data',
+  // Legacy (pt-BR) aliases, still accepted in queries for backward compatibility.
+  texto: 'text',
+  nome: 'name',
+  classe: 'class',
   dados: 'data',
 };
 
-/** Divide a consulta em termos (aspas agrupam) e filtros `campo:valor`. */
+/** Splits the query into terms (quotes group) and `field:value` filters. */
 export function parseSearchQuery(query: string): ParsedQuery {
   const out: ParsedQuery = { terms: [], fields: {} };
   const re = /(\w+):"([^"]*)"|(\w+):(\S+)|"([^"]*)"|(\S+)/g;
@@ -115,7 +116,7 @@ function matchNode(node: Node, q: ParsedQuery): { field: SearchField; snippet: s
     first ??= { field: hit.k, snippet: snippetOf(hit.v, hit.folded, t) };
   }
   if (first) return first;
-  // Só filtros: o trecho é o do primeiro filtro.
+  // Filters only: the excerpt is from the first filter.
   const [key, wanted] = (Object.entries(q.fields)[0] ?? []) as [SearchField?, string[]?];
   if (!key) return null;
   const hit = fields.find((x) => x.k === key && x.folded.includes(wanted?.[0] ?? ''));
@@ -123,16 +124,16 @@ function matchNode(node: Node, q: ParsedQuery): { field: SearchField; snippet: s
 }
 
 export interface SearchNodesOptions {
-  /** Máximo de resultados (padrão 50). */
+  /** Maximum number of results (default 50). */
   limit?: number;
-  /** Restringe a uma página. */
+  /** Restricts to one page. */
   pageId?: string;
 }
 
 /**
- * Busca nós por texto, nome, tag, classe exportada (`classNameFor`), id, atributos e dados de
- * repetidores. Termos livres precisam aparecer todos (em qualquer campo); `tag:button`,
- * `name:hero`, `text:"fale conosco"`, `class:card`, `id:tx_`, `attr:href` filtram por campo.
+ * Searches nodes by text, name, tag, exported class (`classNameFor`), id, attributes and repeater
+ * data. Free terms must all appear (in any field); `tag:button`,
+ * `name:hero`, `text:"contact us"`, `class:card`, `id:tx_`, `attr:href` filter by field.
  */
 export function searchNodes(
   doc: Document,
@@ -169,7 +170,7 @@ export function searchNodes(
   return out;
 }
 
-/** Texto pesquisável do documento: nome, páginas, nomes e textos dos nós (limitado a `max`). */
+/** Searchable text of the document: name, pages, node names and texts (capped at `max`). */
 export function documentText(doc: Document, max = 200_000): string {
   const parts: string[] = [doc.name];
   let size = doc.name.length;

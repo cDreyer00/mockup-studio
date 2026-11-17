@@ -7,7 +7,7 @@ const FORMATS: Record<string, string> = {
   otf: 'opentype',
 };
 
-/** Extensões de arquivo de fonte aceitas em `assets/fonts/`. */
+/** Font file extensions accepted in `assets/fonts/`. */
 export const FONT_EXTS = Object.keys(FORMATS);
 // eslint-disable-next-line no-control-regex
 const SAFE_TEXT = /^[^<>{};"\\\x60\u0000-\u001f\u007f]+$/;
@@ -15,14 +15,14 @@ const cssString = (s: string): string =>
   // eslint-disable-next-line no-control-regex
   '"' + s.replace(/[<>{};"'\\\x60\u0000-\u001f\u007f]/g, '') + '"';
 
-/** URL dentro de url("..."): ';' e ',' são válidos (data URL), o resto que escapa do CSS/HTML é removido. */
+/** URL inside url("..."): ';' and ',' are valid (data URL); anything else that escapes CSS/HTML is removed. */
 const cssUrl = (s: string): string =>
   // eslint-disable-next-line no-control-regex
   '"' + s.replace(/[<>"'\\\x60\u0000-\u001f\u007f]/g, '') + '"';
 
 const STYLES = new Set(['normal', 'italic', 'oblique']);
 
-/** Arquivo relativo, sem ".." nem esquema, e sem caracteres que escapem do CSS/HTML. */
+/** Relative file, with no ".." or scheme, and no characters that escape CSS/HTML. */
 function safeFile(file: unknown): file is string {
   return (
     typeof file === 'string' &&
@@ -61,19 +61,19 @@ function fontFaces(font: FontRef, urlOf: (file: string) => string, display: Font
   });
 }
 
-/** `block` deixa o render determinístico (sem texto trocando de fonte); `swap` é o do código entregue. */
+/** `block` keeps rendering deterministic (no text swapping fonts); `swap` is used for the delivered code. */
 export type FontDisplay = 'block' | 'swap';
 
 /**
- * Regras `@font-face` das fontes embutidas no documento (`source: 'file'`, arquivos relativos a
- * `assets/`). `urlOf` resolve o arquivo para a URL usada no contexto (ex.: `/assets/<docId>/<file>`
- * no editor e na página de render, `assets/<file>` no HTML exportado). Fontes locais não geram regra.
+ * `@font-face` rules for the fonts embedded in the document (`source: 'file'`, files relative to
+ * `assets/`). `urlOf` resolves the file to the URL used in the context (e.g. `/assets/<docId>/<file>`
+ * in the editor and the render page, `assets/<file>` in the exported HTML). Local fonts generate no rule.
  *
- * Convenção de `FontRef`: `files[i]` tem peso `weights[i]` e estilo `styles[i]` quando as listas
- * têm o mesmo tamanho; senão todos os arquivos cobrem o intervalo de `weights` (padrão 100–900).
+ * `FontRef` convention: `files[i]` has weight `weights[i]` and style `styles[i]` when the lists
+ * have the same length; otherwise all files cover the `weights` range (default 100–900).
  *
- * `display` (padrão `block`, usado no render e no editor) vira o `font-display`; os formatos de
- * exportação passam `swap`.
+ * `display` (default `block`, used in the render and the editor) becomes the `font-display`; the
+ * export formats pass `swap`.
  */
 export function fontFaceCss(
   doc: Pick<Document, 'fonts'>,

@@ -18,30 +18,30 @@ export const DESTRUCTIVE: Annotations = { readOnlyHint: false, destructiveHint: 
 export const docIdField = z
   .string()
   .optional()
-  .describe('Id do documento, ex.: "doc_ab12cd34" (padrão: documento ativo; veja list_documents).');
+  .describe('Document id, e.g. "doc_ab12cd34" (default: active document; see list_documents).');
 
-/** Erro de uso (mensagem em português dizendo o que fazer); vira `isError` na resposta. */
+/** Usage error (message saying what to do); becomes `isError` in the response. */
 export class ToolError extends Error {}
 
-/** Resultado de ferramenta com imagens (a imagem vem antes do texto). */
+/** Tool result with images (the image comes before the text). */
 export interface RichResult {
   text: string;
   images?: { data: string; mimeType: string }[];
 }
 
 export interface McpServerOptions {
-  /** Motor de render (Electron). Ausente: ferramentas de screenshot informam que não há render. */
+  /** Render engine (Electron). Absent: screenshot tools report that there is no render. */
   render?: RenderProvider;
   dataDir?: string;
-  /** Porta do daemon (para a mensagem de render indisponível). */
+  /** Daemon port (for the render-unavailable message). */
   getPort?: () => number;
-  /** Serviços da fase 9 (scripts, remix, assistente). */
+  /** Phase 9 services (scripts, remix, assistant). */
   services?: DaemonServices;
-  /** Sessão aberta por um agente do assistente (`/mcp?turn=<token>`): liga as ops ao turno. */
+  /** Session opened by an assistant agent (`/mcp?turn=<token>`): ties the ops to the turn. */
   turn?: TurnResolver;
 }
 
-/** Configuração de uma ferramenta. `example` é uma chamada correta, citada nos erros de parâmetro. */
+/** Tool configuration. `example` is a correct call, quoted in parameter errors. */
 export interface ToolConfig<S extends z.ZodRawShape> {
   title: string;
   description: string;
@@ -59,18 +59,18 @@ export interface ToolContext {
     cfg: ToolConfig<S>,
     handler: (args: z.infer<z.ZodObject<S>>) => Promise<string | RichResult> | string | RichResult,
   ): void;
-  /** Nó para ESCRITA (real, ou id virtual/nó de principal): instâncias não são expandidas. */
+  /** Node for WRITING (real, or virtual id/main component node): instances are not expanded. */
   requireNode(doc: Document, id: string): NodePath;
   /**
-   * Nó para LEITURA: aceita também ids virtuais (`in_x/...`) e nós de principais, lendo do documento
-   * expandido (instância = HTML expandido); `doc` é o documento em que o nó vive.
+   * Node for READING: also accepts virtual ids (`in_x/...`) and main component nodes, reading from
+   * the expanded document (instance = expanded HTML); `doc` is the document the node lives in.
    */
   readNode(doc: Document, id: string): { path: NodePath; doc: Document };
   summaryOf(doc: Document, ids: string[], fallbackIds?: string[]): string;
   apply(docId: string, ops: Op[], label?: string): ReturnType<DocumentStore['applyOps']>;
   /**
-   * Grupo de undo da sessão: o do turno do assistente que abriu a sessão, ou `undefined` (sessão
-   * comum). Lança `ToolError` se o turno já terminou (o agente cancelado não escreve mais).
+   * Undo group of the session: that of the assistant turn that opened the session, or `undefined`
+   * (regular session). Throws `ToolError` if the turn has already ended (a canceled agent no longer writes).
    */
   group(): string | undefined;
   selectedOrFirstFrame(docId: string, doc: Document): string;

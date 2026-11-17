@@ -50,7 +50,7 @@ function raw(extra: { components?: unknown[]; nodes?: Raw[] } = {}): Record<stri
 const button = {
   id: 'cp_btn',
   name: 'Button',
-  description: 'Botão',
+  description: 'Button',
   props: [{ name: 'label', type: 'string', default: 'OK' }],
   root: n('el_btn', 'element', 'button', {
     children: [
@@ -60,26 +60,26 @@ const button = {
   variants: [{ when: { label: 'X' }, overrides: { '': { style: { color: 'red' } } } }],
 };
 
-describe('schema com componentes', () => {
-  it('documento antigo (sem components) continua igual', () => {
+describe('schema with components', () => {
+  it('an old document (without components) stays the same', () => {
     const text = read('../../../../examples/landing.mockup.json');
     const doc = parseDocument(text);
     expect('components' in doc).toBe(false);
     const out = serializeDocument(doc);
     expect(out).not.toContain('"components"');
     expect(serializeDocument(parseDocument(out))).toBe(out);
-    // components vazio também some.
+    // An empty components array is dropped too.
     expect('components' in parseDocument({ ...JSON.parse(text), components: [] })).toBe(false);
   });
 
-  it('round-trip com componentes e instâncias, ordem estável', () => {
+  it('round-trip with components and instances, stable order', () => {
     const doc = parseDocument(
       raw({
         components: [button],
         nodes: [
           n('in_1', 'instance', 'button', {
             componentId: 'cp_btn',
-            props: { label: 'Salvar' },
+            props: { label: 'Save' },
             overrides: { tx_lbl: { text: 'Y', style: { 'font-weight': '700' } } },
           }),
         ],
@@ -119,7 +119,7 @@ describe('schema com componentes', () => {
     ]);
   });
 
-  it('instância: campos vazios somem, estilos inseguros e svg perigoso são limpos', () => {
+  it('instance: empty fields are dropped, unsafe styles and dangerous svg are cleaned', () => {
     const doc = parseDocument(
       raw({
         components: [button],
@@ -149,26 +149,26 @@ describe('schema com componentes', () => {
     expect('overrides' in i2).toBe(false);
   });
 
-  it('recusa instância sem componente, raiz frame, nomes e ids repetidos', () => {
+  it('rejects an instance without a component, a frame root, repeated names and ids', () => {
     const bad = (input: Record<string, unknown>, re: RegExp): void => {
       const r = validateDocument(input);
       expect(r.ok).toBe(false);
       if (!r.ok) expect(r.errors.join('; ')).toMatch(re);
     };
     bad(raw({ nodes: [n('in_1', 'instance', 'div')] }), /componentId/);
-    bad(raw({ components: [{ ...button, root: { ...button.root, type: 'frame' } }] }), /raiz/);
+    bad(raw({ components: [{ ...button, root: { ...button.root, type: 'frame' } }] }), /root/);
     bad(
       raw({ components: [button, { ...button, id: 'cp_b2', root: n('el_b2', 'element', 'div') }] }),
-      /nome duplicado/,
+      /duplicate name/,
     );
     bad(raw({ components: [button], nodes: [n('tx_lbl', 'text', 'p')] }), /tx_lbl/);
   });
 });
 
-describe('variante sem condição (when vazio)', () => {
+describe('variant without a condition (empty when)', () => {
   const empty = { when: {}, overrides: { '': { style: { color: 'blue' } } } };
 
-  it('na leitura de arquivo é descartada (o documento continua válido)', () => {
+  it('is dropped when reading a file (the document stays valid)', () => {
     const doc = parseDocument(
       raw({
         components: [{ ...button, variants: [empty, ...button.variants, { overrides: {} }] }],
@@ -177,8 +177,8 @@ describe('variante sem condição (when vazio)', () => {
     expect(doc.components![0]!.variants).toEqual(button.variants);
   });
 
-  it('nas ops é recusada com mensagem clara (schema e handler)', () => {
-    const msg = /variante sem condição: mova os estilos para o principal/;
+  it('is rejected in ops with a clear message (schema and handler)', () => {
+    const msg = /variant without a condition: move the styles to the main component/;
     expect(() =>
       parseOp({ type: 'addComponent', component: { ...button, variants: [empty] } }),
     ).toThrow(msg);
@@ -186,7 +186,7 @@ describe('variante sem condição (when vazio)', () => {
       parseOp({ type: 'updateComponent', componentId: 'cp_btn', variants: [empty] }),
     ).toThrow(msg);
     const doc = parseDocument(raw({ components: [button] }));
-    // Sem passar pelo schema (planejadores, editor): o handler também recusa.
+    // Without going through the schema (planners, editor): the handler also rejects it.
     expect(() =>
       applyOp(doc, { type: 'updateComponent', componentId: 'cp_btn', variants: [empty] }),
     ).toThrow(msg);
@@ -200,7 +200,7 @@ describe('variante sem condição (when vazio)', () => {
     expect(() => applyOp(doc, { type: 'addComponent', component: other })).toThrow(msg);
   });
 
-  it('a expansão ignora uma variante vazia que escape da validação', () => {
+  it('expansion ignores an empty variant that escapes validation', () => {
     const doc = parseDocument(
       raw({
         components: [button],
@@ -214,7 +214,7 @@ describe('variante sem condição (when vazio)', () => {
 });
 
 describe('kit shadcn-like', () => {
-  it('nenhuma variante do kit tem when vazio', () => {
+  it('no kit variant has an empty when', () => {
     const json = JSON.parse(read('../../../../kits/shadcn-like.mockup.json')) as {
       components: { variants?: { when?: Record<string, unknown> }[] }[];
     };
@@ -225,7 +225,7 @@ describe('kit shadcn-like', () => {
 
   const text = read('../../../../kits/shadcn-like.mockup.json');
 
-  it('carrega e expande a vitrine sem avisos nem placeholders sobrando', () => {
+  it('loads and expands the showcase with no warnings or leftover placeholders', () => {
     const kit = parseDocument(text);
     expect(kit.components!.map((c) => c.name)).toEqual([
       'Button',
@@ -244,7 +244,7 @@ describe('kit shadcn-like', () => {
     expect(warnings).toEqual([]);
     const json = JSON.stringify(frames);
     expect(json).not.toContain('{{');
-    expect(json).not.toContain('Componente ausente');
+    expect(json).not.toContain('Component missing');
     expect(json).not.toContain('"type":"instance"');
     expect(JSON.stringify(expandDocument(kit).pages)).toBe(
       JSON.stringify(kit.pages.map((p) => ({ ...p, frames: frames }))),

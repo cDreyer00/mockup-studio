@@ -8,9 +8,9 @@ import { exportSvg } from './svg.js';
 import { exportTailwind, tailwindThemeCss } from './tailwind.js';
 
 function docWithFont(): { doc: Document; frameId: string } {
-  const doc = createDocument('Fontes', { id: 'doc_fonts001' });
+  const doc = createDocument('Fonts', { id: 'doc_fonts001' });
   const frame = createNodeFromTag('div', { isRoot: true });
-  frame.children = [createNodeFromTag('p', { text: 'Oi' })];
+  frame.children = [createNodeFromTag('p', { text: 'Hi' })];
   doc.pages[0]!.frames.push(frame);
   doc.fonts = [
     { family: 'Inter', source: 'file', files: ['fonts/inter.woff2'], weights: [400, 500, 700] },
@@ -19,7 +19,7 @@ function docWithFont(): { doc: Document; frameId: string } {
 }
 
 describe('font-display', () => {
-  it('fontFaceCss usa block por padrão (render determinístico) e aceita swap', () => {
+  it('fontFaceCss uses block by default (deterministic render) and accepts swap', () => {
     const { doc } = docWithFont();
     const urlOf = (f: string) => f;
     expect(fontFaceCss(doc, urlOf)).toContain('font-display:block');
@@ -27,7 +27,7 @@ describe('font-display', () => {
     expect(fontFaceCss(doc, urlOf, 'swap')).toContain('font-weight:400 700');
   });
 
-  it('formatos de entrega exportam swap, nunca block', () => {
+  it('delivery formats export swap, never block', () => {
     const { doc, frameId } = docWithFont();
     const outs = [
       exportHtml(doc, { nodeIds: [frameId] }),

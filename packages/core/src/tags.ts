@@ -1,12 +1,12 @@
-/** Validação de tags, atributos e tokens na fronteira do modelo (anti-XSS e anti-injeção). */
+/** Validation of tags, attributes and tokens at the model boundary (anti-XSS and anti-injection). */
 
 export const TAG_RE = /^[a-z][a-z0-9-]*$/;
 
 /**
- * Tags que nunca podem existir em um nó: executam código, carregam outro documento, mudam o
- * namespace de parsing (`math`, filhos de SVG) ou guardam conteúdo inerte que vira HTML ao ser
- * clonado (`template`, `noscript`). `svg` não entra aqui porque é a tag do nó `type: 'svg'`
- * (renderizado isolado num `<img>`); em nós de outro tipo ela é recusada por `nodeTagProblem`.
+ * Tags that can never exist on a node: they execute code, load another document, change the
+ * parsing namespace (`math`, SVG children) or hold inert content that becomes HTML when
+ * cloned (`template`, `noscript`). `svg` is not listed here because it is the tag of the
+ * `type: 'svg'` node (rendered isolated in an `<img>`); on nodes of another type it is rejected by `nodeTagProblem`.
  */
 export const BLOCKED_TAGS = new Set([
   'script',
@@ -29,20 +29,20 @@ export const BLOCKED_TAGS = new Set([
   'portal',
 ]);
 
-/** Tags reservadas a um tipo de nó: `img` só em nó `image`, `svg` só em nó `svg` (e vice-versa). */
+/** Tags reserved for a node type: `img` only on an `image` node, `svg` only on an `svg` node (and vice versa). */
 export const TYPED_TAGS: ReadonlyMap<string, string> = new Map([
   ['img', 'image'],
   ['svg', 'svg'],
   ['video', 'video'],
 ]);
 
-/** Tipos de nó com tag fixa que não é exclusiva deles (efeitos e embeds são sempre `div`). */
+/** Node types with a fixed tag that is not exclusive to them (effects and embeds are always `div`). */
 export const FIXED_TAG_TYPES: ReadonlyMap<string, string> = new Map([
   ['effect', 'div'],
   ['embed', 'div'],
 ]);
 
-/** Tipos de nó folha (não aceitam filhos). */
+/** Leaf node types (do not accept children). */
 export const LEAF_TYPES: ReadonlySet<string> = new Set([
   'text',
   'image',
@@ -52,7 +52,7 @@ export const LEAF_TYPES: ReadonlySet<string> = new Set([
   'embed',
 ]);
 
-/** Tags void do HTML: não têm filhos nem fechamento. */
+/** HTML void tags: they have no children and no closing tag. */
 export const VOID_TAGS = new Set([
   'area',
   'base',
@@ -72,10 +72,10 @@ export const VOID_TAGS = new Set([
 export const ATTR_NAME_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
 export const TOKEN_NAME_RE = /^--[a-zA-Z0-9_-]+$/;
 
-/** Nome de tema: vai para `data-theme="..."` e para o seletor `[data-theme="..."]`. */
+/** Theme name: goes into `data-theme="..."` and the `[data-theme="..."]` selector. */
 export const THEME_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 
-/** Atributo HTML que aplica um tema a um nó (frame) e aos descendentes. */
+/** HTML attribute that applies a theme to a node (frame) and its descendants. */
 export const THEME_ATTR = 'data-theme';
 
 export function isValidTag(tag: string): boolean {
@@ -84,23 +84,23 @@ export function isValidTag(tag: string): boolean {
   return TAG_RE.test(t) && !BLOCKED_TAGS.has(t);
 }
 
-/** trim + minúsculas; lança se a tag for inválida ou bloqueada (em qualquer caixa). */
+/** trim + lowercase; throws if the tag is invalid or blocked (in any case). */
 export function normalizeTag(tag: string): string {
   const t = typeof tag === 'string' ? tag.trim().toLowerCase() : '';
   if (!TAG_RE.test(t)) {
     throw new Error(
-      `Tag inválida: "${String(tag)}" (use letras minúsculas, dígitos e hífen, começando por letra)`,
+      `Invalid tag: "${String(tag)}" (use lowercase letters, digits and hyphens, starting with a letter)`,
     );
   }
   if (BLOCKED_TAGS.has(t)) {
-    throw new Error(`Tag inválida: "${String(tag)}" é bloqueada por segurança`);
+    throw new Error(`Invalid tag: "${String(tag)}" is blocked for security`);
   }
   return t;
 }
 
 /**
- * Mensagem de erro se a tag (já normalizada) não servir para o nó: `img`/`svg` fora do tipo
- * correspondente, nó `image`/`svg` com outra tag, ou tag void em nó de texto ou com filhos.
+ * Error message if the (already normalized) tag does not suit the node: `img`/`svg` outside the
+ * matching type, an `image`/`svg` node with another tag, or a void tag on a text node or with children.
  */
 export function nodeTagProblem(
   node: { id: string; type: string; children: readonly unknown[] },
@@ -108,32 +108,32 @@ export function nodeTagProblem(
 ): string | null {
   for (const [typedTag, type] of TYPED_TAGS) {
     if (node.type === type && tag !== typedTag) {
-      return `O nó "${node.id}" (${type}) só aceita a tag "${typedTag}"`;
+      return `Node "${node.id}" (${type}) only accepts the tag "${typedTag}"`;
     }
     if (tag === typedTag && node.type !== type) {
-      return `A tag "${tag}" é exclusiva de nós do tipo ${type}; o nó "${node.id}" é ${node.type}`;
+      return `The tag "${tag}" is exclusive to nodes of type ${type}; node "${node.id}" is ${node.type}`;
     }
   }
   const fixed = FIXED_TAG_TYPES.get(node.type);
   if (fixed && tag !== fixed) {
-    return `O nó "${node.id}" (${node.type}) só aceita a tag "${fixed}"`;
+    return `Node "${node.id}" (${node.type}) only accepts the tag "${fixed}"`;
   }
   if (VOID_TAGS.has(tag) && node.type === 'text') {
-    return `A tag "${tag}" não tem conteúdo e não serve para o nó de texto "${node.id}"`;
+    return `The tag "${tag}" has no content and does not suit the text node "${node.id}"`;
   }
   if (VOID_TAGS.has(tag) && node.children.length > 0) {
-    return `A tag "${tag}" não pode ter filhos, mas o nó "${node.id}" tem ${node.children.length}`;
+    return `The tag "${tag}" cannot have children, but node "${node.id}" has ${node.children.length}`;
   }
   return null;
 }
 
-/** Mensagem de erro se o nome não puder ser usado em `attrs` (sintaxe inválida ou handler `on*`). */
+/** Error message if the name cannot be used in `attrs` (invalid syntax or `on*` handler). */
 export function attrNameProblem(name: string): string | null {
   if (!ATTR_NAME_RE.test(name)) {
-    return `Nome de atributo inválido: "${name}" (use letras, dígitos, "-", "_", ":" ou ".")`;
+    return `Invalid attribute name: "${name}" (use letters, digits, "-", "_", ":" or ".")`;
   }
   if (/^on/i.test(name)) {
-    return `Atributo "${name}" não é permitido: handlers de evento (on*) são bloqueados por segurança`;
+    return `Attribute "${name}" is not allowed: event handlers (on*) are blocked for security`;
   }
   return null;
 }

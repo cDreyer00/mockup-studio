@@ -7,20 +7,20 @@ import { READ, ToolError, WRITE, DESTRUCTIVE, type ToolContext } from '../contex
 const pathField = z
   .string()
   .optional()
-  .describe('Caminho absoluto do .mockup.json, ex.: "C:/projetos/site.mockup.json".');
+  .describe('Absolute path of the .mockup.json, e.g.: "C:/projects/site.mockup.json".');
 
 const line = (f: FileEntry): string => {
   const parts = [f.path];
-  parts.push(`pasta: ${f.folder ?? '-'}`);
+  parts.push(`folder: ${f.folder ?? '-'}`);
   if (f.tags.length) parts.push(`tags: ${f.tags.join(', ')}`);
-  if (f.favorite) parts.push('favorito');
-  parts.push(f.missing ? 'ARQUIVO AUSENTE' : `${f.pages} pág., ${f.frames} frames`);
-  if (f.open) parts.push(`aberto (${f.docId})`);
-  if (f.match) parts.push(`casou em ${f.match.field}: ${f.match.snippet}`);
+  if (f.favorite) parts.push('favorite');
+  parts.push(f.missing ? 'FILE MISSING' : `${f.pages} page(s), ${f.frames} frame(s)`);
+  if (f.open) parts.push(`open (${f.docId})`);
+  if (f.match) parts.push(`matched in ${f.match.field}: ${f.match.snippet}`);
   return parts.join(' | ');
 };
 
-/** Converte erros do índice em erros de ferramenta (mensagem em português já pronta). */
+/** Converts index errors into tool errors (message already ready). */
 async function guard<T>(fn: () => Promise<T> | T): Promise<T> {
   try {
     return await fn();
@@ -34,23 +34,23 @@ export function registerFilesTools(ctx: ToolContext): void {
   const { tool, store, opts } = ctx;
   const index = (): FileIndex => getFileIndex(store, opts.dataDir);
 
-  /** Caminho do arquivo a partir de `path` (absoluto) ou do `docId` de um documento aberto. */
+  /** File path from `path` (absolute) or from the `docId` of an open document. */
   const resolvePath = (p?: string, docId?: string): string => {
     if (docId) {
       const info = store.getInfo(docId);
       if (!info.path)
         throw new ToolError(
-          `O documento ${docId} ainda não tem arquivo em disco. Salve-o antes (save_document).`,
+          `Document ${docId} has no file on disk yet. Save it first (save_document).`,
         );
       return info.path;
     }
     if (!p)
       throw new ToolError(
-        'Informe path (caminho absoluto do .mockup.json) ou docId (documento aberto).',
+        'Provide path (absolute path of the .mockup.json) or docId (open document).',
       );
     if (!path.isAbsolute(p))
       throw new ToolError(
-        `path deve ser absoluto: "${p}". Use o caminho completo (veja list_files) ou passe docId.`,
+        `path must be absolute: "${p}". Use the full path (see list_files) or pass docId.`,
       );
     return p;
   };
@@ -58,31 +58,31 @@ export function registerFilesTools(ctx: ToolContext): void {
   tool(
     'list_files',
     {
-      title: 'Listar arquivos',
+      title: 'List files',
       description:
-        'Lista os .mockup.json conhecidos (abertos, recentes e registrados): pasta, tags, favorito, páginas/frames e trecho que casou; no topo, pastas e tags. folder filtra (recursive inclui subpastas; "/" = sem pasta); query busca em nome, tags e conteúdo.',
-      example: { folder: 'Clientes', recursive: true, query: 'plano mensal' },
+        'Lists the known .mockup.json files (open, recent and registered): folder, tags, favorite, pages/frames and the matching snippet; folders and tags on top. folder filters (recursive includes subfolders; "/" = no folder); query searches name, tags and content.',
+      example: { folder: 'Clients', recursive: true, query: 'monthly plan' },
       inputSchema: {
         folder: z
           .string()
           .optional()
-          .describe('Pasta virtual, ex.: "Clientes/Acme" (padrão: todos os arquivos).'),
-        tag: z.string().optional().describe('Só arquivos com esta tag, ex.: "rascunho".'),
+          .describe('Virtual folder, e.g.: "Clients/Acme" (default: all files).'),
+        tag: z.string().optional().describe('Only files with this tag, e.g.: "draft".'),
         query: z
           .string()
           .optional()
-          .describe('Texto buscado no nome, nas tags e no conteúdo, ex.: "plano mensal".'),
-        favorites: z.boolean().optional().describe('true: só favoritos.'),
-        recursive: z.boolean().optional().describe('true: inclui as subpastas de folder.'),
+          .describe('Text searched in the name, tags and content, e.g.: "monthly plan".'),
+        favorites: z.boolean().optional().describe('true: favorites only.'),
+        recursive: z.boolean().optional().describe('true: includes the subfolders of folder.'),
       },
       annotations: READ,
     },
     async ({ folder, tag, query, favorites, recursive }) => {
       const r = await guard(() => index().list({ folder, tag, query, favorites, recursive }));
       const head = [
-        `Pastas: ${r.folders.length ? r.folders.join(', ') : '(nenhuma)'}`,
-        `Tags: ${r.tags.length ? r.tags.join(', ') : '(nenhuma)'}`,
-        `${r.files.length} arquivo(s):`,
+        `Folders: ${r.folders.length ? r.folders.join(', ') : '(none)'}`,
+        `Tags: ${r.tags.length ? r.tags.join(', ') : '(none)'}`,
+        `${r.files.length} file(s):`,
       ];
       return [...head, ...r.files.map(line)].join('\n');
     },
@@ -91,29 +91,27 @@ export function registerFilesTools(ctx: ToolContext): void {
   tool(
     'search_nodes',
     {
-      title: 'Buscar nós',
+      title: 'Search nodes',
       description:
-        'Busca nós (texto, nome, tag, classe, id, atributo, dados) nos documentos abertos ou em docId; todos os termos precisam casar. Filtros: tag:button, name:hero, text:"fale conosco", class:card, id:tx_, attr:href, data:preço. Sem acento e sem caixa.',
-      example: { query: 'tag:button text:"Comprar"', limit: 10 },
+        'Searches nodes (text, name, tag, class, id, attribute, data) in the open documents or in docId; all terms must match. Filters: tag:button, name:hero, text:"contact us", class:card, id:tx_, attr:href, data:price. Accent- and case-insensitive.',
+      example: { query: 'tag:button text:"Buy"', limit: 10 },
       inputSchema: {
-        query: z.string().describe('Consulta, ex.: "tag:button text:comprar" ou "preço".'),
+        query: z.string().describe('Query, e.g.: "tag:button text:buy" or "price".'),
         docId: z
           .string()
           .optional()
-          .describe('Id do documento (padrão: busca em todos os abertos).'),
-        limit: z.number().int().min(1).max(500).optional().describe('Máximo de nós (padrão 30).'),
+          .describe('Document id (default: searches all open documents).'),
+        limit: z.number().int().min(1).max(500).optional().describe('Maximum nodes (default 30).'),
       },
       annotations: READ,
     },
     ({ query, docId, limit }) => {
       if (!query.trim())
-        throw new ToolError(
-          'query vazia. Ex.: "tag:button", "text:\\"fale conosco\\"" ou "preço".',
-        );
+        throw new ToolError('Empty query. E.g.: "tag:button", "text:\\"contact us\\"" or "price".');
       const max = limit ?? 30;
       const infos = docId ? [store.getInfo(docId)] : store.list();
       if (infos.length === 0)
-        throw new ToolError('Nenhum documento aberto. Use open_document(path) antes de buscar.');
+        throw new ToolError('No open documents. Use open_document(path) before searching.');
       const lines: string[] = [];
       for (const info of infos) {
         if (lines.length >= max) break;
@@ -121,31 +119,31 @@ export function registerFilesTools(ctx: ToolContext): void {
           lines.push(`${info.docId} ${m.nodeId} "${m.name}" ${m.tag} ${m.field}: ${m.snippet}`);
         }
       }
-      if (lines.length === 0) return `Nenhum nó casou com "${query}".`;
-      return [`${lines.length} nó(s):`, ...lines].join('\n');
+      if (lines.length === 0) return `No nodes matched "${query}".`;
+      return [`${lines.length} node(s):`, ...lines].join('\n');
     },
   );
 
   tool(
     'tag_file',
     {
-      title: 'Tags e favorito do arquivo',
+      title: 'File tags and favorite',
       description:
-        'Edita as tags e o favorito de um arquivo (path absoluto ou docId). tags substitui todas; add/remove ajustam. Tags são aparadas, sem vazias e sem duplicatas (sem diferenciar caixa).',
-      example: { path: 'C:/projetos/site.mockup.json', add: ['cliente'], favorite: true },
+        'Edits the tags and favorite of a file (absolute path or docId). tags replaces all; add/remove adjust. Tags are trimmed, without empty ones or duplicates (case-insensitive).',
+      example: { path: 'C:/projects/site.mockup.json', add: ['client'], favorite: true },
       inputSchema: {
         path: pathField,
-        docId: z.string().optional().describe('Documento aberto, no lugar de path.'),
-        add: z.array(z.string()).optional().describe('Tags a adicionar, ex.: ["cliente"].'),
-        remove: z.array(z.string()).optional().describe('Tags a remover, ex.: ["rascunho"].'),
-        tags: z.array(z.string()).optional().describe('Substitui todas as tags, ex.: ["final"].'),
-        favorite: z.boolean().optional().describe('Marca ou desmarca como favorito.'),
+        docId: z.string().optional().describe('Open document, instead of path.'),
+        add: z.array(z.string()).optional().describe('Tags to add, e.g.: ["client"].'),
+        remove: z.array(z.string()).optional().describe('Tags to remove, e.g.: ["draft"].'),
+        tags: z.array(z.string()).optional().describe('Replaces all tags, e.g.: ["final"].'),
+        favorite: z.boolean().optional().describe('Marks or unmarks as favorite.'),
       },
       annotations: WRITE,
     },
     async ({ path: p, docId, add, remove, tags, favorite }) => {
       if (!add && !remove && !tags && favorite === undefined)
-        throw new ToolError('Nada a alterar. Informe add, remove, tags ou favorite.');
+        throw new ToolError('Nothing to change. Provide add, remove, tags or favorite.');
       const e = await guard(() =>
         index().setMeta(resolvePath(p, docId), {
           tags,
@@ -154,60 +152,60 @@ export function registerFilesTools(ctx: ToolContext): void {
           favorite,
         }),
       );
-      return `${e.path}\ntags: ${e.tags.length ? e.tags.join(', ') : '(nenhuma)'} | favorito: ${e.favorite ? 'sim' : 'não'}`;
+      return `${e.path}\ntags: ${e.tags.length ? e.tags.join(', ') : '(none)'} | favorite: ${e.favorite ? 'yes' : 'no'}`;
     },
   );
 
   tool(
     'manage_folders',
     {
-      title: 'Pastas de arquivos',
+      title: 'File folders',
       description:
-        'Gerencia as pastas virtuais (aninhadas por "/", só organização, não mexem no disco). create cria com os ancestrais; rename (path -> to) move subpastas e arquivos; delete sobe os arquivos para a pasta-mãe e remove as subpastas; list mostra as pastas com a contagem de arquivos.',
-      example: { action: 'rename', path: 'Clientes/Acme', to: 'Clientes/Acme Corp' },
+        'Manages virtual folders (nested by "/", organization only, they do not touch the disk). create creates with the ancestors; rename (path -> to) moves subfolders and files; delete moves the files up to the parent folder and removes the subfolders; list shows the folders with the file count.',
+      example: { action: 'rename', path: 'Clients/Acme', to: 'Clients/Acme Corp' },
       inputSchema: {
-        action: z.enum(['create', 'rename', 'delete', 'list']).describe('Operação.'),
-        path: z.string().optional().describe('Pasta, ex.: "Clientes/Acme" (não vale em list).'),
-        to: z.string().optional().describe('Novo caminho (só em rename).'),
+        action: z.enum(['create', 'rename', 'delete', 'list']).describe('Operation.'),
+        path: z.string().optional().describe('Folder, e.g.: "Clients/Acme" (not used by list).'),
+        to: z.string().optional().describe('New path (rename only).'),
       },
       annotations: DESTRUCTIVE,
     },
     async ({ action, path: p, to }) => {
       if (action !== 'list' && !p)
         throw new ToolError(
-          `${action} exige path. Ex.: { "action": "${action}", "path": "Clientes/Acme" }.`,
+          `${action} requires path. E.g.: { "action": "${action}", "path": "Clients/Acme" }.`,
         );
       let folders: string[];
       if (action === 'list') folders = index().folders();
       else if (action === 'create') folders = await guard(() => index().createFolder(p!));
       else if (action === 'delete') folders = await guard(() => index().deleteFolder(p!));
       else {
-        if (!to) throw new ToolError('rename exige to (novo caminho). Ex.: "Clientes/Acme Corp".');
+        if (!to) throw new ToolError('rename requires to (new path). E.g.: "Clients/Acme Corp".');
         folders = await guard(() => index().renameFolder(p!, to));
       }
       const all = (await index().list()).files;
       const count = (f: string): number => all.filter((x) => x.folder === f).length;
       const body = folders.length
-        ? folders.map((f) => `${f} (${count(f)} arquivo(s))`).join('\n')
-        : '(nenhuma pasta)';
-      return `${action === 'list' ? 'Pastas' : `Feito (${action}). Pastas agora`}:\n${body}`;
+        ? folders.map((f) => `${f} (${count(f)} file(s))`).join('\n')
+        : '(no folders)';
+      return `${action === 'list' ? 'Folders' : `Done (${action}). Folders now`}:\n${body}`;
     },
   );
 
   tool(
     'move_files',
     {
-      title: 'Mover arquivos para uma pasta',
+      title: 'Move files to a folder',
       description:
-        'Move arquivos (caminhos absolutos e/ou docIds abertos) para uma pasta virtual, criando-a se preciso. folder null (ou "") tira da pasta.',
-      example: { paths: ['C:/projetos/site.mockup.json'], folder: 'Clientes/Acme' },
+        'Moves files (absolute paths and/or open docIds) to a virtual folder, creating it if needed. folder null (or "") removes them from the folder.',
+      example: { paths: ['C:/projects/site.mockup.json'], folder: 'Clients/Acme' },
       inputSchema: {
-        paths: z.array(z.string()).optional().describe('Caminhos absolutos dos arquivos.'),
-        docIds: z.array(z.string()).optional().describe('Ids de documentos abertos.'),
+        paths: z.array(z.string()).optional().describe('Absolute paths of the files.'),
+        docIds: z.array(z.string()).optional().describe('Ids of open documents.'),
         folder: z
           .string()
           .nullable()
-          .describe('Pasta de destino, ex.: "Clientes/Acme"; null para tirar da pasta.'),
+          .describe('Destination folder, e.g.: "Clients/Acme"; null to remove from the folder.'),
       },
       annotations: WRITE,
     },
@@ -216,13 +214,13 @@ export function registerFilesTools(ctx: ToolContext): void {
         ...(paths ?? []).map((p) => resolvePath(p)),
         ...(docIds ?? []).map((d) => resolvePath(undefined, d)),
       ];
-      if (targets.length === 0) throw new ToolError('Informe paths e/ou docIds a mover.');
+      if (targets.length === 0) throw new ToolError('Provide paths and/or docIds to move.');
       const lines: string[] = [];
       for (const t of targets) {
         const e = await guard(() => index().setMeta(t, { folder: folder || null }));
-        lines.push(`${e.path} -> ${e.folder ?? '(sem pasta)'}`);
+        lines.push(`${e.path} -> ${e.folder ?? '(no folder)'}`);
       }
-      return [`${lines.length} arquivo(s) movido(s):`, ...lines].join('\n');
+      return [`${lines.length} file(s) moved:`, ...lines].join('\n');
     },
   );
 }

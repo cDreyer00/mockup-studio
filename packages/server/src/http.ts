@@ -26,7 +26,7 @@ export const SERVER_VERSION = '0.1.0';
 
 export interface HealthInfo {
   ok: boolean;
-  /** Identifica o serviço (sempre `mockup-studio`); o CLI confere antes de reutilizar a porta. */
+  /** Identifies the service (always `mockup-studio`); the CLI checks it before reusing the port. */
   name: string;
   pid: number;
   port: number;
@@ -34,14 +34,14 @@ export interface HealthInfo {
   version: string;
   docs: number;
   activeDocId: string | null;
-  /** `true` quando o daemon tem motor de render (app desktop / Electron headless). */
+  /** `true` when the daemon has a render engine (desktop app / headless Electron). */
   render: boolean;
   /**
-   * Quem iniciou o daemon: `desktop` (app Electron, janela ou headless), `headless` (daemon Node
-   * destacado pelo CLI) ou `serve` (`mockup serve` do usuário). Ausente em daemons antigos.
+   * Who started the daemon: `desktop` (Electron app, windowed or headless), `headless` (Node
+   * daemon detached by the CLI) or `serve` (the user's `mockup serve`). Absent in older daemons.
    */
   mode?: DaemonMode;
-  /** `true` quando `POST /api/shutdown` é aceito (senão responde 409). */
+  /** `true` when `POST /api/shutdown` is accepted (otherwise it responds 409). */
   canShutdown?: boolean;
 }
 
@@ -58,7 +58,7 @@ class HttpError extends Error {
 
 const LOCAL_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
-/** Valida o hostname do header Host (porta qualquer) contra os hosts locais e os extras configurados. */
+/** Validates the hostname of the Host header (any port) against the local hosts and the configured extras. */
 export function isAllowedHost(hostHeader: string | undefined, extra: string[] = []): boolean {
   if (!hostHeader) return false;
   let hostname: string;
@@ -76,41 +76,41 @@ export function isAllowedHost(hostHeader: string | undefined, extra: string[] = 
 
 export const MAX_ASSET_BYTES = 20 * 1024 * 1024;
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
-/** Vídeos aceitos no upload (até 500 MB). */
+/** Videos accepted on upload (up to 500 MB). */
 export const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
-/** Animações Lottie/Rive aceitas no upload (até 50 MB). */
+/** Lottie/Rive animations accepted on upload (up to 50 MB). */
 export const ANIMATION_EXTS = new Set(['.json', '.lottie', '.riv']);
 export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 export const MAX_ANIMATION_BYTES = 50 * 1024 * 1024;
 const UPLOAD_EXTS = [...IMAGE_EXTS, ...VIDEO_EXTS, ...ANIMATION_EXTS];
 
-/** Limite de tamanho do upload pela extensão (imagem 20 MB, animação 50 MB, vídeo 500 MB). */
+/** Upload size limit by extension (image 20 MB, animation 50 MB, video 500 MB). */
 export function maxBytesFor(ext: string): number {
   if (VIDEO_EXTS.has(ext)) return MAX_VIDEO_BYTES;
   if (ANIMATION_EXTS.has(ext)) return MAX_ANIMATION_BYTES;
   return MAX_ASSET_BYTES;
 }
 
-/** Nomes de dispositivo do Windows: `CON.png` ou `nul.tar.gz` abrem o dispositivo, não um arquivo. */
+/** Windows device names: `CON.png` or `nul.tar.gz` open the device, not a file. */
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
 
 /**
- * Nome seguro para um asset: basename, só [a-zA-Z0-9._-], sem ponto inicial, máx. 80 chars;
- * sem ponto final; nomes reservados do Windows (`CON`, `NUL`, `COM1`, `LPT1`…) ganham `-arquivo`.
+ * Safe name for an asset: basename, only [a-zA-Z0-9._-], no leading dot, max 80 chars;
+ * no trailing dot; Windows reserved names (`CON`, `NUL`, `COM1`, `LPT1`...) get `-file`.
  */
 export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   const last = raw.split(/[\\/]/).pop() ?? '';
   const ext = path.extname(last).toLowerCase();
   if (!UPLOAD_EXTS.includes(ext)) {
-    throw new HttpError(400, `Extensão não permitida; use: ${UPLOAD_EXTS.join(', ')}`);
+    throw new HttpError(400, `Extension not allowed; use: ${UPLOAD_EXTS.join(', ')}`);
   }
   let base = last
     .slice(0, last.length - ext.length)
     .replace(/[^a-zA-Z0-9._-]/g, '-')
     .replace(/^\.+/, '');
   base = base.slice(0, 80 - ext.length).replace(/[. ]+$/, '');
-  if (!base) base = 'imagem';
-  if (WINDOWS_RESERVED.test(base)) base = base.replace(/^[^.]+/, (m) => `${m}-arquivo`);
+  if (!base) base = 'image';
+  if (WINDOWS_RESERVED.test(base)) base = base.replace(/^[^.]+/, (m) => `${m}-file`);
   return { base, ext };
 }
 
@@ -118,8 +118,8 @@ const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * Política das respostas de `/assets`: um SVG aberto direto numa aba não roda script nem carrega
- * nada na origem do daemon (que alcança `/api`, `/mcp` e o WS). `<img>` ignora esses headers.
+ * Policy for `/assets` responses: an SVG opened directly in a tab runs no script and loads
+ * nothing from the daemon origin (which reaches `/api`, `/mcp` and the WS). `<img>` ignores these headers.
  */
 export const ASSET_CSP = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox";
 
@@ -133,11 +133,11 @@ export function createApp(
     dataDir?: string;
     maxAssetBytes?: number;
     render?: RenderProvider;
-    /** Build do editor servido em `/` (SPA). */
+    /** Editor build served at `/` (SPA). */
     editorDir?: string;
-    /** Quem iniciou o daemon (informado no health). */
+    /** Who started the daemon (reported in health). */
     mode?: DaemonMode;
-    /** Encerra o daemon (salvando os documentos); sem ele `POST /api/shutdown` responde 409. */
+    /** Shuts the daemon down (saving the documents); without it `POST /api/shutdown` responds 409. */
     shutdown?: () => void;
   } = {},
 ): Express {
@@ -146,13 +146,13 @@ export function createApp(
 
   app.use((req, res, next) => {
     if (!isAllowedHost(req.headers.host, ctx.allowedHosts)) {
-      res.status(403).json({ error: 'Host não permitido' });
+      res.status(403).json({ error: 'Host not allowed' });
       return;
     }
     next();
   });
-  // Navegadores mandam POST "simples" (text/plain, form) de qualquer site sem preflight:
-  // recusa escrita de outra origem antes de ler o corpo. Clientes sem Origin (CLI, agentes) passam.
+  // Browsers send "simple" POSTs (text/plain, form) from any site without a preflight:
+  // reject writes from another origin before reading the body. Clients without Origin (CLI, agents) pass.
   app.use((req, res, next) => {
     const route = req.path.toLowerCase();
     const guarded =
@@ -162,12 +162,12 @@ export function createApp(
     const extension =
       isExtensionOrigin(req.headers.origin) && allowsExtensionOrigin(req.method, route);
     if (guarded && !extension && !isAllowedOrigin(req.headers.origin)) {
-      res.status(403).json({ error: 'Origem não permitida' });
+      res.status(403).json({ error: 'Origin not allowed' });
       return;
     }
     next();
   });
-  // Importação de snapshots (extensão, editor, MCP): antes do CORS global e do json de 20 MB.
+  // Snapshot import (extension, editor, MCP): before the global CORS and the 20 MB json parser.
   registerSnapshotRoutes(app, store, { render: ctx.render });
   app.use(
     cors({
@@ -185,13 +185,12 @@ export function createApp(
     };
 
   const str = (v: unknown, field: string): string => {
-    if (typeof v !== 'string' || !v)
-      throw new HttpError(400, `Campo obrigatório ausente: ${field}`);
+    if (typeof v !== 'string' || !v) throw new HttpError(400, `Missing required field: ${field}`);
     return v;
   };
 
-  // Upload de mídia: corpo binário cru, montado antes do express.json para qualquer Content-Type.
-  // O limite vale por extensão e é aplicado ANTES de bufferizar (um parser raw por limite).
+  // Media upload: raw binary body, mounted before express.json for any Content-Type.
+  // The limit is per extension and is applied BEFORE buffering (one raw parser per limit).
   const limitFor = (ext: string): number =>
     ctx.maxAssetBytes !== undefined ? ctx.maxAssetBytes : maxBytesFor(ext);
   const rawParsers = new Map<number, express.RequestHandler>();
@@ -202,14 +201,14 @@ export function createApp(
   };
   const extOf = (req: Request): string =>
     path.extname(typeof req.query.name === 'string' ? req.query.name : '').toLowerCase();
-  /** Pasta (sob assets/) e extensão final de um arquivo, conferindo os bytes. */
+  /** Folder (under assets/) and final extension of a file, checking the bytes. */
   const classifyUpload = (ext: string, body: Buffer): { sub: string; ext: string } => {
     if (VIDEO_EXTS.has(ext)) {
       const kind = detectVideo(body.subarray(0, 16));
       if (!kind)
         throw new HttpError(
           415,
-          'O arquivo não é um vídeo reconhecido (mp4, m4v, mov, webm ou ogv). Confira o arquivo.',
+          'The file is not a recognized video (mp4, m4v, mov, webm or ogv). Check the file.',
         );
       return { sub: 'videos', ext: kind.ext };
     }
@@ -224,18 +223,18 @@ export function createApp(
   app.post(
     '/api/assets/:docId',
     (req, _res, next) => {
-      // falha cedo (sem ler o corpo) para documento inexistente ou sem caminho
+      // fail early (without reading the body) for a missing document or one without a path
       try {
         const docId = String(req.params.docId);
         if (!store.list().some((d) => d.docId === docId))
-          throw new HttpError(404, `Documento não encontrado: ${docId}`);
+          throw new HttpError(404, `Document not found: ${docId}`);
         if (!store.assetsDir(docId))
-          throw new HttpError(409, 'Salve o documento antes de enviar imagens');
-        // recusa cedo, sem ler o corpo, o que passa do limite da extensão
+          throw new HttpError(409, 'Save the document before uploading images');
+        // reject early, without reading the body, anything over the extension's limit
         const limit = limitFor(extOf(req));
         if (Number(req.headers['content-length'] ?? 0) > limit)
-          throw new HttpError(413, 'Arquivo grande demais para esta extensão');
-        // o parser raw só aceita o limite da extensão (vale também para corpo chunked)
+          throw new HttpError(413, 'File too large for this extension');
+        // the raw parser only accepts the extension's limit (also applies to chunked bodies)
         rawFor(limit)(req, _res, next);
       } catch (e) {
         next(e);
@@ -248,35 +247,35 @@ export function createApp(
       const { base, ext } = sanitizeAssetName(name);
       const body: unknown = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0)
-        throw new HttpError(400, 'Corpo vazio: envie os bytes do arquivo');
+        throw new HttpError(400, 'Empty body: send the file bytes');
       if (body.length > limitFor(ext))
         throw new HttpError(
           413,
-          `Arquivo passa do limite de ${Math.round(limitFor(ext) / 1024 / 1024)} MB para ${ext}`,
+          `File exceeds the ${Math.round(limitFor(ext) / 1024 / 1024)} MB limit for ${ext}`,
         );
       const cls = classifyUpload(ext, body);
       const file = await writeAsset(path.join(dir, cls.sub), `${base}${cls.ext}`, body);
-      // registra no CDN local (link direto na listagem de assets)
+      // register in the local CDN (direct link in the asset listing)
       const info = detectAsset(body);
       if (info) getLibrary(ctx.dataDir).add(body, { name: file, info });
       res.json({ src: cls.sub ? `${cls.sub}/${file}` : file });
     }),
   );
-  // Copia um Lottie/Rive de uma URL http(s) para assets/lottie|rive/ (offline-first).
+  // Copies a Lottie/Rive from an http(s) URL into assets/lottie|rive/ (offline-first).
   app.post(
     '/api/assets/:docId/fetch',
     express.json({ limit: '64kb' }),
     wrap(async (req, res) => {
       const docId = String(req.params.docId);
       if (!store.list().some((d) => d.docId === docId))
-        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+        throw new HttpError(404, `Document not found: ${docId}`);
       const dir = store.assetsDir(docId);
-      if (!dir) throw new HttpError(409, 'Salve o documento antes de copiar arquivos');
+      if (!dir) throw new HttpError(409, 'Save the document before copying files');
       const { url, kind } = (req.body ?? {}) as { url?: unknown; kind?: unknown };
       if (typeof url !== 'string' || !/^https?:\/\//i.test(url))
-        throw new HttpError(400, 'Campo url deve ser uma URL http(s)');
+        throw new HttpError(400, 'Field url must be an http(s) URL');
       if (kind !== 'lottie' && kind !== 'rive')
-        throw new HttpError(400, 'Campo kind deve ser "lottie" ou "rive"');
+        throw new HttpError(400, 'Field kind must be "lottie" or "rive"');
       let got;
       try {
         got = await fetchAnimation(url, kind);
@@ -310,15 +309,15 @@ export function createApp(
     }),
   );
 
-  // Pede o encerramento do daemon (usado por `mockup stop` e na troca por um daemon com render).
-  // Protegida como as demais escritas (Host local e Origin ausente/local, nos middlewares acima).
+  // Requests daemon shutdown (used by `mockup stop` and when swapping for a daemon with render).
+  // Protected like the other writes (local Host and absent/local Origin, in the middlewares above).
   app.post(
     '/api/shutdown',
     wrap((_req, res) => {
       if (!ctx.shutdown)
         throw new HttpError(
           409,
-          'Este daemon não pode ser encerrado por HTTP (é o app desktop: feche-o pela janela ou pelo menu).',
+          'This daemon cannot be shut down over HTTP (it is the desktop app: close it from the window or the menu).',
         );
       res.status(202).json({ ok: true, pid: process.pid });
       const stop = ctx.shutdown;
@@ -338,7 +337,7 @@ export function createApp(
     wrap((req, res) => {
       const id = String(req.params.id);
       if (!store.list().some((d) => d.docId === id))
-        throw new HttpError(404, `Documento não encontrado: ${id}`);
+        throw new HttpError(404, `Document not found: ${id}`);
       res.json({ info: store.getInfo(id), doc: store.get(id), selection: store.getSelection(id) });
     }),
   );
@@ -350,7 +349,7 @@ export function createApp(
     }),
   );
 
-  // Kits de componentes (pasta kits/): o editor lista e importa por aqui.
+  // Component kits (kits/ folder): the editor lists and imports through here.
   app.get(
     '/api/kits',
     wrap((_req, res) => {
@@ -362,8 +361,8 @@ export function createApp(
     '/api/kits/:name',
     wrap((req, res) => {
       const name = String(req.params.name);
-      // só nomes simples: caminhos de arquivo não são aceitos por HTTP
-      if (!/^[\w.-]+$/.test(name)) throw new HttpError(404, `Kit não encontrado: ${name}`);
+      // plain names only: file paths are not accepted over HTTP
+      if (!/^[\w.-]+$/.test(name)) throw new HttpError(404, `Kit not found: ${name}`);
       try {
         res.json(loadKit(name).doc);
       } catch (e) {
@@ -408,23 +407,20 @@ export function createApp(
     }),
   );
 
-  // Texto em contornos (o editor chama): converte nós de texto em svg, uma entrada de undo.
+  // Text to outlines (called by the editor): converts text nodes to svg, one undo entry.
   app.post(
     '/api/docs/:docId/text-to-outlines',
     wrap(async (req, res) => {
       const docId = String(req.params.docId);
       if (!store.list().some((d) => d.docId === docId))
-        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+        throw new HttpError(404, `Document not found: ${docId}`);
       const nodeIds: unknown = req.body?.nodeIds;
       if (
         !Array.isArray(nodeIds) ||
         nodeIds.length === 0 ||
         nodeIds.some((n) => typeof n !== 'string')
       )
-        throw new HttpError(
-          400,
-          'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]',
-        );
+        throw new HttpError(400, 'nodeIds must be a list of text node ids, e.g.: ["tx_ab12cd34"]');
       try {
         const out = await buildTextOutlineOps({
           doc: docWithNodes(store.get(docId), nodeIds as string[]),
@@ -447,44 +443,44 @@ export function createApp(
     wrap((req, res) => {
       const docId = String(req.params.docId);
       if (!store.list().some((d) => d.docId === docId))
-        throw new HttpError(404, 'Documento não encontrado');
+        throw new HttpError(404, 'Document not found');
       const dir = store.assetsDir(docId);
-      if (!dir) throw new HttpError(404, 'Documento sem pasta de assets');
+      if (!dir) throw new HttpError(404, 'Document has no assets folder');
       const splat = (req.params as Record<string, unknown>).splat;
       const rel = Array.isArray(splat) ? splat.join('/') : String(splat ?? '');
       if (!rel || rel.split(/[\\/]/).includes('..') || rel.includes('\0')) {
-        throw new HttpError(403, 'Caminho inválido');
+        throw new HttpError(403, 'Invalid path');
       }
       const root = path.resolve(dir);
       const target = path.resolve(root, rel);
-      if (!target.startsWith(root + path.sep)) throw new HttpError(403, 'Caminho inválido');
+      if (!target.startsWith(root + path.sep)) throw new HttpError(403, 'Invalid path');
       res.setHeader('Content-Security-Policy', ASSET_CSP);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       if (path.extname(target).toLowerCase() === '.svg')
         res.setHeader('Content-Disposition', 'attachment');
       return new Promise<void>((resolve) => {
         res.sendFile(target, { dotfiles: 'allow' }, (err) => {
-          if (err && !res.headersSent) res.status(404).json({ error: 'Arquivo não encontrado' });
+          if (err && !res.headersSent) res.status(404).json({ error: 'File not found' });
           resolve();
         });
       });
     }),
   );
 
-  // Render do nó: PNG/JPG pelo motor de render (Electron) e SVG exportado pelo core.
+  // Node render: PNG/JPG via the render engine (Electron) and SVG exported by core.
   app.get(
     '/render/:docId/:file',
     wrap(async (req, res) => {
       const docId = String(req.params.docId);
       const m = /^(.+)\.(png|jpg|svg)$/i.exec(String(req.params.file));
-      if (!m) throw new HttpError(404, 'Formato inválido: use .png, .jpg ou .svg');
+      if (!m) throw new HttpError(404, 'Invalid format: use .png, .jpg or .svg');
       const nodeId = m[1]!;
       const ext = m[2]!.toLowerCase();
       if (!store.list().some((d) => d.docId === docId))
-        throw new HttpError(404, `Documento não encontrado: ${docId}`);
-      // instâncias expandidas (e prévia de um principal `cp_...`): a página de render não conhece componentes
+        throw new HttpError(404, `Document not found: ${docId}`);
+      // expanded instances (and preview of a main `cp_...`): the render page does not know components
       const target = renderTargetFor(store.get(docId), nodeId);
-      if (!target) throw new HttpError(404, `Nó não encontrado: ${nodeId}`);
+      if (!target) throw new HttpError(404, `Node not found: ${nodeId}`);
       const doc = target.doc;
       const renderNodeId = target.nodeId;
       res.setHeader('Cache-Control', 'no-store');
@@ -504,11 +500,11 @@ export function createApp(
         try {
           svg = exportSvg(doc, { nodeId: renderNodeId, layout, resolveImage });
         } catch (e) {
-          console.error('[mockup-daemon] erro no exportSvg:', e instanceof Error ? e.message : e);
-          res.status(500).json({ error: 'Falha ao exportar o SVG' });
+          console.error('[mockup-daemon] exportSvg error:', e instanceof Error ? e.message : e);
+          res.status(500).json({ error: 'Failed to export the SVG' });
           return;
         }
-        // Mesmo isolamento dos assets: aberto direto numa aba, o SVG não roda script nem carrega nada.
+        // Same isolation as assets: opened directly in a tab, the SVG runs no script and loads nothing.
         res.setHeader('Content-Security-Policy', ASSET_CSP);
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.type('image/svg+xml; charset=utf-8').send(svg);
@@ -522,17 +518,17 @@ export function createApp(
         return;
       }
       const scale = Number(req.query.scale ?? 1);
-      if (![1, 2, 3].includes(scale)) throw new HttpError(400, 'scale deve ser 1, 2 ou 3');
+      if (![1, 2, 3].includes(scale)) throw new HttpError(400, 'scale must be 1, 2 or 3');
       const quality = req.query.quality === undefined ? undefined : Number(req.query.quality);
       if (quality !== undefined && !(quality >= 0 && quality <= 100))
-        throw new HttpError(400, 'quality deve estar entre 0 e 100');
+        throw new HttpError(400, 'quality must be between 0 and 100');
       const maxWidth = req.query.maxWidth === undefined ? undefined : Number(req.query.maxWidth);
       if (maxWidth !== undefined && !(Number.isFinite(maxWidth) && maxWidth > 0))
-        throw new HttpError(400, 'maxWidth inválido');
+        throw new HttpError(400, 'Invalid maxWidth');
       const t = String(req.query.transparent ?? '');
       const stateQ = req.query.state === undefined ? undefined : String(req.query.state);
       if (stateQ !== undefined && !(PREVIEW_STATES as readonly string[]).includes(stateQ))
-        throw new HttpError(400, `state deve ser um de: ${PREVIEW_STATES.join(', ')}`);
+        throw new HttpError(400, `state must be one of: ${PREVIEW_STATES.join(', ')}`);
       let result;
       try {
         result = await ctx.render.capture({
@@ -548,13 +544,13 @@ export function createApp(
           state: stateQ as PreviewState | undefined,
         });
       } catch (e) {
-        throw new HttpError(500, e instanceof Error ? e.message : 'Falha no render');
+        throw new HttpError(500, e instanceof Error ? e.message : 'Render failed');
       }
       res.type(result.mime).send(result.data);
     }),
   );
 
-  // Assets/CDN (/cdn, /api/assets, /api/library), dados de repetidores e organização de arquivos.
+  // Assets/CDN (/cdn, /api/assets, /api/library), repeater data and file organization.
   registerFeatureRoutes(app, {
     store,
     dataDir: ctx.dataDir,
@@ -565,17 +561,17 @@ export function createApp(
 
   app.all('/mcp', (req, res) => {
     if (!['POST', 'GET', 'DELETE'].includes(req.method)) {
-      res.status(405).json({ error: 'Método não permitido' });
+      res.status(405).json({ error: 'Method not allowed' });
       return;
     }
     void mcp.handleMcpRequest(req, res);
   });
 
-  // Editor estático (app desktop e `mockup serve`): mesma origem que /api, /assets e /ws.
+  // Static editor (desktop app and `mockup serve`): same origin as /api, /assets and /ws.
   if (ctx.editorDir && fs.existsSync(path.join(ctx.editorDir, 'index.html'))) {
     const editorDir = path.resolve(ctx.editorDir);
     app.use(express.static(editorDir, { index: 'index.html', fallthrough: true }));
-    // Fallback de SPA: GET sem extensão fora das rotas do daemon devolve o index.html.
+    // SPA fallback: GET without an extension outside the daemon routes returns index.html.
     const reserved = /^\/(api|assets|cdn|mcp|ws|render)(\/|$)/i;
     app.use((req, res, next) => {
       if (req.method !== 'GET' || reserved.test(req.path) || path.extname(req.path)) return next();
@@ -584,7 +580,7 @@ export function createApp(
   }
 
   app.use((_req, res) => {
-    res.status(404).json({ error: 'Rota não encontrada' });
+    res.status(404).json({ error: 'Route not found' });
   });
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
@@ -596,11 +592,11 @@ export function createApp(
       status = e.status && e.status >= 400 && e.status < 500 ? e.status : 400;
     else if (e?.expose === true && e.status && e.status >= 400 && e.status < 500) status = e.status;
     if (status === null) {
-      console.error('[mockup-daemon] erro interno:', e?.message ?? err);
-      res.status(500).json({ error: 'Erro interno' });
+      console.error('[mockup-daemon] internal error:', e?.message ?? err);
+      res.status(500).json({ error: 'Internal error' });
       return;
     }
-    res.status(status).json({ error: e.message ?? 'Requisição inválida' });
+    res.status(status).json({ error: e.message ?? 'Invalid request' });
   });
 
   return app;

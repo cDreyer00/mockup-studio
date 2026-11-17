@@ -1,21 +1,21 @@
 /**
- * Contrato HTTP de importação do daemon (usado pela extensão e pelo editor) e do motor de captura
- * em página (`RenderProvider.snapshot`, implementado pelo app desktop). Só tipos e constantes.
+ * HTTP import contract of the daemon (used by the extension and the editor) and of the in-page
+ * capture engine (`RenderProvider.snapshot`, implemented by the desktop app). Types and constants only.
  */
 import type { SnapshotPayload, SnapshotViewport } from './format.js';
 
-/** Rotas do daemon. */
+/** Daemon routes. */
 export const SNAPSHOT_ROUTES = {
-  /** Corpo `SnapshotImportRequest`; aceita Origin local e `chrome-extension://`. */
+  /** Body `SnapshotImportRequest`; accepts a local Origin and `chrome-extension://`. */
   snapshot: '/api/snapshot',
-  /** Corpo `ImportUrlRequest` (precisa do motor de render: 503 sem ele). */
+  /** Body `ImportUrlRequest` (needs the render engine: 503 without it). */
   importUrl: '/api/import/url',
-  /** Corpo `ImportHtmlRequest` (sem render, cai na conversão HTML → nós do core). */
+  /** Body `ImportHtmlRequest` (without render, falls back to the HTML → core nodes conversion). */
   importHtml: '/api/import/html',
 } as const;
 
 export const DEFAULT_IMPORT_VIEWPORT: SnapshotViewport = { width: 1440, height: 900 };
-/** Limites do viewport de import_url/import_html (px CSS), iguais no daemon, no MCP e no editor. */
+/** Viewport limits for import_url/import_html (CSS px), the same in the daemon, the MCP and the editor. */
 export const IMPORT_VIEWPORT_LIMITS = {
   minWidth: 320,
   maxWidth: 3840,
@@ -24,27 +24,27 @@ export const IMPORT_VIEWPORT_LIMITS = {
 } as const;
 
 /**
- * Id fixo da extensão "Capturar seção" (`packages/extension`), derivado da `key` do manifest.json:
- * a cópia descompactada tem sempre este id, e o daemon só aceita a Origin
- * `chrome-extension://<este id>` (mais os ids extras de `MOCKUP_EXTENSION_IDS`).
+ * Fixed id of the "Capture section" extension (`packages/extension`), derived from the `key` in
+ * manifest.json: the unpacked copy always has this id, and the daemon only accepts the Origin
+ * `chrome-extension://<this id>` (plus the extra ids from `MOCKUP_EXTENSION_IDS`).
  */
 export const MOCKUP_EXTENSION_ID = 'agjagmcpikghnfnnapjbicplkmommmkn';
-/** Tempo máximo padrão de um import_url/import_html no motor de render (ms). */
+/** Default timeout of an import_url/import_html in the render engine (ms). */
 export const DEFAULT_IMPORT_TIMEOUT_MS = 20_000;
 export const MAX_IMPORT_TIMEOUT_MS = 60_000;
 
-/** Onde colocar o frame importado (todos opcionais). */
+/** Where to place the imported frame (all optional). */
 export interface ImportPlacement {
-  /** Documento (padrão: ativo). */
+  /** Document (default: active). */
   docId?: string;
-  /** Página (padrão: a primeira, ou a do editor quando vem do editor). */
+  /** Page (default: the first one, or the editor's page when it comes from the editor). */
   pageId?: string;
-  /** Posição do frame no canvas (padrão: à direita do último frame da página). */
+  /** Frame position on the canvas (default: to the right of the last frame on the page). */
   x?: number;
   y?: number;
-  /** Anexar a captura de referência como imagem oculta ao lado do frame (padrão true). */
+  /** Attach the reference capture as a hidden image next to the frame (default true). */
   reference?: boolean;
-  /** Nome do frame (padrão: título da página ou tag/classe do elemento). */
+  /** Frame name (default: page title or the element tag/class). */
   name?: string;
 }
 
@@ -54,43 +54,43 @@ export interface SnapshotImportRequest extends ImportPlacement {
 
 export interface ImportUrlRequest extends ImportPlacement {
   url: string;
-  /** Seletor CSS do elemento; padrão `body`. */
+  /** CSS selector of the element; default `body`. */
   selector?: string;
   viewport?: Partial<SnapshotViewport>;
   timeoutMs?: number;
 }
 
 export interface ImportHtmlRequest extends ImportPlacement {
-  /** HTML completo ou fragmento. */
+  /** Full HTML or a fragment. */
   html: string;
-  /** CSS extra aplicado à página. */
+  /** Extra CSS applied to the page. */
   css?: string;
-  /** Base para resolver URLs relativas (`<link>`, `<img>`, `url()`); http(s). */
+  /** Base to resolve relative URLs (`<link>`, `<img>`, `url()`); http(s). */
   assetsBaseUrl?: string;
   selector?: string;
   viewport?: Partial<SnapshotViewport>;
   timeoutMs?: number;
 }
 
-/** Resposta das três rotas (e base do texto das ferramentas MCP). */
+/** Response of the three routes (and basis of the MCP tools' text). */
 export interface SnapshotImportResult {
   docId: string;
   pageId: string;
   frameId: string;
-  /** Frame oculto com a imagem de referência, quando houve. */
+  /** Hidden frame with the reference image, when there was one. */
   referenceId?: string;
-  /** Nós criados no frame (inclui o frame). */
+  /** Nodes created in the frame (includes the frame). */
   nodes: number;
-  /** Imagens gravadas em `assets/` ou embutidas. */
+  /** Images written to `assets/` or embedded. */
   images: number;
-  /** Famílias de fonte registradas no documento. */
+  /** Font families registered in the document. */
   fonts: string[];
   warnings: string[];
-  /** `snapshot` (estilos computados no navegador) ou `html` (conversão sem render). */
+  /** `snapshot` (styles computed in the browser) or `html` (conversion without render). */
   method: 'snapshot' | 'html';
 }
 
-/** Pedido ao motor de captura em página (app desktop). */
+/** Request to the in-page capture engine (desktop app). */
 export type PageSnapshotRequest =
   | {
       kind: 'url';

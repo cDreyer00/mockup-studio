@@ -7,8 +7,8 @@ import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
- * Aceita Origin ausente (clientes não-navegador) e http(s) em host local (qualquer porta).
- * `Origin: null` é recusado: iframes `sandbox` e páginas `data:` de qualquer site mandam esse valor.
+ * Accepts an absent Origin (non-browser clients) and http(s) on a local host (any port).
+ * `Origin: null` is rejected: `sandbox` iframes and `data:` pages from any site send that value.
  */
 export function isAllowedOrigin(origin: string | undefined): boolean {
   if (origin === undefined || origin === '') return true;
@@ -49,9 +49,9 @@ async function handleMessage(
   switch (msg.type) {
     case 'op:apply': {
       if (typeof msg.docId !== 'string' || !msg.docId)
-        throw new Error('op:apply exige "docId" (string).');
+        throw new Error('op:apply requires "docId" (string).');
       if (!Array.isArray(msg.ops))
-        throw new Error('op:apply exige "ops" como um array de operações.');
+        throw new Error('op:apply requires "ops" as an array of operations.');
       const r = store.applyOps(msg.docId, msg.ops, { source: 'editor' });
       return { revision: r.revision, results: r.results.map((x) => x ?? null) };
     }
@@ -64,15 +64,15 @@ async function handleMessage(
     }
     case 'doc:new': {
       if (typeof msg.path !== 'string' || !msg.path)
-        throw new Error('doc:new exige "path" (string).');
+        throw new Error('doc:new requires "path" (string).');
       if (typeof msg.name !== 'string' || !msg.name)
-        throw new Error('doc:new exige "name" (string).');
+        throw new Error('doc:new requires "name" (string).');
       const { doc: _doc, ...info } = await store.create(msg.path, msg.name);
       return info;
     }
     case 'doc:close': {
       if (typeof msg.docId !== 'string' || !msg.docId)
-        throw new Error('doc:close exige "docId" (string).');
+        throw new Error('doc:close requires "docId" (string).');
       await store.close(msg.docId);
       return {};
     }
@@ -80,7 +80,7 @@ async function handleMessage(
       return { path: await store.save(msg.docId) };
     case 'doc:saveAs': {
       if (typeof msg.path !== 'string' || !msg.path)
-        throw new Error('doc:saveAs exige "path" (string).');
+        throw new Error('doc:saveAs requires "path" (string).');
       return await store.saveAs(msg.docId, msg.path);
     }
     case 'undo': {
@@ -95,7 +95,7 @@ async function handleMessage(
       store.setActive(msg.docId);
       return {};
     default:
-      throw new Error(`Tipo de mensagem desconhecido: ${(msg as { type?: string }).type ?? '?'}`);
+      throw new Error(`Unknown message type: ${(msg as { type?: string }).type ?? '?'}`);
   }
 }
 
@@ -110,7 +110,7 @@ export function attachWebSocket(
     path,
     verifyClient: (info, cb) => {
       if (isAllowedOrigin(info.origin)) cb(true);
-      else cb(false, 403, 'Origin não permitido');
+      else cb(false, 403, 'Origin not allowed');
     },
   });
 
@@ -137,9 +137,9 @@ export function attachWebSocket(
       try {
         msg = JSON.parse(data.toString()) as ClientMessage;
         if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string')
-          throw new Error('formato');
+          throw new Error('format');
       } catch {
-        send(ws, { type: 'error', message: 'JSON inválido ou mensagem malformada.' });
+        send(ws, { type: 'error', message: 'Invalid JSON or malformed message.' });
         return;
       }
       const reqId = (msg as { reqId?: string }).reqId;

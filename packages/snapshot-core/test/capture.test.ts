@@ -44,7 +44,7 @@ beforeAll(async () => {
     if (fs.existsSync(file) && fs.statSync(file).isDirectory())
       file = path.join(file, 'index.html');
     if (!fs.existsSync(file)) {
-      res.writeHead(404).end('não encontrado');
+      res.writeHead(404).end('not found');
       return;
     }
     res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });
@@ -53,7 +53,7 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-  // Bundle em memória (não depende do dist).
+  // In-memory bundle (does not depend on dist).
   const result = await build({
     entryPoints: [path.join(pkgRoot, 'src', 'iife.ts')],
     bundle: true,
@@ -104,13 +104,13 @@ const all = (node: Node): Node[] => {
   walk(node, (n) => list.push(n));
   return list;
 };
-/** Texto de um nó ou do primeiro filho (span dentro de inline). */
+/** Text of a node or of its first child (span inside inline). */
 const textOf = (n: Node): string | undefined => n.text ?? n.children[0]?.text;
 
-describe('captura da landing', () => {
+describe('landing capture', () => {
   beforeAll(() => open('/landing/'));
 
-  it('captura o header: estrutura, textos e raiz', async () => {
+  it('captures the header: structure, texts and root', async () => {
     const snap = await capture('.site-header');
     expect(snap.format).toBe('mockup-snapshot');
     expect(snap.source.selector).toBe('.site-header');
@@ -126,7 +126,7 @@ describe('captura da landing', () => {
     expect(snap.width).toBe(1440);
     expect(root.style['display']).toBe('flex');
     expect(root.style['padding']).toBe('16px 48px');
-    // Tipografia herdada explícita na raiz.
+    // Inherited typography explicit on the root.
     expect(root.style['color']).toBe('rgb(31, 41, 55)');
     expect(root.style['font-family']).toContain('Arial');
     expect(root.style['margin']).toBeUndefined();
@@ -134,17 +134,17 @@ describe('captura da landing', () => {
     const nav = find(root, (n) => n.tag === 'nav')!;
     expect(nav).toBeDefined();
     const links = nav.children.filter((n) => n.tag === 'a');
-    expect(links.map((l) => l.text)).toEqual(['Produto', 'Preços', 'Contato']);
-    expect(links[0]!.attrs['href']).toBe(`${base}/landing/#produto`);
+    expect(links.map((l) => l.text)).toEqual(['Product', 'Pricing', 'Contact']);
+    expect(links[0]!.attrs['href']).toBe(`${base}/landing/#product`);
     const button = nav.children.find((n) => n.tag === 'button')!;
-    expect(button.text).toBe('Entrar');
+    expect(button.text).toBe('Sign in');
     expect(button.attrs['type']).toBe('button');
     expect(button.style['letter-spacing']).toBe('0.2px');
     expect(button.style['border-radius']).toBe('8px');
     expect(button.style['border']).toBe('1px solid rgb(79, 70, 229)');
   });
 
-  it('imagens viram assets com data URL', async () => {
+  it('images become assets with a data URL', async () => {
     const snap = await capture('.site-header');
     const img = find(snap.root, (n) => n.tag === 'img')!;
     expect(img.type).toBe('image');
@@ -159,32 +159,32 @@ describe('captura da landing', () => {
     expect(img.style['height']).toBe('32px');
   });
 
-  it('captura o hero: gradiente, pseudo-elementos e sombra', async () => {
+  it('captures the hero: gradient, pseudo-elements and shadow', async () => {
     const snap = await capture('.hero');
     const root = snap.root;
     expect(root.style['background-image']).toContain('linear-gradient');
-    expect(root.style['background-color']).toBe('rgb(249, 250, 251)'); // vem do body
+    expect(root.style['background-color']).toBe('rgb(249, 250, 251)'); // comes from the body
     expect(snap.height).toBeGreaterThan(300);
 
     const h1 = find(root, (n) => n.tag === 'h1')!;
     expect(h1.style['font-size']).toBe('56px');
     expect(h1.style['margin']).toBeUndefined();
     expect(h1.style['margin-bottom']).toBe('16px');
-    // Texto misto: runs viram span, <em> vira filho.
+    // Mixed text: runs become spans, <em> becomes a child.
     expect(h1.text).toBeUndefined();
-    expect(h1.children.map(textOf)).toEqual(['Desenhe com ', 'HTML', ' de verdade']);
-    expect(find(h1, (n) => n.tag === 'em')?.style).toEqual({}); // itálico já vem do UA
+    expect(h1.children.map(textOf)).toEqual(['Design with ', 'HTML', ' for real']);
+    expect(find(h1, (n) => n.tag === 'em')?.style).toEqual({}); // italic already comes from the UA
 
     const btn = find(root, (n) => n.tag === 'a' && n.name === 'Btn')!;
     expect(btn.style['box-shadow']).toContain('rgba(79, 70, 229, 0.35)');
     expect(btn.style['border-radius']).toBe('999px');
     expect(btn.style['display']).toBe('inline-flex');
     const kids = btn.children;
-    expect(kids.map((k) => k.name)).toEqual(['::before', 'Começar agora', '::after']);
+    expect(kids.map((k) => k.name)).toEqual(['::before', 'Get started', '::after']);
     expect(kids[0]!.style['width']).toBe('10px');
     expect(kids[0]!.style['border-radius']).toBe('50%');
-    expect(kids[0]!.style['display']).toBeUndefined(); // div: block é o padrão
-    expect(kids[1]!.text).toBe('Começar agora');
+    expect(kids[0]!.style['display']).toBeUndefined(); // div: block is the default
+    expect(kids[1]!.text).toBe('Get started');
     expect(kids[2]!.text).toBe('→');
 
     const hero = find(root, (n) => n.type === 'image')!;
@@ -193,16 +193,16 @@ describe('captura da landing', () => {
     expect(snap.assets.find((a) => `asset:${a.id}` === hero.src)?.dataUrl).toBeTruthy();
   });
 
-  it('reduz estilos: nada de padrões do user agent nem do CSS base', async () => {
+  it('reduces styles: no user agent defaults or base CSS', async () => {
     const snap = await capture('.hero');
     const copy = find(snap.root, (n) => n.name === 'Hero-copy')!;
-    expect(copy.style['display']).toBeUndefined(); // block é o padrão do div
+    expect(copy.style['display']).toBeUndefined(); // block is the default of div
     expect(copy.style['margin']).toBeUndefined();
     expect(copy.style['box-sizing']).toBeUndefined();
     expect(copy.style['width']).toBe('640px');
     const p = find(snap.root, (n) => n.tag === 'p')!;
     expect(p.style['font-size']).toBe('20px');
-    expect(p.style['font-family']).toBeUndefined(); // igual ao pai
+    expect(p.style['font-family']).toBeUndefined(); // same as the parent
     for (const n of all(snap.root)) {
       expect(n.attrs['style']).toBeUndefined();
       expect(n.attrs['class']).toBeUndefined();
@@ -210,7 +210,7 @@ describe('captura da landing', () => {
     }
   });
 
-  it('todos os nós passam no NodeSchema', async () => {
+  it('all nodes pass NodeSchema', async () => {
     for (const sel of ['.site-header', '.hero', '.page']) {
       const snap = await capture(sel);
       const parsed = NodeSchema.safeParse(snap.root);
@@ -221,15 +221,15 @@ describe('captura da landing', () => {
     }
   });
 
-  it('maxNodes pequeno trunca e avisa', async () => {
+  it('a small maxNodes truncates and warns', async () => {
     const snap = await capture('.page', { maxNodes: 5 });
     expect(snap.stats.truncated).toBe(true);
     expect(snap.stats.nodes).toBe(5);
     expect(all(snap.root)).toHaveLength(5);
-    expect(snap.stats.warnings.join('\n')).toContain('Limite de 5 nós');
+    expect(snap.stats.warnings.join('\n')).toContain('Limit of 5 nodes');
   });
 
-  it('maxDepth trunca a profundidade', async () => {
+  it('maxDepth truncates the depth', async () => {
     const snap = await capture('.page', { maxDepth: 1 });
     expect(snap.stats.truncated).toBe(true);
     let deepest = 0;
@@ -237,28 +237,28 @@ describe('captura da landing', () => {
     expect(deepest).toBe(1);
   });
 
-  it('inlineAssets: false deixa só as URLs', async () => {
+  it('inlineAssets: false leaves only the URLs', async () => {
     const snap = await capture('.hero', { inlineAssets: false });
     expect(snap.assets.length).toBeGreaterThan(0);
     expect(snap.assets.every((a) => a.dataUrl === undefined)).toBe(true);
   });
 
-  it('maxInlineTotalBytes conta o tamanho das data URLs (caracteres), não os bytes crus', async () => {
+  it('maxInlineTotalBytes counts the size of the data URLs (characters), not the raw bytes', async () => {
     const full = await capture('.hero');
     const sizes = full.assets.filter((a) => a.dataUrl).map((a) => a.dataUrl!.length);
     expect(sizes.length).toBeGreaterThan(0);
     const sum = sizes.reduce((x, y) => x + y, 0);
-    // Exatamente a soma real: cabe tudo, sem avisos de limite.
+    // Exactly the real sum: everything fits, no limit warnings.
     const exact = await capture('.hero', { maxInlineTotalBytes: sum });
     expect(exact.assets.filter((a) => a.dataUrl).length).toBe(sizes.length);
-    expect(exact.stats.warnings.some((w) => /limite total/.test(w))).toBe(false);
-    // Um caractere a menos: o último asset não cabe e vira aviso, mantendo só a URL.
+    expect(exact.stats.warnings.some((w) => /total byte limit/.test(w))).toBe(false);
+    // One character less: the last asset does not fit and becomes a warning, keeping only the URL.
     const tight = await capture('.hero', { maxInlineTotalBytes: sum - 1 });
     expect(tight.assets.filter((a) => a.dataUrl).length).toBe(sizes.length - 1);
-    expect(tight.stats.warnings.some((w) => /limite total/.test(w))).toBe(true);
+    expect(tight.stats.warnings.some((w) => /total byte limit/.test(w))).toBe(true);
   });
 
-  it('o atributo style original dos elementos da página fica intacto', async () => {
+  it('the original style attribute of the page elements stays intact', async () => {
     const read = (): Promise<(string | null)[]> =>
       page.evaluate(() => [...document.querySelectorAll('*')].map((e) => e.getAttribute('style')));
     const before = await read();
@@ -266,23 +266,23 @@ describe('captura da landing', () => {
     const after = await read();
     expect(after).toEqual(before);
     expect(after).toContain('letter-spacing: 0.2px');
-    // O iframe de padrões foi removido.
+    // The defaults iframe was removed.
     expect(await page.evaluate(() => document.querySelectorAll('iframe').length)).toBe(0);
   });
 
-  it('erro claro para seletor sem correspondência', async () => {
-    await expect(capture('.nao-existe')).rejects.toThrow(/Nenhum elemento corresponde/);
+  it('clear error for a selector with no match', async () => {
+    await expect(capture('.does-not-exist')).rejects.toThrow(/No element matches/);
   });
 });
 
-describe('fontes', () => {
+describe('fonts', () => {
   beforeAll(() => open('/fonts/index.html'));
 
-  it('coleta só as @font-face das famílias usadas, com o arquivo embutido', async () => {
+  it('collects only the @font-face rules of the used families, with the file embedded', async () => {
     const snap = await capture('.fonts-demo');
     expect(snap.fonts).toHaveLength(1);
     const font = snap.fonts[0]!;
-    expect(font.family).toBe('Lucide Teste');
+    expect(font.family).toBe('Lucide Test');
     expect(font.weight).toBe('400');
     expect(font.style).toBe('normal');
     const asset = snap.assets.find((a) => a.id === font.assetIds[0])!;
@@ -290,15 +290,15 @@ describe('fontes', () => {
     expect(asset.url).toBe(`${base}/vendor/lucide.woff2`);
     expect(asset.dataUrl).toMatch(/^data:font\/woff2;base64,/);
     const icon = find(snap.root, (n) => n.name === 'Icon')!;
-    expect(icon.style['font-family']).toContain('Lucide Teste');
+    expect(icon.style['font-family']).toContain('Lucide Test');
     expect(icon.text).toBe('');
   });
 });
 
-describe('extras (posição, pseudo-elementos, texto)', () => {
+describe('extras (position, pseudo-elements, text)', () => {
   beforeAll(() => open('/extras/'));
 
-  it('posicionamento, transform e raiz', async () => {
+  it('positioning, transform and root', async () => {
     const snap = await capture('#extras');
     const root = snap.root;
     expect(root.style['position']).toBe('relative');
@@ -328,28 +328,28 @@ describe('extras (posição, pseudo-elementos, texto)', () => {
     expect(rot.style['width']).toBe('120px');
   });
 
-  it('pseudo-elementos com aspas, escapes e attr()', async () => {
+  it('pseudo-elements with quotes, escapes and attr()', async () => {
     const snap = await capture('#extras');
     const tag = find(snap.root, (n) => n.name === 'Tag')!;
-    expect(tag.children.map((c) => c.text)).toEqual(['“', 'Citação', ' (7)']);
+    expect(tag.children.map((c) => c.text)).toEqual(['“', 'Quote', ' (7)']);
     expect(tag.children[0]!.style['color']).toBe('rgb(251, 191, 36)');
   });
 
-  it('texto: sem estilo autoral, espaço entre inline, preserve e gradiente', async () => {
+  it('text: no author style, space between inline elements, preserve and gradient', async () => {
     const snap = await capture('#extras');
     const plain = find(snap.root, (n) => n.name === 'Plain')!;
     expect(plain.style['display']).toBeUndefined();
-    expect(plain.children.map(textOf)).toEqual(['sem', ' ', 'estilo', ' autoral']);
-    expect(find(plain, (n) => n.tag === 'b')?.style).toEqual({}); // negrito já vem do UA
+    expect(plain.children.map(textOf)).toEqual(['no', ' ', 'style', ' authored']);
+    expect(find(plain, (n) => n.tag === 'b')?.style).toEqual({}); // bold already comes from the UA
     const pre = find(snap.root, (n) => n.name === 'Pre')!;
-    expect(pre.text).toBe('  linha 1\n  linha 2');
+    expect(pre.text).toBe('  line 1\n  line 2');
     const grad = find(snap.root, (n) => n.name === 'Gradient-text')!;
     expect(grad.style['-webkit-text-fill-color']).toBe('rgba(0, 0, 0, 0)');
     expect(grad.style['background-clip']).toBe('text');
     expect(NodeSchema.safeParse(snap.root).success).toBe(true);
   });
 
-  it('svg inline: use resolvido, pintura da CSS e inputs', async () => {
+  it('inline svg: resolved use, CSS paint and inputs', async () => {
     const snap = await capture('#extras');
     const svg = find(snap.root, (n) => n.type === 'svg')!;
     expect(svg.tag).toBe('svg');
@@ -357,32 +357,32 @@ describe('extras (posição, pseudo-elementos, texto)', () => {
     expect(svg.svg).toContain('fill="rgb(245, 158, 11)"');
     expect(svg.svg).toContain('width="24"');
     expect(svg.style['width']).toBe('24px');
-    // O sprite oculto (0x0) não vira nó.
+    // The hidden sprite (0x0) does not become a node.
     expect(all(snap.root).filter((n) => n.type === 'svg')).toHaveLength(1);
     const input = find(snap.root, (n) => n.tag === 'input')!;
-    expect(input.attrs['value']).toBe('Olá');
-    expect(input.attrs['placeholder']).toBe('Nome');
-    expect(input.style['width']).toBe('208px'); // content-box 200 + padding e borda
+    expect(input.attrs['value']).toBe('Hello');
+    expect(input.attrs['placeholder']).toBe('Name');
+    expect(input.style['width']).toBe('208px'); // content-box 200 + padding and border
     expect(input.children).toEqual([]);
     expect(NodeSchema.safeParse(snap.root).success).toBe(true);
   });
 });
 
-describe('captura da página inteira (raiz body/html)', () => {
+describe('whole-page capture (body/html root)', () => {
   beforeAll(() => open('/landing/'));
 
-  // O iframe de padrões (`Defaults.init()`) existe durante a travessia: não pode virar nó "Iframe".
-  it('capturar body não inclui o iframe de medição de padrões', async () => {
+  // The defaults iframe (`Defaults.init()`) exists during the traversal: it must not become an "Iframe" node.
+  it('capturing body does not include the defaults measuring iframe', async () => {
     for (const selector of ['body', 'html']) {
       const snap = await capture(selector);
       expect(
         find(snap.root, (n) => n.name === 'Iframe'),
-        `iframe em ${selector}`,
+        `iframe in ${selector}`,
       ).toBeUndefined();
     }
   });
 
-  it('body e html geram árvore válida e deixam a página sem iframe', async () => {
+  it('body and html produce a valid tree and leave the page without an iframe', async () => {
     for (const selector of ['body', 'html']) {
       const snap = await capture(selector);
       expect(NodeSchema.safeParse(snap.root).success, selector).toBe(true);

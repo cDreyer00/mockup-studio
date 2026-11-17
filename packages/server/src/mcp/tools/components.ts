@@ -1,8 +1,8 @@
 /**
- * Componentes no MCP (ver `docs/COMPONENTES.md`): biblioteca do documento, kits, instâncias com
- * props/slots/overrides e edição do principal. A lógica de domínio (expansão, ops, planejadores) é do
- * core; aqui ficam a validação com mensagens acionáveis, o HTML (com Tailwind) de slots e do principal
- * e o resumo devolvido ao agente.
+ * Components over MCP (see `docs/COMPONENTS.md`): document library, kits, instances with
+ * props/slots/overrides, and main component editing. Domain logic (expansion, ops, planners) lives in
+ * core; this file holds validation with actionable messages, the HTML (with Tailwind) of slots and of
+ * the main component, and the summary returned to the agent.
  */
 import { z } from 'zod';
 import {
@@ -51,41 +51,48 @@ import { reportLines } from './tailwind.js';
 const propValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 
 const propDefSchema = z.object({
-  name: z.string().describe('Nome da prop (letras, números e _), ex.: "label".'),
+  name: z.string().describe('Prop name (letters, digits and _), e.g. "label".'),
   type: z
     .enum(['string', 'number', 'boolean', 'enum', 'color', 'slot'])
-    .describe('Tipo da prop: string, number, boolean, enum, color ou slot.'),
-  default: propValueSchema.optional().describe('Valor padrão (slots não têm), ex.: "Enviar".'),
-  options: z.array(z.string()).optional().describe('Opções do enum, ex.: ["sm", "md", "lg"].'),
-  description: z.string().optional().describe('Descrição curta da prop.'),
+    .describe('Prop type: string, number, boolean, enum, color or slot.'),
+  default: propValueSchema.optional().describe('Default value (slots have none), e.g. "Submit".'),
+  options: z.array(z.string()).optional().describe('Enum options, e.g. ["sm", "md", "lg"].'),
+  description: z.string().optional().describe('Short description of the prop.'),
 });
 
 const bindSchema = z
   .object({
-    nodeId: z.string().describe('Id do nó (dentro do nó do componente) cujo valor vira a prop.'),
+    nodeId: z
+      .string()
+      .describe('Id of the node (inside the component node) whose value becomes the prop.'),
     target: z
       .string()
-      .describe('O que vira {{prop}}: "text", "attr:<nome>" (ex.: "attr:href") ou "style:<prop>".'),
+      .describe(
+        'What becomes {{prop}}: "text", "attr:<name>" (e.g. "attr:href") or "style:<prop>".',
+      ),
   })
   .describe(
-    'Liga a prop a um valor do nó: o valor atual vira o padrão e o nó passa a usar {{nome}}.',
+    'Binds the prop to a node value: the current value becomes the default and the node uses {{name}}.',
   );
 
 const nodeOverrideSchema = z.object({
-  style: z.record(z.string(), z.string()).optional().describe('Estilos CSS mesclados.'),
-  unsetStyle: z.array(z.string()).optional().describe('Propriedades CSS removidas do principal.'),
-  text: z.string().optional().describe('Texto do nó.'),
-  attrs: z.record(z.string(), z.string()).optional().describe('Atributos HTML mesclados.'),
-  hidden: z.boolean().optional().describe('Oculta o nó.'),
+  style: z.record(z.string(), z.string()).optional().describe('CSS styles to merge.'),
+  unsetStyle: z
+    .array(z.string())
+    .optional()
+    .describe('CSS properties removed from the main component.'),
+  text: z.string().optional().describe('Node text.'),
+  attrs: z.record(z.string(), z.string()).optional().describe('HTML attributes to merge.'),
+  hidden: z.boolean().optional().describe('Hides the node.'),
 });
 
 const variantSchema = z.object({
   when: z
     .record(z.string(), propValueSchema)
-    .describe('Props que precisam bater, ex.: { "variant": "outline" }.'),
+    .describe('Props that must match, e.g. { "variant": "outline" }.'),
   overrides: z
     .record(z.string(), nodeOverrideSchema)
-    .describe('Sobrescritas por id de nó do principal; chave "" = raiz. Aplicadas em ordem.'),
+    .describe('Overrides by main component node id; key "" = root. Applied in order.'),
 });
 
 const fmtProp = (p: PropDef): string => {
@@ -95,18 +102,18 @@ const fmtProp = (p: PropDef): string => {
 };
 
 const propsLine = (def: { props: PropDef[] }): string =>
-  def.props.length ? def.props.map(fmtProp).join(', ') : '(sem props)';
+  def.props.length ? def.props.map(fmtProp).join(', ') : '(no props)';
 
 const MAX_HTML_CHARS = 6000;
 
-/** "3 instância(s)" nas páginas, mais as que estão dentro de outros componentes (ex.: botão no rodapé do Card). */
+/** "3 instance(s)" on the pages, plus those nested inside other components (e.g. button in the Card footer). */
 function instanceCount(doc: Document, componentId: string): string {
   const all = listInstances(doc, componentId);
   const nested = all.filter((i) => i.ownerComponentId).length;
-  return `${all.length - nested} instância(s)${nested ? ` (+${nested} dentro de outros componentes)` : ''}`;
+  return `${all.length - nested} instance(s)${nested ? ` (+${nested} inside other components)` : ''}`;
 }
 
-/** HTML (com Tailwind, se houver) → nós sem aplicar nada no documento. */
+/** HTML (with Tailwind, if any) → nodes without applying anything to the document. */
 async function htmlToNodesTw(
   doc: Document,
   html: string,
@@ -140,9 +147,9 @@ function variantsLine(v: ComponentVariant): string {
       ...(ov.hidden !== undefined ? ['hidden'] : []),
       ...Object.keys(ov.attrs ?? {}).map((a) => `attr:${a}`),
     ];
-    return `${path === '' ? 'raiz' : path}{${keys.join(',')}}`;
+    return `${path === '' ? 'root' : path}{${keys.join(',')}}`;
   });
-  return `quando ${when}: ${parts.join(' ') || '(sem overrides)'}`;
+  return `when ${when}: ${parts.join(' ') || '(no overrides)'}`;
 }
 
 export function registerComponentTools(ctx: ToolContext): void {
@@ -152,8 +159,8 @@ export function registerComponentTools(ctx: ToolContext): void {
     const names = (doc.components ?? []).map((c) => c.name);
     const kits = listKits().flatMap((k) => k.components.map((c) => `${k.name}/${c.name}`));
     return new ToolError(
-      `Componente "${ref}" não encontrado. No documento: ${names.length ? names.join(', ') : '(nenhum)'}. ` +
-        `Use list_components para ver a biblioteca e os kits${kits.length ? ` (ex.: insert_component("${kits[0]}"))` : ''}.`,
+      `Component "${ref}" not found. In the document: ${names.length ? names.join(', ') : '(none)'}. ` +
+        `Use list_components to see the library and the kits${kits.length ? ` (ex.: insert_component("${kits[0]}"))` : ''}.`,
     );
   };
   const requireComponent = (doc: Document, ref: string): ComponentDef => {
@@ -171,7 +178,7 @@ export function registerComponentTools(ctx: ToolContext): void {
     }
   };
 
-  /** Instância (real ou aninhada, por id virtual) ou erro dizendo como achar uma. */
+  /** Instance (real or nested, by virtual id) or an error saying how to find one. */
   const requireInstance = (doc: Document, id: string): Node => {
     const real = findInstanceNode(doc, id);
     if (real) return real;
@@ -179,11 +186,11 @@ export function registerComponentTools(ctx: ToolContext): void {
     if (n?.componentId) return n;
     if (!resolveRead(doc, id) && !requireNodeSafe(doc, id)) {
       throw new ToolError(
-        `Nó não encontrado: "${id}". Use get_tree_summary (instâncias aparecem como ◆Nome) ou insert_component para criar uma.`,
+        `Node not found: "${id}". Use get_tree_summary (instances appear as ◆Name) or insert_component to create one.`,
       );
     }
     throw new ToolError(
-      `O nó "${id}" não é uma instância de componente. Instâncias aparecem como ◆Nome no get_tree_summary; para criar uma use insert_component, para transformar este nó em componente use create_component.`,
+      `Node "${id}" is not a component instance. Instances appear as ◆Name in get_tree_summary; to create one use insert_component, to turn this node into a component use create_component.`,
     );
   };
   const requireNodeSafe = (doc: Document, id: string): boolean => {
@@ -195,14 +202,14 @@ export function registerComponentTools(ctx: ToolContext): void {
     }
   };
 
-  /* ---------- leitura ---------- */
+  /* ---------- read ---------- */
 
   tool(
     'list_components',
     {
-      title: 'Listar componentes',
+      title: 'List components',
       description:
-        'Biblioteca de componentes do documento (id, nome, kit, props, nº de instâncias) e os kits disponíveis com seus componentes. Insira com insert_component; importe um kit com import_kit.',
+        'Component library of the document (id, name, kit, props, instance count) and the available kits with their components. Insert with insert_component; import a kit with import_kit.',
       example: {},
       inputSchema: { docId: docIdField },
       annotations: READ,
@@ -211,7 +218,7 @@ export function registerComponentTools(ctx: ToolContext): void {
       const doc = store.get(store.resolveDocId(docId));
       const lines: string[] = [];
       const list = doc.components ?? [];
-      lines.push(`Componentes do documento (${list.length}):`);
+      lines.push(`Document components (${list.length}):`);
       for (const c of list) {
         lines.push(
           `- ${c.id} "${c.name}"${c.kit ? ` [kit ${c.kit}]` : ''} — ${instanceCount(doc, c.id)} | props: ${propsLine(c)}`,
@@ -220,21 +227,21 @@ export function registerComponentTools(ctx: ToolContext): void {
       }
       if (!list.length)
         lines.push(
-          '(nenhum) Crie com create_component(nodeId) ou importe um kit com import_kit("shadcn-like").',
+          '(none) Create one with create_component(nodeId) or import a kit with import_kit("shadcn-like").',
         );
       const kits = listKits();
-      lines.push(`Kits disponíveis (${kits.length}):`);
+      lines.push(`Available kits (${kits.length}):`);
       for (const k of kits) {
         lines.push(`- ${k.name}:`);
         for (const c of k.components) {
           const slots = c.props.filter((p) => p.type === 'slot').map((p) => p.name);
           const props = c.props.filter((p) => p.type !== 'slot').map((p) => p.name);
           lines.push(
-            `    ${k.name}/${c.name} (${props.join(', ') || 'sem props'}${slots.length ? `; slots: ${slots.join(', ')}` : ''})${c.description ? ` — ${c.description}` : ''}`,
+            `    ${k.name}/${c.name} (${props.join(', ') || 'no props'}${slots.length ? `; slots: ${slots.join(', ')}` : ''})${c.description ? ` — ${c.description}` : ''}`,
           );
         }
       }
-      lines.push('Detalhes de um componente: get_component(nome ou "kit/Nome").');
+      lines.push('Component details: get_component(name or "kit/Name").');
       return lines.join('\n');
     },
   );
@@ -242,14 +249,14 @@ export function registerComponentTools(ctx: ToolContext): void {
   tool(
     'get_component',
     {
-      title: 'Detalhes de um componente',
+      title: 'Component details',
       description:
-        'Props (tipos, padrões, opções), slots, variantes, árvore do principal com ids (edite-os com update_styles/set_text) e HTML. Aceita id, nome ou "kit/Nome" (também de um kit ainda não importado).',
+        'Props (types, defaults, options), slots, variants, main component tree with ids (edit them with update_styles/set_text) and HTML. Accepts id, name or "kit/Name" (also from a kit not yet imported).',
       example: { component: 'shadcn-like/Button' },
       inputSchema: {
         component: z
           .string()
-          .describe('Id (cp_...), nome ("Button") ou "kit/Nome" ("shadcn-like/Button").'),
+          .describe('Id (cp_...), name ("Button") or "kit/Name" ("shadcn-like/Button").'),
         docId: docIdField,
       },
       annotations: READ,
@@ -282,51 +289,51 @@ export function registerComponentTools(ctx: ToolContext): void {
 
       const lines: string[] = [];
       lines.push(
-        `${def.id} "${def.name}"${def.kit || fromKit ? ` [kit ${def.kit ?? fromKit}]` : ''} — ${fromKit ? '0 instância(s)' : instanceCount(doc, def.id)}`,
+        `${def.id} "${def.name}"${def.kit || fromKit ? ` [kit ${def.kit ?? fromKit}]` : ''} — ${fromKit ? '0 instance(s)' : instanceCount(doc, def.id)}`,
       );
       if (fromKit)
         lines.push(
-          `(ainda não está no documento; insert_component("${fromKit}/${def.name}") ou import_kit("${fromKit}") importa.)`,
+          `(not in the document yet; insert_component("${fromKit}/${def.name}") or import_kit("${fromKit}") imports it.)`,
         );
       if (def.description) lines.push(def.description);
       lines.push('Props:');
       for (const p of def.props) {
         const detail =
           p.type === 'enum'
-            ? `enum, opções: ${(p.options ?? []).join(' | ')}`
+            ? `enum, options: ${(p.options ?? []).join(' | ')}`
             : p.type === 'slot'
-              ? 'slot (HTML em insert_component.slots)'
+              ? 'slot (HTML in insert_component.slots)'
               : p.type;
         lines.push(
-          `- ${p.name}: ${detail}${p.default !== undefined ? `, padrão ${JSON.stringify(p.default)}` : ''}${p.description ? ` — ${p.description}` : ''}`,
+          `- ${p.name}: ${detail}${p.default !== undefined ? `, default ${JSON.stringify(p.default)}` : ''}${p.description ? ` — ${p.description}` : ''}`,
         );
       }
-      if (!def.props.length) lines.push('(nenhuma)');
+      if (!def.props.length) lines.push('(none)');
       if (def.variants.length) {
-        lines.push('Variantes:');
+        lines.push('Variants:');
         for (const v of def.variants) lines.push(`- ${variantsLine(v)}`);
       }
       lines.push(
-        'Árvore do principal (ids editáveis com update_styles, set_text...; mudam todas as instâncias):',
+        'Main component tree (ids editable with update_styles, set_text...; changes affect all instances):',
         getTreeSummary(def.root, 5, { doc: source }),
       );
       const html = nodesToHtml([expandNodeTree(source, def.root)], { mode: 'inline' }).html;
       lines.push(
-        'HTML do principal ({{prop}} = valor da prop):',
-        html.length > MAX_HTML_CHARS ? `${html.slice(0, MAX_HTML_CHARS)}\n… (truncado)` : html,
+        'Main component HTML ({{prop}} = prop value):',
+        html.length > MAX_HTML_CHARS ? `${html.slice(0, MAX_HTML_CHARS)}\n… (truncated)` : html,
       );
       return lines.join('\n');
     },
   );
 
-  /* ---------- principal ---------- */
+  /* ---------- main component ---------- */
 
   tool(
     'create_component',
     {
-      title: 'Criar componente',
+      title: 'Create component',
       description:
-        'Transforma um nó (não frame) em componente: o nó vira a primeira instância. props declara as props; bind liga uma prop ao texto, atributo ou estilo de um nó interno ({{nome}}). data-slot cria slots.',
+        'Turns a node (not a frame) into a component: the node becomes the first instance. props declares the props; bind links a prop to the text, attribute or style of an inner node ({{name}}). data-slot creates slots.',
       example: {
         nodeId: 'el_ab12cd34',
         name: 'PrimaryButton',
@@ -335,17 +342,14 @@ export function registerComponentTools(ctx: ToolContext): void {
       inputSchema: {
         nodeId: z
           .string()
-          .describe('Id do nó das páginas que vira componente, ex.: "el_ab12cd34".'),
-        name: z
-          .string()
-          .optional()
-          .describe('Nome do componente em PascalCase, ex.: "PrimaryButton".'),
-        description: z.string().optional().describe('Descrição para agentes e para o painel.'),
+          .describe('Id of the page node that becomes a component, e.g. "el_ab12cd34".'),
+        name: z.string().optional().describe('Component name in PascalCase, e.g. "PrimaryButton".'),
+        description: z.string().optional().describe('Description for agents and for the panel.'),
         props: z
           .array(propDefSchema.extend({ bind: bindSchema.optional() }))
           .optional()
           .describe(
-            'Props, ex.: [{ "name": "label", "type": "string", "bind": { "nodeId": "tx_1", "target": "text" } }].',
+            'Props, e.g. [{ "name": "label", "type": "string", "bind": { "nodeId": "tx_1", "target": "text" } }].',
           ),
         docId: docIdField,
       },
@@ -362,16 +366,16 @@ export function registerComponentTools(ctx: ToolContext): void {
       });
       const r = apply(id, ops, 'create_component');
       const def = getComponent(r.doc, componentId)!;
-      return `Componente criado: ${componentId} "${def.name}" (props: ${propsLine(def)}). O nó virou a instância ${instanceId}.\n${summaryOf(r.doc, [instanceId])}\nEdite o principal com update_styles/set_text nos ids do get_component, ou update_component_html.`;
+      return `Component created: ${componentId} "${def.name}" (props: ${propsLine(def)}). The node became instance ${instanceId}.\n${summaryOf(r.doc, [instanceId])}\nEdit the main component with update_styles/set_text on the ids from get_component, or update_component_html.`;
     },
   );
 
   tool(
     'update_component',
     {
-      title: 'Atualizar componente',
+      title: 'Update component',
       description:
-        'Altera nome, descrição, props (a lista inteira substitui a atual) e variantes (when + overrides por id de nó do principal, "" = raiz). Veja get_component antes. Propaga para as instâncias.',
+        'Changes name, description, props (the whole list replaces the current one) and variants (when + overrides by main component node id, "" = root). See get_component first. Propagates to instances.',
       example: {
         componentId: 'cp_ab12cd34',
         variants: [
@@ -384,22 +388,22 @@ export function registerComponentTools(ctx: ToolContext): void {
       inputSchema: {
         componentId: z
           .string()
-          .describe('Id, nome ou "kit/Nome" do componente, ex.: "cp_ab12cd34".'),
-        name: z.string().optional().describe('Novo nome, ex.: "PrimaryButton".'),
+          .describe('Id, name or "kit/Name" of the component, e.g. "cp_ab12cd34".'),
+        name: z.string().optional().describe('New name, e.g. "PrimaryButton".'),
         description: z
           .string()
           .optional()
-          .describe('Nova descrição ("" remove), ex.: "Botão de ação principal".'),
+          .describe('New description ("" removes it), e.g. "Primary action button".'),
         props: z
           .array(propDefSchema)
           .optional()
           .describe(
-            'Lista completa de props (substitui a atual), ex.: [{ "name": "label", "type": "string", "default": "Ok" }].',
+            'Complete list of props (replaces the current one), e.g. [{ "name": "label", "type": "string", "default": "Ok" }].',
           ),
         variants: z
           .array(variantSchema)
           .optional()
-          .describe('Lista completa de variantes (substitui a atual).'),
+          .describe('Complete list of variants (replaces the current one).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -410,7 +414,7 @@ export function registerComponentTools(ctx: ToolContext): void {
       const def = requireComponent(doc, componentId);
       if (name === undefined && description === undefined && !props && !variants)
         throw new ToolError(
-          'Informe ao menos um de name, description, props ou variants. Ex.: name "PrimaryButton".',
+          'Provide at least one of name, description, props or variants. E.g. name "PrimaryButton".',
         );
       const op: Op = {
         type: 'updateComponent',
@@ -424,16 +428,16 @@ export function registerComponentTools(ctx: ToolContext): void {
       };
       const r = apply(id, [op], 'update_component');
       const next = getComponent(r.doc, def.id)!;
-      return `Componente ${def.id} atualizado: "${next.name}" | props: ${propsLine(next)} | ${next.variants.length} variante(s) | ${instanceCount(r.doc, def.id)}.`;
+      return `Component ${def.id} updated: "${next.name}" | props: ${propsLine(next)} | ${next.variants.length} variant(s) | ${instanceCount(r.doc, def.id)}.`;
     },
   );
 
   tool(
     'update_component_html',
     {
-      title: 'Substituir o principal por HTML',
+      title: 'Replace the main component with HTML',
       description:
-        'Substitui a árvore do principal por HTML (um único elemento raiz; classes Tailwind compiladas como em write_html). Mantenha {{prop}} e data-slot="nome"; props/slots novos são criados. Overrides em ids antigos perdem efeito.',
+        'Replaces the main component tree with HTML (a single root element; Tailwind classes compiled as in write_html). Keep {{prop}} and data-slot="name"; new props/slots are created. Overrides on old ids stop applying.',
       example: {
         componentId: 'cp_ab12cd34',
         html: '<button style="padding:8px 16px;border-radius:6px;background:var(--color-primary)">{{label}}</button>',
@@ -441,14 +445,16 @@ export function registerComponentTools(ctx: ToolContext): void {
       inputSchema: {
         componentId: z
           .string()
-          .describe('Id, nome ou "kit/Nome" do componente, ex.: "cp_ab12cd34".'),
+          .describe('Id, name or "kit/Name" of the component, e.g. "cp_ab12cd34".'),
         html: z
           .string()
-          .describe('HTML do principal, um elemento raiz, ex.: "<button>{{label}}</button>".'),
+          .describe('Main component HTML, one root element, e.g. "<button>{{label}}</button>".'),
         tailwind: z
           .enum(['auto', 'on', 'off'])
           .optional()
-          .describe('Classes Tailwind: "auto" (padrão) detecta, "on" força, "off" trata como CSS.'),
+          .describe(
+            'Tailwind classes: "auto" (default) detects, "on" forces, "off" treats them as CSS.',
+          ),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -460,13 +466,13 @@ export function registerComponentTools(ctx: ToolContext): void {
       const { nodes, tailwind: usedTw, report } = await htmlToNodesTw(doc, html, tailwind);
       if (nodes.length !== 1)
         throw new ToolError(
-          `O HTML do principal precisa de um único elemento raiz (recebi ${nodes.length}); envolva tudo em um <div>. Ex.: "<button>{{label}}</button>".`,
+          `The main component HTML needs a single root element (got ${nodes.length}); wrap everything in a <div>. E.g. "<button>{{label}}</button>".`,
         );
       const root = nodes[0]!;
       delete root.position;
       root.name = def.root.name;
 
-      // props: `{{x}}` e `data-slot` do HTML sem prop correspondente são criados; avisa o que sobra
+      // props: `{{x}}` and `data-slot` in the HTML without a matching prop are created; warns about leftovers
       const inferred = inferProps(root);
       const have = new Set(def.props.map((p) => p.name));
       const added = inferred.filter((p) => !have.has(p.name));
@@ -489,24 +495,24 @@ export function registerComponentTools(ctx: ToolContext): void {
       });
       const r = apply(id, ops, 'update_component_html');
       const lines = [
-        `Principal de "${def.name}" (${def.id}) substituído; atualizadas: ${instanceCount(r.doc, def.id)}. Novo id da raiz: ${root.id}.`,
+        `Main component of "${def.name}" (${def.id}) replaced; updated: ${instanceCount(r.doc, def.id)}. New root id: ${root.id}.`,
         ...(usedTw
           ? [
-              `Classes Tailwind compiladas (${report?.nodes ?? 0} nó(s)).`,
+              `Tailwind classes compiled (${report?.nodes ?? 0} node(s)).`,
               ...(report ? reportLines(report) : []),
             ]
           : []),
       ];
       if (added.length)
         lines.push(
-          `Props criadas a partir do HTML: ${added.map(fmtProp).join(', ')} (ajuste com update_component).`,
+          `Props created from the HTML: ${added.map(fmtProp).join(', ')} (adjust with update_component).`,
         );
       if (unused.length)
         lines.push(
-          `Aviso: props sem uso no HTML (nem em variantes): ${unused.join(', ')}. Use {{nome}} ou remova com update_component.`,
+          `Warning: props unused in the HTML (and in variants): ${unused.join(', ')}. Use {{name}} or remove them with update_component.`,
         );
       lines.push(
-        'Os nós têm ids novos: overrides de instâncias nos ids antigos ficam sem efeito (reset_instance limpa).',
+        'The nodes have new ids: instance overrides on the old ids stop applying (reset_instance clears them).',
         summaryOf(r.doc, [root.id]),
       );
       return lines.join('\n');
@@ -516,19 +522,19 @@ export function registerComponentTools(ctx: ToolContext): void {
   tool(
     'delete_component',
     {
-      title: 'Excluir componente',
+      title: 'Delete component',
       description:
-        'Remove o principal (reversível com undo). Recusa se houver instâncias, a menos que detach_instances seja true (as instâncias viram nós comuns antes).',
+        'Removes the main component (reversible with undo). Refuses if instances exist, unless detach_instances is true (instances become plain nodes first).',
       example: { componentId: 'cp_ab12cd34', detach_instances: true },
       inputSchema: {
         componentId: z
           .string()
-          .describe('Id, nome ou "kit/Nome" do componente, ex.: "cp_ab12cd34".'),
+          .describe('Id, name or "kit/Name" of the component, e.g. "cp_ab12cd34".'),
         detach_instances: z
           .boolean()
           .optional()
           .describe(
-            'true destaca as instâncias (viram nós comuns) antes de excluir. Padrão false.',
+            'true detaches the instances (they become plain nodes) before deleting. Default false.',
           ),
         docId: docIdField,
       },
@@ -541,7 +547,7 @@ export function registerComponentTools(ctx: ToolContext): void {
       const instances = listInstances(doc, def.id);
       if (instances.length && !detach_instances)
         throw new ToolError(
-          `O componente "${def.name}" tem ${instanceCount(doc, def.id)}. Use detach_instances: true para destacá-las (viram nós comuns) ou exclua/destaque-as antes.`,
+          `Component "${def.name}" has ${instanceCount(doc, def.id)}. Use detach_instances: true to detach them (they become plain nodes) or delete/detach them first.`,
         );
       const ops: Op[] = [];
       const detached: string[] = [];
@@ -551,54 +557,56 @@ export function registerComponentTools(ctx: ToolContext): void {
       }
       ops.push({ type: 'deleteComponent', componentId: def.id });
       const r = apply(id, ops, 'delete_component');
-      return `Componente "${def.name}" (${def.id}) excluído${detached.length ? `; ${detached.length} instância(s) destacada(s) (${instanceCount(doc, def.id)})` : ''}.\n${getDocSummary(r.doc)}`;
+      return `Component "${def.name}" (${def.id}) deleted${detached.length ? `; ${detached.length} instance(s) detached (${instanceCount(doc, def.id)})` : ''}.\n${getDocSummary(r.doc)}`;
     },
   );
 
   const getDocSummary = (doc: Document): string => summaryOf(doc, []);
 
-  /* ---------- instâncias ---------- */
+  /* ---------- instances ---------- */
 
   tool(
     'insert_component',
     {
-      title: 'Inserir componente',
+      title: 'Insert component',
       description:
-        'Insere uma instância (id, nome ou "kit/Nome"; um kit ausente é importado na mesma entrada de histórico). props define valores; slots recebe HTML por slot ({ content: "<p>…</p>" }). Devolve o id da instância e dos slots.',
+        'Inserts an instance (id, name or "kit/Name"; a missing kit is imported in the same history entry). props sets values; slots takes HTML per slot ({ content: "<p>…</p>" }). Returns the instance id and the slot ids.',
       example: {
         component: 'shadcn-like/Button',
         parentId: 'fr_ab12cd34',
-        props: { variant: 'outline', label: 'Salvar' },
+        props: { variant: 'outline', label: 'Save' },
       },
       inputSchema: {
         component: z
           .string()
-          .describe('Id (cp_...), nome ou "kit/Nome", ex.: "shadcn-like/Button".'),
+          .describe('Id (cp_...), name or "kit/Name", e.g. "shadcn-like/Button".'),
         parentId: z
           .string()
           .optional()
           .describe(
-            'Id do pai (ou contêiner de slot de outra instância), ex.: "fr_ab12cd34" (padrão: seleção ou primeiro frame).',
+            'Parent id (or slot container of another instance), e.g. "fr_ab12cd34" (default: selection or first frame).',
           ),
         props: z
           .record(z.string(), propValueSchema)
           .optional()
-          .describe('Valores das props, ex.: { "variant": "outline", "label": "Salvar" }.'),
+          .describe('Prop values, e.g. { "variant": "outline", "label": "Save" }.'),
         slots: z
           .record(z.string(), z.string())
           .optional()
-          .describe('HTML por slot (classes Tailwind aceitas), ex.: { "content": "<p>Olá</p>" }.'),
+          .describe(
+            'HTML per slot (Tailwind classes accepted), e.g. { "content": "<p>Hello</p>" }.',
+          ),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos, ex.: 0 (padrão: final).'),
-        name: z.string().optional().describe('Nome da camada da instância, ex.: "Botão salvar".'),
+          .describe('Position among the children, e.g. 0 (default: end).'),
+        name: z.string().optional().describe('Layer name of the instance, e.g. "Save button".'),
         styles: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Estilos da raiz da instância (largura, margem...), ex.: { "width": "100%" }.'),
+          .describe('Styles of the instance root (width, margin...), e.g. { "width": "100%" }.'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -609,7 +617,7 @@ export function registerComponentTools(ctx: ToolContext): void {
       const parent = parentId ?? selectedOrFirstFrame(id, doc);
       requireNode(doc, parent);
 
-      // `kit/Nome` fora do documento: importa o kit na mesma entrada de histórico
+      // `kit/Name` not in the document: imports the kit in the same history entry
       let def = findComponent(doc, component);
       let work = doc;
       const ops: Op[] = [];
@@ -623,7 +631,7 @@ export function registerComponentTools(ctx: ToolContext): void {
             .find((c) => c.name.toLowerCase() === component.trim().toLowerCase());
           throw hit
             ? new ToolError(
-                `Componente "${component}" não está no documento. Use "${hit.kit}/${hit.name}" para importar do kit.`,
+                `Component "${component}" is not in the document. Use "${hit.kit}/${hit.name}" to import it from the kit.`,
               )
             : componentNotFound(doc, component);
         }
@@ -637,10 +645,10 @@ export function registerComponentTools(ctx: ToolContext): void {
         );
         if (!kc)
           throw new ToolError(
-            `O kit "${kit.name}" não tem o componente "${component.slice(slash + 1)}". Componentes: ${(kit.doc.components ?? []).map((c) => c.name).join(', ')}.`,
+            `Kit "${kit.name}" has no component "${component.slice(slash + 1)}". Components: ${(kit.doc.components ?? []).map((c) => c.name).join(', ')}.`,
           );
-        // Só os componentes que faltam (pelo id do kit): principais já no documento, editados
-        // ou renomeados, ficam como estão.
+        // Only the missing components (by kit id): main components already in the document, edited
+        // or renamed, stay as they are.
         const imp = importKitOps(doc, kit.doc, kit.name, { onlyMissing: true });
         ops.push(...imp.ops);
         work = applyOps(doc, imp.ops).doc;
@@ -648,18 +656,18 @@ export function registerComponentTools(ctx: ToolContext): void {
         if (!def) throw componentNotFound(doc, component);
         const added = imp.components.filter((c) => c.status === 'added').length;
         if (added > 0 || imp.tokensAdded.length > 0) {
-          imported = ` Kit "${kit.name}" importado (${added} componente(s)${imp.tokensAdded.length ? `, ${imp.tokensAdded.length} token(s)` : ''}).`;
+          imported = ` Kit "${kit.name}" imported (${added} component(s)${imp.tokensAdded.length ? `, ${imp.tokensAdded.length} token(s)` : ''}).`;
         }
       }
 
-      // slots: HTML → nós (Tailwind aceito, como em write_html)
+      // slots: HTML → nodes (Tailwind accepted, as in write_html)
       const slotNodes: Record<string, Node[]> = {};
       let usedTw = false;
       const valid = slotNames(def);
       for (const [slot, html] of Object.entries(slots ?? {})) {
         if (!valid.includes(slot))
           throw new ToolError(
-            `O componente "${def.name}" não tem o slot "${slot}"${valid.length ? ` (slots: ${valid.join(', ')})` : ' (não tem slots)'}.`,
+            `Component "${def.name}" has no slot "${slot}"${valid.length ? ` (slots: ${valid.join(', ')})` : ' (it has no slots)'}.`,
           );
         const r = await htmlToNodesTw(work, html, undefined);
         usedTw ||= r.tailwind;
@@ -677,10 +685,8 @@ export function registerComponentTools(ctx: ToolContext): void {
       const r = apply(id, ops, 'insert_component');
       const slotIds = node.children.map((c) => `${c.attrs['data-slot']}=${c.id}`).join(', ');
       return [
-        `Instância criada: ${node.id} de "${def.name}" em ${parent}.${imported}`,
-        slotIds
-          ? `Slots (use como parentId em write_html/insert_component): ${slotIds}.`
-          : undefined,
+        `Instance created: ${node.id} of "${def.name}" in ${parent}.${imported}`,
+        slotIds ? `Slots (use as parentId in write_html/insert_component): ${slotIds}.` : undefined,
         summaryOf(r.doc, [node.id]),
       ]
         .filter(Boolean)
@@ -691,17 +697,20 @@ export function registerComponentTools(ctx: ToolContext): void {
   tool(
     'set_instance_props',
     {
-      title: 'Definir props de instâncias',
+      title: 'Set instance props',
       description:
-        'Define e/ou remove props de uma ou mais instâncias (unset volta ao padrão). Valores são validados pelo tipo (enum só aceita as opções). Slots não são props: use write_html no contêiner do slot.',
-      example: { nodeIds: ['in_ab12cd34'], set: { variant: 'secondary', label: 'Cancelar' } },
+        'Sets and/or removes props on one or more instances (unset restores the default). Values are validated by type (enum only accepts its options). Slots are not props: use write_html on the slot container.',
+      example: { nodeIds: ['in_ab12cd34'], set: { variant: 'secondary', label: 'Cancel' } },
       inputSchema: {
-        nodeIds: z.array(z.string()).min(1).describe('Ids das instâncias, ex.: ["in_ab12cd34"].'),
+        nodeIds: z.array(z.string()).min(1).describe('Instance ids, e.g. ["in_ab12cd34"].'),
         set: z
           .record(z.string(), propValueSchema)
           .optional()
-          .describe('Props a definir, ex.: { "variant": "secondary", "label": "Cancelar" }.'),
-        unset: z.array(z.string()).optional().describe('Props a voltar ao padrão, ex.: ["label"].'),
+          .describe('Props to set, e.g. { "variant": "secondary", "label": "Cancel" }.'),
+        unset: z
+          .array(z.string())
+          .optional()
+          .describe('Props to reset to default, e.g. ["label"].'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -711,49 +720,49 @@ export function registerComponentTools(ctx: ToolContext): void {
       const doc = store.get(id);
       for (const n of nodeIds) requireInstance(doc, n);
       if (!set && !unset?.length)
-        throw new ToolError('Informe set e/ou unset. Ex.: set { "variant": "outline" }.');
+        throw new ToolError('Provide set and/or unset. E.g. set { "variant": "outline" }.');
       const r = apply(
         id,
         [{ type: 'setInstanceProps', changes: nodeIds.map((nodeId) => ({ nodeId, set, unset })) }],
         'set_instance_props',
       );
-      return `Props atualizadas em ${nodeIds.length} instância(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Props updated on ${nodeIds.length} instance(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'set_instance_override',
     {
-      title: 'Sobrescrever um nó da instância',
+      title: 'Override an instance node',
       description:
-        'Muda um nó interno só nesta instância (estilo, texto, atributos, oculto), mesclando no override existente. path = id do nó no principal ("" = raiz; instância aninhada: "in_x/tx_y"). Equivale a update_styles/set_text no id virtual.',
+        'Changes an inner node only in this instance (style, text, attributes, hidden), merging into the existing override. path = node id in the main component ("" = root; nested instance: "in_x/tx_y"). Equivalent to update_styles/set_text on the virtual id.',
       example: {
         nodeId: 'in_ab12cd34',
         path: 'tx_9f8e7d6c',
         style: { color: '#dc2626' },
-        text: 'Excluir',
+        text: 'Delete',
       },
       inputSchema: {
-        nodeId: z.string().describe('Id da instância, ex.: "in_ab12cd34".'),
+        nodeId: z.string().describe('Instance id, e.g. "in_ab12cd34".'),
         path: z
           .string()
           .describe(
-            'Id do nó no principal, ex.: "tx_9f8e7d6c" ("" = raiz; aninhada: "in_ab12cd34/tx_9f8e7d6c"). Veja get_tree_summary da instância.',
+            'Node id in the main component, e.g. "tx_9f8e7d6c" ("" = root; nested: "in_ab12cd34/tx_9f8e7d6c"). See get_tree_summary of the instance.',
           ),
         style: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Estilos CSS a mesclar, ex.: { "color": "#dc2626" }.'),
+          .describe('CSS styles to merge, e.g. { "color": "#dc2626" }.'),
         unset_style: z
           .array(z.string())
           .optional()
-          .describe('Propriedades CSS do principal a remover, ex.: ["border"].'),
-        text: z.string().optional().describe('Texto do nó, ex.: "Excluir".'),
+          .describe('CSS properties of the main component to remove, e.g. ["border"].'),
+        text: z.string().optional().describe('Node text, e.g. "Delete".'),
         attrs: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Atributos HTML a mesclar, ex.: { "href": "/inicio" }.'),
-        hidden: z.boolean().optional().describe('true oculta o nó nesta instância.'),
+          .describe('HTML attributes to merge, e.g. { "href": "/home" }.'),
+        hidden: z.boolean().optional().describe('true hides the node in this instance.'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -763,16 +772,16 @@ export function registerComponentTools(ctx: ToolContext): void {
       const doc = store.get(id);
       const inst = findInstanceNode(doc, nodeId);
       if (!inst) {
-        requireInstance(doc, nodeId); // lança o erro adequado se não for instância
+        requireInstance(doc, nodeId); // throws the appropriate error if it is not an instance
         throw new ToolError(
-          `"${nodeId}" é uma instância aninhada: edite-a com update_styles/set_text/set_instance_props neste id virtual, ou use set_instance_override na instância de fora (path "<id aninhado>/<nó>").`,
+          `"${nodeId}" is a nested instance: edit it with update_styles/set_text/set_instance_props on this virtual id, or use set_instance_override on the outer instance (path "<nested id>/<node>").`,
         );
       }
       const target = path === '' ? nodeId : `${nodeId}/${path}`;
       if (!resolveRead(doc, target)) {
         const tree = resolveRead(doc, nodeId);
         throw new ToolError(
-          `O caminho "${path}" não existe nesta instância. Use o id de um nó do principal (e "in_x/..." para instâncias aninhadas):\n${tree ? getTreeSummary(tree.path.node, 4, { doc }) : ''}`,
+          `Path "${path}" does not exist in this instance. Use the id of a main component node (and "in_x/..." for nested instances):\n${tree ? getTreeSummary(tree.path.node, 4, { doc }) : ''}`,
         );
       }
       const ov: NodeOverride = {};
@@ -783,7 +792,7 @@ export function registerComponentTools(ctx: ToolContext): void {
       if (hidden !== undefined) ov.hidden = hidden;
       if (Object.keys(ov).length === 0)
         throw new ToolError(
-          'Informe ao menos um de style, unset_style, text, attrs ou hidden. Ex.: style { "color": "#dc2626" }.',
+          'Provide at least one of style, unset_style, text, attrs or hidden. E.g. style { "color": "#dc2626" }.',
         );
       const prev = inst.overrides?.[path];
       const merged = prev ? mergeOverride(prev, ov) : ov;
@@ -797,19 +806,19 @@ export function registerComponentTools(ctx: ToolContext): void {
         ],
         'set_instance_override',
       );
-      return `Override aplicado em ${target}.\n${summaryOf(r.doc, [nodeId])}`;
+      return `Override applied to ${target}.\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'reset_instance',
     {
-      title: 'Restaurar instâncias',
+      title: 'Reset instances',
       description:
-        'Remove todos os overrides das instâncias (props e slots ficam). Para gravar os overrides no principal em vez de descartá-los, use push_overrides_to_main.',
+        'Removes all overrides from the instances (props and slots stay). To write the overrides to the main component instead of discarding them, use push_overrides_to_main.',
       example: { nodeIds: ['in_ab12cd34'] },
       inputSchema: {
-        nodeIds: z.array(z.string()).min(1).describe('Ids das instâncias, ex.: ["in_ab12cd34"].'),
+        nodeIds: z.array(z.string()).min(1).describe('Instance ids, e.g. ["in_ab12cd34"].'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -823,19 +832,19 @@ export function registerComponentTools(ctx: ToolContext): void {
         nodeIds.flatMap((n) => resetInstanceOps(doc, n)),
         'reset_instance',
       );
-      return `Overrides removidos de ${nodeIds.length} instância(s).\n${summaryOf(r.doc, nodeIds)}`;
+      return `Overrides removed from ${nodeIds.length} instance(s).\n${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
   tool(
     'detach_instance',
     {
-      title: 'Destacar instância',
+      title: 'Detach instance',
       description:
-        'Transforma a instância em nós comuns (ids novos), desligando-a do principal. Devolve o novo id da raiz. Reversível com undo.',
+        'Turns the instance into plain nodes (new ids), disconnecting it from the main component. Returns the new root id. Reversible with undo.',
       example: { nodeId: 'in_ab12cd34' },
       inputSchema: {
-        nodeId: z.string().describe('Id da instância, ex.: "in_ab12cd34".'),
+        nodeId: z.string().describe('Instance id, e.g. "in_ab12cd34".'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -848,19 +857,19 @@ export function registerComponentTools(ctx: ToolContext): void {
       const r = apply(id, ops, 'detach_instance');
       const rep = ops[0];
       const newId = rep && rep.type === 'replaceNode' ? rep.node.id : nodeId;
-      return `Instância ${nodeId} destacada. Novo id: ${newId}.\n${summaryOf(r.doc, [newId])}`;
+      return `Instance ${nodeId} detached. New id: ${newId}.\n${summaryOf(r.doc, [newId])}`;
     },
   );
 
   tool(
     'push_overrides_to_main',
     {
-      title: 'Enviar overrides ao principal',
+      title: 'Push overrides to the main component',
       description:
-        'Grava os overrides da instância no principal (todas as instâncias passam a ter essa aparência) e limpa os da instância. Sem overrides não faz nada.',
+        'Writes the instance overrides to the main component (all instances take on that look) and clears the instance ones. Does nothing without overrides.',
       example: { nodeId: 'in_ab12cd34' },
       inputSchema: {
-        nodeId: z.string().describe('Id da instância, ex.: "in_ab12cd34".'),
+        nodeId: z.string().describe('Instance id, e.g. "in_ab12cd34".'),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
@@ -870,25 +879,25 @@ export function registerComponentTools(ctx: ToolContext): void {
       const doc = store.get(id);
       const inst = requireInstance(doc, nodeId);
       const ops = pushOverridesToMainOps(doc, nodeId);
-      if (!ops.length) return `A instância ${nodeId} não tem overrides: nada a enviar.`;
+      if (!ops.length) return `Instance ${nodeId} has no overrides: nothing to push.`;
       const r = apply(id, ops, 'push_overrides_to_main');
       const def = getComponent(r.doc, inst.componentId);
-      const n = def ? instanceCount(r.doc, def.id) : '0 instância(s)';
-      return `Overrides de ${nodeId} gravados no principal "${def?.name ?? inst.componentId}" (afeta ${n}).\n${summaryOf(r.doc, [nodeId])}`;
+      const n = def ? instanceCount(r.doc, def.id) : '0 instance(s)';
+      return `Overrides of ${nodeId} written to the main component "${def?.name ?? inst.componentId}" (affects ${n}).\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'go_to_main',
     {
-      title: 'Ir para o principal',
+      title: 'Go to the main component',
       description:
-        'Seleciona a raiz do principal no editor (que entra na edição do principal) e devolve sua árvore com ids. Aceita uma instância, um id virtual ("in_x/...") ou um id de componente.',
+        'Selects the main component root in the editor (which enters main component editing) and returns its tree with ids. Accepts an instance, a virtual id ("in_x/...") or a component id.',
       example: { nodeId: 'in_ab12cd34' },
       inputSchema: {
         nodeId: z
           .string()
-          .describe('Id de uma instância, id virtual ("in_x/tx_y") ou componente (cp_...).'),
+          .describe('Id of an instance, virtual id ("in_x/tx_y") or component (cp_...).'),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -908,17 +917,17 @@ export function registerComponentTools(ctx: ToolContext): void {
       if (!def) {
         if (!read0(doc, nodeId))
           throw new ToolError(
-            `Nó não encontrado: "${nodeId}". Use get_tree_summary (instâncias aparecem como ◆Nome) ou list_components.`,
+            `Node not found: "${nodeId}". Use get_tree_summary (instances appear as ◆Name) or list_components.`,
           );
         throw new ToolError(
-          `"${nodeId}" não é uma instância nem faz parte de um principal. Use list_components para ver os componentes.`,
+          `"${nodeId}" is not an instance and is not part of a main component. Use list_components to see the components.`,
         );
       }
       store.setSelection(id, [def.root.id], 'mcp');
       return [
-        `Principal "${def.name}" (${def.id}) selecionado: raiz ${def.root.id} (${instanceCount(doc, def.id)}).`,
+        `Main component "${def.name}" (${def.id}) selected: root ${def.root.id} (${instanceCount(doc, def.id)}).`,
         getTreeSummary(def.root, 5, { doc }),
-        'Edite com update_styles/set_text/set_attrs nesses ids (propaga para todas as instâncias), update_component_html ou update_component.',
+        'Edit with update_styles/set_text/set_attrs on these ids (propagates to all instances), update_component_html or update_component.',
       ].join('\n');
     },
   );
@@ -929,19 +938,17 @@ export function registerComponentTools(ctx: ToolContext): void {
   tool(
     'import_kit',
     {
-      title: 'Importar kit de componentes',
+      title: 'Import component kit',
       description:
-        'Importa um kit (nome, ex. "shadcn-like", ou caminho absoluto de um .mockup.json) com os tokens que faltam. Idempotente: adiciona os componentes que faltam e lista os editados (divergentes) sem sobrescrever; overwrite: true os substitui pelos do kit. Kits em list_components.',
+        'Imports a kit (name, e.g. "shadcn-like", or absolute path of a .mockup.json) with the missing tokens. Idempotent: adds the missing components and lists the edited (diverged) ones without overwriting; overwrite: true replaces them with the kit versions. Kits are listed in list_components.',
       example: { name: 'shadcn-like' },
       inputSchema: {
-        name: z
-          .string()
-          .describe('Nome do kit ("shadcn-like") ou caminho absoluto de um .mockup.json.'),
+        name: z.string().describe('Kit name ("shadcn-like") or absolute path of a .mockup.json.'),
         overwrite: z
           .boolean()
           .optional()
           .describe(
-            'true substitui os componentes do kit que diferem do kit (descarta as edições feitas neles). Padrão false: só adiciona os que faltam.',
+            'true replaces the kit components that differ from the kit (discarding edits made to them). Default false: only adds the missing ones.',
           ),
         docId: docIdField,
       },
@@ -956,17 +963,17 @@ export function registerComponentTools(ctx: ToolContext): void {
       const diverged = imp.components.filter((c) => c.status === 'diverged');
       const notes = [
         diverged.length
-          ? `Divergentes do kit (mantidos com as suas edições): ${diverged.map((c) => c.name).join(', ')}. Para substituir pelos do kit: import_kit("${name}", overwrite: true).`
+          ? `Diverged from the kit (kept with your edits): ${diverged.map((c) => c.name).join(', ')}. To replace them with the kit versions: import_kit("${name}", overwrite: true).`
           : undefined,
         imp.skipped.length
-          ? `Mantidos sem mudança (mesmo id, mas de outra origem): ${imp.skipped.map((c) => `${c.name}${c.kit ? ` [kit ${c.kit}]` : ''}`).join(', ')}.`
+          ? `Kept unchanged (same id, but from another source): ${imp.skipped.map((c) => `${c.name}${c.kit ? ` [kit ${c.kit}]` : ''}`).join(', ')}.`
           : undefined,
       ];
       if (imp.ops.length === 0) {
         return [
           diverged.length
-            ? `Kit "${kit.name}": nada a importar (${list}).`
-            : `Kit "${kit.name}" já está importado e atualizado: ${list}.`,
+            ? `Kit "${kit.name}": nothing to import (${list}).`
+            : `Kit "${kit.name}" is already imported and up to date: ${list}.`,
           ...notes,
         ]
           .filter(Boolean)
@@ -974,12 +981,12 @@ export function registerComponentTools(ctx: ToolContext): void {
       }
       apply(id, imp.ops, 'import_kit');
       return [
-        `Kit "${kit.name}" importado: ${list}.`,
+        `Kit "${kit.name}" imported: ${list}.`,
         imp.tokensAdded.length
-          ? `Tokens criados (${imp.tokensAdded.length}): ${imp.tokensAdded.slice(0, 8).join(', ')}${imp.tokensAdded.length > 8 ? ', …' : ''}.`
-          : 'Nenhum token novo (o documento já tinha os usados).',
+          ? `Tokens created (${imp.tokensAdded.length}): ${imp.tokensAdded.slice(0, 8).join(', ')}${imp.tokensAdded.length > 8 ? ', …' : ''}.`
+          : 'No new tokens (the document already had the ones used).',
         ...notes,
-        'Insira com insert_component("kit/Nome", parentId, props); detalhes em get_component.',
+        'Insert with insert_component("kit/Name", parentId, props); details in get_component.',
       ]
         .filter(Boolean)
         .join('\n');

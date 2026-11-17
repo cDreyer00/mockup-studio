@@ -17,12 +17,12 @@ import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
 import type { MediaParamValue, Node, VideoSpec } from './types.js';
 
 /* ====================================================================== */
-/* CSS: parser mínimo de regras + resolvedor de seletores simples          */
+/* CSS: minimal rule parser + simple selector resolver                     */
 /* ====================================================================== */
 
 type Decl = [string, string];
 
-/** Divide declarações `a: b; c: d` respeitando parênteses e aspas. */
+/** Splits `a: b; c: d` declarations, respecting parentheses and quotes. */
 function splitDeclarations(body: string): Decl[] {
   const decls: Decl[] = [];
   let buf = '';
@@ -60,7 +60,7 @@ interface Compound {
 }
 interface Complex {
   parts: Compound[];
-  /** combs[i] relaciona parts[i-1] e parts[i]: ' ' (descendente) ou '>' (filho direto). */
+  /** combs[i] relates parts[i-1] and parts[i]: ' ' (descendant) or '>' (direct child). */
   combs: (' ' | '>')[];
 }
 interface Rule {
@@ -82,7 +82,7 @@ function parseCompound(token: string): Compound | null {
   return compound;
 }
 
-/** Retorna `null` para seletores não suportados (pseudo-classes, atributos, irmãos...). */
+/** Returns `null` for unsupported selectors (pseudo-classes, attributes, siblings...). */
 function parseSelector(sel: string): Complex | null {
   const s = sel.trim();
   if (!s || /[:[\]+~|@()]/.test(s)) return null;
@@ -119,11 +119,11 @@ function parseCss(css: string): Rule[] {
     if (open === -1) break;
     const prelude = src.slice(i, open).trim();
     if (prelude.startsWith('@') && semi !== -1 && semi < open) {
-      i = semi + 1; // at-rule sem bloco (@import, @charset)
+      i = semi + 1; // at-rule without a block (@import, @charset)
       continue;
     }
     if (prelude.startsWith('@')) {
-      // at-rule com bloco aninhado (@media, @keyframes...): ignora inteiro.
+      // at-rule with a nested block (@media, @keyframes...): skip it entirely.
       let depth = 0;
       let j = open;
       for (; j < src.length; j++) {
@@ -177,7 +177,7 @@ function matches(el: Element, sel: Complex, i: number): boolean {
   return false;
 }
 
-/** Normaliza declarações ignorando silenciosamente nomes inválidos. */
+/** Normalizes declarations, silently ignoring invalid names. */
 function safeNormalize(decls: Decl[]): Record<string, string> {
   const merged: Record<string, string> = {};
   for (const [k, v] of decls) {
@@ -208,10 +208,10 @@ const UNWRAP_TAGS = new Set(['html', 'body']);
 const NAME_TEXT_MAX = 32;
 
 /**
- * Regra de espaços em runs de texto: só whitespace → descartado; senão sequências de whitespace
- * viram um único espaço, e o whitespace inicial (ou final) é removido se contiver quebra de linha.
- * Quebras de linha/indentação de HTML "bonito" são formatação e somem; espaços simples inline
- * ("Olá <b>mundo</b>") são conteúdo e viram um espaço.
+ * Whitespace rule for text runs: whitespace only → discarded; otherwise runs of whitespace
+ * collapse into a single space, and leading (or trailing) whitespace is removed if it contains a line break.
+ * Line breaks/indentation of "pretty" HTML are formatting and vanish; plain inline spaces
+ * ("Hello <b>world</b>") are content and become one space.
  */
 function cleanText(raw: string): string {
   const m = /^([ \t\r\n\f]*)([\s\S]*?)([ \t\r\n\f]*)$/.exec(raw);
@@ -225,7 +225,7 @@ const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n)
 
 interface Ctx {
   rules: Rule[];
-  /** Guarda o atributo `class` em `node.classes` (import Tailwind) e não nomeia por classe. */
+  /** Keeps the `class` attribute in `node.classes` (Tailwind import) and does not name nodes by class. */
   keepClasses?: boolean;
 }
 
@@ -238,10 +238,10 @@ function elementStyle(el: Element, ctx: Ctx): Record<string, string> {
   return safeNormalize(decls);
 }
 
-/** Atributos que carregam URL e podem executar código (`javascript:`, `data:text/html`). */
+/** Attributes that carry a URL and can execute code (`javascript:`, `data:text/html`). */
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcdoc']);
 
-/** `javascript:` ou `data:` que não seja imagem, ignorando espaços e controles. */
+/** `javascript:` or non-image `data:`, ignoring whitespace and control characters. */
 export function isUnsafeUrl(value: string): boolean {
   // eslint-disable-next-line no-control-regex
   const v = value.replace(/[\s\u0000-\u001f]+/g, '').toLowerCase();
@@ -266,7 +266,7 @@ function elementName(el: Element, text?: string, ctx?: Ctx): string {
   const dataName = el.attribs['data-name']?.trim();
   if (dataName) return dataName;
   if (ctx?.keepClasses) {
-    // shadcn/ui marca as partes com `data-slot` (card-header, button...).
+    // shadcn/ui marks parts with `data-slot` (card-header, button...).
     const slot = el.attribs['data-slot']?.trim();
     if (slot) return capitalize(slot.replace(/-/g, ' '));
     if (text) return truncate(text, NAME_TEXT_MAX);
@@ -299,7 +299,7 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
   return out;
 }
 
-/** `<video src|<source src>`: nó video (src/poster/autoplay/loop/muted/controls); `null` sem src válido. */
+/** `<video src|<source src>`: video node (src/poster/autoplay/loop/muted/controls); `null` without a valid src. */
 function convertVideo(el: Element, ctx: Ctx): Node | null {
   const source = DomUtils.findOne((e) => e.name === 'source' && !!e.attribs.src, el.children);
   const src = (el.attribs.src || source?.attribs.src || '').trim();
@@ -311,12 +311,12 @@ function convertVideo(el: Element, ctx: Ctx): Node | null {
     if (el.attribs[flag] !== undefined) spec[flag] = true;
   }
   return createVideoNode(spec, {
-    name: el.attribs['data-name']?.trim() || 'Vídeo',
+    name: el.attribs['data-name']?.trim() || 'Video',
     styles: elementStyle(el, ctx),
   });
 }
 
-/** `<div data-mockup-effect="kind" data-params='json'>` → nó effect; `null` se o JSON ou o kind são inválidos. */
+/** `<div data-mockup-effect="kind" data-params='json'>` → effect node; `null` if the JSON or the kind is invalid. */
 function convertMediaDiv(el: Element, ctx: Ctx): Node | null {
   if (el.name.toLowerCase() === 'div' && el.attribs['data-mockup-embed'] !== undefined)
     return convertEmbedDiv(el, ctx);
@@ -336,12 +336,12 @@ function convertMediaDiv(el: Element, ctx: Ctx): Node | null {
   const spec = EffectSpecSchema.safeParse({ kind, params });
   if (!spec.success) return null;
   return createEffectNode(spec.data.kind, spec.data.params, {
-    name: el.attribs['data-name']?.trim() || 'Efeito',
+    name: el.attribs['data-name']?.trim() || 'Effect',
     styles: elementStyle(el, ctx),
   });
 }
 
-/** `<div data-mockup-embed="provider" data-src|data-url|data-code data-params='json'>` → nó embed. */
+/** `<div data-mockup-embed="provider" data-src|data-url|data-code data-params='json'>` → embed node. */
 function convertEmbedDiv(el: Element, ctx: Ctx): Node | null {
   const raw: Record<string, unknown> = { provider: el.attribs['data-mockup-embed'] };
   for (const [attr, key] of [
@@ -374,8 +374,8 @@ function convertElement(el: Element, ctx: Ctx): Node {
   const node = convertElementInner(el, ctx);
   if (ctx.keepClasses) {
     const cls = (el.attribs.class ?? '').trim().replace(/\s+/g, ' ');
-    // `>` e `'` são comuns em variantes arbitrárias do shadcn (`has-[>svg]:px-3`, `[&_svg:not([class*='size-'])]:size-4`);
-    // o `class` é sempre escapado ao exportar, então só `<`, `{`, `}`, `;`, `"` e crase ficam de fora.
+    // `>` and `'` are common in shadcn arbitrary variants (`has-[>svg]:px-3`, `[&_svg:not([class*='size-'])]:size-4`);
+    // `class` is always escaped on export, so only `<`, `{`, `}`, `;`, `"` and backtick are excluded.
     if (cls && !/[<{};"`]/.test(cls)) node.classes = cls;
   }
   return node;
@@ -430,8 +430,8 @@ function convertElementInner(el: Element, ctx: Ctx): Node {
 }
 
 /**
- * HTML → nós. `css`: regras extras (além dos `<style>` do HTML). `keepClasses`: guarda o `class`
- * de cada elemento em `node.classes` (para compilar como Tailwind; ver `@mockup/core/tailwind`).
+ * HTML → nodes. `css`: extra rules (besides the HTML's `<style>` blocks). `keepClasses`: keeps the `class`
+ * of each element in `node.classes` (to compile as Tailwind; see `@mockup/core/tailwind`).
  */
 export function htmlToNodes(
   html: string,
@@ -465,12 +465,12 @@ const escapeText = (s: string): string =>
 
 const escapeAttr = (s: string): string => escapeText(s).replace(/'/g, '&#39;');
 
-/** Impede que um valor CSS feche o <style> que o contém ("</" vira "<\/"). */
+/** Prevents a CSS value from closing the <style> that contains it ("</" becomes "<\/"). */
 export function escapeCssText(s: string): string {
   return s.replace(/<\//g, '<\\/');
 }
 
-/** Nome de classe único: slug do nome + últimos 4 chars do id. */
+/** Unique class name: name slug + last 4 chars of the id. */
 export function classNameFor(node: Node): string {
   return `${slugify(node.name)}-${node.id.slice(-4)}`;
 }
@@ -506,7 +506,7 @@ export function nodesToHtml(
     }
     for (const [k, v] of Object.entries(node.attrs)) {
       if (!ATTR_NAME_RE.test(k)) {
-        throw new Error(`Nome de atributo inválido no nó "${node.id}": "${k}"`);
+        throw new Error(`Invalid attribute name on node "${node.id}": "${k}"`);
       }
       parts.push(`${k}="${escapeAttr(v)}"`);
     }
@@ -543,7 +543,7 @@ export function nodesToHtml(
     if (VOID_TAGS.has(node.tag)) {
       if (node.children.length > 0) {
         throw new Error(
-          `O nó "${node.id}" (${node.tag}) é uma tag void e não pode ter filhos; remova-os ou troque a tag`,
+          `Node "${node.id}" (${node.tag}) is a void tag and cannot have children; remove them or change the tag`,
         );
       }
       lines.push(pad(depth) + open);

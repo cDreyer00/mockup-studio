@@ -1,7 +1,7 @@
 /**
- * Leitura e render de componentes no daemon: resolve ids que não existem como nós "soltos" nas
- * páginas (ids virtuais `in_x/caminho`, nós da árvore de um principal e `cp_...`) e monta os
- * documentos que o render e os exportadores consomem (instâncias já expandidas).
+ * Component reading and rendering in the daemon: resolves ids that do not exist as "loose" nodes on
+ * the pages (virtual ids `in_x/path`, nodes of a main component tree and `cp_...`) and builds the
+ * documents consumed by the renderer and the exporters (instances already expanded).
  */
 import {
   COMPONENT_EDIT_PAGE_ID,
@@ -20,8 +20,8 @@ import {
 const tempDocs = new WeakMap<Document, Map<string, Document>>();
 
 /**
- * Documento temporário só para LER a árvore de um principal: uma página com a raiz do principal
- * (instâncias aninhadas expandidas, `{{prop}}` intactos). Cache por documento.
+ * Temporary document just to READ a main component tree: one page with the main component root
+ * (nested instances expanded, `{{prop}}` intact). Cached per document.
  */
 export function componentTempDoc(doc: Document, def: ComponentDef): Document {
   let byId = tempDocs.get(doc);
@@ -36,7 +36,7 @@ export function componentTempDoc(doc: Document, def: ComponentDef): Document {
     pages: [
       {
         id: COMPONENT_EDIT_PAGE_ID,
-        name: `Principal ${def.name}`,
+        name: `Main ${def.name}`,
         background: '#ffffff',
         frames: [expandNodeTree(doc, def.root)],
       },
@@ -48,21 +48,21 @@ export function componentTempDoc(doc: Document, def: ComponentDef): Document {
 
 export interface ReadResolution {
   path: NodePath;
-  /** Documento em que `path` vive: o expandido, ou o temporário de um principal. */
+  /** Document where `path` lives: the expanded one, or a main component's temporary one. */
   doc: Document;
-  /** Principal dono do nó, quando o id é de um nó da árvore de um principal. */
+  /** Main component owning the node, when the id belongs to a node of a main component tree. */
   component?: ComponentDef;
 }
 
 /**
- * Acha o nó para LEITURA: primeiro no documento expandido (nós reais, instâncias expandidas e ids
- * virtuais), depois entre os nós da árvore de um principal.
+ * Finds the node for READING: first in the expanded document (real nodes, expanded instances and
+ * virtual ids), then among the nodes of a main component tree.
  */
 export function resolveRead(doc: Document, id: string): ReadResolution | undefined {
   const expanded = expandDocument(doc);
   const p = findNode(expanded, id);
   if (p) return { path: p, doc: expanded };
-  // `cp_...` vale como a raiz do principal
+  // `cp_...` counts as the main component root
   const nodeId = getComponent(doc, id)?.root.id ?? id;
   const c = findComponentNode(doc, nodeId);
   if (!c) return undefined;
@@ -72,9 +72,10 @@ export function resolveRead(doc: Document, id: string): ReadResolution | undefin
 }
 
 /**
- * Documento em que os nós `ids` existem, para quem monta ops lendo o nó (dados, placeholder,
- * contornos, booleanas): o próprio documento (nós reais), o expandido (ids virtuais `in_x/...`;
- * as ops roteiam para overrides) ou o temporário de um principal (as ops editam o principal).
+ * Document where the nodes `ids` exist, for callers that build ops by reading the node (data,
+ * placeholder, outlines, boolean ops): the document itself (real nodes), the expanded one (virtual
+ * ids `in_x/...`; the ops route to overrides) or a main component's temporary one (the ops edit
+ * the main component).
  */
 export function docWithNodes(doc: Document, ids: readonly string[]): Document {
   if (ids.every((id) => findNode(doc, id))) return doc;
@@ -88,8 +89,8 @@ const PREVIEW_INSTANCE_ID = 'in_preview0';
 const PREVIEW_FRAME_ID = 'fr_preview0';
 
 /**
- * Documento de prévia de um principal: uma página com um frame contendo uma instância padrão
- * (props padrão, slots vazios), já expandido. `instanceId` é o id da instância na prévia.
+ * Preview document of a main component: one page with a frame containing a default instance
+ * (default props, empty slots), already expanded. `instanceId` is the instance id in the preview.
  */
 export function componentPreviewDoc(
   doc: Document,
@@ -98,7 +99,7 @@ export function componentPreviewDoc(
   const instance = instanceNodeFor(doc, def.id, { id: PREVIEW_INSTANCE_ID });
   const frame = createNodeFromTag('div', {
     isRoot: true,
-    name: `Prévia ${def.name}`,
+    name: `Preview ${def.name}`,
     styles: {
       width: '960px',
       display: 'flex',
@@ -113,21 +114,21 @@ export function componentPreviewDoc(
   frame.children = [instance];
   const preview: Document = {
     ...doc,
-    pages: [{ id: 'pg_preview', name: 'Prévia', background: '#ffffff', frames: [frame] }],
+    pages: [{ id: 'pg_preview', name: 'Preview', background: '#ffffff', frames: [frame] }],
   };
   return { doc: expandDocument(preview), instanceId: PREVIEW_INSTANCE_ID };
 }
 
 export interface RenderTarget {
-  /** Documento a entregar ao `RenderProvider` (instâncias expandidas). */
+  /** Document to hand to the `RenderProvider` (instances expanded). */
   doc: Document;
   nodeId: string;
   name: string;
 }
 
 /**
- * Alvo de screenshot/medição: nós reais e ids virtuais saem do documento expandido; um principal
- * (`cp_...`) ou um nó da sua árvore é renderizado numa instância padrão num documento temporário.
+ * Screenshot/measure target: real nodes and virtual ids come from the expanded document; a main
+ * component (`cp_...`) or a node of its tree is rendered as a default instance in a temporary document.
  */
 export function renderTargetFor(doc: Document, ref: string): RenderTarget | undefined {
   const expanded = expandDocument(doc);

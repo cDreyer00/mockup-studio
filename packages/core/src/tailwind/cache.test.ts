@@ -3,13 +3,13 @@ import { clearTailwindEngines, getTailwindEngine, peekTailwindEngine } from './c
 
 const doc = { tokens: {}, themes: [] };
 
-describe('cache do motor Tailwind: aquecimento em ocioso', () => {
+describe('Tailwind engine cache: idle warm-up', () => {
   afterEach(() => {
     vi.useRealTimers();
     clearTailwindEngines();
   });
 
-  it('agenda warmup() depois de criar o motor, uma vez, sem bloquear a promessa', async () => {
+  it('schedules warmup() after creating the engine, once, without blocking the promise', async () => {
     clearTailwindEngines();
     const engine = await getTailwindEngine(doc, { warmup: false });
     clearTailwindEngines();
@@ -25,7 +25,7 @@ describe('cache do motor Tailwind: aquecimento em ocioso', () => {
     spy.mockRestore();
   });
 
-  it('warmup: false não agenda', async () => {
+  it('warmup: false does not schedule', async () => {
     clearTailwindEngines();
     const probe = await getTailwindEngine(doc, { warmup: false });
     clearTailwindEngines();

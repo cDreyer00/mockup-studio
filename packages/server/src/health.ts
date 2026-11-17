@@ -1,6 +1,6 @@
 import type { HealthInfo } from './http.js';
 
-/** Consulta `GET <url>/api/health`; devolve `null` se o daemon não responder. */
+/** Queries `GET <url>/api/health`; returns `null` if the daemon does not respond. */
 export async function checkHealth(url: string, timeoutMs = 1500): Promise<HealthInfo | null> {
   try {
     const res = await fetch(`${url.replace(/\/+$/, '')}/api/health`, {

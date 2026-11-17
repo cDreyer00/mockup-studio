@@ -1,20 +1,20 @@
 /**
- * Controle de um daemon já rodando (usado pelo CLI e pelo app desktop): lista os documentos
- * abertos, pede o encerramento e espera a porta liberar, para outro processo assumir o lugar.
+ * Control of an already running daemon (used by the CLI and the desktop app): lists the open
+ * documents, requests shutdown and waits for the port to be released, so another process can take its place.
  */
 import { checkHealth } from './health.js';
 
 export interface TakeoverResult {
   ok: boolean;
-  /** Caminhos dos documentos que estavam abertos (para reabrir em quem assumir). */
+  /** Paths of the documents that were open (to reopen in whoever takes over). */
   paths: string[];
-  /** Documentos sem arquivo (ainda não salvos): serão perdidos na troca. */
+  /** Documents without a file (not saved yet): they will be lost in the swap. */
   unsaved: number;
-  /** Motivo quando `ok` é falso. */
+  /** Reason when `ok` is false. */
   reason?: string;
 }
 
-/** Documentos abertos no daemon (`GET /api/docs`); falha vira lista vazia. */
+/** Documents open in the daemon (`GET /api/docs`); failure becomes an empty list. */
 export async function listOpenDocuments(
   url: string,
 ): Promise<{ paths: string[]; unsaved: number }> {
@@ -34,7 +34,7 @@ export async function listOpenDocuments(
   }
 }
 
-/** `POST /api/shutdown`: 202 se o daemon aceitou; 409 se ele não permite (app desktop). */
+/** `POST /api/shutdown`: 202 if the daemon accepted; 409 if it does not allow it (desktop app). */
 export async function requestShutdown(
   url: string,
 ): Promise<{ accepted: boolean; status: number; error?: string }> {
@@ -51,7 +51,7 @@ export async function requestShutdown(
   }
 }
 
-/** Espera o daemon deixar de responder (porta livre). */
+/** Waits for the daemon to stop responding (port free). */
 export async function waitForShutdown(url: string, timeoutMs = 15000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -62,14 +62,18 @@ export async function waitForShutdown(url: string, timeoutMs = 15000): Promise<b
 }
 
 /**
- * Pede o encerramento do daemon em `url`, espera a porta liberar e devolve os documentos que ele
- * tinha abertos. Chame antes de subir o substituto e reabra `paths` nele.
+ * Requests shutdown of the daemon at `url`, waits for the port to be released and returns the documents it
+ * had open. Call before starting the replacement and reopen `paths` in it.
  */
 export async function takeOverDaemon(url: string, timeoutMs = 15000): Promise<TakeoverResult> {
   const open = await listOpenDocuments(url);
   const res = await requestShutdown(url);
   if (!res.accepted) return { ok: false, ...open, reason: res.error };
   if (!(await waitForShutdown(url, timeoutMs)))
-    return { ok: false, ...open, reason: `o daemon não liberou a porta em ${timeoutMs} ms` };
+    return {
+      ok: false,
+      ...open,
+      reason: `the daemon did not release the port within ${timeoutMs} ms`,
+    };
   return { ok: true, ...open };
 }

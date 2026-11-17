@@ -21,15 +21,15 @@ import type { Document, Node } from './types.js';
 
 const KINDS = ['mesh-gradient', 'grain', 'halftone', 'waves', 'liquid-metal', 'glass', 'particles'];
 
-/** Documento com um único frame (fr_test0001, "Tela") contendo `children`. */
+/** Document with a single frame (fr_test0001, "Screen") containing `children`. */
 function docWith(children: Node[]): Document {
-  const doc = createDocument('Teste', { id: 'doc_test' });
+  const doc = createDocument('Test', { id: 'doc_test' });
   doc.pages[0].frames.push(
     createNode({
       tag: 'div',
       type: 'frame',
       id: 'fr_test0001',
-      name: 'Tela',
+      name: 'Screen',
       style: { width: '400px', height: '300px' },
       children,
     }),
@@ -37,17 +37,17 @@ function docWith(children: Node[]): Document {
   return doc;
 }
 
-/* ---------------- catálogo ---------------- */
+/* ---------------- catalog ---------------- */
 
-describe('catálogo de efeitos', () => {
-  it('tem os 6 shaders e as partículas', () => {
+describe('effects catalog', () => {
+  it('has the 6 shaders and the particles', () => {
     expect(effectKinds().sort()).toEqual([...KINDS].sort());
     const shaders = EFFECTS.filter((e) => e.category === 'shader').map((e) => e.kind);
     expect(shaders.sort()).toEqual(KINDS.filter((k) => k !== 'particles').sort());
     expect(getEffect('particles')!.category).toBe('particles');
   });
 
-  it('kinds únicos, em kebab-case, e getEffect devolve a definição', () => {
+  it('unique kinds, in kebab-case, and getEffect returns the definition', () => {
     const kinds = EFFECTS.map((e) => e.kind);
     expect(new Set(kinds).size).toBe(kinds.length);
     for (const e of EFFECTS) {
@@ -56,10 +56,10 @@ describe('catálogo de efeitos', () => {
       expect(e.label).not.toBe('');
       expect(e.description).not.toBe('');
     }
-    expect(getEffect('nao-existe')).toBeUndefined();
+    expect(getEffect('does-not-exist')).toBeUndefined();
   });
 
-  it('shaders têm fragment GLSL com main e u_resolution; partículas não têm', () => {
+  it('shaders have a GLSL fragment with main and u_resolution; particles do not', () => {
     for (const e of EFFECTS) {
       if (e.category === 'shader') {
         expect(e.fragment, e.kind).toContain('void main()');
@@ -72,7 +72,7 @@ describe('catálogo de efeitos', () => {
     }
   });
 
-  it('nomes de parâmetros únicos por efeito e cada um declara seu uniform no shader', () => {
+  it('unique param names per effect, each declaring its uniform in the shader', () => {
     for (const e of EFFECTS) {
       const names = e.params.map((p) => p.name);
       expect(new Set(names).size, e.kind).toBe(names.length);
@@ -86,7 +86,7 @@ describe('catálogo de efeitos', () => {
     }
   });
 
-  it('defaults passam em effectParamsProblems e respeitam o tipo e a faixa', () => {
+  it('defaults pass effectParamsProblems and respect the type and range', () => {
     for (const e of EFFECTS) {
       const defaults = Object.fromEntries(e.params.map((p) => [p.name, p.default]));
       expect(effectParamsProblems(e.kind, defaults), e.kind).toEqual([]);
@@ -109,7 +109,7 @@ describe('catálogo de efeitos', () => {
     }
   });
 
-  it('todo efeito tem presets com nome único, params válidos e que resolvem', () => {
+  it('every effect has presets with unique names and valid, resolvable params', () => {
     for (const e of EFFECTS) {
       expect(e.presets.length, e.kind).toBeGreaterThan(0);
       const names = e.presets.map((p) => p.name);
@@ -124,100 +124,98 @@ describe('catálogo de efeitos', () => {
     }
   });
 
-  it('presetParams: undefined para kind ou preset inexistente', () => {
-    expect(presetParams('nao-existe', 'aurora')).toBeUndefined();
-    expect(presetParams('mesh-gradient', 'nao-existe')).toBeUndefined();
+  it('presetParams: undefined for a missing kind or preset', () => {
+    expect(presetParams('does-not-exist', 'aurora')).toBeUndefined();
+    expect(presetParams('mesh-gradient', 'does-not-exist')).toBeUndefined();
     expect(presetParams('mesh-gradient', 'sunset')!.color1).toBe('#ff5e62');
     expect(presetParams('mesh-gradient', 'sunset')!.speed).toBe(1);
   });
 });
 
 describe('resolveEffectParams', () => {
-  it('sem params devolve todos os defaults', () => {
+  it('no params returns all defaults', () => {
     const p = resolveEffectParams('mesh-gradient');
     expect(p).toMatchObject({ color1: '#0d1b4c', speed: 1, distortion: 0.5, grain: 0.15 });
     expect(Object.keys(p)).toHaveLength(getEffect('mesh-gradient')!.params.length);
   });
 
-  it('mantém valores válidos e completa o resto com defaults', () => {
+  it('keeps valid values and fills the rest with defaults', () => {
     const p = resolveEffectParams('mesh-gradient', { speed: 2.5, color1: '#fff' });
     expect(p.speed).toBe(2.5);
     expect(p.color1).toBe('#fff');
     expect(p.color2).toBe('#00c2a8');
   });
 
-  it('limita números a min/max', () => {
+  it('clamps numbers to min/max', () => {
     expect(resolveEffectParams('mesh-gradient', { speed: 99 }).speed).toBe(4);
     expect(resolveEffectParams('mesh-gradient', { speed: -5 }).speed).toBe(0);
   });
 
-  it('valor de tipo errado volta ao default; parâmetro desconhecido é descartado', () => {
+  it('wrong-type value falls back to the default; unknown param is dropped', () => {
     const p = resolveEffectParams('mesh-gradient', {
-      speed: 'rápido',
-      color1: 'vermelho',
+      speed: 'fast',
+      color1: 'reddish',
       color2: 42,
-      inexistente: 1,
+      nonexistent: 1,
     });
     expect(p.speed).toBe(1);
     expect(p.color1).toBe('#0d1b4c');
     expect(p.color2).toBe('#00c2a8');
-    expect('inexistente' in p).toBe(false);
+    expect('nonexistent' in p).toBe(false);
   });
 
-  it('número não finito (NaN/Infinity) volta ao default', () => {
+  it('non-finite number (NaN/Infinity) falls back to the default', () => {
     expect(resolveEffectParams('mesh-gradient', { speed: NaN }).speed).toBe(1);
     expect(resolveEffectParams('mesh-gradient', { speed: Infinity }).speed).toBe(1);
   });
 
-  it('não herda propriedades do protótipo', () => {
+  it('does not inherit prototype properties', () => {
     const p = resolveEffectParams('mesh-gradient', JSON.parse('{"__proto__": 5}'));
     expect(p.speed).toBe(1);
     expect(Object.getPrototypeOf(p)).toBe(Object.prototype);
   });
 
-  it('select só aceita opção listada', () => {
+  it('select only accepts a listed option', () => {
     const shape = getEffect('halftone')!.params.find((p) => p.type === 'select')!;
     expect(resolveEffectParams('halftone', { [shape.name]: 'xyz' })[shape.name]).toBe(
       shape.default,
     );
-    const outra = shape.options!.find((o) => o !== shape.default)!;
-    expect(resolveEffectParams('halftone', { [shape.name]: outra })[shape.name]).toBe(outra);
+    const other = shape.options!.find((o) => o !== shape.default)!;
+    expect(resolveEffectParams('halftone', { [shape.name]: other })[shape.name]).toBe(other);
   });
 
-  it('kind desconhecido devolve cópia dos params', () => {
+  it('unknown kind returns a copy of the params', () => {
     const input = { a: 1 };
-    const out = resolveEffectParams('nao-existe', input);
+    const out = resolveEffectParams('does-not-exist', input);
     expect(out).toEqual({ a: 1 });
     expect(out).not.toBe(input);
   });
 });
 
 describe('effectParamsProblems', () => {
-  it('efeito inexistente', () => {
-    const p = effectParamsProblems('nao-existe', {});
+  it('unknown effect', () => {
+    const p = effectParamsProblems('does-not-exist', {});
     expect(p).toHaveLength(1);
-    expect(p[0]).toContain('efeito inexistente');
+    expect(p[0]).toContain('unknown effect');
     expect(p[0]).toContain('mesh-gradient');
   });
 
-  it('parâmetro desconhecido, tipo errado e fora da faixa', () => {
-    expect(effectParamsProblems('mesh-gradient', { xyz: 1 })[0]).toContain(
-      'parâmetro desconhecido',
-    );
-    expect(effectParamsProblems('mesh-gradient', { speed: 'a' })[0]).toContain('deve ser número');
-    expect(effectParamsProblems('mesh-gradient', { speed: 9 })[0]).toContain('fora da faixa');
-    expect(effectParamsProblems('mesh-gradient', { color1: 'azul' })[0]).toContain('cor CSS');
-    expect(effectParamsProblems('mesh-gradient', { color1: 1 })[0]).toContain('cor CSS');
-    expect(effectParamsProblems('particles', { links: 'sim' })[0]).toContain('booleano');
+  it('unknown param, wrong type and out of range', () => {
+    expect(effectParamsProblems('mesh-gradient', { xyz: 1 })[0]).toContain('unknown param');
+    expect(effectParamsProblems('mesh-gradient', { speed: 'a' })[0]).toContain('must be a number');
+    expect(effectParamsProblems('mesh-gradient', { speed: 9 })[0]).toContain('out of range');
+    expect(effectParamsProblems('mesh-gradient', { color1: 'blue' })[0]).toContain('a CSS color');
+    expect(effectParamsProblems('mesh-gradient', { color1: 1 })[0]).toContain('a CSS color');
+    expect(effectParamsProblems('particles', { links: 'yes' })[0]).toContain('a boolean');
   });
 
-  it('opção inválida de select', () => {
+  it('invalid select option', () => {
     const sel = getEffect('halftone')!.params.find((p) => p.type === 'select')!;
-    expect(effectParamsProblems('halftone', { [sel.name]: 'zzz' })[0]).toContain('opção inválida');
-    expect(effectParamsProblems('halftone', { [sel.name]: 3 })[0]).toContain('texto');
+    expect(effectParamsProblems('halftone', { [sel.name]: 'zzz' })[0]).toContain('invalid option');
+    expect(effectParamsProblems('halftone', { [sel.name]: 3 })[0]).toContain('string');
   });
 
-  it('aceita formatos de cor #rgb, #rrggbbaa, rgb(), rgba() e transparent', () => {
+  it('accepts color formats #rgb, #rrggbbaa, rgb(), rgba() and transparent', () => {
     for (const c of [
       '#fff',
       '#ffff',
@@ -232,13 +230,13 @@ describe('effectParamsProblems', () => {
       expect(effectParamsProblems('particles', { color: c }), c).toHaveLength(1);
   });
 
-  it('agrega vários problemas', () => {
+  it('aggregates several problems', () => {
     expect(effectParamsProblems('mesh-gradient', { speed: 'a', foo: 1, grain: 5 })).toHaveLength(3);
   });
 });
 
 describe('effectFallbackCss', () => {
-  it('cada kind gera um background não vazio e determinístico', () => {
+  it('each kind produces a non-empty, deterministic background', () => {
     for (const k of KINDS) {
       const css = effectFallbackCss({ kind: k, params: {} });
       expect(css.background, k).toBeTruthy();
@@ -246,7 +244,7 @@ describe('effectFallbackCss', () => {
     }
   });
 
-  it('usa as cores dos params e o catálogo para o resto', () => {
+  it('uses the params colors and the catalog for the rest', () => {
     const mesh = effectFallbackCss({ kind: 'mesh-gradient', params: { color1: '#123456' } });
     expect(mesh.background).toContain('radial-gradient');
     expect(mesh.background).toContain('#123456');
@@ -257,13 +255,13 @@ describe('effectFallbackCss', () => {
     ).toBe('linear-gradient(160deg, #111111, #222222)');
   });
 
-  it('kind desconhecido cai no fundo padrão', () => {
-    expect(effectFallbackCss({ kind: 'nao-existe', params: {} })).toEqual({
+  it('unknown kind falls back to the default background', () => {
+    expect(effectFallbackCss({ kind: 'does-not-exist', params: {} })).toEqual({
       background: '#1e1b4b',
     });
   });
 
-  it('valor inválido não vaza para o CSS', () => {
+  it('invalid value does not leak into the CSS', () => {
     const css = effectFallbackCss({
       kind: 'mesh-gradient',
       params: { color1: 'red;} body{display:none' },
@@ -275,17 +273,17 @@ describe('effectFallbackCss', () => {
 
 /* ---------------- runtime ---------------- */
 
-describe('runtime dos efeitos', () => {
+describe('effects runtime', () => {
   const source = effectsRuntimeSource();
 
-  it('é uma expressão JS que faz parse com new Function', () => {
+  it('is a JS expression that parses with new Function', () => {
     expect(() => new Function(`return ${source}`)).not.toThrow();
     const rt = new Function(`return ${source}`)() as EffectsRuntime;
     expect(typeof rt.mount).toBe('function');
     expect(typeof rt.play).toBe('function');
   });
 
-  it('é autocontido: roda num contexto vazio, sem imports nem identificadores do módulo', () => {
+  it('is self-contained: runs in an empty context, with no imports or module identifiers', () => {
     const rt = vm.runInNewContext(source, Object.create(null)) as EffectsRuntime;
     expect(typeof rt.mount).toBe('function');
     expect(source).not.toMatch(/\brequire\(|\bimport\s*\(|\bimport\s+[\w{*]/);
@@ -293,11 +291,11 @@ describe('runtime dos efeitos', () => {
     expect(source).not.toContain('getEffect');
   });
 
-  it('é determinístico entre chamadas', () => {
+  it('is deterministic across calls', () => {
     expect(effectsRuntimeSource()).toBe(source);
   });
 
-  it('mount sem canvas válido devolve handle com ok=false', () => {
+  it('mount without a valid canvas returns a handle with ok=false', () => {
     const rt = vm.runInNewContext(source, {}) as EffectsRuntime;
     const h = rt.mount(null, effectMountSpec({ kind: 'grain', params: {} }));
     expect(h.ok).toBe(false);
@@ -309,15 +307,15 @@ describe('runtime dos efeitos', () => {
     }).not.toThrow();
   });
 
-  it('shader sem WebGL: ok=false com mensagem; com fragment ausente também', () => {
+  it('shader without WebGL: ok=false with a message; a missing fragment too', () => {
     const rt = vm.runInNewContext(source, {}) as EffectsRuntime;
-    const semGl = { getContext: () => null, width: 1, height: 1 };
-    const h = rt.mount(semGl, effectMountSpec({ kind: 'grain', params: {} }));
+    const noGl = { getContext: () => null, width: 1, height: 1 };
+    const h = rt.mount(noGl, effectMountSpec({ kind: 'grain', params: {} }));
     expect(h.ok).toBe(false);
     expect(h.error).toContain('WebGL');
   });
 
-  it('partículas desenham num contexto 2d de mentira e destroy para o desenho', () => {
+  it('particles draw on a fake 2d context and destroy stops drawing', () => {
     const rt = vm.runInNewContext(source, {}) as EffectsRuntime;
     const calls: string[] = [];
     const ctx = new Proxy(
@@ -336,12 +334,12 @@ describe('runtime dos efeitos', () => {
     h.draw(1);
     expect(calls.filter((c) => c === 'arc')).toHaveLength(10);
     h.destroy();
-    const antes = calls.length;
+    const before = calls.length;
     h.draw(2);
-    expect(calls.length).toBe(antes);
+    expect(calls.length).toBe(before);
   });
 
-  it('effectMountSpec: resolve params, inclui fragment dos shaders e selects', () => {
+  it('effectMountSpec: resolves params, includes shader fragments and selects', () => {
     const mesh = effectMountSpec({ kind: 'mesh-gradient', params: { speed: 99 } });
     expect(mesh.category).toBe('shader');
     expect(mesh.params.speed).toBe(4);
@@ -356,23 +354,23 @@ describe('runtime dos efeitos', () => {
     const halftone = effectMountSpec({ kind: 'halftone', params: {} });
     expect(halftone.selects).toBeDefined();
 
-    const desconhecido = effectMountSpec({ kind: 'nao-existe', params: { a: 1 } });
-    expect(desconhecido.category).toBe('shader');
-    expect(desconhecido.fragment).toBeUndefined();
-    expect(desconhecido.params).toEqual({ a: 1 });
+    const unknown = effectMountSpec({ kind: 'does-not-exist', params: { a: 1 } });
+    expect(unknown.category).toBe('shader');
+    expect(unknown.fragment).toBeUndefined();
+    expect(unknown.params).toEqual({ a: 1 });
   });
 });
 
-/* ---------------- exportação ---------------- */
+/* ---------------- export ---------------- */
 
 const BG = { position: 'absolute', inset: '0', 'z-index': '-1' };
 
-describe('exportHtml com mídia', () => {
-  it('effect: canvas com spec JSON, fundo de fallback e um único script de runtime', () => {
+describe('exportHtml with media', () => {
+  it('effect: canvas with JSON spec, fallback background and a single runtime script', () => {
     const html = exportHtml(
       docWith([createEffectNode('mesh-gradient', { speed: 2 }, { styles: BG })]),
     );
-    const m = /<canvas class="efeito" data-mockup-effect='([^']+)'><\/canvas>/.exec(html);
+    const m = /<canvas class="effect" data-mockup-effect='([^']+)'><\/canvas>/.exec(html);
     expect(m).not.toBeNull();
     const spec = JSON.parse(m![1]!);
     expect(spec.kind).toBe('mesh-gradient');
@@ -380,10 +378,10 @@ describe('exportHtml com mídia', () => {
     expect(spec.params.speed).toBe(2);
     expect(spec.params.color2).toBe('#00c2a8');
     expect(spec.fragment).toBeUndefined();
-    // fallback CSS visível sem JS + estilos do usuário
-    expect(html).toMatch(/\.efeito \{[^}]*radial-gradient[^}]*position: absolute/s);
-    expect(html).toMatch(/\.efeito \{[^}]*z-index: -1/s);
-    // fragment shader e runtime vão uma única vez no script
+    // CSS fallback visible without JS + user styles
+    expect(html).toMatch(/\.effect \{[^}]*radial-gradient[^}]*position: absolute/s);
+    expect(html).toMatch(/\.effect \{[^}]*z-index: -1/s);
+    // fragment shader and runtime go once in the script
     expect(html.match(/<script>/g)).toHaveLength(1);
     expect(html).toContain('mockupEffectsRuntime');
     expect(html).toContain('canvas[data-mockup-effect]');
@@ -391,7 +389,7 @@ describe('exportHtml com mídia', () => {
     expect(html).not.toContain('</script>\n</script>');
   });
 
-  it('vários efeitos do mesmo kind compartilham UM fragment; partículas não levam fragment', () => {
+  it('several effects of the same kind share ONE fragment; particles carry no fragment', () => {
     const html = exportHtml(
       docWith([
         createEffectNode('grain'),
@@ -405,28 +403,28 @@ describe('exportHtml com mídia', () => {
     expect(Object.keys(JSON.parse(frags![1]!))).toEqual(['grain']);
   });
 
-  it('sem nós de mídia não há script', () => {
-    const html = exportHtml(docWith([createNode({ tag: 'p', text: 'oi' })]));
+  it('no media nodes means no script', () => {
+    const html = exportHtml(docWith([createNode({ tag: 'p', text: 'hi' })]));
     expect(html).not.toContain('<script');
   });
 
-  it('fragment: true mantém os scripts logo após o markup', () => {
+  it('fragment: true keeps the scripts right after the markup', () => {
     const html = exportHtml(docWith([createEffectNode('glass')]), { fragment: true });
     expect(html).not.toContain('<!doctype');
     expect(html.indexOf('<canvas')).toBeLessThan(html.indexOf('<script>'));
   });
 
-  it('modo inline coloca o fallback no style do canvas', () => {
+  it('inline mode puts the fallback in the canvas style', () => {
     const html = exportHtml(docWith([createEffectNode('grain')]), { mode: 'inline' });
     expect(html).toMatch(/<canvas data-mockup-effect='[^']+' style="background: linear-gradient\(/);
   });
 
-  it('video: tag video com src em assets/, poster, autoplay, loop, muted e playsinline', () => {
+  it('video: video tag with src in assets/, poster, autoplay, loop, muted and playsinline', () => {
     const html = exportHtml(
       docWith([
         createVideoNode({
           src: 'clip.mp4',
-          poster: 'capa.png',
+          poster: 'cover.png',
           autoplay: true,
           loop: true,
           muted: true,
@@ -435,25 +433,25 @@ describe('exportHtml com mídia', () => {
       ]),
     );
     expect(html).toContain(
-      '<video src="assets/clip.mp4" poster="assets/capa.png" autoplay loop muted controls playsinline></video>',
+      '<video src="assets/clip.mp4" poster="assets/cover.png" autoplay loop muted controls playsinline></video>',
     );
   });
 
-  it('video sem flags não leva autoplay/loop/muted/controls; URL http(s) é mantida', () => {
+  it('video without flags has no autoplay/loop/muted/controls; http(s) URL is kept', () => {
     const html = exportHtml(docWith([createVideoNode({ src: 'https://cdn.example.com/a.mp4' })]));
     expect(html).toContain('<video src="https://cdn.example.com/a.mp4" playsinline></video>');
     expect(html).not.toMatch(/autoplay|loop|muted|controls|poster/);
   });
-  it('video com src perigoso (documento sem validação) nunca vira um esquema executável', () => {
+  it('video with a dangerous src (unvalidated document) never becomes an executable scheme', () => {
     const node = createVideoNode({ src: 'a.mp4' });
     node.video = { src: 'javascript:alert(1)' };
     const html = exportHtml(docWith([node]));
-    // o prefixo assets/ transforma o valor num caminho relativo inofensivo
+    // the assets/ prefix turns the value into a harmless relative path
     expect(html).not.toMatch(/src="javascript:/i);
     expect(html).toContain('<video src="assets/javascript:alert(1)"');
   });
 
-  it('youtube: iframe nocookie com start, autoplay e mute', () => {
+  it('youtube: nocookie iframe with start, autoplay and mute', () => {
     const html = exportHtml(
       docWith([
         createEmbedNode({
@@ -475,21 +473,21 @@ describe('exportHtml com mídia', () => {
     expect(html).not.toContain('<script');
   });
 
-  it('iframe: sandbox e apenas URL http(s)', () => {
+  it('iframe: sandbox and http(s) URL only', () => {
     const html = exportHtml(
       docWith([createEmbedNode({ provider: 'iframe', url: 'https://example.com/a?x=1&y=2' })]),
     );
     expect(html).toContain('src="https://example.com/a?x=1&amp;y=2"');
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-popups"');
 
-    const ruim = createEmbedNode({ provider: 'iframe', url: 'https://example.com' });
-    ruim.embed = { provider: 'iframe', url: 'javascript:alert(1)' };
-    const h2 = exportHtml(docWith([ruim]));
+    const bad = createEmbedNode({ provider: 'iframe', url: 'https://example.com' });
+    bad.embed = { provider: 'iframe', url: 'javascript:alert(1)' };
+    const h2 = exportHtml(docWith([bad]));
     expect(h2).not.toContain('javascript:');
     expect(h2).not.toContain('<iframe');
   });
 
-  it('lottie: div com data-src e script de CDN com lottie.loadAnimation', () => {
+  it('lottie: div with data-src and CDN script with lottie.loadAnimation', () => {
     const html = exportHtml(
       docWith([createEmbedNode({ provider: 'lottie', src: 'anim.json', params: { loop: false } })]),
     );
@@ -500,7 +498,7 @@ describe('exportHtml com mídia', () => {
     expect(html).toContain('lottie.loadAnimation');
   });
 
-  it('rive: canvas com data-src, artboard e state machine, e script de CDN', () => {
+  it('rive: canvas with data-src, artboard and state machine, and CDN script', () => {
     const html = exportHtml(
       docWith([
         createEmbedNode({
@@ -517,7 +515,7 @@ describe('exportHtml com mídia', () => {
     expect(html).toContain('@rive-app/canvas');
   });
 
-  it('three: canvas com data-island, código embutido e script de módulo do CDN', () => {
+  it('three: canvas with data-island, inlined code and CDN module script', () => {
     const html = exportHtml(
       docWith([
         createEmbedNode({
@@ -533,7 +531,7 @@ describe('exportHtml com mídia', () => {
     expect(html).toContain('type="module"');
   });
 
-  it('three: código com </script> não fecha o script (escape)', () => {
+  it('three: code containing </script> does not close the script (escaping)', () => {
     const html = exportHtml(
       docWith([createEmbedNode({ provider: 'three', code: 'const x = "</script><b>";' })]),
     );
@@ -541,7 +539,7 @@ describe('exportHtml com mídia', () => {
     expect(html).toContain('<\\/script>');
   });
 
-  it('numera as ilhas three em ordem', () => {
+  it('numbers the three islands in order', () => {
     const html = exportHtml(
       docWith([
         createEmbedNode({ provider: 'three', code: 'return 1;' }),
@@ -553,8 +551,8 @@ describe('exportHtml com mídia', () => {
   });
 });
 
-describe('exportTailwind com mídia', () => {
-  it('effect: canvas com classes Tailwind (fundo de fallback arbitrário) e script', () => {
+describe('exportTailwind with media', () => {
+  it('effect: canvas with Tailwind classes (arbitrary fallback background) and script', () => {
     const html = exportTailwind(docWith([createEffectNode('grain', {}, { styles: BG })]), {
       fragment: true,
     });
@@ -566,7 +564,7 @@ describe('exportTailwind com mídia', () => {
     expect(html.match(/<script>/g)).toHaveLength(1);
   });
 
-  it('video e iframes mantêm atributos; border-0 vira classe', () => {
+  it('video and iframes keep attributes; border-0 becomes a class', () => {
     const html = exportTailwind(
       docWith([
         createVideoNode({ src: 'a.mp4', poster: 'p.png', autoplay: true, loop: true, muted: true }),
@@ -585,7 +583,7 @@ describe('exportTailwind com mídia', () => {
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-popups"');
   });
 
-  it('lottie/rive/three: marcações e scripts', () => {
+  it('lottie/rive/three: markup and scripts', () => {
     const html = exportTailwind(
       docWith([
         createEmbedNode({ provider: 'lottie', src: 'a.json' }),
@@ -601,8 +599,8 @@ describe('exportTailwind com mídia', () => {
   });
 });
 
-describe('exportSvg com mídia (sem layout: foreignObject)', () => {
-  it('effect vira div estático com data-mockup-effect, data-params e fallback; sem script', () => {
+describe('exportSvg with media (no layout: foreignObject)', () => {
+  it('effect becomes a static div with data-mockup-effect, data-params and fallback; no script', () => {
     const svg = exportSvg(docWith([createEffectNode('mesh-gradient', { speed: 2 })]), {
       nodeId: 'fr_test0001',
     });
@@ -614,7 +612,7 @@ describe('exportSvg com mídia (sem layout: foreignObject)', () => {
     expect(svg).not.toContain('<canvas');
   });
 
-  it('video e embeds viram markup inerte', () => {
+  it('video and embeds become inert markup', () => {
     const svg = exportSvg(
       docWith([
         createVideoNode({ src: 'a.mp4', poster: 'p.png', autoplay: true }),
@@ -635,8 +633,8 @@ describe('exportSvg com mídia (sem layout: foreignObject)', () => {
   });
 });
 
-describe('exportReact com mídia', () => {
-  it('efeito live: <MockupEffect> com spec tipada, runtime em mockup-effects.js e fallback', () => {
+describe('exportReact with media', () => {
+  it('live effect: <MockupEffect> with typed spec, runtime in mockup-effects.js and fallback', () => {
     const fx = createEffectNode('mesh-gradient', { speed: 2 }, { styles: BG });
     const r = exportReact(docWith([fx]), { nodeId: 'fr_test0001' });
     expect(r.code).toContain("import { useEffect, useRef, type CSSProperties } from 'react';");
@@ -646,18 +644,18 @@ describe('exportReact com mídia', () => {
     expect(r.code).toContain('"speed": 2');
     expect(r.code).toMatch(/<MockupEffect\s+spec=\{\w+Effect\}/);
     expect(r.code).toContain('function MockupEffect(');
-    // fundo de fallback do catálogo continua no elemento (visível antes do WebGL)
+    // catalog fallback background stays on the element (visible before WebGL)
     expect(r.code).toContain('radial-gradient');
     const names = (r.files ?? []).map((f) => f.name);
     expect(names).toEqual(['mockup-effects.js', 'mockup-effects.d.ts']);
     const js = r.files![0].code;
-    // runtime com os fragments de todo o catálogo (arquivo único compartilhado)
+    // runtime with the fragments of the whole catalog (single shared file)
     expect(js).toContain('export function playEffect');
     for (const k of KINDS.filter((k) => k !== 'particles')) expect(js).toContain(`"${k}"`);
     expect(() => new Function(js.replace(/^export /gm, ''))).not.toThrow();
   });
 
-  it('efeito static: <img> com a imagem de effectImages, sem runtime', () => {
+  it('static effect: <img> with the effectImages image, no runtime', () => {
     const fx = createEffectNode('grain', {}, { styles: BG });
     const r = exportReact(docWith([fx]), {
       nodeId: 'fr_test0001',
@@ -669,7 +667,7 @@ describe('exportReact com mídia', () => {
     expect(r.files).toBeUndefined();
   });
 
-  it('modo inline: efeito com style do fallback', () => {
+  it('inline mode: effect with fallback style', () => {
     const { code } = exportReact(docWith([createEffectNode('grain')]), {
       nodeId: 'fr_test0001',
       styles: 'inline',
@@ -678,7 +676,7 @@ describe('exportReact com mídia', () => {
     expect(code).toContain('linear-gradient(160deg');
   });
 
-  it('vídeo e YouTube viram <video> e <iframe> com props JSX', () => {
+  it('video and YouTube become <video> and <iframe> with JSX props', () => {
     const { code, files } = exportReact(
       docWith([
         createVideoNode({
@@ -704,7 +702,7 @@ describe('exportReact com mídia', () => {
     expect(files).toBeUndefined();
   });
 
-  it('Lottie e Rive usam lottie-web e @rive-app/canvas', () => {
+  it('Lottie and Rive use lottie-web and @rive-app/canvas', () => {
     const { code } = exportReact(
       docWith([
         createEmbedNode({ provider: 'lottie', src: 'lottie/a.json', params: { loop: false } }),
@@ -721,7 +719,7 @@ describe('exportReact com mídia', () => {
     expect(code).not.toContain('mockup-effects');
   });
 
-  it('ilha Three.js: arquivo <slug>-three-1.js com o código e <ThreeIsland>', () => {
+  it('Three.js island: <slug>-three-1.js file with the code and <ThreeIsland>', () => {
     const r = exportReact(
       docWith([
         createEmbedNode({
@@ -732,52 +730,58 @@ describe('exportReact com mídia', () => {
       ]),
       { nodeId: 'fr_test0001' },
     );
-    expect(r.code).toContain("import { setup as setupThree1 } from './tela-three-1.js';");
+    expect(r.code).toContain("import { setup as setupThree1 } from './screen-three-1.js';");
     expect(r.code).toMatch(/const \w+Params: ThreeParams = \{\n {2}"color": "#ff0000"\n\};/);
     expect(r.code).toMatch(/<ThreeIsland setup=\{setupThree1\} params=\{\w+Params\}/);
     expect(r.code).not.toContain("from 'three'");
     const names = (r.files ?? []).map((f) => f.name);
-    expect(names).toEqual(['tela-three-1.js', 'tela-three-1.d.ts']);
+    expect(names).toEqual(['screen-three-1.js', 'screen-three-1.d.ts']);
     expect(r.files![0].code).toContain("import * as THREE from 'three';");
     expect(r.files![0].code).toContain('const scene = new THREE.Scene();');
   });
 
-  it('ilhas Three.js de raízes com o mesmo nome ganham arquivos distintos pelo componentName', () => {
+  it('Three.js islands from roots with the same name get distinct files by componentName', () => {
     const doc = docWith([createEmbedNode({ provider: 'three', code: 'return { a: 1 };' })]);
-    const a = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Tela' });
-    const b = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Tela2' });
-    expect((a.files ?? []).map((f) => f.name)).toEqual(['tela-three-1.js', 'tela-three-1.d.ts']);
-    expect((b.files ?? []).map((f) => f.name)).toEqual(['tela2-three-1.js', 'tela2-three-1.d.ts']);
-    expect(b.code).toContain("from './tela2-three-1.js';");
+    const a = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Screen' });
+    const b = exportReact(doc, { nodeId: 'fr_test0001', componentName: 'Screen2' });
+    expect((a.files ?? []).map((f) => f.name)).toEqual([
+      'screen-three-1.js',
+      'screen-three-1.d.ts',
+    ]);
+    expect((b.files ?? []).map((f) => f.name)).toEqual([
+      'screen2-three-1.js',
+      'screen2-three-1.d.ts',
+    ]);
+    expect(b.code).toContain("from './screen2-three-1.js';");
   });
 
-  it('dois embeds three com o mesmo nome no mesmo componente geram arquivos distintos', () => {
+  it('two three embeds with the same name in the same component produce distinct files', () => {
     const r = exportReact(
       docWith([
-        createEmbedNode({ provider: 'three', code: 'return 1;' }, { name: 'Cena' }),
-        createEmbedNode({ provider: 'three', code: 'return 2;' }, { name: 'Cena' }),
+        createEmbedNode({ provider: 'three', code: 'return 1;' }, { name: 'Scene' }),
+        createEmbedNode({ provider: 'three', code: 'return 2;' }, { name: 'Scene' }),
       ]),
       { nodeId: 'fr_test0001' },
     );
     const js = (r.files ?? []).map((f) => f.name).filter((n) => n.endsWith('.js'));
-    expect(js).toEqual(['tela-three-1.js', 'tela-three-2.js']);
-    expect(r.code).toContain("from './tela-three-1.js';");
-    expect(r.code).toContain("from './tela-three-2.js';");
+    expect(js).toEqual(['screen-three-1.js', 'screen-three-2.js']);
+    expect(r.code).toContain("from './screen-three-1.js';");
+    expect(r.code).toContain("from './screen-three-2.js';");
   });
 
-  it('sem mídia o cabeçalho não muda', () => {
+  it('without media the header does not change', () => {
     const { code, files } = exportReact(docWith([]), { nodeId: 'fr_test0001' });
     expect(code).not.toContain('useEffect');
     expect(files).toBeUndefined();
   });
 });
 
-describe('Lottie embutido no HTML (file://)', () => {
+describe('Lottie embedded in the HTML (file://)', () => {
   const lottie = (extra = '') =>
     JSON.stringify({ v: '5.7.0', fr: 30, layers: [], nm: `</script><b>${extra}\u2028x\u2029` });
   const doc = () => docWith([createEmbedNode({ provider: 'lottie', src: 'lottie/a.json' })]);
 
-  it('com readAsset embute o JSON escapado e o runtime usa animationData', () => {
+  it('with readAsset it inlines the escaped JSON and the runtime uses animationData', () => {
     const html = exportHtml(doc(), {
       readAsset: (ref) => (ref === 'lottie/a.json' ? lottie() : undefined),
     });
@@ -791,7 +795,7 @@ describe('Lottie embutido no HTML (file://)', () => {
     expect(html).toContain('config.animationData = JSON.parse(data.textContent)');
   });
 
-  it('o mesmo JSON em dois nós é embutido uma vez', () => {
+  it('the same JSON in two nodes is inlined once', () => {
     const d = docWith([
       createEmbedNode({ provider: 'lottie', src: 'a.json' }),
       createEmbedNode({ provider: 'lottie', src: 'b.json' }),
@@ -801,11 +805,11 @@ describe('Lottie embutido no HTML (file://)', () => {
     expect(html.match(/data-lottie-data="0"/g)).toHaveLength(2);
   });
 
-  it('acima de 512 KB, sem readAsset, JSON inválido ou .lottie: mantém data-src sem embutir', () => {
+  it('above 512 KB, without readAsset, invalid JSON or .lottie: keeps data-src without inlining', () => {
     const big = JSON.stringify({ pad: 'x'.repeat(512 * 1024 + 10) });
     for (const html of [
       exportHtml(doc(), { readAsset: () => big }),
-      exportHtml(doc(), { readAsset: () => '{nao json' }),
+      exportHtml(doc(), { readAsset: () => '{not json' }),
       exportHtml(doc(), { readAsset: () => undefined }),
       exportHtml(doc()),
       exportHtml(docWith([createEmbedNode({ provider: 'lottie', src: 'a.lottie' })]), {
@@ -818,7 +822,7 @@ describe('Lottie embutido no HTML (file://)', () => {
     }
   });
 
-  it('exportTailwind também embute', () => {
+  it('exportTailwind also inlines', () => {
     const html = exportTailwind(doc(), { fragment: true, readAsset: () => lottie() });
     expect(html).toContain('id="mockup-lottie-0"');
   });

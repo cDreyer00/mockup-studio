@@ -1,14 +1,14 @@
 /**
- * Contrato de um backend de agente do assistente. As CLIs (Claude Code, Codex) implementam por
- * subprocesso (`cli.ts`); uma API direta pode implementar o mesmo contrato depois.
+ * Contract for an assistant agent backend. The CLIs (Claude Code, Codex) implement it through a
+ * subprocess (`cli.ts`); a direct API can implement the same contract later.
  */
 import type { AssistantBackendInfo } from '@mockup/core';
 
-/** Servidor MCP que o agente deve usar no turno (o do próprio daemon, com o token do turno). */
+/** MCP server the agent must use during the turn (the daemon's own, with the turn token). */
 export interface AgentMcpServer {
-  /** Nome do servidor na config do agente (ferramentas `mcp__<name>__<tool>` no Claude Code). */
+  /** Server name in the agent config (`mcp__<name>__<tool>` tools in Claude Code). */
   name: string;
-  /** URL Streamable HTTP, ex.: `http://127.0.0.1:4747/mcp?turn=<token>`. */
+  /** Streamable HTTP URL, e.g.: `http://127.0.0.1:4747/mcp?turn=<token>`. */
   url: string;
 }
 
@@ -19,22 +19,22 @@ export interface AgentImage {
 }
 
 export interface AgentRunInput {
-  /** Mensagem do usuário já com o contexto (seleção, resumo da árvore). */
+  /** User message already including the context (selection, tree summary). */
   prompt: string;
-  /** Instruções de sistema (papel do assistente, docId, regras). */
+  /** System instructions (assistant role, docId, rules). */
   system?: string;
-  /** Screenshot da seleção, se houver render. */
+  /** Screenshot of the selection, if there is a render. */
   images?: AgentImage[];
-  /** MCP do daemon; ausente = turno só de texto (sem ferramentas). */
+  /** Daemon MCP; absent = text-only turn (no tools). */
   mcp?: AgentMcpServer;
-  /** Sessão anterior do backend para continuar a conversa (`--resume`); se falhar, começa nova. */
+  /** Previous backend session to continue the conversation (`--resume`); if it fails, starts a new one. */
   resumeSession?: string;
   model?: string;
-  /** Pasta de trabalho do subprocesso (padrão: temporária). */
+  /** Working folder of the subprocess (default: temporary). */
   cwd?: string;
 }
 
-/** Evento emitido pelo backend durante o turno. */
+/** Event emitted by the backend during the turn. */
 export type AgentRunEvent =
   | { kind: 'text'; text: string }
   | { kind: 'tool'; id: string; name: string; input?: unknown }
@@ -42,7 +42,7 @@ export type AgentRunEvent =
   | { kind: 'session'; sessionId: string };
 
 export interface AgentRunResult {
-  /** Texto final do assistente (se o backend não emitiu deltas, vale este). */
+  /** Final assistant text (used if the backend emitted no deltas). */
   text: string;
   sessionId?: string;
   costUsd?: number;
@@ -51,11 +51,11 @@ export interface AgentRunResult {
 export interface AgentBackend {
   readonly id: string;
   readonly name: string;
-  /** Disponibilidade (ex.: CLI no PATH). Pode ser cacheada. */
+  /** Availability (e.g. CLI on PATH). May be cached. */
   info(): Promise<AssistantBackendInfo>;
   /**
-   * Roda um turno. Deve rejeitar com erro legível em falha e encerrar o subprocesso (árvore
-   * inteira) quando `signal` abortar, rejeitando com `AbortError`.
+   * Runs a turn. Must reject with a readable error on failure and kill the subprocess (whole
+   * tree) when `signal` aborts, rejecting with `AbortError`.
    */
   run(
     input: AgentRunInput,

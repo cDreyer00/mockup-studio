@@ -1,6 +1,6 @@
 /**
- * Serviço de importação compartilhado pelas rotas HTTP e pelas ferramentas MCP: captura (motor de
- * render) ou conversão (core) e depois `importSnapshot`.
+ * Import service shared by the HTTP routes and the MCP tools: capture (render engine) or
+ * conversion (core), then `importSnapshot`.
  */
 import { createNodeFromTag, htmlToNodes, type Node, type OpSource } from '@mockup/core';
 import {
@@ -26,20 +26,20 @@ import {
 export interface SnapshotServiceCtx {
   store: DocumentStore;
   render?: RenderProvider;
-  /** Origem do evento no histórico (`'mcp'` nas ferramentas MCP, `'editor'` nas rotas HTTP). */
+  /** Event source in the history (`'mcp'` for MCP tools, `'editor'` for HTTP routes). */
   source: OpSource;
 }
 
-/** 503 de `import_url` sem motor de render. */
+/** 503 for `import_url` without a render engine. */
 export const IMPORT_URL_NEEDS_RENDER =
-  'Importar de uma URL precisa do motor de render, que não está disponível neste daemon. ' +
-  'Abra o app desktop do Mockup Studio ou rode `mockup serve --render`.';
+  'Importing from a URL needs the render engine, which is not available in this daemon. ' +
+  'Open the Mockup Studio desktop app or run `mockup serve --render`.';
 
 const MAX_HTML_CHARS = 20_000_000;
 const MAX_CSS_CHARS = 5_000_000;
 
 const FALLBACK_WARNING =
-  'Importado sem motor de render: conversão simples do HTML/CSS (sem estilos computados, fontes da página nem JavaScript), com fidelidade menor. Confira o resultado e ajuste; o app desktop (ou `mockup serve --render`) captura com estilos computados.';
+  'Imported without a render engine: simple HTML/CSS conversion (no computed styles, page fonts or JavaScript), with lower fidelity. Check the result and adjust; the desktop app (or `mockup serve --render`) captures with computed styles.';
 
 async function capture(
   render: RenderProvider,
@@ -51,12 +51,12 @@ async function capture(
   } catch (e) {
     throw new SnapshotImportError(
       502,
-      `Falha ao capturar ${what}: ${e instanceof Error ? e.message : String(e)}`,
+      `Failed to capture ${what}: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
 }
 
-/** Importa um payload pronto (extensão, colar no editor). */
+/** Imports a ready payload (extension, paste in the editor). */
 export function importFromPayload(
   ctx: SnapshotServiceCtx,
   req: SnapshotImportRequest,
@@ -65,7 +65,7 @@ export function importFromPayload(
   return importSnapshot(ctx.store, payload, placement, { source: ctx.source });
 }
 
-/** Captura a URL no motor de render e importa. 503 sem render. */
+/** Captures the URL in the render engine and imports it. 503 without render. */
 export async function importFromUrl(
   ctx: SnapshotServiceCtx,
   req: ImportUrlRequest,
@@ -88,14 +88,14 @@ export async function importFromUrl(
   return importSnapshot(ctx.store, payload, placement, { source: ctx.source, method: 'snapshot' });
 }
 
-/** Resolve `src` relativos de imagens contra a base (a conversão do core mantém o texto original). */
+/** Resolves relative image `src` values against the base (the core conversion keeps the original text). */
 function absolutizeImages(nodes: Node[], base: string): void {
   const walk = (n: Node): void => {
     if (n.type === 'image' && n.src && !/^(data:|https?:|asset:)/i.test(n.src)) {
       try {
         n.src = new URL(n.src, base).href;
       } catch {
-        // mantém o valor original
+        // keep the original value
       }
     }
     n.children.forEach(walk);
@@ -104,24 +104,24 @@ function absolutizeImages(nodes: Node[], base: string): void {
 }
 
 /**
- * Captura o HTML no motor de render (estilos computados) quando ele tem `snapshot`; senão converte
- * com o core (`htmlToNodes`) num frame com a largura do viewport. O canvas mostra frames com altura
- * fixa em px (`frameSize`: 600 se não houver) e sem medir o conteúdo; sem layout não dá para saber
- * a altura real, então o frame leva a altura do viewport com `overflow: visible` (nada some) e o
- * aviso manda ajustá-la.
+ * Captures the HTML in the render engine (computed styles) when it has `snapshot`; otherwise converts
+ * it with the core (`htmlToNodes`) into a frame with the viewport width. The canvas shows frames with
+ * a fixed height in px (`frameSize`: 600 if absent) and does not measure the content; without layout
+ * the real height is unknown, so the frame gets the viewport height with `overflow: visible` (nothing
+ * is clipped) and the warning tells the user to adjust it.
  */
 export async function importFromHtml(
   ctx: SnapshotServiceCtx,
   req: ImportHtmlRequest,
 ): Promise<SnapshotImportResult> {
   if (typeof req.html !== 'string')
-    throw new SnapshotImportError(400, 'Campo obrigatório ausente: html.');
+    throw new SnapshotImportError(400, 'Missing required field: html.');
   if (!req.html.trim())
-    throw new SnapshotImportError(400, 'HTML vazio: informe em html o conteúdo a importar.');
+    throw new SnapshotImportError(400, 'Empty HTML: provide the content to import in html.');
   if (req.html.length > MAX_HTML_CHARS)
-    throw new SnapshotImportError(400, 'O HTML passa do limite de 20 milhões de caracteres.');
+    throw new SnapshotImportError(400, 'The HTML exceeds the limit of 20 million characters.');
   if (req.css !== undefined && (typeof req.css !== 'string' || req.css.length > MAX_CSS_CHARS))
-    throw new SnapshotImportError(400, 'css inválido (texto de até 5 milhões de caracteres).');
+    throw new SnapshotImportError(400, 'Invalid css (text of up to 5 million characters).');
   const baseUrl =
     req.assetsBaseUrl === undefined || req.assetsBaseUrl === ''
       ? undefined
@@ -141,7 +141,7 @@ export async function importFromHtml(
         viewport: params.viewport,
         timeoutMs: params.timeoutMs,
       },
-      'o HTML',
+      'the HTML',
     );
     return importSnapshot(ctx.store, payload, placement, {
       source: ctx.source,
@@ -152,7 +152,7 @@ export async function importFromHtml(
   const warnings = [FALLBACK_WARNING];
   if (params.selector)
     warnings.push(
-      `O seletor "${params.selector}" foi ignorado: sem render o HTML inteiro é convertido.`,
+      `The selector "${params.selector}" was ignored: without render the whole HTML is converted.`,
     );
   let children: Node[];
   try {
@@ -160,18 +160,18 @@ export async function importFromHtml(
   } catch (e) {
     throw new SnapshotImportError(
       400,
-      `Não foi possível converter o HTML: ${e instanceof Error ? e.message : String(e)}`,
+      `Could not convert the HTML: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
   if (children.length === 0)
-    throw new SnapshotImportError(400, 'O HTML não tem conteúdo para importar.');
+    throw new SnapshotImportError(400, 'The HTML has no content to import.');
   if (baseUrl) absolutizeImages(children, baseUrl);
   const { width, height } = params.viewport;
   warnings.push(
-    `O frame usa a altura do viewport (${height}px) sem cortar o conteúdo; ajuste a altura do frame ao conteúdo.`,
+    `The frame uses the viewport height (${height}px) without clipping the content; adjust the frame height to the content.`,
   );
   const root = createNodeFromTag('div', {
-    name: 'HTML importado',
+    name: 'Imported HTML',
     styles: { width: `${width}px`, height: `${height}px`, overflow: 'visible' },
     children,
   });

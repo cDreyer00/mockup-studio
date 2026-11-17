@@ -1,9 +1,9 @@
 /**
- * Pares de fontes curados para o remix `font-pairs`. A ordem é fixa e intercala as categorias
- * (editorial, neutro, display, técnico, humanista, clássico) para que os primeiros pares sempre
- * sejam variados. Misturam fontes populares do Google Fonts (usadas quando instaladas ou
- * embutidas no documento) e fontes de sistema comuns no Windows/macOS, para que quase sempre haja
- * pares disponíveis.
+ * Curated font pairs for the `font-pairs` remix. The order is fixed and interleaves the categories
+ * (editorial, neutral, display, technical, humanist, classic) so the first pairs are always
+ * varied. They mix popular Google Fonts (used when installed or
+ * embedded in the document) and system fonts common on Windows/macOS, so that there are almost always
+ * pairs available.
  */
 
 export type FontGeneric = 'serif' | 'sans-serif' | 'monospace';
@@ -14,7 +14,7 @@ export interface FontPair {
   body: string;
 }
 
-/** Família genérica CSS de cada fonte da lista curada (vira o fallback do `font-family`). */
+/** CSS generic family of each font in the curated list (becomes the `font-family` fallback). */
 export const FONT_GENERIC: Record<string, FontGeneric> = {
   'Playfair Display': 'serif',
   Lora: 'serif',
@@ -57,31 +57,31 @@ const pair = (category: string, heading: string, body: string): FontPair => ({
 
 export const FONT_PAIRS: readonly FontPair[] = [
   pair('Editorial', 'Playfair Display', 'Inter'),
-  pair('Neutro', 'Inter', 'Roboto'),
+  pair('Neutral', 'Inter', 'Roboto'),
   pair('Display', 'Space Grotesk', 'Inter'),
-  pair('Técnico', 'JetBrains Mono', 'Inter'),
-  pair('Humanista', 'Nunito', 'Open Sans'),
-  pair('Clássico', 'Georgia', 'Verdana'),
+  pair('Technical', 'JetBrains Mono', 'Inter'),
+  pair('Humanist', 'Nunito', 'Open Sans'),
+  pair('Classic', 'Georgia', 'Verdana'),
   pair('Editorial', 'Lora', 'Source Sans 3'),
-  pair('Neutro', 'Montserrat', 'Open Sans'),
+  pair('Neutral', 'Montserrat', 'Open Sans'),
   pair('Display', 'Bebas Neue', 'Roboto'),
-  pair('Técnico', 'IBM Plex Mono', 'IBM Plex Sans'),
-  pair('Humanista', 'Source Sans 3', 'Source Serif 4'),
-  pair('Clássico', 'Palatino Linotype', 'Segoe UI'),
+  pair('Technical', 'IBM Plex Mono', 'IBM Plex Sans'),
+  pair('Humanist', 'Source Sans 3', 'Source Serif 4'),
+  pair('Classic', 'Palatino Linotype', 'Segoe UI'),
   pair('Editorial', 'Merriweather', 'Lato'),
-  pair('Neutro', 'DM Sans', 'Inter'),
+  pair('Neutral', 'DM Sans', 'Inter'),
   pair('Display', 'Oswald', 'Lato'),
-  pair('Técnico', 'Space Mono', 'DM Sans'),
-  pair('Humanista', 'Trebuchet MS', 'Georgia'),
-  pair('Clássico', 'Times New Roman', 'Arial'),
+  pair('Technical', 'Space Mono', 'DM Sans'),
+  pair('Humanist', 'Trebuchet MS', 'Georgia'),
+  pair('Classic', 'Times New Roman', 'Arial'),
   pair('Editorial', 'Cambria', 'Calibri'),
-  pair('Neutro', 'Segoe UI', 'Arial'),
+  pair('Neutral', 'Segoe UI', 'Arial'),
   pair('Display', 'Poppins', 'Nunito'),
-  pair('Técnico', 'Consolas', 'Segoe UI'),
-  pair('Técnico', 'Courier New', 'Arial'),
+  pair('Technical', 'Consolas', 'Segoe UI'),
+  pair('Technical', 'Courier New', 'Arial'),
 ];
 
-/** Valor de `font-family` com a família entre aspas e o genérico como fallback: `"Georgia", serif`. */
+/** `font-family` value with the family quoted and the generic as a fallback: `"Georgia", serif`. */
 export function fontFamilyValue(family: string): string {
   return `"${family}", ${FONT_GENERIC[family] ?? 'sans-serif'}`;
 }

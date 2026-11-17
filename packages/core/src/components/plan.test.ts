@@ -62,7 +62,7 @@ function fixture(): Document {
           children: [
             n('el_boxbody', 'element', 'div', {
               attrs: { 'data-slot': 'body' },
-              children: [n('tx_boxdef', 'text', 'p', { text: 'vazio' })] as Node[],
+              children: [n('tx_boxdef', 'text', 'p', { text: 'empty' })] as Node[],
             }),
             n('in_boxbtn', 'instance', 'button', { componentId: 'cp_btn' }),
           ] as Node[],
@@ -95,33 +95,33 @@ function fixture(): Document {
                 },
                 states: { md: { 'margin-top': '4px', padding: '24px' } },
                 children: [
-                  n('tx_title', 'text', 'h1', { text: 'Olá', style: { color: 'white' } }),
+                  n('tx_title', 'text', 'h1', { text: 'Hello', style: { color: 'white' } }),
                   n('el_link', 'element', 'a', {
                     attrs: { href: '/x' },
                     children: [n('tx_link', 'text', 'span', { text: 'Ir' }) as Node],
                   }),
                   n('el_area', 'element', 'div', {
                     attrs: { 'data-slot': 'body' },
-                    children: [n('tx_area', 'text', 'p', { text: 'Área' })] as Node[],
+                    children: [n('tx_area', 'text', 'p', { text: 'Area' })] as Node[],
                   }),
                   n('in_herobtn', 'instance', 'button', {
                     componentId: 'cp_btn',
-                    props: { label: 'Vai' },
+                    props: { label: 'Go' },
                   }),
                 ] as Node[],
               }),
               n('in_b1', 'instance', 'button', {
                 componentId: 'cp_btn',
                 props: { variant: 'outline' },
-                overrides: { tx_lbl: { text: 'Salvar', style: { 'font-weight': '700' } } },
+                overrides: { tx_lbl: { text: 'Save', style: { 'font-weight': '700' } } },
               }),
               n('in_box1', 'instance', 'div', {
                 componentId: 'cp_box',
-                overrides: { 'in_boxbtn/tx_lbl': { text: 'Aninhado' } },
+                overrides: { 'in_boxbtn/tx_lbl': { text: 'Nested' } },
                 children: [
                   n('el_bx', 'element', 'div', {
                     attrs: { 'data-slot': 'body' },
-                    children: [n('tx_bx', 'text', 'p', { text: 'meu' })] as Node[],
+                    children: [n('tx_bx', 'text', 'p', { text: 'mine' })] as Node[],
                   }),
                 ] as Node[],
               }),
@@ -141,11 +141,11 @@ function strip(doc: Document): unknown {
 
 function node(doc: Document, id: string): Node {
   const p = findNode(doc, id);
-  if (!p) throw new Error(`sem ${id}`);
+  if (!p) throw new Error(`no ${id}`);
   return p.node;
 }
 
-/** Forma visual (sem ids nem marcadores de instância), para comparar árvores. */
+/** Visual shape (without ids or instance markers), for comparing trees. */
 function shape(x: Node): unknown {
   return {
     type: x.type,
@@ -172,7 +172,7 @@ function roundTrip(doc: Document, ops: Op[]): Document {
 }
 
 describe('createComponentOps', () => {
-  it('preserva o visual e move o posicionamento para a instância', () => {
+  it('preserves the visuals and moves the positioning to the instance', () => {
     const doc = fixture();
     const original = expandNodeTree(doc, node(doc, 'el_hero'));
     const plan = createComponentOps(doc, 'el_hero', {
@@ -181,7 +181,7 @@ describe('createComponentOps', () => {
     });
     expect(plan.ops.map((o) => o.type)).toEqual(['replaceNode', 'addComponent', 'replaceNode']);
     const d1 = roundTrip(doc, plan.ops);
-    // O desfazer remove o principal sem `force` (o nó provisório tira a instância antes).
+    // Undo removes the main component without `force` (the provisional node takes the instance out first).
     const h = new History(doc);
     const { inverse } = h.apply(plan.ops);
     expect(inverse.find((o) => o.type === 'deleteComponent')).toEqual({
@@ -199,7 +199,7 @@ describe('createComponentOps', () => {
       background: 'var(--color-primary)',
     });
     expect(def.root.states).toEqual({ md: { padding: '24px' } });
-    // Prop inferida do data-slot.
+    // Prop inferred from data-slot.
     expect(def.props).toEqual([{ name: 'body', type: 'slot' }]);
     const inst = node(d1, 'in_hero');
     expect(inst.type).toBe('instance');
@@ -213,12 +213,12 @@ describe('createComponentOps', () => {
     expect(expanded.position).toEqual({ x: 5, y: 6 });
   });
 
-  it('bind troca o valor atual por {{nome}} e usa o valor como padrão', () => {
+  it('bind replaces the current value with {{name}} and uses the value as the default', () => {
     const doc = fixture();
     const original = expandNodeTree(doc, node(doc, 'el_hero'));
     const plan = createComponentOps(doc, 'el_hero', {
       name: 'Hero',
-      description: 'Topo',
+      description: 'Top',
       props: [
         { name: 'title', type: 'string', bind: { nodeId: 'tx_title', target: 'text' } },
         { name: 'href', type: 'string', bind: { nodeId: 'el_link', target: 'attr:href' } },
@@ -227,9 +227,9 @@ describe('createComponentOps', () => {
     });
     const d1 = applyOps(doc, plan.ops).doc;
     const def = getComponent(d1, plan.componentId)!;
-    expect(def.description).toBe('Topo');
+    expect(def.description).toBe('Top');
     expect(def.props.map((p) => [p.name, p.type, p.default])).toEqual([
-      ['title', 'string', 'Olá'],
+      ['title', 'string', 'Hello'],
       ['href', 'string', '/x'],
       ['ink', 'color', 'white'],
       ['body', 'slot', undefined],
@@ -240,7 +240,7 @@ describe('createComponentOps', () => {
     expect(shape(expandInstance(d1, node(d1, plan.instanceId)))).toEqual(shape(original));
   });
 
-  it('props omitidas são inferidas de {{nome}} (string, padrão vazio)', () => {
+  it('omitted props are inferred from {{name}} (string, empty default)', () => {
     const doc = applyOp(fixture(), {
       type: 'setText',
       changes: [{ nodeId: 'tx_area', text: '{{sub}} e {{other}}' }],
@@ -256,25 +256,25 @@ describe('createComponentOps', () => {
     ]);
   });
 
-  it('nome único e recusas', () => {
+  it('unique name and rejections', () => {
     const doc = fixture();
     const plan = createComponentOps(doc, 'tx_title', { name: 'button' });
     const d1 = applyOps(doc, plan.ops).doc;
     expect(getComponent(d1, plan.componentId)!.name).toBe('button 2');
-    expect(() => createComponentOps(doc, 'fr_1')).toThrow(/frame raiz/);
-    expect(() => createComponentOps(doc, 'in_b1/tx_lbl')).toThrow(/interno/);
-    expect(() => createComponentOps(doc, 'tx_lbl')).toThrow(/principal/);
-    expect(() => createComponentOps(doc, 'in_b1')).toThrow(/já é uma instância/);
+    expect(() => createComponentOps(doc, 'fr_1')).toThrow(/root frame/);
+    expect(() => createComponentOps(doc, 'in_b1/tx_lbl')).toThrow(/internal/);
+    expect(() => createComponentOps(doc, 'tx_lbl')).toThrow(/main component/);
+    expect(() => createComponentOps(doc, 'in_b1')).toThrow(/already a component instance/);
     expect(() =>
       createComponentOps(doc, 'el_hero', {
         props: [{ name: 'x', type: 'string', bind: { nodeId: 'tx_title', target: 'attr:alt' } }],
       }),
-    ).toThrow(/atributo/);
+    ).toThrow(/attribute/);
   });
 });
 
 describe('instanceNodeFor', () => {
-  it('contêineres para os slots, props validadas e padrões omitidos', () => {
+  it('containers for the slots, validated props and omitted defaults', () => {
     const doc = fixture();
     const box = instanceNodeFor(doc, 'Box', {
       id: 'in_new',
@@ -295,14 +295,14 @@ describe('instanceNodeFor', () => {
     const btn = instanceNodeFor(doc, 'cp_btn', { props: { variant: 'default', label: 'Ir' } });
     expect(btn.props).toEqual({ label: 'Ir' });
     expect(btn.children).toEqual([]);
-    expect(() => instanceNodeFor(doc, 'cp_btn', { props: { variant: 'x' } })).toThrow(/opções/);
+    expect(() => instanceNodeFor(doc, 'cp_btn', { props: { variant: 'x' } })).toThrow(/options/);
     expect(() => instanceNodeFor(doc, 'cp_box', { slots: { foot: [] } })).toThrow(/slot "foot"/);
-    expect(() => instanceNodeFor(doc, 'Nada')).toThrow(/não encontrado/);
+    expect(() => instanceNodeFor(doc, 'Nothing')).toThrow(/not found/);
   });
 });
 
-describe('detach, push e reset', () => {
-  it('detachInstanceOps: árvore concreta com ids reais; slot mantém ids; aninhada continua instância', () => {
+describe('detach, push and reset', () => {
+  it('detachInstanceOps: concrete tree with real ids; slot keeps ids; nested one stays an instance', () => {
     const doc = fixture();
     const before = expandInstance(doc, node(doc, 'in_box1'));
     const ops = detachInstanceOps(doc, 'in_box1');
@@ -319,29 +319,29 @@ describe('detach, push e reset', () => {
     const nested = out.children[1];
     expect(nested.type).toBe('instance');
     expect(nested.id).toMatch(/^in_[0-9a-z]{8}$/);
-    expect(nested.overrides).toEqual({ tx_lbl: { text: 'Aninhado' } });
+    expect(nested.overrides).toEqual({ tx_lbl: { text: 'Nested' } });
     expect(shape(expandNodeTree(d1, out))).toEqual(shape(before));
-    expect(() => detachInstanceOps(doc, 'in_box1/in_boxbtn')).toThrow(/interno/);
-    expect(() => detachInstanceOps(doc, 'el_hero')).toThrow(/não é uma instância/);
+    expect(() => detachInstanceOps(doc, 'in_box1/in_boxbtn')).toThrow(/internal/);
+    expect(() => detachInstanceOps(doc, 'el_hero')).toThrow(/is not a component instance/);
   });
 
-  it('pushOverridesToMainOps grava no principal e limpa a instância', () => {
+  it('pushOverridesToMainOps writes to the main component and clears the instance', () => {
     const doc = fixture();
     const ops = pushOverridesToMainOps(doc, 'in_b1');
     expect(ops.map((o) => o.type)).toEqual(['updateComponent', 'setInstanceOverrides']);
     const d1 = roundTrip(doc, ops);
     const root = getComponent(d1, 'cp_btn')!.root;
-    expect(root.children[0].text).toBe('Salvar');
+    expect(root.children[0].text).toBe('Save');
     expect(root.children[0].style['font-weight']).toBe('700');
     expect(node(d1, 'in_b1').overrides).toBeUndefined();
-    // Override aninhado vai para a instância aninhada dentro do principal.
+    // A nested override goes to the nested instance inside the main component.
     const d2 = applyOps(doc, pushOverridesToMainOps(doc, 'in_box1')).doc;
     const inner = getComponent(d2, 'cp_box')!.root.children[1];
-    expect(inner.overrides).toEqual({ tx_lbl: { text: 'Aninhado' } });
+    expect(inner.overrides).toEqual({ tx_lbl: { text: 'Nested' } });
     expect(pushOverridesToMainOps(d2, 'in_box1')).toEqual([]);
   });
 
-  it('resetInstanceOps remove os overrides', () => {
+  it('resetInstanceOps removes the overrides', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, resetInstanceOps(doc, 'in_b1'));
     expect(node(d1, 'in_b1').overrides).toBeUndefined();
@@ -355,12 +355,12 @@ describe('importKitOps', () => {
     readFileSync(new URL('../../../../kits/shadcn-like.mockup.json', import.meta.url), 'utf8'),
   );
 
-  it('importa o kit real e é idempotente', () => {
+  it('imports the real kit and is idempotent', () => {
     const doc = fixture();
     const plan = importKitOps(doc, kit, 'shadcn-like');
     expect(plan.components.every((c) => c.status === 'added')).toBe(true);
     expect(plan.components.map((c) => c.name)).toContain('Card');
-    // Button do documento já existe com esse nome: o do kit ganha sufixo.
+    // The document's Button already has that name: the kit's gets a suffix.
     expect(plan.components.find((c) => c.id === 'cp_sbutton1')!.name).toBe('Button 2');
     expect(plan.tokensAdded.length).toBeGreaterThan(0);
     expect(plan.tokensAdded).not.toContain('--color-primary');
@@ -374,7 +374,7 @@ describe('importKitOps', () => {
     const again = importKitOps(d1, kit, 'shadcn-like');
     expect(again.ops).toEqual([]);
     expect(again.components.every((c) => c.status === 'unchanged')).toBe(true);
-    // Mudança no principal: reimportar atualiza.
+    // Change in the main component: reimporting updates it.
     const changed = applyOp(d1, {
       type: 'updateStyles',
       nodeIds: ['el_sbtnroot'],
@@ -386,10 +386,10 @@ describe('importKitOps', () => {
     expect(importKitOps(d2, kit, 'shadcn-like').ops).toEqual([]);
   });
 
-  it('onlyMissing: reinserir um componente apagado não desfaz edições nos outros principais', () => {
+  it('onlyMissing: reinserting a deleted component does not undo edits to the other main components', () => {
     const doc = fixture();
     const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
-    // Edita o Button e apaga o List (sem instâncias).
+    // Edits the Button and deletes the List (no instances).
     const edited = applyOps(d1, [
       { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
       { type: 'deleteComponent', componentId: 'cp_slist001' },
@@ -404,7 +404,7 @@ describe('importKitOps', () => {
     const d2 = applyOps(edited, plan.ops).doc;
     expect(getComponent(d2, 'cp_sbutton1')!.root.style.color).toBe('red');
     expect(getComponent(d2, 'cp_slist001')!.kit).toBe('shadcn-like');
-    // Sem onlyMissing (overwrite) o Button volta ao do kit.
+    // Without onlyMissing (overwrite) the Button goes back to the kit's.
     const over = importKitOps(d2, kit, 'shadcn-like');
     expect(over.components.find((c) => c.id === 'cp_sbutton1')!.status).toBe('updated');
     expect(
@@ -412,30 +412,30 @@ describe('importKitOps', () => {
     ).not.toBe('red');
   });
 
-  it('onlyMissing: renomear não conta como ausente (o id do kit é o que vale)', () => {
+  it('onlyMissing: renaming does not count as missing (the kit id is what matters)', () => {
     const doc = fixture();
     const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
-    // Renomeia e edita o Button do kit e apaga o Dialog (que usa o Button).
+    // Renames and edits the kit's Button and deletes the Dialog (which uses the Button).
     const renamed = applyOps(d1, [
-      { type: 'updateComponent', componentId: 'cp_sbutton1', name: 'Botao' },
+      { type: 'updateComponent', componentId: 'cp_sbutton1', name: 'PrimaryBtn' },
       { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
       { type: 'deleteComponent', componentId: 'cp_sdialog1' },
     ]).doc;
-    // Inserir o Dialog de novo (como insert_component faz) só traz o Dialog.
+    // Inserting the Dialog again (as insert_component does) only brings the Dialog.
     const plan = importKitOps(renamed, kit, 'shadcn-like', { onlyMissing: true });
     expect(plan.ops.map((o) => o.type)).toEqual(['addComponent']);
     expect(plan.components.find((c) => c.id === 'cp_sdialog1')!.status).toBe('added');
     expect(plan.components.find((c) => c.id === 'cp_sbutton1')).toEqual({
       id: 'cp_sbutton1',
-      name: 'Botao',
+      name: 'PrimaryBtn',
       status: 'diverged',
     });
     const d2 = applyOps(renamed, plan.ops).doc;
     const btn = getComponent(d2, 'cp_sbutton1')!;
-    expect(btn.name).toBe('Botao');
+    expect(btn.name).toBe('PrimaryBtn');
     expect(btn.root.style.color).toBe('red');
-    expect(d2.components!.filter((c) => c.name.startsWith('Button'))).toHaveLength(1); // o do fixture
-    // A instância de Button dentro do Dialog reimportado aponta para o Button renomeado.
+    expect(d2.components!.filter((c) => c.name.startsWith('Button'))).toHaveLength(1); // the fixture's
+    // The Button instance inside the reimported Dialog points to the renamed Button.
     const dlg = getComponent(d2, 'cp_sdialog1')!;
     const nested: string[] = [];
     walk(dlg.root, (x) => {
@@ -444,7 +444,7 @@ describe('importKitOps', () => {
     expect(nested).toContain('cp_sbutton1');
   });
 
-  it('componentes com o id do kit mas de outra origem nunca são tocados', () => {
+  it('components with the kit id but another origin are never touched', () => {
     const doc = fixture();
     const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
     const foreign = applyOps(d1, [
@@ -459,13 +459,13 @@ describe('importKitOps', () => {
     }
   });
 
-  it('ids de nós em colisão ganham ids derivados estáveis (chaves de variantes remapeadas)', () => {
+  it('colliding node ids get stable derived ids (variant keys remapped)', () => {
     const doc = fixture();
-    // Um nó da página com o id do rótulo do Button do kit.
+    // A page node with the id of the kit Button's label.
     const withClash = applyOp(doc, {
       type: 'createNode',
       parentId: 'fr_1',
-      node: n('tx_sbtnlabl', 'text', 'p', { text: 'colide' }) as Node,
+      node: n('tx_sbtnlabl', 'text', 'p', { text: 'collides' }) as Node,
     }).doc;
     const plan = importKitOps(withClash, kit, 'shadcn-like');
     const d1 = applyOps(withClash, plan.ops).doc;

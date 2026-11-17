@@ -1,15 +1,15 @@
 /**
- * Motor Tailwind v4 do Mockup Studio: usa o compilador oficial (`tailwindcss`, JS puro, sem DOM e
- * sem Node) para converter classes em CSS real do nó e o caminho inverso (estilo → classes
- * idiomáticas). Ver `docs/TAILWIND.md`.
+ * Mockup Studio Tailwind v4 engine: uses the official compiler (`tailwindcss`, pure JS, no DOM and
+ * no Node) to convert classes into real node CSS and the reverse path (style → idiomatic
+ * classes). See `docs/TAILWIND.md`.
  *
- * - `createTailwindEngine(doc)` é assíncrono (carrega o design system do Tailwind com o tema
- *   padrão + os tokens do documento); depois tudo é síncrono e com cache por classe.
- * - Os valores do tema padrão entram inline (`p-4` → `padding: 1rem`, `bg-blue-500` → `oklch(...)`);
- *   os tokens do documento entram como referência (`bg-primary` → `var(--color-primary)`), para
- *   que o nó continue ligado ao token.
- * - As variáveis internas do Tailwind (`--tw-shadow`, `--tw-border-style`...) são resolvidas no
- *   próprio nó (com os `initial-value` do `@property`), então o estilo gravado é CSS comum.
+ * - `createTailwindEngine(doc)` is asynchronous (it loads the Tailwind design system with the default
+ *   theme + the document tokens); afterwards everything is synchronous and cached per class.
+ * - Default theme values are inlined (`p-4` → `padding: 1rem`, `bg-blue-500` → `oklch(...)`);
+ *   document tokens are kept as a reference (`bg-primary` → `var(--color-primary)`), so
+ *   the node stays linked to the token.
+ * - Tailwind internal variables (`--tw-shadow`, `--tw-border-style`...) are resolved on
+ *   the node itself (with the `@property` `initial-value`s), so the stored style is plain CSS.
  */
 import { __unstable__loadDesignSystem } from 'tailwindcss';
 import { evaluateCalc, formatHexColor, parseCssColor } from '../cssEval.js';
@@ -28,7 +28,7 @@ export { DARK_VARIANT_CSS };
 export { TAILWIND_VERSION };
 
 /* ====================================================================== */
-/* Tipos                                                                    */
+/* Types                                                                    */
 /* ====================================================================== */
 
 interface Decl {
@@ -37,98 +37,98 @@ interface Decl {
   important: boolean;
 }
 
-/** Alvo das declarações: o próprio nó, todos os filhos (`*:`) ou todos menos o último (`space-y`). */
+/** Target of the declarations: the node itself, all children (`*:`) or all but the last (`space-y`). */
 type Target = 'self' | 'children' | 'children-not-last';
 
-/** Classe compilada (sem variantes). */
+/** Compiled class (without variants). */
 interface CompiledUtility {
   target: Target;
   decls: Decl[];
-  /** Variáveis `--tw-*` definidas pela classe. */
+  /** `--tw-*` variables defined by the class. */
   vars: Record<string, string>;
-  /** `initial-value` dos `@property` usados. */
+  /** `initial-value` of the `@property` rules used. */
   initials: Record<string, string>;
 }
 
-/** Classe do autor já analisada. */
+/** Already parsed author class. */
 export interface ClassInfo {
   cls: string;
   status: 'applied' | 'unknown' | 'unsupported';
-  /** Estado (`''` = estilo base, `hover`, `md:hover`...). */
+  /** State (`''` = base style, `hover`, `md:hover`...). */
   state?: string;
   target?: Target;
   utility?: CompiledUtility;
-  /** Motivo quando `unsupported`. */
+  /** Reason when `unsupported`. */
   reason?: string;
 }
 
 export interface TailwindStyles {
-  /** CSS do nó (kebab-case), pronto para `node.style`. */
+  /** Node CSS (kebab-case), ready for `node.style`. */
   style: Record<string, string>;
-  /** Estilos por estado (`hover`, `dark`, `md`...), prontos para `node.states`. */
+  /** Per-state styles (`hover`, `dark`, `md`...), ready for `node.states`. */
   states: Record<string, Record<string, string>>;
-  /** CSS que a classe aplica nos filhos (`*:p-2`, `space-y-2`, `divide-y`). */
+  /** CSS the class applies to the children (`*:p-2`, `space-y-2`, `divide-y`). */
   children?: { all?: Record<string, string>; notLast?: Record<string, string> };
-  /** Classes Tailwind aplicadas. */
+  /** Applied Tailwind classes. */
   applied: string[];
-  /** Classes que o Tailwind não reconhece (ficam em `node.classes`, sem efeito). */
+  /** Classes Tailwind does not recognize (kept in `node.classes`, with no effect). */
   unknown: string[];
-  /** Classes Tailwind com variante/alvo que o modelo não representa (ficam em `node.classes`). */
+  /** Tailwind classes with a variant/target the model cannot represent (kept in `node.classes`). */
   unsupported: { cls: string; reason: string }[];
 }
 
 export interface StylesToClassesOptions {
   /**
-   * Tamanhos `text-*` cujo `line-height` o tema exportado neutraliza (`--text-sm--line-height:
-   * inherit`): nessa exportação `text-sm` só define o `font-size`.
+   * Sizes `text-*` whose `line-height` the exported theme neutralizes (`--text-sm--line-height:
+   * inherit`): in that export `text-sm` only defines `font-size`.
    */
   neutralLeading?: ReadonlySet<string>;
 }
 
 export interface TailwindEngine {
-  /** Chave do cache (tokens que entram no `@theme`). */
+  /** Cache key (tokens that go into the `@theme`). */
   readonly key: string;
-  /** CSS de entrada do compilador (tema + tokens + variantes). */
+  /** Compiler input CSS (theme + tokens + variants). */
   readonly inputCss: string;
-  /** Analisa e compila uma lista de classes. */
+  /** Parses and compiles a list of classes. */
   classesToStyles(classes: string): TailwindStyles;
-  /** Análise por classe (status, estado, alvo). */
+  /** Per-class analysis (status, state, target). */
   inspect(classes: string): ClassInfo[];
-  /** CSS gerado pelo Tailwind para uma classe (`null` se não for classe Tailwind). */
+  /** CSS generated by Tailwind for a class (`null` if it is not a Tailwind class). */
   classCss(cls: string): string | null;
-  /** `true` se o Tailwind gera CSS para a classe. */
+  /** `true` if Tailwind generates CSS for the class. */
   isTailwindClass(cls: string): boolean;
-  /** Estilo → classes idiomáticas (canonicalizadas e conferidas contra o compilador). */
+  /** Style → idiomatic classes (canonicalized and checked against the compiler). */
   stylesToClasses(
     style: Record<string, string>,
     opts?: StylesToClassesOptions,
   ): { classes: string[]; rest: Record<string, string> };
   /**
-   * Classes do nó (estilo base + estados com prefixo de variante): reaproveita as classes de
-   * `node.classes` que ainda batem com o estilo atual e gera as que faltam.
+   * Node classes (base style + states with a variant prefix): reuses the classes in
+   * `node.classes` that still match the current style and generates the missing ones.
    */
   nodeClasses(
     node: Node,
     opts?: StylesToClassesOptions,
   ): { classes: string[]; rest: Record<string, string> };
-  /** Canonicaliza classes (`p-[16px]` → `p-4`, `mt-2 mb-2` → `my-2`). */
+  /** Canonicalizes classes (`p-[16px]` → `p-4`, `mt-2 mb-2` → `my-2`). */
   canonicalize(classes: string[]): string[];
   /**
-   * Prepara os caches da canonicalização (assinaturas de todas as classes, ~1 s na primeira vez).
-   * Opcional: sem ela, o custo cai na primeira exportação/conversão com o motor.
+   * Prepares the canonicalization caches (signatures of all classes, ~1 s the first time).
+   * Optional: without it, the cost falls on the first export/conversion with the engine.
    */
   warmup(): void;
-  /** Sugestões para autocomplete (aceita prefixo de variante, ex.: `hover:bg-`). */
+  /** Autocomplete suggestions (accepts a variant prefix, e.g. `hover:bg-`). */
   suggest(query: string, limit?: number): string[];
-  /** Todas as classes conhecidas (sem valores arbitrários). */
+  /** All known classes (without arbitrary values). */
   classList(): string[];
 }
 
 /* ====================================================================== */
-/* Utilitários de valor                                                     */
+/* Value utilities                                                         */
 /* ====================================================================== */
 
-/** Lê `var(--nome, fallback)` a partir de `start` (índice do `v`). */
+/** Reads `var(--name, fallback)` starting at `start` (index of the `v`). */
 function readVar(
   value: string,
   start: number,
@@ -153,9 +153,9 @@ function readVar(
 }
 
 /**
- * Substitui as `var(--tw-*)` pelo valor no nó (ou o `initial-value`, ou o fallback). Variáveis
- * que não são do Tailwind (tokens do documento) ficam intactas. `null` = declaração inválida
- * (variável sem valor e sem fallback, como no CSS).
+ * Replaces `var(--tw-*)` with the value on the node (or the `initial-value`, or the fallback). Variables
+ * that are not Tailwind's (document tokens) are left intact. `null` = invalid declaration
+ * (variable with no value and no fallback, as in CSS).
  */
 function substituteTw(
   value: string,
@@ -179,7 +179,7 @@ function substituteTw(
       break;
     }
     if (!v.name.startsWith('--tw-')) {
-      // Token do documento: mantém, mas resolve `--tw-*` dentro do fallback.
+      // Document token: keep it, but resolve `--tw-*` inside the fallback.
       const fb =
         v.fallback === undefined ? null : substituteTw(v.fallback, vars, initials, depth + 1);
       out += fb === null ? value.slice(at, v.end) : `var(${v.name},${fb})`;
@@ -198,7 +198,7 @@ function substituteTw(
   return out;
 }
 
-/** Avalia os `calc()` sem `var()` (`calc(0.25rem * 4)` → `1rem`), de dentro para fora. */
+/** Evaluates `calc()` without `var()` (`calc(0.25rem * 4)` → `1rem`), from the inside out. */
 export function foldCalc(value: string): string {
   let cur = value;
   for (let guard = 0; guard < 50; guard++) {
@@ -206,7 +206,7 @@ export function foldCalc(value: string): string {
     let changed = false;
     cur = cur.replace(re, (full: string) => {
       if (/var\(/i.test(full)) return full;
-      // Só expressões numéricas (números, unidades, operadores, parênteses).
+      // Numeric expressions only (numbers, units, operators, parentheses).
       if (!/^calc\([\s\d.+\-*/()%a-z]*\)$/i.test(full)) return full;
       const r = evaluateCalc(full);
       if (r === null) return full;
@@ -218,7 +218,7 @@ export function foldCalc(value: string): string {
   return cur;
 }
 
-/** Remove camadas vazias (`0 0 #0000`) de `box-shadow`. */
+/** Removes empty layers (`0 0 #0000`) from `box-shadow`. */
 function cleanShadow(value: string): string {
   const layers = splitTopComma(value).filter((l) => !/^0 0 #0000$/i.test(l.trim()));
   if (layers.length === 0) return '0 0 #0000';
@@ -241,7 +241,7 @@ function splitTopComma(value: string): string[] {
   return out;
 }
 
-/** Valor final de uma declaração (substituição, `calc`, espaços, sombra). `null` = descartar. */
+/** Final value of a declaration (substitution, `calc`, spaces, shadow). `null` = discard. */
 function finalizeValue(
   prop: string,
   value: string,
@@ -256,7 +256,7 @@ function finalizeValue(
   return v;
 }
 
-/** Forma comparável de um valor CSS (rem → px, cores em hex, espaços normalizados). */
+/** Comparable form of a CSS value (rem → px, colors in hex, normalized spaces). */
 export function comparableCss(value: string): string {
   let v = value
     .trim()
@@ -277,9 +277,9 @@ export function comparableCss(value: string): string {
 
 const round = (n: number): number => Math.round(n * 1000) / 1000;
 
-/* ---------- comparação independente de shorthand ---------- */
+/* ---------- shorthand-independent comparison ---------- */
 
-/** Divide por espaços fora de parênteses e aspas. */
+/** Splits on spaces outside parentheses and quotes. */
 function splitTopSpace(value: string): string[] {
   const out: string[] = [];
   let depth = 0;
@@ -318,7 +318,7 @@ const BORDER_STYLE_WORDS = new Set([
 ]);
 const BORDER_WIDTH_WORDS: Record<string, string> = { thin: '1px', medium: '3px', thick: '5px' };
 
-/** 1–4 valores (`padding`, `margin`, `inset`) → [top, right, bottom, left]. */
+/** 1–4 values (`padding`, `margin`, `inset`) → [top, right, bottom, left]. */
 function fourValues(value: string): Four | null {
   const v = splitTopSpace(value);
   const [a, b, c, d] = v;
@@ -329,7 +329,7 @@ function fourValues(value: string): Four | null {
   return null;
 }
 
-/** Valor de `border`/`border-top`... → largura, estilo e cor por lado. */
+/** Value of `border`/`border-top`... → width, style and color per side. */
 function expandBorder(sides: readonly string[], value: string): Record<string, string> {
   let width = '3px';
   let style = 'none';
@@ -341,7 +341,7 @@ function expandBorder(sides: readonly string[], value: string): Record<string, s
     else if (/^-?[\d.]+(px|rem|em)?$/.test(lower)) width = tok;
     else color = tok;
   }
-  // sem estilo a borda não existe: largura e cor não contam (`border-none` só define o estilo)
+  // without a style the border does not exist: width and color do not count (`border-none` only sets the style)
   const invisible = style === 'none' || style === 'hidden';
   const out: Record<string, string> = {};
   for (const s of sides) {
@@ -355,9 +355,9 @@ function expandBorder(sides: readonly string[], value: string): Record<string, s
 }
 
 /**
- * Expande os shorthands comuns em longhands físicos, só para comparar o que o Tailwind produz
- * (`padding-inline`, `border-style` + `border-width`...) com o estilo do nó (`padding: 8px 16px`,
- * `border: 1px solid red`). `origin` diz de qual propriedade original veio cada longhand.
+ * Expands common shorthands into physical longhands, only to compare what Tailwind produces
+ * (`padding-inline`, `border-style` + `border-width`...) with the node style (`padding: 8px 16px`,
+ * `border: 1px solid red`). `origin` says which original prop each longhand came from.
  */
 function expandShorthands(style: Record<string, string>): {
   flat: Record<string, string>;
@@ -461,7 +461,7 @@ function expandShorthands(style: Record<string, string>): {
 }
 
 /* ====================================================================== */
-/* Variantes                                                               */
+/* Variants                                                                */
 /* ====================================================================== */
 
 const BP = new Set(['sm', 'md', 'lg', 'xl', '2xl']);
@@ -472,7 +472,7 @@ interface VariantNode {
   root?: string;
 }
 
-/** Variantes (do Tailwind, de dentro para fora) → estado do nó, ou o motivo de não suportar. */
+/** Variants (from Tailwind, inside out) → node state, or the reason it is unsupported. */
 function variantsToState(
   variants: readonly VariantNode[],
 ): { state: string; children: boolean } | { reason: string } {
@@ -481,29 +481,32 @@ function variantsToState(
   for (const v of variants) {
     const root = v.kind === 'static' ? (v.root ?? '') : '';
     if (v.kind !== 'static') {
-      return { reason: `variante "${v.kind}" não representável (use estados hover, dark, md...)` };
+      return { reason: `variant "${v.kind}" not representable (use states hover, dark, md...)` };
     }
     if (BP.has(root)) {
-      if (parts.breakpoint) return { reason: 'dois breakpoints na mesma classe' };
+      if (parts.breakpoint) return { reason: 'two breakpoints in the same class' };
       parts.breakpoint = root as StateKeyParts['breakpoint'];
     } else if (root === 'dark') parts.dark = true;
     else if (PSEUDO.has(root)) {
-      if (parts.pseudo) return { reason: 'duas pseudo-classes na mesma classe' };
+      if (parts.pseudo) return { reason: 'two pseudo-classes in the same class' };
       parts.pseudo = root as StateKeyParts['pseudo'];
     } else if (root === '*') children = true;
-    else return { reason: `variante "${root}:" sem equivalente no modelo (fica só na classe)` };
+    else
+      return {
+        reason: `variant "${root}:" has no equivalent in the model (stays only in the class)`,
+      };
   }
   if (children && formatStateKey(parts) !== '') {
-    return { reason: 'variante "*:" combinada com estado' };
+    return { reason: 'variant "*:" combined with a state' };
   }
   return { state: formatStateKey(parts), children };
 }
 
 /* ====================================================================== */
-/* Tema do documento                                                        */
+/* Document theme                                                         */
 /* ====================================================================== */
 
-/** Tokens do documento que entram no `@theme` do Tailwind (namespaces de tema e `--spacing`). */
+/** Document tokens that go into Tailwind's `@theme` (theme namespaces and `--spacing`). */
 export function tailwindThemeTokens(doc: Pick<Document, 'tokens'>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(doc.tokens ?? {})) {
@@ -519,7 +522,7 @@ export function tailwindThemeTokens(doc: Pick<Document, 'tokens'>): Record<strin
   return out;
 }
 
-/** CSS de entrada do compilador para o documento. */
+/** Compiler input CSS for the document. */
 export function tailwindInputCss(doc: Pick<Document, 'tokens' | 'themes'>): string {
   const tokens = tailwindThemeTokens(doc);
   const lines = Object.entries(tokens).map(([k, v]) => `  ${k}: ${v};`);
@@ -532,7 +535,7 @@ export function tailwindInputCss(doc: Pick<Document, 'tokens' | 'themes'>): stri
   return blocks.join('\n');
 }
 
-/** Chave de cache: só os tokens que mudam o compilador (e os nomes de tema, pelas variantes). */
+/** Cache key: only the tokens that change the compiler (and theme names, because of the variants). */
 export function tailwindEngineKey(doc: Pick<Document, 'tokens' | 'themes'>): string {
   const themes = (doc.themes ?? []).map((t) => t.name).join(',');
   return JSON.stringify([TAILWIND_VERSION, tailwindThemeTokens(doc), themes]);
@@ -542,7 +545,7 @@ export function tailwindEngineKey(doc: Pick<Document, 'tokens' | 'themes'>): str
 /* Engine                                                                   */
 /* ====================================================================== */
 
-/** Classes mais usadas: aparecem primeiro no autocomplete. */
+/** Most used classes: they appear first in autocomplete. */
 const POPULAR = [
   'flex',
   'flex-col',
@@ -646,19 +649,19 @@ const POPULAR = [
 ];
 
 /**
- * Grupos de classes (primeiro segmento do nome) que a canonicalização "leve" deixa de fora. Na
- * primeira chamada, `canonicalizeCandidates` calcula a assinatura de TODAS as classes do
- * `getClassList()` (~23 mil, 1,5–2 s); só `mask-*` são ~6 mil e metade desse tempo. Essas classes
- * só declaram propriedades que casam com `CANON_HEAVY_PROP`, então nunca têm a mesma assinatura
- * (nem entram no índice propriedade → classe do `collapse`) de uma entrada que não use essas
- * propriedades: para essas entradas o resultado é idêntico ao da lista completa. Entradas que
- * usam (raras) vão para o design system com a lista completa.
+ * Class groups (first name segment) that the "light" canonicalization leaves out. On the
+ * first call, `canonicalizeCandidates` computes the signature of ALL classes in
+ * `getClassList()` (~23 thousand, 1.5–2 s); `mask-*` alone is ~6 thousand and half of that time. These classes
+ * only declare props that match `CANON_HEAVY_PROP`, so they never have the same signature
+ * (nor enter the `collapse` prop → class index) as an input that does not use those
+ * props: for such inputs the result is identical to the full list. Inputs that
+ * use them (rare) go to the design system with the full list.
  */
 const CANON_HEAVY_GROUPS = new Set(['mask', 'scroll', 'scrollbar']);
-/** Todas as propriedades (e variáveis) declaradas pelas classes de `CANON_HEAVY_GROUPS`. */
+/** All props (and variables) declared by the classes of `CANON_HEAVY_GROUPS`. */
 export const CANON_HEAVY_PROP = /^(--tw-)?(mask|scroll)/;
 
-/** Grupo da classe para `CANON_HEAVY_GROUPS` (`-scroll-mt-2` → `scroll`). */
+/** Class group for `CANON_HEAVY_GROUPS` (`-scroll-mt-2` → `scroll`). */
 export function canonGroupOf(cls: string): string {
   return cls.replace(/^-/, '').split('-')[0];
 }
@@ -667,18 +670,18 @@ export async function createTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
 ): Promise<TailwindEngine> {
   const inputCss = tailwindInputCss(doc);
-  // Design systems separados: `canonicalizeCandidates` altera as opções do tema do design system
-  // que o executa (os valores deixam de sair inline), então a canonicalização usa cópias próprias:
-  // a leve (sem `CANON_HEAVY_GROUPS`) e a completa (só para entradas que tocam nesses grupos).
-  // Carregar um design system custa ~10 ms; o caro é o aquecimento da canonicalização.
+  // Separate design systems: `canonicalizeCandidates` changes the design system theme options
+  // of the one that runs it (values stop coming out inline), so canonicalization uses its own copies:
+  // the light one (without `CANON_HEAVY_GROUPS`) and the full one (only for inputs touching those groups).
+  // Loading a design system costs ~10 ms; the expensive part is warming up canonicalization.
   const [ds, canonLite, canonFull] = await Promise.all([
     __unstable__loadDesignSystem(inputCss, { base: '/' }),
     __unstable__loadDesignSystem(inputCss, { base: '/' }),
     __unstable__loadDesignSystem(inputCss, { base: '/' }),
   ]);
   const light = (name: string): boolean => !CANON_HEAVY_GROUPS.has(canonGroupOf(name));
-  // A busca por equivalentes de valores arbitrários e o `collapse` também percorrem todas as
-  // raízes funcionais (`mask-linear-from`, `scroll-m`...): as pesadas saem pelo mesmo motivo.
+  // The search for arbitrary value equivalents and `collapse` also walk all the
+  // functional roots (`mask-linear-from`, `scroll-m`...): the heavy ones are left out for the same reason.
   const utilities = canonLite.utilities;
   const keys = utilities.keys.bind(utilities);
   utilities.keys = ((kind: Parameters<typeof keys>[0]) =>
@@ -704,7 +707,7 @@ class Engine implements TailwindEngine {
     private tokens: Record<string, string>,
   ) {}
 
-  /* ---------- compilação ---------- */
+  /* ---------- compilation ---------- */
 
   private compileUtility(utility: string): CompiledUtility | null {
     const cached = this.utilCache.get(utility);
@@ -749,7 +752,7 @@ class Engine implements TailwindEngine {
           if (d.property.startsWith('--tw-')) vars[d.property] = d.value;
           else decls.push({ prop: d.property, value: d.value, important: d.important });
         } else if (d.kind === 'at-rule' && d.name === '@supports') {
-          // O Chromium do app suporta as features testadas (ex.: gradiente `in oklab`).
+          // The app Chromium supports the tested features (e.g. `in oklab` gradient).
           visit(d.nodes);
         }
       }
@@ -778,10 +781,14 @@ class Engine implements TailwindEngine {
       const bare = this.ds.printCandidate({ ...cand, variants: [] } as typeof cand);
       const utility = this.compileUtility(bare);
       if (!utility) {
-        // Classe Tailwind válida mas cujo CSS o modelo não representa (::placeholder, @media...).
+        // Valid Tailwind class but its CSS is not representable by the model (::placeholder, @media...).
         const css = this.classCss(cls);
         if (css)
-          return { cls, status: 'unsupported', reason: 'seletor ou regra sem equivalente no nó' };
+          return {
+            cls,
+            status: 'unsupported',
+            reason: 'selector or rule with no equivalent on the node',
+          };
         continue;
       }
       const mapped = variantsToState(cand.variants as readonly VariantNode[]);
@@ -789,11 +796,11 @@ class Engine implements TailwindEngine {
       let target = utility.target;
       if (mapped.children) {
         if (target !== 'self')
-          return { cls, status: 'unsupported', reason: '"*:" em classe de filhos' };
+          return { cls, status: 'unsupported', reason: '"*:" on a child class' };
         target = 'children';
       }
       if (target !== 'self' && mapped.state !== '') {
-        return { cls, status: 'unsupported', reason: 'classe de filhos com estado' };
+        return { cls, status: 'unsupported', reason: 'child class with a state' };
       }
       return { cls, status: 'applied', state: mapped.state, target, utility };
     }
@@ -823,7 +830,7 @@ class Engine implements TailwindEngine {
     return this.info(cls).status !== 'unknown';
   }
 
-  /* ---------- classes → estilos ---------- */
+  /* ---------- classes → styles ---------- */
 
   classesToStyles(classes: string): TailwindStyles {
     const infos = this.inspect(classes);
@@ -837,14 +844,14 @@ class Engine implements TailwindEngine {
         .filter((i) => i.status === 'unsupported')
         .map((i) => ({ cls: i.cls, reason: i.reason ?? '' })),
     };
-    // a ordem (cascata do Tailwind) só existe relativa à lista inteira: pede-se de uma vez
+    // the order (Tailwind cascade) only exists relative to the whole list: ask for it at once
     const orders = new Map<string, bigint>();
     try {
       for (const [c, o] of this.ds.getClassOrder(applied.map((i) => i.cls))) {
         if (o !== null) orders.set(c, o);
       }
     } catch {
-      /* sem ordem: vale a do autor */
+      /* no order: the author's applies */
     }
     const byOrder = (a: ClassInfo, b: ClassInfo): number => {
       const x = orders.get(a.cls) ?? 0n;
@@ -890,7 +897,7 @@ class Engine implements TailwindEngine {
     return result;
   }
 
-  /* ---------- estilos → classes ---------- */
+  /* ---------- styles → classes ---------- */
 
   canonicalize(classes: string[]): string[] {
     if (classes.length === 0) return [];
@@ -910,14 +917,14 @@ class Engine implements TailwindEngine {
   }
 
   warmup(): void {
-    // Uma classe arbitrária e uma nomeada montam os índices de assinatura da canonicalização leve.
+    // An arbitrary class and a named one build the light canonicalization signature indexes.
     this.canonicalize(['p-[16px]', 'm-4']);
   }
 
-  /** A classe pode casar com alguma de `CANON_HEAVY_GROUPS`? (na dúvida, sim) */
+  /** Can the class match any of `CANON_HEAVY_GROUPS`? (when in doubt, yes) */
   private needsFullCanon(cls: string): boolean {
     const info = this.info(cls);
-    // Sem CSS no Tailwind não há assinatura: a canonicalização devolve a classe como está.
+    // Without CSS in Tailwind there is no signature: canonicalization returns the class as is.
     if (info.status === 'unknown') return false;
     const u = info.utility;
     if (info.status !== 'applied' || !u) return true;
@@ -928,9 +935,9 @@ class Engine implements TailwindEngine {
   }
 
   /**
-   * Propriedades que a classe afeta: as próprias declarações e as declarações das classes vizinhas
-   * (`peers`, mesmo estado) que usam, direta ou indiretamente, as variáveis `--tw-*` que ela define
-   * (ex.: `from-red-500` afeta o `background-image` de `bg-linear-to-r`).
+   * Props the class affects: its own declarations and the declarations of neighboring classes
+   * (`peers`, same state) that use, directly or indirectly, the `--tw-*` variables it defines
+   * (e.g. `from-red-500` affects the `background-image` of `bg-linear-to-r`).
    */
   private propsOf(info: ClassInfo, peers: ClassInfo[]): string[] {
     const u = info.utility;
@@ -955,7 +962,7 @@ class Engine implements TailwindEngine {
     return [...props];
   }
 
-  /** Estilo que um conjunto de classes (sem variantes) produz, com a neutralização de `text-*`. */
+  /** Style that a set of classes (without variants) produces, with `text-*` neutralization. */
   private produced(classes: string[], opts: StylesToClassesOptions): Record<string, string> {
     const r = this.classesToStyles(classes.join(' '));
     const style = { ...r.style };
@@ -985,7 +992,7 @@ class Engine implements TailwindEngine {
     return { classes: this.dropRedundant(classes, target, opts), rest: mapped.rest };
   }
 
-  /** As classes produzem exatamente `target` (mesmas propriedades e valores comparáveis)? */
+  /** Do the classes produce exactly `target` (same props and comparable values)? */
   private matches(
     classes: string[],
     target: Record<string, string>,
@@ -1006,19 +1013,19 @@ class Engine implements TailwindEngine {
       const a = want.flat[p];
       const b = got.flat[p];
       if (a !== undefined && b !== undefined && comparableCss(a) === comparableCss(b)) continue;
-      // marca o longhand e as propriedades originais (do alvo e das classes) de onde ele veio
+      // marks the longhand and the original props (of the target and the classes) it came from
       bad.add(p);
       const fromTarget = want.origin.get(p);
       const fromClasses = got.origin.get(p);
       if (fromTarget) bad.add(fromTarget);
       if (fromClasses) bad.add(fromClasses);
     }
-    // Classes que o Tailwind não reconhece não produzem nada: também são problema.
+    // Classes Tailwind does not recognize produce nothing: they are a problem too.
     for (const c of classes) if (this.info(c).status !== 'applied') bad.add(`?${c}`);
     return bad;
   }
 
-  /** Remove classes que não fazem falta (ex.: `border-solid` junto de `border`). */
+  /** Removes classes that are not needed (e.g. `border-solid` next to `border`). */
   private dropRedundant(
     classes: string[],
     target: Record<string, string>,
@@ -1033,7 +1040,7 @@ class Engine implements TailwindEngine {
     return cur;
   }
 
-  /** Troca por `[prop:valor]` as classes que não reproduzem o estilo. */
+  /** Replaces with `[prop:value]` the classes that do not reproduce the style. */
   private repair(
     classes: string[],
     target: Record<string, string>,
@@ -1075,8 +1082,8 @@ class Engine implements TailwindEngine {
     const out: string[] = [];
     const rest: Record<string, string> = {};
 
-    // Classes que o modelo não representa (ou que não são Tailwind) seguem como estão.
-    // As de filhos (`space-y-2`, `*:p-2`) não: o estilo já está nos filhos.
+    // Classes the model cannot represent (or that are not Tailwind) stay as they are.
+    // Child ones (`space-y-2`, `*:p-2`) do not: the style is already on the children.
     const keepVerbatim = new Set(hint.filter((i) => i.status !== 'applied').map((i) => i.cls));
 
     const keptByState = new Map<string, Set<string>>();
@@ -1120,7 +1127,7 @@ class Engine implements TailwindEngine {
       for (const c of generated) if (!kept.has(c)) kept.add(c);
     }
 
-    // Ordem: as classes do autor na ordem original, depois as geradas.
+    // Order: the author classes in the original order, then the generated ones.
     const all = new Set<string>();
     for (const info of hint) {
       if (keepVerbatim.has(info.cls) || keptByState.get(info.state ?? '')?.has(info.cls)) {
@@ -1182,9 +1189,9 @@ function bucketOf(infos: ClassInfo[]): Bucket {
     Object.assign(b.vars, u.vars);
     for (const d of u.decls) {
       const prev = b.decls[d.prop];
-      // `!important` vence declarações comuns, como na cascata.
+      // `!important` wins over normal declarations, as in the cascade.
       if (prev && prev.important && !d.important) continue;
-      // Mantém a ordem de inserção da cascata: reinsere no fim.
+      // Keeps the cascade insertion order: reinserts at the end.
       delete b.decls[d.prop];
       b.decls[d.prop] = d;
     }
@@ -1202,7 +1209,7 @@ function resolveBucket(b: Bucket): Record<string, string> {
   return out;
 }
 
-/** Alvo de um seletor gerado para a classe sem variantes; `null` se não representável. */
+/** Target of a selector generated for the class without variants; `null` if not representable. */
 function selectorTarget(selector: string): Target | null {
   const plain = selector.replace(/\\./g, 'x');
   if (/^\.[^\s>+~:[\]()*,]+$/.test(plain)) return 'self';
@@ -1210,7 +1217,7 @@ function selectorTarget(selector: string): Target | null {
   return null;
 }
 
-/** `[prop:valor]` seguro (espaços viram `_`); `null` se o valor não cabe numa classe. */
+/** Safe `[prop:value]` (spaces become `_`); `null` if the value does not fit in a class. */
 function arbitrary(prop: string, value: string): string | null {
   let v = value.trim();
   const important = /\s*!important$/.test(v);

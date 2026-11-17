@@ -11,9 +11,9 @@ function strip(doc: Document): unknown {
   return c;
 }
 
-/** Documento com frame fr_aaaaaaaa [a, b, c(d)] e segunda página vazia. */
+/** Document with frame fr_aaaaaaaa [a, b, c(d)] and an empty second page. */
 function fixture(): Document {
-  const doc = createDocument('Teste', { id: 'doc_test0001' });
+  const doc = createDocument('Test', { id: 'doc_test0001' });
   doc.pages[0].id = 'pg_aaaaaaaa';
   const mk = (id: string, tag: string, children: Node[] = [], text?: string): Node => {
     const n = createNodeFromTag(tag, { children, text, styles: { color: 'red' } });
@@ -24,27 +24,27 @@ function fixture(): Document {
   frame.id = 'fr_aaaaaaaa';
   frame.children = [
     mk('el_aaaaaaa1', 'div'),
-    mk('tx_bbbbbbb2', 'p', [], 'Olá'),
+    mk('tx_bbbbbbb2', 'p', [], 'Hello'),
     mk('el_ccccccc3', 'section', [mk('el_ddddddd4', 'span')]),
   ];
   doc.pages[0].frames.push(frame);
-  doc.pages.push({ id: 'pg_bbbbbbbb', name: 'Outra', frames: [], background: '#fff' });
+  doc.pages.push({ id: 'pg_bbbbbbbb', name: 'Other', frames: [], background: '#fff' });
   return doc;
 }
 
 function roundTrip(doc: Document, op: Op): { after: Document; inverse: Op[] } {
   const before = structuredClone(doc);
   const r = applyOp(doc, op);
-  expect(strip(doc)).toEqual(strip(before)); // imutável
+  expect(strip(doc)).toEqual(strip(before)); // immutable
   const back = applyOps(r.doc, r.inverse);
   expect(strip(back.doc)).toStrictEqual(strip(doc));
   return { after: r.doc, inverse: r.inverse };
 }
 
 describe('applyOp', () => {
-  it('createNode (filho) + inverso', () => {
+  it('createNode (child) + inverse', () => {
     const doc = fixture();
-    const node = createNodeFromTag('h1', { text: 'Oi', styles: { fontSize: '20px' } });
+    const node = createNodeFromTag('h1', { text: 'Hi', styles: { fontSize: '20px' } });
     const { after } = roundTrip(doc, {
       type: 'createNode',
       parentId: 'fr_aaaaaaaa',
@@ -56,7 +56,7 @@ describe('applyOp', () => {
     expect(p.node.style).toEqual({ 'font-size': '20px' });
   });
 
-  it('createNode frame raiz exige pageId e rejeita id duplicado', () => {
+  it('createNode root frame requires pageId and rejects a duplicate id', () => {
     const doc = fixture();
     const frame = createNodeFromTag('div', { isRoot: true });
     expect(() => applyOp(doc, { type: 'createNode', node: frame })).toThrow(/pageId/);
@@ -64,20 +64,20 @@ describe('applyOp', () => {
     expect(after.pages[1].frames).toHaveLength(1);
     const dup = { ...frame, id: 'el_aaaaaaa1' };
     expect(() => applyOp(doc, { type: 'createNode', pageId: 'pg_aaaaaaaa', node: dup })).toThrow(
-      /Já existe/,
+      /already exists/,
     );
     const r = applyOp(doc, { type: 'createNode', pageId: 'pg_bbbbbbbb', node: frame });
     expect(r.result).toEqual({ nodeIds: [frame.id] });
   });
 
-  it('createNode: pai inexistente', () => {
+  it('createNode: nonexistent parent', () => {
     const node = createNodeFromTag('div');
     expect(() => applyOp(fixture(), { type: 'createNode', parentId: 'el_zz', node })).toThrow(
-      'Nó "el_zz" não encontrado',
+      'Node "el_zz" not found',
     );
   });
 
-  it('deleteNodes ignora descendentes e restaura índices', () => {
+  it('deleteNodes ignores descendants and restores indexes', () => {
     const doc = fixture();
     const { after } = roundTrip(doc, {
       type: 'deleteNodes',
@@ -87,7 +87,7 @@ describe('applyOp', () => {
     roundTrip(doc, { type: 'deleteNodes', nodeIds: ['fr_aaaaaaaa'] });
   });
 
-  it('moveNodes: reordenar, reparent e mover para raiz', () => {
+  it('moveNodes: reorder, reparent and move to root', () => {
     const doc = fixture();
     const re = roundTrip(doc, { type: 'moveNodes', nodeIds: ['el_aaaaaaa1'], index: 2 });
     expect(re.after.pages[0].frames[0].children.map((c) => c.id)).toEqual([
@@ -116,23 +116,23 @@ describe('applyOp', () => {
     expect(root.after.pages[1].frames[0].type).toBe('element');
   });
 
-  it('moveNodes: reordenação múltipla dentro do mesmo pai é revertida', () => {
+  it('moveNodes: multiple reorder within the same parent is reverted', () => {
     const doc = fixture();
     roundTrip(doc, { type: 'moveNodes', nodeIds: ['el_ccccccc3', 'tx_bbbbbbb2'], index: 0 });
     roundTrip(doc, { type: 'moveNodes', nodeIds: ['el_aaaaaaa1', 'el_ccccccc3'], index: 0 });
   });
 
-  it('moveNodes proíbe mover para dentro de si/descendente', () => {
+  it('moveNodes forbids moving into itself/a descendant', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['el_ccccccc3'], parentId: 'el_ddddddd4' }),
-    ).toThrow(/descendente/);
+    ).toThrow(/descendants/);
     expect(() =>
       applyOp(doc, { type: 'moveNodes', nodeIds: ['el_ccccccc3'], parentId: 'el_ccccccc3' }),
-    ).toThrow(/si mesmo/);
+    ).toThrow(/into itself/);
   });
 
-  it('updateStyles: forma changes e forma simples', () => {
+  it('updateStyles: changes form and simple form', () => {
     const doc = fixture();
     const a = roundTrip(doc, {
       type: 'updateStyles',
@@ -153,10 +153,10 @@ describe('applyOp', () => {
     expect(findNode(b.after, 'tx_bbbbbbb2')!.node.style).toEqual({ 'font-size': '10px' });
     expect(() =>
       applyOp(doc, { type: 'updateStyles', nodeIds: ['el_aaaaaaa1'], styles: { '1x': 'a' } }),
-    ).toThrow(/inválido/);
+    ).toThrow(/Invalid/);
   });
 
-  it('updateStyles: valor vazio remove a propriedade', () => {
+  it('updateStyles: empty value removes the property', () => {
     const doc = fixture();
     const r = roundTrip(doc, {
       type: 'updateStyles',
@@ -170,12 +170,12 @@ describe('applyOp', () => {
     const doc = fixture();
     const t = roundTrip(doc, {
       type: 'setText',
-      changes: [{ nodeId: 'tx_bbbbbbb2', text: 'Novo' }],
+      changes: [{ nodeId: 'tx_bbbbbbb2', text: 'New' }],
     });
-    expect(findNode(t.after, 'tx_bbbbbbb2')!.node.text).toBe('Novo');
+    expect(findNode(t.after, 'tx_bbbbbbb2')!.node.text).toBe('New');
     const at = roundTrip(doc, {
       type: 'setAttrs',
-      changes: [{ nodeId: 'el_aaaaaaa1', set: { href: '#', alt: 'x' }, unset: ['nada'] }],
+      changes: [{ nodeId: 'el_aaaaaaa1', set: { href: '#', alt: 'x' }, unset: ['nothing'] }],
     });
     expect(findNode(at.after, 'el_aaaaaaa1')!.node.attrs).toEqual({ href: '#', alt: 'x' });
     expect(() =>
@@ -198,7 +198,7 @@ describe('applyOp', () => {
     expect(findNode(fl.after, 'el_aaaaaaa1')!.node).toMatchObject({ locked: true, hidden: true });
   });
 
-  it('duplicateNodes: cópia após o original, idMap determinístico', () => {
+  it('duplicateNodes: copy after the original, deterministic idMap', () => {
     const doc = fixture();
     const r = applyOp(doc, { type: 'duplicateNodes', nodeIds: ['el_ccccccc3'] });
     const idMap = r.result!.idMap as Record<string, string>;
@@ -212,15 +212,15 @@ describe('applyOp', () => {
     ]);
     expect(kids[3].children[0].id).toBe(idMap['el_ddddddd4']);
     expect(r.result!.nodeIds).toEqual([idMap['el_ccccccc3']]);
-    // reaplicar com a op completa gera exatamente os mesmos ids
+    // reapplying with the full op generates exactly the same ids
     const full = r.result!.op as Op;
     const again = applyOp(doc, full);
     expect(strip(again.doc)).toEqual(strip(r.doc));
-    // inverso
+    // inverse
     expect(strip(applyOps(r.doc, r.inverse).doc)).toEqual(strip(doc));
   });
 
-  it('duplicateNodes de frame raiz desloca x em 40', () => {
+  it('duplicateNodes of a root frame shifts x by 40', () => {
     const doc = fixture();
     const r = applyOp(doc, { type: 'duplicateNodes', nodeIds: ['fr_aaaaaaaa'] });
     expect(r.doc.pages[0].frames).toHaveLength(2);
@@ -228,20 +228,22 @@ describe('applyOp', () => {
     expect(strip(applyOps(r.doc, r.inverse).doc)).toEqual(strip(doc));
   });
 
-  it('páginas: create/rename/delete com restauração completa', () => {
+  it('pages: create/rename/delete with full restoration', () => {
     const doc = fixture();
-    const c = roundTrip(doc, { type: 'createPage', pageId: 'pg_cccccccc', name: 'Nova', index: 0 });
+    const c = roundTrip(doc, { type: 'createPage', pageId: 'pg_cccccccc', name: 'New', index: 0 });
     expect(c.after.pages[0].id).toBe('pg_cccccccc');
     roundTrip(doc, { type: 'renamePage', pageId: 'pg_aaaaaaaa', name: 'X' });
     const d = roundTrip(doc, { type: 'deletePage', pageId: 'pg_aaaaaaaa' });
     expect(d.after.pages).toHaveLength(1);
-    expect(() => applyOp(d.after, { type: 'deletePage', pageId: 'pg_bbbbbbbb' })).toThrow(/última/);
+    expect(() => applyOp(d.after, { type: 'deletePage', pageId: 'pg_bbbbbbbb' })).toThrow(
+      /last page/,
+    );
     expect(() => applyOp(doc, { type: 'createPage', pageId: 'pg_aaaaaaaa', name: 'dup' })).toThrow(
-      /Já existe/,
+      /already exists/,
     );
   });
 
-  it('setTokens: set/unset com restauração', () => {
+  it('setTokens: set/unset with restoration', () => {
     const doc = fixture();
     doc.tokens['--a'] = '1';
     const r = roundTrip(doc, { type: 'setTokens', set: { '--b': '2', '--a': '3' } });
@@ -250,7 +252,7 @@ describe('applyOp', () => {
     expect(u.after.tokens).toEqual({});
   });
 
-  it('atualiza meta.updatedAt', async () => {
+  it('updates meta.updatedAt', async () => {
     const doc = fixture();
     doc.meta.updatedAt = '2000-01-01T00:00:00.000Z';
     const r = applyOp(doc, { type: 'renamePage', pageId: 'pg_aaaaaaaa', name: 'Y' });
@@ -259,7 +261,7 @@ describe('applyOp', () => {
 });
 
 describe('setTag', () => {
-  it('troca a tag (element e text) e o inverso restaura exatamente', () => {
+  it('changes the tag (element and text) and the inverse restores exactly', () => {
     const doc = fixture();
     const { after, inverse } = roundTrip(doc, {
       type: 'setTag',
@@ -281,25 +283,25 @@ describe('setTag', () => {
     ]);
   });
 
-  it('recusa tag bloqueada ou inválida', () => {
+  it('rejects a blocked or invalid tag', () => {
     const doc = fixture();
     for (const tag of ['script', 'IFRAME', '1x', 'a b']) {
       expect(() =>
         applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag }] }),
-      ).toThrow(/Tag inválida/);
+      ).toThrow(/Invalid tag/);
     }
   });
 
-  it('recusa tag void em nó com filhos e aceita sem filhos', () => {
+  it('rejects a void tag on a node with children and accepts it without children', () => {
     const doc = fixture();
     expect(() =>
       applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_ccccccc3', tag: 'br' }] }),
-    ).toThrow(/não pode ter filhos/);
+    ).toThrow(/cannot have children/);
     const ok = applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag: 'hr' }] });
     expect(findNode(ok.doc, 'el_aaaaaaa1')!.node.tag).toBe('hr');
   });
 
-  it('imagem só aceita img e svg só aceita svg', () => {
+  it('image only accepts img and svg only accepts svg', () => {
     const doc = fixture();
     const img = createNodeFromTag('img');
     img.id = 'im_aaaaaaa1';
@@ -316,7 +318,7 @@ describe('setTag', () => {
     applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'im_aaaaaaa1', tag: 'img' }] });
   });
 
-  it('img e svg só em nós do tipo correspondente', () => {
+  it('img and svg only on nodes of the matching type', () => {
     const doc = fixture();
     for (const [nodeId, tag] of [
       ['el_aaaaaaa1', 'img'],
@@ -325,22 +327,22 @@ describe('setTag', () => {
       [doc.pages[0].frames[0].id, 'img'],
     ] as const) {
       expect(() => applyOp(doc, { type: 'setTag', changes: [{ nodeId, tag }] }), tag).toThrow(
-        /exclusiva/,
+        /exclusive/,
       );
     }
   });
 
-  it('tag void é recusada em nó de texto', () => {
+  it('a void tag is rejected on a text node', () => {
     const doc = fixture();
     for (const tag of ['br', 'hr', 'input', 'wbr', 'source', 'track', 'col', 'area']) {
       expect(
         () => applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'tx_bbbbbbb2', tag }] }),
         tag,
-      ).toThrow(/nó de texto/);
+      ).toThrow(/text node/);
     }
   });
 
-  it('recusa tags que mudam o namespace ou guardam conteúdo inerte', () => {
+  it('rejects tags that change the namespace or hold inert content', () => {
     const doc = fixture();
     for (const tag of [
       'math',
@@ -357,13 +359,13 @@ describe('setTag', () => {
       expect(
         () => applyOp(doc, { type: 'setTag', changes: [{ nodeId: 'el_aaaaaaa1', tag }] }),
         tag,
-      ).toThrow(/bloqueada/);
+      ).toThrow(/blocked/);
     }
   });
 });
 
 describe('applyOps', () => {
-  it('aplica em sequência e o inverso desfaz tudo', () => {
+  it('applies in sequence and the inverse undoes everything', () => {
     const doc = fixture();
     const r = applyOps(doc, [
       { type: 'renameNodes', changes: [{ nodeId: 'el_aaaaaaa1', name: 'A' }] },
@@ -374,7 +376,7 @@ describe('applyOps', () => {
     expect(strip(applyOps(r.doc, r.inverse).doc)).toEqual(strip(doc));
   });
 
-  it('é atômico em caso de falha', () => {
+  it('is atomic on failure', () => {
     const doc = fixture();
     const before = structuredClone(doc);
     expect(() =>
@@ -382,12 +384,12 @@ describe('applyOps', () => {
         { type: 'deleteNodes', nodeIds: ['el_aaaaaaa1'] },
         { type: 'deleteNodes', nodeIds: ['el_zz'] },
       ]),
-    ).toThrow(/não encontrado/);
+    ).toThrow(/not found/);
     expect(doc).toEqual(before);
   });
 });
 
-describe('setAttrs em nó svg', () => {
+describe('setAttrs on an svg node', () => {
   const svgDoc = (): Document => {
     const doc = fixture();
     const n = createNodeFromTag('svg', {
@@ -398,7 +400,7 @@ describe('setAttrs em nó svg', () => {
     return doc;
   };
 
-  it('mescla no <svg> raiz, preserva viewBox/xmlns, escapa valores e desfaz', () => {
+  it('merges into the root <svg>, preserves viewBox/xmlns, escapes values and undoes', () => {
     const doc = svgDoc();
     const op: Op = {
       type: 'setAttrs',
@@ -412,7 +414,7 @@ describe('setAttrs em nó svg', () => {
     };
     const r = applyOp(doc, op);
     const after = r.doc;
-    // desfazer restaura os atributos (a ordem deles no markup pode mudar)
+    // undo restores the attributes (their order in the markup may change)
     const back = applyOps(after, r.inverse).doc;
     expect(svgRootAttrs(findNode(back, 'el_svgsvg01')!.node.svg!)).toEqual(
       svgRootAttrs(findNode(doc, 'el_svgsvg01')!.node.svg!),
@@ -426,7 +428,7 @@ describe('setAttrs em nó svg', () => {
     expect(findNode(after, 'el_svgsvg01')!.node.attrs).toEqual({});
   });
 
-  it('sem markup, usa node.attrs e o undo restaura exatamente os atributos anteriores', () => {
+  it('without markup, uses node.attrs and undo restores the previous attributes exactly', () => {
     const doc = fixture();
     const n = createNodeFromTag('svg', {});
     n.id = 'el_svgbare1';

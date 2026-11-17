@@ -26,29 +26,29 @@ function card(): Node {
   return createNodeFromTag('div', {
     name: 'Card',
     children: [
-      createNodeFromTag('h3', { text: '{{nome}}' }),
-      createNodeFromTag('p', { text: '{{cargo | Sem cargo}} #{{$number}}' }),
-      createNodeFromTag('img', { src: '{{foto}}', attrs: { alt: 'Foto de {{nome}}' } }),
-      createNodeFromTag('a', { text: 'Perfil', attrs: { href: '{{url}}' } }),
+      createNodeFromTag('h3', { text: '{{name}}' }),
+      createNodeFromTag('p', { text: '{{role | No role}} #{{$number}}' }),
+      createNodeFromTag('img', { src: '{{photo}}', attrs: { alt: 'Photo of {{name}}' } }),
+      createNodeFromTag('a', { text: 'Profile', attrs: { href: '{{url}}' } }),
     ],
   });
 }
 
 function repeater(data: unknown[]): Node {
-  const list = createNodeFromTag('div', { name: 'Lista', styles: { display: 'grid' } });
+  const list = createNodeFromTag('div', { name: 'List', styles: { display: 'grid' } });
   list.children = [card()];
   return createRepeaterFrom(list, data);
 }
 
 const people = Array.from({ length: 20 }, (_, i) => ({
-  nome: `Pessoa ${i + 1}`,
-  cargo: i % 2 === 0 ? 'Design' : '',
-  foto: `fotos/p${i + 1}.jpg`,
-  url: `https://exemplo.com/p/${i + 1}`,
+  name: `Person ${i + 1}`,
+  role: i % 2 === 0 ? 'Design' : '',
+  photo: `photos/p${i + 1}.jpg`,
+  url: `https://example.com/p/${i + 1}`,
 }));
 
 function docWith(node: Node): Document {
-  const doc = createDocument('Teste');
+  const doc = createDocument('Test');
   const frame = createNodeFromTag('div', {
     isRoot: true,
     name: 'Desktop',
@@ -60,32 +60,32 @@ function docWith(node: Node): Document {
 }
 
 describe('bindings', () => {
-  it('resolve campos, caminhos, padrão e especiais', () => {
-    const item = { a: { b: [{ c: 'ok' }] }, n: 0, vazio: '' };
+  it('resolves fields, paths, defaults and specials', () => {
+    const item = { a: { b: [{ c: 'ok' }] }, n: 0, empty: '' };
     expect(applyBindings('{{a.b.0.c}}', { item, index: 0 })).toBe('ok');
     expect(applyBindings('{{n}}', { item, index: 0 })).toBe('0');
-    expect(applyBindings('{{vazio | "padrão"}}', { item, index: 0 })).toBe('padrão');
-    expect(applyBindings('{{ausente}}', { item, index: 0 })).toBe('');
+    expect(applyBindings('{{empty | "default"}}', { item, index: 0 })).toBe('default');
+    expect(applyBindings('{{missing}}', { item, index: 0 })).toBe('');
     expect(applyBindings('{{$index}}/{{$number}}', { item, index: 4 })).toBe('4/5');
-    expect(applyBindings('{{$item}}', { item: 'texto', index: 0 })).toBe('texto');
+    expect(applyBindings('{{$item}}', { item: 'text', index: 0 })).toBe('text');
     expect(
-      applyBindings('{{nome}}', { item: { full: 'Ana' }, index: 0, mapping: { nome: 'full' } }),
+      applyBindings('{{name}}', { item: { full: 'Ana' }, index: 0, mapping: { name: 'full' } }),
     ).toBe('Ana');
     expect(applyBindings('{{obj}}', { item: { obj: { x: 1 } }, index: 0 })).toBe('{"x":1}');
   });
 
-  it('getPath não sobe no protótipo', () => {
+  it('getPath does not climb the prototype', () => {
     expect(getPath({}, 'constructor')).toBeUndefined();
     expect(getPath({ a: null }, 'a.b')).toBeUndefined();
   });
 
-  it('lista os campos do template', () => {
-    expect(templateFields([card()])).toEqual(['nome', 'cargo', '$number', 'foto', 'url']);
+  it('lists the template fields', () => {
+    expect(templateFields([card()])).toEqual(['name', 'role', '$number', 'photo', 'url']);
   });
 });
 
-describe('expansão do repetidor', () => {
-  it('gera uma cópia do template por item, item 0 com os ids originais', () => {
+describe('repeater expansion', () => {
+  it('generates one template copy per item, item 0 with the original ids', () => {
     const rp = repeater(people);
     const tpl = rp.children[0]!;
     const kids = expandRepeaterChildren(rp);
@@ -94,35 +94,35 @@ describe('expansão do repetidor', () => {
     expect(kids[5]!.id).toBe(`${tpl.id}~5`);
     expect(baseNodeId(kids[5]!.children[0]!.id)).toBe(tpl.children[0]!.id);
     expect(repeatIndexOf(kids[5]!.id)).toBe(5);
-    expect(kids[0]!.children[0]!.text).toBe('Pessoa 1');
-    expect(kids[1]!.children[1]!.text).toBe('Sem cargo #2');
-    expect(kids[2]!.children[2]!.src).toBe('fotos/p3.jpg');
-    expect(kids[2]!.children[2]!.attrs.alt).toBe('Foto de Pessoa 3');
-    expect(kids[19]!.children[3]!.attrs.href).toBe('https://exemplo.com/p/20');
+    expect(kids[0]!.children[0]!.text).toBe('Person 1');
+    expect(kids[1]!.children[1]!.text).toBe('No role #2');
+    expect(kids[2]!.children[2]!.src).toBe('photos/p3.jpg');
+    expect(kids[2]!.children[2]!.attrs.alt).toBe('Photo of Person 3');
+    expect(kids[19]!.children[3]!.attrs.href).toBe('https://example.com/p/20');
   });
 
-  it('sem dados mostra o template uma vez', () => {
+  it('without data shows the template once', () => {
     const kids = expandRepeaterChildren(repeater([]));
     expect(kids).toHaveLength(1);
     expect(kids[0]!.children[0]!.text).toBe('');
   });
 
-  it('descarta URLs perigosas vindas dos dados', () => {
+  it('drops dangerous URLs coming from the data', () => {
     const kids = expandRepeaterChildren(
-      repeater([{ url: 'javascript:alert(1)', foto: 'javascript:x' }]),
+      repeater([{ url: 'javascript:alert(1)', photo: 'javascript:x' }]),
     );
     expect(kids[0]!.children[3]!.attrs.href).toBeUndefined();
     expect(kids[0]!.children[2]!.src).toBeUndefined();
   });
 
-  it('vira elemento comum e sem dados ao expandir', () => {
+  it('becomes a plain element without data when expanded', () => {
     const exp = expandRepeater(repeater(people.slice(0, 3)));
     expect(exp.type).toBe('element');
     expect(exp.data).toBeUndefined();
     expect(exp.children).toHaveLength(3);
   });
 
-  it('repetidor aninhado usa os próprios dados e ids únicos', () => {
+  it('nested repeater uses its own data and unique ids', () => {
     const inner = createRepeaterFrom(
       Object.assign(createNodeFromTag('ul'), {
         children: [createNodeFromTag('li', { text: '{{$item}}' })],
@@ -152,38 +152,38 @@ describe('expansão do repetidor', () => {
     expect(second.children[1]!.children.map((c) => c.text)).toEqual(['a', 'b']);
   });
 
-  it('o resumo mostra a contagem de itens', () => {
+  it('the summary shows the item count', () => {
     expect(getTreeSummary(repeater(people), 0)).toMatch(/repeat:20/);
   });
 
-  it('o export html sai com os 20 itens', () => {
+  it('the html export contains all 20 items', () => {
     const doc = docWith(repeater(people));
     const html = exportHtml(doc);
-    expect(html.match(/Pessoa \d+/g)?.length).toBeGreaterThanOrEqual(20);
-    expect(html).toContain('Pessoa 20');
-    expect(html).not.toContain('{{nome}}');
+    expect(html.match(/Person \d+/g)?.length).toBeGreaterThanOrEqual(20);
+    expect(html).toContain('Person 20');
+    expect(html).not.toContain('{{name}}');
   });
 
-  it('recusa "~" no id de nó (reservado aos clones do repetidor)', () => {
+  it('rejects "~" in a node id (reserved for repeater clones)', () => {
     const rp = repeater(people.slice(0, 1));
     const doc = docWith(rp);
     rp.children[0]!.id = `${rp.children[0]!.id}~1`;
     expect(() => parseDocument(serializeDocument(doc))).toThrow(/~/);
   });
 
-  it('serializa e relê data e dataSource', () => {
+  it('serializes and re-reads data and dataSource', () => {
     const rp = repeater(people.slice(0, 2));
-    rp.dataSource = { kind: 'json', path: 'C:/dados/p.json', select: 'items' };
+    rp.dataSource = { kind: 'json', path: 'C:/data/p.json', select: 'items' };
     const doc = parseDocument(serializeDocument(docWith(rp)));
     const back = findNode(doc, rp.id)!.node;
     expect(back.type).toBe('repeater');
     expect(back.data).toHaveLength(2);
-    expect(back.dataSource).toEqual({ kind: 'json', path: 'C:/dados/p.json', select: 'items' });
+    expect(back.dataSource).toEqual({ kind: 'json', path: 'C:/data/p.json', select: 'items' });
   });
 });
 
 describe('op setData', () => {
-  it('troca dados e origem e desfaz exatamente', () => {
+  it('swaps data and source and undoes exactly', () => {
     const rp = repeater(people.slice(0, 2));
     const doc = docWith(rp);
     const r = applyOp(doc, {
@@ -199,7 +199,7 @@ describe('op setData', () => {
     expect(back.dataSource).toBeUndefined();
   });
 
-  it('desfaz para sem dados quando o repetidor não tinha a lista', () => {
+  it('undoes to no data when the repeater had no list', () => {
     const rp = repeater([]);
     delete rp.data;
     const doc = docWith(rp);
@@ -211,12 +211,12 @@ describe('op setData', () => {
     expect(back).toEqual(findNode(doc, rp.id)!.node);
   });
 
-  it('recusa nó que não é repetidor e dados acima do limite', () => {
+  it('rejects a non-repeater node and data above the limit', () => {
     const rp = repeater([]);
     const doc = docWith(rp);
     const other = rp.children[0]!.id;
     expect(() => applyOp(doc, { type: 'setData', changes: [{ nodeId: other, data: [] }] })).toThrow(
-      /não é um repetidor/,
+      /is not a repeater/,
     );
     expect(() =>
       applyOp(doc, {
@@ -227,32 +227,32 @@ describe('op setData', () => {
   });
 });
 
-describe('leitura de dados', () => {
-  it('CSV com aspas, quebras e separador detectado', () => {
-    const csv = 'nome;descrição\n"Ana; Lima";"linha 1\nlinha 2"\nBeto;"com ""aspas"""\n';
+describe('data reading', () => {
+  it('CSV with quotes, line breaks and detected delimiter', () => {
+    const csv = 'name;description\n"Ana; Lima";"line 1\nline 2"\nBeto;"with ""quotes"""\n';
     expect(parseCsv(csv)).toEqual([
-      { nome: 'Ana; Lima', descrição: 'linha 1\nlinha 2' },
-      { nome: 'Beto', descrição: 'com "aspas"' },
+      { name: 'Ana; Lima', description: 'line 1\nline 2' },
+      { name: 'Beto', description: 'with "quotes"' },
     ]);
     expect(parseCsv('a,b\r\n1,2\r\n')).toEqual([{ a: '1', b: '2' }]);
     expect(parseCsv('\uFEFFa\tb\n1\t2')).toEqual([{ a: '1', b: '2' }]);
   });
 
-  it('acha a lista dentro do JSON', () => {
+  it('finds the list inside the JSON', () => {
     expect(selectDataList({ data: { items: [1, 2] } }, 'data.items')).toEqual([1, 2]);
     expect(selectDataList({ total: 2, results: [1, 2] })).toEqual([1, 2]);
     expect(selectDataList({ meta: { rows: [3] } })).toEqual([3]);
     expect(selectDataList({ a: 1 })).toEqual([{ a: 1 }]);
-    expect(() => selectDataList({ a: 1 }, 'a')).toThrow(/não aponta para uma lista/);
+    expect(() => selectDataList({ a: 1 }, 'a')).toThrow(/does not point to a list/);
   });
 
-  it('parseDataText aplica limite e reporta JSON inválido', () => {
+  it('parseDataText applies the limit and reports invalid JSON', () => {
     expect(parseDataText('[1,2,3]', 'json', { limit: 2 })).toEqual([1, 2]);
-    expect(() => parseDataText('{', 'json')).toThrow(/JSON inválido/);
+    expect(() => parseDataText('{', 'json')).toThrow(/Invalid JSON/);
   });
 
-  it('adivinha o formato e as colunas', () => {
-    expect(guessDataFormat('C:/x/dados.CSV')).toBe('csv');
+  it('guesses the format and the columns', () => {
+    expect(guessDataFormat('C:/x/data.CSV')).toBe('csv');
     expect(guessDataFormat('text/csv')).toBe('csv');
     expect(guessDataFormat('https://api.x.com/users?page=1')).toBe('json');
     expect(dataColumns([{ a: 1 }, { b: 2, a: 3 }, 'x'])).toEqual(['a', 'b', '$item']);

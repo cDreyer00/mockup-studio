@@ -11,7 +11,7 @@ import { makeWorkspace } from './test-utils.js';
 
 type AssetsModule = typeof AssetsModule0;
 
-// Sem rede: o CSS e os arquivos do Google vêm de respostas simuladas.
+// No network: the CSS and files from Google come from mocked responses.
 const { variable } = vi.hoisted(() => ({ variable: { current: true } }));
 vi.mock('./assets.js', async (orig) => {
   const real = await orig<AssetsModule>();
@@ -41,7 +41,7 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-describe('add_font google: fonte variável', () => {
+describe('add_font google: variable font', () => {
   let ws: ReturnType<typeof makeWorkspace>;
   let daemon: DaemonHandle;
   let client: Client;
@@ -49,7 +49,7 @@ describe('add_font google: fonte variável', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -62,7 +62,7 @@ describe('add_font google: fonte variável', () => {
   const doc = () => daemon.store.get(daemon.store.resolveDocId());
   const fontsDir = () => path.join(ws.dir, 'assets', 'fonts');
 
-  it('mesmo conteúdo para vários pesos: um arquivo e um @font-face com faixa', async () => {
+  it('same content for several weights: one file and one @font-face with a range', async () => {
     const r = await client.callTool({
       name: 'add_font',
       arguments: { family: 'Inter', source: 'google', weights: [400, 500, 600, 700] },
@@ -77,7 +77,7 @@ describe('add_font google: fonte variável', () => {
     expect(css).toContain('font-weight:400 700');
   });
 
-  it('arquivos diferentes por peso continuam um por peso', async () => {
+  it('different files per weight stay one per weight', async () => {
     variable.current = false;
     await client.callTool({
       name: 'add_font',
@@ -91,7 +91,7 @@ describe('add_font google: fonte variável', () => {
   });
 });
 
-describe('mergeIdenticalFiles: normal e itálico', () => {
+describe('mergeIdenticalFiles: normal and italic', () => {
   const f = (weight: number, style: 'normal' | 'italic', content: string) => ({
     bytes: Buffer.from(content),
     ext: 'woff2',
@@ -99,7 +99,7 @@ describe('mergeIdenticalFiles: normal e itálico', () => {
     style,
   });
 
-  it('junta por estilo quando cada grupo tem arquivos idênticos', () => {
+  it('merges per style when each group has identical files', () => {
     const out = mergeIdenticalFiles([
       f(400, 'normal', 'N'),
       f(700, 'normal', 'N'),
@@ -113,7 +113,7 @@ describe('mergeIdenticalFiles: normal e itálico', () => {
     ]);
   });
 
-  it('não junta nada se um grupo tem arquivos diferentes (weights ficaria misturado)', () => {
+  it('merges nothing if a group has different files (weights would end up mixed)', () => {
     const files = [
       f(400, 'normal', 'N'),
       f(700, 'normal', 'N'),
@@ -123,7 +123,7 @@ describe('mergeIdenticalFiles: normal e itálico', () => {
     expect(mergeIdenticalFiles(files)).toEqual(files);
   });
 
-  it('não junta nada se um estilo tem um arquivo só', () => {
+  it('merges nothing if a style has only one file', () => {
     const files = [f(400, 'normal', 'N'), f(700, 'normal', 'N'), f(400, 'italic', 'I')];
     expect(mergeIdenticalFiles(files)).toEqual(files);
   });

@@ -1,4 +1,4 @@
-/** Comando que os clientes MCP (Claude Code, Codex...) usam para lançar `mockup mcp`, e seus formatos. */
+/** Command that MCP clients (Claude Code, Codex...) use to launch `mockup mcp`, and its formats. */
 import fs from 'node:fs';
 import { resolvePort } from '@mockup/server';
 import { shimPath } from './install.js';
@@ -18,11 +18,11 @@ export interface LaunchCommand {
 
 export interface LaunchDeps {
   runtime: CliRuntime;
-  /** Caminho de `mockup` no PATH, ou `null`. */
+  /** Path of `mockup` on the PATH, or `null`. */
   which: (name: string) => string | null;
   shim: string;
   exists: (p: string) => boolean;
-  /** Força o tipo de comando (`--command path|shim|absolute`). */
+  /** Forces the command kind (`--command path|shim|absolute`). */
   force?: LaunchKind;
 }
 
@@ -36,11 +36,11 @@ export function defaultLaunchDeps(force?: LaunchKind): LaunchDeps {
   };
 }
 
-/** Converte o valor de `--command`; lança erro se inválido. */
+/** Parses the `--command` value; throws if invalid. */
 export function parseLaunchKind(v: unknown): LaunchKind | undefined {
   if (v === undefined) return undefined;
   if (v === 'path' || v === 'shim' || v === 'absolute') return v;
-  throw new Error('--command exige path, shim ou absolute.');
+  throw new Error('--command requires path, shim or absolute.');
 }
 
 export function resolveLaunchCommand(deps: LaunchDeps = defaultLaunchDeps()): LaunchCommand {
@@ -70,7 +70,7 @@ function envPairs(l: LaunchCommand, flag: string): string[] {
   return Object.entries(l.env ?? {}).flatMap(([k, v]) => [flag, `${k}=${v}`]);
 }
 
-/** Argumentos de `claude` para registrar o servidor (escopo de usuário). */
+/** `claude` arguments to register the server (user scope). */
 export function claudeAddArgs(l: LaunchCommand, o: FormatOptions = {}): string[] {
   if (o.http)
     return ['mcp', 'add', '--scope', 'user', '--transport', 'http', SERVER_NAME, httpUrl(o)];
@@ -87,15 +87,15 @@ export function claudeAddArgs(l: LaunchCommand, o: FormatOptions = {}): string[]
   ];
 }
 
-/** Argumentos de `codex` para registrar o servidor. */
+/** `codex` arguments to register the server. */
 export function codexAddArgs(l: LaunchCommand, o: FormatOptions = {}): string[] {
   if (o.http) return ['mcp', 'add', SERVER_NAME, '--url', httpUrl(o)];
   return ['mcp', 'add', SERVER_NAME, ...envPairs(l, '--env'), '--', l.command, ...l.args];
 }
 
-/** String TOML básica (escapa `\`, `"` e controles: caminhos do Windows). */
+/** Basic TOML string (escapes `\`, `"` and control characters: Windows paths). */
 export function tomlString(s: string): string {
-  // eslint-disable-next-line no-control-regex -- os controles TOML precisam de escape
+  // eslint-disable-next-line no-control-regex -- TOML control characters need escaping
   const esc = s.replace(/[\\"\u0000-\u001f\u007f]/g, (c) => {
     switch (c) {
       case '\\':
@@ -115,7 +115,7 @@ export function tomlString(s: string): string {
   return `"${esc}"`;
 }
 
-/** Bloco para `~/.codex/config.toml`. */
+/** Block for `~/.codex/config.toml`. */
 export function codexToml(l: LaunchCommand): string {
   const lines = [
     `[mcp_servers.${SERVER_NAME}]`,
@@ -136,7 +136,7 @@ export function mcpServersJson(l: LaunchCommand): string {
   return JSON.stringify({ mcpServers: { [SERVER_NAME]: entry } }, null, 2);
 }
 
-/** JSON do `mcp.json` do VS Code. */
+/** VS Code `mcp.json` JSON. */
 export function vscodeMcpJson(l: LaunchCommand): string {
   const entry = {
     type: 'stdio',
@@ -147,7 +147,7 @@ export function vscodeMcpJson(l: LaunchCommand): string {
   return JSON.stringify({ servers: { [SERVER_NAME]: entry } }, null, 2);
 }
 
-/** Aspas para imprimir um comando copiável (cmd/PowerShell no Windows, sh no resto). */
+/** Quoting to print a copyable command (cmd/PowerShell on Windows, sh elsewhere). */
 export function shellQuote(s: string, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {
     if (/^[A-Za-z0-9_@%+=:,./\\-]+$/.test(s)) return s;
@@ -157,7 +157,7 @@ export function shellQuote(s: string, platform: NodeJS.Platform = process.platfo
   return `'${s.replace(/'/g, "'\\''")}'`;
 }
 
-/** Linha de comando copiável: `claude mcp add ...`. */
+/** Copyable command line: `claude mcp add ...`. */
 export function commandLine(
   tool: string,
   args: string[],

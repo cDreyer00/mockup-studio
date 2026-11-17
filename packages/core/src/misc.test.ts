@@ -20,11 +20,11 @@ import { getDocumentSummary, getTreeSummary, summarizeNode } from './summary.js'
 import type { Document, Node } from './types.js';
 
 function tree(): Document {
-  const doc = createDocument('Resumo');
+  const doc = createDocument('Summary');
   doc.pages[0].name = 'Landing';
   const h1 = createNodeFromTag('h1', {
-    name: 'Título',
-    text: 'Bem-vindo',
+    name: 'Title',
+    text: 'Welcome',
     styles: { fontSize: '48px', fontWeight: '700', color: '#fff' },
   });
   const img = createNodeFromTag('img', {
@@ -32,7 +32,7 @@ function tree(): Document {
     src: 'assets/logo.png',
     styles: { width: '120px', height: '40px' },
   });
-  const inner = createNodeFromTag('div', { name: 'Interno', children: [h1] });
+  const inner = createNodeFromTag('div', { name: 'Inner', children: [h1] });
   const frame = createNodeFromTag('div', {
     isRoot: true,
     name: 'Hero',
@@ -56,7 +56,7 @@ describe('document helpers', () => {
     const doc = createDocument('X');
     expect(doc).toMatchObject({ version: 1, tokens: {}, fonts: [] });
     expect(doc.id).toMatch(/^doc_/);
-    expect(doc.pages[0]).toMatchObject({ name: 'Página 1', background: '#1e1e1e', frames: [] });
+    expect(doc.pages[0]).toMatchObject({ name: 'Page 1', background: '#1e1e1e', frames: [] });
     const n = createNode({ tag: 'section' });
     expect(n).toMatchObject({ name: 'Section', type: 'element', locked: false, children: [] });
     const t = createNode({ tag: 'p', text: 'a'.repeat(50) });
@@ -73,8 +73,8 @@ describe('document helpers', () => {
     const frame = doc.pages[0].frames[0];
     const h1 = frame.children[0].children[0];
     const p = findNode(doc, h1.id)!;
-    expect(p.parent!.name).toBe('Interno');
-    expect(p.ancestors.map((a) => a.name)).toEqual(['Hero', 'Interno']);
+    expect(p.parent!.name).toBe('Inner');
+    expect(p.ancestors.map((a) => a.name)).toEqual(['Hero', 'Inner']);
     expect(getPageOfNode(doc, h1.id)).toBe(doc.pages[0]);
     expect(getFrameOf(doc, h1.id)).toBe(frame);
     expect(getFrameOf(doc, frame.id)).toBe(frame);
@@ -82,13 +82,13 @@ describe('document helpers', () => {
     const seen: string[] = [];
     walk(doc, (n, _p, d) => {
       seen.push(`${d}:${n.name}`);
-      if (n.name === 'Interno') return false;
+      if (n.name === 'Inner') return false;
     });
-    expect(seen).toEqual(['0:Hero', '1:Interno', '1:Logo']);
+    expect(seen).toEqual(['0:Hero', '1:Inner', '1:Logo']);
     expect(collectIds(doc)).toHaveLength(4);
   });
 
-  it('cloneNodeWithNewIds usa e completa idMap', () => {
+  it('cloneNodeWithNewIds uses and completes idMap', () => {
     const doc = tree();
     const frame = doc.pages[0].frames[0];
     const fixed = newNodeId('frame');
@@ -101,44 +101,44 @@ describe('document helpers', () => {
 });
 
 describe('normalizeStyles', () => {
-  it('camelCase → kebab, trim e vazios', () => {
+  it('camelCase → kebab, trim and empty values', () => {
     expect(
-      normalizeStyles({ backgroundColor: ' red ', '--Meu-X': '1', color: '', ' margin ': '0' }),
-    ).toEqual({ 'background-color': 'red', '--Meu-X': '1', margin: '0' });
+      normalizeStyles({ backgroundColor: ' red ', '--My-X': '1', color: '', ' margin ': '0' }),
+    ).toEqual({ 'background-color': 'red', '--My-X': '1', margin: '0' });
     expect(toKebabCase('WebkitTransition')).toBe('-webkit-transition');
     expect(toCamelCase('border-top-left-radius')).toBe('borderTopLeftRadius');
   });
-  it('nome inválido lança', () => {
-    expect(() => normalizeStyles({ '1a': 'x' })).toThrow(/inválido/);
+  it('invalid name throws', () => {
+    expect(() => normalizeStyles({ '1a': 'x' })).toThrow(/Invalid/);
     expect(() => normalizeStyles({ 'a b': 'x' })).toThrow(/"a b"/);
   });
 });
 
 describe('summary', () => {
-  it('formato por tipo de nó', () => {
+  it('format per node type', () => {
     const doc = tree();
     const frame = doc.pages[0].frames[0];
     expect(summarizeNode(frame)).toBe(
       `${frame.id} "Hero" div 1440x800 flex-col gap:24 p:64 bg:#111`,
     );
     const h1 = frame.children[0].children[0];
-    expect(summarizeNode(h1)).toBe(`${h1.id} "Título" h1 "Bem-vindo" 48px/700 color:#fff`);
+    expect(summarizeNode(h1)).toBe(`${h1.id} "Title" h1 "Welcome" 48px/700 color:#fff`);
     const img = frame.children[1];
     expect(summarizeNode(img)).toBe(`${img.id} "Logo" img src:assets/logo.png 120x40`);
   });
 
-  it('indentação, profundidade e "… +N filhos"', () => {
+  it('indentation, depth and "… +N children"', () => {
     const doc = tree();
     const frame = doc.pages[0].frames[0];
     const lines = getTreeSummary(frame, 1).split('\n');
     expect(lines).toHaveLength(4);
     expect(lines[1].startsWith('  ')).toBe(true);
-    expect(lines[2]).toBe('    … +1 filhos');
+    expect(lines[2]).toBe('    … +1 children');
     expect(getTreeSummary(frame, 0).split('\n')).toHaveLength(1);
     expect(getTreeSummary(frame, 5).split('\n')).toHaveLength(4);
   });
 
-  it('flags e texto truncado', () => {
+  it('flags and truncated text', () => {
     const n = createNodeFromTag('p', { text: 'x'.repeat(60) });
     n.hidden = true;
     n.locked = true;
@@ -161,7 +161,7 @@ describe('summary', () => {
 });
 
 describe('computed', () => {
-  it('resolveVars com fallback, aninhado e ciclo', () => {
+  it('resolveVars with fallback, nesting and cycle', () => {
     const t = { '--a': 'var(--b)', '--b': '#fff', '--loop': 'var(--loop)' };
     expect(resolveVars('var(--a)', t)).toBe('#fff');
     expect(resolveVars('1px solid var(--x, rgb(0, 0, 0))', t)).toBe('1px solid rgb(0, 0, 0)');
@@ -169,7 +169,7 @@ describe('computed', () => {
     expect(resolveVars('var(--loop)', t)).toContain('var(');
   });
 
-  it('getComputedLike: herança e var()', () => {
+  it('getComputedLike: inheritance and var()', () => {
     const doc = tree();
     doc.tokens['--fg'] = 'tomato';
     const frame = doc.pages[0].frames[0];
@@ -181,12 +181,12 @@ describe('computed', () => {
     const c = getComputedLike(doc, h1.id);
     expect(c).toMatchObject({ color: 'tomato', 'font-family': 'Inter', 'font-size': '48px' });
     expect(c.padding).toBeUndefined();
-    expect(() => getComputedLike(doc, 'el_zz')).toThrow(/não encontrado/);
+    expect(() => getComputedLike(doc, 'el_zz')).toThrow(/not found/);
   });
 });
 
 describe('exportHtml', () => {
-  it('gera documento standalone', () => {
+  it('generates a standalone document', () => {
     const doc = tree();
     doc.tokens['--c'] = '#abc';
     const html = exportHtml(doc, { title: 'A & B' });
@@ -206,7 +206,7 @@ describe('exportHtml', () => {
 });
 
 describe('schema', () => {
-  it('aplica defaults', () => {
+  it('applies defaults', () => {
     const doc = parseDocument({
       version: 1,
       id: 'doc_x',
@@ -241,20 +241,20 @@ describe('schema', () => {
     expect(doc.meta.createdAt).toBeTruthy();
   });
 
-  it('rejeita versão 2, ids duplicados e JSON inválido', () => {
+  it('rejects version 2, duplicate ids and invalid JSON', () => {
     const doc = createDocument('X');
-    expect(() => parseDocument({ ...doc, version: 2 })).toThrow(/Documento inválido: version/);
+    expect(() => parseDocument({ ...doc, version: 2 })).toThrow(/Invalid document: version/);
     const dup = structuredClone(doc);
     const f = createNodeFromTag('div', { isRoot: true });
     dup.pages[0].frames.push(f, { ...f });
-    expect(() => parseDocument(dup)).toThrow(/duplicado/);
-    expect(() => parseDocument('{nope')).toThrow(/Documento inválido/);
+    expect(() => parseDocument(dup)).toThrow(/duplicate/);
+    expect(() => parseDocument('{nope')).toThrow(/Invalid document/);
     const v = validateDocument({ foo: 1 });
     expect(v.ok).toBe(false);
     expect(validateDocument(JSON.stringify(doc)).ok).toBe(true);
   });
 
-  it('serializeDocument tem ordem de chaves estável e newline final', () => {
+  it('serializeDocument has stable key order and a trailing newline', () => {
     const doc = tree();
     const s = serializeDocument(doc);
     expect(s.endsWith('}\n')).toBe(true);
@@ -282,14 +282,14 @@ describe('schema', () => {
     expect(serializeDocument(parseDocument(s))).toBe(s);
   });
 
-  it('exemplo landing.mockup.json é válido e estável', () => {
+  it('landing.mockup.json example is valid and stable', () => {
     const file = readFileSync(
       new URL('../../../examples/landing.mockup.json', import.meta.url),
       'utf8',
     );
     const doc = parseDocument(file);
     expect(doc.id).toBe('doc_landing1');
-    expect(doc.pages.map((p) => p.name)).toEqual(['Landing', 'Componentes']);
+    expect(doc.pages.map((p) => p.name)).toEqual(['Landing', 'Components']);
     expect(doc.pages[0].frames.map((f) => f.name)).toEqual(['Desktop 1440', 'Mobile 390']);
     expect(serializeDocument(doc)).toBe(file);
   });

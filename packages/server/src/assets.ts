@@ -1,6 +1,6 @@
 /**
- * Utilitários de arquivos de asset: detecção de imagem pelos bytes, dimensões intrínsecas,
- * gravação sem sobrescrever e download com limite/timeout. Sem dependências nativas.
+ * Asset file utilities: image detection from bytes, intrinsic dimensions,
+ * non-overwriting writes and downloads with size limit/timeout. No native dependencies.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -44,7 +44,7 @@ function jpegSize(b: Buffer): Size {
       continue;
     }
     const len = b.readUInt16BE(i + 2);
-    // SOF0..SOF15, exceto DHT (C4), JPG (C8) e DAC (CC)
+    // SOF0..SOF15, except DHT (C4), JPG (C8) and DAC (CC)
     if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
       return { height: b.readUInt16BE(i + 5), width: b.readUInt16BE(i + 7) };
     }
@@ -90,7 +90,7 @@ function svgSize(text: string): Size {
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-/** Detecta o tipo pelos bytes (PNG/JPEG/GIF/WebP/SVG/AVIF) e lê as dimensões quando possível. */
+/** Detects the type from the bytes (PNG/JPEG/GIF/WebP/SVG/AVIF) and reads the dimensions when possible. */
 export function detectImage(b: Buffer): ImageInfo | null {
   const mk = (ext: ImageInfo['ext'], size: Size = {}): ImageInfo => ({
     ext,
@@ -122,13 +122,13 @@ export function detectImage(b: Buffer): ImageInfo | null {
 }
 
 export interface WriteAssetOptions {
-  /** Sobrescreve o arquivo existente em vez de criar `nome-1`, `nome-2`... */
+  /** Overwrites the existing file instead of creating `name-1`, `name-2`... */
   overwrite?: boolean;
 }
 
 /**
- * Grava `bytes` em `dir/nome` (cria a pasta). Se o nome já existir, acrescenta -1, -2... antes da
- * extensão, sem sobrescrever. Devolve o nome final (sem a pasta).
+ * Writes `bytes` to `dir/name` (creates the folder). If the name already exists, appends -1, -2...
+ * before the extension, without overwriting. Returns the final name (without the folder).
  */
 export async function writeAsset(
   dir: string,
@@ -152,7 +152,7 @@ export async function writeAsset(
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
     }
   }
-  throw new Error(`Não foi possível gravar "${name}" em ${dir}: nomes esgotados.`);
+  throw new Error(`Could not write "${name}" in ${dir}: names exhausted.`);
 }
 
 export interface FetchedBytes {
@@ -161,7 +161,7 @@ export interface FetchedBytes {
   finalUrl: string;
 }
 
-/** Baixa uma URL http(s) com timeout e limite de tamanho. */
+/** Downloads an http(s) URL with timeout and size limit. */
 export async function fetchBytes(
   url: string,
   opts: { maxBytes: number; timeoutMs?: number; headers?: Record<string, string> },
@@ -179,12 +179,12 @@ export async function fetchBytes(
       e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e);
     throw new Error(
       timeout
-        ? `Tempo esgotado ao baixar ${url}. Verifique a conexão ou baixe o arquivo e passe o caminho local.`
-        : `Falha ao baixar ${url}: ${reason}.`,
+        ? `Timed out downloading ${url}. Check the connection or download the file and pass the local path.`
+        : `Failed to download ${url}: ${reason}.`,
     );
   }
-  if (!res.ok) throw new Error(`Falha ao baixar ${url}: HTTP ${res.status}.`);
-  const tooBig = `O arquivo de ${url} passa do limite de ${Math.round(opts.maxBytes / 1024 / 1024)} MB.`;
+  if (!res.ok) throw new Error(`Failed to download ${url}: HTTP ${res.status}.`);
+  const tooBig = `The file at ${url} exceeds the limit of ${Math.round(opts.maxBytes / 1024 / 1024)} MB.`;
   const declared = Number(res.headers.get('content-length') ?? 0);
   if (declared > opts.maxBytes) throw new Error(tooBig);
   const chunks: Buffer[] = [];
@@ -203,7 +203,7 @@ export async function fetchBytes(
   };
 }
 
-/** Decodifica uma data URL (base64 ou url-encoded). */
+/** Decodes a data URL (base64 or url-encoded). */
 export function parseDataUrl(src: string): { mime: string; bytes: Buffer } | null {
   const m = /^data:([^;,]*)((?:;[^;,]*)*),(.*)$/is.exec(src);
   if (!m) return null;
@@ -214,7 +214,7 @@ export function parseDataUrl(src: string): { mime: string; bytes: Buffer } | nul
   return { mime: (m[1] || 'text/plain').toLowerCase(), bytes };
 }
 
-/** Resolve `rel` dentro de `root` sem permitir sair dele (`..`, caminhos absolutos). */
+/** Resolves `rel` inside `root` without allowing escape from it (`..`, absolute paths). */
 export function safeJoin(root: string, rel: string): string | null {
   if (!rel || rel.includes('\0') || rel.split(/[\\/]/).includes('..')) return null;
   const base = path.resolve(root);
@@ -222,7 +222,7 @@ export function safeJoin(root: string, rel: string): string | null {
   return target.startsWith(base + path.sep) ? target : null;
 }
 
-/** Tipos MIME dos arquivos que podem ser embutidos como data URL (imagens e fontes). */
+/** MIME types of files that can be embedded as a data URL (images and fonts). */
 export const EMBEDDABLE_MIME: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -238,9 +238,9 @@ export const EMBEDDABLE_MIME: Record<string, string> = {
 };
 
 /**
- * Lê um arquivo de `assets/` (imagem ou fonte) e devolve a data URL; data URLs passam direto.
- * `undefined` para caminho inseguro (`..`, absoluto fora da pasta), extensão desconhecida ou erro.
- * Usado pelo SVG exportado (`resolveImage` resolve imagens e os arquivos das fontes embutidas).
+ * Reads a file from `assets/` (image or font) and returns the data URL; data URLs pass through.
+ * `undefined` for an unsafe path (`..`, absolute outside the folder), unknown extension or error.
+ * Used by the exported SVG (`resolveImage` resolves images and the embedded fonts' files).
  */
 export function assetDataUrl(
   assetsDir: string | null | undefined,

@@ -31,14 +31,14 @@ async function start(opts: Parameters<typeof startDaemon>[0] = {}): Promise<Daem
 const post = (url: string, headers: Record<string, string> = {}) =>
   fetch(`${url}/api/shutdown`, { method: 'POST', headers });
 
-describe('health.mode e POST /api/shutdown', () => {
-  it('informa o modo conforme quem iniciou', async () => {
+describe('health.mode and POST /api/shutdown', () => {
+  it('reports the mode according to who started it', async () => {
     expect((await checkHealth((await start({ headless: true })).url))?.mode).toBe('headless');
     expect((await checkHealth((await start({})).url))?.mode).toBe('serve');
     expect((await checkHealth((await start({ mode: 'desktop' })).url))?.mode).toBe('desktop');
   });
 
-  it('sem onShutdown (app desktop) recusa com 409 e continua no ar', async () => {
+  it('without onShutdown (desktop app) refuses with 409 and stays up', async () => {
     const d = await start({ mode: 'desktop' });
     expect((await checkHealth(d.url))?.canShutdown).toBe(false);
     const res = await post(d.url);
@@ -46,7 +46,7 @@ describe('health.mode e POST /api/shutdown', () => {
     expect(await checkHealth(d.url)).not.toBeNull();
   });
 
-  it('com onShutdown responde 202, salva os documentos e encerra', async () => {
+  it('with onShutdown responds 202, saves the documents and shuts down', async () => {
     const onShutdown = vi.fn();
     const dir = tmp();
     const file = path.join(dir, 'a.mockup.json');
@@ -59,7 +59,7 @@ describe('health.mode e POST /api/shutdown', () => {
     expect(await checkHealth(d.url, 300)).toBeNull();
   });
 
-  it('recusa Origin externa e Host não local', async () => {
+  it('rejects an external Origin and a non-local Host', async () => {
     const onShutdown = vi.fn();
     const d = await start({ onShutdown });
     expect((await post(d.url, { origin: 'https://evil.example' })).status).toBe(403);
@@ -79,7 +79,7 @@ describe('health.mode e POST /api/shutdown', () => {
     expect(onShutdown).not.toHaveBeenCalled();
   });
 
-  it('takeOverDaemon devolve os documentos abertos e espera a porta liberar', async () => {
+  it('takeOverDaemon returns the open documents and waits for the port to be released', async () => {
     const dir = tmp();
     const file = path.join(dir, 'b.mockup.json');
     fs.writeFileSync(file, serializeDocument(createDocument('B')), 'utf8');
@@ -90,17 +90,17 @@ describe('health.mode e POST /api/shutdown', () => {
     expect(await checkHealth(d.url, 300)).toBeNull();
   });
 
-  it('takeOverDaemon não derruba um daemon que recusa', async () => {
+  it('takeOverDaemon does not take down a daemon that refuses', async () => {
     const d = await start({ mode: 'desktop' });
     const r = await takeOverDaemon(d.url, 1000);
     expect(r.ok).toBe(false);
     expect(await checkHealth(d.url)).not.toBeNull();
   });
 
-  it('porta ocupada rejeita com mensagem clara (sem erro não tratado do ws)', async () => {
+  it('busy port rejects with a clear message (without an unhandled ws error)', async () => {
     const a = await start();
     await expect(startDaemon({ port: a.port, writeInfo: false, dataDir: tmp() })).rejects.toThrow(
-      /já está em uso/,
+      /is already in use/,
     );
   });
 });

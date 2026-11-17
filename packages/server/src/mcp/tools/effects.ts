@@ -20,7 +20,7 @@ const paramValue = z.union([z.number(), z.boolean(), z.string()]);
 const paramsField = z
   .record(z.string(), paramValue)
   .optional()
-  .describe('Parâmetros do efeito, ex.: { "speed": 0.5, "color1": "#6c5ce7" }. Veja list_effects.');
+  .describe('Effect params, e.g. { "speed": 0.5, "color1": "#6c5ce7" }. See list_effects.');
 
 function paramDoc(p: EffectParamDef): string {
   let range = '';
@@ -34,20 +34,20 @@ function paramDoc(p: EffectParamDef): string {
   return `${p.name}:${p.type}${range}=${JSON.stringify(p.default)}`;
 }
 
-/** Problemas dos params como ToolError com a sugestão de list_effects. */
+/** Param problems as a ToolError with the list_effects hint. */
 function checkParams(kind: string, params: Record<string, MediaParamValue>): void {
   const problems = effectParamsProblems(kind, params);
   if (!problems.length) return;
   const kinds = effectKinds();
   throw new ToolError(
-    `Parâmetros inválidos para o efeito "${kind}":\n- ${problems.join('\n- ')}\n` +
-      `Use list_effects para ver os efeitos${kinds.length ? ` (${kinds.join(', ')})` : ''}, seus parâmetros e presets.`,
+    `Invalid params for effect "${kind}":\n- ${problems.join('\n- ')}\n` +
+      `Use list_effects to see the effects${kinds.length ? ` (${kinds.join(', ')})` : ''}, their params and presets.`,
   );
 }
 
 function unknownKind(kind: string): never {
   checkParams(kind, {});
-  throw new ToolError(`Efeito inexistente: "${kind}". Use list_effects para ver os disponíveis.`);
+  throw new ToolError(`Unknown effect: "${kind}". Use list_effects to see the available ones.`);
 }
 
 export function registerEffectTools(ctx: ToolContext): void {
@@ -56,19 +56,19 @@ export function registerEffectTools(ctx: ToolContext): void {
   tool(
     'list_effects',
     {
-      title: 'Listar efeitos visuais',
+      title: 'List visual effects',
       description:
-        'Lista os efeitos disponíveis (shaders e partículas) com categoria, descrição, parâmetros (tipo, faixa, padrão) e presets. Use antes de add_effect.',
+        'Lists the available effects (shaders and particles) with category, description, params (type, range, default) and presets. Use before add_effect.',
       example: {},
       inputSchema: {},
       annotations: READ,
     },
     () => {
-      if (!EFFECTS.length) return 'Nenhum efeito disponível.';
-      const out = [`${EFFECTS.length} efeito(s). Use add_effect(nodeId, kind, params?, preset?).`];
+      if (!EFFECTS.length) return 'No effects available.';
+      const out = [`${EFFECTS.length} effect(s). Use add_effect(nodeId, kind, params?, preset?).`];
       for (const e of EFFECTS) {
         out.push(`\n- ${e.kind} [${e.category}] ${e.label}: ${e.description}`);
-        out.push(`  params: ${e.params.map(paramDoc).join('; ') || '(nenhum)'}`);
+        out.push(`  params: ${e.params.map(paramDoc).join('; ') || '(none)'}`);
         if (e.presets.length) out.push(`  presets: ${e.presets.map((p) => p.name).join(', ')}`);
       }
       return out.join('\n');
@@ -78,9 +78,9 @@ export function registerEffectTools(ctx: ToolContext): void {
   tool(
     'add_effect',
     {
-      title: 'Adicionar efeito visual',
+      title: 'Add visual effect',
       description:
-        'Adiciona um efeito (veja list_effects) em nodeId, um contêiner. placement "background" (padrão): primeiro filho cobrindo o contêiner atrás do conteúdo (o pai ganha position: relative e isolation: isolate). "child": filho comum com styles (padrão 100% x 240px).',
+        'Adds an effect (see list_effects) to nodeId, a container. placement "background" (default): first child covering the container behind the content (the parent gets position: relative and isolation: isolate). "child": regular child with styles (default 100% x 240px).',
       example: {
         nodeId: 'fr_ab12cd34',
         kind: 'mesh-gradient',
@@ -88,25 +88,29 @@ export function registerEffectTools(ctx: ToolContext): void {
         params: { speed: 0.5 },
       },
       inputSchema: {
-        nodeId: z.string().describe('Id do contêiner que recebe o efeito, ex.: "fr_ab12cd34".'),
-        kind: z.string().describe('Tipo do efeito, ex.: "mesh-gradient" ou "particles".'),
+        nodeId: z
+          .string()
+          .describe('Id of the container that receives the effect, e.g. "fr_ab12cd34".'),
+        kind: z.string().describe('Effect kind, e.g. "mesh-gradient" or "particles".'),
         params: paramsField,
-        preset: z.string().optional().describe('Nome de um preset do efeito, ex.: "aurora".'),
+        preset: z.string().optional().describe('Name of an effect preset, e.g. "aurora".'),
         placement: z
           .enum(['background', 'child'])
           .optional()
-          .describe('"background" (padrão): fundo do contêiner; "child": filho comum.'),
-        name: z.string().optional().describe('Nome da camada, ex.: "Fundo animado".'),
+          .describe('"background" (default): container background; "child": regular child.'),
+        name: z.string().optional().describe('Layer name, e.g. "Animated background".'),
         styles: z
           .record(z.string(), z.string())
           .optional()
-          .describe('Estilos CSS do efeito, ex.: { "height": "320px", "border-radius": "16px" }.'),
+          .describe(
+            'CSS styles of the effect, e.g. { "height": "320px", "border-radius": "16px" }.',
+          ),
         index: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Posição entre os filhos (só em "child"; padrão: final).'),
+          .describe('Position among the children ("child" only; default: end).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -117,7 +121,7 @@ export function registerEffectTools(ctx: ToolContext): void {
       const parent = requireNode(doc, nodeId);
       if (LEAF_TYPES.has(parent.node.type)) {
         throw new ToolError(
-          `${nodeId} é ${parent.node.type} e não aceita filhos. Passe o id do frame ou do contêiner (div/section) que receberá o efeito; veja get_tree_summary.`,
+          `${nodeId} is ${parent.node.type} and does not accept children. Pass the id of the frame or container (div/section) that will receive the effect; see get_tree_summary.`,
         );
       }
       const def = getEffect(kind);
@@ -127,7 +131,7 @@ export function registerEffectTools(ctx: ToolContext): void {
         const pp = presetParams(kind, preset);
         if (!pp) {
           throw new ToolError(
-            `Preset "${preset}" não existe em "${kind}". Presets: ${def!.presets.map((p) => p.name).join(', ') || '(nenhum)'}; veja list_effects.`,
+            `Preset "${preset}" does not exist in "${kind}". Presets: ${def!.presets.map((p) => p.name).join(', ') || '(none)'}; see list_effects.`,
           );
         }
         base = pp;
@@ -140,7 +144,7 @@ export function registerEffectTools(ctx: ToolContext): void {
       const ops: Parameters<typeof apply>[1] = [];
       if (mode === 'background') {
         node = createEffectNode(kind, final, {
-          name: name ?? `Fundo ${def?.label ?? kind}`,
+          name: name ?? `Background ${def?.label ?? kind}`,
           styles: { ...EFFECT_BACKGROUND_STYLE, ...(styles ?? {}) },
         });
         ops.push({ type: 'createNode', parentId: nodeId, node, index: 0 });
@@ -156,26 +160,26 @@ export function registerEffectTools(ctx: ToolContext): void {
         ops.push({ type: 'createNode', parentId: nodeId, node, index });
       }
       const r = apply(id, ops, 'add_effect');
-      return `Efeito "${kind}" adicionado: ${node.id} (${mode === 'background' ? 'fundo de' : 'filho de'} ${nodeId}).\n${summaryOf(r.doc, [nodeId])}`;
+      return `Effect "${kind}" added: ${node.id} (${mode === 'background' ? 'background of' : 'child of'} ${nodeId}).\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'update_effect',
     {
-      title: 'Atualizar efeito',
+      title: 'Update effect',
       description:
-        'Altera um efeito existente: mescla params nos atuais, aplica um preset, troca o kind (os params antigos são descartados) ou, com reset, volta aos padrões. Veja list_effects.',
+        'Changes an existing effect: merges params into the current ones, applies a preset, switches the kind (the old params are discarded) or, with reset, returns to the defaults. See list_effects.',
       example: { nodeId: 'fx_ab12cd34', params: { speed: 1.2 } },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó de efeito, ex.: "fx_ab12cd34".'),
+        nodeId: z.string().describe('Id of the effect node, e.g. "fx_ab12cd34".'),
         params: paramsField,
-        kind: z.string().optional().describe('Novo tipo de efeito, ex.: "particles".'),
-        preset: z.string().optional().describe('Preset a aplicar antes dos params.'),
+        kind: z.string().optional().describe('New effect kind, e.g. "particles".'),
+        preset: z.string().optional().describe('Preset to apply before the params.'),
         reset: z
           .boolean()
           .optional()
-          .describe('true volta os parâmetros aos padrões antes de aplicar preset e params.'),
+          .describe('true resets the params to the defaults before applying preset and params.'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -186,7 +190,7 @@ export function registerEffectTools(ctx: ToolContext): void {
       const { node } = requireNode(doc, nodeId);
       if (node.type !== 'effect' || !node.effect) {
         throw new ToolError(
-          `${nodeId} é ${node.type}, não um efeito. Use add_effect para criar um ou get_tree_summary para achar o id.`,
+          `${nodeId} is ${node.type}, not an effect. Use add_effect to create one or get_tree_summary to find the id.`,
         );
       }
       const newKind = kind ?? node.effect.kind;
@@ -198,7 +202,7 @@ export function registerEffectTools(ctx: ToolContext): void {
         const pp = presetParams(newKind, preset);
         if (!pp) {
           throw new ToolError(
-            `Preset "${preset}" não existe em "${newKind}". Presets: ${def!.presets.map((p) => p.name).join(', ') || '(nenhum)'}; veja list_effects.`,
+            `Preset "${preset}" does not exist in "${newKind}". Presets: ${def!.presets.map((p) => p.name).join(', ') || '(none)'}; see list_effects.`,
           );
         }
         base = pp;
@@ -211,7 +215,7 @@ export function registerEffectTools(ctx: ToolContext): void {
         [{ type: 'setMedia', changes: [{ nodeId, effect: { kind: newKind, params: final } }] }],
         'update_effect',
       );
-      return `Efeito ${nodeId} atualizado (${newKind}).\n${summaryOf(r.doc, [nodeId])}`;
+      return `Effect ${nodeId} updated (${newKind}).\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 }

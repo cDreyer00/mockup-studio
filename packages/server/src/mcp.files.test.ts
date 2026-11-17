@@ -19,7 +19,7 @@ const textOf = (r: unknown): string =>
 function fakeRender(calls: CaptureRequest[]): RenderProvider {
   return {
     async capture(req) {
-      // copia o que importa: o documento do pedido pode ser mutado depois
+      // copy what matters: the request document may be mutated later
       calls.push({ ...req, doc: structuredClone(req.doc) });
       return {
         data: PNG,
@@ -31,40 +31,40 @@ function fakeRender(calls: CaptureRequest[]): RenderProvider {
       };
     },
     async measure() {
-      throw new Error('sem layout');
+      throw new Error('no layout');
     },
   };
 }
 
-/** Documento fechado com texto e uma imagem que aponta para assets/foto.png. */
+/** Closed document with text and an image pointing to assets/photo.png. */
 function makeImageDoc(dir: string): { file: string; bytes: Buffer } {
-  const doc = createDocument('Com imagem');
+  const doc = createDocument('With image');
   const hidden = createNodeFromTag('div', {
     isRoot: true,
-    name: 'Oculto',
+    name: 'Hidden',
     position: { x: 0, y: 0 },
   });
   hidden.hidden = true;
   const frame = createNodeFromTag('div', {
     isRoot: true,
-    name: 'Visível',
-    styles: { width: '200px', height: '100px', 'background-image': 'url(assets/fundo.png)' },
+    name: 'Visible',
+    styles: { width: '200px', height: '100px', 'background-image': 'url(assets/background.png)' },
     position: { x: 300, y: 0 },
   });
-  const img = createNodeFromTag('img', { name: 'Foto' });
-  img.src = 'assets/foto.png';
+  const img = createNodeFromTag('img', { name: 'Photo' });
+  img.src = 'assets/photo.png';
   frame.children.push(img);
   doc.pages[0]!.frames.push(hidden, frame);
-  const file = path.join(dir, 'fechado.mockup.json');
+  const file = path.join(dir, 'closed.mockup.json');
   fs.writeFileSync(file, serializeDocument(doc), 'utf8');
   fs.mkdirSync(path.join(dir, 'assets'));
-  const bytes = Buffer.from('conteudo-da-foto');
-  fs.writeFileSync(path.join(dir, 'assets', 'foto.png'), bytes);
-  fs.writeFileSync(path.join(dir, 'assets', 'fundo.png'), 'fundo');
+  const bytes = Buffer.from('photo-content');
+  fs.writeFileSync(path.join(dir, 'assets', 'photo.png'), bytes);
+  fs.writeFileSync(path.join(dir, 'assets', 'background.png'), 'background');
   return { file, bytes };
 }
 
-describe('arquivos e busca (HTTP e MCP)', () => {
+describe('files and search (HTTP and MCP)', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let calls: CaptureRequest[];
@@ -87,7 +87,7 @@ describe('arquivos e busca (HTTP e MCP)', () => {
       body: JSON.stringify(body),
     });
   const connect = async (): Promise<Client> => {
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     return client;
   };
@@ -107,13 +107,13 @@ describe('arquivos e busca (HTTP e MCP)', () => {
     ws.cleanup();
   });
 
-  it('GET /api/files lista o documento aberto e aceita filtros', async () => {
+  it('GET /api/files lists the open document and accepts filters', async () => {
     await start();
     const r = await (await get('/api/files')).json();
     expect(r.files).toHaveLength(1);
     expect(r.files[0]).toMatchObject({
       path: path.resolve(ws.file),
-      name: 'teste',
+      name: 'test',
       open: true,
       folder: null,
       favorite: false,
@@ -129,62 +129,64 @@ describe('arquivos e busca (HTTP e MCP)', () => {
     );
   });
 
-  it('meta, pastas, add, forget', async () => {
+  it('meta, folders, add, forget', async () => {
     await start();
     const p = path.resolve(ws.file);
     const meta = await post('/api/files/meta', {
       path: p,
-      folder: 'Clientes/Acme',
+      folder: 'Clients/Acme',
       tags: ['a', 'A', ' b '],
       favorite: true,
     });
     expect(meta.status).toBe(200);
     expect(await meta.json()).toMatchObject({
-      folder: 'Clientes/Acme',
+      folder: 'Clients/Acme',
       tags: ['a', 'b'],
       favorite: true,
     });
-    expect((await post('/api/files/meta', { path: 'relativo.mockup.json' })).status).toBe(400);
+    expect((await post('/api/files/meta', { path: 'relative.mockup.json' })).status).toBe(400);
     expect((await post('/api/files/meta', { path: path.join(ws.dir, 'x.json') })).status).toBe(400);
     expect(
       (await post('/api/files/meta', { path: path.join(ws.dir, 'x.mockup.json') })).status,
     ).toBe(404);
 
-    const list = await (await get('/api/files?folder=Clientes')).json();
+    const list = await (await get('/api/files?folder=Clients')).json();
     expect(list.files).toHaveLength(0);
-    expect((await (await get('/api/files?folder=Clientes&recursive=1')).json()).files).toHaveLength(
+    expect((await (await get('/api/files?folder=Clients&recursive=1')).json()).files).toHaveLength(
       1,
     );
-    expect(list.folders).toEqual(['Clientes', 'Clientes/Acme']);
+    expect(list.folders).toEqual(['Clients', 'Clients/Acme']);
 
     const ren = await post('/api/files/folders', {
       action: 'rename',
-      path: 'Clientes',
-      to: 'Contas',
+      path: 'Clients',
+      to: 'Accounts',
     });
-    expect(await ren.json()).toEqual({ folders: ['Contas', 'Contas/Acme'] });
+    expect(await ren.json()).toEqual({ folders: ['Accounts', 'Accounts/Acme'] });
     expect(
-      await (await post('/api/files/folders', { action: 'create', path: 'Outra/Sub' })).json(),
-    ).toEqual({ folders: ['Contas', 'Contas/Acme', 'Outra', 'Outra/Sub'] });
-    await post('/api/files/folders', { action: 'delete', path: 'Contas' });
+      await (await post('/api/files/folders', { action: 'create', path: 'Other/Sub' })).json(),
+    ).toEqual({ folders: ['Accounts', 'Accounts/Acme', 'Other', 'Other/Sub'] });
+    await post('/api/files/folders', { action: 'delete', path: 'Accounts' });
     const after = await (await get('/api/files')).json();
     expect(after.files[0].folder).toBeNull();
-    expect((await post('/api/files/folders', { action: 'delete', path: 'Nada' })).status).toBe(404);
+    expect((await post('/api/files/folders', { action: 'delete', path: 'Nothing' })).status).toBe(
+      404,
+    );
     expect((await post('/api/files/folders', { action: 'x', path: 'a' })).status).toBe(400);
 
     const other = path.join(ws.dir, 'sub');
     fs.mkdirSync(other);
-    fs.copyFileSync(ws.file, path.join(other, 'outro.mockup.json'));
+    fs.copyFileSync(ws.file, path.join(other, 'other.mockup.json'));
     const added = await (await post('/api/files/add', { path: other })).json();
-    expect(added.added.map((f: { name: string }) => f.name)).toEqual(['outro']);
+    expect(added.added.map((f: { name: string }) => f.name)).toEqual(['other']);
     expect(
-      (await post('/api/files/forget', { path: path.join(other, 'outro.mockup.json') })).status,
+      (await post('/api/files/forget', { path: path.join(other, 'other.mockup.json') })).status,
     ).toBe(200);
     const idx = JSON.parse(fs.readFileSync(path.join(ws.dataDir, 'files.json'), 'utf8'));
     expect(Object.keys(idx.files)).toEqual([p]);
   });
 
-  it('GET /api/search/nodes nos abertos e em um docId', async () => {
+  it('GET /api/search/nodes in the open documents and in a docId', async () => {
     await start();
     const docId = daemon.store.list()[0]!.docId;
     const r = await (await get('/api/search/nodes?query=tag:div')).json();
@@ -193,10 +195,10 @@ describe('arquivos e busca (HTTP e MCP)', () => {
       (await (await get(`/api/search/nodes?query=desktop&docId=${docId}`)).json()).matches,
     ).toHaveLength(1);
     expect((await get('/api/search/nodes')).status).toBe(400);
-    expect((await get('/api/search/nodes?query=a&docId=doc_nao')).status).toBe(404);
+    expect((await get('/api/search/nodes?query=a&docId=doc_missing')).status).toBe(404);
   });
 
-  it('miniatura: 503 sem render, 400, 404 e cache', async () => {
+  it('thumbnail: 503 without render, 400, 404 and cache', async () => {
     await start();
     const url = `/api/files/thumbnail?path=${encodeURIComponent(path.resolve(ws.file))}`;
     const r503 = await get(url);
@@ -219,7 +221,7 @@ describe('arquivos e busca (HTTP e MCP)', () => {
     });
     expect(fs.readdirSync(path.join(ws.dataDir, 'thumbs'))).toHaveLength(1);
     await get(`${url}&w=9999`);
-    expect(calls).toHaveLength(1); // cache em disco
+    expect(calls).toHaveLength(1); // disk cache
     await get(url);
     expect(calls[1]).toMatchObject({ maxWidth: 480 });
 
@@ -238,20 +240,20 @@ describe('arquivos e busca (HTTP e MCP)', () => {
         )
       ).status,
     ).toBe(404);
-    const empty = path.join(ws.dir, 'vazio.mockup.json');
-    fs.writeFileSync(empty, serializeDocument(createDocument('Vazio')), 'utf8');
+    const empty = path.join(ws.dir, 'empty.mockup.json');
+    fs.writeFileSync(empty, serializeDocument(createDocument('Empty')), 'utf8');
     await post('/api/files/add', { path: empty });
     expect((await get('/api/files/thumbnail?path=' + encodeURIComponent(empty))).status).toBe(404);
   });
 
-  it('miniatura de documento fechado embute imagens como data URL', async () => {
+  it('thumbnail of a closed document embeds images as data URLs', async () => {
     await start(fakeRender(calls));
     const { file, bytes } = makeImageDoc(ws.dir);
     const thumb = `/api/files/thumbnail?path=${encodeURIComponent(file)}&w=200`;
-    // fora do índice, dos recentes e dos abertos: não renderiza
+    // outside the index, the recents and the open documents: does not render
     const unknown = await get(thumb);
     expect(unknown.status).toBe(404);
-    expect((await unknown.json()).error).toContain('fora da lista');
+    expect((await unknown.json()).error).toContain('not in the list');
     expect(calls).toHaveLength(0);
     expect((await post('/api/files/add', { path: file })).status).toBe(200);
     const r = await get(thumb);
@@ -259,79 +261,79 @@ describe('arquivos e busca (HTTP e MCP)', () => {
     expect(calls).toHaveLength(1);
     const req = calls[0]!;
     const frame = req.doc.pages[0]!.frames.find((f) => f.id === req.nodeId)!;
-    expect(frame.name).toBe('Visível'); // pula o frame oculto
+    expect(frame.name).toBe('Visible'); // skips the hidden frame
     const imgs: string[] = [];
     walk(frame, (n) => {
       if (n.src) imgs.push(n.src);
     });
     expect(imgs).toEqual([`data:image/png;base64,${bytes.toString('base64')}`]);
     expect(frame.style['background-image']).toBe(
-      `url("data:image/png;base64,${Buffer.from('fundo').toString('base64')}")`,
+      `url("data:image/png;base64,${Buffer.from('background').toString('base64')}")`,
     );
     expect(req.assetsDir).toBe(path.join(ws.dir, 'assets'));
     expect(req.maxWidth).toBe(200);
-    // o arquivo em disco não foi alterado
-    expect(fs.readFileSync(file, 'utf8')).toContain('assets/foto.png');
+    // the file on disk was not changed
+    expect(fs.readFileSync(file, 'utf8')).toContain('assets/photo.png');
   });
 
-  it('ferramentas MCP: list_files, tag_file, manage_folders, move_files', async () => {
+  it('MCP tools: list_files, tag_file, manage_folders, move_files', async () => {
     await start();
     const p = path.resolve(ws.file);
     const docId = daemon.store.list()[0]!.docId;
 
-    let r = await call('tag_file', { path: p, add: ['Cliente', 'cliente'], favorite: true });
-    expect(r.text).toContain('tags: Cliente');
-    expect(r.text).toContain('favorito: sim');
-    r = await call('tag_file', { docId, remove: ['cliente'], add: ['final'] });
+    let r = await call('tag_file', { path: p, add: ['Client', 'client'], favorite: true });
+    expect(r.text).toContain('tags: Client');
+    expect(r.text).toContain('favorite: yes');
+    r = await call('tag_file', { docId, remove: ['client'], add: ['final'] });
     expect(r.text).toContain('tags: final');
     expect((await call('tag_file', { path: p })).isError).toBe(true);
     expect((await call('tag_file', { path: 'rel.mockup.json', add: ['x'] })).text).toMatch(
-      /absoluto/,
+      /absolute/,
     );
 
     expect(
-      (await call('manage_folders', { action: 'create', path: 'Clientes/Acme' })).text,
-    ).toContain('Clientes/Acme (0');
-    r = await call('move_files', { paths: [p], folder: 'Clientes/Acme' });
-    expect(r.text).toContain('-> Clientes/Acme');
+      (await call('manage_folders', { action: 'create', path: 'Clients/Acme' })).text,
+    ).toContain('Clients/Acme (0');
+    r = await call('move_files', { paths: [p], folder: 'Clients/Acme' });
+    expect(r.text).toContain('-> Clients/Acme');
     expect((await call('manage_folders', { action: 'list' })).text).toContain(
-      'Clientes/Acme (1 arquivo',
+      'Clients/Acme (1 file',
     );
-    expect((await call('manage_folders', { action: 'rename', path: 'Clientes' })).isError).toBe(
+    expect((await call('manage_folders', { action: 'rename', path: 'Clients' })).isError).toBe(
       true,
     );
-    await call('manage_folders', { action: 'rename', path: 'Clientes', to: 'Contas' });
+    await call('manage_folders', { action: 'rename', path: 'Clients', to: 'Accounts' });
 
     r = await call('list_files', {
-      folder: 'Contas',
+      folder: 'Accounts',
       recursive: true,
       tag: 'final',
       favorites: true,
     });
-    expect(r.text).toContain('Pastas: Contas, Contas/Acme');
+    expect(r.text).toContain('Folders: Accounts, Accounts/Acme');
     expect(r.text).toContain('Tags: final');
     expect(r.text).toContain(
-      `${p} | pasta: Contas/Acme | tags: final | favorito | 1 pág., 1 frames | aberto (${docId})`,
+      `${p} | folder: Accounts/Acme | tags: final | favorite | 1 page(s), 1 frame(s) | open (${docId})`,
     );
     r = await call('list_files', { query: 'desktop' });
-    expect(r.text).toContain('casou em content');
-    expect((await call('list_files', { folder: 'Contas' })).text).toContain('0 arquivo(s)');
+    expect(r.text).toContain('matched in content');
+    expect((await call('list_files', { folder: 'Accounts' })).text).toContain('0 file(s)');
 
     expect((await call('move_files', { docIds: [docId], folder: null })).text).toContain(
-      '(sem pasta)',
+      '(no folder)',
     );
-    await call('manage_folders', { action: 'delete', path: 'Contas' });
-    expect((await call('manage_folders', { action: 'list' })).text).toContain('(nenhuma pasta)');
+    await call('manage_folders', { action: 'delete', path: 'Accounts' });
+    expect((await call('manage_folders', { action: 'list' })).text).toContain('(no folders)');
   });
 
-  it('ferramenta search_nodes', async () => {
+  it('search_nodes tool', async () => {
     await start();
     const docId = daemon.store.list()[0]!.docId;
     let r = await call('search_nodes', { query: 'tag:div' });
     expect(r.text).toContain(`${docId} ${ws.frameId} "Desktop" div`);
     r = await call('search_nodes', { query: 'name:desktop', docId, limit: 1 });
     expect(r.text).toContain('name:');
-    expect((await call('search_nodes', { query: 'zzzz' })).text).toContain('Nenhum nó');
+    expect((await call('search_nodes', { query: 'zzzz' })).text).toContain('No nodes');
     expect((await call('search_nodes', { query: '  ' })).isError).toBe(true);
   });
 });

@@ -1,14 +1,14 @@
-/** `mockup install-cli` / `uninstall-cli`: shim `mockup` numa pasta própria e entrada no PATH do usuário. */
+/** `mockup install-cli` / `uninstall-cli`: `mockup` shim in its own folder and an entry in the user PATH. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { cliRuntime, type CliRuntime } from './runtime.js';
 
-/** Marcador que identifica um shim nosso (nas primeiras linhas). */
+/** Marker that identifies one of our shims (in the first lines). */
 export const SHIM_MARKER = 'mockup-studio-shim';
 
-/* ---------- PATH (lógica pura) ---------- */
+/* ---------- PATH (pure logic) ---------- */
 
 function splitPath(list: string): string[] {
   return list
@@ -17,7 +17,7 @@ function splitPath(list: string): string[] {
     .filter((s) => s !== '');
 }
 
-/** Chave de comparação: sem barra final e sem diferença de caixa. */
+/** Comparison key: no trailing slash and case-insensitive. */
 function pathKey(entry: string): string {
   return entry
     .trim()
@@ -25,26 +25,26 @@ function pathKey(entry: string): string {
     .toLowerCase();
 }
 
-/** Diz se `dir` já consta na lista (comparando por `pathKey`). */
+/** Tells whether `dir` is already in the list (compared by `pathKey`). */
 function hasInPathList(list: string, dir: string): boolean {
   return splitPath(list).some((e) => pathKey(e) === pathKey(dir));
 }
 
-/** Acrescenta `dir` ao fim da lista (separada por `;`) se ainda não estiver nela. */
+/** Appends `dir` to the end of the list (separated by `;`) if it is not already there. */
 export function addToPathList(list: string, dir: string): string {
   const entries = splitPath(list);
   if (!entries.some((e) => pathKey(e) === pathKey(dir))) entries.push(dir);
   return entries.join(';');
 }
 
-/** Remove `dir` da lista (todas as ocorrências), mantendo a ordem das demais. */
+/** Removes `dir` from the list (all occurrences), keeping the order of the others. */
 export function removeFromPathList(list: string, dir: string): string {
   return splitPath(list)
     .filter((e) => pathKey(e) !== pathKey(dir))
     .join(';');
 }
 
-/* ---------- pastas e shim ---------- */
+/* ---------- folders and shim ---------- */
 
 export function defaultBinDir(
   env: NodeJS.ProcessEnv = process.env,
@@ -69,7 +69,7 @@ export function shimPath(
   return path.join(binDir, shimName(platform));
 }
 
-/** Conteúdo do shim que reproduz o runtime atual. */
+/** Content of the shim that reproduces the current runtime. */
 export function buildShim(r: CliRuntime, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {
     const lines = ['@echo off', `rem ${SHIM_MARKER}`, 'setlocal'];
@@ -93,14 +93,14 @@ function isOurShim(file: string): boolean {
   }
 }
 
-/* ---------- PowerShell (registro do Windows) ---------- */
+/* ---------- PowerShell (Windows registry) ---------- */
 
 export interface PsResult {
   status: number | null;
   stdout: string;
   stderr: string;
 }
-/** Executa um script PowerShell passando valores por variáveis de ambiente. */
+/** Runs a PowerShell script, passing values through environment variables. */
 export type PsRunner = (script: string, env: Record<string, string>) => PsResult;
 
 export const psRunner: PsRunner = (script, env) => {
@@ -112,8 +112,8 @@ export const psRunner: PsRunner = (script, env) => {
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? r.error?.message ?? '' };
 };
 
-// Saída em UTF-8: com a página de código OEM padrão do console, entradas do PATH com acentos
-// voltariam corrompidas e seriam gravadas assim. A escrita recebe o valor por variável de ambiente.
+// UTF-8 output: with the console's default OEM code page, PATH entries with accents
+// would come back corrupted and be written that way. The write receives the value through an environment variable.
 export const READ_PATH_SCRIPT = `$ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[System.Text.Encoding]::UTF8
 $k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$false)
@@ -127,17 +127,16 @@ try { $k.SetValue('Path',$env:MOCKUP_NEW_PATH,[Microsoft.Win32.RegistryValueKind
 
 function readUserPath(ps: PsRunner): string {
   const r = ps(READ_PATH_SCRIPT, {});
-  if (r.status !== 0) throw new Error(`não foi possível ler o PATH do usuário: ${r.stderr.trim()}`);
+  if (r.status !== 0) throw new Error(`could not read the user PATH: ${r.stderr.trim()}`);
   return r.stdout.replace(/^\uFEFF/, '').replace(/[\r\n]+$/, '');
 }
 
 function writeUserPath(ps: PsRunner, value: string): void {
   const r = ps(WRITE_PATH_SCRIPT, { MOCKUP_NEW_PATH: value });
-  if (r.status !== 0)
-    throw new Error(`não foi possível gravar o PATH do usuário: ${r.stderr.trim()}`);
+  if (r.status !== 0) throw new Error(`could not write the user PATH: ${r.stderr.trim()}`);
 }
 
-/* ---------- comandos ---------- */
+/* ---------- commands ---------- */
 
 export interface InstallDeps {
   runtime: CliRuntime;
@@ -166,15 +165,15 @@ export function installCli(
   opts: { binDir?: string } = {},
   deps: InstallDeps = defaultInstallDeps(),
 ): InstallResult {
-  // O executável portátil (electron-builder `portable`) se extrai numa pasta temporária a cada
-  // execução: um shim apontando para ela quebra assim que o app fecha.
+  // The portable executable (electron-builder `portable`) extracts to a temporary folder on each
+  // run: a shim pointing to it breaks as soon as the app closes.
   if (deps.env.PORTABLE_EXECUTABLE_DIR)
     return {
       code: 1,
       lines: [
-        'erro: a versão portátil roda de uma pasta temporária que some quando o app fecha; o comando',
-        '`mockup` instalado por ela pararia de funcionar. Use o instalador (MockupStudio-Setup) ou',
-        'instale o CLI pelo Node (`npm link` no repositório).',
+        'error: the portable version runs from a temporary folder that disappears when the app closes; the',
+        '`mockup` command installed by it would stop working. Use the installer (MockupStudio-Setup) or',
+        'install the CLI through Node (`npm link` in the repository).',
       ],
     };
   const lines: string[] = [];
@@ -182,34 +181,36 @@ export function installCli(
   const file = shimPath(binDir, deps.platform);
   try {
     if (fs.existsSync(file) && !isOurShim(file))
-      throw new Error(`${file} já existe e não é do Mockup Studio; use --bin-dir ou remova-o.`);
+      throw new Error(
+        `${file} already exists and is not from Mockup Studio; use --bin-dir or remove it.`,
+      );
     fs.mkdirSync(binDir, { recursive: true });
     const existed = fs.existsSync(file);
     fs.writeFileSync(file, buildShim(deps.runtime, deps.platform), 'utf8');
     if (deps.platform !== 'win32') fs.chmodSync(file, 0o755);
-    lines.push(`${existed ? 'atualizado' : 'criado'}: ${file}`);
+    lines.push(`${existed ? 'updated' : 'created'}: ${file}`);
 
     if (deps.platform === 'win32') {
       const current = readUserPath(deps.ps);
-      if (hasInPathList(current, binDir)) lines.push(`${binDir} já está no PATH do usuário.`);
+      if (hasInPathList(current, binDir)) lines.push(`${binDir} is already in the user PATH.`);
       else {
         writeUserPath(deps.ps, addToPathList(current, binDir));
-        lines.push(`${binDir} adicionado ao PATH do usuário.`);
+        lines.push(`${binDir} added to the user PATH.`);
       }
-      lines.push('Abra um terminal novo para o comando `mockup` ficar disponível.');
+      lines.push('Open a new terminal for the `mockup` command to become available.');
     } else {
       const inPath = (deps.env.PATH ?? '')
         .split(path.delimiter)
         .some((e) => pathKey(e) === pathKey(binDir));
       lines.push(
         inPath
-          ? 'Abra um terminal novo se `mockup` ainda não for encontrado.'
-          : `Adicione ${binDir} ao PATH (ex.: no ~/.profile) e abra um terminal novo.`,
+          ? 'Open a new terminal if `mockup` is still not found.'
+          : `Add ${binDir} to the PATH (e.g. in ~/.profile) and open a new terminal.`,
       );
     }
     return { code: 0, lines };
   } catch (e) {
-    lines.push(`erro: ${e instanceof Error ? e.message : String(e)}`);
+    lines.push(`error: ${e instanceof Error ? e.message : String(e)}`);
     return { code: 1, lines };
   }
 }
@@ -225,29 +226,29 @@ export function uninstallCli(
     if (fs.existsSync(file)) {
       if (isOurShim(file)) {
         fs.rmSync(file);
-        lines.push(`removido: ${file}`);
-      } else lines.push(`${file} não é do Mockup Studio: mantido.`);
-    } else lines.push(`${file} não existe.`);
+        lines.push(`removed: ${file}`);
+      } else lines.push(`${file} is not from Mockup Studio: kept.`);
+    } else lines.push(`${file} does not exist.`);
     try {
       if (fs.readdirSync(binDir).length === 0) {
         fs.rmdirSync(binDir);
-        lines.push(`pasta removida: ${binDir}`);
+        lines.push(`folder removed: ${binDir}`);
       }
     } catch {
-      /* pasta inexistente */
+      /* folder does not exist */
     }
     if (deps.platform === 'win32') {
       const current = readUserPath(deps.ps);
-      if (!hasInPathList(current, binDir)) lines.push(`${binDir} não estava no PATH do usuário.`);
+      if (!hasInPathList(current, binDir)) lines.push(`${binDir} was not in the user PATH.`);
       else {
         writeUserPath(deps.ps, removeFromPathList(current, binDir));
-        lines.push(`${binDir} removido do PATH do usuário.`);
+        lines.push(`${binDir} removed from the user PATH.`);
       }
-      lines.push('Abra um terminal novo para o PATH atualizado valer.');
+      lines.push('Open a new terminal for the updated PATH to take effect.');
     }
     return { code: 0, lines };
   } catch (e) {
-    lines.push(`erro: ${e instanceof Error ? e.message : String(e)}`);
+    lines.push(`error: ${e instanceof Error ? e.message : String(e)}`);
     return { code: 1, lines };
   }
 }

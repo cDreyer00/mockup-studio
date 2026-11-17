@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "doc_landing1",
-  "name": "Landing exemplo",
+  "name": "Example landing",
   "tokens": {
     "--color-bg": "#0f1115",
     "--color-surface": "#181b22",
@@ -93,7 +93,7 @@
                     {
                       "id": "tx_dsk00002",
                       "type": "text",
-                      "name": "Produto",
+                      "name": "Product",
                       "tag": "a",
                       "attrs": {
                         "href": "#"
@@ -103,7 +103,7 @@
                         "font-size": "16px",
                         "text-decoration": "none"
                       },
-                      "text": "Produto",
+                      "text": "Product",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -111,7 +111,7 @@
                     {
                       "id": "tx_dsk00003",
                       "type": "text",
-                      "name": "Preços",
+                      "name": "Pricing",
                       "tag": "a",
                       "attrs": {
                         "href": "#"
@@ -121,7 +121,7 @@
                         "font-size": "16px",
                         "text-decoration": "none"
                       },
-                      "text": "Preços",
+                      "text": "Pricing",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -129,7 +129,7 @@
                     {
                       "id": "tx_dsk00004",
                       "type": "text",
-                      "name": "Contato",
+                      "name": "Contact",
                       "tag": "a",
                       "attrs": {
                         "href": "#"
@@ -139,7 +139,7 @@
                         "font-size": "16px",
                         "text-decoration": "none"
                       },
-                      "text": "Contato",
+                      "text": "Contact",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -149,7 +149,7 @@
                 {
                   "id": "tx_dsk00006",
                   "type": "text",
-                  "name": "Botão entrar",
+                  "name": "Sign in button",
                   "tag": "button",
                   "attrs": {},
                   "style": {
@@ -161,7 +161,7 @@
                     "font-size": "15px",
                     "font-weight": "600"
                   },
-                  "text": "Entrar",
+                  "text": "Sign in",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -188,7 +188,7 @@
                 {
                   "id": "tx_dsk00008",
                   "type": "text",
-                  "name": "Título",
+                  "name": "Title",
                   "tag": "h1",
                   "attrs": {},
                   "style": {
@@ -198,7 +198,7 @@
                     "color": "var(--color-text)",
                     "max-width": "800px"
                   },
-                  "text": "Desenhe interfaces com a ajuda da IA",
+                  "text": "Design interfaces with the help of AI",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -206,7 +206,7 @@
                 {
                   "id": "tx_dsk00009",
                   "type": "text",
-                  "name": "Subtítulo",
+                  "name": "Subtitle",
                   "tag": "p",
                   "attrs": {},
                   "style": {
@@ -214,7 +214,7 @@
                     "color": "var(--color-muted)",
                     "max-width": "640px"
                   },
-                  "text": "Crie, edite e exporte telas em HTML e CSS reais, direto de um canvas.",
+                  "text": "Create, edit and export screens in real HTML and CSS, straight from a canvas.",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -222,7 +222,7 @@
                 {
                   "id": "el_dsk00012",
                   "type": "element",
-                  "name": "Ações",
+                  "name": "Actions",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -235,7 +235,7 @@
                     {
                       "id": "tx_dsk00010",
                       "type": "text",
-                      "name": "Botão primário",
+                      "name": "Primary button",
                       "tag": "button",
                       "attrs": {},
                       "style": {
@@ -247,7 +247,7 @@
                         "font-size": "16px",
                         "font-weight": "600"
                       },
-                      "text": "Começar agora",
+                      "text": "Get started",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -255,7 +255,7 @@
                     {
                       "id": "tx_dsk00011",
                       "type": "text",
-                      "name": "Botão secundário",
+                      "name": "Secondary button",
                       "tag": "button",
                       "attrs": {},
                       "style": {
@@ -267,7 +267,7 @@
                         "font-size": "16px",
                         "font-weight": "600"
                       },
-                      "text": "Ver exemplos",
+                      "text": "See examples",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -294,7 +294,7 @@
                 {
                   "id": "el_dsk00017",
                   "type": "element",
-                  "name": "Card Design livre",
+                  "name": "Card Free design",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -312,7 +312,7 @@
                     {
                       "id": "tx_dsk00014",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -326,7 +326,7 @@
                     {
                       "id": "tx_dsk00015",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
@@ -334,7 +334,7 @@
                         "font-weight": "700",
                         "color": "var(--color-text)"
                       },
-                      "text": "Design livre",
+                      "text": "Free design",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -342,7 +342,7 @@
                     {
                       "id": "tx_dsk00016",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -350,7 +350,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Posicione frames no canvas e ajuste cada propriedade CSS.",
+                      "text": "Place frames on the canvas and tweak every CSS property.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -360,7 +360,7 @@
                 {
                   "id": "el_dsk00021",
                   "type": "element",
-                  "name": "Card Rápido",
+                  "name": "Card Fast",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -378,7 +378,7 @@
                     {
                       "id": "tx_dsk00018",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -392,7 +392,7 @@
                     {
                       "id": "tx_dsk00019",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
@@ -400,7 +400,7 @@
                         "font-weight": "700",
                         "color": "var(--color-text)"
                       },
-                      "text": "Rápido",
+                      "text": "Fast",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -408,7 +408,7 @@
                     {
                       "id": "tx_dsk00020",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -416,7 +416,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Alterações aparecem na hora, sem etapa de compilação.",
+                      "text": "Changes show up instantly, with no build step.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -426,7 +426,7 @@
                 {
                   "id": "el_dsk00025",
                   "type": "element",
-                  "name": "Card Exportável",
+                  "name": "Card Exportable",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -444,7 +444,7 @@
                     {
                       "id": "tx_dsk00022",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -458,7 +458,7 @@
                     {
                       "id": "tx_dsk00023",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
@@ -466,7 +466,7 @@
                         "font-weight": "700",
                         "color": "var(--color-text)"
                       },
-                      "text": "Exportável",
+                      "text": "Exportable",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -474,7 +474,7 @@
                     {
                       "id": "tx_dsk00024",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -482,7 +482,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Leve o resultado como HTML standalone para qualquer projeto.",
+                      "text": "Take the result as standalone HTML to any project.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -549,7 +549,7 @@
                 {
                   "id": "tx_mob00002",
                   "type": "text",
-                  "name": "Botão entrar",
+                  "name": "Sign in button",
                   "tag": "button",
                   "attrs": {},
                   "style": {
@@ -561,7 +561,7 @@
                     "font-size": "14px",
                     "font-weight": "600"
                   },
-                  "text": "Entrar",
+                  "text": "Sign in",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -587,7 +587,7 @@
                 {
                   "id": "tx_mob00004",
                   "type": "text",
-                  "name": "Título",
+                  "name": "Title",
                   "tag": "h1",
                   "attrs": {},
                   "style": {
@@ -595,7 +595,7 @@
                     "font-weight": "800",
                     "line-height": "1.15"
                   },
-                  "text": "Desenhe interfaces com a ajuda da IA",
+                  "text": "Design interfaces with the help of AI",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -603,14 +603,14 @@
                 {
                   "id": "tx_mob00005",
                   "type": "text",
-                  "name": "Subtítulo",
+                  "name": "Subtitle",
                   "tag": "p",
                   "attrs": {},
                   "style": {
                     "font-size": "16px",
                     "color": "var(--color-muted)"
                   },
-                  "text": "Crie, edite e exporte telas em HTML e CSS reais.",
+                  "text": "Create, edit and export screens in real HTML and CSS.",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -618,7 +618,7 @@
                 {
                   "id": "tx_mob00006",
                   "type": "text",
-                  "name": "Botão primário",
+                  "name": "Primary button",
                   "tag": "button",
                   "attrs": {},
                   "style": {
@@ -630,7 +630,7 @@
                     "font-size": "16px",
                     "font-weight": "600"
                   },
-                  "text": "Começar agora",
+                  "text": "Get started",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -655,7 +655,7 @@
                 {
                   "id": "el_mob00011",
                   "type": "element",
-                  "name": "Card Design livre",
+                  "name": "Card Free design",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -672,7 +672,7 @@
                     {
                       "id": "tx_mob00008",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -686,14 +686,14 @@
                     {
                       "id": "tx_mob00009",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
                         "font-size": "18px",
                         "font-weight": "700"
                       },
-                      "text": "Design livre",
+                      "text": "Free design",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -701,7 +701,7 @@
                     {
                       "id": "tx_mob00010",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -709,7 +709,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Posicione frames no canvas e ajuste cada propriedade CSS.",
+                      "text": "Place frames on the canvas and tweak every CSS property.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -719,7 +719,7 @@
                 {
                   "id": "el_mob00015",
                   "type": "element",
-                  "name": "Card Rápido",
+                  "name": "Card Fast",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -736,7 +736,7 @@
                     {
                       "id": "tx_mob00012",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -750,14 +750,14 @@
                     {
                       "id": "tx_mob00013",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
                         "font-size": "18px",
                         "font-weight": "700"
                       },
-                      "text": "Rápido",
+                      "text": "Fast",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -765,7 +765,7 @@
                     {
                       "id": "tx_mob00014",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -773,7 +773,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Alterações aparecem na hora, sem etapa de compilação.",
+                      "text": "Changes show up instantly, with no build step.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -783,7 +783,7 @@
                 {
                   "id": "el_mob00019",
                   "type": "element",
-                  "name": "Card Exportável",
+                  "name": "Card Exportable",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -800,7 +800,7 @@
                     {
                       "id": "tx_mob00016",
                       "type": "text",
-                      "name": "Ícone",
+                      "name": "Icon",
                       "tag": "div",
                       "attrs": {},
                       "style": {
@@ -814,14 +814,14 @@
                     {
                       "id": "tx_mob00017",
                       "type": "text",
-                      "name": "Título do card",
+                      "name": "Card title",
                       "tag": "h3",
                       "attrs": {},
                       "style": {
                         "font-size": "18px",
                         "font-weight": "700"
                       },
-                      "text": "Exportável",
+                      "text": "Exportable",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -829,7 +829,7 @@
                     {
                       "id": "tx_mob00018",
                       "type": "text",
-                      "name": "Texto do card",
+                      "name": "Card text",
                       "tag": "p",
                       "attrs": {},
                       "style": {
@@ -837,7 +837,7 @@
                         "line-height": "1.5",
                         "color": "var(--color-muted)"
                       },
-                      "text": "Leve o resultado como HTML standalone para qualquer projeto.",
+                      "text": "Take the result as standalone HTML to any project.",
                       "locked": false,
                       "hidden": false,
                       "children": []
@@ -852,7 +852,7 @@
     },
     {
       "id": "pg_c0mp0n3n",
-      "name": "Componentes",
+      "name": "Components",
       "background": "#1e1e1e",
       "frames": [
         {
@@ -899,14 +899,14 @@
                 {
                   "id": "tx_cmp00001",
                   "type": "text",
-                  "name": "Título",
+                  "name": "Title",
                   "tag": "h3",
                   "attrs": {},
                   "style": {
                     "font-size": "20px",
                     "font-weight": "700"
                   },
-                  "text": "Plano Básico",
+                  "text": "Basic Plan",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -914,7 +914,7 @@
                 {
                   "id": "tx_cmp00002",
                   "type": "text",
-                  "name": "Texto",
+                  "name": "Text",
                   "tag": "p",
                   "attrs": {},
                   "style": {
@@ -922,7 +922,7 @@
                     "color": "var(--color-muted)",
                     "line-height": "1.5"
                   },
-                  "text": "Ideal para começar um novo projeto.",
+                  "text": "Ideal for starting a new project.",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -930,7 +930,7 @@
                 {
                   "id": "tx_cmp00003",
                   "type": "text",
-                  "name": "Ação",
+                  "name": "Action",
                   "tag": "button",
                   "attrs": {},
                   "style": {
@@ -941,7 +941,7 @@
                     "border": "none",
                     "align-self": "flex-start"
                   },
-                  "text": "Saiba mais",
+                  "text": "Learn more",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -969,14 +969,14 @@
                 {
                   "id": "tx_cmp00005",
                   "type": "text",
-                  "name": "Título",
+                  "name": "Title",
                   "tag": "h3",
                   "attrs": {},
                   "style": {
                     "font-size": "20px",
                     "font-weight": "700"
                   },
-                  "text": "Plano Pro",
+                  "text": "Pro Plan",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -984,7 +984,7 @@
                 {
                   "id": "tx_cmp00006",
                   "type": "text",
-                  "name": "Texto",
+                  "name": "Text",
                   "tag": "p",
                   "attrs": {},
                   "style": {
@@ -992,7 +992,7 @@
                     "color": "var(--color-muted)",
                     "line-height": "1.5"
                   },
-                  "text": "Recursos avançados para times pequenos.",
+                  "text": "Advanced features for small teams.",
                   "locked": false,
                   "hidden": false,
                   "children": []
@@ -1000,7 +1000,7 @@
                 {
                   "id": "tx_cmp00007",
                   "type": "text",
-                  "name": "Ação",
+                  "name": "Action",
                   "tag": "button",
                   "attrs": {},
                   "style": {
@@ -1011,7 +1011,7 @@
                     "border": "none",
                     "align-self": "flex-start"
                   },
-                  "text": "Saiba mais",
+                  "text": "Learn more",
                   "locked": false,
                   "hidden": false,
                   "children": []

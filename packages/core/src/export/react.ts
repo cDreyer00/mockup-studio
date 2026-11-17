@@ -41,43 +41,43 @@ import {
 } from './react-media.js';
 
 export interface ReactExportOptions {
-  /** Nó raiz do componente (um componente por nó). */
+  /** Root node of the component (one component per node). */
   nodeId: string;
-  /** `tailwind` (padrão): `className` com classes Tailwind v4; `inline`: `style={{...}}`. */
+  /** `tailwind` (default): `className` with Tailwind v4 classes; `inline`: `style={{...}}`. */
   styles?: 'tailwind' | 'inline';
-  /** Nome do componente (padrão: PascalCase do nome do nó). */
+  /** Component name (default: PascalCase of the node name). */
   componentName?: string;
-  /** Extrai irmãos com a mesma estrutura em `items.map(...)` sobre um array. Padrão `true`. */
+  /** Extracts siblings with the same structure into `items.map(...)` over an array. Default `true`. */
   extractRepeats?: boolean;
-  /** Prefixo do `src` de imagens relativas (padrão `assets/`). */
+  /** Prefix for the `src` of relative images (default `assets/`). */
   assetsBase?: string;
-  /** Motor Tailwind do documento (ver `TailwindExportOptions.tailwind`). */
+  /** Document's Tailwind engine (see `TailwindExportOptions.tailwind`). */
   tailwind?: TailwindEngine;
   /**
-   * Efeitos estáticos: id do nó de efeito → imagem (relativa a `assetsBase`, ex.:
-   * `effects/fx_ab12cd34.png`). Esses efeitos viram `<img>`; os demais ficam animados (canvas).
+   * Static effects: effect node id → image (relative to `assetsBase`, e.g.
+   * `effects/fx_ab12cd34.png`). These effects become `<img>`; the rest stay animated (canvas).
    */
   effectImages?: Record<string, string>;
 }
 
 export interface ReactExport {
   componentName: string;
-  /** Arquivo `.tsx` completo (componente funcional exportado). */
+  /** Complete `.tsx` file (exported function component). */
   code: string;
   /**
-   * CSS que acompanha o componente: com `styles: 'tailwind'`, o tema (`tailwindThemeCss`); com
-   * `styles: 'inline'`, o reset básico e os `@font-face` (ausente se não houver nada a declarar).
+   * CSS that accompanies the component: with `styles: 'tailwind'`, the theme (`tailwindThemeCss`); with
+   * `styles: 'inline'`, the basic reset and the `@font-face` rules (absent if there is nothing to declare).
    */
   css?: string;
   /**
-   * Arquivos que o componente importa, ao lado do `.tsx`: `mockup-effects.js`/`.d.ts` (runtime
-   * dos efeitos) e `<slug>-three-<n>.js`/`.d.ts` (ilhas Three.js). Ausente sem efeitos/ilhas.
+   * Files the component imports, next to the `.tsx`: `mockup-effects.js`/`.d.ts` (effects
+   * runtime) and `<slug>-three-<n>.js`/`.d.ts` (Three.js islands). Absent without effects/islands.
    */
   files?: { name: string; code: string }[];
 }
 
 /* ====================================================================== */
-/* Utilitários de código                                                   */
+/* Code utilities                                                          */
 /* ====================================================================== */
 
 export const RESERVED = new Set([
@@ -126,7 +126,7 @@ export const RESERVED = new Set([
   'index',
 ]);
 
-/** String JS entre aspas simples. */
+/** JS string in single quotes. */
 export function jsString(s: string): string {
   return `'${s
     .replace(/\\/g, '\\\\')
@@ -137,7 +137,7 @@ export function jsString(s: string): string {
     .replace(/\u2029/g, '\\u2029')}'`;
 }
 
-/** Valor de atributo JSX: literal simples ou expressão `{'...'}`. */
+/** JSX attribute value: plain literal or `{'...'}` expression. */
 export function attrValue(v: string): string {
   return /^[^"&\n\r\u2028\u2029]*$/.test(v) ? `"${v}"` : `{${jsString(v)}}`;
 }
@@ -158,27 +158,27 @@ function camelCase(name: string): string {
   return ws.map((w, i) => (i === 0 ? w : cap(w))).join('');
 }
 
-/** Nome de componente válido (PascalCase, começa por letra). */
+/** Valid component name (PascalCase, starts with a letter). */
 export function componentIdent(name: string): string {
   const p = pascalCase(name);
   if (p === '') return 'Component';
   return /^[A-Za-z]/.test(p) ? p : `Component${p}`;
 }
 
-/** Identificador camelCase seguro a partir de um nome de camada; `null` se não der. */
+/** Safe camelCase identifier from a layer name; `null` if none can be derived. */
 export function fieldIdent(name: string): string | null {
   const c = camelCase(name);
   if (c === '' || !/^[a-z]/.test(c)) return null;
   return RESERVED.has(c) ? `${c}Value` : c;
 }
 
-/** Texto JSX de um trecho sem quebras de linha. */
+/** JSX text for a segment without line breaks. */
 function jsxTextSegment(seg: string): string {
   if (seg !== seg.trim() || /[\t\u2028\u2029]/.test(seg)) return `{${jsString(seg)}}`;
   return seg.replace(/&/g, '&amp;').replace(/[{}<>]/g, (c) => `{'${c}'}`);
 }
 
-/** Filhos JSX de um texto: quebras viram `{'\n'}` (white-space preserva) ou `<br />`. */
+/** JSX children of a text: breaks become `{'\n'}` (white-space preserves) or `<br />`. */
 export function textChildren(text: string, preserveNewlines: boolean): string[] {
   const parts = text.split(/\r?\n/);
   const out: string[] = [];
@@ -190,7 +190,7 @@ export function textChildren(text: string, preserveNewlines: boolean): string[] 
 }
 
 /* ====================================================================== */
-/* Estilos                                                                 */
+/* Styles                                                                   */
 /* ====================================================================== */
 
 const needsCssPropertiesCast = (style: Record<string, string>): boolean =>
@@ -205,13 +205,13 @@ export function reactStyleKey(prop: string): string {
 
 export interface Usage {
   cssProperties: boolean;
-  /** Algum componente gerado usa `ReactNode` (props de slot e `children`). */
+  /** Some generated component uses `ReactNode` (slot props and `children`). */
   reactNode?: boolean;
-  /** Algum atributo de URL recebe `{{prop}}`: o arquivo ganha o helper `safeUrl`. */
+  /** Some URL attribute receives `{{prop}}`: the file gets the `safeUrl` helper. */
   safeUrl?: boolean;
 }
 
-/** `style={{ ... }}`; custom properties exigem `as CSSProperties` (marcado em `usage`). */
+/** `style={{ ... }}`; custom properties require `as CSSProperties` (flagged in `usage`). */
 export function styleProp(style: Record<string, string>, usage: Usage): string {
   const body = Object.entries(style)
     .map(([k, v]) => `${reactStyleKey(k)}: ${jsString(v)}`)
@@ -224,10 +224,10 @@ export function styleProp(style: Record<string, string>, usage: Usage): string {
 }
 
 /* ====================================================================== */
-/* Atributos                                                               */
+/* Attributes                                                              */
 /* ====================================================================== */
 
-/** Atributo HTML → prop do React (só atributos conhecidos entram, para o TSX compilar). */
+/** HTML attribute → React prop (only known attributes are included, so the TSX compiles). */
 const PROP_NAMES: Record<string, string> = {
   id: 'id',
   title: 'title',
@@ -316,7 +316,7 @@ const NUMERIC_PROPS = new Set([
 ]);
 const VALUE_AS_DEFAULT = new Set(['input', 'textarea', 'select']);
 
-/** Trechos `nome=valor` das props de um nó (sem `className`/`style`/`src` de imagem). */
+/** `name=value` snippets of a node's props (without `className`/`style`/image `src`). */
 export function attrProps(
   node: Node,
   skip: Set<string>,
@@ -407,7 +407,7 @@ const SVG_ELEMENTS = new Map(
   ].map((n) => [n.toLowerCase(), n]),
 );
 
-/** Nome da prop JSX de um atributo SVG (`stroke-width` → `strokeWidth`, `xlink:href` → `xlinkHref`). */
+/** JSX prop name of an SVG attribute (`stroke-width` → `strokeWidth`, `xlink:href` → `xlinkHref`). */
 function svgPropName(attr: string): string {
   if (attr === 'class') return 'className';
   if (attr === 'for') return 'htmlFor';
@@ -418,7 +418,7 @@ function svgPropName(attr: string): string {
   return attr;
 }
 
-/** `fill: red; stroke-width: 2` → pares [propriedade CSS, valor]. */
+/** `fill: red; stroke-width: 2` → [CSS property, value] pairs. */
 function parseStyleString(css: string): [string, string][] {
   const out: [string, string][] = [];
   let buf = '';
@@ -484,7 +484,7 @@ function svgElementToJsx(
   return emitElement(tag, props, kids, depth);
 }
 
-/** Markup SVG sanitizado → linhas de JSX (`extra` = props adicionais do elemento raiz). */
+/** Sanitized SVG markup → JSX lines (`extra` = additional props of the root element). */
 function svgToJsx(markup: string, depth: number, extra: string[], usage: Usage): string[] {
   const clean = sanitizeSvg(markup);
   if (!clean) return emitElement('svg', extra, [], depth);
@@ -495,15 +495,15 @@ function svgToJsx(markup: string, depth: number, extra: string[], usage: Usage):
 }
 
 /* ====================================================================== */
-/* Emissão de elementos                                                    */
+/* Element emission                                                         */
 /* ====================================================================== */
 
 export const pad = (depth: number): string => '  '.repeat(depth);
 const MAX_LINE = 100;
 
 /**
- * Monta um elemento: auto-fechado sem filhos; uma linha com um único filho de texto curto;
- * senão filhos recuados. Props vão para linhas próprias se a tag passar de `MAX_LINE` colunas.
+ * Builds an element: self-closing without children; one line with a single short text child;
+ * otherwise indented children. Props go on their own lines if the tag exceeds `MAX_LINE` columns.
  */
 export function emitElement(
   tag: string,
@@ -513,13 +513,13 @@ export function emitElement(
 ): string[] {
   const p = pad(depth);
   const oneLine = `${p}<${tag}${props.length > 0 ? ' ' + props.join(' ') : ''}`;
-  // props com várias linhas (slots como JSX) sempre ficam em linhas próprias
+  // multi-line props (slots as JSX) always go on their own lines
   const multi = oneLine.length > MAX_LINE || props.some((pr) => pr.includes('\n'));
   const out: string[] = [];
   const closeOpen = (selfClose: boolean): void => {
     if (multi) {
       out.push(`${p}<${tag}`);
-      // props de várias linhas (slots em JSX, `className` longo) chegam indentadas em relação à prop
+      // multi-line props (JSX slots, long `className`) arrive indented relative to the prop
       for (const pr of props) out.push(`${p}  ${pr.split('\n').join('\n' + p + '  ')}`);
       out.push(`${p}${selfClose ? '/>' : '>'}`);
     } else out.push(`${oneLine}${selfClose ? ' />' : '>'}`);
@@ -541,12 +541,12 @@ export function emitElement(
 }
 
 /* ====================================================================== */
-/* Repetições                                                              */
+/* Repeats                                                                  */
 /* ====================================================================== */
 
 const VARYING_ATTRS = new Set(['alt', 'href']);
 
-/** Assinatura estrutural: tags, tipos, estilos, atributos e árvore; ignora texto, src, alt e href. */
+/** Structural signature: tags, types, styles, attributes and tree; ignores text, src, alt and href. */
 function signature(node: Node): string {
   const attrs = Object.entries(node.attrs)
     .filter(([k]) => !VARYING_ATTRS.has(k.toLowerCase()))
@@ -575,7 +575,7 @@ function signature(node: Node): string {
 type SlotKind = 'text' | 'src' | 'alt' | 'href';
 
 interface SlotRef {
-  /** Nome do campo no item (`item.nome`). */
+  /** Field name on the item (`item.name`). */
   field: string;
 }
 
@@ -618,14 +618,14 @@ interface RunPlan {
   items: Record<string, string>[];
 }
 
-/** Campos variáveis de um conjunto de nós paralelos (um por item), em pré-ordem. */
+/** Varying fields of a set of parallel nodes (one per item), in pre-order. */
 function planRun(nodes: Node[], assetsBase: string): RunPlan | null {
   const slots: SlotMap = new Map();
   const fields: string[] = [];
   const items: Record<string, string>[] = nodes.map(() => ({}));
   const used = new Set<string>();
   let fallback = 0;
-  // nomes de camada diferentes entre os itens (ex.: links "Produto"/"Preços") não servem de campo
+  // layer names that differ between items (e.g. links "Product"/"Pricing") are not usable as a field
   const sameNamesAcross = (parallel: Node[]): boolean =>
     parallel.every((n) => n.name === parallel[0].name);
 
@@ -662,7 +662,7 @@ function planRun(nodes: Node[], assetsBase: string): RunPlan | null {
   return { template: nodes[0], slots, fields, items };
 }
 
-/** Prefixo comum de palavras dos nomes (ex.: "Card A", "Card B" → "Card"). */
+/** Common word prefix of the names (e.g. "Card A", "Card B" → "Card"). */
 function commonName(nodes: Node[], parentName: string): string {
   const lists = nodes.map((n) => words(n.name));
   const first = lists[0] ?? [];
@@ -676,18 +676,18 @@ function commonName(nodes: Node[], parentName: string): string {
 }
 
 /* ====================================================================== */
-/* Renderização                                                            */
+/* Rendering                                                               */
 /* ====================================================================== */
 
 export interface RenderCtx {
   mode: 'tailwind' | 'inline';
   doc: Document;
-  /** Tema do nó (`data-theme`), para redeclarar as variáveis no modo inline. */
+  /** Node theme (`data-theme`), to redeclare the variables in inline mode. */
   themeOf: (node: Node) => string | undefined;
   tokens: Record<string, string>;
-  /** Motor Tailwind do documento (classes canonicalizadas e variantes). */
+  /** Document's Tailwind engine (canonicalized classes and variants). */
   engine?: TailwindEngine;
-  /** Tamanhos `text-*` com o `line-height` neutralizado no tema. */
+  /** `text-*` sizes with `line-height` neutralized in the theme. */
   neutralLeading: ReadonlySet<string>;
   assetsBase: string;
   extractRepeats: boolean;
@@ -695,19 +695,19 @@ export interface RenderCtx {
   arrays: string[];
   usedNames: Set<string>;
   slots?: SlotMap;
-  /** Suporte a componentes (instâncias como JSX, um componente por principal usado). */
+  /** Component support (instances as JSX, one component per main component used). */
   components?: ComponentSupport;
-  /** Presente enquanto se renderiza o corpo de um principal (props, variantes e slots). */
+  /** Present while rendering the body of a main component (props, variants and slots). */
   scope?: ScopeHooks;
   media: ReactMedia;
 }
 
-/** O que os nós de mídia exigem no arquivo: helpers, imports e arquivos extras. */
+/** What media nodes require in the file: helpers, imports and extra files. */
 interface ReactMedia {
   effectImages: Record<string, string>;
   slug: string;
   helpers: Set<ReactMediaHelper>;
-  /** Linhas de import das ilhas Three.js. */
+  /** Import lines for the Three.js islands. */
   imports: string[];
   files: { name: string; code: string }[];
   threeCount: number;
@@ -720,7 +720,7 @@ function uniqueName(base: string, ctx: RenderCtx): string {
   return name;
 }
 
-/** Classes Tailwind e declarações inline de um nó (`inline`: só estilo; `tailwind`: classes + o que não virou classe). */
+/** Tailwind classes and inline declarations of a node (`inline`: style only; `tailwind`: classes + whatever did not become a class). */
 export function styleParts(
   node: Node,
   ctx: RenderCtx,
@@ -809,9 +809,9 @@ export function renderNode(
   return emitElement(node.tag, props, kids, depth);
 }
 
-/* ---------------- Mídia (effect, video, embed) ---------------- */
+/* ---------------- Media (effect, video, embed) ---------------- */
 
-/** Atributo HTML de mídia → prop JSX. */
+/** HTML media attribute → JSX prop. */
 const MEDIA_PROPS: Record<string, string> = {
   autoplay: 'autoPlay',
   playsinline: 'playsInline',
@@ -825,7 +825,7 @@ function mediaJsxProps(attrs: MediaAttr[]): string[] {
   });
 }
 
-/** Constante tipada no topo do arquivo (referência estável entre renders). */
+/** Typed constant at the top of the file (stable reference across renders). */
 function moduleConst(
   ctx: RenderCtx,
   node: Node,
@@ -838,7 +838,7 @@ function moduleConst(
   return name;
 }
 
-/** JSX de um nó de mídia; `null` quando a especificação falta (cai no elemento comum). */
+/** JSX for a media node; `null` when the spec is missing (falls back to the regular element). */
 function renderMedia(node: Node, depth: number, ctx: RenderCtx, props: string[]): string[] | null {
   const m = ctx.media;
   const url = (ref: string): string | null => {
@@ -901,13 +901,13 @@ function renderMedia(node: Node, depth: number, ctx: RenderCtx, props: string[])
     }
   }
 
-  // vídeo, YouTube e iframe: elemento nativo
+  // video, YouTube and iframe: native element
   const el = mediaElement(node, { mode: 'live', url });
   if (!el) return null;
   return emitElement(el.tag, [...mediaJsxProps(el.attrs), ...props], [], depth);
 }
 
-/** Cabeçalho (imports, tipos e helpers) que os nós de mídia exigem; vazio sem mídia. */
+/** Header (imports, types and helpers) that media nodes require; empty without media. */
 function mediaPreamble(m: ReactMedia, extraTypes: string[] = []): string[] {
   if (m.helpers.size === 0) return [];
   const types = ['CSSProperties', ...extraTypes].map((t) => `type ${t}`).join(', ');
@@ -924,7 +924,7 @@ function mediaPreamble(m: ReactMedia, extraTypes: string[] = []): string[] {
   out.push('');
   for (const h of REACT_MEDIA_ORDER) if (m.helpers.has(h)) out.push(REACT_MEDIA_HELPERS[h], '');
   if (m.helpers.has('effect')) {
-    // runtime com os fragments de TODO o catálogo: o arquivo é o mesmo para todos os componentes
+    // runtime with the fragments of the WHOLE catalog: the file is the same for all components
     const all = new Map<string, string | undefined>();
     for (const kind of effectKinds()) all.set(kind, effectMountSpec({ kind, params: {} }).fragment);
     m.files.unshift(...reactEffectsFiles(all));
@@ -932,7 +932,7 @@ function mediaPreamble(m: ReactMedia, extraTypes: string[] = []): string[] {
   return out;
 }
 
-/** Filhos de um nó; irmãos repetidos viram `array.map(...)` quando `extractRepeats` está ligado. */
+/** Children of a node; repeated siblings become `array.map(...)` when `extractRepeats` is on. */
 export function renderChildren(
   children: Node[],
   depth: number,
@@ -974,7 +974,7 @@ export function renderChildren(
   return out;
 }
 
-/** `const nome = [{ ... }, ...]`: um item por linha; campos em linhas próprias se passar de 100 colunas. */
+/** `const name = [{ ... }, ...]`: one item per line; fields on their own lines if it exceeds 100 columns. */
 function arrayLiteral(name: string, plan: RunPlan): string {
   const rows = plan.items.map((it) => {
     const fields = plan.fields.map((f) => `${f}: ${jsString(it[f])}`);
@@ -994,7 +994,7 @@ function camelCaseOr(slug: string, fallback: string): string {
 /* API                                                                     */
 /* ====================================================================== */
 
-/** Helper emitido uma vez quando um atributo de URL recebe `{{prop}}` (mesmo critério do `isUnsafeUrl`). */
+/** Helper emitted once when a URL attribute receives `{{prop}}` (same criterion as `isUnsafeUrl`). */
 const SAFE_URL_HELPER = [
   'function safeUrl(url: string): string {',
   "  const v = url.replace(/[\\s\\u0000-\\u001f]+/g, '').toLowerCase();",
@@ -1006,11 +1006,11 @@ const SAFE_URL_HELPER = [
   '}',
 ];
 
-/** Gera um componente TSX funcional a partir de um nó (Vite + React + TypeScript strict). */
+/** Generates a function TSX component from a node (Vite + React + TypeScript strict). */
 export function exportReact(doc: Document, options: ReactExportOptions): ReactExport {
   const mode = options.styles ?? 'tailwind';
-  // ids virtuais (`in_x/...`) só existem na árvore expandida; os demais mantêm as instâncias
-  // como estão (viram componentes JSX)
+  // virtual ids (`in_x/...`) only exist in the expanded tree; the others keep instances
+  // as they are (they become JSX components)
   const [root] = resolveRoots(isVirtualId(options.nodeId) ? expandDocument(doc) : doc, {
     nodeIds: [options.nodeId],
   });
@@ -1046,8 +1046,8 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   ctx.components = createComponentSupport(doc, ctx);
 
   const body = renderNode(root, 2, ctx, false, true);
-  // os principais renderizam antes do preâmbulo: nós de mídia dentro deles também registram helpers
-  const generated = ctx.components.renderAll(); // um componente por principal usado
+  // main components render before the preamble: media nodes inside them also register helpers
+  const generated = ctx.components.renderAll(); // one component per main component used
   const code = mediaPreamble(ctx.media, usage.reactNode ? ['ReactNode'] : []);
   const { files } = ctx.media;
   if (code.length === 0) {

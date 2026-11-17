@@ -32,20 +32,20 @@ const box = (
   ...extra,
 });
 
-/** Documento mínimo com o nó SVG usado no layout à mão. */
+/** Minimal document with the SVG node used in the hand-built layout. */
 function docWithSvgNode(): ReturnType<typeof createDocument> {
-  const doc = createDocument('Teste', { id: 'doc_test' });
+  const doc = createDocument('Test', { id: 'doc_test' });
   doc.pages[0].frames.push(
     createNode({
       tag: 'div',
       type: 'frame',
       id: 'fr_root0001',
-      name: 'Raiz',
+      name: 'Root',
       children: [
         createNode({
           tag: 'svg',
           id: 'sv_icon0001',
-          name: 'Ícone',
+          name: 'Icon',
           svg: '<svg viewBox="0 0 10 10" onload="x()"><script>x()</script><path d="M0 0h10v10z" fill="currentColor"/></svg>',
         }),
       ],
@@ -54,12 +54,12 @@ function docWithSvgNode(): ReturnType<typeof createDocument> {
   return doc;
 }
 
-describe('exportSvg (fallback sem layout)', () => {
-  it('snapshot: foreignObject com o HTML inline do Mobile 390', () => {
+describe('exportSvg (fallback without layout)', () => {
+  it('snapshot: foreignObject with the inline HTML of Mobile 390', () => {
     expect(exportSvg(landing, { nodeId: 'fr_m0b10390' })).toMatchSnapshot();
   });
 
-  it('usa o tamanho declarado no estilo (padrão 100x100) e mantém height', () => {
+  it('uses the size declared in the style (default 100x100) and keeps height', () => {
     const svg = exportSvg(landing, { nodeId: 'fr_m0b10390' });
     expect(svg).toContain('width="390" height="844" viewBox="0 0 390 844"');
     expect(svg).toContain('<foreignObject');
@@ -69,19 +69,19 @@ describe('exportSvg (fallback sem layout)', () => {
     expect(small).toContain('width="100" height="100"');
   });
 
-  it('tokens no wrapper, reset e XHTML válido (void tags fechadas)', () => {
+  it('tokens on the wrapper, reset and valid XHTML (void tags closed)', () => {
     const doc = docWithSvgNode();
-    doc.tokens = { '--cor': '#f00' };
+    doc.tokens = { '--color': '#f00' };
     doc.pages[0].frames[0].style = { width: '50px', height: '20px' };
     doc.pages[0].frames[0].children.push(
-      createNode({ tag: 'img', name: 'Foto', src: 'a.png' }),
+      createNode({ tag: 'img', name: 'Photo', src: 'a.png' }),
       createNode({ tag: 'br', name: 'Br' }),
     );
     const svg = exportSvg(doc, {
       nodeId: 'fr_root0001',
       resolveImage: () => 'data:image/png;base64,QQ==',
     });
-    expect(svg).toContain('style="--cor: #f00"');
+    expect(svg).toContain('style="--color: #f00"');
     expect(svg).toContain('xmlns="http://www.w3.org/1999/xhtml"');
     expect(svg).toContain('<img src="data:image/png;base64,QQ==" />');
     expect(svg).toContain('<br />');
@@ -90,13 +90,13 @@ describe('exportSvg (fallback sem layout)', () => {
     expect(svg).not.toContain('<script');
   });
 
-  it('erra para nó inexistente', () => {
-    expect(() => exportSvg(landing, { nodeId: 'nope' })).toThrow(/não encontrado/);
+  it('errors for a nonexistent node', () => {
+    expect(() => exportSvg(landing, { nodeId: 'nope' })).toThrow(/not found/);
   });
 });
 
-describe('exportSvg (com layout medido)', () => {
-  it('SVG embutido resolve var() no escopo do nó, seguindo o tema do frame', () => {
+describe('exportSvg (with measured layout)', () => {
+  it('embedded SVG resolves var() in the node scope, following the frame theme', () => {
     const doc = docWithSvgNode();
     doc.tokens = { '--brand': '#111111' };
     doc.themes = [{ name: 'dark', overrides: { '--brand': '#eeeeee' } }];
@@ -110,7 +110,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(exportSvg(doc, { nodeId: 'fr_root0001', layout: root })).toContain('fill:#eeeeee');
   });
 
-  it('cabeçalho com width/height/viewBox do nó raiz e coordenadas relativas a ele', () => {
+  it('header with width/height/viewBox of the root node and coordinates relative to it', () => {
     const root = box('fr_root0001', 'frame', 100, 50, 200, 120, {
       'background-color': 'rgb(15, 17, 21)',
     });
@@ -123,7 +123,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).toContain('<rect x="10" y="10" width="40" height="30" fill="rgb(255,0,0)"/>');
   });
 
-  it('rect com raio igual (rx), raios diferentes (path) e fill-opacity para rgba', () => {
+  it('rect with equal radius (rx), different radii (path) and fill-opacity for rgba', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 200, 200);
     root.children.push(
       box('a', 'element', 0, 0, 100, 40, {
@@ -150,7 +150,7 @@ describe('exportSvg (com layout medido)', () => {
     );
   });
 
-  it('gradiente linear vira <linearGradient> e preenche o rect', () => {
+  it('linear gradient becomes <linearGradient> and fills the rect', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 100, {
       'background-image': 'linear-gradient(90deg, rgb(255, 0, 0), rgba(0, 0, 255, 0.5) 80%)',
     });
@@ -163,7 +163,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).toContain('fill="url(#grad1)"');
   });
 
-  it('gradiente não suportado é ignorado sem quebrar', () => {
+  it('unsupported gradient is ignored without breaking', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 100, {
       'background-image': 'radial-gradient(red, blue)',
     });
@@ -171,7 +171,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).not.toContain('Gradient');
   });
 
-  it('borda uniforme vira stroke recuado de meia largura', () => {
+  it('uniform border becomes a stroke inset by half the width', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 60);
     root.children.push(
       box('a', 'element', 10, 10, 80, 40, {
@@ -199,7 +199,7 @@ describe('exportSvg (com layout medido)', () => {
     );
   });
 
-  it('borda só em um lado vira faixa preenchida', () => {
+  it('border on one side only becomes a filled strip', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 60);
     root.children.push(
       box('a', 'element', 0, 0, 100, 60, {
@@ -215,7 +215,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).toContain('<rect x="0" y="58" width="100" height="2" fill="rgb(0,0,0)"/>');
   });
 
-  it('box-shadow vira filter com feDropShadow aplicado ao fundo', () => {
+  it('box-shadow becomes a filter with feDropShadow applied to the background', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 60);
     root.children.push(
       box('a', 'element', 10, 10, 50, 30, {
@@ -231,7 +231,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).toContain('filter="url(#shadow1)"');
   });
 
-  it('texto: um <text> por linha em x, y + baseline, com fonte e cor', () => {
+  it('text: one <text> per line at x, y + baseline, with font and color', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 200, 100);
     root.children.push(
       box(
@@ -253,8 +253,8 @@ describe('exportSvg (com layout medido)', () => {
         },
         {
           lines: [
-            { text: 'Olá & <mundo>', x: 10, y: 20, width: 100, height: 20, baseline: 15 },
-            { text: 'segunda linha', x: 10, y: 40, width: 100, height: 20, baseline: 15 },
+            { text: 'Hello & <world>', x: 10, y: 20, width: 100, height: 20, baseline: 15 },
+            { text: 'second line', x: 10, y: 40, width: 100, height: 20, baseline: 15 },
           ],
         },
       ),
@@ -271,22 +271,22 @@ describe('exportSvg (com layout medido)', () => {
     expect(texts[0]).toContain('letter-spacing="1"');
     expect(texts[0]).toContain('text-decoration="underline"');
     expect(texts[0]).toContain('fill="rgb(232,232,238)"');
-    expect(texts[0]).toContain('>OLÁ &amp; &lt;MUNDO&gt;</text>');
-    expect(texts[1]).toContain('>SEGUNDA LINHA</text>');
+    expect(texts[0]).toContain('>HELLO &amp; &lt;WORLD&gt;</text>');
+    expect(texts[1]).toContain('>SECOND LINE</text>');
   });
 
-  it('imagem com resolveImage e preserveAspectRatio conforme object-fit', () => {
+  it('image with resolveImage and preserveAspectRatio according to object-fit', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 200, 100);
     const img = (id: string, fit?: string): LayoutNode =>
       box(id, 'image', 0, 0, 50, 50, fit ? { 'object-fit': fit } : {}, {
         tag: 'img',
-        src: 'foto.png',
+        src: 'photo.png',
       });
     root.children.push(img('a', 'cover'), img('b', 'contain'), img('c'));
     const svg = exportSvg(docWithSvgNode(), {
       nodeId: 'fr_root0001',
       layout: root,
-      resolveImage: (src) => (src === 'foto.png' ? 'data:image/png;base64,AAAA' : undefined),
+      resolveImage: (src) => (src === 'photo.png' ? 'data:image/png;base64,AAAA' : undefined),
     });
     const images = svg.match(/<image [^>]*\/>/g) ?? [];
     expect(images).toHaveLength(3);
@@ -294,12 +294,12 @@ describe('exportSvg (com layout medido)', () => {
     expect(images[0]).toContain('preserveAspectRatio="xMidYMid slice"');
     expect(images[1]).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(images[2]).toContain('preserveAspectRatio="none"');
-    // sem resolveImage o src original é mantido
+    // without resolveImage the original src is kept
     const raw = exportSvg(docWithSvgNode(), { nodeId: 'fr_root0001', layout: root });
-    expect(raw).toContain('href="foto.png"');
+    expect(raw).toContain('href="photo.png"');
   });
 
-  it('overflow hidden vira clipPath (com raio) aplicado aos filhos', () => {
+  it('overflow hidden becomes clipPath (with radius) applied to the children', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 100);
     const card = box('card', 'element', 10, 10, 60, 60, {
       overflow: 'hidden',
@@ -320,7 +320,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg.indexOf('<g clip-path')).toBeLessThan(svg.indexOf('fill="rgb(1,2,3)"'));
   });
 
-  it('opacity vira <g opacity>; invisíveis são ignorados', () => {
+  it('opacity becomes <g opacity>; invisible ones are ignored', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 100);
     root.children.push(
       box('a', 'element', 0, 0, 10, 10, { 'background-color': 'rgb(1, 1, 1)', opacity: '0.5' }),
@@ -339,7 +339,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).not.toContain('rgb(4,4,4)');
   });
 
-  it('nós svg viram <svg> aninhado com markup sanitizado', () => {
+  it('svg nodes become a nested <svg> with sanitized markup', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 100, 100);
     root.children.push(
       box('sv_icon0001', 'svg', 20, 30, 24, 24, { color: 'rgb(255, 0, 0)' }, { tag: 'svg' }),
@@ -353,7 +353,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).not.toContain('onload');
   });
 
-  it('fontes embutidas viram @font-face com data URL quando resolveImage resolve o arquivo', () => {
+  it('embedded fonts become @font-face with a data URL when resolveImage resolves the file', () => {
     const doc = docWithSvgNode();
     doc.fonts = [
       {
@@ -376,7 +376,7 @@ describe('exportSvg (com layout medido)', () => {
     expect(svg).not.toContain('fonts/a.woff2');
   });
 
-  it('o nó raiz do exemplo, escapando XML em atributos', () => {
+  it('the example root node, escaping XML in attributes', () => {
     const root = box('fr_root0001', 'frame', 0, 0, 10, 10, { 'background-color': 'rgb(0, 0, 0)' });
     const svg = exportSvg(docWithSvgNode(), { nodeId: 'fr_root0001', layout: root });
     expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);

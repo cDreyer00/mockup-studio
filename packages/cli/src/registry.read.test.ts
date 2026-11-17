@@ -12,14 +12,14 @@ function deps(files: Record<string, string>, cwd = 'C:\\Users\\eu\\Proj'): FsDep
 }
 
 describe('readClaudeRegistrations', () => {
-  it('~/.claude.json ausente ou inválido: nenhum registro, sem lançar', () => {
+  it('~/.claude.json missing or invalid: no registration, without throwing', () => {
     expect(readClaudeRegistrations(deps({}))).toEqual([]);
-    expect(readClaudeRegistrations(deps({ [claudeFile]: '{ inválido' }))).toEqual([]);
+    expect(readClaudeRegistrations(deps({ [claudeFile]: '{ invalid' }))).toEqual([]);
     expect(readClaudeRegistrations(deps({ [claudeFile]: '[]' }))).toEqual([]);
     expect(readClaudeRegistrations(deps({ [claudeFile]: '' }))).toEqual([]);
   });
 
-  it('arquivo grande (milhares de projetos e histórico) acha user e local', () => {
+  it('large file (thousands of projects and history) finds user and local', () => {
     const projects: Record<string, unknown> = {};
     for (let i = 0; i < 5000; i++)
       projects[`C:/Users/eu/p${i}`] = { history: Array(20).fill({ display: 'x'.repeat(100) }) };
@@ -33,7 +33,7 @@ describe('readClaudeRegistrations', () => {
     ]);
   });
 
-  it('chave de projeto com outra caixa, barra invertida ou barra final casa com o cwd (Windows)', () => {
+  it('project key with different case, backslash or trailing slash matches the cwd (Windows)', () => {
     for (const key of [
       'c:/users/eu/proj',
       'C:\\Users\\eu\\Proj',
@@ -54,7 +54,7 @@ describe('readClaudeRegistrations', () => {
     expect(other).toEqual([]);
   });
 
-  it('caminho POSIX diferencia caixa', () => {
+  it('POSIX path is case-sensitive', () => {
     const regs = readClaudeRegistrations(
       deps(
         { [claudeFile]: JSON.stringify({ projects: { '/home/Eu/proj': srv('x') } }) },
@@ -64,7 +64,7 @@ describe('readClaudeRegistrations', () => {
     expect(regs).toEqual([]);
   });
 
-  it('.mcp.json do projeto', () => {
+  it('project .mcp.json', () => {
     const cwd = 'C:\\Users\\eu\\Proj';
     const regs = readClaudeRegistrations(
       deps({ [path.join(cwd, '.mcp.json')]: JSON.stringify(srv('p')) }, cwd),
@@ -82,13 +82,13 @@ describe('readClaudeRegistrations', () => {
 describe('readCodexRegistration', () => {
   const read = (text: string) => readCodexRegistration(deps({ [codexFile]: text }));
 
-  it('env em linha, comentários e """', () => {
+  it('inline env, comments and """', () => {
     const r = read(
       [
-        '[mcp_servers.mockup-studio] # servidor',
+        '[mcp_servers.mockup-studio] # server',
         'command = """mockup""" # cmd',
-        'args = [ # lista',
-        '  "mcp", # um',
+        'args = [ # list',
+        '  "mcp", # one',
         ']',
         'env = { ELECTRON_RUN_AS_NODE = "1" }',
         "default_tools_approval_mode = 'approve'",
@@ -103,7 +103,7 @@ describe('readCodexRegistration', () => {
     expect(r?.approve).toBe('approve');
   });
 
-  it('subtabela env e http', () => {
+  it('env and http subtables', () => {
     expect(
       read(
         '[mcp_servers.mockup-studio]\ncommand = "m"\nargs = []\n[mcp_servers.mockup-studio.env]\nA = "1"\n',
@@ -115,16 +115,16 @@ describe('readCodexRegistration', () => {
     });
   });
 
-  it('sem a seção ou sem arquivo: null', () => {
-    expect(read('[mcp_servers.outro]\ncommand = "o"\n')).toBeNull();
+  it('without the section or without a file: null', () => {
+    expect(read('[mcp_servers.other]\ncommand = "o"\n')).toBeNull();
     expect(readCodexRegistration(deps({}))).toBeNull();
   });
 
-  it('TOML inválido: registro com erro só se a seção existir', () => {
+  it('invalid TOML: registration with error only if the section exists', () => {
     const r = read(
       '[mcp_servers.mockup-studio]\nurl = "u"\nenv = {}\n[mcp_servers.mockup-studio.env]\n',
     );
-    expect(r?.error).toMatch(/^linha 4/);
+    expect(r?.error).toMatch(/^line 4/);
     expect(read('a = 1\na = 2\n')).toBeNull();
   });
 });

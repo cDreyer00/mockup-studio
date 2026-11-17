@@ -11,7 +11,7 @@ function textOf(r: unknown): string {
   return c.map((x) => x.text).join('\n');
 }
 
-describe('MCP tokens e temas', () => {
+describe('MCP tokens and themes', () => {
   let ws: Ws;
   let daemon: DaemonHandle;
   let client: Client;
@@ -19,7 +19,7 @@ describe('MCP tokens e temas', () => {
   beforeEach(async () => {
     ws = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -54,18 +54,16 @@ describe('MCP tokens e temas', () => {
       broken: { missing: string }[];
     };
 
-  /** Cria um nó filho do frame com estilos e devolve o id. */
+  /** Creates a child node of the frame with styles and returns the id. */
   async function node(styles: Record<string, string>): Promise<string> {
-    const r = textOf(
-      await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Caixa' }),
-    );
+    const r = textOf(await call('create_node', { parentId: ws.frameId, tag: 'div', name: 'Box' }));
     const id = /(el_[0-9a-z]+)/.exec(r)?.[1];
-    if (!id) throw new Error('id não encontrado: ' + r);
+    if (!id) throw new Error('id not found: ' + r);
     await ok('update_styles', { nodeIds: [id], styles });
     return id;
   }
 
-  it('lista as ferramentas novas', async () => {
+  it('lists the new tools', async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);
     for (const n of [
       'get_tokens',
@@ -83,75 +81,83 @@ describe('MCP tokens e temas', () => {
     }
   });
 
-  it('get_tokens sem tokens explica como criar', async () => {
+  it('get_tokens without tokens explains how to create them', async () => {
     const t = await ok('get_tokens');
-    expect(t).toContain('Nenhum token');
+    expect(t).toContain('No tokens');
     expect(t).toContain('set_tokens');
   });
 
-  it('set_tokens com e sem "--" (uso antigo), grupos e descrições', async () => {
+  it('set_tokens with and without "--" (old usage), groups and descriptions', async () => {
     const t = await ok('set_tokens', {
       tokens: { primary: '#2563eb', '--space-4': '16px' },
       groups: { primary: 'color' },
-      descriptions: { '--primary': 'Ação principal' },
+      descriptions: { '--primary': 'Primary action' },
     });
     expect(t).toContain('--primary: #2563eb');
     const r = await json();
     const p = r.tokens.find((x) => x.name === '--primary')!;
     expect(p.group).toBe('color');
-    expect(p.description).toBe('Ação principal');
+    expect(p.description).toBe('Primary action');
     expect(r.tokens.find((x) => x.name === '--space-4')!.group).toBe('spacing');
 
-    // descrição nova mescla com o grupo existente; texto vazio apaga
-    await ok('set_tokens', { descriptions: { '--primary': 'Outra' } });
+    // a new description merges with the existing group; empty text clears it
+    await ok('set_tokens', { descriptions: { '--primary': 'Other' } });
     let again = (await json()).tokens.find((x) => x.name === '--primary')!;
-    expect(again.description).toBe('Outra');
+    expect(again.description).toBe('Other');
     expect(again.group).toBe('color');
     await ok('set_tokens', { descriptions: { '--primary': '' } });
     again = (await json()).tokens.find((x) => x.name === '--primary')!;
     expect(again.description).toBeUndefined();
   });
 
-  it('set_tokens: warning de tipo entra na resposta e valor inválido recusa tudo', async () => {
+  it('set_tokens: a type warning goes into the response and an invalid value rejects everything', async () => {
     const w = await ok('set_tokens', { tokens: { '--space-x': '#ff0000', '--ok': '1px' } });
-    expect(w).toContain('Avisos');
+    expect(w).toContain('Warnings');
     expect(w).toContain('--space-x');
 
-    const bad = await call('set_tokens', { tokens: { '--novo': '1px', '--quebrado': 'rgb(1, 2' } });
+    const bad = await call('set_tokens', { tokens: { '--new': '1px', '--broken': 'rgb(1, 2' } });
     expect(bad.isError).toBe(true);
-    expect(textOf(bad)).toContain('--quebrado');
-    expect((await json()).tokens.map((x) => x.name)).not.toContain('--novo');
+    expect(textOf(bad)).toContain('--broken');
+    expect((await json()).tokens.map((x) => x.name)).not.toContain('--new');
 
     const empty = await call('set_tokens', {});
     expect(empty.isError).toBe(true);
-    const unknownGroup = await call('set_tokens', { groups: { '--nao-existe': 'color' } });
+    const unknownGroup = await call('set_tokens', { groups: { '--does-not-exist': 'color' } });
     expect(unknownGroup.isError).toBe(true);
   });
 
-  it('set_tokens: ciclo entre tokens da mesma chamada é avisado como ciclo, não como inexistente', async () => {
+  it('set_tokens: a cycle between tokens of the same call is reported as a cycle, not as nonexistent', async () => {
     const w = await ok('set_tokens', { tokens: { '--a': 'var(--b)', '--b': 'var(--a)' } });
-    expect(w).toContain('--a: referência a token sem valor válido: --b (ciclo)');
-    expect(w).toContain('--b: referência a token sem valor válido: --a (ciclo)');
-    expect(w).not.toContain('inexistente');
+    expect(w).toContain('--a: reference to token without a valid value: --b (cycle)');
+    expect(w).toContain('--b: reference to token without a valid value: --a (cycle)');
+    expect(w).not.toContain('nonexistent');
     const g = await ok('get_tokens');
-    expect(g).toContain('(ciclo)');
-    const missing = await ok('set_tokens', { tokens: { '--c': 'var(--nada)' } });
-    expect(missing).toContain('--c: referência a token inexistente: --nada');
+    expect(g).toContain('(cycle)');
+    const missing = await ok('set_tokens', { tokens: { '--c': 'var(--nothing)' } });
+    expect(missing).toContain('--c: reference to nonexistent token: --nothing');
   });
 
-  it('get_tokens: grupo livre com o rótulo de um embutido ("Cores") junta-se ao embutido', async () => {
+  it('get_tokens: a free group with the label of a built-in one ("Colors") merges into the built-in', async () => {
     await ok('set_tokens', {
       tokens: { '--brand': '#2563eb', '--color-a': '#000', '--color-b': '#fff', '--fg': '#111' },
-      groups: { '--brand': 'Cores' },
+      groups: { '--brand': 'Colors' },
     });
     const text = await ok('get_tokens');
-    expect(text.match(/## Cores/g)).toHaveLength(1);
-    expect(text).toContain('## Cores (4)');
+    expect(text.match(/## Colors/g)).toHaveLength(1);
+    expect(text).toContain('## Colors (4)');
     expect((await json()).tokens.find((t) => t.name === '--brand')?.group).toBe('color');
-    expect(await ok('get_tokens', { group: 'cores' })).toContain('--brand');
+    expect(await ok('get_tokens', { group: 'colors' })).toContain('--brand');
   });
 
-  it('get_tokens em texto e json: grupos, usos, não usado e quebrado', async () => {
+  it('get_tokens: the legacy Portuguese group label "Cores" still joins the built-in group', async () => {
+    await ok('set_tokens', {
+      tokens: { '--brand': '#2563eb' },
+      groups: { '--brand': 'Cores' },
+    });
+    expect((await json()).tokens.find((t) => t.name === '--brand')?.group).toBe('color');
+  });
+
+  it('get_tokens in text and json: groups, uses, unused and broken', async () => {
     await ok('set_tokens', {
       tokens: {
         '--color-primary': '#2563eb',
@@ -163,11 +169,11 @@ describe('MCP tokens e temas', () => {
     const id = await node({ background: 'var(--color-primary)', color: 'var(--color-ghost)' });
 
     const text = await ok('get_tokens');
-    expect(text).toContain('## Cores');
-    expect(text).toContain('## Espaçamento');
-    expect(text).toContain('Não usados:');
+    expect(text).toContain('## Colors');
+    expect(text).toContain('## Spacing');
+    expect(text).toContain('Unused:');
     expect(text).toContain('--color-orphan');
-    expect(text).toContain('Referências quebradas');
+    expect(text).toContain('Broken references');
     expect(text).toContain('--color-ghost');
     expect(text).toContain(id);
 
@@ -183,7 +189,7 @@ describe('MCP tokens e temas', () => {
     expect((await json({ group: 'color' })).tokens.every((x) => x.group === 'color')).toBe(true);
   });
 
-  it('rename_token atualiza estilos e tokens; undo restaura tudo', async () => {
+  it('rename_token updates styles and tokens; undo restores everything', async () => {
     await ok('set_tokens', {
       tokens: { '--brand': '#2563eb', '--accent': 'var(--brand)' },
       groups: { '--brand': 'color' },
@@ -210,7 +216,7 @@ describe('MCP tokens e temas', () => {
     expect(dup.isError).toBe(true);
   });
 
-  it('apply_token liga a propriedade ao token e informa o valor resolvido', async () => {
+  it('apply_token binds the property to the token and reports the resolved value', async () => {
     await ok('set_tokens', { tokens: { '--color-primary': '#2563eb' } });
     const id = await node({ width: '10px' });
     const t = await ok('apply_token', {
@@ -226,22 +232,22 @@ describe('MCP tokens e temas', () => {
     expect(textOf(bad)).toContain('set_tokens');
   });
 
-  it('temas: create_theme + set_frame_theme + get_styles mostra o valor do tema', async () => {
+  it('themes: create_theme + set_frame_theme + get_styles shows the theme value', async () => {
     await ok('set_tokens', { tokens: { '--blue': '#2563eb', '--color-primary': 'var(--blue)' } });
     const id = await node({ background: 'var(--color-primary)' });
     const created = await ok('create_theme', { name: 'dark', overrides: { blue: '#60a5fa' } });
     expect(created).toContain('dark');
 
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('background: #2563eb');
-    // theme explícito, sem mexer no frame
+    // explicit theme, without touching the frame
     expect(await ok('get_styles', { nodeIds: [id], theme: 'dark' })).toContain(
       'background: #60a5fa',
     );
-    const missing = await call('get_styles', { nodeIds: [id], theme: 'nao-existe' });
+    const missing = await call('get_styles', { nodeIds: [id], theme: 'does-not-exist' });
     expect(missing.isError).toBe(true);
 
     await ok('set_frame_theme', { nodeIds: [ws.frameId], theme: 'dark' });
-    // o alias acompanha o tema do frame
+    // the alias follows the frame theme
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('background: #60a5fa');
     const r = await json();
     expect(r.themes).toEqual([{ name: 'dark', overrides: 1, frames: [ws.frameId] }]);
@@ -251,7 +257,7 @@ describe('MCP tokens e temas', () => {
     await ok('set_frame_theme', { nodeIds: [ws.frameId], theme: null });
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('background: #2563eb');
 
-    const bad = await call('set_frame_theme', { nodeIds: [ws.frameId], theme: 'nada' });
+    const bad = await call('set_frame_theme', { nodeIds: [ws.frameId], theme: 'nothing' });
     expect(bad.isError).toBe(true);
     expect(textOf(bad)).toContain('create_theme');
     const dupe = await call('create_theme', { name: 'dark' });
@@ -260,33 +266,33 @@ describe('MCP tokens e temas', () => {
     expect(badValue.isError).toBe(true);
   });
 
-  it('create_theme valida sobrescritas contra o valor resolvido (base, aliases e copyFrom)', async () => {
+  it('create_theme validates overrides against the resolved value (base, aliases and copyFrom)', async () => {
     await ok('set_tokens', { tokens: { '--b': '#111111', '--c': '#222222' } });
-    // --a aponta para --b (base) e --d para --e, outro override do mesmo tema
+    // --a points to --b (base) and --d to --e, another override of the same theme
     const out = await ok('create_theme', {
       name: 'dark',
       overrides: { '--a': 'var(--b)', '--d': 'var(--e)', '--e': '#333333' },
     });
-    expect(out).not.toContain('Avisos');
-    // copyFrom: o alias novo aponta para uma sobrescrita herdada do outro tema
+    expect(out).not.toContain('Warnings');
+    // copyFrom: the new alias points to an override inherited from the other theme
     const out2 = await ok('create_theme', {
       name: 'dark2',
       copyFrom: 'dark',
       overrides: { '--f': 'var(--e)', '--g': 'var(--c)' },
     });
-    expect(out2).not.toContain('Avisos');
-    const bad = await call('create_theme', { name: 'x', overrides: { '--h': 'var(--nada)' } });
+    expect(out2).not.toContain('Warnings');
+    const bad = await call('create_theme', { name: 'x', overrides: { '--h': 'var(--nothing)' } });
     const badText = textOf(bad);
-    expect(bad.isError || badText.includes('Avisos')).toBe(true);
+    expect(bad.isError || badText.includes('Warnings')).toBe(true);
   });
 
-  it('set_tokens com theme grava nas sobrescritas; unset sem tema limpa base, meta e temas', async () => {
+  it('set_tokens with theme writes to the overrides; unset without a theme clears base, meta and themes', async () => {
     await ok('set_tokens', {
       tokens: { '--color-bg': '#fff', '--color-fg': '#000' },
       groups: { '--color-fg': 'color' },
     });
     await ok('create_theme', { name: 'dark', overrides: { '--color-bg': '#111' } });
-    const noTheme = await call('set_tokens', { tokens: { '--x': '1px' }, theme: 'nada' });
+    const noTheme = await call('set_tokens', { tokens: { '--x': '1px' }, theme: 'nothing' });
     expect(noTheme.isError).toBe(true);
 
     await ok('set_tokens', { theme: 'dark', tokens: { '--color-fg': '#eee' } });
@@ -305,7 +311,7 @@ describe('MCP tokens e temas', () => {
     expect(r.themes[0]!.overrides).toBe(0);
   });
 
-  it('delete_theme e rename_theme atualizam data-theme', async () => {
+  it('delete_theme and rename_theme update data-theme', async () => {
     await ok('set_tokens', { tokens: { '--a': '#fff' } });
     await ok('create_theme', { name: 'dark', overrides: { '--a': '#000' } });
     await ok('set_frame_theme', { nodeIds: [ws.frameId], theme: 'dark' });
@@ -324,13 +330,13 @@ describe('MCP tokens e temas', () => {
     expect(gone.isError).toBe(true);
   });
 
-  it('import_tokens CSS e JSON, merge e replace', async () => {
+  it('import_tokens CSS and JSON, merge and replace', async () => {
     await ok('set_tokens', { tokens: { '--keep': '1px', '--color-primary': '#000000' } });
     const css =
       ':root { --color-primary: #2563eb; --radius-md: 8px; }\n[data-theme="dark"] { --color-primary: #60a5fa; }';
     const t = await ok('import_tokens', { content: css, format: 'css' });
     expect(t).toContain('2 token(s)');
-    expect(t).toContain('1 tema(s)');
+    expect(t).toContain('1 theme(s)');
     let r = await json();
     expect(r.tokens.map((x) => x.name).sort()).toEqual([
       '--color-primary',
@@ -341,28 +347,28 @@ describe('MCP tokens e temas', () => {
     expect(r.themes[0]!.name).toBe('dark');
 
     const dtcg = JSON.stringify({
-      color: { brand: { $type: 'color', $value: '#ff0000', $description: 'Marca' } },
+      color: { brand: { $type: 'color', $value: '#ff0000', $description: 'Brand' } },
     });
     const j = await ok('import_tokens', { content: dtcg, format: 'json', mode: 'replace' });
     expect(j).toContain('replace');
     r = await json();
     expect(r.tokens.map((x) => x.name)).toEqual(['--color-brand']);
-    expect(r.tokens[0]!.description).toBe('Marca');
+    expect(r.tokens[0]!.description).toBe('Brand');
     expect(r.themes).toEqual([]);
 
-    const none = await call('import_tokens', { content: '/* nada */', format: 'css' });
+    const none = await call('import_tokens', { content: '/* nothing */', format: 'css' });
     expect(none.isError).toBe(true);
-    const broken = await call('import_tokens', { content: '{ nao json', format: 'json' });
+    const broken = await call('import_tokens', { content: '{ not json', format: 'json' });
     expect(broken.isError).toBe(true);
   });
 
-  it('export_tokens nos três formatos', async () => {
+  it('export_tokens in the three formats', async () => {
     const empty = await call('export_tokens', { format: 'css' });
     expect(empty.isError).toBe(true);
 
     await ok('set_tokens', {
       tokens: { '--color-primary': '#2563eb' },
-      descriptions: { '--color-primary': 'Ação' },
+      descriptions: { '--color-primary': 'Action' },
     });
     await ok('create_theme', { name: 'dark', overrides: { '--color-primary': '#60a5fa' } });
     const css = await ok('export_tokens', { format: 'css' });
@@ -376,14 +382,14 @@ describe('MCP tokens e temas', () => {
     expect(tw).toContain('@theme');
     expect(tw).toContain('@custom-variant');
 
-    // ida e volta: o que foi exportado reimporta igual
+    // round trip: what was exported reimports the same
     await ok('import_tokens', { content: css, format: 'css', mode: 'replace' });
     const r = await json();
     expect(r.tokens.find((x) => x.name === '--color-primary')!.value).toBe('#2563eb');
     expect(r.themes[0]!.name).toBe('dark');
   });
 
-  it('cada escrita é uma entrada de undo', async () => {
+  it('each write is one undo entry', async () => {
     await ok('set_tokens', { tokens: { '--a': '#fff', '--b': '1px' }, groups: { '--a': 'color' } });
     await ok('undo');
     expect((await json()).tokens).toEqual([]);

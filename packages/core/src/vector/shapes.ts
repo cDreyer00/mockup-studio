@@ -1,4 +1,4 @@
-/** Formas básicas como paths: retângulo, elipse, linha, polígono e estrela. */
+/** Basic shapes as paths: rectangle, ellipse, line, polygon and star. */
 import { createNode } from '../document.js';
 import { deepClone } from '../clone.js';
 import { newNodeId } from '../ids.js';
@@ -14,16 +14,16 @@ export const SHAPE_KINDS: readonly ShapeKind[] = ['rect', 'ellipse', 'line', 'po
 
 export interface ShapeSpec {
   kind: ShapeKind;
-  /** Caixa da forma (> 0; linha aceita 0 em um dos eixos). */
+  /** Shape box (> 0; a line accepts 0 on one of the axes). */
   width: number;
   height: number;
-  /** rect: raio dos cantos. */
+  /** rect: corner radius. */
   cornerRadius?: number;
-  /** polygon: número de lados (3 a 64, padrão 3). */
+  /** polygon: number of sides (3 to 64, default 3). */
   sides?: number;
-  /** star: número de pontas (3 a 64, padrão 5). */
+  /** star: number of points (3 to 64, default 5). */
   points?: number;
-  /** star: raio interno / externo (0.05 a 0.95, padrão 0.5). */
+  /** star: inner / outer radius (0.05 to 0.95, default 0.5). */
   innerRatio?: number;
 }
 
@@ -32,14 +32,14 @@ const clamp = (n: number, min: number, max: number): number => Math.min(max, Mat
 function assertSize(spec: ShapeSpec): void {
   const { width: w, height: h } = spec;
   if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) {
-    throw new Error('Tamanho da forma inválido: largura e altura devem ser números finitos');
+    throw new Error('Invalid shape size: width and height must be finite numbers');
   }
   if (spec.kind === 'line' ? w === 0 && h === 0 : w === 0 || h === 0) {
-    throw new Error('Tamanho da forma inválido: largura e altura devem ser maiores que 0');
+    throw new Error('Invalid shape size: width and height must be greater than 0');
   }
 }
 
-/** Vértices de uma poligonal em círculo unitário (começa no topo), ajustados à caixa `w × h`. */
+/** Vertices of a polyline on a unit circle (starts at the top), fitted to the `w × h` box. */
 function fitToBox(unit: [number, number][], w: number, h: number): PathCommand[] {
   const xs = unit.map((p) => p[0]);
   const ys = unit.map((p) => p[1]);
@@ -56,7 +56,7 @@ function fitToBox(unit: [number, number][], w: number, h: number): PathCommand[]
   return cmds;
 }
 
-/** Path data da forma na caixa `0 0 width height` (linha: diagonal de 0,0 a width,height). */
+/** Path data of the shape in the `0 0 width height` box (line: diagonal from 0,0 to width,height). */
 export function shapePathData(spec: ShapeSpec): string {
   assertSize(spec);
   const { width: w, height: h } = spec;
@@ -96,12 +96,12 @@ export function shapePathData(spec: ShapeSpec): string {
 }
 
 /**
- * Vetor de uma forma: viewBox `0 0 w h` (linha com folga do traço), um path `p1`.
- * Tinta padrão: formas fechadas `fill: #d9d9d9`, sem traço; linha `stroke: #111111`, largura 2,
- * sem preenchimento. `paint` sobrepõe o padrão.
+ * Vector of a shape: viewBox `0 0 w h` (line with stroke slack), one path `p1`.
+ * Default paint: closed shapes `fill: #d9d9d9`, no stroke; line `stroke: #111111`, width 2,
+ * no fill. `paint` overrides the default.
  *
- * Linha: o viewBox ganha folga de metade do traço (mínimo 0,5) em volta da caixa
- * (`-pad -pad w+2pad h+2pad`), para que o traço e linhas horizontais/verticais não sejam cortados.
+ * Line: the viewBox gets slack of half the stroke (minimum 0.5) around the box
+ * (`-pad -pad w+2pad h+2pad`), so the stroke and horizontal/vertical lines are not clipped.
  */
 export function createShapeVector(spec: ShapeSpec, paint?: VectorPaintPatch): Vector {
   const d = shapePathData(spec);
@@ -124,8 +124,8 @@ export function createShapeVector(spec: ShapeSpec, paint?: VectorPaintPatch): Ve
 }
 
 /**
- * Nó `svg` (tag `svg`, id `sv_...` novo se `id` ausente) com `vector` e `svg = vectorToSvg(vector)`.
- * `style` é o CSS do nó (ex.: position/left/top/width/height).
+ * New `svg` node (tag `svg`, new `sv_...` id if `id` is absent) with `vector` and `svg = vectorToSvg(vector)`.
+ * `style` is the node's CSS (e.g. position/left/top/width/height).
  */
 export function createVectorNode(
   vector: Vector,
@@ -135,11 +135,11 @@ export function createVectorNode(
     id: opts.id ?? newNodeId('svg'),
     type: 'svg',
     tag: 'svg',
-    name: opts.name ?? 'Vetor',
+    name: opts.name ?? 'Vector',
     style: opts.style ?? {},
     svg: vectorToSvg(vector),
   });
-  // createNode (document.ts) não copia `vector`; atribui aqui
+  // createNode (document.ts) does not copy `vector`; assign here
   node.vector = deepClone(vector);
   return node;
 }

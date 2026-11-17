@@ -37,7 +37,7 @@ function plan(doc: Document, classes: string, mode: SetClassesMode, id = 'el_pla
 }
 
 describe('planSetClasses', () => {
-  it('replace: as classes passam a ser todo o estilo', () => {
+  it('replace: the classes become the whole style', () => {
     const { node, p } = plan(fixture(), 'flex gap-2 hover:bg-red-500', 'replace');
     expect(node.style).toEqual({ display: 'flex', gap: '0.5rem' });
     expect(node.states?.hover?.['background-color']).toBeDefined();
@@ -45,14 +45,14 @@ describe('planSetClasses', () => {
     expect(p.classes.el_plan0001).toBe('flex gap-2 hover:bg-red-500');
   });
 
-  it('replace no frame raiz mantém width/height', () => {
+  it('replace on the root frame keeps width/height', () => {
     const { node } = plan(fixture(), 'flex', 'replace', 'fr_plan0001');
     expect(node.style.width).toBe('400px');
     expect(node.style.height).toBe('300px');
     expect(node.style.display).toBe('flex');
   });
 
-  it('add: acrescenta e troca as classes que tocam as mesmas propriedades', () => {
+  it('add: appends and swaps the classes that touch the same props', () => {
     const { node } = plan(fixture(), 'p-8 rounded-lg', 'add');
     expect(node.classes).toBe('bg-white p-8 rounded-lg');
     expect(node.style.padding).toBe('2rem');
@@ -60,14 +60,14 @@ describe('planSetClasses', () => {
     expect(node.style['background-color']).toBe('#fff');
   });
 
-  it('remove: tira as classes e o que só elas produziam', () => {
+  it('remove: removes the classes and what only they produced', () => {
     const { node } = plan(fixture(), 'p-4', 'remove');
     expect(node.classes).toBe('bg-white');
     expect(node.style.padding).toBeUndefined();
     expect(node.style['background-color']).toBe('#fff');
   });
 
-  it('remove limpa o estado quando a classe de variante sai', () => {
+  it('remove clears the state when the variant class goes away', () => {
     const doc = fixture();
     const first = plan(doc, 'hover:bg-red-500', 'add');
     expect(first.node.states?.hover).toBeDefined();
@@ -75,7 +75,7 @@ describe('planSetClasses', () => {
     expect(second.node.states).toBeUndefined();
   });
 
-  it('é um undo só: o inverso restaura o documento', () => {
+  it('is a single undo: the inverse restores the document', () => {
     const doc = fixture();
     const p = planSetClasses(
       [{ node: findNode(doc, 'el_plan0001')!.node, root: false }],
@@ -89,13 +89,13 @@ describe('planSetClasses', () => {
     expect(strip(back.doc)).toStrictEqual(strip(doc));
   });
 
-  it('relata classes desconhecidas e não suportadas', () => {
+  it('reports unknown and unsupported classes', () => {
     const { p } = plan(fixture(), 'foo-bar group-hover:p-2 p-2', 'add');
     expect(p.report.unknown).toContain('foo-bar');
     expect(p.report.unsupported.map((u) => u.cls)).toContain('group-hover:p-2');
   });
 
-  it('classes dos filhos (space-y) vão para os filhos', () => {
+  it('child classes (space-y) go to the children', () => {
     const doc = fixture();
     const parent = findNode(doc, 'fr_plan0001')!.node;
     const second = createNodeFromTag('div');
@@ -112,7 +112,7 @@ describe('planSetClasses', () => {
     expect(findNode(next, 'el_plan0002')!.node.style['margin-block-end']).toBeUndefined();
   });
 
-  it('replace num nó absoluto mantém position/left/top', () => {
+  it('replace on an absolute node keeps position/left/top', () => {
     const doc = fixture();
     const card = findNode(doc, 'el_plan0001')!.node;
     card.style = { ...card.style, position: 'absolute', left: '10px', top: '20px' };
@@ -123,7 +123,7 @@ describe('planSetClasses', () => {
     expect(node.style['background-color']).toBeUndefined();
   });
 
-  it('replace com classes que definem left não o sobrescreve com o antigo', () => {
+  it('replace with classes that define left does not overwrite it with the old one', () => {
     const doc = fixture();
     const card = findNode(doc, 'el_plan0001')!.node;
     card.style = { ...card.style, position: 'absolute', left: '10px', top: '20px' };
@@ -132,7 +132,7 @@ describe('planSetClasses', () => {
     expect(node.style.top).toBe('20px');
   });
 
-  it('replace mantém o CSS sem classe equivalente', () => {
+  it('replace keeps the CSS with no equivalent class', () => {
     const doc = fixture();
     const card = findNode(doc, 'el_plan0001')!.node;
     card.style = { ...card.style, 'grid-template-areas': '"a;b"' };
@@ -142,7 +142,7 @@ describe('planSetClasses', () => {
     expect(node.style['background-color']).toBeUndefined();
   });
 
-  describe('classes dos filhos ao sair', () => {
+  describe('child classes when they go away', () => {
     function parentDoc(classes: string) {
       const doc = fixture();
       const parent = findNode(doc, 'fr_plan0001')!.node;
@@ -159,26 +159,26 @@ describe('planSetClasses', () => {
       return applyOps(doc, p.ops).doc;
     };
 
-    it('remove space-y-4 limpa a margem dos filhos', () => {
+    it('remove space-y-4 clears the children margin', () => {
       const doc = parentDoc('space-y-4');
       expect(findNode(doc, 'el_plan0001')!.node.style['margin-block-end']).toBe('1rem');
       const next = run(doc, 'space-y-4', 'remove');
       expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBeUndefined();
     });
 
-    it('replace space-y-4 por space-y-2 troca a margem', () => {
+    it('replace space-y-4 with space-y-2 swaps the margin', () => {
       const doc = parentDoc('space-y-4');
       const next = run(doc, 'space-y-2', 'replace');
       expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBe('0.5rem');
     });
 
-    it('replace sem classe de filhos limpa a margem', () => {
+    it('replace without child classes clears the margin', () => {
       const doc = parentDoc('space-y-4');
       const next = run(doc, 'flex', 'replace');
       expect(findNode(next, 'el_plan0001')!.node.style['margin-block-end']).toBeUndefined();
     });
 
-    it('valor editado manualmente no filho é preservado', () => {
+    it('value edited manually on the child is preserved', () => {
       const doc = parentDoc('space-y-4');
       findNode(doc, 'el_plan0001')!.node.style['margin-block-end'] = '7px';
       const next = run(doc, 'space-y-4', 'remove');
@@ -188,7 +188,7 @@ describe('planSetClasses', () => {
 });
 
 describe('detectTailwind', () => {
-  it('reconhece markup Tailwind', () => {
+  it('recognizes Tailwind markup', () => {
     const r = detectTailwind(
       '<div class="flex gap-4 p-4"><p class="text-sm font-semibold">x</p></div>',
       engine,
@@ -197,7 +197,7 @@ describe('detectTailwind', () => {
     expect(r.classes).toEqual(expect.arrayContaining(['flex', 'gap-4', 'p-4', 'text-sm']));
   });
 
-  it('classes definidas no <style> não contam como Tailwind', () => {
+  it('classes defined in <style> do not count as Tailwind', () => {
     const html = `<style>.hero{color:red}.card .title{font-weight:700}</style>
       <div class="hero"><div class="card"><h1 class="title">x</h1></div></div>`;
     const r = detectTailwind(html, engine);
@@ -205,18 +205,18 @@ describe('detectTailwind', () => {
     expect(r.total).toBe(0);
   });
 
-  it('classes definidas no CSS externo também são excluídas', () => {
+  it('classes defined in external CSS are also excluded', () => {
     const r = detectTailwind('<div class="card flex">x</div>', engine, '.card{padding:1rem}');
     expect(r.total).toBe(1);
     expect(r.tailwind).toBe(true);
   });
 
-  it('maioria de classes próprias: não é Tailwind', () => {
+  it('mostly own classes: not Tailwind', () => {
     const r = detectTailwind('<div class="foo bar baz flex">x</div>', engine);
     expect(r.tailwind).toBe(false);
   });
 
-  it('sem classes: não é Tailwind', () => {
-    expect(detectTailwind('<div>oi</div>', engine).tailwind).toBe(false);
+  it('no classes: not Tailwind', () => {
+    expect(detectTailwind('<div>hi</div>', engine).tailwind).toBe(false);
   });
 });

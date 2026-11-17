@@ -1,4 +1,4 @@
-/** Leitura do registro do servidor MCP direto dos arquivos de config do Claude Code e do Codex (sem rodar `mcp get`). */
+/** Reads the MCP server registration directly from the Claude Code and Codex config files (without running `mcp get`). */
 import fs from 'node:fs';
 import path from 'node:path';
 import { SERVER_NAME, type LaunchCommand } from './launch.js';
@@ -13,7 +13,7 @@ export interface RegisteredServer {
 }
 
 export interface FsDeps {
-  /** Conteúdo do arquivo, ou `null` se não existe/ilegível. */
+  /** File content, or `null` if it does not exist/is unreadable. */
   readFile: (p: string) => string | null;
   home: string;
   env: NodeJS.ProcessEnv;
@@ -32,7 +32,7 @@ export type ClaudeScope = 'user' | 'local' | 'project';
 
 export interface ClaudeRegistration {
   scope: ClaudeScope;
-  /** Arquivo ou pasta de origem. */
+  /** Source file or folder. */
   origin: string;
   server: RegisteredServer;
 }
@@ -86,7 +86,7 @@ const serversOf = (o: unknown): Record<string, unknown> | undefined => {
   return s && typeof s === 'object' ? (s as Record<string, unknown>) : undefined;
 };
 
-/** Registros do `mockup-studio` no Claude Code: user (`~/.claude.json`), local (do cwd) e project (`.mcp.json`). */
+/** `mockup-studio` registrations in Claude Code: user (`~/.claude.json`), local (of the cwd) and project (`.mcp.json`). */
 export function readClaudeRegistrations(d: FsDeps): ClaudeRegistration[] {
   const out: ClaudeRegistration[] = [];
   const file = claudeConfigPath(d);
@@ -112,15 +112,15 @@ export function readClaudeRegistrations(d: FsDeps): ClaudeRegistration[] {
 export interface CodexRegistration {
   path: string;
   server: RegisteredServer;
-  /** Valor de `default_tools_approval_mode`, se houver. */
+  /** Value of `default_tools_approval_mode`, if any. */
   approve?: string;
-  /** O arquivo não é TOML válido (o Codex também não o carrega); `server` fica vazio. */
+  /** The file is not valid TOML (Codex does not load it either); `server` stays empty. */
   error?: string;
 }
 
 const strOf = (v: unknown) => (typeof v === 'string' ? v : undefined);
 
-/** Servidor descrito por uma tabela `[mcp_servers.<nome>]` já interpretada. */
+/** Server described by an already-parsed `[mcp_servers.<name>]` table. */
 export function codexServer(t: Record<string, unknown>): RegisteredServer {
   const url = strOf(t.url);
   if (url) return { transport: 'http', url };
@@ -138,8 +138,8 @@ export function codexServer(t: Record<string, unknown>): RegisteredServer {
 }
 
 /**
- * Seção `[mcp_servers.mockup-studio]` do config do Codex, ou `null`. Se o arquivo não é TOML válido
- * mas tem o cabeçalho da seção, devolve o registro com `error`.
+ * The `[mcp_servers.mockup-studio]` section of the Codex config, or `null`. If the file is not valid TOML
+ * but has the section header, returns the registration with `error`.
  */
 export function readCodexRegistration(d: FsDeps): CodexRegistration | null {
   const p = codexConfigPath(d);
@@ -153,14 +153,14 @@ export function readCodexRegistration(d: FsDeps): CodexRegistration | null {
   return { path: p, server: codexServer(t), approve: strOf(t.default_tools_approval_mode) };
 }
 
-/** Servidor desejado, no mesmo formato do registrado. */
+/** Desired server, in the same format as the registered one. */
 export function wantedServer(launch: LaunchCommand, http: string | null): RegisteredServer {
   return http
     ? { transport: 'http', url: http }
     : { transport: 'stdio', command: launch.command, args: launch.args, env: launch.env ?? {} };
 }
 
-/** `a` (registrado) atende `b` (desejado): mesmo comando/URL e as variáveis de `b` presentes em `a`. */
+/** `a` (registered) satisfies `b` (desired): same command/URL and the variables of `b` present in `a`. */
 export function sameServer(a: RegisteredServer, b: RegisteredServer): boolean {
   if (a.transport !== b.transport) return false;
   if (Object.entries(b.env ?? {}).some(([k, v]) => a.env?.[k] !== v)) return false;

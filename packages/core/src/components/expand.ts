@@ -1,10 +1,10 @@
 /**
- * Expansão de instâncias de componentes (ver `docs/COMPONENTES.md`, seção Expansão).
+ * Expansion of component instances (see `docs/COMPONENTS.md`, Expansion section).
  *
- * `expandInstance` devolve a árvore concreta de uma instância; `expandDocument` devolve o
- * documento com todas as instâncias expandidas, com compartilhamento estrutural (mesmos objetos
- * onde não há instância) e cache. As árvores devolvidas são compartilhadas pelo cache: trate-as
- * como imutáveis (clone antes de mutar).
+ * `expandInstance` returns the concrete tree of an instance; `expandDocument` returns the
+ * document with every instance expanded, with structural sharing (same objects where there is
+ * no instance) and caching. The returned trees are shared through the cache: treat them as
+ * immutable (clone before mutating).
  */
 import { cssValueProblem } from '../styles.js';
 import { vectorToSvg } from '../vector/svg.js';
@@ -18,37 +18,37 @@ import type {
   PropValue,
 } from '../types.js';
 
-/** Profundidade máxima de instâncias aninhadas na expansão. */
+/** Maximum depth of nested instances during expansion. */
 export const MAX_INSTANCE_DEPTH = 16;
 
 /**
- * Máximo de nós que a expansão de uma instância pode gerar. A profundidade sozinha não limita um
- * DAG largo (C1 com 4 instâncias de C2, C2 com 4 de C3...: 4^10 nós com 10 níveis); acima disso a
- * instância vira o aviso "Componente grande demais".
+ * Maximum number of nodes that expanding one instance may generate. Depth alone does not bound a
+ * wide DAG (C1 with 4 instances of C2, C2 with 4 of C3...: 4^10 nodes over 10 levels); above
+ * this the instance becomes the "Component too large" warning.
  */
 export const MAX_EXPANDED_NODES = 50_000;
 
-/** Texto do contêiner de aviso (componente ausente, ciclo ou profundidade excessiva). */
-export const MISSING_COMPONENT_TEXT = 'Componente ausente';
+/** Text of the warning container (missing component, cycle or excessive depth). */
+export const MISSING_COMPONENT_TEXT = 'Component missing';
 
-/** Texto do contêiner de aviso quando a expansão passaria de `MAX_EXPANDED_NODES`. */
-export const TOO_LARGE_COMPONENT_TEXT = 'Componente grande demais';
+/** Text of the warning container when expansion would exceed `MAX_EXPANDED_NODES`. */
+export const TOO_LARGE_COMPONENT_TEXT = 'Component too large';
 
-/** Atributo de marcação dos contêineres de slot (no principal e na instância). */
+/** Marker attribute of slot containers (in the main component and in the instance). */
 export const SLOT_ATTR = 'data-slot';
 
 const PLACEHOLDER_RE = /\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g;
 
-/* ---------------- ids virtuais ---------------- */
+/* ---------------- virtual ids ---------------- */
 
-/** Id expandido de um nó vindo da árvore de um principal (`<instância>/<caminho>`). */
+/** Expanded id of a node coming from a main component's tree (`<instance>/<path>`). */
 export function isVirtualId(id: string): boolean {
   return id.includes('/');
 }
 
 /**
- * Separa um id virtual em instância dona (primeiro segmento, nó real) e caminho de override
- * (resto). `null` se o id não é virtual.
+ * Splits a virtual id into the owning instance (first segment, real node) and the override path
+ * (the rest). `null` if the id is not virtual.
  */
 export function splitVirtualId(
   id: string,
@@ -59,7 +59,7 @@ export function splitVirtualId(
   return { instanceId: id.slice(0, i), path, segments: path.split('/') };
 }
 
-/* ---------------- índices (cache por array de componentes) ---------------- */
+/* ---------------- indexes (cached per components array) ---------------- */
 
 const EMPTY: ComponentDef[] = [];
 const byIdCache = new WeakMap<ComponentDef[], Map<string, ComponentDef>>();
@@ -76,7 +76,7 @@ function componentMap(doc: Document): Map<string, ComponentDef> {
   return map;
 }
 
-/** Componente pelo id exato. */
+/** Component by exact id. */
 export function getComponent(
   doc: Document,
   componentId: string | undefined,
@@ -84,7 +84,7 @@ export function getComponent(
   return componentId ? componentMap(doc).get(componentId) : undefined;
 }
 
-/** Mapa id de nó → id do componente dono, para os nós das raízes dos principais. */
+/** Map of node id → owning component id, for the nodes of the main components' roots. */
 export function componentNodeIndex(doc: Document): Map<string, string> {
   const list = doc.components ?? EMPTY;
   let map = nodeOwnerCache.get(list);
@@ -96,7 +96,7 @@ export function componentNodeIndex(doc: Document): Map<string, string> {
   return map;
 }
 
-/** Ids de todos os nós das raízes dos componentes (opcionalmente sem um componente). */
+/** Ids of all nodes in the components' roots (optionally excluding one component). */
 export function componentNodeIds(doc: Document, exceptComponentId?: string): string[] {
   const out: string[] = [];
   for (const c of doc.components ?? []) {
@@ -116,10 +116,10 @@ function eachNode(
 }
 
 /**
- * Nós que a expansão de uma instância do componente gera (limite superior: conta o conteúdo
- * padrão dos slots e também os contêineres de slot das instâncias aninhadas; ciclos e
- * componentes ausentes contam 1, como o aviso). Memoizado por array de componentes, então é
- * linear no tamanho da biblioteca mesmo num DAG exponencial.
+ * Nodes generated by expanding an instance of the component (upper bound: counts the default
+ * slot content and also the slot containers of nested instances; cycles and missing components
+ * count as 1, like the warning). Memoized per components array, so it is linear in the library
+ * size even for an exponential DAG.
  */
 export function expandedSize(doc: Document, componentId: string): number {
   const list = doc.components ?? EMPTY;
@@ -146,7 +146,7 @@ export function expandedSize(doc: Document, componentId: string): number {
   return size(componentId);
 }
 
-/** Busca por id numa árvore (pré-ordem). */
+/** Finds a node by id in a tree (pre-order). */
 export function findInTree(root: Node, id: string): Node | undefined {
   if (root.id === id) return root;
   for (const c of root.children) {
@@ -157,8 +157,8 @@ export function findInTree(root: Node, id: string): Node | undefined {
 }
 
 /**
- * Componente por referência: id exato, `kit/Nome` (ex. `shadcn-like/Button`) ou nome sem
- * diferenciar maiúsculas.
+ * Component by reference: exact id, `kit/Name` (e.g. `shadcn-like/Button`) or case-insensitive
+ * name.
  */
 export function findComponent(doc: Document, ref: string): ComponentDef | undefined {
   const list = doc.components ?? [];
@@ -176,19 +176,19 @@ export function findComponent(doc: Document, ref: string): ComponentDef | undefi
   return list.find((c) => c.name.toLowerCase() === lower);
 }
 
-/** Localização de um nó real dentro da raiz de um principal. */
+/** Location of a real node inside a main component's root. */
 export interface ComponentNodePath {
   component: ComponentDef;
   node: Node;
-  /** Pai imediato; `null` para a raiz do principal. */
+  /** Immediate parent; `null` for the main component's root. */
   parent: Node | null;
-  /** Índice em `parent.children` (0 na raiz). */
+  /** Index in `parent.children` (0 for the root). */
   index: number;
-  /** Ancestrais, da raiz do principal até o pai imediato. */
+  /** Ancestors, from the main component's root down to the immediate parent. */
   ancestors: Node[];
 }
 
-/** Acha um nó real dentro de `components[].root` (ou `undefined`). */
+/** Finds a real node inside `components[].root` (or `undefined`). */
 export function findComponentNode(doc: Document, nodeId: string): ComponentNodePath | undefined {
   const cid = componentNodeIndex(doc).get(nodeId);
   const component = getComponent(doc, cid);
@@ -209,16 +209,16 @@ export function findComponentNode(doc: Document, nodeId: string): ComponentNodeP
   return search(component.root, null, 0, []);
 }
 
-/** Instância encontrada no documento: numa página ou dentro da raiz de outro principal. */
+/** Instance found in the document: on a page or inside another main component's root. */
 export interface InstanceRef {
   node: Node;
-  /** Página onde a instância está (ausente quando está num principal). */
+  /** Page where the instance lives (absent when it is in a main component). */
   pageId?: string;
-  /** Principal que contém a instância (ausente quando está numa página). */
+  /** Main component that contains the instance (absent when it is on a page). */
   ownerComponentId?: string;
 }
 
-/** Instâncias do componente nas páginas e nas raízes dos outros principais. */
+/** Instances of the component on pages and in the roots of other main components. */
 export function listInstances(doc: Document, componentId: string): InstanceRef[] {
   const out: InstanceRef[] = [];
   for (const page of doc.pages) {
@@ -239,7 +239,7 @@ export function listInstances(doc: Document, componentId: string): InstanceRef[]
   return out;
 }
 
-/** Nó instância real (página ou principal) pelo id. */
+/** Real instance node (page or main component) by id. */
 export function findInstanceNode(doc: Document, nodeId: string): Node | undefined {
   for (const page of doc.pages) {
     for (const f of page.frames) {
@@ -251,7 +251,7 @@ export function findInstanceNode(doc: Document, nodeId: string): Node | undefine
   return p?.node.type === 'instance' ? p.node : undefined;
 }
 
-/* ---------------- props, placeholders e overrides ---------------- */
+/* ---------------- props, placeholders and overrides ---------------- */
 
 function fallbackDefault(p: PropDef): PropValue | undefined {
   switch (p.type) {
@@ -269,8 +269,8 @@ function fallbackDefault(p: PropDef): PropValue | undefined {
 }
 
 /**
- * Props efetivas: padrões do componente (sem padrão: `''`, `0`, `false` ou a primeira opção do
- * enum) com os valores da instância por cima. Slots não entram.
+ * Effective props: the component's defaults (with no default: `''`, `0`, `false` or the first
+ * enum option) with the instance's values on top. Slots are excluded.
  */
 export function resolveProps(
   def: ComponentDef,
@@ -290,7 +290,7 @@ export function resolveProps(
   return out;
 }
 
-/** Substitui `{{prop}}` pelo valor (como string); placeholders desconhecidos ficam. */
+/** Replaces `{{prop}}` with the value (as a string); unknown placeholders are kept. */
 export function substitutePlaceholders(value: string, props: Record<string, PropValue>): string {
   if (!value.includes('{{')) return value;
   return value.replace(PLACEHOLDER_RE, (m, name: string) =>
@@ -298,7 +298,7 @@ export function substitutePlaceholders(value: string, props: Record<string, Prop
   );
 }
 
-/** Nomes dos placeholders `{{nome}}` presentes no texto, na ordem. */
+/** Names of the `{{name}}` placeholders present in the text, in order. */
 export function placeholderNames(value: string): string[] {
   return [...value.matchAll(PLACEHOLDER_RE)].map((m) => m[1]);
 }
@@ -310,7 +310,7 @@ function substStyle(
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(style)) {
     const nv = substitutePlaceholders(v, props);
-    // O valor final precisa continuar seguro (a prop pode trazer qualquer texto).
+    // The final value must stay safe (the prop may carry any text).
     if (nv === v || (nv.trim() !== '' && cssValueProblem(nv) === null)) out[k] = nv;
   }
   return out;
@@ -382,10 +382,10 @@ function mergeStates(
 }
 
 /**
- * Aplica uma sobrescrita ao nó (mutando). `unsetStyle` remove antes de mesclar `style`; `src`
- * só vale em imagem, `svg`/`vector` em nó svg, `effect`/`video`/`embed` no nó do mesmo tipo,
- * `data`/`dataSource` em repetidor e `props` em instância. Os objetos das sobrescritas são
- * compartilhados com a árvore expandida (imutável, como o resto do cache).
+ * Applies an override to the node (mutating). `unsetStyle` removes keys before merging `style`;
+ * `src` only applies to images, `svg`/`vector` to svg nodes, `effect`/`video`/`embed` to a node
+ * of the same type, `data`/`dataSource` to repeaters and `props` to instances. The override
+ * objects are shared with the expanded tree (immutable, like the rest of the cache).
  */
 export function applyOverride(n: Node, ov: NodeOverride): void {
   if (ov.unsetStyle || ov.style) {
@@ -405,7 +405,7 @@ export function applyOverride(n: Node, ov: NodeOverride): void {
       n.vector = ov.vector;
       n.svg = ov.svg ?? vectorToSvg(ov.vector);
     } else if (ov.svg !== undefined) {
-      // markup sobrescrito sem vetor: o vetor do principal não descreve mais o desenho
+      // overridden markup without a vector: the main component's vector no longer describes the drawing
       n.svg = ov.svg;
       delete n.vector;
     }
@@ -420,7 +420,7 @@ export function applyOverride(n: Node, ov: NodeOverride): void {
   if (ov.props && n.type === 'instance') n.props = { ...(n.props ?? {}), ...ov.props };
 }
 
-/** Sobrescrita equivalente a aplicar `a` e depois `b`. */
+/** Override equivalent to applying `a` and then `b`. */
 export function mergeOverride(a: NodeOverride, b: NodeOverride): NodeOverride {
   const out: NodeOverride = { ...a, ...b };
   if (a.style || b.style || b.unsetStyle) {
@@ -436,23 +436,23 @@ export function mergeOverride(a: NodeOverride, b: NodeOverride): NodeOverride {
   if (a.attrs || b.attrs) out.attrs = { ...(a.attrs ?? {}), ...(b.attrs ?? {}) };
   if (a.states || b.states) out.states = mergeStates(a.states, b.states ?? {});
   if (a.props || b.props) out.props = { ...(a.props ?? {}), ...(b.props ?? {}) };
-  // vetor e markup andam juntos: um `svg` posterior sem vetor descarta o vetor anterior
+  // vector and markup go together: a later `svg` without a vector discards the earlier vector
   if (b.svg !== undefined && !b.vector) delete out.vector;
   return out;
 }
 
-/** Variante sem condição (`when` vazio, recusada pelo schema e pelas ops) nunca se aplica. */
+/** A variant with no condition (empty `when`, rejected by the schema and the ops) never applies. */
 function variantMatches(v: ComponentVariant, props: Record<string, PropValue>): boolean {
   const when = Object.entries(v.when);
   return when.length > 0 && when.every(([k, val]) => String(props[k]) === String(val));
 }
 
-/* ---------------- expansão ---------------- */
+/* ---------------- expansion ---------------- */
 
 export interface ExpandOptions {
-  /** `false` mantém as instâncias aninhadas como instâncias (overrides herdados mesclados). Padrão `true`. */
+  /** `false` keeps nested instances as instances (inherited overrides merged). Default `true`. */
   deep?: boolean;
-  /** Recebe os avisos (componente ausente, ciclo, profundidade, tamanho). Desliga o cache. */
+  /** Receives the warnings (missing component, cycle, depth, size). Disables the cache. */
   warnings?: string[];
 }
 
@@ -497,7 +497,7 @@ function placeholder(
       {
         id: `${rootId}/__missing`,
         type: 'text',
-        name: 'Aviso',
+        name: 'Warning',
         tag: 'span',
         attrs: {},
         style: {},
@@ -532,28 +532,23 @@ function mapSame<T>(list: T[], fn: (t: T) => T): T[] {
 }
 
 /**
- * Expande `inst` com id de raiz `rootId`. `slotChild` materializa o conteúdo de slot (filhos
- * dos contêineres da instância), que pertence ao contexto de fora.
+ * Expands `inst` with root id `rootId`. `slotChild` materializes the slot content (children of
+ * the instance's containers), which belongs to the outer context.
  */
 function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) => Node): Node {
   const def = getComponent(ctx.doc, inst.componentId);
   if (!def)
-    return placeholder(ctx, inst, rootId, `componente "${inst.componentId ?? ''}" não encontrado`);
+    return placeholder(ctx, inst, rootId, `component "${inst.componentId ?? ''}" not found`);
   if (ctx.stack.includes(def.id)) {
     return placeholder(
       ctx,
       inst,
       rootId,
-      `ciclo de componentes (${[...ctx.stack, def.id].join(' → ')})`,
+      `component cycle (${[...ctx.stack, def.id].join(' → ')})`,
     );
   }
   if (ctx.stack.length >= MAX_INSTANCE_DEPTH) {
-    return placeholder(
-      ctx,
-      inst,
-      rootId,
-      `profundidade de instâncias maior que ${MAX_INSTANCE_DEPTH}`,
-    );
+    return placeholder(ctx, inst, rootId, `instance depth greater than ${MAX_INSTANCE_DEPTH}`);
   }
   if (ctx.deep) {
     const size = expandedSize(ctx.doc, def.id);
@@ -562,7 +557,7 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
         ctx,
         inst,
         rootId,
-        `componente "${def.name}" grande demais (${size > 1e9 ? 'mais de 1 bilhão de' : `cerca de ${size}`} nós expandidos; limite ${MAX_EXPANDED_NODES})`,
+        `component "${def.name}" too large (${size > 1e9 ? 'more than 1 billion' : `about ${size}`} expanded nodes; limit ${MAX_EXPANDED_NODES})`,
         TOO_LARGE_COMPONENT_TEXT,
       );
     }
@@ -571,7 +566,7 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
   const props = resolveProps(def, inst.props);
   const rootKey = def.root.id;
 
-  // Overrides locais (nós deste principal) e aninhados (repassados às instâncias aninhadas).
+  // Local overrides (nodes of this main component) and nested ones (forwarded to nested instances).
   const local = new Map<string, NodeOverride[]>();
   const nested = new Map<string, [string, NodeOverride][]>();
   const add = (rawKey: string, ov: NodeOverride): void => {
@@ -593,9 +588,9 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
     if (s && slotNames.has(s) && !containers.has(s)) containers.set(s, c);
   }
 
-  // Slots já renderizados: um contêiner do principal por slot (repetições usam o padrão).
+  // Slots already rendered: one main-component container per slot (repetitions use the default).
   const usedSlots = new Set<string>();
-  /** `hostChild`: filho direto de uma instância aninhada (contêiner de slot dela, não deste). */
+  /** `hostChild`: direct child of a nested instance (its slot container, not this one's). */
   const build = (m: Node, isRoot: boolean, hostChild = false): Node => {
     const out = copyNode(m);
     out.id = isRoot ? rootId : `${rootId}/${m.id}`;
@@ -606,7 +601,7 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
     if (isSlot) usedSlots.add(slot);
     const c = isSlot ? containers.get(slot) : undefined;
     if (c) {
-      // Contêiner de slot: id do contêiner real da instância e o estilo dele por cima.
+      // Slot container: the id of the instance's real container, with its style on top.
       out.id = c.id;
       out.style = { ...out.style, ...c.style };
       out.attrs = { ...out.attrs, ...c.attrs };
@@ -632,7 +627,7 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
   };
 
   const root = build(def.root, true);
-  // Raiz: estilo/atributos/estados/classes da instância por cima; posição, nome e flags dela.
+  // Root: the instance's style/attributes/states/classes on top; its position, name and flags.
   root.id = rootId;
   root.style = { ...root.style, ...inst.style };
   root.attrs = { ...root.attrs, ...inst.attrs };
@@ -650,7 +645,7 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
   return root;
 }
 
-// Cache por instância: objeto do nó → (array de componentes → árvore expandida).
+// Per-instance cache: node object → (components array → expanded tree).
 const instanceCache = new WeakMap<Node, WeakMap<ComponentDef[], Node>>();
 
 function cachedExpand(ctx: Ctx, inst: Node): Node {
@@ -686,9 +681,9 @@ function makeCtx(doc: Document, opts: ExpandOptions = {}): Ctx {
 }
 
 /**
- * Árvore concreta da instância: raiz com o id da instância (tipo da raiz do principal, com
- * `componentId`/`props` como marcador), nós do principal com ids virtuais `<instância>/<caminho>`,
- * contêineres e conteúdo de slot com os ids reais.
+ * Concrete tree of the instance: root with the instance's id (type of the main component's root,
+ * with `componentId`/`props` as a marker), main-component nodes with virtual ids
+ * `<instance>/<path>`, slot containers and content with the real ids.
  */
 export function expandInstance(doc: Document, instance: Node, opts: ExpandOptions = {}): Node {
   const ctx = makeCtx(doc, opts);
@@ -697,7 +692,7 @@ export function expandInstance(doc: Document, instance: Node, opts: ExpandOption
   return expandInst(ctx, instance, instance.id, (ch) => expandTree(ctx, ch));
 }
 
-/** Expande as instâncias da subárvore (mesmo objeto quando não há instância). */
+/** Expands the instances in the subtree (same object when there is no instance). */
 export function expandNodeTree(doc: Document, node: Node, opts: ExpandOptions = {}): Node {
   return expandTree(makeCtx(doc, opts), node);
 }
@@ -705,8 +700,8 @@ export function expandNodeTree(doc: Document, node: Node, opts: ExpandOptions = 
 const docCache = new WeakMap<Document, Document>();
 
 /**
- * Documento com todas as instâncias das páginas expandidas. Páginas e nós sem instância são os
- * mesmos objetos; sem instâncias devolve o próprio `doc`. Cache por documento.
+ * Document with all page instances expanded. Pages and nodes without instances are the same
+ * objects; with no instances it returns `doc` itself. Cached per document.
  */
 export function expandDocument(doc: Document): Document {
   const hit = docCache.get(doc);
@@ -724,7 +719,7 @@ export function expandDocument(doc: Document): Document {
   return out;
 }
 
-/** Componentes usados diretamente pela árvore (ids das instâncias). */
+/** Components used directly by the tree (instance ids). */
 export function componentDependencies(root: Node): string[] {
   const out = new Set<string>();
   eachNode(root, (n) => {
@@ -733,7 +728,7 @@ export function componentDependencies(root: Node): string[] {
   return [...out];
 }
 
-/** Caminho de um ciclo que passa por `componentId` (ex. `[A, B, A]`) ou `null`. */
+/** Path of a cycle through `componentId` (e.g. `[A, B, A]`) or `null`. */
 export function findComponentCycle(doc: Document, componentId: string): string[] | null {
   const visit = (id: string, path: string[]): string[] | null => {
     const def = getComponent(doc, id);

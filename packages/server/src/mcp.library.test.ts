@@ -43,7 +43,7 @@ function fakePng(w: number, h: number, fill = 0): Buffer {
 const sha32 = (b: Buffer): string =>
   crypto.createHash('sha256').update(b).digest('hex').slice(0, 32);
 
-describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
+describe('assets, CDN and library (HTTP + MCP)', () => {
   let ws: Ws;
   let ws2: Ws;
   let daemon: DaemonHandle;
@@ -55,7 +55,7 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
     ws2 = makeWorkspace();
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
     base = `http://127.0.0.1:${daemon.port}`;
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -80,11 +80,11 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       body: JSON.stringify(body),
     });
 
-  describe('rotas HTTP', () => {
-    it('/cdn/<hash>.png serve com os headers do contrato; 404 e nomes inválidos', async () => {
+  describe('HTTP routes', () => {
+    it('/cdn/<hash>.png serves with the contract headers; 404 and invalid names', async () => {
       const png = fakePng(30, 20);
       const hash = sha32(png);
-      const lib = await fetch(`${base}/api/library?name=capa.png`, {
+      const lib = await fetch(`${base}/api/library?name=cover.png`, {
         method: 'POST',
         body: new Uint8Array(png),
       });
@@ -108,7 +108,7 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect((await fetch(`${base}/cdn/%2e%2e%2f%2e%2e%2fpackage.json`)).status).toBe(404);
     });
 
-    it('svg sai inline com a CSP restritiva (sandbox, sem script)', async () => {
+    it('svg is served inline with the restrictive CSP (sandbox, no script)', async () => {
       const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"></svg>');
       const a = (await (
         await fetch(`${base}/api/library?name=i.svg`, { method: 'POST', body: new Uint8Array(svg) })
@@ -123,29 +123,29 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     });
 
-    it('listar não registra no CDN; o link registra', async () => {
+    it('listing does not register on the CDN; the link does', async () => {
       const png = fakePng(12, 10, 9);
       const hash = sha32(png);
       fs.mkdirSync(path.join(ws.dir, 'assets'), { recursive: true });
-      fs.writeFileSync(path.join(ws.dir, 'assets', 'solto.png'), png);
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'loose.png'), png);
       const list = (await (await fetch(`${base}/api/assets/${docId()}`)).json()) as {
         assets: { path: string; hash: string; cdnUrl: string }[];
       };
-      const a = list.assets.find((x) => x.path === 'solto.png')!;
+      const a = list.assets.find((x) => x.path === 'loose.png')!;
       expect(a.hash).toBe(hash);
       expect(a.cdnUrl).toBe('');
       expect((await fetch(`${base}/cdn/${hash}.png`)).status).toBe(404);
 
-      const link = await post(`/api/assets/${docId()}/link`, { path: 'solto.png' });
+      const link = await post(`/api/assets/${docId()}/link`, { path: 'loose.png' });
       expect(link.status).toBe(200);
       expect((await fetch(`${base}/cdn/${hash}.png`)).status).toBe(200);
       const again = (await (await fetch(`${base}/api/assets/${docId()}`)).json()) as typeof list;
-      expect(again.assets.find((x) => x.path === 'solto.png')!.cdnUrl).toBe(
+      expect(again.assets.find((x) => x.path === 'loose.png')!.cdnUrl).toBe(
         `${base}/cdn/${hash}.png`,
       );
     });
 
-    it('o mesmo conteúdo dá o mesmo link entre documentos', async () => {
+    it('the same content gives the same link across documents', async () => {
       const open2 = await call('open_document', { path: ws2.file });
       expect(open2.isError, textOf(open2)).toBeFalsy();
       const ids = daemon.store.list().map((d) => d.docId);
@@ -163,21 +163,21 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(daemon.store.assetsDir(ids[0]!)).not.toBe(daemon.store.assetsDir(ids[1]!));
     });
 
-    it('GET /api/assets/:docId lista recursivo com usos; DELETE 409 em uso; remove-unused; link', async () => {
+    it('GET /api/assets/:docId lists recursively with uses; DELETE 409 when in use; remove-unused; link', async () => {
       const id = docId();
       const used = fakePng(40, 30, 1);
       const spare = fakePng(10, 10, 2);
-      await upload(id, 'usada.png', used);
-      await upload(id, 'sobra.png', spare);
-      const sub = path.join(ws.dir, 'assets', 'fotos');
+      await upload(id, 'used.png', used);
+      await upload(id, 'spare.png', spare);
+      const sub = path.join(ws.dir, 'assets', 'photos');
       fs.mkdirSync(sub);
-      fs.writeFileSync(path.join(sub, 'capa.png'), fakePng(12, 12, 3));
-      fs.writeFileSync(path.join(ws.dir, 'assets', '.oculto.png'), fakePng(5, 5));
+      fs.writeFileSync(path.join(sub, 'cover.png'), fakePng(12, 12, 3));
+      fs.writeFileSync(path.join(ws.dir, 'assets', '.hidden.png'), fakePng(5, 5));
       fs.writeFileSync(path.join(ws.dir, 'assets', 'x.png.tmp'), 'x');
-      await call('insert_image', { parentId: ws.frameId, source: path.join(sub, 'capa.png') });
-      await call('insert_image', { parentId: ws.frameId, source: path.join(sub, 'capa.png') });
+      await call('insert_image', { parentId: ws.frameId, source: path.join(sub, 'cover.png') });
+      await call('insert_image', { parentId: ws.frameId, source: path.join(sub, 'cover.png') });
       const imgSrc = frame().children[0]!.src!;
-      expect(imgSrc).toBe('capa.png');
+      expect(imgSrc).toBe('cover.png');
 
       const list = (await (await fetch(`${base}/api/assets/${id}`)).json()) as {
         assets: {
@@ -196,43 +196,43 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       };
       const byPath = Object.fromEntries(list.assets.map((a) => [a.path, a]));
       expect(Object.keys(byPath).sort()).toEqual([
-        'capa-1.png',
-        'capa.png',
-        'fotos/capa.png',
-        'sobra.png',
-        'usada.png',
+        'cover-1.png',
+        'cover.png',
+        'photos/cover.png',
+        'spare.png',
+        'used.png',
       ]);
-      expect(byPath['capa.png']).toMatchObject({
+      expect(byPath['cover.png']).toMatchObject({
         uses: 1,
         kind: 'image',
         width: 12,
         mime: 'image/png',
         ext: '.png',
-        name: 'capa.png',
+        name: 'cover.png',
         refKinds: ['src'],
       });
-      expect(byPath['sobra.png']!.uses).toBe(0);
-      expect(byPath['capa.png']!.nodeIds).toHaveLength(1);
+      expect(byPath['spare.png']!.uses).toBe(0);
+      expect(byPath['cover.png']!.nodeIds).toHaveLength(1);
 
-      // em uso: 409; com force remove
-      const conflict = await fetch(`${base}/api/assets/${id}?path=capa.png`, { method: 'DELETE' });
+      // in use: 409; with force it removes
+      const conflict = await fetch(`${base}/api/assets/${id}?path=cover.png`, { method: 'DELETE' });
       expect(conflict.status).toBe(409);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'capa.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'cover.png'))).toBe(true);
       expect(
-        (await fetch(`${base}/api/assets/${id}?path=..%2Fteste.mockup.json`, { method: 'DELETE' }))
+        (await fetch(`${base}/api/assets/${id}?path=..%2Ftest.mockup.json`, { method: 'DELETE' }))
           .status,
       ).toBe(400);
       expect(
-        (await fetch(`${base}/api/assets/${id}?path=nao.png`, { method: 'DELETE' })).status,
+        (await fetch(`${base}/api/assets/${id}?path=missing.png`, { method: 'DELETE' })).status,
       ).toBe(404);
 
-      // remove-unused: dryRun não apaga
+      // remove-unused: dryRun does not delete
       const dry = (await (
         await post(`/api/assets/${id}/remove-unused`, { dryRun: true })
       ).json()) as { removed: string[]; kept: number };
-      expect(dry.removed.sort()).toEqual(['fotos/capa.png', 'sobra.png', 'usada.png']);
+      expect(dry.removed.sort()).toEqual(['photos/cover.png', 'spare.png', 'used.png']);
       expect(dry.kept).toBe(2);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'sobra.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'spare.png'))).toBe(true);
       const real = (await (await post(`/api/assets/${id}/remove-unused`, {})).json()) as {
         removed: string[];
       };
@@ -241,10 +241,10 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
         fs
           .readdirSync(path.join(ws.dir, 'assets'))
           .filter((f) => !f.startsWith('.') && !f.endsWith('.tmp')),
-      ).toEqual(['capa-1.png', 'capa.png', 'fotos']);
+      ).toEqual(['cover-1.png', 'cover.png', 'photos']);
 
       // link
-      const link = (await (await post(`/api/assets/${id}/link`, { path: 'capa.png' })).json()) as {
+      const link = (await (await post(`/api/assets/${id}/link`, { path: 'cover.png' })).json()) as {
         hash: string;
         url: string;
         cdnPath: string;
@@ -253,24 +253,24 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(link.cdnPath).toBe(`/cdn/${link.hash}.png`);
       expect((await fetch(link.url)).status).toBe(200);
 
-      const forced = await fetch(`${base}/api/assets/${id}?path=capa.png&force=1`, {
+      const forced = await fetch(`${base}/api/assets/${id}?path=cover.png&force=1`, {
         method: 'DELETE',
       });
-      expect(await forced.json()).toEqual({ removed: ['capa.png'] });
+      expect(await forced.json()).toEqual({ removed: ['cover.png'] });
       expect((await (await fetch(`${base}/api/assets/nope`)).json()) as unknown).toMatchObject({
         error: expect.any(String),
       });
     });
 
-    it('biblioteca: lista com busca, importa para o documento e remove', async () => {
+    it('library: lists with search, imports into the document and removes', async () => {
       const png = fakePng(20, 10, 9);
       const a = (await (
-        await fetch(`${base}/api/library?name=Logo%20Azul.png`, {
+        await fetch(`${base}/api/library?name=Logo%20Blue.png`, {
           method: 'POST',
           body: new Uint8Array(png),
         })
       ).json()) as { hash: string };
-      const found = (await (await fetch(`${base}/api/library?query=azul`)).json()) as {
+      const found = (await (await fetch(`${base}/api/library?query=blue`)).json()) as {
         assets: { hash: string; tags: string[]; addedAt: string }[];
       };
       expect(found.assets.map((x) => x.hash)).toEqual([a.hash]);
@@ -281,9 +281,9 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       ).toEqual([]);
 
       const imp = await post(`/api/library/${a.hash}/import`, { docId: docId() });
-      expect(await imp.json()).toEqual({ src: 'Logo-Azul.png' });
+      expect(await imp.json()).toEqual({ src: 'Logo-Blue.png' });
       const imp2 = await post(`/api/library/${a.hash}/import`, { docId: docId() });
-      expect(await imp2.json()).toEqual({ src: 'Logo-Azul-1.png' });
+      expect(await imp2.json()).toEqual({ src: 'Logo-Blue-1.png' });
       expect((await post(`/api/library/${'a'.repeat(32)}/import`, { docId: docId() })).status).toBe(
         404,
       );
@@ -293,11 +293,11 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       ).toEqual({ removed: true });
       expect((await fetch(`${base}/cdn/${a.hash}.png`)).status).toBe(404);
       expect((await fetch(`${base}/api/library/${a.hash}`, { method: 'DELETE' })).status).toBe(404);
-      const bad = await fetch(`${base}/api/library?name=x.png`, { method: 'POST', body: 'texto' });
+      const bad = await fetch(`${base}/api/library?name=x.png`, { method: 'POST', body: 'text' });
       expect(bad.status).toBe(400);
     });
 
-    it('/optimize converte e reescreve referências', async () => {
+    it('/optimize converts and rewrites references', async () => {
       const sharp = (await import('sharp')).default;
       const noise = await sharp(crypto.randomBytes(600 * 300 * 3), {
         raw: { width: 600, height: 300, channels: 3 },
@@ -305,9 +305,9 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
         .png()
         .toBuffer();
       const id = docId();
-      const origem = path.join(ws.dir, 'ruido.png');
-      fs.writeFileSync(origem, noise);
-      await call('insert_image', { parentId: ws.frameId, source: origem });
+      const srcFile = path.join(ws.dir, 'noise.png');
+      fs.writeFileSync(srcFile, noise);
+      await call('insert_image', { parentId: ws.frameId, source: srcFile });
       const r = await post(`/api/assets/${id}/optimize`, { maxWidth: 300 });
       const body = (await r.json()) as {
         results: { path: string; newPath: string; before: number; after: number }[];
@@ -315,60 +315,60 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       };
       expect(r.status).toBe(200);
       expect(body.results).toHaveLength(1);
-      expect(body.results[0]).toMatchObject({ path: 'ruido.png', newPath: 'ruido.webp' });
+      expect(body.results[0]).toMatchObject({ path: 'noise.png', newPath: 'noise.webp' });
       expect(body.results[0]!.after).toBeLessThan(body.results[0]!.before);
     });
   });
 
-  describe('ferramentas MCP', () => {
-    it('upload_asset de data URL e de caminho; list_assets; get_asset_url', async () => {
+  describe('MCP tools', () => {
+    it('upload_asset from data URL and from path; list_assets; get_asset_url', async () => {
       const png = fakePng(24, 12, 5);
       const dataUrl = `data:image/png;base64,${png.toString('base64')}`;
-      const r1 = await call('upload_asset', { source: dataUrl, name: 'cartao' });
+      const r1 = await call('upload_asset', { source: dataUrl, name: 'card' });
       expect(r1.isError, textOf(r1)).toBeFalsy();
       const t1 = textOf(r1);
       expect(t1).toContain(sha32(png));
-      expect(t1).toContain('src (use em nós img/setSrc): cartao.png');
+      expect(t1).toContain('src (use in img nodes/setSrc): card.png');
       expect(t1).toContain(`${base}/cdn/${sha32(png)}.png`);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'cartao.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'card.png'))).toBe(true);
 
-      const file = path.join(ws.dir, 'Foto Grande.png');
+      const file = path.join(ws.dir, 'Big Photo.png');
       const other = fakePng(50, 40, 6);
       fs.writeFileSync(file, other);
       const r2 = await call('upload_asset', { source: file });
       expect(r2.isError, textOf(r2)).toBeFalsy();
-      expect(textOf(r2)).toContain('Foto-Grande.png');
+      expect(textOf(r2)).toContain('Big-Photo.png');
 
       const libOnly = await call('upload_asset', { source: dataUrl, library: true });
-      expect(textOf(libOnly)).toContain('só na biblioteca');
+      expect(textOf(libOnly)).toContain('library only');
       expect(fs.readdirSync(path.join(ws.dir, 'assets'))).toHaveLength(2);
 
       const bad = await call('upload_asset', {
-        source: `data:text/plain;base64,${Buffer.from('oi').toString('base64')}`,
+        source: `data:text/plain;base64,${Buffer.from('hi').toString('base64')}`,
       });
       expect(bad.isError).toBe(true);
-      expect(textOf(bad)).toContain('reconhecida');
+      expect(textOf(bad)).toContain('recognized');
 
       const listed = textOf(await call('list_assets'));
       expect(listed).toContain('2 asset(s)');
-      expect(listed).toContain(`cartao.png 24x12 png 1 KB usos:0 ${base}/cdn/${sha32(png)}.png`);
-      expect(textOf(await call('list_assets', { query: 'FOTO' }))).toContain('1 asset(s)');
+      expect(listed).toContain(`card.png 24x12 png 1 KB uses:0 ${base}/cdn/${sha32(png)}.png`);
+      expect(textOf(await call('list_assets', { query: 'PHOTO' }))).toContain('1 asset(s)');
       expect(textOf(await call('list_assets', { unused: true }))).toContain('2 asset(s)');
       expect(textOf(await call('list_assets', { scope: 'library' }))).toContain(`id:${sha32(png)}`);
 
-      const byPath = textOf(await call('get_asset_url', { id: 'cartao.png' }));
-      expect(byPath).toContain(`Link direto: ${base}/cdn/${sha32(png)}.png`);
-      expect(byPath).toContain('src: cartao.png');
-      expect(byPath).toContain(path.join(ws.dir, 'assets', 'cartao.png'));
+      const byPath = textOf(await call('get_asset_url', { id: 'card.png' }));
+      expect(byPath).toContain(`Direct link: ${base}/cdn/${sha32(png)}.png`);
+      expect(byPath).toContain('src: card.png');
+      expect(byPath).toContain(path.join(ws.dir, 'assets', 'card.png'));
       const byHash = textOf(await call('get_asset_url', { id: sha32(other) }));
-      expect(byHash).toContain('src: Foto-Grande.png');
+      expect(byHash).toContain('src: Big-Photo.png');
       const byUrl = textOf(await call('get_asset_url', { id: `/cdn/${sha32(png)}.png` }));
-      expect(byUrl).toContain('src: cartao.png');
+      expect(byUrl).toContain('src: card.png');
       expect((await call('get_asset_url', { id: 'a'.repeat(32) })).isError).toBe(true);
-      expect((await call('get_asset_url', { id: '../fora.png' })).isError).toBe(true);
+      expect((await call('get_asset_url', { id: '../outside.png' })).isError).toBe(true);
     });
 
-    it('export de código copia as imagens com link /cdn do daemon para assets/cdn/', async () => {
+    it('code export copies images with a daemon /cdn link into assets/cdn/', async () => {
       const png = fakePng(20, 10, 3);
       const hash = sha32(png);
       const up = await call('upload_asset', {
@@ -379,10 +379,10 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       const link = `${base}/cdn/${hash}.png`;
       const w = await call('write_html', {
         parentId: ws.frameId,
-        html: `<section><img src="${link}" alt="capa"><div style="width:20px;height:10px;background-image:url('${link}')"></div></section>`,
+        html: `<section><img src="${link}" alt="cover"><div style="width:20px;height:10px;background-image:url('${link}')"></div></section>`,
       });
       expect(w.isError, textOf(w)).toBeFalsy();
-      const out = path.join(ws.dir, 'saida');
+      const out = path.join(ws.dir, 'out');
       const r = await call('export', { nodeIds: [ws.frameId], format: 'html', outputDir: out });
       expect(r.isError, textOf(r)).toBeFalsy();
       expect(textOf(r)).toContain(`cdn/${hash}.png`);
@@ -392,50 +392,50 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(html).toContain(`src="assets/cdn/${hash}.png"`);
       expect(html).toContain(`assets/cdn/${hash}.png`);
       expect(html).not.toContain(`${base}/cdn/`);
-      // o documento continua com o link direto
+      // the document keeps the direct link
       expect(frame().children[0]!.children[0]!.src).toBe(link);
     });
 
-    it('optimize_assets converte PNG grande em WebP menor, reescreve o src e o undo restaura', async () => {
+    it('optimize_assets converts a large PNG into a smaller WebP, rewrites the src and undo restores it', async () => {
       const sharp = (await import('sharp')).default;
       const noise = await sharp(crypto.randomBytes(800 * 400 * 3), {
         raw: { width: 800, height: 400, channels: 3 },
       })
         .png()
         .toBuffer();
-      const file = path.join(ws.dir, 'ruido.png');
+      const file = path.join(ws.dir, 'noise.png');
       fs.writeFileSync(file, noise);
       await call('insert_image', { parentId: ws.frameId, source: file });
-      expect(frame().children[0]!.src).toBe('ruido.png');
+      expect(frame().children[0]!.src).toBe('noise.png');
       const rev0 = daemon.store.getRevision(docId());
 
       const r = await call('optimize_assets', { maxWidth: 400 });
       expect(r.isError, textOf(r)).toBeFalsy();
-      expect(textOf(r)).toContain('ruido.png -> ruido.webp');
-      expect(frame().children[0]!.src).toBe('ruido.webp');
-      const out = path.join(ws.dir, 'assets', 'ruido.webp');
+      expect(textOf(r)).toContain('noise.png -> noise.webp');
+      expect(frame().children[0]!.src).toBe('noise.webp');
+      const out = path.join(ws.dir, 'assets', 'noise.webp');
       expect(fs.statSync(out).size).toBeLessThan(noise.length);
       expect((await sharp(fs.readFileSync(out)).metadata()).width).toBe(400);
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'ruido.png'))).toBe(true);
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'noise.png'))).toBe(true);
       expect(daemon.store.getRevision(docId())).toBe(rev0 + 1);
 
       await call('undo');
-      expect(frame().children[0]!.src).toBe('ruido.png');
+      expect(frame().children[0]!.src).toBe('noise.png');
 
-      // sem uso do original: remove_unused_assets (dryRun primeiro)
+      // original unused: remove_unused_assets (dryRun first)
       await call('redo');
       const dry = textOf(await call('remove_unused_assets', { dryRun: true }));
-      expect(dry).toContain('Seriam removidos 1 arquivo(s)');
-      expect(dry).toContain('ruido.png');
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'ruido.png'))).toBe(true);
+      expect(dry).toContain('Would remove 1 file(s)');
+      expect(dry).toContain('noise.png');
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'noise.png'))).toBe(true);
       const real = textOf(await call('remove_unused_assets'));
-      expect(real).toContain('Removidos 1 arquivo(s)');
-      expect(fs.existsSync(path.join(ws.dir, 'assets', 'ruido.png'))).toBe(false);
+      expect(real).toContain('Removed 1 file(s)');
+      expect(fs.existsSync(path.join(ws.dir, 'assets', 'noise.png'))).toBe(false);
       expect(fs.existsSync(out)).toBe(true);
-      expect(textOf(await call('remove_unused_assets'))).toContain('Nenhum asset sem uso');
+      expect(textOf(await call('remove_unused_assets'))).toContain('No unused assets');
     });
 
-    it('optimize_assets relê o documento antes de reescrever (não desfaz edições feitas durante o processamento)', async () => {
+    it('optimize_assets re-reads the document before rewriting (does not undo edits made during processing)', async () => {
       const sharp = (await import('sharp')).default;
       const noise = await sharp(crypto.randomBytes(300 * 200 * 3), {
         raw: { width: 300, height: 200, channels: 3 },
@@ -443,21 +443,21 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
         .png()
         .toBuffer();
       fs.mkdirSync(path.join(ws.dir, 'assets'), { recursive: true });
-      fs.writeFileSync(path.join(ws.dir, 'assets', 'foto.png'), noise);
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'photo.png'), noise);
       const w = await call('write_html', {
         parentId: ws.frameId,
-        html: '<div class="lista"><article><img src="{{foto}}"><h3>{{nome}}</h3></article></div>',
+        html: '<div class="list"><article><img src="{{photo}}"><h3>{{name}}</h3></article></div>',
       });
       expect(w.isError, textOf(w)).toBeFalsy();
       const b = await call('bind_data', {
         nodeId: frame().children[0]!.id,
-        data: [{ foto: 'foto.png', nome: 'A' }],
+        data: [{ photo: 'photo.png', name: 'A' }],
       });
       expect(b.isError, textOf(b)).toBeFalsy();
       const repId = frame().children[0]!.id;
 
-      // Simula uma edição concorrente: logo depois da primeira leitura do documento pelo serviço,
-      // outro cliente acrescenta um item aos dados.
+      // Simulates a concurrent edit: right after the service's first read of the document,
+      // another client adds an item to the data.
       const real = daemon.store;
       let edited = false;
       const racing = new Proxy(real, {
@@ -476,8 +476,8 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
                         {
                           nodeId: repId,
                           data: [
-                            { foto: 'foto.png', nome: 'A' },
-                            { foto: 'foto.png', nome: 'B' },
+                            { photo: 'photo.png', name: 'A' },
+                            { photo: 'photo.png', name: 'B' },
                           ],
                         },
                       ],
@@ -500,15 +500,15 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
         (ops) => real.applyOps(docId(), ops, { source: 'mcp', label: 'optimize_assets' }),
       );
       expect(edited).toBe(true);
-      expect(r.results.map((x) => x.newPath)).toEqual(['foto.webp']);
+      expect(r.results.map((x) => x.newPath)).toEqual(['photo.webp']);
       expect(r.rewritten).toBe(1);
       expect(frame().children[0]!.data).toEqual([
-        { foto: 'foto.webp', nome: 'A' },
-        { foto: 'foto.webp', nome: 'B' },
+        { photo: 'photo.webp', name: 'A' },
+        { photo: 'photo.webp', name: 'B' },
       ]);
     });
 
-    it('optimize_assets mantém imagens que não ficam menores e ignora SVG', async () => {
+    it('optimize_assets keeps images that do not get smaller and ignores SVG', async () => {
       const png = fakePng(8, 8);
       fs.mkdirSync(path.join(ws.dir, 'assets'), { recursive: true });
       fs.writeFileSync(path.join(ws.dir, 'assets', 'mini.png'), png);
@@ -519,9 +519,9 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       const r = await call('optimize_assets', { paths: ['mini.png', 'v.svg'], format: 'keep' });
       expect(r.isError, textOf(r)).toBeFalsy();
       const t = textOf(r);
-      expect(t).toContain('Nenhuma imagem foi substituída');
-      expect(t).toContain('mini.png: mantido');
-      expect(t).toContain('v.svg: SVG é vetorial');
+      expect(t).toContain('No image was replaced');
+      expect(t).toContain('mini.png: kept');
+      expect(t).toContain('v.svg: SVG is vector');
     });
   });
 });

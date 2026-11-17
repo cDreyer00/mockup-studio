@@ -1,7 +1,7 @@
 /**
- * Índice de arquivos do Mockup Studio (`files.json` na pasta de dados): pastas virtuais aninhadas,
- * tags, favoritos e busca (nome, tag e conteúdo) dos documentos conhecidos, mais as miniaturas.
- * Um índice por `DocumentStore` (`getFileIndex`), que acompanha os eventos do store.
+ * Mockup Studio file index (`files.json` in the data folder): nested virtual folders,
+ * tags, favorites and search (name, tag and content) over the known documents, plus thumbnails.
+ * One index per `DocumentStore` (`getFileIndex`), which follows the store events.
  */
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -51,12 +51,12 @@ export interface FileEntry {
 }
 
 export interface FileListOptions {
-  /** Pasta (`Clientes/Acme`); vazio/ausente = todos; `/` = só os sem pasta. */
+  /** Folder (`Clients/Acme`); empty/absent = all; `/` = only those without a folder. */
   folder?: string | null;
   tag?: string;
   query?: string;
   favorites?: boolean;
-  /** Inclui os arquivos das subpastas de `folder`. */
+  /** Includes the files in the subfolders of `folder`. */
   recursive?: boolean;
 }
 
@@ -68,7 +68,7 @@ export interface FileMetaChange {
   favorite?: boolean;
 }
 
-/** Erro causado pelo pedido (caminho inválido, pasta inexistente...): a camada HTTP devolve o 4xx. */
+/** Error caused by the request (invalid path, missing folder...): the HTTP layer returns the 4xx. */
 export class FilesError extends Error {
   readonly expose = true;
   constructor(
@@ -88,7 +88,7 @@ const isWin = process.platform === 'win32';
 const sameKey = (a: string, b: string): boolean =>
   isWin ? a.toLowerCase() === b.toLowerCase() : a === b;
 
-/** Normaliza o caminho de uma pasta virtual: barras normais, sem vazios nem `.`/`..`. `''` = raiz. */
+/** Normalizes a virtual folder path: forward slashes, no empty parts or `.`/`..`. `''` = root. */
 export function normalizeFolder(input: string): string {
   const parts = input
     .replace(/\\/g, '/')
@@ -98,13 +98,13 @@ export function normalizeFolder(input: string): string {
   if (parts.some((s) => s === '.' || s === '..')) {
     throw new FilesError(
       400,
-      `Caminho de pasta inválido: "${input}". Use nomes separados por "/", sem "." nem "..". Ex.: "Clientes/Acme".`,
+      `Invalid folder path: "${input}". Use names separated by "/", without "." or "..". E.g.: "Clients/Acme".`,
     );
   }
   return parts.join('/');
 }
 
-/** Tags sem espaços nas pontas, sem vazias e sem duplicatas (sem diferenciar caixa/acento). */
+/** Tags trimmed, without empty ones or duplicates (case/accent-insensitive). */
 export function normalizeTags(tags: readonly unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -130,7 +130,7 @@ const inside = (folder: string, root: string): boolean =>
 interface ContentCache {
   mtime: number;
   size: number;
-  /** Revisão do documento aberto (arquivos fechados usam -1). */
+  /** Revision of the open document (closed files use -1). */
   revision: number;
   pages: number;
   frames: number;
@@ -168,12 +168,12 @@ export class FileIndex {
     store.on('doc:saved', (e) => this.touch(e.path, false));
   }
 
-  /** Passa a usar `dataDir` (lê o `files.json`); só vale se ainda não havia pasta de dados. */
+  /** Starts using `dataDir` (reads `files.json`); only applies if there was no data folder yet. */
   useDataDir(dataDir?: string): void {
     if (!dataDir || this.dataDir) return;
     this.dataDir = dataDir;
     const loaded = this.readDisk();
-    // o que já estava em memória (arquivos abertos antes da pasta de dados) vence
+    // what was already in memory (files opened before the data folder) wins
     for (const [k, v] of Object.entries(loaded.files)) if (!this.find(k)) this.data.files[k] = v;
     this.data.folders = [...new Set([...loaded.folders, ...this.data.folders])];
     if (Object.keys(this.data.files).length > Object.keys(loaded.files).length) void this.persist();
@@ -200,7 +200,7 @@ export class FileIndex {
           const n = normalizeFolder(f);
           if (n) out.folders.push(n);
         } catch {
-          /* pasta inválida ignorada */
+          /* invalid folder ignored */
         }
       }
     }
@@ -229,7 +229,7 @@ export class FileIndex {
     return out;
   }
 
-  /** Grava o estado atual (temporário + rename, em fila: nenhuma escrita se perde). */
+  /** Writes the current state (temp file + rename, queued: no write is lost). */
   persist(): Promise<void> {
     const file = this.file;
     if (!file) return Promise.resolve();
@@ -251,7 +251,7 @@ export class FileIndex {
       } catch (e) {
         await fs.promises.rm(tmp, { force: true }).catch(() => undefined);
         console.error(
-          '[mockup-daemon] falha ao gravar o files.json:',
+          '[mockup-daemon] failed to write files.json:',
           e instanceof Error ? e.message : e,
         );
       }
@@ -260,7 +260,7 @@ export class FileIndex {
     return this.writing;
   }
 
-  /** Espera as gravações pendentes. */
+  /** Waits for pending writes. */
   flush(): Promise<void> {
     return this.writing;
   }
@@ -281,7 +281,7 @@ export class FileIndex {
     return { key, meta, created: true };
   }
 
-  /** Registra o arquivo (aberto/criado/salvo). `opened` atualiza `lastOpenedAt`. */
+  /** Registers the file (opened/created/saved). `opened` updates `lastOpenedAt`. */
   private touch(p: string, opened: boolean): void {
     if (!p.toLowerCase().endsWith(DOCUMENT_EXT)) return;
     const { meta, created } = this.ensure(p);
@@ -289,21 +289,21 @@ export class FileIndex {
     if (created || opened) void this.persist();
   }
 
-  /* ---------- pastas ---------- */
+  /* ---------- folders ---------- */
 
-  /** Pastas existentes: as criadas e as ancestrais das usadas por arquivos. */
+  /** Existing folders: the created ones and the ancestors of those used by files. */
   folders(): string[] {
     const set = new Set<string>();
     for (const f of this.data.folders) for (const a of ancestorsOf(f)) set.add(a);
     for (const m of Object.values(this.data.files)) {
       if (m.folder) for (const a of ancestorsOf(m.folder)) set.add(a);
     }
-    return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return [...set].sort((a, b) => a.localeCompare(b, 'en-US'));
   }
 
   async createFolder(p: string): Promise<string[]> {
     const f = normalizeFolder(p);
-    if (!f) throw new FilesError(400, 'Informe o nome da pasta. Ex.: "Clientes/Acme".');
+    if (!f) throw new FilesError(400, 'Provide the folder name. E.g.: "Clients/Acme".');
     for (const a of ancestorsOf(f)) if (!this.data.folders.includes(a)) this.data.folders.push(a);
     await this.persist();
     return this.folders();
@@ -312,16 +312,15 @@ export class FileIndex {
   async renameFolder(from: string, to: string): Promise<string[]> {
     const src = normalizeFolder(from);
     const dst = normalizeFolder(to);
-    if (!src || !dst) throw new FilesError(400, 'Informe a pasta de origem e o novo caminho (to).');
+    if (!src || !dst) throw new FilesError(400, 'Provide the source folder and the new path (to).');
     if (!this.folders().includes(src))
-      throw new FilesError(404, `Pasta não encontrada: "${src}". Veja as pastas com list_files.`);
+      throw new FilesError(404, `Folder not found: "${src}". See the folders with list_files.`);
     if (src === dst) return this.folders();
-    if (inside(dst, src))
-      throw new FilesError(400, `Não dá para mover "${src}" para dentro dela mesma ("${dst}").`);
+    if (inside(dst, src)) throw new FilesError(400, `Cannot move "${src}" into itself ("${dst}").`);
     if (this.folders().includes(dst))
       throw new FilesError(
         409,
-        `Já existe a pasta "${dst}". Escolha outro nome ou mova os arquivos com move_files.`,
+        `Folder "${dst}" already exists. Choose another name or move the files with move_files.`,
       );
     const remap = (f: string): string => (inside(f, src) ? dst + f.slice(src.length) : f);
     const folders = new Set<string>();
@@ -335,9 +334,9 @@ export class FileIndex {
 
   async deleteFolder(p: string): Promise<string[]> {
     const f = normalizeFolder(p);
-    if (!f) throw new FilesError(400, 'Informe a pasta a excluir. Ex.: "Clientes/Acme".');
+    if (!f) throw new FilesError(400, 'Provide the folder to delete. E.g.: "Clients/Acme".');
     if (!this.folders().includes(f))
-      throw new FilesError(404, `Pasta não encontrada: "${f}". Veja as pastas com list_files.`);
+      throw new FilesError(404, `Folder not found: "${f}". See the folders with list_files.`);
     const parent = parentOf(f);
     for (const m of Object.values(this.data.files)) {
       if (m.folder && inside(m.folder, f)) {
@@ -350,19 +349,19 @@ export class FileIndex {
     return this.folders();
   }
 
-  /* ---------- arquivos ---------- */
+  /* ---------- files ---------- */
 
-  /** Caminho absoluto de um `.mockup.json` (400 caso contrário). */
+  /** Absolute path of a `.mockup.json` (400 otherwise). */
   static requireDocPath(p: unknown): string {
     if (typeof p !== 'string' || !p.trim())
-      throw new FilesError(400, 'Informe o caminho absoluto do arquivo (path).');
+      throw new FilesError(400, 'Provide the absolute path of the file (path).');
     if (!path.isAbsolute(p))
       throw new FilesError(
         400,
-        `O caminho precisa ser absoluto: "${p}". Ex.: "C:/projetos/site.mockup.json".`,
+        `The path must be absolute: "${p}". E.g.: "C:/projects/site.mockup.json".`,
       );
     if (!p.toLowerCase().endsWith(DOCUMENT_EXT))
-      throw new FilesError(400, `O arquivo precisa terminar em ${DOCUMENT_EXT}: "${p}".`);
+      throw new FilesError(400, `The file must end in ${DOCUMENT_EXT}: "${p}".`);
     return path.resolve(p);
   }
 
@@ -371,7 +370,7 @@ export class FileIndex {
     const known = this.find(abs) !== undefined;
     const isOpen = this.store.list().some((d) => d.path && sameKey(path.resolve(d.path), abs));
     if (!known && !isOpen && !fs.existsSync(abs))
-      throw new FilesError(404, `Arquivo não encontrado: ${abs}`);
+      throw new FilesError(404, `File not found: ${abs}`);
     let folder: string | undefined | null;
     if (change.folder !== undefined) {
       folder = change.folder === null ? null : normalizeFolder(change.folder) || null;
@@ -410,19 +409,16 @@ export class FileIndex {
     }
   }
 
-  /** Registra um arquivo `.mockup.json` ou os que estiverem numa pasta (até 2 níveis). */
+  /** Registers a `.mockup.json` file or those in a folder (up to 2 levels). */
   async add(p: string): Promise<FileEntry[]> {
     if (typeof p !== 'string' || !path.isAbsolute(p))
-      throw new FilesError(
-        400,
-        `Informe um caminho absoluto de arquivo ou pasta. Recebido: "${p}".`,
-      );
+      throw new FilesError(400, `Provide an absolute path of a file or folder. Received: "${p}".`);
     const abs = path.resolve(p);
     let st: fs.Stats;
     try {
       st = await fs.promises.stat(abs);
     } catch {
-      throw new FilesError(404, `Caminho não encontrado: ${abs}`);
+      throw new FilesError(404, `Path not found: ${abs}`);
     }
     const found: string[] = [];
     if (st.isDirectory()) {
@@ -449,7 +445,7 @@ export class FileIndex {
     } else if (abs.toLowerCase().endsWith(DOCUMENT_EXT)) {
       found.push(abs);
     } else {
-      throw new FilesError(400, `Use um arquivo ${DOCUMENT_EXT} ou uma pasta: "${abs}".`);
+      throw new FilesError(400, `Use a ${DOCUMENT_EXT} file or a folder: "${abs}".`);
     }
     let changed = false;
     for (const f of found) if (this.ensure(f).created) changed = true;
@@ -457,9 +453,9 @@ export class FileIndex {
     return this.entries(found);
   }
 
-  /* ---------- leitura ---------- */
+  /* ---------- reading ---------- */
 
-  /** Se o caminho está no índice, nos recentes ou aberto (o que a tela inicial mostra). */
+  /** Whether the path is in the index, in the recents or open (what the home screen shows). */
   isKnown(p: string): boolean {
     const abs = path.resolve(p);
     if (this.find(abs)) return true;
@@ -467,7 +463,7 @@ export class FileIndex {
     return !!this.openDocFor(abs);
   }
 
-  /** Entrada do arquivo, se o caminho estiver no índice, aberto ou nos recentes. */
+  /** File entry, if the path is in the index, open or in the recents. */
   async get(p: string): Promise<FileEntry | undefined> {
     const [e] = await this.entries([path.resolve(p)]);
     return e;
@@ -524,7 +520,7 @@ export class FileIndex {
     };
   }
 
-  /** Monta as entradas dos caminhos dados (sem filtro). */
+  /** Builds the entries for the given paths (no filter). */
   private async entries(paths: string[], query?: string): Promise<FileEntry[]> {
     const recent = readRecent(this.dataDir).map((p) => path.resolve(p));
     const terms = query
@@ -599,7 +595,7 @@ export class FileIndex {
     return { field, snippet: snippetAround(content!.text, folded, term) };
   }
 
-  /** Lista os arquivos conhecidos (índice, recentes e abertos) com os filtros. */
+  /** Lists the known files (index, recents and open) with the filters. */
   async list(opts: FileListOptions = {}): Promise<{
     files: FileEntry[];
     folders: string[];
@@ -636,7 +632,7 @@ export class FileIndex {
       const ra = a.recent ?? Infinity;
       const rb = b.recent ?? Infinity;
       if (ra !== rb) return ra - rb;
-      return a.name.localeCompare(b.name, 'pt-BR');
+      return a.name.localeCompare(b.name, 'en-US');
     });
 
     const allTags = new Map<string, string>();
@@ -646,18 +642,18 @@ export class FileIndex {
     return {
       files,
       folders: this.folders(),
-      tags: [...allTags.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      tags: [...allTags.values()].sort((a, b) => a.localeCompare(b, 'en-US')),
     };
   }
 
-  /* ---------- miniaturas ---------- */
+  /* ---------- thumbnails ---------- */
 
   /**
-   * PNG do primeiro frame visível da primeira página com frames. Documento fechado: imagens e
-   * `url(assets/...)` do frame viram data URLs (a página de render só serve `/assets/<docId>/`
-   * de documentos abertos; limite de ~20 MB no total). Limitação: fontes embutidas
-   * (`source: 'file'`) de documentos fechados não são carregadas (a miniatura usa a fonte de
-   * reserva). Cache em `<dataDir>/thumbs/<sha1(path)>-<w>.png`, invalidado pelo mtime do arquivo.
+   * PNG of the first visible frame of the first page that has frames. Closed document: images and
+   * `url(assets/...)` in the frame become data URLs (the render page only serves `/assets/<docId>/`
+   * for open documents; ~20 MB limit in total). Limitation: embedded fonts
+   * (`source: 'file'`) of closed documents are not loaded (the thumbnail uses the fallback
+   * font). Cached in `<dataDir>/thumbs/<sha1(path)>-<w>.png`, invalidated by the file mtime.
    */
   async thumbnail(p: string, width: number, render: RenderProvider): Promise<Buffer> {
     const abs = FileIndex.requireDocPath(p);
@@ -669,7 +665,7 @@ export class FileIndex {
     } catch {
       st = null;
     }
-    if (!open && !st) throw new FilesError(404, `Arquivo não encontrado: ${abs}`);
+    if (!open && !st) throw new FilesError(404, `File not found: ${abs}`);
 
     let dirty = false;
     if (open) {
@@ -694,7 +690,7 @@ export class FileIndex {
         const ts = await fs.promises.stat(thumbFile);
         if (ts.mtimeMs >= st.mtimeMs) return await fs.promises.readFile(thumbFile);
       } catch {
-        /* sem cache */
+        /* no cache */
       }
     }
     const jobKey = `${key}|${width}|${open ? this.store.getRevision(open.docId) : 'disk'}`;
@@ -723,13 +719,13 @@ export class FileIndex {
       } catch (e) {
         throw new FilesError(
           400,
-          `Não foi possível ler ${key}: ${e instanceof Error ? e.message : String(e)}`,
+          `Could not read ${key}: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
     }
     const page = doc.pages.find((pg) => pg.frames.length > 0);
     const frame = page ? (page.frames.find((f) => !f.hidden) ?? page.frames[0]) : undefined;
-    if (!frame) throw new FilesError(404, 'O documento não tem frames para a miniatura.');
+    if (!frame) throw new FilesError(404, 'The document has no frames for the thumbnail.');
     const assetsDir = path.join(path.dirname(key), 'assets');
     let target = doc;
     if (!openId) {
@@ -753,7 +749,7 @@ export class FileIndex {
         await fs.promises.writeFile(tmp, r.data);
         await fs.promises.rename(tmp, thumbFile);
       } catch {
-        /* cache é opcional */
+        /* cache is optional */
       }
     }
     return r.data;
@@ -763,7 +759,7 @@ export class FileIndex {
 const MAX_INLINE_BYTES = 20 * 1024 * 1024;
 const STYLE_URL = /url[(]\s*(["']?)((?:\.\/)?assets[/][^"')]+)\1\s*[)]/g;
 
-/** Troca, no frame (já clonado), `src` relativos e `url(assets/...)` por data URLs de `assets/`. */
+/** Replaces, in the (already cloned) frame, relative `src` and `url(assets/...)` with data URLs from `assets/`. */
 function inlineAssets(root: Node, assetsDir: string): void {
   let budget = MAX_INLINE_BYTES;
   const memo = new Map<string, string | undefined>();
@@ -795,7 +791,7 @@ function inlineAssets(root: Node, assetsDir: string): void {
 
 const indexes = new WeakMap<DocumentStore, FileIndex>();
 
-/** Índice de arquivos do store (um por store; assina os eventos uma única vez). */
+/** File index of the store (one per store; subscribes to the events only once). */
 export function getFileIndex(store: DocumentStore, dataDir?: string): FileIndex {
   let idx = indexes.get(store);
   if (!idx) {

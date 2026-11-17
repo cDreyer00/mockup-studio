@@ -1,7 +1,7 @@
 /**
- * Serviço de scripts: executa JavaScript do usuário na sandbox (um grupo de undo por execução),
- * mantém a biblioteca `scripts/*.js` ao lado do documento e gera scripts com o assistente.
- * Ver docs/SCRIPTS.md.
+ * Scripts service: runs user JavaScript in the sandbox (one undo group per run),
+ * maintains the `scripts/*.js` library next to the document and generates scripts with the assistant.
+ * See docs/SCRIPTS.md.
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -22,23 +22,23 @@ import { SANDBOX_LIMITS, runInSandbox, type SandboxOutcome } from './sandbox.js'
 export interface ScriptServiceOptions {
   render?: RenderProvider;
   assistant?: AssistantServiceApi;
-  /** Execuções simultâneas (cada uma é um worker com heap próprio). Padrão 4. */
+  /** Concurrent runs (each one is a worker with its own heap). Default 4. */
   maxConcurrent?: number;
 }
 
 const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
 /**
- * Nome de arquivo da biblioteca: letras, números, espaço, `_`, `.` e `-`; sem barras nem `..`;
- * `.js` é acrescentado. Lança `Error` em português se o nome for recusado.
+ * Library file name: letters, digits, space, `_`, `.` and `-`; no slashes or `..`;
+ * `.js` is appended. Throws an `Error` if the name is rejected.
  */
 export function normalizeScriptName(name: unknown): string {
   if (typeof name !== 'string' || !name.trim()) {
-    throw new Error('Informe o nome do script (ex.: "renomear-botoes").');
+    throw new Error('Provide the script name (e.g. "rename-buttons").');
   }
   let n = name.trim();
   if (/[\\/\0]/.test(n) || n.includes('..')) {
-    throw new Error(`Nome de script inválido: "${name}". Não use "/", "\\" nem "..".`);
+    throw new Error(`Invalid script name: "${name}". Do not use "/", "\\" or "..".`);
   }
   if (!/\.js$/i.test(n)) n += '.js';
   const base = n.slice(0, -3);
@@ -51,7 +51,7 @@ export function normalizeScriptName(name: unknown): string {
     RESERVED_NAMES.test(base)
   ) {
     throw new Error(
-      `Nome de script inválido: "${name}". Use só letras, números, espaço, "_", "." e "-" (até 100 caracteres).`,
+      `Invalid script name: "${name}". Use only letters, digits, space, "_", "." and "-" (up to 100 characters).`,
     );
   }
   return `${base}.js`;
@@ -73,7 +73,7 @@ export class ScriptService implements ScriptServiceApi {
       case 'script:run': {
         const sel = msg.selection;
         if (sel !== undefined && !(Array.isArray(sel) && sel.every((s) => typeof s === 'string'))) {
-          throw new Error('script:run: "selection" deve ser um array de ids.');
+          throw new Error('script:run: "selection" must be an array of ids.');
         }
         return this.run(
           this.needString(msg.docId, 'docId'),
@@ -103,20 +103,18 @@ export class ScriptService implements ScriptServiceApi {
           this.needString(msg.prompt, 'prompt'),
         );
       default:
-        throw new Error(
-          `Mensagem de script desconhecida: ${String((msg as { type?: unknown }).type)}`,
-        );
+        throw new Error(`Unknown script message: ${String((msg as { type?: unknown }).type)}`);
     }
   }
 
   private needString(v: unknown, field: string, allowEmpty = false): string {
     if (typeof v !== 'string' || (!allowEmpty && !v.trim())) {
-      throw new Error(`"${field}" é obrigatório (string).`);
+      throw new Error(`"${field}" is required (string).`);
     }
     return v;
   }
 
-  /* ---------- execução ---------- */
+  /* ---------- execution ---------- */
 
   private async acquire(): Promise<void> {
     const max = Math.max(1, this.opts.maxConcurrent ?? 4);
@@ -167,7 +165,7 @@ export class ScriptService implements ScriptServiceApi {
     } finally {
       host.closed = true;
       this.release();
-      // Só fecha o grupo que esta execução abriu: o de um turno do assistente continua dele.
+      // Only closes the group this run opened: an assistant turn's group stays with the turn.
       if (ownsGroup) this.store.closeGroup(id, group);
     }
     let result: unknown;
@@ -189,9 +187,9 @@ export class ScriptService implements ScriptServiceApi {
     };
   }
 
-  /* ---------- biblioteca scripts/*.js ---------- */
+  /* ---------- scripts/*.js library ---------- */
 
-  /** Pasta `scripts/` ao lado do arquivo do documento (`null` se o documento não tem caminho). */
+  /** `scripts/` folder next to the document file (`null` if the document has no path). */
   private dirOf(docId: string): string | null {
     const info = this.store.getInfo(this.store.resolveDocId(docId || undefined));
     return info.path ? path.join(path.dirname(info.path), 'scripts') : null;
@@ -201,7 +199,7 @@ export class ScriptService implements ScriptServiceApi {
     const dir = this.dirOf(docId);
     if (!dir) {
       throw new Error(
-        'O documento ainda não tem um arquivo: salve-o (dê um caminho) para usar a biblioteca de scripts (pasta scripts/ ao lado dele).',
+        'The document has no file yet: save it (give it a path) to use the script library (scripts/ folder next to it).',
       );
     }
     return dir;
@@ -212,7 +210,7 @@ export class ScriptService implements ScriptServiceApi {
     const file = path.join(dir, n);
     const rel = path.relative(dir, file);
     if (rel.startsWith('..') || path.isAbsolute(rel) || rel !== n) {
-      throw new Error(`Nome de script inválido: "${String(name)}".`);
+      throw new Error(`Invalid script name: "${String(name)}".`);
     }
     return { name: n, file };
   }
@@ -238,7 +236,7 @@ export class ScriptService implements ScriptServiceApi {
       const st = await fs.stat(path.join(dir, n)).catch(() => null);
       if (st?.isFile()) scripts.push({ name: n, size: st.size, updatedAt: st.mtime.toISOString() });
     }
-    scripts.sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+    scripts.sort((a, b) => a.name.localeCompare(b.name, 'en-US'));
     return { dir, scripts };
   }
 
@@ -248,7 +246,7 @@ export class ScriptService implements ScriptServiceApi {
       return { name: n, code: await fs.readFile(file, 'utf8') };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error(`Script "${n}" não encontrado. Veja a lista com list_scripts.`);
+        throw new Error(`Script "${n}" not found. See the list with list_scripts.`);
       }
       throw e;
     }
@@ -256,11 +254,9 @@ export class ScriptService implements ScriptServiceApi {
 
   async save(docId: string, name: string, code: string): Promise<{ name: string }> {
     const dir = this.needDir(docId);
-    if (typeof code !== 'string') throw new Error('O código do script deve ser uma string.');
+    if (typeof code !== 'string') throw new Error('The script code must be a string.');
     if (code.length > SANDBOX_LIMITS.maxCodeChars) {
-      throw new Error(
-        `O script é grande demais (limite ${SANDBOX_LIMITS.maxCodeChars} caracteres).`,
-      );
+      throw new Error(`The script is too large (limit ${SANDBOX_LIMITS.maxCodeChars} characters).`);
     }
     const { name: n, file } = this.fileOf(dir, name);
     await fs.mkdir(dir, { recursive: true });
@@ -274,41 +270,41 @@ export class ScriptService implements ScriptServiceApi {
       await fs.unlink(file);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error(`Script "${n}" não encontrado.`);
+        throw new Error(`Script "${n}" not found.`);
       }
       throw e;
     }
   }
 
-  /* ---------- gerar com IA ---------- */
+  /* ---------- generate with AI ---------- */
 
   async generate(docId: string, prompt: string): Promise<{ code: string }> {
     const assistant = this.opts.assistant;
     if (!assistant) {
       throw new Error(
-        'Gerar scripts com IA exige o assistente, que não está disponível neste daemon.',
+        'Generating scripts with AI requires the assistant, which is not available in this daemon.',
       );
     }
     if (typeof prompt !== 'string' || !prompt.trim()) {
-      throw new Error('Descreva o que o script deve fazer.');
+      throw new Error('Describe what the script should do.');
     }
     const id = this.store.resolveDocId(docId || undefined);
     const doc = this.store.get(id);
     const summary = getDocumentSummary(doc, 2);
     const selection = this.store.getSelection(id);
     const context = [
-      'Documento atual (resumo):',
+      'Current document (summary):',
       summary.length > 6000 ? `${summary.slice(0, 6000)}\n…` : summary,
-      selection.length ? `Seleção no editor: ${selection.join(', ')}` : 'Nada selecionado.',
+      selection.length ? `Selection in the editor: ${selection.join(', ')}` : 'Nothing selected.',
     ].join('\n');
     const text = await assistant.generateText(`${prompt.trim()}\n\n${context}`, {
       system: SCRIPT_SYSTEM_PROMPT,
-      // Uma geração por documento; cancelável pelo cancelar do assistente desse documento.
+      // One generation per document; cancellable via that document's assistant cancel.
       docId: id,
     });
     const code = extractScriptCode(text);
     if (!code)
-      throw new Error('O assistente não devolveu código. Tente descrever o pedido de outro jeito.');
+      throw new Error('The assistant returned no code. Try describing the request differently.');
     return { code };
   }
 }

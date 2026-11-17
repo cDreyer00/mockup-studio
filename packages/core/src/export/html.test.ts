@@ -9,14 +9,14 @@ const landing = parseDocument(
   fs.readFileSync(new URL('../../../../examples/landing.mockup.json', import.meta.url), 'utf8'),
 );
 
-/** Documento com um único frame contendo `children`. */
+/** Document with a single frame containing `children`. */
 function docWith(children: Node[], frameStyle: Record<string, string> = {}): Document {
-  const doc = createDocument('Teste', { id: 'doc_test' });
+  const doc = createDocument('Test', { id: 'doc_test' });
   const frame = createNode({
     tag: 'div',
     type: 'frame',
     id: 'fr_test0001',
-    name: 'Tela',
+    name: 'Screen',
     style: { width: '400px', height: '300px', ...frameStyle },
     children,
   });
@@ -25,27 +25,27 @@ function docWith(children: Node[], frameStyle: Record<string, string> = {}): Doc
 }
 
 describe('exportHtml', () => {
-  it('snapshot do exemplo (classes)', () => {
+  it('example snapshot (classes)', () => {
     expect(exportHtml(landing)).toMatchSnapshot();
   });
 
-  it('snapshot do exemplo (inline)', () => {
+  it('example snapshot (inline)', () => {
     expect(exportHtml(landing, { mode: 'inline' })).toMatchSnapshot();
   });
 
-  it('classes por slug do nome, com sufixo -2, -3 em nomes repetidos', () => {
+  it('classes from the name slug, with -2, -3 suffixes for repeated names', () => {
     const html = exportHtml(landing, { nodeIds: ['fr_d3sk1440'] });
     expect(html).toContain('class="desktop-1440"');
     expect(html).toContain('class="navbar"');
-    expect(html).toContain('class="titulo"');
-    // "Ícone" aparece 3 vezes (um por card): acentos removidos e sufixos
-    expect(html).toContain('.icone {');
-    expect(html).toContain('.icone-2 {');
-    expect(html).toContain('.icone-3 {');
-    expect(html).toContain('.card-design-livre {');
+    expect(html).toContain('class="title"');
+    // "Icon" appears 3 times (one per card): suffixes added
+    expect(html).toContain('.icon {');
+    expect(html).toContain('.icon-2 {');
+    expect(html).toContain('.icon-3 {');
+    expect(html).toContain('.card-free-design {');
   });
 
-  it('nome que já termina em -2 não colide com o sufixo gerado', () => {
+  it('a name already ending in -2 does not collide with the generated suffix', () => {
     const doc = docWith([
       createNode({ tag: 'div', name: 'Item 2', style: { color: 'red' } }),
       createNode({ tag: 'div', name: 'Item', style: { color: 'blue' } }),
@@ -56,7 +56,7 @@ describe('exportHtml', () => {
     expect(new Set(classes).size).toBe(classes.length);
   });
 
-  it('tokens em :root, reset e @font-face das fontes embutidas', () => {
+  it('tokens in :root, reset and @font-face for embedded fonts', () => {
     const doc = docWith([]);
     doc.tokens = { '--color-primary': '#6c5ce7' };
     doc.fonts = [
@@ -70,7 +70,7 @@ describe('exportHtml', () => {
     expect(html).not.toContain('Arial');
   });
 
-  it('frame raiz: height vira min-height e a posição do canvas não é exportada', () => {
+  it('root frame: height becomes min-height and the canvas position is not exported', () => {
     const doc = docWith([]);
     doc.pages[0].frames[0].position = { x: 500, y: 700 };
     const html = exportHtml(doc);
@@ -80,7 +80,7 @@ describe('exportHtml', () => {
     expect(html).not.toContain('500px');
   });
 
-  it('filho direto com height:100% vira min-height da altura do frame (não colapsa fora do canvas)', () => {
+  it('direct child with height:100% becomes min-height of the frame height (does not collapse outside the canvas)', () => {
     const doc = docWith([
       createNode({
         tag: 'div',
@@ -93,7 +93,7 @@ describe('exportHtml', () => {
     expect(html).not.toMatch(/\.wrapper \{[^}]*\n\s+height: 100%/);
   });
 
-  it('height:100% do filho é mantido quando o frame tem padding (altura útil diferente)', () => {
+  it('child height:100% is kept when the frame has padding (different usable height)', () => {
     const doc = docWith([createNode({ tag: 'div', name: 'Wrapper', style: { height: '100%' } })], {
       padding: '16px',
     });
@@ -101,7 +101,7 @@ describe('exportHtml', () => {
     expect(html).toMatch(/\.wrapper \{[^}]*height: 100%;/);
   });
 
-  it('filhos absolutos usam node.position como left/top; nós ocultos somem', () => {
+  it('absolute children use node.position as left/top; hidden nodes disappear', () => {
     const doc = docWith([
       createNode({
         tag: 'div',
@@ -109,35 +109,35 @@ describe('exportHtml', () => {
         style: { position: 'absolute' },
         position: { x: 12, y: 34 },
       }),
-      createNode({ tag: 'div', name: 'Fantasma', hidden: true }),
+      createNode({ tag: 'div', name: 'Ghost', hidden: true }),
     ]);
     const html = exportHtml(doc, { mode: 'inline', fragment: true });
     expect(html).toContain('left: 12px');
     expect(html).toContain('top: 34px');
-    expect(html).not.toContain('Fantasma');
+    expect(html).not.toContain('Ghost');
     expect(html.match(/<div/g)).toHaveLength(2);
   });
 
-  it('imagens com src relativo a assets/ e data URL intacta; svg inline sanitizado', () => {
+  it('images with src relative to assets/ and intact data URL; sanitized inline svg', () => {
     const doc = docWith([
-      createNode({ tag: 'img', name: 'Foto', src: 'foto.png', attrs: { alt: 'Uma foto' } }),
+      createNode({ tag: 'img', name: 'Photo', src: 'photo.png', attrs: { alt: 'A photo' } }),
       createNode({ tag: 'img', name: 'Pixel', src: 'data:image/png;base64,AAAA' }),
       createNode({
         tag: 'svg',
-        name: 'Ícone',
+        name: 'Icon',
         svg: '<svg viewBox="0 0 8 8" onload="x()"><script>x()</script><path d="M0 0h8v8z"/></svg>',
         style: { width: '24px' },
       }),
     ]);
     const html = exportHtml(doc, { fragment: true });
-    expect(html).toContain('<img src="assets/foto.png" alt="Uma foto">');
+    expect(html).toContain('<img src="assets/photo.png" alt="A photo">');
     expect(html).toContain('src="data:image/png;base64,AAAA"');
-    expect(html).toContain('<svg class="icone"');
+    expect(html).toContain('<svg class="icon"');
     expect(html).not.toContain('script');
     expect(html).not.toContain('onload');
   });
 
-  it('fragmento não tem doctype nem head', () => {
+  it('fragment has no doctype or head', () => {
     const html = exportHtml(landing, { fragment: true, nodeIds: ['el_dsk00007'] });
     expect(html.startsWith('<style>')).toBe(true);
     expect(html).not.toContain('<!doctype');
@@ -145,12 +145,12 @@ describe('exportHtml', () => {
     expect(html).toContain('<header class="navbar">');
   });
 
-  it('erra para nó ou página inexistente', () => {
-    expect(() => exportHtml(landing, { nodeIds: ['nope'] })).toThrow(/não encontrado/);
-    expect(() => exportHtml(landing, { pageId: 'nope' })).toThrow(/não encontrada/);
+  it('throws for a nonexistent node or page', () => {
+    expect(() => exportHtml(landing, { nodeIds: ['nope'] })).toThrow(/not found/);
+    expect(() => exportHtml(landing, { pageId: 'nope' })).toThrow(/not found/);
   });
 
-  it('não altera o documento original', () => {
+  it('does not change the original document', () => {
     const before = JSON.stringify(landing);
     exportHtml(landing);
     expect(JSON.stringify(landing)).toBe(before);

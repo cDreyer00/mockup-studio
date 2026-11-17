@@ -1,35 +1,35 @@
 /**
- * Simplificação pós-import (pura, sem DOM e sem Node): calcula as ops que limpam um frame importado.
- * Usada pela ferramenta MCP `cleanup_imported` e pelo botão do editor (mesma lógica).
+ * Post-import simplification (pure, no DOM and no Node): computes the ops that clean up an imported
+ * frame. Used by the MCP tool `cleanup_imported` and by the editor button (same logic).
  *
- * Regras conservadoras: na dúvida, o nó fica como está. Cada passo é simulado com `applyOp` do core
- * num documento reduzido à subárvore, para que as ops saiam coerentes em sequência (ids e índices).
+ * Conservative rules: when in doubt, the node stays as it is. Each step is simulated with the core's
+ * `applyOp` on a document reduced to the subtree, so the ops come out consistent in sequence (ids and indexes).
  */
 import { applyOp, findNode } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
 
 export interface CleanupOptions {
-  /** Remove wrappers vazios (sem filhos, sem texto e sem estilo visual). Padrão true. */
+  /** Removes empty wrappers (no children, no text and no visual style). Default true. */
   removeEmpty?: boolean;
-  /** Desembrulha wrappers sem estilo visual que têm um único filho. Padrão true. */
+  /** Unwraps wrappers with no visual style that have a single child. Default true. */
   unwrap?: boolean;
   /**
-   * Tamanhos fluidos: `width` px igual à largura de conteúdo do pai vira auto/fill e `height` px de
-   * nós com conteúdo vira `min-height` (o conteúdo pode crescer). Padrão true.
+   * Fluid sizes: a `width` in px equal to the parent's content width becomes auto/fill and a `height`
+   * in px on nodes with content becomes `min-height` (the content may grow). Default true.
    */
   fluid?: boolean;
 }
 
 export interface CleanupPlan {
-  /** Ops na ordem de aplicação (uma única entrada no histórico). */
+  /** Ops in application order (a single history entry). */
   ops: Op[];
   removed: number;
   unwrapped: number;
-  /** Propriedades de tamanho convertidas. */
+  /** Size properties converted. */
   fluid: number;
 }
 
-/** Tags de contêiner "sem significado visual próprio" (candidatas a remoção/desembrulho). */
+/** Container tags "with no visual meaning of their own" (candidates for removal/unwrapping). */
 const GENERIC_TAGS = new Set([
   'div',
   'span',
@@ -47,7 +47,7 @@ const GENERIC_TAGS = new Set([
   'ol',
 ]);
 
-/** Elementos substituídos/controles: o tamanho automático não equivale ao px declarado. */
+/** Replaced elements/controls: the automatic size is not equivalent to the declared px. */
 const REPLACED_TAGS = new Set([
   'img',
   'svg',
@@ -66,7 +66,7 @@ const REPLACED_TAGS = new Set([
   'table',
 ]);
 
-/** Tags inline por padrão: `width`/`height` não valem nelas sem `display` explícito. */
+/** Inline-by-default tags: `width`/`height` do not apply to them without an explicit `display`. */
 const INLINE_TAGS = new Set([
   'span',
   'a',
@@ -107,13 +107,13 @@ function hasText(n: Node): boolean {
   return typeof n.text === 'string' && n.text.trim() !== '';
 }
 
-/** Número em px de um valor como `24px` ou `24`; `null` para outras unidades/expressões. */
+/** Number in px of a value like `24px` or `24`; `null` for other units/expressions. */
 function px(v: string | undefined): number | null {
   const m = /^(-?\d*\.?\d+)(px)?$/.exec(norm(v));
   return m ? parseFloat(m[1]!) : null;
 }
 
-/** Valor de tamanho que ocupa espaço (qualquer coisa além de auto/0/none; expressões contam). */
+/** Size value that takes up space (anything other than auto/0/none; expressions count). */
 function sizePositive(v: string | undefined): boolean {
   return !EMPTY_VALUES.has(norm(v));
 }
@@ -122,7 +122,7 @@ function isZeroToken(t: string): boolean {
   return /^[+-]?0*\.?0+(px|em|rem|%)?$/.test(t);
 }
 
-/** `0`, `0 0`, `0px 0px 0px 0px`... (e `auto` não conta como zero). */
+/** `0`, `0 0`, `0px 0px 0px 0px`... (and `auto` does not count as zero). */
 function allZero(v: string | undefined): boolean {
   const tokens = norm(v).split(/\s+/).filter(Boolean);
   return tokens.length === 0 || tokens.every(isZeroToken);
@@ -140,7 +140,7 @@ function borderVisible(prop: string, value: string): boolean {
   return length === undefined || !isZeroToken(length);
 }
 
-/** O nó tem estilo que lhe dá presença visual ou ocupa espaço (mesmo sem conteúdo)? */
+/** Does the node have a style that gives it visual presence or takes up space (even without content)? */
 function hasPresence(n: Node): boolean {
   for (const [rawKey, value] of Object.entries(n.style)) {
     const k = rawKey.toLowerCase();
@@ -177,7 +177,7 @@ function isGeneric(n: Node): boolean {
   return n.type === 'element' && GENERIC_TAGS.has(n.tag) && !n.locked;
 }
 
-/** Subárvore como documento mínimo (a raiz vira frame de uma página): simula as ops sem clonar tudo. */
+/** Subtree as a minimal document (the root becomes a page's frame): simulates the ops without cloning everything. */
 function subDocument(doc: Document, root: Node): Document {
   return {
     ...doc,
@@ -275,7 +275,7 @@ function planUnwrap(simRoot: Node, ops: Op[], sim: { doc: Document }): number {
 
 /* ---------------- fluid ---------------- */
 
-/** Soma horizontal (esq + dir) de `padding`/`border-width` em px; `null` se não der para calcular. */
+/** Horizontal sum (left + right) of `padding`/`border-width` in px; `null` if it cannot be computed. */
 function horizontalPx(s: Record<string, string>, base: 'padding' | 'border'): number | null {
   const edge = (side: 'left' | 'right'): number | null => {
     const long = base === 'padding' ? `padding-${side}` : `border-${side}-width`;
@@ -311,7 +311,7 @@ function horizontalPx(s: Record<string, string>, base: 'padding' | 'border'): nu
   return l === null || r === null ? null : l + r;
 }
 
-/** Largura de conteúdo do pai em px (`null` se não for calculável só com o style). */
+/** Parent content width in px (`null` if it cannot be computed from the style alone). */
 function contentWidth(p: Node): number | null {
   const w = px(p.style.width);
   if (w === null) return null;
@@ -396,8 +396,8 @@ function planFluid(simRoot: Node): {
       !('line-clamp' in n.style) &&
       norm(n.style['aspect-ratio']) === ''
     ) {
-      // A captura já omite alturas equivalentes a auto: o px que sobrou é visual. Vira `min-height`
-      // (mesmo tamanho, mas o conteúdo pode crescer) em vez de sumir e encolher a seção.
+      // The capture already omits heights equivalent to auto: the px left over is visual. It becomes `min-height`
+      // (same size, but the content may grow) instead of vanishing and shrinking the section.
       unset.push('height');
       const minH = px(n.style['min-height']);
       if (minH === null || minH < h) set['min-height'] = n.style.height!;
@@ -416,7 +416,7 @@ function planFluid(simRoot: Node): {
 }
 
 function horizontalMargin(s: Record<string, string>): number {
-  // 0 quando as margens laterais são zero/ausentes; 1 quando existe margem (ou `auto`).
+  // 0 when the side margins are zero/absent; 1 when a margin exists (or `auto`).
   for (const k of ['margin', 'margin-left', 'margin-right']) {
     if (s[k] === undefined) continue;
     if (k === 'margin') {
@@ -428,16 +428,16 @@ function horizontalMargin(s: Record<string, string>): number {
   return 0;
 }
 
-/** Calcula a limpeza da subárvore de `nodeId` (o próprio nó nunca é removido). */
+/** Computes the cleanup of the subtree of `nodeId` (the node itself is never removed). */
 export function planCleanup(doc: Document, nodeId: string, opts: CleanupOptions = {}): CleanupPlan {
   const found = findNode(doc, nodeId);
-  if (!found) throw new Error(`Nó não encontrado: "${nodeId}"`);
+  if (!found) throw new Error(`Node not found: "${nodeId}"`);
   const plan: CleanupPlan = { ops: [], removed: 0, unwrapped: 0, fluid: 0 };
   const sim = { doc: subDocument(doc, JSON.parse(JSON.stringify(found.node)) as Node) };
   const rootOf = (): Node => sim.doc.pages[0]!.frames[0]!;
 
-  // Cada passo pode habilitar o seguinte (tirar um width faz o wrapper ficar neutro, remover um
-  // filho deixa o pai vazio): repete até não haver mais mudanças (poucas rodadas bastam).
+  // Each step can enable the next (dropping a width makes the wrapper neutral, removing a
+  // child leaves the parent empty): repeat until nothing changes (a few rounds are enough).
   for (let round = 0; round < 6; round++) {
     const before = plan.ops.length;
 

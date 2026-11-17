@@ -1,4 +1,4 @@
-/** Utilitários de propriedades CSS (kebab-case canônico). */
+/** CSS property utilities (canonical kebab-case). */
 
 const NAME_RE = /^(--[a-zA-Z0-9_-]+|-?[a-zA-Z_][a-zA-Z0-9_-]*)$/;
 
@@ -6,7 +6,7 @@ export function isValidCssPropertyName(name: string): boolean {
   return NAME_RE.test(name);
 }
 
-/** `backgroundColor` → `background-color`; custom properties (`--x`) são preservadas. */
+/** `backgroundColor` → `background-color`; custom properties (`--x`) are preserved. */
 export function toKebabCase(name: string): string {
   if (name.startsWith('--')) return name;
   return name.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
@@ -18,7 +18,7 @@ export function toCamelCase(name: string): string {
   return name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 
-/** Normaliza um mapa de estilos: kebab-case, trim, remove vazios, valida nomes. */
+/** Normalizes a style map: kebab-case, trim, drops empty values, validates names. */
 export function normalizeStyles(styles: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [rawKey, rawValue] of Object.entries(styles ?? {})) {
@@ -27,10 +27,10 @@ export function normalizeStyles(styles: Record<string, string>): Record<string, 
     if (value === '') continue;
     const key = toKebabCase(rawKey.trim());
     if (!isValidCssPropertyName(key)) {
-      throw new Error(`Nome de propriedade CSS inválido: "${rawKey}"`);
+      throw new Error(`Invalid CSS property name: "${rawKey}"`);
     }
     const problem = cssValueProblem(value);
-    if (problem) throw new Error(`Valor CSS inválido em "${key}": ${problem}`);
+    if (problem) throw new Error(`Invalid CSS value in "${key}": ${problem}`);
     out[key] = value;
   }
   return out;
@@ -39,15 +39,15 @@ export function normalizeStyles(styles: Record<string, string>): Record<string, 
 const PLACEHOLDER_IN_CSS_RE = /\{\{\s*[A-Za-z_][\w-]*\s*\}\}/g;
 
 /**
- * Mensagem de erro se o valor CSS puder escapar da declaração ou do `<style>` que o contém
- * (`{`, `}`, `;` fora de aspas/parênteses, `</style`, comentários, aspas ou parênteses
- * desbalanceados); `null` se o valor é seguro. `;` dentro de parênteses é aceito (`url(data:...;base64,...)`).
+ * Error message if the CSS value could escape its declaration or the `<style>` containing it
+ * (`{`, `}`, `;` outside quotes/parentheses, `</style`, comments, unbalanced quotes or
+ * parentheses); `null` if the value is safe. `;` inside parentheses is accepted (`url(data:...;base64,...)`).
  */
 export function cssValueProblem(value: string): string | null {
-  if (/<\/style/i.test(value)) return 'não pode conter "</style"';
-  // Placeholders de props de componente (`{{color}}`, ver docs/COMPONENTES.md): o par de chaves
-  // balanceado com um identificador dentro não escapa da declaração; a expansão substitui e
-  // valida de novo o valor final.
+  if (/<\/style/i.test(value)) return 'must not contain "</style"';
+  // Component prop placeholders (`{{color}}`, see docs/COMPONENTS.md): a balanced pair of braces
+  // with an identifier inside does not escape the declaration; expansion substitutes and
+  // validates the final value again.
   value = value.replace(PLACEHOLDER_IN_CSS_RE, 'x');
   let quote = '';
   let depth = 0;
@@ -64,17 +64,18 @@ export function cssValueProblem(value: string): string | null {
     if (ch === '"' || ch === "'") quote = ch;
     else if (ch === '(') depth++;
     else if (ch === ')') {
-      if (--depth < 0) return 'tem ")" sem "(" correspondente';
-    } else if (ch === '{' || ch === '}') return 'não pode conter "{" nem "}" fora de aspas';
-    else if (ch === ';' && depth === 0) return 'não pode conter ";" fora de aspas e parênteses';
-    else if (ch === '/' && value[i + 1] === '*') return 'não pode conter comentários CSS';
+      if (--depth < 0) return 'has ")" without a matching "("';
+    } else if (ch === '{' || ch === '}') return 'must not contain "{" or "}" outside quotes';
+    else if (ch === ';' && depth === 0)
+      return 'must not contain ";" outside quotes and parentheses';
+    else if (ch === '/' && value[i + 1] === '*') return 'must not contain CSS comments';
   }
-  if (quote) return 'tem aspas não fechadas';
-  if (depth > 0) return 'tem "(" sem ")" correspondente';
+  if (quote) return 'has unclosed quotes';
+  if (depth > 0) return 'has "(" without a matching ")"';
   return null;
 }
 
-/** Descarta (sem lançar) declarações com nome ou valor inválido; não altera as demais. */
+/** Drops (without throwing) declarations with an invalid name or value; leaves the others untouched. */
 export function dropUnsafeStyles(styles: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(styles ?? {})) {

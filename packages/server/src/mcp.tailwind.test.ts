@@ -17,11 +17,11 @@ const textOf = (r: unknown): string =>
     .map((c) => c.text)
     .join('\n');
 
-// Markup do shadcn/ui v4 (new-york), como colado do site.
+// shadcn/ui v4 (new-york) markup, as pasted from the site.
 const BUTTON =
-  '<button data-slot="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3">Salvar</button>';
+  '<button data-slot="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-9 px-4 py-2 has-[>svg]:px-3">Save</button>';
 const CARD =
-  '<div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm"><div data-slot="card-header" class="px-6"><div data-slot="card-title" class="leading-none font-semibold">Título</div><div data-slot="card-description" class="text-muted-foreground text-sm">Descrição</div></div><div data-slot="card-content" class="px-6">Conteúdo</div></div>';
+  '<div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm"><div data-slot="card-header" class="px-6"><div data-slot="card-title" class="leading-none font-semibold">Title</div><div data-slot="card-description" class="text-muted-foreground text-sm">Description</div></div><div data-slot="card-content" class="px-6">Content</div></div>';
 
 describe('MCP Tailwind', () => {
   let ws: Ws;
@@ -42,7 +42,7 @@ describe('MCP Tailwind', () => {
       };
     },
     async measure() {
-      throw new Error('não usado');
+      throw new Error('not used');
     },
   };
 
@@ -50,7 +50,7 @@ describe('MCP Tailwind', () => {
     ws = makeWorkspace();
     captures = [];
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false, render });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   });
@@ -69,18 +69,18 @@ describe('MCP Tailwind', () => {
     return textOf(r);
   };
   const created = (t: string): string[] =>
-    /Nós criados: ([^.\n]+)\./
+    /Nodes created: ([^.\n]+)\./
       .exec(t)![1]!
       .split(', ')
       .map((s) => s.trim());
   const info = (id: string) => ok('get_node_info', { nodeId: id });
 
-  it('write_html detecta Tailwind, liga o cssBase e avisa; undo desfaz tudo', async () => {
+  it('write_html detects Tailwind, turns on cssBase and warns; undo reverts everything', async () => {
     const t = await ok('write_html', {
       parentId: ws.frameId,
-      html: '<div class="flex gap-4 p-6 bg-red-500 rounded-lg hover:bg-red-600 foo-bar group-hover:flex">Oi</div>',
+      html: '<div class="flex gap-4 p-6 bg-red-500 rounded-lg hover:bg-red-600 foo-bar group-hover:flex">Hi</div>',
     });
-    expect(t).toContain('Tailwind aplicado');
+    expect(t).toContain('Tailwind applied');
     expect(t).toContain('set_css_base("default")');
     expect(t).toContain('foo-bar');
     expect(t).toContain('group-hover');
@@ -97,13 +97,13 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_tree_summary', { nodeId: ws.frameId })).not.toContain(id!);
   });
 
-  it('css: "tailwind" força o Tailwind e não é tratado como CSS', async () => {
+  it('css: "tailwind" forces Tailwind and is not treated as CSS', async () => {
     const t = await ok('write_html', {
       parentId: ws.frameId,
       html: '<p class="mystery">x</p>',
       css: 'tailwind',
     });
-    expect(t).toContain('Tailwind aplicado');
+    expect(t).toContain('Tailwind applied');
     expect(t).toContain('mystery');
     expect(await ok('get_tailwind_config')).toContain('cssBase: tailwind');
     const bad = await call('write_html', {
@@ -114,13 +114,13 @@ describe('MCP Tailwind', () => {
     expect(bad.isError).toBe(true);
   });
 
-  it('tailwind "off" mantém o comportamento antigo (class é só seletor de CSS)', async () => {
+  it('tailwind "off" keeps the old behavior (class is just a CSS selector)', async () => {
     const t = await ok('write_html', {
       parentId: ws.frameId,
       tailwind: 'off',
-      html: '<div class="flex p-4">Oi</div>',
+      html: '<div class="flex p-4">Hi</div>',
     });
-    expect(t).toContain('HTML aplicado (append)');
+    expect(t).toContain('HTML applied (append)');
     expect(t).not.toContain('Tailwind');
     const [id] = created(t);
     const node = await info(id!);
@@ -129,22 +129,22 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_tailwind_config')).toContain('cssBase: default');
   });
 
-  it('HTML com CSS próprio não é tratado como Tailwind (auto)', async () => {
+  it('HTML with its own CSS is not treated as Tailwind (auto)', async () => {
     const t = await ok('write_html', {
       parentId: ws.frameId,
-      html: '<section class="hero"><h1>Olá</h1></section>',
+      html: '<section class="hero"><h1>Hello</h1></section>',
       css: '.hero{display:flex;gap:16px}',
     });
-    expect(t).toContain('HTML aplicado (append)');
+    expect(t).toContain('HTML applied (append)');
     expect(await ok('get_tailwind_config')).toContain('cssBase: default');
   });
 
-  it('import_component cria os tokens shadcn e compila botão e card', async () => {
+  it('import_component creates the shadcn tokens and compiles button and card', async () => {
     const t = await ok('import_component', {
       parentId: ws.frameId,
       html: `${BUTTON}${CARD}`,
     });
-    expect(t).toContain('Tokens do preset shadcn');
+    expect(t).toContain('shadcn preset tokens');
     const ids = created(t);
     const tokens = await ok('get_tokens', { format: 'json' });
     expect(tokens).toContain('--color-primary');
@@ -159,7 +159,7 @@ describe('MCP Tailwind', () => {
 
     const card = await info(ids[1]!);
     expect(card).toContain('background-color: var(--color-card)');
-    // borda sem cor ganha a cor do preset (como o `* { border-color }` do shadcn)
+    // a border without a color gets the preset color (like shadcn's `* { border-color }`)
     expect(card).toContain('border-color: var(--color-border)');
 
     const code = await ok('get_code', { nodeId: ids[0]!, format: 'tailwind' });
@@ -180,13 +180,13 @@ describe('MCP Tailwind', () => {
     const react = await ok('get_code', { nodeId: ids[0]!, format: 'react' });
     expect(react).toContain('bg-primary');
 
-    // um undo só desfaz nós, tokens e cssBase
+    // a single undo reverts nodes, tokens and cssBase
     await ok('undo');
     expect(await ok('get_tokens', { format: 'json' })).not.toContain('--color-primary"');
     expect(await ok('get_tailwind_config')).toContain('cssBase: default');
   });
 
-  it('import_component com tokens "none" não cria tokens', async () => {
+  it('import_component with tokens "none" does not create tokens', async () => {
     await ok('import_component', {
       parentId: ws.frameId,
       html: BUTTON,
@@ -195,7 +195,7 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_tokens', { format: 'json' })).not.toContain('--color-primary"');
   });
 
-  it('get_code com styles inline não carrega o motor Tailwind', async () => {
+  it('get_code with inline styles does not load the Tailwind engine', async () => {
     const doc = parseDocument(fs.readFileSync(ws.file, 'utf8'));
     clearTailwindEngines();
     const id = created(
@@ -208,7 +208,7 @@ describe('MCP Tailwind', () => {
     expect(peekTailwindEngine(doc)).toBeDefined();
   });
 
-  it('set_classes: replace, add e remove com undo', async () => {
+  it('set_classes: replace, add and remove with undo', async () => {
     const id = created(
       await ok('write_html', {
         parentId: ws.frameId,
@@ -238,13 +238,13 @@ describe('MCP Tailwind', () => {
     expect(await info(id)).toContain('classes: flex gap-2 p-2 hover:underline');
     const warn = await ok('set_classes', {
       nodeIds: [id],
-      classes: 'p-2 nao-existe-xyz',
+      classes: 'p-2 not-a-class-xyz',
       mode: 'add',
     });
-    expect(warn).toContain('nao-existe-xyz');
+    expect(warn).toContain('not-a-class-xyz');
   });
 
-  it('set_classes replace num filho absoluto mantém position/left/top', async () => {
+  it('set_classes replace on an absolute child keeps position/left/top', async () => {
     const id = created(
       await ok('write_html', {
         parentId: ws.frameId,
@@ -261,14 +261,14 @@ describe('MCP Tailwind', () => {
     expect(n).not.toContain('color: red');
   });
 
-  it('set_classes em frame raiz preserva largura e altura', async () => {
+  it('set_classes on a root frame preserves width and height', async () => {
     await ok('set_classes', { nodeIds: [ws.frameId], classes: 'bg-white p-4' });
     const n = await info(ws.frameId);
     expect(n).toContain('width: 1440px');
     expect(n).toContain('height: 900px');
   });
 
-  it('get_classes mostra escritas, idiomáticas e o resto', async () => {
+  it('get_classes shows written, idiomatic and the rest', async () => {
     const id = created(
       await ok('write_html', {
         parentId: ws.frameId,
@@ -277,13 +277,13 @@ describe('MCP Tailwind', () => {
       }),
     )[0]!;
     const t = await ok('get_classes', { nodeIds: [id] });
-    expect(t).toContain('escritas: flex gap-4 p-6');
-    expect(t).toMatch(/atuais: .*flex/);
+    expect(t).toContain('written: flex gap-4 p-6');
+    expect(t).toMatch(/current: .*flex/);
     expect(t).toContain('gap-4');
     expect(t).toContain('clip-path');
   });
 
-  it('suggest_classes devolve autocomplete, inclusive com variante e tokens', async () => {
+  it('suggest_classes returns autocomplete, including with variant and tokens', async () => {
     const t = await ok('suggest_classes', { query: 'justify-', limit: 5 });
     expect(t.split('\n').length).toBeLessThanOrEqual(5);
     expect(t).toContain('justify-');
@@ -292,7 +292,7 @@ describe('MCP Tailwind', () => {
     expect(await ok('suggest_classes', { query: 'bg-bran' })).toContain('bg-brand');
   });
 
-  it('get_tailwind_config reflete token novo (cache invalida) e lista estados', async () => {
+  it('get_tailwind_config reflects a new token (cache invalidates) and lists states', async () => {
     const before = await ok('get_tailwind_config');
     expect(before).toContain('cssBase: default');
     expect(before).toContain('md: 768px');
@@ -311,15 +311,15 @@ describe('MCP Tailwind', () => {
     expect(await info(id)).toContain('var(--color-brand)');
   });
 
-  it('set_css_base alterna e é idempotente', async () => {
+  it('set_css_base toggles and is idempotent', async () => {
     expect(await ok('set_css_base', { base: 'tailwind' })).toContain('"tailwind"');
     expect(await ok('get_tailwind_config')).toContain('cssBase: tailwind');
-    expect(await ok('set_css_base', { base: 'tailwind' })).toContain('já é');
+    expect(await ok('set_css_base', { base: 'tailwind' })).toContain('already');
     await ok('set_css_base', { base: 'default' });
     expect(await ok('get_tailwind_config')).toContain('cssBase: default');
   });
 
-  it('update_styles com state grava e mescla no estado; get_styles mostra o efetivo', async () => {
+  it('update_styles with state writes and merges into the state; get_styles shows the effective one', async () => {
     const id = created(
       await ok('write_html', {
         parentId: ws.frameId,
@@ -351,10 +351,10 @@ describe('MCP Tailwind', () => {
     expect(await info(id)).not.toContain('states:');
     const bad = await call('update_styles', { nodeIds: [id], state: 'hovr', styles: { a: 'b' } });
     expect(bad.isError).toBe(true);
-    expect(textOf(bad)).toContain('Estado inválido');
+    expect(textOf(bad)).toContain('Invalid state');
   });
 
-  it('breakpoints: md vale no frame de 1440px e não num de 390px', async () => {
+  it('breakpoints: md applies on the 1440px frame and not on a 390px one', async () => {
     const id = created(
       await ok('write_html', {
         parentId: ws.frameId,
@@ -363,7 +363,7 @@ describe('MCP Tailwind', () => {
       }),
     )[0]!;
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('padding: 2rem');
-    const frame = /Frame criado: (\S+)/.exec(
+    const frame = /Frame created: (\S+)/.exec(
       await ok('create_frame', { name: 'Mobile', width: 390, height: 800 }),
     )![1]!;
     const copy = created(
@@ -376,7 +376,7 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_styles', { nodeIds: [copy] })).toContain('padding: 0.5rem');
   });
 
-  it('get_screenshot repassa state ao provider', async () => {
+  it('get_screenshot passes state to the provider', async () => {
     const r = await call('get_screenshot', { nodeId: ws.frameId, state: 'hover' });
     expect(r.isError).toBeFalsy();
     expect(captures.at(-1)?.state).toBe('hover');
@@ -387,7 +387,7 @@ describe('MCP Tailwind', () => {
     expect(bad.isError).toBe(true);
   });
 
-  it('export tailwind/react usa o motor (classes do autor) e grava arquivos', async () => {
+  it('export tailwind/react uses the engine (author classes) and writes files', async () => {
     const id = created(await ok('import_component', { parentId: ws.frameId, html: BUTTON }))[0]!;
     const t = await ok('export', { nodeIds: [id], format: 'tailwind', outputDir: ws.dir });
     expect(t).toContain('bg-primary');
@@ -396,7 +396,7 @@ describe('MCP Tailwind', () => {
     expect(r).toContain('bg-primary');
   });
 
-  it('get_guide("tailwind") existe e é citado nas instruções', async () => {
+  it('get_guide("tailwind") exists and is cited in the instructions', async () => {
     const g = await ok('get_guide', { topic: 'tailwind' });
     for (const k of ['import_component', 'set_classes', 'get_screenshot', '768', 'group-']) {
       expect(g).toContain(k);
@@ -408,7 +408,7 @@ describe('MCP Tailwind', () => {
   const mk = async (cls = 'p-1', parentId = ws.frameId) =>
     created(await ok('write_html', { parentId, tailwind: 'on', html: htmlWith(cls) }))[0]!;
 
-  it('QA: cascata de classes conflitantes (a última vence) via set_classes', async () => {
+  it('QA: cascade of conflicting classes (the last one wins) via set_classes', async () => {
     const id = await mk();
     await ok('set_classes', { nodeIds: [id], classes: 'px-2 p-4' });
     expect(await info(id)).toContain('padding: 1rem');
@@ -419,7 +419,7 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_code', { nodeId: id, format: 'tailwind' })).toContain('rounded-lg');
   });
 
-  it('QA: entradas hostis não saem sem escape nos exports', async () => {
+  it('QA: hostile inputs do not come out unescaped in the exports', async () => {
     const id = await mk();
     const evil = 'p-2 [background:url(javascript:alert(1))] a"b<script>alert(1)</script> {x;y}';
     await call('set_classes', { nodeIds: [id], classes: evil });
@@ -434,30 +434,30 @@ describe('MCP Tailwind', () => {
     }
   });
 
-  it('QA: breakpoint customizado (--breakpoint-md: 900px)', async () => {
+  it('QA: custom breakpoint (--breakpoint-md: 900px)', async () => {
     await ok('set_tokens', { tokens: { '--breakpoint-md': '900px' } });
     expect(await ok('get_tailwind_config')).toContain('md: 900px');
     const id = await mk('p-2 md:p-8');
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('padding: 2rem');
-    const frame = /Frame criado: (\S+)/.exec(
+    const frame = /Frame created: (\S+)/.exec(
       await ok('create_frame', { name: 'Mid', width: 800, height: 800 }),
     )![1]!;
     const copy = await mk('p-2 md:p-8', frame);
     expect(await ok('get_styles', { nodeIds: [copy] })).toContain('padding: 0.5rem');
   });
 
-  it('QA: rename_token atualiza as classes do nó', async () => {
+  it('QA: rename_token updates the node classes', async () => {
     await ok('set_tokens', { tokens: { '--color-brand': '#ff0066' } });
     const id = await mk('bg-brand');
-    await ok('rename_token', { from: '--color-brand', to: '--color-marca' });
+    await ok('rename_token', { from: '--color-brand', to: '--color-accent' });
     const n = await info(id);
-    expect(n).toContain('bg-marca');
+    expect(n).toContain('bg-accent');
     expect(n).not.toContain('bg-brand');
     await ok('undo');
     expect(await info(id)).toContain('bg-brand');
   });
 
-  it('QA: undo/redo de estados e set_css_base', async () => {
+  it('QA: undo/redo of states and set_css_base', async () => {
     const id = await mk();
     await ok('update_styles', { nodeIds: [id], state: 'hover', styles: { color: 'red' } });
     expect(await info(id)).toContain('hover {');

@@ -25,16 +25,16 @@ const MAX_DATA_URL_BYTES = 2 * 1024 * 1024;
 
 const filterNum = z.number().nullable().optional();
 const filtersSchema = z.strictObject({
-  blur: filterNum.describe('Desfoque em px (0 a 50).'),
-  brightness: filterNum.describe('Brilho em % (0 a 300; neutro 100).'),
-  contrast: filterNum.describe('Contraste em % (0 a 300; neutro 100).'),
-  saturate: filterNum.describe('Saturação em % (0 a 300; neutro 100).'),
-  hueRotate: filterNum.describe('Matiz em graus (-180 a 180).'),
-  'hue-rotate': filterNum.describe('Igual a hueRotate.'),
-  sepia: filterNum.describe('Sépia em % (0 a 100).'),
-  grayscale: filterNum.describe('Escala de cinza em % (0 a 100).'),
-  invert: filterNum.describe('Inverter em % (0 a 100).'),
-  opacity: filterNum.describe('Opacidade em % (0 a 100; neutro 100).'),
+  blur: filterNum.describe('Blur in px (0 to 50).'),
+  brightness: filterNum.describe('Brightness in % (0 to 300; neutral 100).'),
+  contrast: filterNum.describe('Contrast in % (0 to 300; neutral 100).'),
+  saturate: filterNum.describe('Saturation in % (0 to 300; neutral 100).'),
+  hueRotate: filterNum.describe('Hue in degrees (-180 to 180).'),
+  'hue-rotate': filterNum.describe('Same as hueRotate.'),
+  sepia: filterNum.describe('Sepia in % (0 to 100).'),
+  grayscale: filterNum.describe('Grayscale in % (0 to 100).'),
+  invert: filterNum.describe('Invert in % (0 to 100).'),
+  opacity: filterNum.describe('Opacity in % (0 to 100; neutral 100).'),
 });
 
 const side = z.number().min(0).max(99).optional();
@@ -45,9 +45,9 @@ export function registerImageEditTools(ctx: ToolContext): void {
   tool(
     'set_image',
     {
-      title: 'Ajustar uma imagem',
+      title: 'Adjust an image',
       description:
-        'Ajusta um nó image em uma chamada (um undo): troca a imagem, enquadramento (fit, position), filtros, recorte (crop) e máscara de forma (clipPath). Veja get_guide("assets").',
+        'Adjusts an image node in one call (one undo): swaps the image, framing (fit, position), filters, crop and shape mask (clipPath). See get_guide("assets").',
       example: {
         nodeId: 'im_ab12cd34',
         fit: 'cover',
@@ -57,12 +57,12 @@ export function registerImageEditTools(ctx: ToolContext): void {
         clipPath: 'circle',
       },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó image, ex.: "im_ab12cd34".'),
+        nodeId: z.string().describe('Image node id, e.g. "im_ab12cd34".'),
         source: z
           .string()
           .optional()
           .describe(
-            'Nova imagem: caminho absoluto, URL http(s), data URL ou caminho relativo já existente em assets/, ex.: "C:/fotos/capa.png".',
+            'New image: absolute path, http(s) URL, data URL or an existing relative path in assets/, e.g. "C:/photos/cover.png".',
           ),
         fit: z
           .enum(OBJECT_FIT_VALUES)
@@ -72,27 +72,27 @@ export function registerImageEditTools(ctx: ToolContext): void {
           .string()
           .optional()
           .describe(
-            `object-position: atalho (${Object.keys(OBJECT_POSITION_PRESETS).join(', ')}) ou CSS ("30% 70%").`,
+            `object-position: preset (${Object.keys(OBJECT_POSITION_PRESETS).join(', ')}) or CSS ("30% 70%").`,
           ),
         filters: filtersSchema
           .optional()
           .describe(
-            `Filtros em números (${IMAGE_FILTERS.map((f) => f.name + ' ' + f.unit).join(', ')}), ex.: { "blur": 2, "grayscale": 100 }; null zera um filtro; outros filtros do CSS (drop-shadow) são preservados.`,
+            `Filters as numbers (${IMAGE_FILTERS.map((f) => f.name + ' ' + f.unit).join(', ')}), e.g. { "blur": 2, "grayscale": 100 }; null resets a filter; other CSS filters (drop-shadow) are preserved.`,
           ),
         crop: z
           .strictObject({ top: side, right: side, bottom: side, left: side })
           .nullable()
           .optional()
           .describe(
-            'Recorte em % de cada lado da imagem original (object-view-box), ex.: { "top": 10, "bottom": 10 }; null ou zeros remove.',
+            'Crop in % of each side of the original image (object-view-box), e.g. { "top": 10, "bottom": 10 }; null or zeros removes it.',
           ),
         clipPath: z
           .string()
           .optional()
           .describe(
-            `Máscara: forma (${Object.keys(CLIP_PATH_PRESETS).join(', ')}), CSS clip-path ou "none" para remover.`,
+            `Mask: shape (${Object.keys(CLIP_PATH_PRESETS).join(', ')}), CSS clip-path or "none" to remove.`,
           ),
-        alt: z.string().optional().describe('Texto alternativo (atributo alt).'),
+        alt: z.string().optional().describe('Alternative text (alt attribute).'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -103,7 +103,7 @@ export function registerImageEditTools(ctx: ToolContext): void {
       const node = requireNode(doc, nodeId).node;
       if (node.type !== 'image') {
         throw new ToolError(
-          `O nó ${nodeId} é ${node.type}, não uma imagem. Use insert_image para criar uma, ou passe o id de um nó image (get_tree_summary).`,
+          `Node ${nodeId} is ${node.type}, not an image. Use insert_image to create one, or pass the id of an image node (get_tree_summary).`,
         );
       }
       const ops: Op[] = [];
@@ -118,33 +118,33 @@ export function registerImageEditTools(ctx: ToolContext): void {
           const full = assets ? safeJoin(assets, rel) : null;
           if (!full || !fs.existsSync(full)) {
             throw new ToolError(
-              `Não achei "${s}" em assets/. Use um caminho absoluto, URL ou data URL, ou list_assets para ver os arquivos do documento.`,
+              `Could not find "${s}" in assets/. Use an absolute path, URL or data URL, or list_assets to see the document's files.`,
             );
           }
           src = rel;
-          note = `imagem: assets/${rel}`;
+          note = `image: assets/${rel}`;
         } else {
           const { bytes, hint } = await loadSource(s);
           const info = detectImage(bytes);
           if (!info) {
             throw new ToolError(
-              'O conteúdo não é uma imagem reconhecida (PNG, JPEG, GIF, WebP, SVG ou AVIF). Confira o arquivo ou a URL.',
+              'The content is not a recognized image (PNG, JPEG, GIF, WebP, SVG or AVIF). Check the file or the URL.',
             );
           }
           const assets = store.assetsDir(id);
           if (assets) {
-            const stem = hint.replace(/\.[^.]*$/, '') || 'imagem';
+            const stem = hint.replace(/\.[^.]*$/, '') || 'image';
             const safe = sanitizeAssetName(`${stem}${info.ext}`);
             src = await writeAsset(assets, `${safe.base}${safe.ext}`, bytes);
-            note = `imagem: assets/${src}`;
+            note = `image: assets/${src}`;
           } else {
             if (bytes.length > MAX_DATA_URL_BYTES) {
               throw new ToolError(
-                'O documento ainda não tem caminho em disco e a imagem passa de 2 MB para embutir. Salve o documento e tente de novo.',
+                'The document has no path on disk yet and the image exceeds 2 MB for embedding. Save the document and try again.',
               );
             }
             src = `data:${info.mime};base64,${bytes.toString('base64')}`;
-            note = 'imagem: data URL embutida';
+            note = 'image: embedded data URL';
           }
         }
         ops.push({ type: 'setSrc', changes: [{ nodeId, src }] });
@@ -159,7 +159,8 @@ export function registerImageEditTools(ctx: ToolContext): void {
       };
       if (fit) set['object-fit'] = fit;
       if (position !== undefined) {
-        if (!position.trim()) throw new ToolError('position vazio. Ex.: "top-left" ou "30% 70%".');
+        if (!position.trim())
+          throw new ToolError('position is empty. E.g. "top-left" or "30% 70%".');
         set['object-position'] = normalizeObjectPosition(position);
       }
       if (filters) {
@@ -184,10 +185,10 @@ export function registerImageEditTools(ctx: ToolContext): void {
         );
       }
       if (clipPath !== undefined) {
-        if (!clipPath.trim()) throw new ToolError('clipPath vazio. Use "circle" ou "none".');
+        if (!clipPath.trim()) throw new ToolError('clipPath is empty. Use "circle" or "none".');
         if (/url\(\s*(?!['"]?#)/i.test(clipPath)) {
           throw new ToolError(
-            'clipPath com url() só aceita referência interna (url(#id)); use uma forma ou polygon()/inset()/circle().',
+            'clipPath with url() only accepts an internal reference (url(#id)); use a shape or polygon()/inset()/circle().',
           );
         }
         put('clip-path', resolveClipPath(clipPath));
@@ -206,7 +207,7 @@ export function registerImageEditTools(ctx: ToolContext): void {
       }
       if (ops.length === 0) {
         throw new ToolError(
-          'Nada para ajustar. Informe ao menos um de: source, fit, position, filters, crop, clipPath, alt.',
+          'Nothing to adjust. Provide at least one of: source, fit, position, filters, crop, clipPath, alt.',
         );
       }
       const r = apply(id, ops, 'set_image');
@@ -216,32 +217,32 @@ export function registerImageEditTools(ctx: ToolContext): void {
         .filter((k) => after.style[k])
         .map((k) => `${k}: ${after.style[k]}`)
         .join('; ');
-      return `Imagem ${nodeId} ajustada${note ? ` (${note})` : ''}. Estilos de imagem: ${styles || '(nenhum)'}.\n${summaryOf(r.doc, [nodeId])}`;
+      return `Image ${nodeId} adjusted${note ? ` (${note})` : ''}. Image styles: ${styles || '(none)'}.\n${summaryOf(r.doc, [nodeId])}`;
     },
   );
 
   tool(
     'generate_placeholder',
     {
-      title: 'Gerar imagem de exemplo (placeholder)',
+      title: 'Generate sample image (placeholder)',
       description:
-        'Gera um placeholder SVG offline e determinístico (mesma seed, mesmo arquivo). Em nó image troca o src; em contêiner cria uma imagem filha. Grava em assets/placeholders/ (ou data URL sem caminho).',
+        'Generates an offline, deterministic SVG placeholder (same seed, same file). On an image node it swaps the src; on a container it creates a child image. Writes to assets/placeholders/ (or a data URL when there is no path).',
       example: { nodeId: 'el_ab12cd34', kind: 'avatar', seed: 'ana', width: 96, height: 96 },
       inputSchema: {
-        nodeId: z.string().describe('Id de um nó image ou de um contêiner, ex.: "el_ab12cd34".'),
+        nodeId: z.string().describe('Id of an image node or a container, e.g. "el_ab12cd34".'),
         kind: z
           .enum(PLACEHOLDER_KINDS)
-          .describe(`Tipo: ${PLACEHOLDER_KINDS.join(', ')}. Ex.: "avatar".`),
+          .describe(`Kind: ${PLACEHOLDER_KINDS.join(', ')}. E.g. "avatar".`),
         seed: z
           .string()
           .optional()
-          .describe('Semente: o mesmo texto gera sempre a mesma imagem, ex.: "ana".'),
-        width: z.number().positive().optional().describe('Largura do SVG em px, ex.: 600.'),
-        height: z.number().positive().optional().describe('Altura do SVG em px, ex.: 400.'),
+          .describe('Seed: the same text always generates the same image, e.g. "ana".'),
+        width: z.number().positive().optional().describe('SVG width in px, e.g. 600.'),
+        height: z.number().positive().optional().describe('SVG height in px, e.g. 400.'),
         label: z
           .string()
           .optional()
-          .describe('Texto do logo (ou nome para as iniciais do avatar), ex.: "Acme".'),
+          .describe('Logo text (or name for the avatar initials), e.g. "Acme".'),
         docId: docIdField,
       },
       annotations: WRITE,
@@ -265,8 +266,8 @@ export function registerImageEditTools(ctx: ToolContext): void {
         throw e;
       }
       const out = apply(id, r.ops, 'generate_placeholder');
-      const created = r.nodeId !== nodeId ? ` (imagem criada: ${r.nodeId})` : '';
-      return `Placeholder ${kind} aplicado${created}; arquivo: ${r.where}.\n${summaryOf(out.doc, [r.nodeId], [nodeId])}`;
+      const created = r.nodeId !== nodeId ? ` (image created: ${r.nodeId})` : '';
+      return `Placeholder ${kind} applied${created}; file: ${r.where}.\n${summaryOf(out.doc, [r.nodeId], [nodeId])}`;
     },
   );
 }

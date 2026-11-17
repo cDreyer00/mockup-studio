@@ -10,23 +10,23 @@ function gridDoc(): Document {
   const kids: Node[] = [
     createNode({
       tag: 'header',
-      name: 'Topo',
+      name: 'Top',
       style: gridPlacementStyles({ area: 'header' }),
     }),
     createNode({
       tag: 'div',
-      name: 'Destaque',
+      name: 'Featured',
       style: gridPlacementStyles({ column: 2, columnSpan: 3, row: 1 }),
     }),
     createNode({ tag: 'div', name: 'Item', style: gridPlacementStyles({ rowSpan: 2 }) }),
   ];
-  const doc = createDocument('Teste', { id: 'doc_test' });
+  const doc = createDocument('Test', { id: 'doc_test' });
   doc.pages[0].frames.push(
     createNode({
       tag: 'div',
       type: 'frame',
       id: 'fr_test0001',
-      name: 'Grade',
+      name: 'Grid',
       style: {
         width: '600px',
         height: '300px',
@@ -46,8 +46,8 @@ function gridDoc(): Document {
   return doc;
 }
 
-describe('exportação de grid: HTML', () => {
-  it('usa CSS real de grid, áreas com aspas e posicionamento dos filhos', () => {
+describe('grid export: HTML', () => {
+  it('uses real grid CSS, quoted areas and child placement', () => {
     const html = exportHtml(gridDoc(), { mode: 'inline', fragment: true });
     expect(html).toContain('display: grid');
     expect(html).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
@@ -64,7 +64,7 @@ describe('exportação de grid: HTML', () => {
     expect(html).toContain('grid-auto-flow: row dense');
   });
 
-  it('em classes o CSS fica nas regras', () => {
+  it('in classes mode the CSS lives in the rules', () => {
     const html = exportHtml(gridDoc(), { fragment: true });
     expect(html).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(html).toContain('grid-column: 2 / span 3;');
@@ -72,57 +72,57 @@ describe('exportação de grid: HTML', () => {
   });
 });
 
-describe('exportação de grid: Tailwind', () => {
+describe('grid export: Tailwind', () => {
   it.each<[string, Record<string, string>, string[]]>([
-    ['colunas iguais', { 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' }, ['grid-cols-3']],
+    ['equal columns', { 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' }, ['grid-cols-3']],
     [
-      'colunas iguais sem espaços',
+      'equal columns without spaces',
       { 'grid-template-columns': 'repeat(4,minmax(0,1fr))' },
       ['grid-cols-4'],
     ],
     [
-      'repeat com 1fr não é grid-cols-N',
+      'repeat with 1fr is not grid-cols-N',
       { 'grid-template-columns': 'repeat(3, 1fr)' },
       ['grid-cols-[repeat(3,1fr)]'],
     ],
-    ['colunas arbitrárias', { 'grid-template-columns': '200px 1fr' }, ['grid-cols-[200px_1fr]']],
+    ['arbitrary columns', { 'grid-template-columns': '200px 1fr' }, ['grid-cols-[200px_1fr]']],
     [
       'minmax',
       { 'grid-template-columns': 'minmax(120px, 1fr) 2fr' },
       ['grid-cols-[minmax(120px,1fr)_2fr]'],
     ],
-    ['linhas', { 'grid-template-rows': 'repeat(2, minmax(0, 1fr))' }, ['grid-rows-2']],
-    ['sem trilhas', { 'grid-template-columns': 'none' }, ['grid-cols-none']],
+    ['rows', { 'grid-template-rows': 'repeat(2, minmax(0, 1fr))' }, ['grid-rows-2']],
+    ['no tracks', { 'grid-template-columns': 'none' }, ['grid-cols-none']],
     ['col-span', { 'grid-column': 'span 3' }, ['col-span-3']],
-    ['col fixo', { 'grid-column': '2' }, ['col-2']],
-    ['coluna inteira', { 'grid-column': '1 / -1' }, ['col-span-full']],
-    ['início e span', { 'grid-column': '2 / span 3' }, ['col-[2/span_3]']],
+    ['fixed col', { 'grid-column': '2' }, ['col-2']],
+    ['full column', { 'grid-column': '1 / -1' }, ['col-span-full']],
+    ['start and span', { 'grid-column': '2 / span 3' }, ['col-[2/span_3]']],
     ['row-span', { 'grid-row': 'span 2' }, ['row-span-2']],
-    ['row início e span', { 'grid-row': '1 / span 2' }, ['row-[1/span_2]']],
+    ['row start and span', { 'grid-row': '1 / span 2' }, ['row-[1/span_2]']],
     ['col-start', { 'grid-column-start': '3' }, ['col-start-3']],
     ['row-end', { 'grid-row-end': 'auto' }, ['row-end-auto']],
     ['gap x/y', { 'column-gap': '16px', 'row-gap': '8px' }, ['gap-x-4', 'gap-y-2']],
-    ['gap duplo', { gap: '8px 16px' }, ['gap-y-2', 'gap-x-4']],
+    ['double gap', { gap: '8px 16px' }, ['gap-y-2', 'gap-x-4']],
     ['place-items', { 'place-items': 'center' }, ['place-items-center']],
     ['justify-items', { 'justify-items': 'start' }, ['justify-items-start']],
-    ['fluxo', { 'grid-auto-flow': 'column' }, ['grid-flow-col']],
-    ['fluxo denso', { 'grid-auto-flow': 'row dense' }, ['grid-flow-row-dense']],
+    ['flow', { 'grid-auto-flow': 'column' }, ['grid-flow-col']],
+    ['dense flow', { 'grid-auto-flow': 'row dense' }, ['grid-flow-row-dense']],
     ['auto-rows', { 'grid-auto-rows': 'min-content' }, ['auto-rows-min']],
-    ['auto-rows arbitrário', { 'grid-auto-rows': '120px' }, ['auto-rows-[120px]']],
+    ['arbitrary auto-rows', { 'grid-auto-rows': '120px' }, ['auto-rows-[120px]']],
     ['auto-cols fr', { 'grid-auto-columns': 'minmax(0, 1fr)' }, ['auto-cols-fr']],
     [
-      'áreas',
+      'areas',
       { 'grid-template-areas': '"header header" "side main"' },
       ['[grid-template-areas:"header_header"_"side_main"]'],
     ],
-    ['área', { 'grid-area': 'header' }, ['[grid-area:header]']],
+    ['area', { 'grid-area': 'header' }, ['[grid-area:header]']],
   ])('%s', (_name, style, expected) => {
     const { classes, rest } = cssToTailwind(style);
     expect(classes).toEqual(expected);
     expect(rest).toEqual({});
   });
 
-  it('exporta o documento com classes de grid', () => {
+  it('exports the document with grid classes', () => {
     const html = exportTailwind(gridDoc(), { fragment: true });
     expect(html).toContain('grid-cols-3');
     expect(html).toContain('grid-rows-[100px_1fr]');
@@ -137,8 +137,8 @@ describe('exportação de grid: Tailwind', () => {
   });
 });
 
-describe('exportação de grid: React', () => {
-  it('Tailwind: className com as classes de grid', () => {
+describe('grid export: React', () => {
+  it('Tailwind: className with the grid classes', () => {
     const { code } = exportReact(gridDoc(), { nodeId: 'fr_test0001', extractRepeats: false });
     expect(code).toContain('grid-cols-3');
     expect(code).toContain('col-[2/span_3]');
@@ -146,7 +146,7 @@ describe('exportação de grid: React', () => {
     expect(code).toContain('[grid-area:header]');
   });
 
-  it('inline: style com as propriedades de grid', () => {
+  it('inline: style with the grid properties', () => {
     const { code } = exportReact(gridDoc(), {
       nodeId: 'fr_test0001',
       styles: 'inline',

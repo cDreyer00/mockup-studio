@@ -1,6 +1,6 @@
 /**
- * Fontes: listagem das instaladas no sistema (sem dependência nativa), parser do CSS do Google
- * Fonts e utilitários para `add_font`.
+ * Fonts: listing of the fonts installed on the system (no native dependency), Google Fonts CSS
+ * parser and utilities for `add_font`.
  */
 import { execFile } from 'node:child_process';
 import path from 'node:path';
@@ -55,7 +55,7 @@ const STYLE_RE = new RegExp(
   'i',
 );
 
-/** Separa "Arial Bold Italic" em família "Arial" e estilo "Bold Italic". */
+/** Splits "Arial Bold Italic" into family "Arial" and style "Bold Italic". */
 export function splitFamilyStyle(full: string): { family: string; style: string } {
   let family = full.trim();
   const styles: string[] = [];
@@ -80,7 +80,7 @@ function addFont(map: Map<string, SystemFont>, family: string, style: string, fi
   if (file && !f.files.includes(file)) f.files.push(file);
 }
 
-/** Saída de `reg query ...\Fonts` (Windows). */
+/** Output of `reg query ...\Fonts` (Windows). */
 export function parseRegFonts(text: string): SystemFont[] {
   const map = new Map<string, SystemFont>();
   for (const line of text.split(/\r?\n/)) {
@@ -95,7 +95,7 @@ export function parseRegFonts(text: string): SystemFont[] {
   return sortFonts(map);
 }
 
-/** Saída de `fc-list --format '%{family}\t%{style}\t%{file}\n'` (Linux). */
+/** Output of `fc-list --format '%{family}\t%{style}\t%{file}\n'` (Linux). */
 export function parseFcList(text: string): SystemFont[] {
   const map = new Map<string, SystemFont>();
   for (const line of text.split(/\r?\n/)) {
@@ -107,7 +107,7 @@ export function parseFcList(text: string): SystemFont[] {
   return sortFonts(map);
 }
 
-/** Saída de `system_profiler SPFontsDataType -json` (macOS). */
+/** Output of `system_profiler SPFontsDataType -json` (macOS). */
 export function parseSystemProfiler(json: string): SystemFont[] {
   const map = new Map<string, SystemFont>();
   const data = JSON.parse(json) as {
@@ -140,7 +140,7 @@ async function readSystemFonts(): Promise<SystemFont[]> {
   return parseFcList(await run('fc-list', ['--format', '%{family}\t%{style}\t%{file}\n']));
 }
 
-/** Fontes instaladas (cache em memória; falha de comando = lista vazia). */
+/** Installed fonts (in-memory cache; command failure = empty list). */
 export function listSystemFonts(): Promise<SystemFont[]> {
   cache ??= readSystemFonts().catch(() => []);
   return cache;
@@ -155,7 +155,7 @@ export interface GoogleFace {
   url: string;
 }
 
-// Blocos `@font-face` do CSS2 do Google, com o subconjunto (comentário "latin", "latin-ext"...).
+// `@font-face` blocks from Google's CSS2, with the subset (comment "latin", "latin-ext"...).
 export function parseGoogleCss(css: string): GoogleFace[] {
   const out: GoogleFace[] = [];
   const re = /\/\*\s*([\w-]+)\s*\*\/\s*@font-face\s*\{([^}]*)\}/g;
@@ -174,11 +174,11 @@ export function googleCssUrl(family: string, weights: number[]): string {
   return `https://fonts.googleapis.com/css2?family=${fam}:wght@${[...weights].sort((a, b) => a - b).join(';')}&display=swap`;
 }
 
-/** User-Agent de navegador moderno: faz o Google devolver woff2. */
+/** Modern browser User-Agent: makes Google return woff2. */
 export const MODERN_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
-/* ---------- arquivos de fonte locais ---------- */
+/* ---------- local font files ---------- */
 
 const WEIGHT_NAMES: [RegExp, number][] = [
   [/thin|hairline/i, 100],
@@ -193,7 +193,7 @@ const WEIGHT_NAMES: [RegExp, number][] = [
   [/regular|normal|book/i, 400],
 ];
 
-/** Peso e estilo prováveis a partir do nome do arquivo (padrão 400/normal). */
+/** Likely weight and style from the file name (default 400/normal). */
 export function guessFontStyle(file: string): { weight: number; style: 'normal' | 'italic' } {
   const base = path.basename(file, path.extname(file));
   const weight = WEIGHT_NAMES.find(([re]) => re.test(base))?.[1] ?? 400;
@@ -207,10 +207,10 @@ export function fontSlug(family: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return s || 'fonte';
+  return s || 'font';
 }
 
-/** `font-family` com fallback genérico adequado ao nome. */
+/** `font-family` with a generic fallback suited to the name. */
 export function fontFamilyCss(family: string): string {
   const f = family.toLowerCase();
   const generic = /mono|code|courier|consolas|menlo/.test(f)

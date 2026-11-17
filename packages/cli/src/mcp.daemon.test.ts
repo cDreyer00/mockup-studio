@@ -1,7 +1,7 @@
 /**
- * QA: `mockup mcp` (stdio) contra um daemon JÁ rodando (descoberto via daemon.json),
- * cobrindo get_basic_info, write_html no frame "Desktop 1440", get_tree_summary e undo;
- * e recuperação de um daemon.json obsoleto (processo morto).
+ * QA: `mockup mcp` (stdio) against an ALREADY running daemon (discovered via daemon.json),
+ * covering get_basic_info, write_html in the "Desktop 1440" frame, get_tree_summary and undo;
+ * and recovery from a stale daemon.json (dead process).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -32,7 +32,7 @@ async function connect(env: Record<string, string>): Promise<Client> {
   return client;
 }
 
-describe('mockup mcp contra daemon existente', () => {
+describe('mockup mcp against an existing daemon', () => {
   let dir: string;
   let daemon: DaemonHandle;
   let client: Client;
@@ -66,7 +66,7 @@ describe('mockup mcp contra daemon existente', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('tools/list, get_basic_info, write_html, get_tree_summary e undo', async () => {
+  it('tools/list, get_basic_info, write_html, get_tree_summary and undo', async () => {
     const { tools } = await client.listTools();
     expect(tools.length).toBeGreaterThanOrEqual(20);
 
@@ -78,14 +78,14 @@ describe('mockup mcp contra daemon existente', () => {
     );
     const w = await client.callTool({
       name: 'write_html',
-      arguments: { parentId: frameId, html: '<section><h1>Olá</h1><p>Mundo</p></section>' },
+      arguments: { parentId: frameId, html: '<section><h1>Hello</h1><p>World</p></section>' },
     });
     expect((w as { isError?: boolean }).isError).not.toBe(true);
     const after = textOf(
       await client.callTool({ name: 'get_tree_summary', arguments: { depth: 5 } }),
     );
-    expect(after).toContain('Olá');
-    // O daemon real vê a mesma mudança (proxy, não cópia)
+    expect(after).toContain('Hello');
+    // The real daemon sees the same change (proxy, not a copy)
     const docs = (await (await fetch(`${daemon.url}/api/docs`)).json()) as {
       documents: { dirty: boolean }[];
     };
@@ -97,7 +97,7 @@ describe('mockup mcp contra daemon existente', () => {
     ).toBe(before);
   });
 
-  it('daemon.json obsoleto (pid morto, porta sem ninguém) é ignorado e um daemon headless sobe', async () => {
+  it('stale daemon.json (dead pid, port with nobody) is ignored and a headless daemon starts', async () => {
     const dataDir = path.join(dir, 'stale');
     fs.mkdirSync(dataDir);
     fs.writeFileSync(
@@ -130,7 +130,7 @@ describe('mockup mcp contra daemon existente', () => {
         try {
           process.kill(pid);
         } catch {
-          /* já encerrado */
+          /* already stopped */
         }
       }
       await new Promise((r) => setTimeout(r, 500));

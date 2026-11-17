@@ -38,14 +38,14 @@ function png(w: number, h: number, fill: number): Buffer {
   ]);
 }
 
-describe('QA: link /cdn estável entre reinícios do daemon', () => {
+describe('QA: stable /cdn link across daemon restarts', () => {
   let ws: Ws;
   let daemon: DaemonHandle | undefined;
   let client: Client | undefined;
 
   const boot = async (): Promise<void> => {
     daemon = await startDaemon({ port: 0, dataDir: ws.dataDir, writeInfo: false });
-    client = new Client({ name: 'teste', version: '0.0.0' });
+    client = new Client({ name: 'test', version: '0.0.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(daemon.mcpUrl)));
     await client.callTool({ name: 'open_document', arguments: { path: ws.file } });
   };
@@ -64,20 +64,20 @@ describe('QA: link /cdn estável entre reinícios do daemon', () => {
     ws.cleanup();
   });
 
-  it('o mesmo conteúdo mantém o hash e o /cdn responde depois de reiniciar (outro nome, outro daemon)', async () => {
+  it('the same content keeps its hash and /cdn responds after a restart (other name, other daemon)', async () => {
     const bytes = png(20, 10, 9);
     const hash = crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 32);
     await boot();
     const up = await client!.callTool({
       name: 'upload_asset',
-      arguments: { source: `data:image/png;base64,${bytes.toString('base64')}`, name: 'um' },
+      arguments: { source: `data:image/png;base64,${bytes.toString('base64')}`, name: 'one' },
     });
     expect(textOf(up)).toContain(`/cdn/${hash}.png`);
     await shutdown();
 
     await boot();
-    // arquivo com outro nome e o mesmo conteúdo: o mesmo link
-    const file = path.join(ws.dir, 'copia-com-outro-nome.png');
+    // file with another name and the same content: the same link
+    const file = path.join(ws.dir, 'copy-with-another-name.png');
     fs.writeFileSync(file, bytes);
     const again = await client!.callTool({ name: 'upload_asset', arguments: { source: file } });
     expect(textOf(again)).toContain(`/cdn/${hash}.png`);
@@ -91,7 +91,7 @@ describe('QA: link /cdn estável entre reinícios do daemon', () => {
         .update(Buffer.from(await res.arrayBuffer()))
         .digest('hex'),
     ).toContain(hash);
-    // variações do nome não resolvem (caixa, extensão trocada, sem extensão, traversal)
+    // name variations do not resolve (case, swapped extension, no extension, traversal)
     const base = new URL(url).origin;
     for (const p of [
       `/cdn/${hash.toUpperCase()}.png`,
@@ -105,19 +105,19 @@ describe('QA: link /cdn estável entre reinícios do daemon', () => {
   });
 });
 
-describe('QA: caminhos de rede em bind_data', () => {
+describe('QA: network paths in bind_data', () => {
   const bs = String.fromCharCode(92);
-  const unc = [bs + bs + '127.0.0.1', 'inexistente', 'x.csv'].join(bs);
+  const unc = [bs + bs + '127.0.0.1', 'missing', 'x.csv'].join(bs);
 
-  // Abrir um compartilhamento SMB pode enviar credenciais NTLM a um host escolhido no prompt:
-  // a recusa precisa acontecer antes de qualquer acesso ao disco (sem "não encontrado").
-  it('recusa caminho UNC e de dispositivo antes de tocar a rede', async () => {
+  // Opening an SMB share can send NTLM credentials to a host chosen in the prompt:
+  // the refusal must happen before any disk access (no "not found").
+  it('rejects UNC and device paths before touching the network', async () => {
     for (const p of [
       unc,
       '//127.0.0.1/c$/x.csv',
       bs + bs + '?' + bs + 'UNC' + bs + 'h' + bs + 's' + bs + 'x.csv',
     ]) {
-      await expect(resolveDataPath(p), p).rejects.toThrow(/caminho de rede/i);
+      await expect(resolveDataPath(p), p).rejects.toThrow(/network or device path/i);
     }
   });
 });
