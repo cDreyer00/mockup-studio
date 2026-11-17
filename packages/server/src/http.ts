@@ -4,6 +4,7 @@ import { exportSvg, findNode } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { assetDataUrl } from './assets.js';
+import { detectAsset, getLibrary } from './library.js';
 import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
@@ -193,6 +194,9 @@ export function createApp(
         const finalName = i === 0 ? `${base}${ext}` : `${base}-${i}${ext}`;
         try {
           await fs.promises.writeFile(path.join(dir, finalName), body, { flag: 'wx' });
+          // registra no CDN local (link direto na listagem de assets)
+          const info = detectAsset(body);
+          if (info) getLibrary(ctx.dataDir).add(body, { name: finalName, info });
           res.json({ src: finalName });
           return;
         } catch (e) {

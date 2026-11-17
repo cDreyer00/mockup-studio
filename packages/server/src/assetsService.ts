@@ -48,7 +48,10 @@ export interface AssetInfo {
   mtime: number;
   /** Hash do conteúdo (vazio para arquivos que não são imagem/fonte). */
   hash: string;
-  /** Link direto absoluto no CDN local (vazio para arquivos que não são imagem/fonte). */
+  /**
+   * Link direto absoluto no CDN local. Vazio para arquivos que não são imagem/fonte e para os ainda
+   * não registrados no CDN (a listagem não registra; use o link, `get_asset_url` ou o upload).
+   */
   cdnUrl: string;
   uses: number;
   nodeIds: string[];
@@ -115,7 +118,26 @@ interface HashEntry {
   hash: string;
   info: DetectedAsset | null;
 }
+/** Cache de hash por caminho (validado por mtime e tamanho), com teto: descarta o menos usado. */
+const HASH_CACHE_MAX = 2000;
 const hashCache = new Map<string, HashEntry>();
+
+function cachedHash(abs: string): HashEntry | undefined {
+  const c = hashCache.get(abs);
+  if (c) {
+    hashCache.delete(abs);
+    hashCache.set(abs, c);
+  }
+  return c;
+}
+
+function rememberHash(abs: string, entry: HashEntry): void {
+  hashCache.delete(abs);
+  hashCache.set(abs, entry);
+  while (hashCache.size > HASH_CACHE_MAX) {
+    hashCache.delete(hashCache.keys().next().value!);
+  }
+}
 
 /** Caminhos de `assets/` usados por `dataSource.path` dos repetidores (não podem ser apagados). */
 function dataSourcePaths(doc: Document): Set<string> {
@@ -148,7 +170,7 @@ export async function listDocAssets(ctx: AssetsServiceCtx, docId: string): Promi
     let cdnUrl = '';
     let info: DetectedAsset | null = null;
     if (kind !== 'other') {
-      let c = hashCache.get(f.abs);
+      let c = cachedHash(f.abs);
       if (!c || c.mtimeMs !== st.mtimeMs || c.size !== st.size) {
         const bytes = await fs.promises.readFile(f.abs);
         c = {
@@ -157,15 +179,13 @@ export async function listDocAssets(ctx: AssetsServiceCtx, docId: string): Promi
           hash: hashBytes(bytes),
           info: detectAsset(bytes),
         };
-        hashCache.set(f.abs, c);
-        if (c.info) lib.add(bytes, { name: path.basename(f.rel), info: c.info });
-      } else if (c.info && !lib.has(c.hash)) {
-        await lib.addFile(f.abs, { name: path.basename(f.rel) });
+        rememberHash(f.abs, c);
       }
       info = c.info;
       if (c.info) {
         hash = c.hash;
-        cdnUrl = cdnUrlOf(ctx, hash, c.info.ext);
+        // Só lê: o link aparece se o arquivo já foi registrado no CDN.
+        if (lib.has(hash)) cdnUrl = cdnUrlOf(ctx, hash, c.info.ext);
       }
     }
     const ref: AssetRef | undefined = refs.get(f.rel);
@@ -396,6 +416,8 @@ export async function optimizeDocAssets(
         output,
       );
       const newPath = relDir === '.' ? finalName : `${relDir}/${finalName}`;
+      const outInfo = detectAsset(output);
+      if (outInfo) getLibrary(ctx.dataDir).add(output, { name: finalName, info: outInfo });
       results.push({ path: rel, newPath, before: input.length, after: output.length });
       renamed.set(rel, newPath);
     } catch (e) {

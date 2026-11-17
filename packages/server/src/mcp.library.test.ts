@@ -118,6 +118,28 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect(r.headers.get('content-disposition')).toBe('attachment');
     });
 
+    it('listar não registra no CDN; o link registra', async () => {
+      const png = fakePng(12, 10, 9);
+      const hash = sha32(png);
+      fs.mkdirSync(path.join(ws.dir, 'assets'), { recursive: true });
+      fs.writeFileSync(path.join(ws.dir, 'assets', 'solto.png'), png);
+      const list = (await (await fetch(`${base}/api/assets/${docId()}`)).json()) as {
+        assets: { path: string; hash: string; cdnUrl: string }[];
+      };
+      const a = list.assets.find((x) => x.path === 'solto.png')!;
+      expect(a.hash).toBe(hash);
+      expect(a.cdnUrl).toBe('');
+      expect((await fetch(`${base}/cdn/${hash}.png`)).status).toBe(404);
+
+      const link = await post(`/api/assets/${docId()}/link`, { path: 'solto.png' });
+      expect(link.status).toBe(200);
+      expect((await fetch(`${base}/cdn/${hash}.png`)).status).toBe(200);
+      const again = (await (await fetch(`${base}/api/assets/${docId()}`)).json()) as typeof list;
+      expect(again.assets.find((x) => x.path === 'solto.png')!.cdnUrl).toBe(
+        `${base}/cdn/${hash}.png`,
+      );
+    });
+
     it('o mesmo conteúdo dá o mesmo link entre documentos', async () => {
       const open2 = await call('open_document', { path: ws2.file });
       expect(open2.isError, textOf(open2)).toBeFalsy();
