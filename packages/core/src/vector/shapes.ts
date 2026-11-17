@@ -112,7 +112,7 @@ export function createShapeVector(spec: ShapeSpec, paint?: VectorPaintPatch): Ve
     ? { id: 'p1', d, fill: 'none', stroke: '#111111', strokeWidth: 2 }
     : { id: 'p1', d, fill: '#d9d9d9' };
   const base: Vector = {
-    viewBox: { x: -pad, y: -pad, width: spec.width + 2 * pad, height: spec.height + 2 * pad },
+    viewBox: { x: pad ? -pad : 0, y: pad ? -pad : 0, width: spec.width + 2 * pad, height: spec.height + 2 * pad },
     paths: [path],
   };
   return paint ? setVectorPaint(base, paint) : base;
@@ -126,13 +126,15 @@ export function createVectorNode(
   vector: Vector,
   opts: { name?: string; style?: Record<string, string>; id?: string } = {},
 ): Node {
-  return createNode({
+  const node = createNode({
     id: opts.id ?? newNodeId('svg'),
     type: 'svg',
     tag: 'svg',
     name: opts.name ?? 'Vetor',
     style: opts.style ?? {},
-    vector: deepClone(vector),
     svg: vectorToSvg(vector),
   });
+  // createNode (document.ts) não copia `vector`; atribui aqui
+  node.vector = deepClone(vector);
+  return node;
 }
