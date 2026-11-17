@@ -267,7 +267,7 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
   });
 
   it('none estica; meet/slice usam escala uniforme e o alinhamento', () => {
-    const run = (par: string | null): { x: number; y: number; width: number; height: number } => {
+    const run = (par: string | null, raw?: string): { x: number; y: number; width: number; height: number } => {
       const doc = createDocument('Teste', { id: 'doc_test0004' });
       const frame = createNodeFromTag('div', { isRoot: true, position: { x: 0, y: 0 } });
       frame.id = 'fr_cccccccc';
@@ -277,6 +277,7 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
             viewBox: { x: 0, y: 0, width: 10, height: 10 },
             paths: [{ id: 'p1', d: 'M 0 0 L 10 0 L 10 10 L 0 10 Z', fill: '#000' }],
             ...(par ? { attrs: { preserveAspectRatio: par } } : {}),
+            ...(raw ? { raw } : {}),
           },
           {
             id,
@@ -302,6 +303,13 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
     expect(run('xMaxYMid meet')).toEqual({ x: 20, y: 0, width: 20, height: 20 });
     // slice: escala 4, desenho 40x40, centralizado em y (sobra de 10 para cima)
     expect(run('xMidYMid slice')).toEqual({ x: 0, y: -10, width: 40, height: 40 });
+    // importado (raw) sem preserveAspectRatio: padrão do navegador, xMidYMid meet
+    expect(run(null, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>')).toEqual({
+      x: 10,
+      y: 0,
+      width: 20,
+      height: 20,
+    });
   });
 });
 

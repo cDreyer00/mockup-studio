@@ -12,7 +12,7 @@ import type { BooleanOp } from './boolean.js';
 import { pathBounds, transformPathData } from './path.js';
 import type { Box, Matrix } from './path.js';
 import { createVectorNode } from './shapes.js';
-import { ensureVector, isVectorEditable } from './svg.js';
+import { ensureVector, isVectorEditable, vectorPreserveAspectRatio } from './svg.js';
 
 /** `[{ type: 'setVector', changes: [{ nodeId, vector }] }]`. */
 export function buildSetVectorOps(nodeId: string, vector: Vector | null): Op[] {
@@ -63,35 +63,12 @@ export function isFreeNode(node: Node, isRoot: boolean): boolean {
   return pos === 'absolute' || pos === 'fixed';
 }
 
-/**
- * Como o vetor é desenhado na caixa do nó (`preserveAspectRatio`): `'none'` = esticado; senão o
- * alinhamento (`xMidYMid`...) e se é `slice` (cobre) ou `meet` (cabe). Lê o `<svg>` raiz do `raw`,
- * depois `attrs.preserveAspectRatio`; sem nenhum, o vetor é esticado (`none`).
- */
-function aspectOf(v: Vector): { align: string; slice: boolean } | 'none' {
-  let value: string | undefined;
-  if (v.raw !== undefined) {
-    const tag = /<svg\b[^>]*>/i.exec(v.raw)?.[0];
-    const m = tag ? /\spreserveAspectRatio\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag) : null;
-    value = m ? (m[1] ?? m[2]) : undefined;
-  }
-  value ??= v.attrs?.['preserveAspectRatio'];
-  if (value === undefined) return 'none';
-  const parts = value
-    .trim()
-    .split(/\s+/)
-    .filter((t) => t !== 'defer');
-  const align = parts[0] ?? 'xMidYMid';
-  if (align === 'none') return 'none';
-  return { align, slice: parts[1] === 'slice' };
-}
-
 /** Leva o viewBox à caixa respeitando `preserveAspectRatio` (como o navegador desenha). */
 function viewBoxMatrix(vector: Vector, box: Box): Matrix {
   const vb = vector.viewBox;
   const rx = vb.width ? box.width / vb.width : 1;
   const ry = vb.height ? box.height / vb.height : 1;
-  const par = aspectOf(vector);
+  const par = vectorPreserveAspectRatio(vector);
   if (par === 'none') {
     return { a: rx, b: 0, c: 0, d: ry, e: box.x - vb.x * rx, f: box.y - vb.y * ry };
   }
