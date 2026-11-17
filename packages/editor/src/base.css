@@ -23,6 +23,7 @@
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
   --panel-w: 248px;
+  --panel-w-wide: 380px;
   --toolbar-h: 40px;
   color-scheme: dark;
 }

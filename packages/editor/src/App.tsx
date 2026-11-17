@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { Canvas } from './canvas/Canvas';
-import { PropertiesPanel } from './properties/PropertiesPanel';
+import { RightDock } from './dock/RightDock';
 import { useDesktop } from './desktop/useDesktop';
 import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
+import { useUi } from './state/uiStore';
 import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
@@ -18,6 +19,7 @@ export function App() {
   const status = useDoc((s) => s.status);
   const hasDoc = useDoc((s) => !!s.doc);
   const info = useDoc(selectActiveInfo);
+  const rightTab = useUi((s) => s.rightTab);
   useShortcuts();
   useDesktop();
 
@@ -29,7 +31,7 @@ export function App() {
   return (
     <div className="app">
       <Toolbar />
-      <div className="main">
+      <div className={`main${rightTab === 'design' ? '' : ' right-wide'}`}>
         <LeftDock />
         {hasDoc ? (
           <Canvas />
@@ -42,7 +44,7 @@ export function App() {
                 : 'Nenhum documento aberto. Use Arquivo › Abrir ou Novo, `mockup open <arquivo>` ou o MCP.'}
           </div>
         )}
-        <PropertiesPanel />
+        <RightDock />
       </div>
       <OverlayHost />
     </div>

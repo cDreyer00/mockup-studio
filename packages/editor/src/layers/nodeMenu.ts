@@ -10,6 +10,7 @@ import {
   goToMain,
 } from '../components/componentActions';
 import { isRealInstance } from '../components/model';
+import { REMIX_LABELS, remixTarget, runAiRemix, runRemix } from '../remix/remixActions';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
@@ -23,6 +24,7 @@ export function buildNodeMenu(): MenuItem[] {
   const allHidden = nodes.length > 0 && nodes.every((n) => n.hidden);
   const allLocked = nodes.length > 0 && nodes.every((n) => n.locked);
   const one = doc && sel.length === 1 ? sel[0]! : null;
+  const remixable = remixTarget(useUi.getState().selection) !== null;
   const instance = one && nodes[0]?.componentId !== undefined ? one : null;
   return [
     {
@@ -98,6 +100,32 @@ export function buildNodeMenu(): MenuItem[] {
       shortcut: 'Ctrl+Shift+L',
       disabled: none,
       onSelect: () => void actions.setLocked(sel, !allLocked),
+    },
+    {
+      label: REMIX_LABELS['color-scale'],
+      separator: true,
+      disabled: !remixable,
+      onSelect: () => void runRemix('color-scale'),
+    },
+    {
+      label: REMIX_LABELS['font-pairs'],
+      disabled: !remixable,
+      onSelect: () => void runRemix('font-pairs'),
+    },
+    {
+      label: REMIX_LABELS.spacing,
+      disabled: !remixable,
+      onSelect: () => void runRemix('spacing'),
+    },
+    {
+      label: REMIX_LABELS.layout,
+      disabled: !remixable,
+      onSelect: () => void runRemix('layout'),
+    },
+    {
+      label: 'Remix com IA…',
+      disabled: !remixable,
+      onSelect: () => void runAiRemix(),
     },
     {
       label: 'Excluir',

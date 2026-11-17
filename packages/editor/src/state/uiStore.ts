@@ -8,6 +8,7 @@ import type { Position, PreviewState } from '@mockup/core';
 import { COMPONENT_FRAME_ID } from '../components/model';
 
 export type LeftTab = 'layers' | 'tokens' | 'components';
+export type RightTab = 'design' | 'assistant' | 'scripts';
 
 /** Contexto do modo de edição isolado do principal (para montar a visão e para voltar). */
 export interface ComponentEdit {
@@ -63,6 +64,8 @@ export interface UiState {
   altDown: boolean;
   /** Aba ativa do painel esquerdo. */
   leftTab: LeftTab;
+  /** Aba ativa do painel direito (Design = propriedades, Assistente, Scripts). */
+  rightTab: RightTab;
   /** Prévia de estado (hover, focus, dark...) aplicada a todos os nós do canvas; null = nenhuma. */
   previewState: PreviewState | null;
   /** Seção Classes: mostra o estilo atual como classes Tailwind (somente leitura). */
@@ -87,6 +90,7 @@ export const useUi = create<UiState>(() => ({
   spaceDown: false,
   altDown: false,
   leftTab: 'layers',
+  rightTab: 'design',
   previewState: null,
   showAsTailwind: false,
   toast: null,
@@ -157,6 +161,9 @@ export const ui = {
   },
   setLeftTab(leftTab: LeftTab): void {
     if (useUi.getState().leftTab !== leftTab) useUi.setState({ leftTab });
+  },
+  setRightTab(rightTab: RightTab): void {
+    if (useUi.getState().rightTab !== rightTab) useUi.setState({ rightTab });
   },
   setPreviewState(previewState: PreviewState | null): void {
     if (useUi.getState().previewState !== previewState) useUi.setState({ previewState });

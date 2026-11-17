@@ -1,0 +1,51 @@
+/* ---------------- abas do painel direito ---------------- */
+
+.right-dock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.right-dock .panel-right {
+  border-left: 0;
+}
+.right-tabs {
+  display: flex;
+  flex: none;
+  height: 30px;
+  border-bottom: 1px solid var(--border);
+}
+.right-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.right-tab:hover {
+  color: var(--text);
+}
+.right-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.right-dock-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.right-dock-body[hidden] {
+  display: none;
+}
+.right-dock-body > .panel {
+  flex: 1;
+  min-height: 0;
+}

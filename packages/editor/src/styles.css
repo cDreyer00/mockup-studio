@@ -28,6 +28,10 @@ body {
   grid-template-columns: var(--panel-w) 1fr var(--panel-w);
   min-height: 0;
 }
+/* Assistente e Scripts precisam de mais largura que as propriedades. */
+.main.right-wide {
+  grid-template-columns: var(--panel-w) 1fr var(--panel-w-wide);
+}
 .toolbar {
   display: flex;
   align-items: center;

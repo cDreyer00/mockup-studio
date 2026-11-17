@@ -5,11 +5,18 @@
  * Regra central do editor: toda mutação do documento passa por `daemon.apply(ops)`.
  */
 import type {
+  AssistantBackendInfo,
+  AssistantConfig,
+  AssistantMessage,
   ClientMessage,
   Document,
   HistoryState,
   Op,
   OpenDocumentInfo,
+  RemixKind,
+  RemixResult,
+  ScriptFileInfo,
+  ScriptRunResult,
   ServerMessage,
 } from '@mockup/core';
 import {
@@ -19,6 +26,7 @@ import {
   mainOfSelection,
 } from '../components/editing';
 import { getEntry, getFrameOf } from '../model/tree';
+import { assistantStore } from '../state/assistantStore';
 import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc, withView } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 
@@ -42,6 +50,8 @@ interface Pending {
 }
 
 const REQUEST_TIMEOUT_MS = 15000;
+/** Scripts, geração com IA e remix com IA podem levar bem mais que uma op comum. */
+export const LONG_REQUEST_TIMEOUT_MS = 120000;
 /** Intervalo mínimo entre `selection:set` (o marquee muda a seleção a cada `pointermove`). */
 export const SELECTION_SYNC_MS = 100;
 /** Atividade do agente mais antiga que isso é descartada (o selo some bem antes). */
@@ -154,7 +164,7 @@ export class DaemonClient {
   }
 
   /** Envia uma requisição e resolve com o `result` do ack (rejeita com a mensagem do `error`). */
-  request<T = unknown>(msg: NewClientMessage): Promise<T> {
+  request<T = unknown>(msg: NewClientMessage, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('Sem conexão com o daemon'));
@@ -164,7 +174,7 @@ export class DaemonClient {
       const timer = setTimeout(() => {
         this.pending.delete(reqId);
         reject(new Error('O daemon não respondeu a tempo'));
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       this.pending.set(reqId, { resolve: resolve as (v: unknown) => void, reject, timer });
       ws.send(JSON.stringify({ ...msg, reqId }));
     });
@@ -246,6 +256,114 @@ export class DaemonClient {
     return Array.isArray(body.recent) ? body.recent : [];
   }
 
+  /* ---------------- assistente, scripts e remix ---------------- */
+
+  private activeDoc(docId?: string): string {
+    const id = docId ?? useDoc.getState().activeDocId;
+    if (!id) throw new Error('Nenhum documento aberto');
+    return id;
+  }
+
+  /** Inicia um turno do assistente. Só espera o ack; o resto chega por `assistant:event`. */
+  async assistantSend(
+    prompt: string,
+    opts: { selection?: string[]; backend?: string; docId?: string } = {},
+  ): Promise<{ turnId: string }> {
+    return this.request({
+      type: 'assistant:send',
+      docId: this.activeDoc(opts.docId),
+      prompt,
+      ...(opts.selection ? { selection: opts.selection } : {}),
+      ...(opts.backend ? { backend: opts.backend } : {}),
+    });
+  }
+  async assistantCancel(docId?: string): Promise<{ cancelled: boolean }> {
+    return this.request({ type: 'assistant:cancel', docId: this.activeDoc(docId) });
+  }
+  /** Carrega histórico, backends e configuração e os grava no `assistantStore`. */
+  async assistantHistory(docId?: string): Promise<{
+    messages: AssistantMessage[];
+    running: string | null;
+    backends: AssistantBackendInfo[];
+    config: AssistantConfig;
+  }> {
+    const id = this.activeDoc(docId);
+    const res = await this.request<{
+      messages: AssistantMessage[];
+      running: string | null;
+      backends: AssistantBackendInfo[];
+      config: AssistantConfig;
+    }>({ type: 'assistant:history', docId: id });
+    assistantStore.setHistory(id, res);
+    return res;
+  }
+  async assistantClear(docId?: string): Promise<unknown> {
+    return this.request({ type: 'assistant:clear', docId: this.activeDoc(docId) });
+  }
+  /** Lê (sem argumento) ou grava a configuração; atualiza o `assistantStore`. */
+  async assistantConfig(
+    config?: Partial<AssistantConfig>,
+  ): Promise<{ config: AssistantConfig; backends: AssistantBackendInfo[] }> {
+    const res = await this.request<{ config: AssistantConfig; backends: AssistantBackendInfo[] }>({
+      type: 'assistant:config',
+      ...(config ? { config } : {}),
+    });
+    assistantStore.setConfig(res.config, res.backends);
+    return res;
+  }
+
+  async scriptRun(
+    code: string,
+    opts: { selection?: string[]; docId?: string } = {},
+  ): Promise<ScriptRunResult> {
+    return this.request(
+      {
+        type: 'script:run',
+        docId: this.activeDoc(opts.docId),
+        code,
+        ...(opts.selection ? { selection: opts.selection } : {}),
+      },
+      LONG_REQUEST_TIMEOUT_MS,
+    );
+  }
+  async scriptList(docId?: string): Promise<{ dir: string | null; scripts: ScriptFileInfo[] }> {
+    return this.request({ type: 'script:list', docId: this.activeDoc(docId) });
+  }
+  async scriptRead(name: string, docId?: string): Promise<{ name: string; code: string }> {
+    return this.request({ type: 'script:read', docId: this.activeDoc(docId), name });
+  }
+  async scriptSave(name: string, code: string, docId?: string): Promise<{ name: string }> {
+    return this.request({ type: 'script:save', docId: this.activeDoc(docId), name, code });
+  }
+  async scriptDelete(name: string, docId?: string): Promise<unknown> {
+    return this.request({ type: 'script:delete', docId: this.activeDoc(docId), name });
+  }
+  async scriptGenerate(prompt: string, docId?: string): Promise<{ code: string }> {
+    return this.request(
+      { type: 'script:generate', docId: this.activeDoc(docId), prompt },
+      LONG_REQUEST_TIMEOUT_MS,
+    );
+  }
+
+  /** Gera variações lado a lado (o daemon seleciona os frames criados). `ai` pode demorar. */
+  async remix(
+    nodeId: string,
+    kind: RemixKind,
+    opts: { count?: number; prompt?: string; docId?: string } = {},
+  ): Promise<RemixResult> {
+    return this.request(
+      {
+        type: 'remix',
+        docId: this.activeDoc(opts.docId),
+        nodeId,
+        kind,
+        ...(opts.count !== undefined ? { count: opts.count } : {}),
+        ...(opts.prompt !== undefined ? { prompt: opts.prompt } : {}),
+      },
+      kind === 'ai' ? LONG_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
+    );
+  }
+
   /* ------------------------------------------------------------------ */
 
   /** Integra uma mensagem do servidor nos stores. Público para testes. */
@@ -318,6 +436,9 @@ export class DaemonClient {
         if (isActive) this.pruneUi(useDoc.getState().doc ?? doc);
         return;
       }
+      case 'assistant:event':
+        assistantStore.applyEvent(msg.docId, msg.event);
+        return;
       case 'agent:finished': {
         const doc = s.docs[msg.docId];
         if (!doc) return;
@@ -348,6 +469,7 @@ export class DaemonClient {
         delete docs[msg.docId];
         const histories = { ...s.histories };
         delete histories[msg.docId];
+        assistantStore.drop(msg.docId);
         const wasActive = s.activeDocId === msg.docId;
         useDoc.setState({
           docs,
