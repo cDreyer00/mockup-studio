@@ -3,6 +3,7 @@
  * usados e otimização (sharp). Compartilhado pelas rotas HTTP e pelas ferramentas MCP.
  */
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import {
   assetPathOf,
@@ -271,6 +272,38 @@ export async function linkDocAsset(
 const OPTIMIZABLE = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif']);
 
 /**
+ * Pastas `node_modules` extras onde procurar o sharp quando o import normal falha. No app
+ * empacotado o processo principal e o daemon do CLI são bundles sem node_modules; o sharp (nativo)
+ * vai em `resources/native/node_modules` (ver `electron-builder.yml`).
+ */
+function sharpFallbackDirs(): string[] {
+  const dirs: string[] = [];
+  const env = process.env['MOCKUP_NATIVE_MODULES'];
+  if (env) dirs.push(env);
+  const resources = (process as { resourcesPath?: string }).resourcesPath;
+  if (resources) dirs.push(path.join(resources, 'native', 'node_modules'));
+  // daemon do CLI empacotado: resources/cli/daemon.mjs
+  if (process.argv[1]) {
+    dirs.push(path.join(path.dirname(process.argv[1]), '..', 'native', 'node_modules'));
+  }
+  return dirs;
+}
+
+/** Carrega o sharp (import normal ou, no app empacotado, de `resources/native/node_modules`). */
+export async function loadSharp(): Promise<typeof Sharp> {
+  try {
+    return (await import('sharp')).default;
+  } catch (first) {
+    for (const dir of sharpFallbackDirs()) {
+      const entry = path.join(dir, 'sharp');
+      if (!fs.existsSync(path.join(entry, 'package.json'))) continue;
+      return createRequire(import.meta.url)(entry) as typeof Sharp;
+    }
+    throw first;
+  }
+}
+
+/**
  * Otimiza imagens de `assets/` com sharp: reduz para `maxWidth` (sem ampliar), converte para WebP
  * (ou mantém o formato) e só adota o resultado se ficar menor. Grava arquivos novos (não apaga os
  * originais) e reescreve as referências numa única chamada de `applyOps` (um undo).
@@ -285,11 +318,11 @@ export async function optimizeDocAssets(
   if (!dir) throw new RouteError(409, 'O documento ainda não tem caminho em disco; salve-o antes.');
   let sharp: typeof Sharp;
   try {
-    sharp = (await import('sharp')).default;
+    sharp = await loadSharp();
   } catch (e) {
     throw new RouteError(
       501,
-      `Otimização indisponível: o módulo sharp não carregou (${e instanceof Error ? e.message.split('\n')[0] : String(e)}). Instale com \`npm install sharp -w @mockup/server\`.`,
+      `Otimização indisponível: o módulo sharp não carregou (${e instanceof Error ? e.message.split('\n')[0] : String(e)}). No app instalado ele vem em resources/native (só Windows x64); reinstale o app. Em desenvolvimento: \`npm install sharp -w @mockup/server\`.`,
     );
   }
   const refs = collectAssetRefs(ctx.store.get(docId));
@@ -379,5 +412,9 @@ export async function optimizeDocAssets(
   const currentRefs = collectAssetRefs(current);
   const ops = rewriteAssetRefsOps(current, renamed);
   if (ops.length) applyOps(ops);
-  return { results, skipped, rewritten: [...renamed.keys()].filter((r) => currentRefs.has(r)).length };
+  return {
+    results,
+    skipped,
+    rewritten: [...renamed.keys()].filter((r) => currentRefs.has(r)).length,
+  };
 }

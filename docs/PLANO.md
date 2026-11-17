@@ -168,7 +168,7 @@ Entregue na branch `feature/assets-dados` (assets com link direto, imagem, dados
 - **Organização**: `files.json` com pastas virtuais, tags e favoritos, tela inicial com miniaturas e busca por nome/tag/conteúdo, busca de nós. MCP: `list_files`, `search_nodes`, `tag_file`, `manage_folders`, `move_files`.
 - Guias `assets` e `data`.
 
-Pendências: otimização indisponível no app empacotado (sharp fica fora do bundle); recorte com `object-view-box` só aparece no Chromium (o código exportado mostra a imagem inteira em Firefox/Safari); miniaturas de documentos fechados sem as fontes embutidas; estilos não aceitam bindings; importação em lote e SVG inline editável seguem abertos.
+Pendências: no app empacotado o sharp vem em `resources/native` só para a plataforma em que o pacote foi gerado (Windows x64); recorte com `object-view-box` só aparece no Chromium (o código exportado mostra a imagem inteira em Firefox/Safari); miniaturas de documentos fechados sem as fontes embutidas; estilos não aceitam bindings; importação em lote e SVG inline editável seguem abertos; a validação dos dados serializa a lista inteira (`JSON.stringify` no `DataSchema`) a cada `setData`; `fetchBytes` (imagens e dados por URL) não filtra endereços de rede privada.
 
 ### Fase 7 — Vetores e grid
 

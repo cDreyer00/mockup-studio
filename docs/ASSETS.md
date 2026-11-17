@@ -47,7 +47,7 @@ Imagens e fontes de um documento ficam em `assets/`, ao lado do `.mockup.json`. 
 - grava `nome.webp` (ou `nome-otimizado.<ext>`), sem sobrescrever, e só troca as referências se o resultado ficar menor;
 - não apaga os originais: depois use `remove_unused_assets`.
 
-Sem o módulo, a ferramenta responde com erro explicando como instalar (`npm install sharp -w @mockup/server`). O sharp fica fora dos bundles do app desktop e do CLI empacotado (é nativo): em desenvolvimento ele é resolvido pelo `node_modules` do repositório; no app instalado a otimização ainda não está disponível.
+Sem o módulo, a ferramenta responde com erro explicando como instalar (`npm install sharp -w @mockup/server`). O sharp fica fora dos bundles do app desktop e do CLI empacotado (é nativo): em desenvolvimento ele é resolvido pelo `node_modules` do repositório; no app instalado ele vai copiado, com as dependências e o binário da plataforma do build (`@img/sharp-win32-x64`), em `resources/native/node_modules` (`extraResources` do `electron-builder.yml`), onde o server o procura quando o `import()` normal falha (também via `MOCKUP_NATIVE_MODULES`).
 
 ## Ajustes de imagem
 
