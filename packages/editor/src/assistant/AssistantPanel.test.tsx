@@ -138,6 +138,7 @@ describe('AssistantPanel', () => {
     expect(screen.getByTestId('assistant-partial').textContent).toContain('Trabalhando');
     expect(screen.getByTestId('assistant-tool').getAttribute('data-status')).toBe('running');
     expect(screen.queryByTestId('assistant-send')).toBeNull();
+    expect(screen.getByTestId('assistant-split-warning').textContent).toContain('dividem o undo');
     fireEvent.click(screen.getByTestId('assistant-cancel'));
     expect(cancel).toHaveBeenCalledWith(DOC);
   });

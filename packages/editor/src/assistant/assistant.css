@@ -163,6 +163,9 @@
   color: var(--muted);
   font-size: 11px;
 }
+.as-context.as-warn {
+  color: #d9a441;
+}
 .as-input-row {
   display: flex;
   align-items: flex-end;

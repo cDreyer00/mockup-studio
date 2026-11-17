@@ -162,6 +162,11 @@ export function AssistantPanel() {
         <div className="as-context" data-testid="assistant-context">
           {ctx}
         </div>
+        {running && (
+          <div className="as-context as-warn" data-testid="assistant-split-warning">
+            Edições suas durante o turno dividem o undo do turno em mais de um passo.
+          </div>
+        )}
         <div className="as-input-row">
           <textarea
             className="as-input"
