@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@mockup/core": "0.1.0",
+    "@mockup/snapshot-core": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",

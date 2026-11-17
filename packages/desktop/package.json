@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@mockup/core": "0.1.0",
-    "@mockup/server": "0.1.0"
+    "@mockup/server": "0.1.0",
+    "@mockup/snapshot-core": "0.1.0"
   },
   "devDependencies": {
     "electron": "^45.3.3",

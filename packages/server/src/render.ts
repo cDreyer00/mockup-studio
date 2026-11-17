@@ -4,6 +4,7 @@
  * medido ficam indisponíveis (as ferramentas explicam como habilitar).
  */
 import type { Document, LayoutNode } from '@mockup/core';
+import type { PageSnapshotRequest, PageSnapshotResult } from '@mockup/snapshot-core';
 
 export type RenderScale = 1 | 2 | 3;
 export type RenderFormat = 'png' | 'jpg';
@@ -47,6 +48,12 @@ export interface RenderProvider {
   capture(req: CaptureRequest): Promise<CaptureResult>;
   /** Geometria da subárvore do nó, relativa ao frame raiz (ver `LayoutNode`). */
   measure(target: RenderTarget): Promise<LayoutNode>;
+  /**
+   * Abre a URL (ou o HTML) numa janela isolada, roda a captura do `@mockup/snapshot-core` no
+   * elemento e devolve o snapshot (import_url/import_html). Opcional: sem ele, a importação de URL
+   * fica indisponível e a de HTML cai na conversão do core.
+   */
+  snapshot?(req: PageSnapshotRequest): Promise<PageSnapshotResult>;
   close?(): Promise<void>;
 }
 
