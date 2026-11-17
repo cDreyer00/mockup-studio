@@ -10,6 +10,7 @@ export const ID_PREFIX: Record<NodeType, string> = {
   text: 'tx_',
   image: 'im_',
   svg: 'sv_',
+  instance: 'in_',
 };
 
 /** Gera id curto e estável: `<prefixo>` + 8 chars [0-9a-z]. */
@@ -20,6 +21,7 @@ export function newId(prefix: string): string {
 export const newNodeId = (type: NodeType): string => newId(ID_PREFIX[type]);
 export const newPageId = (): string => newId('pg_');
 export const newDocumentId = (): string => newId('doc_');
+export const newComponentId = (): string => newId('cp_');
 
 /** Infere o tipo de nó a partir do prefixo do id (ou `undefined` se não reconhecido). */
 export function typeFromId(id: string): NodeType | undefined {

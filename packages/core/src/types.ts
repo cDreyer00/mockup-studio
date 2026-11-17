@@ -8,7 +8,12 @@
 
 export const DOCUMENT_VERSION = 1 as const;
 
-export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg';
+/**
+ * `instance`: instância de um componente do documento (`componentId`); os filhos são só os
+ * contêineres de slot (ver `docs/COMPONENTES.md`). Render, export e screenshot usam a árvore
+ * concreta de `expandInstance`.
+ */
+export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg' | 'instance';
 
 export interface Position {
   x: number;
@@ -48,6 +53,73 @@ export interface Node {
    * Ausente quando vazio.
    */
   states?: Record<string, Record<string, string>>;
+  /**
+   * Componente da instância (`type: 'instance'`). Na árvore expandida (`expandInstance`) o nó raiz
+   * concreto mantém `componentId` e `props` como marcador de instância.
+   */
+  componentId?: string;
+  /** Valores das props da instância (só as que diferem do padrão do componente). */
+  props?: Record<string, PropValue>;
+  /**
+   * Sobrescritas por caminho de nó do componente principal: chave = ids dos nós do principal
+   * separados por `/` (atravessando instâncias aninhadas), ex. `el_label01` ou `el_btn0001/el_label01`.
+   */
+  overrides?: Record<string, NodeOverride>;
+}
+
+/* ---------------- Componentes ---------------- */
+
+export type PropType = 'string' | 'number' | 'boolean' | 'enum' | 'color' | 'slot';
+export type PropValue = string | number | boolean;
+
+/** Propriedade de um componente. Strings/números/cores entram por `{{nome}}`; slots por `data-slot`. */
+export interface PropDef {
+  name: string;
+  type: PropType;
+  /** Valor padrão (ausente em `slot`). */
+  default?: PropValue;
+  /** Opções de `enum`. */
+  options?: string[];
+  description?: string;
+}
+
+/** Sobrescrita de um nó da árvore do componente (numa variante ou numa instância). */
+export interface NodeOverride {
+  /** Estilos mesclados sobre o do principal. */
+  style?: Record<string, string>;
+  /** Propriedades de estilo removidas do principal. */
+  unsetStyle?: string[];
+  text?: string;
+  /** Atributos mesclados sobre os do principal. */
+  attrs?: Record<string, string>;
+  hidden?: boolean;
+  classes?: string;
+  /** Estados mesclados por variante (`hover`, `dark`...). */
+  states?: Record<string, Record<string, string>>;
+  src?: string;
+  svg?: string;
+  /** Props de uma instância aninhada no principal. */
+  props?: Record<string, PropValue>;
+}
+
+/** Variante: quando as props batem com `when`, aplica `overrides` (chave `''` = nó raiz). */
+export interface ComponentVariant {
+  when: Record<string, PropValue>;
+  overrides: Record<string, NodeOverride>;
+}
+
+/** Componente principal (biblioteca do documento). */
+export interface ComponentDef {
+  /** Id `cp_xxxxxxxx`. */
+  id: string;
+  name: string;
+  description?: string;
+  /** Kit de origem (`shadcn-like`), quando importado de um kit. */
+  kit?: string;
+  props: PropDef[];
+  /** Árvore do principal; ids únicos no documento inteiro (páginas e componentes). */
+  root: Node;
+  variants: ComponentVariant[];
 }
 
 export interface Page {
@@ -109,6 +181,8 @@ export interface Document {
    * do Tailwind v4 no canvas, no render e no código exportado).
    */
   cssBase?: 'tailwind';
+  /** Biblioteca de componentes do documento. Ausente quando vazia (arquivos antigos). */
+  components?: ComponentDef[];
   meta: DocumentMeta;
 }
 
