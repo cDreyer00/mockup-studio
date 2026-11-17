@@ -223,6 +223,13 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       annotations: READ,
     },
     ({ docId }) => {
+      // Sem documento é o estado normal no começo da sessão (as instruções mandam chamar esta
+      // ferramenta primeiro): responde com o próximo passo em vez de um erro.
+      if (!docId && store.list().length === 0)
+        return [
+          'Nenhum documento aberto ainda.',
+          'Próximo passo: create_document(path, name) para começar um novo (ex.: "C:/projetos/app/design/telas") ou open_document(path) para abrir um arquivo .mockup.json existente.',
+        ].join('\n');
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const info = store.getInfo(id);
@@ -298,7 +305,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Criar documento',
       description:
-        'Cria um documento novo (com um frame vazio) em path, acrescentando .mockup.json se faltar, e o torna ativo. Devolve o id do documento.',
+        'Cria um documento novo e vazio (sem frames: crie-os com create_frame) em path, acrescentando .mockup.json se faltar, e o torna ativo. Devolve o id do documento.',
       example: { path: 'C:/projetos/site', name: 'Landing page' },
       inputSchema: {
         path: z

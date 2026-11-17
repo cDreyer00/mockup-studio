@@ -84,8 +84,8 @@ Defina os tokens ANTES de desenhar. Tokens são variáveis CSS do documento; mud
 
 ## Uso
 
-- Defina: \`set_tokens({ "--color-primary": "#2563eb", "--space-4": "16px" })\` (o prefixo \`--\` é acrescentado se faltar).
-- Remova: \`set_tokens({}, ["--old"])\` (segundo parâmetro \`unset\`).
+- Defina: \`set_tokens({ tokens: { "--color-primary": "#2563eb", "--space-4": "16px" } })\` (o prefixo \`--\` é acrescentado se faltar).
+- Remova: \`set_tokens({ tokens: {}, unset: ["--old"] })\`.
 - Consulte: \`get_tokens\`. \`get_styles\` devolve os valores já resolvidos.
 - Aplique no CSS: \`var(--color-primary)\`, tanto em \`write_html\` quanto em \`update_styles\`.
 
@@ -174,11 +174,14 @@ No Mockup Studio, cada frame raiz é um breakpoint (artboard) na mesma página. 
 - \`Tablet\` — 768x1024
 - \`Desktop\` — 1440x900
 
+Com várias telas no mesmo documento (login, painel, detalhe...), nomeie \`<Tela> - <Breakpoint>\`: \`Login - Desktop\`, \`Login - Mobile\`, \`Painel - Desktop\`. Coloque cada tela numa linha (mesmo \`y\`) e os breakpoints lado a lado (\`set_position\`).
+
 ## Fluxo
 
-1. Monte primeiro o \`Desktop\`: \`create_frame("Desktop", 1440, 900)\` e o conteúdo com \`write_html\`.
-2. \`duplicate_nodes([desktopId])\` — o clone aparece no canvas; o resultado traz o id novo.
-3. \`rename_nodes([cloneId], ["Tablet"])\` e \`update_styles([cloneId], { width: "768px", height: "1024px" })\`. Repita para \`Mobile\` (390x844).
+1. Monte primeiro o \`Desktop\`: \`create_frame({ name: "Desktop", width: 1440, height: 900 })\` e o conteúdo com \`write_html\`.
+2. \`duplicate_nodes({ nodeIds: [desktopId] })\` — o clone aparece no canvas; o resultado traz o id novo.
+3. \`rename_nodes({ nodeIds: [cloneId], names: ["Tablet"] })\` e \`update_styles({ nodeIds: [cloneId], styles: { width: "768px", height: "1024px" } })\`. Repita para \`Mobile\` (390x844).
+   Se o layout do Mobile for muito diferente (barra de abas, cards empilhados), é mais rápido criar o frame e escrever o HTML dele com \`write_html\` do que adaptar o clone.
 4. Adapte cada clone: \`flex-direction: column\` no lugar de \`row\`, \`padding\` e fontes menores, grades com menos colunas (use \`update_styles\` nos containers).
 5. \`set_position(frameId, x, y)\` para dispor lado a lado sem sobrepor: x do próximo = x anterior + largura + 100.
 6. \`get_screenshot\` de cada frame e corrija.
@@ -205,6 +208,7 @@ Não confie só na estrutura: depois de cada conjunto de mudanças, olhe o resul
 
 - Alinhamento e espaçamento consistentes (gap, padding).
 - Nada cortado nem vazando do frame (overflow); imagens com proporção correta.
+- Conteúdo mais alto que o frame: com altura fixa o flexbox espreme os blocos (\`flex-shrink\`) e o screenshot parece caber, mas o código exportado (altura mínima) fica maior. Some as alturas com \`get_layout\` ou dê altura explícita aos blocos (num \`<svg>\` use \`update_styles\` com \`height\`; \`set_attrs\` não altera o markup do svg).
 - Contraste suficiente entre texto e fundo (4.5:1 no texto normal).
 - Textos quebrando em lugares ruins (títulos em muitas linhas, botões com texto em duas linhas).
 - Hierarquia: tamanhos e pesos coerentes; elementos repetidos idênticos.
@@ -246,6 +250,8 @@ as ferramentas avisam como habilitar (veja \`get_guide('troubleshooting')\`); en
 - Os arquivos usam o nome do nó em slug (\`Desktop 1440\` vira \`desktop-1440.png\`).
 - Arquivos de mesmo nome são SOBRESCRITOS (marcados "(substituído)"); use outro \`outputDir\` para preservar versões.
 - Para html/tailwind/react, imagens e fontes usadas são copiadas para \`<outputDir>/assets/\`.
+- A resposta do \`export\` lista os arquivos e só repete o código até 20 KB no total; para ler o código de um nó use \`get_code\`.
+- React num projeto Vite: copie \`assets/\` para \`public/assets/\` e exporte com \`assetsBase: "/assets/"\` (imagens e fontes passam a usar caminhos absolutos que o bundler resolve).
 
 ## Dicas
 

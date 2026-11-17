@@ -57,6 +57,24 @@ describe('MCP', () => {
     expect(guide.contents[0]).toHaveProperty('text');
   });
 
+  it('ferramentas que precisam de documento continuam com erro orientativo sem documento aberto', async () => {
+    const r = await call('get_tree_summary');
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('open_document');
+  });
+
+  it('get_basic_info sem documento aberto orienta o próximo passo em vez de dar erro', async () => {
+    const r = await call('get_basic_info');
+    expect(r.isError).toBeFalsy();
+    const text = textOf(r);
+    expect(text).toContain('Nenhum documento aberto');
+    expect(text).toContain('create_document');
+    expect(text).toContain('open_document');
+    // com docId explícito e inexistente continua sendo erro
+    const bad = await call('get_basic_info', { docId: 'doc_inexistente' });
+    expect(bad.isError).toBe(true);
+  });
+
   it('fluxo write_html / get_tree_summary / undo / get_basic_info', async () => {
     const opened = await call('open_document', { path: ws.file });
     expect(opened.isError).toBeFalsy();
@@ -216,12 +234,6 @@ describe('MCP', () => {
     expect(r.isError).toBe(true);
     expect(textOf(r)).toContain('Erro:');
     expect(textOf(r)).toContain('get_tree_summary');
-  });
-
-  it('sem documento aberto devolve erro orientativo', async () => {
-    const r = await call('get_basic_info');
-    expect(r.isError).toBe(true);
-    expect(textOf(r)).toContain('open_document');
   });
 
   it('requisição sem sessão é rejeitada', async () => {
