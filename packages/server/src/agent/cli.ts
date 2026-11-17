@@ -5,7 +5,7 @@
  * arquivos temporários (nada de JSON nos argumentos, para não depender do quoting do Windows). A
  * saída JSONL é lida linha a linha e convertida em `AgentRunEvent`.
  */
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -98,6 +98,70 @@ export function isAbortError(e: unknown): boolean {
   return e instanceof Error && e.name === 'AbortError';
 }
 
+/** Id de sessão aceito (vira argumento de `--resume`): `[A-Za-z0-9_-]{1,128}`, sem começar com `-`. */
+const SESSION_ID_RE = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,127}$/;
+
+export function isValidSessionId(id: unknown): id is string {
+  return typeof id === 'string' && SESSION_ID_RE.test(id);
+}
+
+/*
+ * Filhos vivos: fora do Windows eles rodam em grupo próprio (detached) e sobreviveriam à queda do
+ * daemon; no 'exit' do processo todos são mortos de forma síncrona. O listener só existe enquanto há
+ * filhos.
+ */
+const liveChildren = new Set<ChildProcess>();
+let exitHookInstalled = false;
+
+/** Quantos subprocessos de agente estão vivos (para testes). */
+export function liveChildCount(): number {
+  return liveChildren.size;
+}
+
+/** Mata, de forma síncrona, todos os subprocessos de agente vivos (usado no 'exit' do daemon). */
+export function killLiveChildren(): void {
+  const pids = [...liveChildren]
+    .map((c) => c.pid)
+    .filter((p): p is number => typeof p === 'number');
+  if (pids.length === 0) return;
+  if (process.platform === 'win32') {
+    try {
+      spawnSync('taskkill', ['/T', '/F', ...pids.flatMap((p) => ['/PID', String(p)])], {
+        windowsHide: true,
+        stdio: 'ignore',
+        timeout: 5000,
+      });
+    } catch {
+      /* melhor esforço */
+    }
+    return;
+  }
+  for (const pid of pids) {
+    try {
+      process.kill(-pid, 'SIGKILL');
+    } catch {
+      /* já morreu */
+    }
+  }
+}
+
+function trackChild(child: ChildProcess): void {
+  liveChildren.add(child);
+  if (!exitHookInstalled) {
+    exitHookInstalled = true;
+    process.on('exit', killLiveChildren);
+  }
+  const done = (): void => {
+    liveChildren.delete(child);
+    if (liveChildren.size === 0 && exitHookInstalled) {
+      exitHookInstalled = false;
+      process.removeListener('exit', killLiveChildren);
+    }
+  };
+  child.once('close', done);
+  child.once('error', done);
+}
+
 /** Mata o processo e todos os descendentes (taskkill /T no Windows, grupo de processos no resto). */
 export function killTree(child: ChildProcess): void {
   const pid = child.pid;
@@ -122,7 +186,7 @@ export function killTree(child: ChildProcess): void {
 }
 
 /** Argumento seguro para `cmd.exe` (só usado com `.cmd`/`.bat`): recusa o que não dá para citar. */
-function quoteCmdArg(a: string): string {
+export function quoteCmdArg(a: string): string {
   if (/["%\r\n]/.test(a)) throw new Error(`Argumento não suportado para executar um .cmd: ${a}`);
   return a === '' || /[\s&|<>^()!,;=]/.test(a) ? `"${a}"` : a;
 }
@@ -147,12 +211,53 @@ function spawnLocated(
     stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
   };
   const all = [...loc.prefixArgs, ...args];
+  let child: ChildProcess;
   if (win && /\.(cmd|bat)$/i.test(loc.command)) {
     // Sem lista de args: com `shell: true` o Node a concatenaria sem citar (e avisa de risco).
     const line = [loc.command, ...all].map(quoteCmdArg).join(' ');
-    return spawn(line, { ...base, shell: true });
+    child = spawn(line, { ...base, shell: true });
+  } else {
+    child = spawn(loc.command, all, { ...base, shell: false });
   }
-  return spawn(loc.command, all, { ...base, shell: false });
+  trackChild(child);
+  return child;
+}
+
+/** Roda a CLI com `args` e devolve o stdout; rejeita em erro, código != 0 ou tempo esgotado. */
+function runCapture(
+  loc: Located,
+  args: string[],
+  o: { env?: Record<string, string>; timeoutMs: number },
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let child: ChildProcess;
+    try {
+      child = spawnLocated(loc, args, { env: o.env });
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error(String(e)));
+      return;
+    }
+    let out = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killTree(child);
+    }, o.timeoutMs);
+    child.stdout?.on('data', (c: Buffer) => (out += c.toString()));
+    child.stderr?.on('data', () => undefined);
+    child.stdin?.on('error', () => undefined);
+    child.stdin?.end();
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (timedOut) reject(new Error('tempo esgotado'));
+      else if (code !== 0) reject(new Error(`código ${code}`));
+      else resolve(out);
+    });
+  });
 }
 
 /* ---------- parsers de JSONL ---------- */
@@ -474,7 +579,11 @@ abstract class CliBackend implements AgentBackend {
       });
   }
 
-  protected abstract plan(input: AgentRunInput, dir: string, cwd: string): RunPlan;
+  protected abstract plan(
+    input: AgentRunInput,
+    dir: string,
+    cwd: string,
+  ): RunPlan | Promise<RunPlan>;
   protected abstract createParser(): LineParser;
 
   /** Onde está o executável (testes > override por env > PATH). */
@@ -570,7 +679,7 @@ abstract class CliBackend implements AgentBackend {
         fs.mkdirSync(input.cwd, { recursive: true });
         cwd = input.cwd;
       }
-      const plan = this.plan(input, dir, cwd);
+      const plan = await this.plan(input, dir, cwd);
       return await this.exec(loc, plan, cwd, emit, signal);
     } finally {
       try {
@@ -753,7 +862,8 @@ export class ClaudeCliBackend extends CliBackend {
       args.push('--append-system-prompt-file', sys);
     }
     if (input.model) args.push('--model', input.model);
-    if (input.resumeSession) args.push('--resume', input.resumeSession);
+    // Um argumento só (`--resume=<id>`) e só com id válido: nada vira flag por engano.
+    if (isValidSessionId(input.resumeSession)) args.push(`--resume=${input.resumeSession}`);
 
     const content: unknown[] = [{ type: 'text', text: input.prompt }];
     for (const img of input.images ?? []) {
@@ -769,6 +879,85 @@ export class ClaudeCliBackend extends CliBackend {
 
 /* ---------- Codex ---------- */
 
+/**
+ * Features do Codex desligadas no turno (só as que existirem em `codex features list`): shell e
+ * execução unificada, e as integrações que dão outras ferramentas ao agente.
+ */
+export const CODEX_DISABLED_FEATURES = [
+  'shell_tool',
+  'unified_exec',
+  'apps',
+  'browser_use',
+  'computer_use',
+  'in_app_browser',
+] as const;
+
+/** Nome de servidor MCP que dá para desligar por `-c mcp_servers.<nome>.enabled=false` (chave TOML simples). */
+const TOML_BARE_KEY = /^[A-Za-z0-9_-]+$/;
+
+/** Nomes dos servidores de `codex mcp list --json`. Entrada inválida vira lista vazia. */
+export function parseCodexMcpList(json: string): string[] {
+  try {
+    const v: unknown = JSON.parse(json);
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((s) => (isObj(s) && typeof s['name'] === 'string' ? [s['name']] : []));
+  } catch {
+    return [];
+  }
+}
+
+/** Features de `codex features list` (`<nome> <estágio> <estado>` por linha), sem as removidas. */
+export function parseCodexFeatures(text: string): string[] {
+  const out: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const [name, stage] = line.trim().split(/\s+/);
+    if (name && /^[a-z0-9_.]+$/.test(name) && stage !== 'removed') out.push(name);
+  }
+  return out;
+}
+
+export interface CodexIsolation {
+  /** Servidores MCP configurados pelo usuário (todos serão desligados no turno). */
+  servers: string[];
+  /** Features existentes nesta versão do Codex. */
+  features: string[];
+}
+
+/** Chave do servidor do turno: a do nome do MCP, sem colidir com um servidor do usuário. */
+export function codexTurnServerKey(name: string, existing: string[]): string {
+  const key = name.replace(/[^A-Za-z0-9_]/g, '_');
+  return existing.includes(key) ? `${key}_turn` : key;
+}
+
+/** Argumentos `-c mcp_servers.<nome>.enabled=false` e `--disable <feature>` do isolamento. */
+export function codexIsolationArgs(iso: CodexIsolation, log?: (m: string) => void): string[] {
+  const args: string[] = [];
+  for (const name of iso.servers) {
+    if (!TOML_BARE_KEY.test(name)) {
+      // O Codex não aceita chaves entre aspas em `-c`: não há como desligar este servidor.
+      log?.(
+        `servidor MCP "${name}" do Codex não pode ser desligado no turno (nome fora de [A-Za-z0-9_-])`,
+      );
+      continue;
+    }
+    args.push('-c', `mcp_servers.${name}.enabled=false`);
+  }
+  for (const f of CODEX_DISABLED_FEATURES) {
+    if (iso.features.includes(f)) args.push('--disable', f);
+  }
+  return args;
+}
+
+export interface CodexCliBackendOptions extends CliBackendOptions {
+  /** Servidores MCP do usuário (padrão: `codex mcp list --json`). Falha = lista vazia. */
+  listMcpServers?: () => Promise<string[]>;
+  /** Features do Codex (padrão: `codex features list`). Falha = lista vazia. */
+  listFeatures?: () => Promise<string[]>;
+}
+
+const ISOLATION_TTL_MS = 10_000;
+const ISOLATION_TIMEOUT_MS = 5000;
+
 export class CodexCliBackend extends CliBackend {
   readonly id = 'codex';
   readonly name = 'Codex';
@@ -777,11 +966,65 @@ export class CodexCliBackend extends CliBackend {
   protected readonly installHint =
     'Instale o Codex CLI (https://developers.openai.com/codex/cli) e faça login com `codex login`.';
 
+  private isolationCache?: { at: number; value: Promise<CodexIsolation> };
+
+  constructor(protected override readonly options: CodexCliBackendOptions = {}) {
+    super(options);
+  }
+
   protected createParser(): LineParser {
     return new CodexStreamParser(this.log);
   }
 
-  protected plan(input: AgentRunInput, dir: string, cwd: string): RunPlan {
+  /** Servidores MCP e features do Codex, com cache curto; qualquer falha vira lista vazia (não cacheada). */
+  protected isolation(): Promise<CodexIsolation> {
+    const now = Date.now();
+    if (this.isolationCache && now - this.isolationCache.at < ISOLATION_TTL_MS) {
+      return this.isolationCache.value;
+    }
+    const attempt = async (): Promise<{ iso: CodexIsolation; ok: boolean }> => {
+      let ok = true;
+      const guard = async (fn: () => Promise<string[]>, what: string): Promise<string[]> => {
+        try {
+          return await fn();
+        } catch (e) {
+          ok = false;
+          this.log(`${what} indisponível: ${e instanceof Error ? e.message : String(e)}`);
+          return [];
+        }
+      };
+      const [servers, features] = await Promise.all([
+        guard(
+          this.options.listMcpServers ??
+            (() => this.runList(['mcp', 'list', '--json'], parseCodexMcpList)),
+          'codex mcp list',
+        ),
+        guard(
+          this.options.listFeatures ??
+            (() => this.runList(['features', 'list'], parseCodexFeatures)),
+          'codex features list',
+        ),
+      ]);
+      return { iso: { servers, features }, ok };
+    };
+    const value = attempt().then((r) => {
+      if (!r.ok && this.isolationCache?.value === value) this.isolationCache = undefined;
+      return r.iso;
+    });
+    this.isolationCache = { at: now, value };
+    return value;
+  }
+
+  private async runList(args: string[], parse: (out: string) => string[]): Promise<string[]> {
+    const loc = this.locate();
+    if (!loc) return [];
+    return parse(
+      await runCapture(loc, args, { env: this.options.env, timeoutMs: ISOLATION_TIMEOUT_MS }),
+    );
+  }
+
+  protected async plan(input: AgentRunInput, dir: string, cwd: string): Promise<RunPlan> {
+    const iso = await this.isolation();
     // `-i` aceita vários valores: fica logo depois de `exec` e antes de outra flag.
     const args = ['exec'];
     (input.images ?? []).forEach((img, i) => {
@@ -792,9 +1035,11 @@ export class CodexCliBackend extends CliBackend {
     });
     args.push('--json', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', cwd);
     if (input.model) args.push('-m', input.model);
+    // Os `-c` só acrescentam à config do usuário: desliga os MCPs e as ferramentas dele neste turno.
+    args.push(...codexIsolationArgs(iso, this.log));
     if (input.mcp) {
       // Valores sem aspas: se não forem TOML válido o Codex usa a string crua (evita aspas em .cmd).
-      const key = `mcp_servers.${input.mcp.name.replace(/[^A-Za-z0-9_]/g, '_')}`;
+      const key = `mcp_servers.${codexTurnServerKey(input.mcp.name, iso.servers)}`;
       args.push(
         '-c',
         `${key}.url=${input.mcp.url}`,

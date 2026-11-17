@@ -1,13 +1,26 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { AgentRunEvent } from './backend.js';
+import type { AgentRunInput } from './backend.js';
 import {
   ClaudeCliBackend,
   ClaudeStreamParser,
+  CODEX_DISABLED_FEATURES,
+  CodexCliBackend,
+  codexIsolationArgs,
+  codexTurnServerKey,
   CodexStreamParser,
   findExecutable,
+  isValidSessionId,
+  killLiveChildren,
   killTree,
+  liveChildCount,
+  parseCodexFeatures,
+  parseCodexMcpList,
+  quoteCmdArg,
   stripMcpPrefix,
   type LineParser,
 } from './cli.js';
@@ -317,5 +330,243 @@ describe('ClaudeCliBackend com a CLI falsa', () => {
 
   it('killTree aceita processo sem pid', () => {
     expect(() => killTree({ pid: undefined } as never)).not.toThrow();
+  });
+});
+
+describe('quoteCmdArg', () => {
+  it('recusa %, aspas e quebras de linha (não dá para citar com segurança num .cmd)', () => {
+    expect(() => quoteCmdArg('a%PATH%b')).toThrow(/não suportado/);
+    expect(() => quoteCmdArg('say "oi"')).toThrow(/não suportado/);
+    expect(() => quoteCmdArg('a\nb')).toThrow(/não suportado/);
+    expect(() => quoteCmdArg('a\rb')).toThrow(/não suportado/);
+  });
+
+  it('cita só o que precisa', () => {
+    expect(quoteCmdArg('simples')).toBe('simples');
+    expect(quoteCmdArg('')).toBe('""');
+    expect(quoteCmdArg('C:\\Program Files\\x')).toBe('"C:\\Program Files\\x"');
+    expect(quoteCmdArg('a&b')).toBe('"a&b"');
+    expect(quoteCmdArg('mcp_servers.x.url=http://h/mcp?turn=ab')).toBe(
+      '"mcp_servers.x.url=http://h/mcp?turn=ab"',
+    );
+  });
+});
+
+describe('isValidSessionId e --resume', () => {
+  it('aceita só [A-Za-z0-9_-]{1,128} sem começar com hífen', () => {
+    for (const ok of ['abc', 'a-b_C9', '0f8fad5b-d9cb-469f-a165-70867728950e', 'x'.repeat(128)]) {
+      expect(isValidSessionId(ok)).toBe(true);
+    }
+    for (const bad of [
+      '',
+      'x'.repeat(129),
+      '--settings={"a":1}',
+      '-x',
+      'a b',
+      'a=b',
+      'a;b',
+      '../x',
+      42,
+      null,
+      undefined,
+    ]) {
+      expect(isValidSessionId(bad)).toBe(false);
+    }
+  });
+
+  class Peek extends ClaudeCliBackend {
+    peek(input: AgentRunInput, dir: string) {
+      return Promise.resolve(this.plan(input, dir, dir));
+    }
+  }
+
+  it('Claude: --resume=<id> é um argumento só; id inválido nem vai para os args', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
+    try {
+      const b = new Peek({ command: process.execPath });
+      const good = (await b.peek({ prompt: 'x', resumeSession: 'abc-123' }, dir)).args;
+      expect(good).toContain('--resume=abc-123');
+      expect(good).not.toContain('--resume');
+      for (const evil of ['--settings={"hooks":{}}', '--dangerously-skip-permissions', 'a b']) {
+        const args = (await b.peek({ prompt: 'x', resumeSession: evil }, dir)).args;
+        expect(args.some((a) => a.includes('--resume'))).toBe(false);
+        expect(args.join(' ')).not.toContain(evil);
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('com a CLI falsa: o resume chega à CLI como --resume=<id>', async () => {
+    const b = new ClaudeCliBackend({ command: process.execPath, prefixArgs: [FAKE_CLI] });
+    const res = await b.run(
+      { prompt: '@@echo', resumeSession: 'sess-42' },
+      () => undefined,
+      new AbortController().signal,
+    );
+    expect(res.text).toContain('ECHO-RESUME: sess-42');
+    expect(res.text).toContain('"--resume=sess-42"');
+  });
+});
+
+describe('isolamento do Codex', () => {
+  it('parseCodexMcpList: nomes dos servidores; lixo vira lista vazia', () => {
+    expect(
+      parseCodexMcpList(
+        JSON.stringify([{ name: 'mockup-studio', enabled: true }, { name: 'outro' }, { x: 1 }, 3]),
+      ),
+    ).toEqual(['mockup-studio', 'outro']);
+    expect(parseCodexMcpList('não é json')).toEqual([]);
+    expect(parseCodexMcpList('{"name":"x"}')).toEqual([]);
+    expect(parseCodexMcpList('[]')).toEqual([]);
+  });
+
+  it('parseCodexFeatures: nomes, sem as removidas', () => {
+    const out = [
+      'apps                                     stable             true',
+      'shell_tool                               stable             true',
+      'apply_patch_freeform                     removed            false',
+      'goals                                    under development  false',
+      '',
+      'Error: lixo com espaços',
+    ].join('\r\n');
+    expect(parseCodexFeatures(out)).toEqual(['apps', 'shell_tool', 'goals']);
+  });
+
+  it('codexIsolationArgs: -c enabled=false por servidor e --disable só das features existentes', () => {
+    const logs: string[] = [];
+    const args = codexIsolationArgs(
+      {
+        servers: ['mockup-studio', 'github', 'com.ponto', 'com espaço'],
+        features: ['shell_tool', 'apps', 'goals', 'browser_use'],
+      },
+      (m) => logs.push(m),
+    );
+    expect(args).toEqual([
+      '-c',
+      'mcp_servers.mockup-studio.enabled=false',
+      '-c',
+      'mcp_servers.github.enabled=false',
+      '--disable',
+      'shell_tool',
+      '--disable',
+      'apps',
+      '--disable',
+      'browser_use',
+    ]);
+    expect(logs).toHaveLength(2); // nomes que não dá para desligar ficam registrados
+    expect(CODEX_DISABLED_FEATURES).toEqual([
+      'shell_tool',
+      'unified_exec',
+      'apps',
+      'browser_use',
+      'computer_use',
+      'in_app_browser',
+    ]);
+    expect(codexIsolationArgs({ servers: [], features: [] })).toEqual([]);
+  });
+
+  it('codexTurnServerKey não colide com um servidor do usuário', () => {
+    expect(codexTurnServerKey('mockup-studio', ['mockup-studio'])).toBe('mockup_studio');
+    expect(codexTurnServerKey('mockup-studio', ['mockup_studio'])).toBe('mockup_studio_turn');
+  });
+
+  class Peek extends CodexCliBackend {
+    peek(input: AgentRunInput, dir: string) {
+      return this.plan(input, dir, dir);
+    }
+  }
+  const mcp = { name: 'mockup-studio', url: 'http://127.0.0.1:1/mcp?turn=tok' };
+  const quiet = () => undefined;
+
+  it('plan: desliga MCPs e features do usuário, mantém read-only e só o MCP do turno', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
+    try {
+      const b = new Peek({
+        command: process.execPath,
+        log: quiet,
+        listMcpServers: () => Promise.resolve(['mockup-studio', 'mockup_studio', 'github']),
+        listFeatures: () => Promise.resolve(['shell_tool', 'unified_exec', 'apps', 'goals']),
+      });
+      const { args } = await b.peek({ prompt: 'x', mcp, model: 'gpt-5' }, dir);
+      expect(args.slice(0, 1)).toEqual(['exec']);
+      expect(args[args.indexOf('-s') + 1]).toBe('read-only');
+      expect(args).toContain('mcp_servers.mockup-studio.enabled=false');
+      expect(args).toContain('mcp_servers.mockup_studio.enabled=false');
+      expect(args).toContain('mcp_servers.github.enabled=false');
+      // o servidor do turno usa uma chave que não colide com a do usuário
+      expect(args).toContain('mcp_servers.mockup_studio_turn.url=' + mcp.url);
+      expect(args).toContain('mcp_servers.mockup_studio_turn.default_tools_approval_mode=approve');
+      expect(args.filter((a) => a === '--disable')).toHaveLength(3);
+      for (const f of ['shell_tool', 'unified_exec', 'apps']) {
+        expect(args[args.indexOf(f) - 1]).toBe('--disable');
+      }
+      expect(args).not.toContain('goals');
+      // turno só de texto: também isolado, sem servidor do turno
+      const text = (await b.peek({ prompt: 'x' }, dir)).args;
+      expect(text).toContain('mcp_servers.github.enabled=false');
+      expect(text.some((a) => a.includes('.url='))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falha ao listar vira lista vazia (sem isolar), não é cacheada e o sucesso é cacheado', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-test-'));
+    try {
+      let mcpCalls = 0;
+      let failing = true;
+      const b = new Peek({
+        command: process.execPath,
+        log: quiet,
+        listMcpServers: () => {
+          mcpCalls++;
+          return failing ? Promise.reject(new Error('codex sumiu')) : Promise.resolve(['github']);
+        },
+        listFeatures: () => Promise.resolve(['shell_tool']),
+      });
+      const a1 = (await b.peek({ prompt: 'x', mcp }, dir)).args;
+      expect(a1.some((a) => a.endsWith('.enabled=false'))).toBe(false);
+      expect(a1).toContain('--disable'); // features listadas ainda valem
+      failing = false;
+      const a2 = (await b.peek({ prompt: 'x', mcp }, dir)).args;
+      expect(a2).toContain('mcp_servers.github.enabled=false'); // falha anterior não ficou em cache
+      await b.peek({ prompt: 'x', mcp }, dir);
+      await b.peek({ prompt: 'x', mcp }, dir);
+      expect(mcpCalls).toBe(2); // 1 falha + 1 sucesso; o resto vem do cache
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('filhos vivos e saída do daemon', () => {
+  it('registra o filho, instala/remove o listener de exit e killLiveChildren os mata', async () => {
+    const before = process.listenerCount('exit');
+    expect(liveChildCount()).toBe(0);
+    const b = new ClaudeCliBackend({ command: process.execPath, prefixArgs: [FAKE_CLI] });
+    const p = b.run({ prompt: '@@sleep 30000' }, () => undefined, new AbortController().signal);
+    const outcome = p.then(
+      () => 'ok',
+      (e: unknown) => (e instanceof Error ? e.message : String(e)),
+    );
+    const t0 = Date.now();
+    while (liveChildCount() === 0) {
+      if (Date.now() - t0 > 10_000) throw new Error('o filho não foi registrado');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect(process.listenerCount('exit')).toBe(before + 1);
+    killLiveChildren();
+    expect(await outcome).not.toBe('ok');
+    const t1 = Date.now();
+    while (liveChildCount() > 0 && Date.now() - t1 < 5000) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    expect(liveChildCount()).toBe(0);
+    expect(process.listenerCount('exit')).toBe(before);
+  });
+
+  it('killLiveChildren sem filhos não faz nada', () => {
+    expect(() => killLiveChildren()).not.toThrow();
   });
 });
