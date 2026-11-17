@@ -87,4 +87,5 @@ Ferramentas e parâmetros completos em [MCP.md](MCP.md#dados-reais); o guia `get
 - JSON: arquivo ou resposta até 5 MB; BOM ignorado; erro de sintaxe vira mensagem clara.
 - CSV: RFC 4180 (aspas, aspas duplicadas, quebras de linha dentro de aspas), separador detectado pela primeira linha (`,`, `;`, tab ou `|`), primeira linha = cabeçalho (coluna sem nome vira `colN`), valores em texto.
 - URL: http(s), timeout de 20 s, até 5 MB.
+- Arquivo (`path`): absoluto, só `.json`, `.csv` e `.tsv`; recusado se qualquer pasta ou o próprio arquivo for oculto (nome iniciado por `.`, ex.: `~/.ssh`, `~/.claude`), também depois de seguir symlinks. Pelo editor (`POST /api/data/:docId/:nodeId/bind`) o arquivo precisa estar na pasta do documento ou no home; a rota exige Origin local, como as demais escritas.
 - Limites: 1000 itens e 2 MB serializados por repetidor.

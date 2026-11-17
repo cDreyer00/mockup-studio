@@ -105,7 +105,9 @@ export function registerDataTools(ctx: ToolContext): void {
         path: z
           .string()
           .optional()
-          .describe('Caminho absoluto de arquivo .json/.csv/.tsv, ex.: "C:/dados/produtos.csv".'),
+          .describe(
+            'Caminho absoluto de arquivo .json/.csv/.tsv, ex.: "C:/dados/produtos.csv". Pastas e arquivos ocultos (".ssh", ".claude"...) são recusados.',
+          ),
         url: z
           .string()
           .optional()

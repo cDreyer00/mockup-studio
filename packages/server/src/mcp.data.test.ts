@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { findNode, type Node } from '@mockup/core';
@@ -263,6 +264,48 @@ describe('MCP: dados em repetidores', () => {
     expect(textOf(root)).toContain('frame raiz');
   });
 
+  it('path recusa pastas e arquivos ocultos, .txt, traversal e symlink para oculto', async () => {
+    const box = await makeTemplate();
+    const put = (rel: string, content: string): string => {
+      const f = path.join(ws.dir, rel);
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, content);
+      return f;
+    };
+    const secret = JSON.stringify([{ nome: 'SEGREDO' }]);
+    const ssh = put('.ssh/chaves.json', secret);
+    const claude = put('.claude/.credentials.json', secret);
+    const txt = put('notas.txt', 'nome\nSEGREDO\n');
+    const traversal = path.join(ws.dir, 'sub', '..', '.claude', '.credentials.json');
+    const attempts = [ssh, claude, traversal];
+    const link = path.join(ws.dir, 'atalho.json');
+    try {
+      fs.symlinkSync(claude, link, 'file');
+      attempts.push(link);
+    } catch {
+      // sem permissão para symlink (Windows sem modo desenvolvedor): o resto do teste vale
+    }
+    for (const p of attempts) {
+      const r = await call('bind_data', { nodeId: box.id, path: p });
+      expect(r.isError, p).toBe(true);
+      expect(textOf(r)).toContain('oculto');
+      expect(textOf(r)).not.toContain('SEGREDO');
+    }
+    const t = await call('bind_data', { nodeId: box.id, path: txt });
+    expect(t.isError).toBe(true);
+    expect(textOf(t)).toContain('.txt');
+    expect(frame().children[0]!.type).not.toBe('repeater');
+    expect(JSON.stringify(doc())).not.toContain('SEGREDO');
+
+    // caminho com ".." que termina em pasta comum continua aceito
+    put('dados/ok.json', JSON.stringify(items(2)));
+    const ok = await call('bind_data', {
+      nodeId: box.id,
+      path: path.join(ws.dir, 'sub', '..', 'dados', 'ok.json'),
+    });
+    expect(ok.isError, textOf(ok)).toBeFalsy();
+  });
+
   it('contêiner sem filhos pede o template primeiro', async () => {
     const r1 = await call('write_html', {
       parentId: ws.frameId,
@@ -313,6 +356,42 @@ describe('MCP: dados em repetidores', () => {
       expect(missing.status).toBe(400);
       const noDoc = await post(`/api/data/doc_xx/${box.id}/bind`, { data: items(1) });
       expect(noDoc.status).toBe(404);
+    });
+
+    it('bind pelo editor só lê path da pasta do documento ou do home e exige Origin local', async () => {
+      const box = await makeTemplate();
+      const other = makeWorkspace();
+      const home = path.join(ws.dir, 'home-falso');
+      fs.mkdirSync(home);
+      const spy = vi.spyOn(os, 'homedir').mockReturnValue(home);
+      try {
+        const outside = path.join(other.dir, 'fora.json');
+        fs.writeFileSync(outside, JSON.stringify(items(2)));
+        const r = await post(`/api/data/${docId()}/${box.id}/bind`, { path: outside });
+        expect(r.status).toBe(400);
+        expect(((await r.json()) as { error: string }).error).toContain('pasta do documento');
+
+        fs.mkdirSync(path.join(ws.dir, '.oculta'));
+        const hidden = path.join(ws.dir, '.oculta', 'x.json');
+        fs.writeFileSync(hidden, JSON.stringify(items(2)));
+        const h = await post(`/api/data/${docId()}/${box.id}/bind`, { path: hidden });
+        expect(h.status).toBe(400);
+
+        const evil = await fetch(`${daemon.url}/api/data/${docId()}/${box.id}/bind`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'https://exemplo.com' },
+          body: JSON.stringify({ text: '[{"nome":"x"}]' }),
+        });
+        expect(evil.status).toBe(403);
+
+        const inDoc = path.join(ws.dir, 'perto.json');
+        fs.writeFileSync(inDoc, JSON.stringify(items(2)));
+        const ok = await post(`/api/data/${docId()}/${box.id}/bind`, { path: inDoc });
+        expect(ok.status).toBe(200);
+      } finally {
+        spy.mockRestore();
+        other.cleanup();
+      }
     });
   });
 });

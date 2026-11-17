@@ -1,3 +1,5 @@
+import os from 'node:os';
+import path from 'node:path';
 import type { Express } from 'express';
 import { MAX_DATA_ITEMS, PLACEHOLDER_KINDS, type PlaceholderKind } from '@mockup/core';
 import {
@@ -76,7 +78,11 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
         const docId = String(req.params['docId']);
         requireDoc(ctx, docId);
         const body = (req.body ?? {}) as Record<string, unknown>;
-        const loaded = await loadData(inputOf(body));
+        // Pelo editor, `path` só lê da pasta do documento ou do home (pastas ocultas são recusadas
+        // em qualquer caso); o conteúdo colado vai em `text`.
+        const docPath = store.getInfo(docId).path;
+        const roots = [os.homedir(), ...(docPath ? [path.dirname(docPath)] : [])];
+        const loaded = await loadData(inputOf(body), { roots });
         const r = bindOps(store.get(docId), String(req.params['nodeId']), loaded);
         const out = store.applyOps(docId, r.ops, { source: 'editor', label: 'bind_data' });
         const rep = dataReport(out.doc, r.nodeId);

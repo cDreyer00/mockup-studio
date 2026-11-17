@@ -85,13 +85,84 @@ function finalizeList(list: unknown[], limit?: number): unknown[] {
   return out;
 }
 
-async function readFileData(p: string): Promise<{ text: string; format: 'json' | 'csv' }> {
+/** Extensões aceitas em `path` (o conteúdo volta por `get_data` e pela API do documento). */
+const DATA_EXTS = ['.json', '.csv', '.tsv'];
+
+export interface LoadOptions {
+  /**
+   * Pastas onde `path` pode estar (comparadas depois de resolver symlinks). Ausente = qualquer
+   * pasta não oculta. A rota HTTP do editor limita à pasta do documento e ao home.
+   */
+  roots?: string[];
+}
+
+const hasHiddenSegment = (p: string): boolean =>
+  p.split(/[\\/]+/).some((seg) => seg.startsWith('.'));
+
+const isInside = (root: string, p: string): boolean => {
+  const rel = path.relative(root, p);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+};
+
+/**
+ * Valida e resolve o caminho de um arquivo de dados: absoluto, .json/.csv/.tsv, sem nenhuma pasta
+ * ou arquivo oculto (segmento iniciado por ".", ex.: `~/.ssh`, `~/.claude`), inclusive depois de
+ * seguir symlinks, e dentro de `roots` quando informado. Devolve o caminho real.
+ */
+export async function resolveDataPath(p: string, opts: LoadOptions = {}): Promise<string> {
   if (!path.isAbsolute(p)) {
     throw new DataSourceError(`path deve ser um caminho absoluto, recebido "${p}".`);
   }
+  const resolved = path.resolve(p);
+  const hidden = (): DataSourceError =>
+    new DataSourceError(
+      `Caminho recusado: "${p}" passa por pasta ou arquivo oculto (nome iniciado por "."). Copie os dados para uma pasta comum ou cole o conteúdo em text.`,
+    );
+  if (hasHiddenSegment(resolved)) throw hidden();
+  const badExt = (q: string): boolean => !DATA_EXTS.includes(path.extname(q).toLowerCase());
+  if (badExt(resolved)) {
+    throw new DataSourceError(
+      `Extensão "${path.extname(resolved).toLowerCase()}" não suportada. Use .json, .csv ou .tsv.`,
+    );
+  }
+  let real: string;
+  try {
+    real = await fs.promises.realpath(resolved);
+  } catch {
+    throw new DataSourceError(`Arquivo não encontrado: ${p}`);
+  }
+  if (hasHiddenSegment(real)) throw hidden();
+  if (badExt(real)) {
+    throw new DataSourceError(
+      `"${p}" aponta para um arquivo sem extensão .json, .csv ou .tsv; recusado.`,
+    );
+  }
+  if (opts.roots) {
+    const roots: string[] = [];
+    for (const r of opts.roots) {
+      try {
+        roots.push(await fs.promises.realpath(r));
+      } catch {
+        // pasta inexistente não autoriza nada
+      }
+    }
+    if (!roots.some((r) => isInside(r, real))) {
+      throw new DataSourceError(
+        `Caminho recusado: pelo editor, o arquivo de dados precisa estar na pasta do documento ou na sua pasta pessoal (${opts.roots.join(', ')}). Cole o conteúdo ou mova o arquivo.`,
+      );
+    }
+  }
+  return real;
+}
+
+async function readFileData(
+  p: string,
+  opts: LoadOptions = {},
+): Promise<{ text: string; format: 'json' | 'csv' }> {
+  const real = await resolveDataPath(p, opts);
   let st: fs.Stats;
   try {
-    st = await fs.promises.stat(p);
+    st = await fs.promises.stat(real);
   } catch {
     throw new DataSourceError(`Arquivo não encontrado: ${p}`);
   }
@@ -101,11 +172,7 @@ async function readFileData(p: string): Promise<{ text: string; format: 'json' |
       `O arquivo passa do limite de ${MAX_DATA_FILE_BYTES / 1024 / 1024} MB.`,
     );
   }
-  const ext = path.extname(p).toLowerCase();
-  if (!['.json', '.csv', '.tsv', '.txt'].includes(ext)) {
-    throw new DataSourceError(`Extensão "${ext}" não suportada. Use .json, .csv ou .tsv.`);
-  }
-  return { text: await fs.promises.readFile(p, 'utf8'), format: guessDataFormat(p) };
+  return { text: await fs.promises.readFile(real, 'utf8'), format: guessDataFormat(real) };
 }
 
 async function readUrlData(url: string): Promise<{ text: string; contentType: string }> {
@@ -121,7 +188,7 @@ async function readUrlData(url: string): Promise<{ text: string; contentType: st
 }
 
 /** Lê os dados da origem informada (exatamente uma entre `data`, `text`, `path`, `url`). */
-export async function loadData(input: DataInput): Promise<LoadedData> {
+export async function loadData(input: DataInput, opts: LoadOptions = {}): Promise<LoadedData> {
   const given = [input.data, input.text, input.path, input.url].filter((v) => v !== undefined);
   if (given.length !== 1) {
     throw new DataSourceError(
@@ -148,7 +215,7 @@ export async function loadData(input: DataInput): Promise<LoadedData> {
     return { data: finalizeList(list, input.limit), source: { ...base, fetchedAt: now } };
   }
   if (input.path !== undefined) {
-    const f = await readFileData(input.path);
+    const f = await readFileData(input.path, opts);
     const format = input.format ?? f.format;
     const list = listFromText(f.text, format, input.select);
     return {
@@ -167,7 +234,10 @@ export async function loadData(input: DataInput): Promise<LoadedData> {
 }
 
 /** Relê a origem guardada de um repetidor. */
-export async function reloadSource(source: DataSource | undefined): Promise<LoadedData> {
+export async function reloadSource(
+  source: DataSource | undefined,
+  opts: LoadOptions = {},
+): Promise<LoadedData> {
   if (!source || source.kind === 'inline') {
     throw new DataSourceError(
       'Este repetidor tem dados colados/editados, sem arquivo ou URL de origem para atualizar. Use bind_data com path ou url.',
@@ -188,7 +258,7 @@ export async function reloadSource(source: DataSource | undefined): Promise<Load
     input.path = source.path;
     input.format = source.kind;
   }
-  return loadData(input);
+  return loadData(input, opts);
 }
 
 export interface BindResult {
