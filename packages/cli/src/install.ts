@@ -123,7 +123,7 @@ try { $k.SetValue('Path',$env:MOCKUP_NEW_PATH,[Microsoft.Win32.RegistryValueKind
 function readUserPath(ps: PsRunner): string {
   const r = ps(READ_PATH_SCRIPT, {});
   if (r.status !== 0) throw new Error(`não foi possível ler o PATH do usuário: ${r.stderr.trim()}`);
-  return r.stdout.replace(/^﻿/, '').replace(/[\r\n]+$/, '');
+  return r.stdout.replace(/^\uFEFF/, '').replace(/[\r\n]+$/, '');
 }
 
 function writeUserPath(ps: PsRunner, value: string): void {
