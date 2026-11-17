@@ -30,7 +30,7 @@
   nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" install-cli --quiet'
   Pop $0
   System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", p 0)'
-  DetailPrint "install-cli terminou com código $0"
+  DetailPrint "install-cli exited with code $0"
 !macroend
 
 !macro customUnInstall
@@ -43,7 +43,7 @@
     nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" uninstall-cli --quiet'
     Pop $0
     System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", p 0)'
-    DetailPrint "uninstall-cli terminou com código $0"
+    DetailPrint "uninstall-cli exited with code $0"
     ; minimal pure-NSIS fallback (does not touch the PATH)
     Delete "$LOCALAPPDATA\MockupStudio\bin\mockup.cmd"
     RMDir "$LOCALAPPDATA\MockupStudio\bin"
