@@ -4,13 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { fontFaceCss } from '@mockup/core';
+import type * as AssetsModule0 from './assets.js';
 import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
+
+type AssetsModule = typeof AssetsModule0;
 
 // Sem rede: o CSS e os arquivos do Google vêm de respostas simuladas.
 const { variable } = vi.hoisted(() => ({ variable: { current: true } }));
 vi.mock('./assets.js', async (orig) => {
-  const real = await orig<typeof import('./assets.js')>();
+  const real = await orig<AssetsModule>();
   return {
     ...real,
     fetchBytes: async (url: string, opts: Parameters<typeof real.fetchBytes>[1]) => {
