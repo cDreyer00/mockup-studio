@@ -29,12 +29,12 @@ export type ThreeToChild =
   | { type: 'play'; playing: boolean; t: number }
   | { type: 'resize'; w: number; h: number; dpr: number };
 
-/** Texto seguro dentro de `<script>`: sem `</script>` nem `<!--`. */
-const inScript = (value: unknown): string =>
+/** JSON seguro dentro de `<script>`: sem `</script>`, `<!--` nem separadores de linha U+2028/U+2029. */
+export const inScript = (value: unknown): string =>
   JSON.stringify(value)
-    .replace(/</g, '\u003c')
-    .replace(new RegExp('\u2028', 'g'), '\u2028')
-    .replace(new RegExp('\u2029', 'g'), '\u2029');
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
 // Script do filho (JS clássico, sem template literals para não conflitar com o gerador).
 const CHILD_SCRIPT = `
