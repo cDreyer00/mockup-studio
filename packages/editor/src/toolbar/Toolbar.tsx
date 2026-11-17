@@ -3,10 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronDown,
+  Clapperboard,
   Frame,
   Hand,
   Image as ImageIcon,
   MousePointer2,
+  Pause,
+  Play,
   Redo2,
   Square,
   Type,
@@ -22,6 +25,15 @@ import {
   saveDocumentAs,
 } from '../desktop/fileFlows';
 import { canvasApi } from '../canvas/canvasApi';
+import { EffectsButton } from '../effects/EffectsPanel';
+import { MediaDialogsHost } from '../effects/MediaDialogs';
+import {
+  insertThreeIsland,
+  pickAndInsertLottieRive,
+  pickAndInsertVideo,
+} from '../effects/mediaFlows';
+import { mediaDialogs } from '../effects/mediaStore';
+import { fxClock, useFxClock } from '../fx/clock';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import type { ConnectionStatus } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
@@ -279,6 +291,50 @@ function ZoomMenu() {
   );
 }
 
+/* ---------------- mídia e animações ---------------- */
+
+function MediaMenu() {
+  const items: DropItem[] = [
+    { label: 'Inserir vídeo…', testId: 'media-video', onSelect: () => void pickAndInsertVideo() },
+    {
+      label: 'Inserir Lottie/Rive de arquivo…',
+      testId: 'media-lottie-rive',
+      onSelect: () => void pickAndInsertLottieRive(),
+    },
+    { label: 'Embed por URL…', testId: 'media-embed-url', onSelect: mediaDialogs.openEmbedUrl },
+    {
+      label: 'Ilha Three.js',
+      testId: 'media-three',
+      separator: true,
+      onSelect: () => void insertThreeIsland(),
+    },
+  ];
+  return (
+    <Dropdown
+      testId="media-button"
+      title="Mídia"
+      items={items}
+      trigger={<Clapperboard size={ICON} />}
+    />
+  );
+}
+
+function PlayToggle() {
+  const playing = useFxClock((s) => s.playing);
+  const title = playing ? 'Pausar animações' : 'Tocar animações';
+  return (
+    <IconButton
+      title={`${title} (Shift+Espaço)`}
+      active={!playing}
+      data-testid="fx-play-toggle"
+      data-playing={playing}
+      onClick={() => fxClock.toggle()}
+    >
+      {playing ? <Pause size={ICON} /> : <Play size={ICON} />}
+    </IconButton>
+  );
+}
+
 /* ---------------- barra ---------------- */
 
 export function Toolbar() {
@@ -309,6 +365,12 @@ export function Toolbar() {
         ))}
       </div>
       <span className="tb-sep" />
+      <div className="tb-group" role="toolbar" aria-label="Efeitos e mídia">
+        <EffectsButton />
+        <MediaMenu />
+        <PlayToggle />
+      </div>
+      <span className="tb-sep" />
       <IconButton
         title="Desfazer (Ctrl+Z)"
         disabled={!canUndo}
@@ -334,6 +396,7 @@ export function Toolbar() {
         <span className={`tb-dot ${status}`} />
         <span>{STATUS_TEXT[status]}</span>
       </div>
+      <MediaDialogsHost />
     </header>
   );
 }
