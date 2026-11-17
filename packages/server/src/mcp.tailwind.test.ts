@@ -228,6 +228,23 @@ describe('MCP Tailwind', () => {
     expect(warn).toContain('nao-existe-xyz');
   });
 
+  it('set_classes replace num filho absoluto mantém position/left/top', async () => {
+    const id = created(
+      await ok('write_html', {
+        parentId: ws.frameId,
+        tailwind: 'off',
+        html: '<div style="position: absolute; left: 12px; top: 34px; color: red">x</div>',
+      }),
+    )[0]!;
+    await ok('set_classes', { nodeIds: [id], classes: 'p-4' });
+    const n = await info(id);
+    expect(n).toContain('position: absolute');
+    expect(n).toContain('left: 12px');
+    expect(n).toContain('top: 34px');
+    expect(n).toContain('padding: 1rem');
+    expect(n).not.toContain('color: red');
+  });
+
   it('set_classes em frame raiz preserva largura e altura', async () => {
     await ok('set_classes', { nodeIds: [ws.frameId], classes: 'bg-white p-4' });
     const n = await info(ws.frameId);
@@ -303,6 +320,18 @@ describe('MCP Tailwind', () => {
     expect(await ok('get_styles', { nodeIds: [id] })).toContain('color: red');
     expect(await ok('get_styles', { nodeIds: [id], state: 'hover' })).toContain('color: blue');
     await ok('update_styles', { nodeIds: [id], state: 'hover', unset: ['color', 'opacity'] });
+    expect(await info(id)).not.toContain('states:');
+    await ok('update_styles', {
+      nodeIds: [id],
+      state: 'hover',
+      styles: { backgroundColor: 'red', 'font-size': '12px' },
+    });
+    expect(await info(id)).toContain('background-color: red');
+    await ok('update_styles', {
+      nodeIds: [id],
+      state: 'hover',
+      unset: ['backgroundColor', 'fontSize'],
+    });
     expect(await info(id)).not.toContain('states:');
     const bad = await call('update_styles', { nodeIds: [id], state: 'hovr', styles: { a: 'b' } });
     expect(bad.isError).toBe(true);

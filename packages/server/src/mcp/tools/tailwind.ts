@@ -14,6 +14,7 @@ import {
   normalizeStateKey,
   normalizeStyles,
   tailwindThemeCss,
+  toKebabCase,
   type Node,
   type NodePath,
   type Op,
@@ -251,7 +252,7 @@ export function planStateStyles(
       if (v === '') delete cur[k];
       else cur[k] = v;
     }
-    for (const k of unset ?? []) delete cur[k];
+    for (const k of unset ?? []) delete cur[toKebabCase(k.trim())];
     if (Object.keys(cur).length > 0) states[key] = cur;
     else delete states[key];
     return { nodeId: node.id, states: Object.keys(states).length ? states : null };
