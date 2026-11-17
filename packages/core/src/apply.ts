@@ -5,8 +5,10 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
-import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
-import type { Document, Node, NodePath, Page } from './types.js';
+import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
+import { GENERATED_SVG_ATTRS } from './vector/schema.js';
+import { vectorToSvg } from './vector/svg.js';
+import type { Document, Node, NodePath, Page, Vector } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -270,7 +272,19 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
       if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
     }
-    if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
+    if (node.type === 'svg' && node.vector) {
+      // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
+      const v = node.vector;
+      if (v.raw !== undefined) v.raw = setSvgRootAttrs(v.raw, set, unset);
+      const attrs = { ...(v.attrs ?? {}) };
+      for (const k of unset) delete attrs[k];
+      for (const [k, val] of Object.entries(set)) {
+        if (!GENERATED_SVG_ATTRS.includes(k)) attrs[k] = val;
+      }
+      if (Object.keys(attrs).length > 0) v.attrs = attrs;
+      else delete v.attrs;
+      node.svg = vectorToSvg(v);
+    } else if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
     else {
       for (const k of unset) delete node.attrs[k];
       Object.assign(node.attrs, set);
@@ -466,6 +480,32 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
   return { inverse: [{ type: 'setSrc', changes: prev.reverse() }] };
 }
 
+function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Applied {
+  const prev: { nodeId: string; vector: Vector | null; svg?: string }[] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    const node = p.node;
+    if (node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um svg`);
+    const before: { nodeId: string; vector: Vector | null; svg?: string } = {
+      nodeId: c.nodeId,
+      vector: node.vector ? deepClone(node.vector) : null,
+    };
+    if (node.svg !== undefined) before.svg = node.svg;
+    prev.push(before);
+    if (c.vector) {
+      node.vector = deepClone(c.vector);
+      const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
+      if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
+      node.svg = markup;
+    } else {
+      delete node.vector;
+      if (c.svg !== undefined) node.svg = sanitizeSvg(c.svg);
+    }
+  }
+  return { inverse: [{ type: 'setVector', changes: prev.reverse() }] };
+}
+
 /* ---------------- API pública ---------------- */
 
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
@@ -524,6 +564,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setSrc':
       applied = doSetSrc(d, op);
+      break;
+    case 'setVector':
+      applied = doSetVector(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

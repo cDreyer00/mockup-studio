@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { sanitizeSvg } from './svg.js';
+import { orderVector, parseVectorLoose } from './vector/schema.js';
+import { vectorToSvg } from './vector/svg.js';
 import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
 import type { Document, FontRef, Node, Page } from './types.js';
 
@@ -84,6 +86,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       text: z.string().optional(),
       src: z.string().optional(),
       svg: z.string().transform(sanitizeSvg).optional(),
+      // Vetor inválido é descartado (o markup `svg` continua valendo).
+      vector: z.unknown().optional().transform(parseVectorLoose),
       children: z.array(NodeSchema).default([]),
       locked: z.boolean().default(false),
       hidden: z.boolean().default(false),
@@ -91,6 +95,15 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
       error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
+    })
+    .transform((n) => {
+      // Só nós svg têm modelo vetorial; com ele, o markup é sempre o gerado (`vectorToSvg`).
+      if (n.vector === undefined || n.type !== 'svg') {
+        delete n.vector;
+        return n;
+      }
+      n.svg = vectorToSvg(n.vector);
+      return n;
     }),
 );
 
@@ -213,6 +226,7 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.text !== undefined) out.text = n.text;
   if (n.src !== undefined) out.src = n.src;
   if (n.svg !== undefined) out.svg = n.svg;
+  if (n.vector !== undefined) out.vector = orderVector(n.vector);
   out.locked = n.locked;
   out.hidden = n.hidden;
   out.children = n.children.map(orderNode);
