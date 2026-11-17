@@ -162,11 +162,21 @@ Resultado (ver [TAILWIND.md](TAILWIND.md)):
 
 Pendências: variantes de grupo/atributo e pseudo-elementos só ficam na classe; os campos de estilo do painel não editam estados (só o campo de classes); `animate-*` não anima no canvas; o `state` do screenshot não foi exercitado no Electron real (só com provider falso); a primeira exportação de cada motor (tokens novos) ainda custa ~1 s de aquecimento da canonicalização do Tailwind.
 
-### Fase 4 — Componentes
+### Fase 4 — Componentes (`feature/design-system`, concluída)
 
 - Mestres e instâncias com overrides; propriedades e variantes.
 - Biblioteca por documento.
 - MCP para criar, instanciar e destacar.
+
+Resultado (ver [COMPONENTES.md](COMPONENTES.md)):
+
+- Core: `doc.components` (`ComponentDef` com props `string|number|boolean|enum|color|slot`, variantes por `when` e raiz), nó `instance` com `props` e `overrides` por caminho de ids do principal; slots como contêineres `data-slot` filhos reais da instância (reaproveitam ops, camadas e seleção); `expandInstance`/`expandDocument` com ids virtuais `instância/caminho` e compartilhamento estrutural; `applyOp` roteia ops em ids virtuais (vira override) e em nós do principal (vira `updateComponent`); ops `addComponent`, `deleteComponent`, `updateComponent`, `replaceNode`, `setInstanceProps`, `setInstanceOverrides`; planejadores `createComponentOps` (com `bind`), `instanceNodeFor`, `detachInstanceOps`, `pushOverridesToMainOps`, `resetInstanceOps`, `importKitOps`. Documentos antigos sem `components` continuam iguais.
+- Exportadores: HTML, Tailwind e SVG expandem as instâncias; React gera um componente tipado por principal (enum como união de literais, slots como `ReactNode`/`children`, variantes condicionais).
+- Kit `kits/shadcn-like.mockup.json` (Button, Input, Card, Navbar, Tabs, Dialog, Table, List, tokens shadcn e tema `dark`), servido em `/api/kits` e empacotado em `resources/kits`. Ícones: Heroicons (`@iconify-json/heroicons`, MIT) ao lado do Lucide, com busca unificada por kit.
+- MCP: `list_components`, `get_component`, `create_component`, `update_component`, `update_component_html`, `delete_component`, `insert_component` (importa o kit se preciso), `set_instance_props`, `set_instance_override`, `reset_instance`, `detach_instance`, `push_overrides_to_main`, `go_to_main`, `import_kit`; leitura e screenshot por ids virtuais e de principais; guia `components`.
+- Editor: aba Componentes (biblioteca e kit, arrastar/clicar), Ctrl+Alt+K, edição isolada do principal, indicador roxo, painel de props, slots editáveis, ir para principal, destacar, restaurar e enviar ao principal.
+
+Pendências: overrides não removem atributos/estados do principal (sem `unsetAttrs`/`unsetStates`); `update_component_html` gera ids novos (overrides antigos perdem efeito); renomear prop no painel não reescreve os `{{placeholders}}`; inserir um componente de kit importa o kit inteiro; o React não exporta variantes que mudam atributos, visibilidade ou props de aninhadas, nem extrai `.map` dentro dos componentes; "Restaurar"/"Enviar ao principal" não valem para instâncias aninhadas.
 
 ### Fase 5 — Snapshots e versões
 
