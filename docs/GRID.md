@@ -32,3 +32,5 @@ Veja `get_guide('grid')` para dicas (`minmax`, `auto-fill`, trilhas implícitas)
 ## Exportação
 
 `html`, `tailwind` e `react` mantêm o grid: o HTML sai com os estilos de `display:grid`, trilhas e posicionamento; o Tailwind converte o que tem classe equivalente (`grid`, `grid-cols-3`, `col-span-2`, `gap-4`) e usa valores arbitrários (`grid-cols-[1fr_200px]`) no resto. SVG/PNG usam as medidas reais do render.
+
+Trilhas no Tailwind: `grid-cols-N`/`grid-rows-N` só saem para `repeat(N, minmax(0, 1fr))`, que é exatamente o que essas classes geram (e o que `set_grid` grava para `columns: 3`). `repeat(N, 1fr)` tem mínimo `auto` (a trilha cresce com o conteúdo) e por isso vira valor arbitrário, `grid-cols-[repeat(3,1fr)]`. Antes desta fase, `repeat(N, 1fr)` também virava `grid-cols-N`.
