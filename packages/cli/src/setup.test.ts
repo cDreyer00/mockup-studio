@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { LaunchCommand } from './launch.js';
 import type { ToolResult } from './tools.js';
 import { findIntegrationsDir, integrationsCandidates, runSetup, type SetupDeps } from './setup.js';
 
@@ -30,6 +31,7 @@ function make(opts: {
   failAdd?: boolean;
   removeResult?: ToolResult;
   integrations?: string | null;
+  launch?: LaunchCommand;
 }) {
   const ran: string[] = [];
   const deps: SetupDeps = {
@@ -40,7 +42,7 @@ function make(opts: {
       if (a[1] === 'remove' && opts.removeResult) return opts.removeResult;
       return ok;
     },
-    launch: () => ({ command: 'mockup', args: ['mcp'], kind: 'path' }),
+    launch: () => opts.launch ?? { command: 'mockup', args: ['mcp'], kind: 'path' },
     integrationsDir: () => opts.integrations ?? null,
     readFile: (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null),
     writeFile: (p, c) => write(p, c),
@@ -181,6 +183,44 @@ describe('runSetup', () => {
     );
     expect(out).toContain('default_tools_approval_mode = "prompt"');
     expect(out).toContain('[mcp_servers.mockup-studio.env]');
+  });
+
+  it('comando absoluto do app: env ELECTRON_RUN_AS_NODE faz parte da comparação', () => {
+    const launch: LaunchCommand = {
+      command: 'C:\\App\\Mockup Studio.exe',
+      args: ['C:\\App\\resources\\cli\\mockup.mjs', 'mcp'],
+      env: { ELECTRON_RUN_AS_NODE: '1' },
+      kind: 'absolute',
+    };
+    const section = [
+      '[mcp_servers.mockup-studio]',
+      `command = ${JSON.stringify(launch.command)}`,
+      `args = [${launch.args.map((a) => JSON.stringify(a)).join(', ')}]`,
+      'default_tools_approval_mode = "approve"',
+      '',
+      '[mcp_servers.outro]',
+      'command = "outro"',
+      '',
+    ].join('\n');
+    write(codexCfg(), section);
+    const { deps, ran } = make({ installed: ['codex', 'claude'], launch });
+    expect(runSetup('codex', {}, deps).code).toBe(0);
+    expect(ran).toEqual([]);
+    const out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out).toContain(
+      'default_tools_approval_mode = "approve"\n\n[mcp_servers.mockup-studio.env]\nELECTRON_RUN_AS_NODE = "1"\n',
+    );
+    expect(out).toContain('[mcp_servers.outro]\ncommand = "outro"');
+    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nada a fazer');
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(out);
+
+    // Claude com o mesmo comando, mas sem a variável: re-registra
+    write(claudeJson(), claudeUser(launch.command, launch.args));
+    runSetup('claude', {}, deps);
+    expect(ran.map((x) => x.split(' ').slice(0, 3).join(' '))).toEqual([
+      'claude mcp remove',
+      'claude mcp add',
+    ]);
   });
 
   it('codex diferente: preserva CRLF e aceita cabeçalho com aspas', () => {

@@ -2,13 +2,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SERVER_NAME, type LaunchCommand } from './launch.js';
-import { findSection, getValue, parseDoc, type TomlDoc } from './tomlEdit.js';
+import { findSection, getValue, parseDoc, readEnv, type TomlDoc } from './tomlEdit.js';
 
 export interface RegisteredServer {
   transport: 'stdio' | 'http';
   command?: string;
   args?: string[];
   url?: string;
+  env?: Record<string, string>;
 }
 
 export interface FsDeps {
@@ -56,6 +57,12 @@ function jsonServer(v: unknown): RegisteredServer | null {
     transport: 'stdio',
     command: typeof o.command === 'string' ? o.command : undefined,
     args: Array.isArray(o.args) ? o.args.map(String) : [],
+    env:
+      o.env && typeof o.env === 'object'
+        ? Object.fromEntries(
+            Object.entries(o.env as Record<string, unknown>).map(([k, x]) => [k, String(x)]),
+          )
+        : {},
   };
 }
 
@@ -131,6 +138,7 @@ export function readCodexRegistration(d: FsDeps): CodexRegistration | null {
           const v = getValue(doc, 'args');
           return Array.isArray(v) ? v : undefined;
         })(),
+        env: readEnv(doc),
       };
   return { path: p, server, approve: str('default_tools_approval_mode') };
 }
@@ -139,11 +147,13 @@ export function readCodexRegistration(d: FsDeps): CodexRegistration | null {
 export function wantedServer(launch: LaunchCommand, http: string | null): RegisteredServer {
   return http
     ? { transport: 'http', url: http }
-    : { transport: 'stdio', command: launch.command, args: launch.args };
+    : { transport: 'stdio', command: launch.command, args: launch.args, env: launch.env ?? {} };
 }
 
+/** `a` (registrado) atende `b` (desejado): mesmo comando/URL e as variáveis de `b` presentes em `a`. */
 export function sameServer(a: RegisteredServer, b: RegisteredServer): boolean {
   if (a.transport !== b.transport) return false;
+  if (Object.entries(b.env ?? {}).some(([k, v]) => a.env?.[k] !== v)) return false;
   if (a.transport === 'http') return a.url === b.url;
   return (
     a.command === b.command &&

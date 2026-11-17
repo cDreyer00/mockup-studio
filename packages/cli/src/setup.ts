@@ -34,6 +34,7 @@ import {
   parseDoc,
   removeKey,
   renderDoc,
+  setEnv,
   setKey,
   type TomlDoc,
 } from './tomlEdit.js';
@@ -280,10 +281,11 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
       setKey(doc, 'command', tomlString(spec.wanted.command ?? ''));
       setKey(doc, 'args', `[${(spec.wanted.args ?? []).map(tomlString).join(', ')}]`);
       removeKey(doc, 'url');
+      setEnv(doc, spec.wanted.env ?? {}, tomlString);
     }
     if (!writeDoc(deps, file, doc, lines)) return { code: 1, lines };
     lines.push(
-      `codex: ${SERVER_NAME} atualizado em ${file} (só command/args; o resto da config foi preservado).`,
+      `codex: ${SERVER_NAME} atualizado em ${file} (só command/args/env do lançamento; o resto da config foi preservado).`,
     );
   }
 
