@@ -4,9 +4,11 @@
  * carrega a URL/HTML, injeta o bundle do `@mockup/snapshot-core` num mundo isolado e devolve o
  * `SnapshotPayload`, com a captura de referência (PNG/JPEG via CDP). Importações são serializadas.
  */
+import dns from 'node:dns';
 import { BrowserWindow, nativeImage, session, type Session } from 'electron';
 import type { PageSnapshotRequest, PageSnapshotResult } from '@mockup/snapshot-core';
 import { SNAPSHOT_SCRIPT } from '@mockup/snapshot-core/inject';
+import { isPrivateAddress, originOf, subrequestDecision } from './netguard.js';
 
 export interface SnapshotServiceOptions {
   /** Origem do daemon (ex.: `http://127.0.0.1:4747`); páginas importadas não podem chamá-la. */
@@ -18,7 +20,8 @@ const log = (...a: unknown[]): void => console.error('[mockup-snapshot]', ...a);
 const PARTITION = 'mockup-snapshot';
 /** Id fixo do mundo isolado em que o bundle roda (o DOM é compartilhado com a página). */
 const WORLD_ID = 1001;
-const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'data:', 'blob:', 'about:']);
+/** Validade do cache de resolução de DNS por host (evita resolver a cada requisição). */
+const DNS_TTL_MS = 30_000;
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 
 const REF_MAX_HEIGHT = 6000;
@@ -28,7 +31,20 @@ const SETTLE_MS = 300;
 const ASSETS_WAIT_MS = 3000;
 
 /** Insere o CSS extra como `<style>` no fim do `<head>` (ou no início do documento/fragmento). */
-export function buildHtml(html: string, css?: string): string {
+export function buildHtml(html: string, css?: string, noScript = false): string {
+  const out = insertCss(html, css);
+  if (!noScript) return out;
+  // CSP por <meta> logo no início (depois do doctype, para não cair em quirks mode): nenhum <script>,
+  // handler `on*=` ou `javascript:` da página executa. O bundle da captura não é afetado porque roda
+  // num mundo isolado via `executeJavaScriptInIsolatedWorld`, que não obedece à CSP da página.
+  // (`webPreferences.javascript: false` não serve: derruba também o mundo isolado e a captura trava.)
+  const csp = `<meta http-equiv="Content-Security-Policy" content="script-src 'none'">`;
+  const doctype = /^\s*(?:<!--[\s\S]*?-->\s*)*<!doctype[^>]*>/i.exec(out);
+  const at = doctype ? doctype[0].length : 0;
+  return out.slice(0, at) + csp + out.slice(at);
+}
+
+function insertCss(html: string, css?: string): string {
   if (!css || !css.trim()) return html;
   const style = `<style>${css.replace(/<\/style/gi, '<\\/style')}</style>`;
   const head = /<\/head\s*>/i.exec(html);
@@ -48,7 +64,12 @@ export function isDaemonRequest(rawUrl: string, daemonBase: string): boolean {
   try {
     const u = new URL(rawUrl);
     const d = new URL(daemonBase);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'ws:' && u.protocol !== 'wss:')
+    if (
+      u.protocol !== 'http:' &&
+      u.protocol !== 'https:' &&
+      u.protocol !== 'ws:' &&
+      u.protocol !== 'wss:'
+    )
       return false;
     const port = (x: URL): string =>
       x.port || (x.protocol === 'https:' || x.protocol === 'wss:' ? '443' : '80');
@@ -63,6 +84,9 @@ export class SnapshotService {
   private win: BrowserWindow | null = null;
   private ses: Session | null = null;
   private closed = false;
+  /** Origem da página principal da importação corrente (as importações são serializadas). */
+  private mainOrigin: string | null = null;
+  private dnsCache = new Map<string, { priv: boolean; until: number }>();
 
   constructor(private opts: SnapshotServiceOptions) {}
 
@@ -71,22 +95,65 @@ export class SnapshotService {
     if (this.ses) return this.ses;
     const ses = session.fromPartition(PARTITION); // sem prefixo `persist:` = em memória
     ses.webRequest.onBeforeRequest((details, callback) => {
-      let cancel = false;
-      try {
-        const u = new URL(details.url);
-        if (!ALLOWED_PROTOCOLS.has(u.protocol)) cancel = true;
-        else if (isDaemonRequest(details.url, this.opts.baseUrl())) cancel = true;
-      } catch {
-        cancel = true;
-      }
-      if (cancel && process.env.MOCKUP_RENDER_DEBUG) log('requisição bloqueada:', details.url);
-      callback({ cancel });
+      this.shouldCancel(details.url, details.resourceType)
+        .catch(() => true)
+        .then((cancel) => {
+          if (cancel && process.env.MOCKUP_RENDER_DEBUG) log('requisição bloqueada:', details.url);
+          callback({ cancel });
+        });
     });
     ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     ses.setPermissionCheckHandler(() => false);
     ses.on('will-download', (ev) => ev.preventDefault());
     this.ses = ses;
     return ses;
+  }
+
+  /**
+   * Política de rede da janela de captura. O daemon é bloqueado sempre. A navegação principal vai a
+   * qualquer http(s) (o dev server do usuário em localhost é um caso legítimo) e passa a ser a origem
+   * confiável (redirecionamentos do servidor incluídos). Subrequisições a rede local/privada só passam
+   * se forem da origem confiável; nomes de host são resolvidos aqui e bloqueados se algum endereço for
+   * privado.
+   */
+  private async shouldCancel(rawUrl: string, resourceType: string): Promise<boolean> {
+    let u: URL;
+    try {
+      u = new URL(rawUrl);
+    } catch {
+      return true;
+    }
+    if (isDaemonRequest(rawUrl, this.opts.baseUrl())) return true;
+    if (resourceType === 'mainFrame') {
+      if (u.protocol === 'http:' || u.protocol === 'https:') {
+        this.mainOrigin = originOf(rawUrl);
+        return false;
+      }
+      return subrequestDecision(rawUrl, null) !== 'allow';
+    }
+    const decision = subrequestDecision(rawUrl, this.mainOrigin);
+    if (decision !== 'resolve') return decision === 'block';
+    return this.resolvesToPrivate(u.hostname);
+  }
+
+  /**
+   * Resolve o host via `dns.lookup` (com cache curto). Falha de resolução = bloqueia. Risco residual:
+   * o resolvedor do Chromium (DoH, cache próprio, rebinding entre a checagem e a conexão) pode
+   * divergir deste lookup.
+   */
+  private async resolvesToPrivate(host: string): Promise<boolean> {
+    const key = host.toLowerCase();
+    const hit = this.dnsCache.get(key);
+    if (hit && hit.until > Date.now()) return hit.priv;
+    let priv: boolean;
+    try {
+      const addrs = await dns.promises.lookup(key, { all: true });
+      priv = addrs.some((a) => isPrivateAddress(a.address));
+    } catch {
+      priv = true;
+    }
+    this.dnsCache.set(key, { priv, until: Date.now() + DNS_TTL_MS });
+    return priv;
   }
 
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {
@@ -125,6 +192,10 @@ export class SnapshotService {
         throw new Error(`Só URLs http(s) podem ser importadas (recebido ${proto || req.url}).`);
     }
     const what = req.kind === 'url' ? req.url : 'o HTML informado';
+    // import_html sem baseUrl: nenhuma origem privada é confiável e o JS da página fica desligado
+    // (CSP em buildHtml)
+    const base = req.kind === 'html' ? this.htmlBase(req) : undefined;
+    this.mainOrigin = req.kind === 'url' ? originOf(req.url) : base ? originOf(base) : null;
     const win = this.createWindow(req.viewport);
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_, reject) => {
@@ -141,8 +212,15 @@ export class SnapshotService {
       return await Promise.race([work, timeout]);
     } finally {
       clearTimeout(timer);
+      this.mainOrigin = null;
       this.destroyWindow(win);
     }
+  }
+
+  private htmlBase(req: PageSnapshotRequest): string | undefined {
+    return req.kind === 'html' && req.baseUrl && /^https?:\/\//i.test(req.baseUrl)
+      ? req.baseUrl
+      : undefined;
   }
 
   private createWindow(viewport: { width: number; height: number }): BrowserWindow {
@@ -196,9 +274,9 @@ export class SnapshotService {
       if (req.kind === 'url') {
         await wc.loadURL(req.url);
       } else {
-        const html = buildHtml(req.html, req.css);
+        const html = buildHtml(req.html, req.css, !this.htmlBase(req));
         const url = `data:text/html;charset=utf-8;base64,${Buffer.from(html, 'utf8').toString('base64')}`;
-        const base = req.baseUrl && /^https?:\/\//i.test(req.baseUrl) ? req.baseUrl : undefined;
+        const base = this.htmlBase(req);
         await wc.loadURL(url, base ? { baseURLForDataURL: base } : undefined);
       }
     } catch (e) {
@@ -254,7 +332,9 @@ export class SnapshotService {
     );
     if (!found) {
       const where = req.kind === 'url' ? req.url : 'no HTML informado';
-      throw new Error(`Seletor "${selector}" não encontrado ${req.kind === 'url' ? 'em ' : ''}${where}.`);
+      throw new Error(
+        `Seletor "${selector}" não encontrado ${req.kind === 'url' ? 'em ' : ''}${where}.`,
+      );
     }
 
     // o bundle define globalThis.MockupSnapshot (no mundo isolado); o retorno é clonado como JSON
@@ -262,7 +342,8 @@ export class SnapshotService {
       win,
       `${SNAPSHOT_SCRIPT}\n;globalThis.MockupSnapshot.captureSelector(${sel}, { inlineAssets: true })`,
     );
-    if (!payload || typeof payload !== 'object') throw new Error('A captura não devolveu um snapshot.');
+    if (!payload || typeof payload !== 'object')
+      throw new Error('A captura não devolveu um snapshot.');
 
     try {
       const ref = await this.captureReference(win, sel);
@@ -271,7 +352,9 @@ export class SnapshotService {
       const msg = e instanceof Error ? e.message : String(e);
       log('referência falhou:', msg);
       payload.stats = payload.stats ?? { nodes: 0, truncated: false, warnings: [] };
-      (payload.stats.warnings ??= []).push(`Não foi possível capturar a imagem de referência: ${msg}`);
+      (payload.stats.warnings ??= []).push(
+        `Não foi possível capturar a imagem de referência: ${msg}`,
+      );
     }
     return payload;
   }
@@ -280,7 +363,12 @@ export class SnapshotService {
     win: BrowserWindow,
     sel: string,
   ): Promise<PageSnapshotResult['reference'] | undefined> {
-    const rect = await this.isolated<{ x: number; y: number; width: number; height: number } | null>(
+    const rect = await this.isolated<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null>(
       win,
       `(() => {
         const el = document.querySelector(${sel});

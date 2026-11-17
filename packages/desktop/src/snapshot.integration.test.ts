@@ -60,22 +60,30 @@ const MIME: Record<string, string> = {
 };
 
 /** Servidor estático simples; procura o arquivo em cada raiz, na ordem. */
-function staticServer(roots: string[]): Promise<{ server: http.Server; url: string }> {
+function staticServer(
+  roots: string[],
+  hits: string[] = [],
+): Promise<{ server: http.Server; url: string }> {
   const server = http.createServer((req, res) => {
     const rel = decodeURIComponent((req.url ?? '/').split('?')[0]!);
+    hits.push(rel);
     for (const root of roots) {
       const file = path.resolve(root, '.' + rel);
       if (!file.startsWith(path.resolve(root) + path.sep)) continue;
       if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-        res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });
+        res.writeHead(200, {
+          'content-type': MIME[path.extname(file)] ?? 'application/octet-stream',
+        });
         res.end(fs.readFileSync(file));
         return;
       }
     }
     res.writeHead(404).end('não encontrado');
   });
+  // sem host: escuta em :: (dual-stack), então `localhost` também chega aqui e o teste de bloqueio
+  // prova que foi o guarda (e não uma falha de conexão) que impediu a requisição
   return new Promise((resolve) =>
-    server.listen(0, '127.0.0.1', () =>
+    server.listen(0, () =>
       resolve({ server, url: `http://127.0.0.1:${(server.address() as net.AddressInfo).port}` }),
     ),
   );
@@ -105,6 +113,8 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
   let daemonUrl: string;
   let web: http.Server;
   let webUrl: string;
+  let webPort: number;
+  const hits: string[] = [];
   let docId: string;
   let docDir: string;
   let client: Client;
@@ -119,7 +129,25 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     const port = await freePort();
     daemonUrl = `http://127.0.0.1:${port}`;
 
-    ({ server: web, url: webUrl } = await staticServer([fixturesDir, extraDir]));
+    ({ server: web, url: webUrl } = await staticServer([fixturesDir, extraDir], hits));
+    webPort = Number(new URL(webUrl).port);
+    fs.writeFileSync(
+      path.join(extraDir, 'px.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="red"/></svg>',
+    );
+    // mesma origem (relativa) x outra origem da mesma máquina (localhost, porta igual)
+    fs.writeFileSync(
+      path.join(extraDir, 'rede.html'),
+      `<!doctype html><html><body style="margin:0"><section class="alvo" style="padding:8px">
+  <h1>Rede</h1>
+  <img alt="mesma" src="/mesma.svg" width="20" height="20">
+  <img alt="outra" src="http://localhost:${webPort}/outra.svg" width="20" height="20">
+</section></body></html>`,
+    );
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'mesma.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'outra.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'semBase.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'comBase.svg'));
 
     // páginas hostis: tentam ler arquivo local e chamar a API do daemon
     fs.writeFileSync(
@@ -141,11 +169,15 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     const file = path.join(tmp, 'doc.mockup.json');
     const env: NodeJS.ProcessEnv = { ...process.env, MOCKUP_DATA_DIR: dataDir };
     delete env.ELECTRON_RUN_AS_NODE;
-    child = spawn(electronExe, [appDir, '--headless', '--port', String(port), '--data-dir', dataDir], {
-      env,
-      stdio: ['ignore', 'ignore', 'pipe'],
-      windowsHide: true,
-    });
+    child = spawn(
+      electronExe,
+      [appDir, '--headless', '--port', String(port), '--data-dir', dataDir],
+      {
+        env,
+        stdio: ['ignore', 'ignore', 'pipe'],
+        windowsHide: true,
+      },
+    );
     child.stderr!.on('data', (d: Buffer) => (stderr += d.toString()));
     await waitHealth(daemonUrl, child);
 
@@ -179,9 +211,12 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     const r = await fetch(`${daemonUrl}/api/docs/${docId}`);
     return (await r.json()) as { doc: { pages: { frames: DocNode[] }[] } };
   };
-  const frames = async (): Promise<DocNode[]> => (await getDoc()).doc.pages.flatMap((p) => p.frames);
+  const frames = async (): Promise<DocNode[]> =>
+    (await getDoc()).doc.pages.flatMap((p) => p.frames);
   const call = (name: string, args: Record<string, unknown>): Promise<TextResult> =>
-    client.callTool({ name, arguments: { docId, ...args } }, undefined, { timeout: 60000 }) as Promise<TextResult>;
+    client.callTool({ name, arguments: { docId, ...args } }, undefined, {
+      timeout: 60000,
+    }) as Promise<TextResult>;
 
   it('import_url de .hero da landing em menos de 10 s: frame, imagens em assets/ e Referência oculta', async () => {
     const t0 = Date.now();
@@ -237,5 +272,52 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     });
     expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
     expect(textOf(r)).toMatch(/fr_\w+/);
+  });
+
+  const sawHit = (p: string): boolean => hits.includes(p);
+  const docText = async (): Promise<string> => JSON.stringify(await getDoc());
+
+  it('navegação principal em http://127.0.0.1 (dev server local) funciona; subrequisição de outra origem local é bloqueada', async () => {
+    const r = await call('import_url', { url: `${webUrl}/rede.html`, selector: '.alvo' });
+    expect(
+      r.isError,
+      `${textOf(r)}
+${stderr}`,
+    ).toBeFalsy();
+    expect(sawHit('/rede.html')).toBe(true);
+    expect(sawHit('/mesma.svg')).toBe(true);
+    expect(sawHit('/outra.svg')).toBe(false);
+  });
+
+  it('import_html sem baseUrl: o JavaScript da página não roda e a rede local é bloqueada', async () => {
+    const r = await call('import_html', {
+      html: `<section class="alvo"><h1>Original</h1>
+<img alt="x" src="${webUrl}/semBase.svg" width="20" height="20">
+<script>document.querySelector('h1').textContent = 'JS RODOU'</script></section>`,
+      selector: '.alvo',
+    });
+    expect(
+      r.isError,
+      `${textOf(r)}
+${stderr}`,
+    ).toBeFalsy();
+    const doc = await docText();
+    expect(doc).toContain('Original');
+    expect(doc).not.toContain('JS RODOU');
+    expect(sawHit('/semBase.svg')).toBe(false);
+  });
+
+  it('import_html com assets_base_url 127.0.0.1: os assets dessa origem carregam', async () => {
+    const r = await call('import_html', {
+      html: '<section class="alvo"><h1>Com base</h1><img alt="x" src="/comBase.svg" width="20" height="20"></section>',
+      assets_base_url: `${webUrl}/`,
+      selector: '.alvo',
+    });
+    expect(
+      r.isError,
+      `${textOf(r)}
+${stderr}`,
+    ).toBeFalsy();
+    expect(sawHit('/comBase.svg')).toBe(true);
   });
 });
