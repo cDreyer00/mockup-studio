@@ -10,6 +10,7 @@ import { HeaderSection } from './HeaderSection';
 import { LayoutSection } from './LayoutSection';
 import { SizeSection } from './SizeSection';
 import { TypographySection } from './TypographySection';
+import { VectorSection } from './VectorSection';
 import { LockedContext, useSelectionCtx } from './shared';
 import './properties.css';
 
@@ -40,6 +41,7 @@ export function PropertiesPanel() {
         <SizeSection ctxs={ctxs} />
         {container && <LayoutSection ctxs={ctxs} />}
         <TypographySection nodes={nodes} />
+        {nodes.every((n) => n.type === 'svg') && <VectorSection nodes={nodes} />}
         <AppearanceSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
         <AttrsSection ctxs={ctxs} />

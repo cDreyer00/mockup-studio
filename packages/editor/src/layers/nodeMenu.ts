@@ -7,6 +7,7 @@ import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import type { MenuItem } from '../ui/overlays';
+import { booleanOp, flatten, textToOutlines } from '../vector/vectorActions';
 
 export function buildNodeMenu(): MenuItem[] {
   const doc = useDoc.getState().doc;
@@ -15,6 +16,42 @@ export function buildNodeMenu(): MenuItem[] {
   const none = nodes.length === 0;
   const allHidden = nodes.length > 0 && nodes.every((n) => n.hidden);
   const allLocked = nodes.length > 0 && nodes.every((n) => n.locked);
+  const svgCount = nodes.filter((n) => n.type === 'svg').length;
+  const allSvg = nodes.length > 0 && svgCount === nodes.length;
+  const anyText = nodes.some((n) => n.type === 'text');
+  const vectorItems: MenuItem[] = [
+    ...(allSvg && nodes.length >= 2
+      ? ([
+          ['union', 'União'],
+          ['subtract', 'Subtração'],
+          ['intersect', 'Interseção'],
+          ['exclude', 'Exclusão'],
+        ] as const).map(([op, label], i) => ({
+          label,
+          separator: i === 0,
+          onSelect: () => void booleanOp(op),
+        }))
+      : []),
+    ...(allSvg
+      ? [
+          {
+            label: 'Achatar',
+            separator: nodes.length < 2,
+            onSelect: () => void flatten(),
+          },
+        ]
+      : []),
+    ...(anyText
+      ? [
+          {
+            label: 'Texto em contornos',
+            shortcut: 'Ctrl+Shift+O',
+            separator: true,
+            onSelect: () => void textToOutlines(),
+          },
+        ]
+      : []),
+  ];
   return [
     {
       label: 'Duplicar',
@@ -72,6 +109,7 @@ export function buildNodeMenu(): MenuItem[] {
       disabled: none,
       onSelect: () => void actions.setLocked(sel, !allLocked),
     },
+    ...vectorItems,
     {
       label: 'Excluir',
       shortcut: 'Delete',

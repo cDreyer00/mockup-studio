@@ -14,6 +14,8 @@ import { measureWorldRect } from './dom';
 import { attachInteractions } from './interactions';
 import { DocIdContext } from './NodeView';
 import { Overlay } from './Overlay';
+import { PenOverlay } from './PenOverlay';
+import { VectorEditOverlay } from './VectorEditOverlay';
 import './canvas.css';
 
 const FIT_PADDING = 60;
@@ -214,6 +216,8 @@ export function Canvas() {
       <DocumentBase />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
       <Overlay rootRef={rootRef} />
+      <PenOverlay />
+      <VectorEditOverlay rootRef={rootRef} />
     </div>
   );
 }

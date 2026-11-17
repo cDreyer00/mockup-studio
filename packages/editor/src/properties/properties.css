@@ -222,3 +222,33 @@
 .prop-token-val {
   color: var(--muted);
 }
+
+/* ---------------- vetor ---------------- */
+
+.vec-tid {
+  display: contents;
+}
+.vec-bools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.vec-btn {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.vec-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.prop-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
