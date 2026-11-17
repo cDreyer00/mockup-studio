@@ -1,0 +1,2922 @@
+{
+  "version": 1,
+  "id": "doc_shadcnkt",
+  "name": "shadcn-like",
+  "tokens": {
+    "--color-background": "oklch(1 0 0)",
+    "--color-foreground": "oklch(0.145 0 0)",
+    "--color-card": "oklch(1 0 0)",
+    "--color-card-foreground": "oklch(0.145 0 0)",
+    "--color-popover": "oklch(1 0 0)",
+    "--color-popover-foreground": "oklch(0.145 0 0)",
+    "--color-primary": "oklch(0.205 0 0)",
+    "--color-primary-foreground": "oklch(0.985 0 0)",
+    "--color-secondary": "oklch(0.97 0 0)",
+    "--color-secondary-foreground": "oklch(0.205 0 0)",
+    "--color-muted": "oklch(0.97 0 0)",
+    "--color-muted-foreground": "oklch(0.556 0 0)",
+    "--color-accent": "oklch(0.97 0 0)",
+    "--color-accent-foreground": "oklch(0.205 0 0)",
+    "--color-destructive": "oklch(0.577 0.245 27.325)",
+    "--color-border": "oklch(0.922 0 0)",
+    "--color-input": "oklch(0.922 0 0)",
+    "--color-ring": "oklch(0.708 0 0)",
+    "--radius": "0.625rem",
+    "--radius-sm": "calc(var(--radius) - 4px)",
+    "--radius-md": "calc(var(--radius) - 2px)",
+    "--radius-lg": "var(--radius)",
+    "--radius-xl": "calc(var(--radius) + 4px)"
+  },
+  "tokenMeta": {
+    "--color-background": {
+      "group": "color"
+    },
+    "--color-foreground": {
+      "group": "color"
+    },
+    "--color-card": {
+      "group": "color"
+    },
+    "--color-card-foreground": {
+      "group": "color"
+    },
+    "--color-popover": {
+      "group": "color"
+    },
+    "--color-popover-foreground": {
+      "group": "color"
+    },
+    "--color-primary": {
+      "group": "color"
+    },
+    "--color-primary-foreground": {
+      "group": "color"
+    },
+    "--color-secondary": {
+      "group": "color"
+    },
+    "--color-secondary-foreground": {
+      "group": "color"
+    },
+    "--color-muted": {
+      "group": "color"
+    },
+    "--color-muted-foreground": {
+      "group": "color"
+    },
+    "--color-accent": {
+      "group": "color"
+    },
+    "--color-accent-foreground": {
+      "group": "color"
+    },
+    "--color-destructive": {
+      "group": "color"
+    },
+    "--color-border": {
+      "group": "color"
+    },
+    "--color-input": {
+      "group": "color"
+    },
+    "--color-ring": {
+      "group": "color"
+    },
+    "--radius": {
+      "group": "radius"
+    },
+    "--radius-sm": {
+      "group": "radius"
+    },
+    "--radius-md": {
+      "group": "radius"
+    },
+    "--radius-lg": {
+      "group": "radius"
+    },
+    "--radius-xl": {
+      "group": "radius"
+    }
+  },
+  "themes": [
+    {
+      "name": "dark",
+      "overrides": {
+        "--color-background": "oklch(0.145 0 0)",
+        "--color-foreground": "oklch(0.985 0 0)",
+        "--color-card": "oklch(0.205 0 0)",
+        "--color-card-foreground": "oklch(0.985 0 0)",
+        "--color-popover": "oklch(0.205 0 0)",
+        "--color-popover-foreground": "oklch(0.985 0 0)",
+        "--color-primary": "oklch(0.922 0 0)",
+        "--color-primary-foreground": "oklch(0.205 0 0)",
+        "--color-secondary": "oklch(0.269 0 0)",
+        "--color-secondary-foreground": "oklch(0.985 0 0)",
+        "--color-muted": "oklch(0.269 0 0)",
+        "--color-muted-foreground": "oklch(0.708 0 0)",
+        "--color-accent": "oklch(0.269 0 0)",
+        "--color-accent-foreground": "oklch(0.985 0 0)",
+        "--color-destructive": "oklch(0.704 0.191 22.216)",
+        "--color-border": "oklch(1 0 0 / 10%)",
+        "--color-input": "oklch(1 0 0 / 15%)",
+        "--color-ring": "oklch(0.556 0 0)"
+      }
+    }
+  ],
+  "fonts": [],
+  "components": [
+    {
+      "id": "cp_sbutton1",
+      "name": "Button",
+      "description": "Botão com variantes (default, secondary, outline, ghost, destructive) e tamanhos (sm, default, lg).",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "variant",
+          "type": "enum",
+          "default": "default",
+          "options": [
+            "default",
+            "secondary",
+            "outline",
+            "ghost",
+            "destructive"
+          ],
+          "description": "Estilo visual do botão."
+        },
+        {
+          "name": "size",
+          "type": "enum",
+          "default": "default",
+          "options": [
+            "sm",
+            "default",
+            "lg"
+          ],
+          "description": "Tamanho do botão."
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "default": "Botão",
+          "description": "Texto do botão."
+        }
+      ],
+      "root": {
+        "id": "el_sbtnroot",
+        "type": "element",
+        "name": "Button",
+        "tag": "button",
+        "attrs": {
+          "type": "button"
+        },
+        "style": {
+          "display": "inline-flex",
+          "height": "2.25rem",
+          "cursor": "pointer",
+          "align-items": "center",
+          "justify-content": "center",
+          "gap": "0.5rem",
+          "border-radius": "var(--radius-md)",
+          "border-style": "solid",
+          "border-width": "0",
+          "background-color": "var(--color-primary)",
+          "padding-inline": "1rem",
+          "padding-block": "0.5rem",
+          "font-size": "0.875rem",
+          "line-height": "1.4286",
+          "font-weight": "500",
+          "white-space": "nowrap",
+          "color": "var(--color-primary-foreground)",
+          "box-shadow": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "text-decoration": "none"
+        },
+        "children": [
+          {
+            "id": "tx_sbtnlabl",
+            "type": "text",
+            "name": "Rótulo",
+            "tag": "span",
+            "attrs": {},
+            "style": {
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "font-weight": "500",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "color": "inherit"
+            },
+            "text": "{{label}}",
+            "children": [],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false,
+        "states": {
+          "hover": {
+            "background-color": "color-mix(in oklab, var(--color-primary) 90%, transparent)"
+          }
+        }
+      },
+      "variants": [
+        {
+          "when": {
+            "variant": "secondary"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "background-color": "var(--color-secondary)",
+                "color": "var(--color-secondary-foreground)"
+              },
+              "states": {
+                "hover": {
+                  "background-color": "color-mix(in oklab, var(--color-secondary) 80%, transparent)"
+                }
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "variant": "outline"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "border-width": "1px",
+                "border-color": "var(--color-input)",
+                "background-color": "var(--color-background)",
+                "color": "var(--color-foreground)"
+              },
+              "states": {
+                "hover": {
+                  "background-color": "var(--color-accent)",
+                  "color": "var(--color-accent-foreground)"
+                }
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "variant": "ghost"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "background-color": "transparent",
+                "color": "var(--color-foreground)",
+                "box-shadow": "none"
+              },
+              "states": {
+                "hover": {
+                  "background-color": "var(--color-accent)",
+                  "color": "var(--color-accent-foreground)"
+                }
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "variant": "destructive"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "background-color": "var(--color-destructive)",
+                "color": "#fff"
+              },
+              "states": {
+                "hover": {
+                  "background-color": "color-mix(in oklab, var(--color-destructive) 90%, transparent)"
+                }
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "size": "sm"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "height": "2rem",
+                "padding-inline": "0.75rem"
+              },
+              "unsetStyle": [
+                "padding-block"
+              ]
+            }
+          }
+        },
+        {
+          "when": {
+            "size": "lg"
+          },
+          "overrides": {
+            "": {
+              "style": {
+                "height": "2.5rem",
+                "padding-inline": "1.5rem"
+              },
+              "unsetStyle": [
+                "padding-block"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cp_sinput01",
+      "name": "Input",
+      "description": "Campo de texto de uma linha.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "placeholder",
+          "type": "string",
+          "default": "Digite aqui...",
+          "description": "Texto de ajuda do campo vazio."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "default": "",
+          "description": "Valor atual."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "default": "text",
+          "description": "Tipo do input (text, email, password...)."
+        }
+      ],
+      "root": {
+        "id": "el_sinproot",
+        "type": "element",
+        "name": "Input",
+        "tag": "input",
+        "attrs": {
+          "type": "{{type}}",
+          "placeholder": "{{placeholder}}",
+          "value": "{{value}}"
+        },
+        "style": {
+          "display": "flex",
+          "height": "2.25rem",
+          "width": "100%",
+          "min-width": "0px",
+          "border-radius": "var(--radius-md)",
+          "border-style": "solid",
+          "border-width": "1px",
+          "border-color": "var(--color-input)",
+          "background-color": "transparent",
+          "padding-inline": "0.75rem",
+          "padding-block": "0.25rem",
+          "font-size": "0.875rem",
+          "line-height": "1.4286",
+          "color": "var(--color-foreground)",
+          "box-shadow": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+          "outline-style": "none",
+          "box-sizing": "border-box",
+          "font-family": "inherit"
+        },
+        "children": [],
+        "locked": false,
+        "hidden": false,
+        "states": {
+          "focus-visible": {
+            "border-color": "var(--color-ring)",
+            "box-shadow": "0 0 0 3px color-mix(in oklab, var(--color-ring) 50%, transparent), 0 1px 2px 0 rgb(0 0 0 / 0.05)"
+          }
+        }
+      },
+      "variants": []
+    },
+    {
+      "id": "cp_scard001",
+      "name": "Card",
+      "description": "Cartão com título, descrição, conteúdo e rodapé.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "default": "Título do cartão",
+          "description": "Título."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "default": "Descrição curta do cartão.",
+          "description": "Texto de apoio abaixo do título."
+        },
+        {
+          "name": "content",
+          "type": "slot",
+          "description": "Conteúdo principal."
+        },
+        {
+          "name": "footer",
+          "type": "slot",
+          "description": "Rodapé (ações)."
+        }
+      ],
+      "root": {
+        "id": "el_scardrot",
+        "type": "element",
+        "name": "Card",
+        "tag": "div",
+        "attrs": {},
+        "style": {
+          "display": "flex",
+          "flex-direction": "column",
+          "gap": "1.5rem",
+          "border-radius": "var(--radius-xl)",
+          "border-style": "solid",
+          "border-width": "1px",
+          "background-color": "var(--color-card)",
+          "padding-block": "1.5rem",
+          "color": "var(--color-card-foreground)",
+          "box-shadow": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+          "border-color": "var(--color-border)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "width": "100%"
+        },
+        "children": [
+          {
+            "id": "el_scardhdr",
+            "type": "element",
+            "name": "Cabeçalho",
+            "tag": "div",
+            "attrs": {},
+            "style": {
+              "display": "flex",
+              "flex-direction": "column",
+              "gap": "0.375rem",
+              "padding-inline": "1.5rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "tx_scardttl",
+                "type": "text",
+                "name": "Título",
+                "tag": "h3",
+                "attrs": {},
+                "style": {
+                  "font-size": "1rem",
+                  "line-height": "1",
+                  "font-weight": "600",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "margin": "0",
+                  "color": "var(--color-card-foreground)"
+                },
+                "text": "{{title}}",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "tx_scardesc",
+                "type": "text",
+                "name": "Descrição",
+                "tag": "p",
+                "attrs": {},
+                "style": {
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "margin": "0"
+                },
+                "text": "{{description}}",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_scardcnt",
+            "type": "element",
+            "name": "Slot content",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "content"
+            },
+            "style": {
+              "padding-inline": "1.5rem",
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "tx_scardtxt",
+                "type": "text",
+                "name": "Texto",
+                "tag": "p",
+                "attrs": {},
+                "style": {
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "color": "var(--color-card-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "margin": "0"
+                },
+                "text": "Conteúdo do cartão. Arraste elementos para este espaço.",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_scardfot",
+            "type": "element",
+            "name": "Slot footer",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "footer"
+            },
+            "style": {
+              "display": "flex",
+              "align-items": "center",
+              "gap": "0.5rem",
+              "padding-inline": "1.5rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "in_scardbtn",
+                "type": "instance",
+                "name": "Button",
+                "tag": "button",
+                "attrs": {},
+                "style": {},
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "componentId": "cp_sbutton1",
+                "props": {
+                  "label": "Ação",
+                  "size": "sm"
+                }
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": []
+    },
+    {
+      "id": "cp_snavbar1",
+      "name": "Navbar",
+      "description": "Barra de navegação com marca, links e ações.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "brand",
+          "type": "string",
+          "default": "Marca",
+          "description": "Nome ou logotipo."
+        },
+        {
+          "name": "links",
+          "type": "slot",
+          "description": "Links de navegação."
+        },
+        {
+          "name": "actions",
+          "type": "slot",
+          "description": "Botões de ação à direita."
+        }
+      ],
+      "root": {
+        "id": "el_snavroot",
+        "type": "element",
+        "name": "Navbar",
+        "tag": "header",
+        "attrs": {},
+        "style": {
+          "display": "flex",
+          "align-items": "center",
+          "justify-content": "space-between",
+          "gap": "2rem",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "1px",
+          "background-color": "var(--color-background)",
+          "padding-inline": "1.5rem",
+          "padding-block": "0.75rem",
+          "color": "var(--color-foreground)",
+          "border-color": "var(--color-border)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "border-style": "solid",
+          "border-top-width": "0",
+          "border-left-width": "0",
+          "border-right-width": "0",
+          "width": "100%"
+        },
+        "children": [
+          {
+            "id": "tx_snavbran",
+            "type": "text",
+            "name": "Marca",
+            "tag": "span",
+            "attrs": {},
+            "style": {
+              "font-size": "1.125rem",
+              "line-height": "1.5556",
+              "font-weight": "600",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "color": "var(--color-foreground)"
+            },
+            "text": "{{brand}}",
+            "children": [],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_snavlink",
+            "type": "element",
+            "name": "Slot links",
+            "tag": "nav",
+            "attrs": {
+              "data-slot": "links"
+            },
+            "style": {
+              "display": "flex",
+              "flex": "1",
+              "align-items": "center",
+              "gap": "1.5rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "tx_snavlnk1",
+                "type": "text",
+                "name": "Produtos",
+                "tag": "a",
+                "attrs": {
+                  "href": "#"
+                },
+                "style": {
+                  "cursor": "pointer",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "text-decoration": "none"
+                },
+                "text": "Produtos",
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "states": {
+                  "hover": {
+                    "color": "var(--color-foreground)"
+                  }
+                }
+              },
+              {
+                "id": "tx_snavlnk2",
+                "type": "text",
+                "name": "Preços",
+                "tag": "a",
+                "attrs": {
+                  "href": "#"
+                },
+                "style": {
+                  "cursor": "pointer",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "text-decoration": "none"
+                },
+                "text": "Preços",
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "states": {
+                  "hover": {
+                    "color": "var(--color-foreground)"
+                  }
+                }
+              },
+              {
+                "id": "tx_snavlnk3",
+                "type": "text",
+                "name": "Sobre",
+                "tag": "a",
+                "attrs": {
+                  "href": "#"
+                },
+                "style": {
+                  "cursor": "pointer",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "text-decoration": "none"
+                },
+                "text": "Sobre",
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "states": {
+                  "hover": {
+                    "color": "var(--color-foreground)"
+                  }
+                }
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_snavacts",
+            "type": "element",
+            "name": "Slot actions",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "actions"
+            },
+            "style": {
+              "display": "flex",
+              "align-items": "center",
+              "gap": "0.5rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "in_snavbtn1",
+                "type": "instance",
+                "name": "Entrar",
+                "tag": "button",
+                "attrs": {},
+                "style": {},
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "componentId": "cp_sbutton1",
+                "props": {
+                  "variant": "ghost",
+                  "size": "sm",
+                  "label": "Entrar"
+                }
+              },
+              {
+                "id": "in_snavbtn2",
+                "type": "instance",
+                "name": "Começar",
+                "tag": "button",
+                "attrs": {},
+                "style": {},
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "componentId": "cp_sbutton1",
+                "props": {
+                  "size": "sm",
+                  "label": "Começar"
+                }
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": []
+    },
+    {
+      "id": "cp_stabs001",
+      "name": "Tabs",
+      "description": "Abas com três rótulos e conteúdo; a prop active escolhe a aba ativa.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "tab1",
+          "type": "string",
+          "default": "Conta",
+          "description": "Rótulo da aba 1."
+        },
+        {
+          "name": "tab2",
+          "type": "string",
+          "default": "Senha",
+          "description": "Rótulo da aba 2."
+        },
+        {
+          "name": "tab3",
+          "type": "string",
+          "default": "Equipe",
+          "description": "Rótulo da aba 3."
+        },
+        {
+          "name": "active",
+          "type": "enum",
+          "default": "1",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ],
+          "description": "Aba ativa."
+        },
+        {
+          "name": "content",
+          "type": "slot",
+          "description": "Conteúdo da aba."
+        }
+      ],
+      "root": {
+        "id": "el_stabroot",
+        "type": "element",
+        "name": "Tabs",
+        "tag": "div",
+        "attrs": {},
+        "style": {
+          "display": "flex",
+          "flex-direction": "column",
+          "gap": "0.5rem",
+          "color": "var(--color-foreground)",
+          "box-sizing": "border-box",
+          "font-family": "inherit"
+        },
+        "children": [
+          {
+            "id": "el_stablist",
+            "type": "element",
+            "name": "Lista de abas",
+            "tag": "div",
+            "attrs": {
+              "role": "tablist"
+            },
+            "style": {
+              "display": "inline-flex",
+              "height": "2.25rem",
+              "width": "fit-content",
+              "align-items": "center",
+              "justify-content": "center",
+              "border-radius": "var(--radius-lg)",
+              "background-color": "var(--color-muted)",
+              "padding": "3px",
+              "color": "var(--color-muted-foreground)",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "tx_stabtab1",
+                "type": "text",
+                "name": "Aba 1",
+                "tag": "button",
+                "attrs": {
+                  "type": "button",
+                  "role": "tab"
+                },
+                "style": {
+                  "display": "inline-flex",
+                  "height": "1.75rem",
+                  "cursor": "pointer",
+                  "align-items": "center",
+                  "justify-content": "center",
+                  "border-radius": "var(--radius-md)",
+                  "border-style": "solid",
+                  "border-width": "1px",
+                  "border-color": "transparent",
+                  "padding-inline": "0.75rem",
+                  "padding-block": "0.25rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "white-space": "nowrap",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "background-color": "transparent"
+                },
+                "text": "{{tab1}}",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "tx_stabtab2",
+                "type": "text",
+                "name": "Aba 2",
+                "tag": "button",
+                "attrs": {
+                  "type": "button",
+                  "role": "tab"
+                },
+                "style": {
+                  "display": "inline-flex",
+                  "height": "1.75rem",
+                  "cursor": "pointer",
+                  "align-items": "center",
+                  "justify-content": "center",
+                  "border-radius": "var(--radius-md)",
+                  "border-style": "solid",
+                  "border-width": "1px",
+                  "border-color": "transparent",
+                  "padding-inline": "0.75rem",
+                  "padding-block": "0.25rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "white-space": "nowrap",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "background-color": "transparent"
+                },
+                "text": "{{tab2}}",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "tx_stabtab3",
+                "type": "text",
+                "name": "Aba 3",
+                "tag": "button",
+                "attrs": {
+                  "type": "button",
+                  "role": "tab"
+                },
+                "style": {
+                  "display": "inline-flex",
+                  "height": "1.75rem",
+                  "cursor": "pointer",
+                  "align-items": "center",
+                  "justify-content": "center",
+                  "border-radius": "var(--radius-md)",
+                  "border-style": "solid",
+                  "border-width": "1px",
+                  "border-color": "transparent",
+                  "padding-inline": "0.75rem",
+                  "padding-block": "0.25rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "font-weight": "500",
+                  "white-space": "nowrap",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "background-color": "transparent"
+                },
+                "text": "{{tab3}}",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_stabcont",
+            "type": "element",
+            "name": "Slot content",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "content"
+            },
+            "style": {
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "padding": "8px 0"
+            },
+            "children": [
+              {
+                "id": "tx_stabtext",
+                "type": "text",
+                "name": "Texto",
+                "tag": "p",
+                "attrs": {},
+                "style": {
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "color": "var(--color-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "margin": "0"
+                },
+                "text": "Conteúdo da aba selecionada.",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": [
+        {
+          "when": {
+            "active": "1"
+          },
+          "overrides": {
+            "tx_stabtab1": {
+              "style": {
+                "color": "var(--color-foreground)",
+                "box-shadow": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "active": "2"
+          },
+          "overrides": {
+            "tx_stabtab2": {
+              "style": {
+                "color": "var(--color-foreground)",
+                "box-shadow": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
+              }
+            }
+          }
+        },
+        {
+          "when": {
+            "active": "3"
+          },
+          "overrides": {
+            "tx_stabtab3": {
+              "style": {
+                "color": "var(--color-foreground)",
+                "box-shadow": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cp_sdialog1",
+      "name": "Dialog",
+      "description": "Janela de diálogo com título, descrição, conteúdo e rodapé de ações.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "default": "Confirmar ação",
+          "description": "Título."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "default": "Esta ação pode ser desfeita depois.",
+          "description": "Texto de apoio."
+        },
+        {
+          "name": "content",
+          "type": "slot",
+          "description": "Corpo do diálogo."
+        },
+        {
+          "name": "footer",
+          "type": "slot",
+          "description": "Ações (botões)."
+        }
+      ],
+      "root": {
+        "id": "el_sdlgroot",
+        "type": "element",
+        "name": "Dialog",
+        "tag": "div",
+        "attrs": {
+          "role": "dialog"
+        },
+        "style": {
+          "display": "flex",
+          "flex-direction": "column",
+          "gap": "1rem",
+          "border-radius": "var(--radius-lg)",
+          "border-style": "solid",
+          "border-width": "1px",
+          "background-color": "var(--color-background)",
+          "padding": "1.5rem",
+          "color": "var(--color-foreground)",
+          "box-shadow": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+          "border-color": "var(--color-border)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "width": "512px",
+          "max-width": "100%"
+        },
+        "children": [
+          {
+            "id": "el_sdlghead",
+            "type": "element",
+            "name": "Cabeçalho",
+            "tag": "div",
+            "attrs": {},
+            "style": {
+              "display": "flex",
+              "align-items": "flex-start",
+              "justify-content": "space-between",
+              "gap": "1rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "el_sdlgtext",
+                "type": "element",
+                "name": "Textos",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "display": "flex",
+                  "flex-direction": "column",
+                  "gap": "0.5rem",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit"
+                },
+                "children": [
+                  {
+                    "id": "tx_sdlgtitl",
+                    "type": "text",
+                    "name": "Título",
+                    "tag": "h2",
+                    "attrs": {},
+                    "style": {
+                      "font-size": "1.125rem",
+                      "line-height": "1",
+                      "font-weight": "600",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "margin": "0",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "{{title}}",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_sdlgdesc",
+                    "type": "text",
+                    "name": "Descrição",
+                    "tag": "p",
+                    "attrs": {},
+                    "style": {
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "color": "var(--color-muted-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "margin": "0"
+                    },
+                    "text": "{{description}}",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "el_sdlgclos",
+                "type": "element",
+                "name": "Fechar",
+                "tag": "button",
+                "attrs": {
+                  "type": "button",
+                  "aria-label": "Fechar"
+                },
+                "style": {
+                  "display": "flex",
+                  "cursor": "pointer",
+                  "align-items": "center",
+                  "justify-content": "center",
+                  "border-radius": "var(--radius-sm)",
+                  "color": "var(--color-muted-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "border-width": "0",
+                  "background-color": "transparent",
+                  "padding": "4px"
+                },
+                "children": [
+                  {
+                    "id": "sv_sdlgicon",
+                    "type": "svg",
+                    "name": "Ícone X",
+                    "tag": "svg",
+                    "attrs": {},
+                    "style": {
+                      "flex-shrink": "0",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "width": "16px",
+                      "height": "16px",
+                      "display": "inline-block"
+                    },
+                    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--color-foreground)\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" /></svg>",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_sdlgcont",
+            "type": "element",
+            "name": "Slot content",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "content"
+            },
+            "style": {
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "tx_sdlgbody",
+                "type": "text",
+                "name": "Texto",
+                "tag": "p",
+                "attrs": {},
+                "style": {
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "color": "var(--color-foreground)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "margin": "0"
+                },
+                "text": "Conteúdo do diálogo.",
+                "children": [],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_sdlgfoot",
+            "type": "element",
+            "name": "Slot footer",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "footer"
+            },
+            "style": {
+              "display": "flex",
+              "align-items": "center",
+              "justify-content": "flex-end",
+              "gap": "0.5rem",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "in_sdlgbtn1",
+                "type": "instance",
+                "name": "Cancelar",
+                "tag": "button",
+                "attrs": {},
+                "style": {},
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "componentId": "cp_sbutton1",
+                "props": {
+                  "variant": "outline",
+                  "label": "Cancelar"
+                }
+              },
+              {
+                "id": "in_sdlgbtn2",
+                "type": "instance",
+                "name": "Confirmar",
+                "tag": "button",
+                "attrs": {},
+                "style": {},
+                "children": [],
+                "locked": false,
+                "hidden": false,
+                "componentId": "cp_sbutton1",
+                "props": {
+                  "label": "Confirmar"
+                }
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": []
+    },
+    {
+      "id": "cp_stable01",
+      "name": "Table",
+      "description": "Tabela com cabeçalho fixo e linhas num slot (display: table).",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "caption",
+          "type": "string",
+          "default": "Lista de faturas recentes.",
+          "description": "Legenda abaixo da tabela."
+        },
+        {
+          "name": "rows",
+          "type": "slot",
+          "description": "Linhas (div com display: table-row e células display: table-cell)."
+        }
+      ],
+      "root": {
+        "id": "el_stblroot",
+        "type": "element",
+        "name": "Table",
+        "tag": "div",
+        "attrs": {},
+        "style": {
+          "width": "100%",
+          "font-size": "0.875rem",
+          "line-height": "1.4286",
+          "color": "var(--color-foreground)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "display": "table",
+          "border-collapse": "collapse"
+        },
+        "children": [
+          {
+            "id": "el_stblhead",
+            "type": "element",
+            "name": "Cabeçalho",
+            "tag": "div",
+            "attrs": {},
+            "style": {
+              "color": "var(--color-foreground)",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "display": "table-header-group"
+            },
+            "children": [
+              {
+                "id": "el_stblhrow",
+                "type": "element",
+                "name": "Linha de cabeçalho",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-color": "var(--color-border)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "display": "table-row",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "tx_stblh001",
+                    "type": "text",
+                    "name": "Cabeçalho Fatura",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "height": "2.5rem",
+                      "padding-inline": "0.5rem",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "font-weight": "500",
+                      "color": "var(--color-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "vertical-align": "middle",
+                      "text-align": "left",
+                      "white-space": "nowrap"
+                    },
+                    "text": "Fatura",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_stblh002",
+                    "type": "text",
+                    "name": "Cabeçalho Status",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "height": "2.5rem",
+                      "padding-inline": "0.5rem",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "font-weight": "500",
+                      "color": "var(--color-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "vertical-align": "middle",
+                      "text-align": "left",
+                      "white-space": "nowrap"
+                    },
+                    "text": "Status",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_stblh003",
+                    "type": "text",
+                    "name": "Cabeçalho Valor",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "height": "2.5rem",
+                      "padding-inline": "0.5rem",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "font-weight": "500",
+                      "color": "var(--color-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "vertical-align": "middle",
+                      "text-align": "right",
+                      "white-space": "nowrap"
+                    },
+                    "text": "Valor",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "el_stblrows",
+            "type": "element",
+            "name": "Slot rows",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "rows"
+            },
+            "style": {
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "display": "table-row-group"
+            },
+            "children": [
+              {
+                "id": "el_strow100",
+                "type": "element",
+                "name": "Linha 1",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-color": "var(--color-border)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "display": "table-row",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "tx_strow1c1",
+                    "type": "text",
+                    "name": "Célula INV001",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "INV001",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow1c2",
+                    "type": "text",
+                    "name": "Célula Pago",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "Pago",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow1c3",
+                    "type": "text",
+                    "name": "Célula R$ 250,00",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "right",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "R$ 250,00",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "el_strow200",
+                "type": "element",
+                "name": "Linha 2",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-color": "var(--color-border)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "display": "table-row",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "tx_strow2c1",
+                    "type": "text",
+                    "name": "Célula INV002",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "INV002",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow2c2",
+                    "type": "text",
+                    "name": "Célula Pendente",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "Pendente",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow2c3",
+                    "type": "text",
+                    "name": "Célula R$ 150,00",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "right",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "R$ 150,00",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "el_strow300",
+                "type": "element",
+                "name": "Linha 3",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-color": "var(--color-border)",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "display": "table-row",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "tx_strow3c1",
+                    "type": "text",
+                    "name": "Célula INV003",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "INV003",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow3c2",
+                    "type": "text",
+                    "name": "Célula Atrasado",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "left",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "Atrasado",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_strow3c3",
+                    "type": "text",
+                    "name": "Célula R$ 350,00",
+                    "tag": "div",
+                    "attrs": {},
+                    "style": {
+                      "padding": "0.5rem",
+                      "vertical-align": "middle",
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "display": "table-cell",
+                      "text-align": "right",
+                      "color": "var(--color-foreground)"
+                    },
+                    "text": "R$ 350,00",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          },
+          {
+            "id": "tx_stblcapt",
+            "type": "text",
+            "name": "Legenda",
+            "tag": "div",
+            "attrs": {},
+            "style": {
+              "margin-top": "1rem",
+              "font-size": "0.875rem",
+              "line-height": "1.4286",
+              "color": "var(--color-muted-foreground)",
+              "box-sizing": "border-box",
+              "font-family": "inherit",
+              "display": "table-caption",
+              "caption-side": "bottom",
+              "text-align": "center",
+              "padding-top": "16px"
+            },
+            "text": "{{caption}}",
+            "children": [],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": []
+    },
+    {
+      "id": "cp_slist001",
+      "name": "List",
+      "description": "Lista vertical de itens dentro de um contêiner com borda.",
+      "kit": "shadcn-like",
+      "props": [
+        {
+          "name": "items",
+          "type": "slot",
+          "description": "Itens da lista."
+        }
+      ],
+      "root": {
+        "id": "el_slstroot",
+        "type": "element",
+        "name": "List",
+        "tag": "div",
+        "attrs": {},
+        "style": {
+          "display": "flex",
+          "flex-direction": "column",
+          "overflow": "hidden",
+          "border-radius": "var(--radius-lg)",
+          "border-style": "solid",
+          "border-width": "1px",
+          "background-color": "var(--color-card)",
+          "color": "var(--color-card-foreground)",
+          "border-color": "var(--color-border)",
+          "box-sizing": "border-box",
+          "font-family": "inherit",
+          "width": "100%"
+        },
+        "children": [
+          {
+            "id": "el_slstitem",
+            "type": "element",
+            "name": "Slot items",
+            "tag": "div",
+            "attrs": {
+              "data-slot": "items"
+            },
+            "style": {
+              "display": "flex",
+              "flex-direction": "column",
+              "box-sizing": "border-box",
+              "font-family": "inherit"
+            },
+            "children": [
+              {
+                "id": "el_slsti100",
+                "type": "element",
+                "name": "Item 1",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "display": "flex",
+                  "align-items": "center",
+                  "gap": "0.75rem",
+                  "padding-inline": "1rem",
+                  "padding-block": "0.75rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "sv_slst1ic0",
+                    "type": "svg",
+                    "name": "Ícone",
+                    "tag": "svg",
+                    "attrs": {},
+                    "style": {
+                      "flex-shrink": "0",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "width": "16px",
+                      "height": "16px",
+                      "display": "inline-block"
+                    },
+                    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--color-foreground)\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\" /></svg>",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_slst1tx0",
+                    "type": "text",
+                    "name": "Texto",
+                    "tag": "span",
+                    "attrs": {},
+                    "style": {
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "color": "var(--color-card-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit"
+                    },
+                    "text": "Primeiro item",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "el_slsti200",
+                "type": "element",
+                "name": "Item 2",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "display": "flex",
+                  "align-items": "center",
+                  "gap": "0.75rem",
+                  "padding-inline": "1rem",
+                  "padding-block": "0.75rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "sv_slst2ic0",
+                    "type": "svg",
+                    "name": "Ícone",
+                    "tag": "svg",
+                    "attrs": {},
+                    "style": {
+                      "flex-shrink": "0",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "width": "16px",
+                      "height": "16px",
+                      "display": "inline-block"
+                    },
+                    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--color-foreground)\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\" /></svg>",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_slst2tx0",
+                    "type": "text",
+                    "name": "Texto",
+                    "tag": "span",
+                    "attrs": {},
+                    "style": {
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "color": "var(--color-card-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit"
+                    },
+                    "text": "Segundo item",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              },
+              {
+                "id": "el_slsti300",
+                "type": "element",
+                "name": "Item 3",
+                "tag": "div",
+                "attrs": {},
+                "style": {
+                  "display": "flex",
+                  "align-items": "center",
+                  "gap": "0.75rem",
+                  "padding-inline": "1rem",
+                  "padding-block": "0.75rem",
+                  "font-size": "0.875rem",
+                  "line-height": "1.4286",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit",
+                  "border-bottom-style": "solid",
+                  "border-bottom-width": "1px",
+                  "border-bottom-color": "var(--color-border)"
+                },
+                "children": [
+                  {
+                    "id": "sv_slst3ic0",
+                    "type": "svg",
+                    "name": "Ícone",
+                    "tag": "svg",
+                    "attrs": {},
+                    "style": {
+                      "flex-shrink": "0",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit",
+                      "width": "16px",
+                      "height": "16px",
+                      "display": "inline-block"
+                    },
+                    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--color-foreground)\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\" /></svg>",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  },
+                  {
+                    "id": "tx_slst3tx0",
+                    "type": "text",
+                    "name": "Texto",
+                    "tag": "span",
+                    "attrs": {},
+                    "style": {
+                      "font-size": "0.875rem",
+                      "line-height": "1.4286",
+                      "color": "var(--color-card-foreground)",
+                      "box-sizing": "border-box",
+                      "font-family": "inherit"
+                    },
+                    "text": "Terceiro item",
+                    "children": [],
+                    "locked": false,
+                    "hidden": false
+                  }
+                ],
+                "locked": false,
+                "hidden": false
+              }
+            ],
+            "locked": false,
+            "hidden": false
+          }
+        ],
+        "locked": false,
+        "hidden": false
+      },
+      "variants": []
+    }
+  ],
+  "meta": {
+    "createdAt": "2026-11-17T00:00:00.000Z",
+    "updatedAt": "2026-11-17T00:00:00.000Z"
+  },
+  "pages": [
+    {
+      "id": "pg_vitrine1",
+      "name": "Vitrine",
+      "background": "#f4f4f5",
+      "frames": [
+        {
+          "id": "fr_vitrine1",
+          "type": "frame",
+          "name": "Vitrine shadcn-like",
+          "tag": "div",
+          "attrs": {},
+          "style": {
+            "display": "flex",
+            "flex-direction": "column",
+            "gap": "2rem",
+            "background-color": "var(--color-background)",
+            "padding": "3rem",
+            "color": "var(--color-foreground)",
+            "box-sizing": "border-box",
+            "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+            "width": "1200px",
+            "font-size": "14px",
+            "line-height": "1.5"
+          },
+          "children": [
+            {
+              "id": "tx_vit00046",
+              "type": "text",
+              "name": "Título",
+              "tag": "h1",
+              "attrs": {},
+              "style": {
+                "font-size": "1.875rem",
+                "line-height": "1.2",
+                "font-weight": "600",
+                "box-sizing": "border-box",
+                "font-family": "inherit",
+                "margin": "0",
+                "color": "var(--color-foreground)"
+              },
+              "text": "shadcn-like",
+              "children": [],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00010",
+              "type": "element",
+              "name": "Seção Button",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00009",
+                  "type": "text",
+                  "name": "Rótulo Button",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Button",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "el_vit00008",
+                  "type": "element",
+                  "name": "Linha Button",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "flex-direction": "row",
+                    "flex-wrap": "wrap",
+                    "align-items": "center",
+                    "gap": "0.75rem",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit"
+                  },
+                  "children": [
+                    {
+                      "id": "in_vit00001",
+                      "type": "instance",
+                      "name": "Padrão",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "label": "Botão"
+                      }
+                    },
+                    {
+                      "id": "in_vit00002",
+                      "type": "instance",
+                      "name": "Secondary",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "variant": "secondary",
+                        "label": "Secundário"
+                      }
+                    },
+                    {
+                      "id": "in_vit00003",
+                      "type": "instance",
+                      "name": "Outline",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "variant": "outline",
+                        "label": "Salvar"
+                      }
+                    },
+                    {
+                      "id": "in_vit00004",
+                      "type": "instance",
+                      "name": "Ghost",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "variant": "ghost",
+                        "label": "Cancelar"
+                      }
+                    },
+                    {
+                      "id": "in_vit00005",
+                      "type": "instance",
+                      "name": "Destructive",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "variant": "destructive",
+                        "label": "Excluir"
+                      }
+                    },
+                    {
+                      "id": "in_vit00006",
+                      "type": "instance",
+                      "name": "Pequeno",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "size": "sm",
+                        "label": "Pequeno"
+                      }
+                    },
+                    {
+                      "id": "in_vit00007",
+                      "type": "instance",
+                      "name": "Grande",
+                      "tag": "button",
+                      "attrs": {},
+                      "style": {},
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sbutton1",
+                      "props": {
+                        "size": "lg",
+                        "label": "Grande"
+                      }
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00015",
+              "type": "element",
+              "name": "Seção Input",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00014",
+                  "type": "text",
+                  "name": "Rótulo Input",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Input",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "el_vit00013",
+                  "type": "element",
+                  "name": "Linha Input",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "flex-direction": "row",
+                    "flex-wrap": "wrap",
+                    "align-items": "center",
+                    "gap": "0.75rem",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit"
+                  },
+                  "children": [
+                    {
+                      "id": "in_vit00011",
+                      "type": "instance",
+                      "name": "Input",
+                      "tag": "input",
+                      "attrs": {},
+                      "style": {
+                        "width": "280px"
+                      },
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sinput01",
+                      "props": {
+                        "placeholder": "seu@email.com",
+                        "type": "email"
+                      }
+                    },
+                    {
+                      "id": "in_vit00012",
+                      "type": "instance",
+                      "name": "Input preenchido",
+                      "tag": "input",
+                      "attrs": {},
+                      "style": {
+                        "width": "280px"
+                      },
+                      "children": [],
+                      "locked": false,
+                      "hidden": false,
+                      "componentId": "cp_sinput01",
+                      "props": {
+                        "value": "Mockup Studio"
+                      }
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00023",
+              "type": "element",
+              "name": "Seção Card",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00022",
+                  "type": "text",
+                  "name": "Rótulo Card",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Card",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00021",
+                  "type": "instance",
+                  "name": "Card",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "380px"
+                  },
+                  "children": [
+                    {
+                      "id": "el_vit00017",
+                      "type": "element",
+                      "name": "Slot content",
+                      "tag": "div",
+                      "attrs": {
+                        "data-slot": "content"
+                      },
+                      "style": {
+                        "box-sizing": "border-box",
+                        "font-family": "inherit"
+                      },
+                      "children": [
+                        {
+                          "id": "in_vit00016",
+                          "type": "instance",
+                          "name": "Input",
+                          "tag": "input",
+                          "attrs": {},
+                          "style": {},
+                          "children": [],
+                          "locked": false,
+                          "hidden": false,
+                          "componentId": "cp_sinput01",
+                          "props": {
+                            "placeholder": "Nome do projeto"
+                          }
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false
+                    },
+                    {
+                      "id": "el_vit00020",
+                      "type": "element",
+                      "name": "Slot footer",
+                      "tag": "div",
+                      "attrs": {
+                        "data-slot": "footer"
+                      },
+                      "style": {
+                        "box-sizing": "border-box",
+                        "font-family": "inherit"
+                      },
+                      "children": [
+                        {
+                          "id": "in_vit00018",
+                          "type": "instance",
+                          "name": "Cancelar",
+                          "tag": "button",
+                          "attrs": {},
+                          "style": {},
+                          "children": [],
+                          "locked": false,
+                          "hidden": false,
+                          "componentId": "cp_sbutton1",
+                          "props": {
+                            "variant": "outline",
+                            "label": "Cancelar"
+                          }
+                        },
+                        {
+                          "id": "in_vit00019",
+                          "type": "instance",
+                          "name": "Criar",
+                          "tag": "button",
+                          "attrs": {},
+                          "style": {},
+                          "children": [],
+                          "locked": false,
+                          "hidden": false,
+                          "componentId": "cp_sbutton1",
+                          "props": {
+                            "label": "Criar"
+                          }
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_scard001",
+                  "props": {
+                    "title": "Criar projeto",
+                    "description": "Implante seu novo projeto com um clique."
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00026",
+              "type": "element",
+              "name": "Seção Navbar",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00025",
+                  "type": "text",
+                  "name": "Rótulo Navbar",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Navbar",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00024",
+                  "type": "instance",
+                  "name": "Navbar",
+                  "tag": "header",
+                  "attrs": {},
+                  "style": {},
+                  "children": [],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_snavbar1",
+                  "props": {
+                    "brand": "Acme"
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00031",
+              "type": "element",
+              "name": "Seção Tabs",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00030",
+                  "type": "text",
+                  "name": "Rótulo Tabs",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Tabs",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00029",
+                  "type": "instance",
+                  "name": "Tabs",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "400px"
+                  },
+                  "children": [
+                    {
+                      "id": "el_vit00028",
+                      "type": "element",
+                      "name": "Slot content",
+                      "tag": "div",
+                      "attrs": {
+                        "data-slot": "content"
+                      },
+                      "style": {
+                        "box-sizing": "border-box",
+                        "font-family": "inherit"
+                      },
+                      "children": [
+                        {
+                          "id": "tx_vit00027",
+                          "type": "text",
+                          "name": "Texto",
+                          "tag": "p",
+                          "attrs": {},
+                          "style": {
+                            "font-size": "0.875rem",
+                            "line-height": "1.4286",
+                            "color": "var(--color-foreground)",
+                            "box-sizing": "border-box",
+                            "font-family": "inherit",
+                            "margin": "0"
+                          },
+                          "text": "Altere sua senha aqui.",
+                          "children": [],
+                          "locked": false,
+                          "hidden": false
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_stabs001",
+                  "props": {
+                    "active": "2"
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00039",
+              "type": "element",
+              "name": "Seção Dialog",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00038",
+                  "type": "text",
+                  "name": "Rótulo Dialog",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Dialog",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00037",
+                  "type": "instance",
+                  "name": "Dialog",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {},
+                  "children": [
+                    {
+                      "id": "el_vit00033",
+                      "type": "element",
+                      "name": "Slot content",
+                      "tag": "div",
+                      "attrs": {
+                        "data-slot": "content"
+                      },
+                      "style": {
+                        "box-sizing": "border-box",
+                        "font-family": "inherit"
+                      },
+                      "children": [
+                        {
+                          "id": "tx_vit00032",
+                          "type": "text",
+                          "name": "Texto",
+                          "tag": "p",
+                          "attrs": {},
+                          "style": {
+                            "font-size": "0.875rem",
+                            "line-height": "1.4286",
+                            "color": "var(--color-foreground)",
+                            "box-sizing": "border-box",
+                            "font-family": "inherit",
+                            "margin": "0"
+                          },
+                          "text": "Todos os arquivos do projeto serão removidos permanentemente.",
+                          "children": [],
+                          "locked": false,
+                          "hidden": false
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false
+                    },
+                    {
+                      "id": "el_vit00036",
+                      "type": "element",
+                      "name": "Slot footer",
+                      "tag": "div",
+                      "attrs": {
+                        "data-slot": "footer"
+                      },
+                      "style": {
+                        "box-sizing": "border-box",
+                        "font-family": "inherit"
+                      },
+                      "children": [
+                        {
+                          "id": "in_vit00034",
+                          "type": "instance",
+                          "name": "Cancelar",
+                          "tag": "button",
+                          "attrs": {},
+                          "style": {},
+                          "children": [],
+                          "locked": false,
+                          "hidden": false,
+                          "componentId": "cp_sbutton1",
+                          "props": {
+                            "variant": "outline",
+                            "label": "Cancelar"
+                          }
+                        },
+                        {
+                          "id": "in_vit00035",
+                          "type": "instance",
+                          "name": "Excluir",
+                          "tag": "button",
+                          "attrs": {},
+                          "style": {},
+                          "children": [],
+                          "locked": false,
+                          "hidden": false,
+                          "componentId": "cp_sbutton1",
+                          "props": {
+                            "variant": "destructive",
+                            "label": "Excluir"
+                          }
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_sdialog1",
+                  "props": {
+                    "title": "Excluir projeto",
+                    "description": "Essa ação não pode ser desfeita."
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00042",
+              "type": "element",
+              "name": "Seção Table",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00041",
+                  "type": "text",
+                  "name": "Rótulo Table",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "Table",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00040",
+                  "type": "instance",
+                  "name": "Table",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "600px"
+                  },
+                  "children": [],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_stable01"
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "id": "el_vit00045",
+              "type": "element",
+              "name": "Seção List",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "0.75rem",
+                "box-sizing": "border-box",
+                "font-family": "inherit"
+              },
+              "children": [
+                {
+                  "id": "tx_vit00044",
+                  "type": "text",
+                  "name": "Rótulo List",
+                  "tag": "h2",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "0.875rem",
+                    "line-height": "1.4286",
+                    "font-weight": "500",
+                    "color": "var(--color-muted-foreground)",
+                    "box-sizing": "border-box",
+                    "font-family": "inherit",
+                    "margin": "0"
+                  },
+                  "text": "List",
+                  "children": [],
+                  "locked": false,
+                  "hidden": false
+                },
+                {
+                  "id": "in_vit00043",
+                  "type": "instance",
+                  "name": "List",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "360px"
+                  },
+                  "children": [],
+                  "locked": false,
+                  "hidden": false,
+                  "componentId": "cp_slist001"
+                }
+              ],
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "locked": false,
+          "hidden": false,
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    }
+  ]
+}
