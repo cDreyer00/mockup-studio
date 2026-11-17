@@ -1,8 +1,8 @@
-/** Parse/format de valores CSS numéricos com unidade (inputs do painel de propriedades). */
+/** Parse/format of numeric CSS values with units (properties panel inputs). */
 
 export interface CssNumber {
   value: number;
-  /** '' quando sem unidade (ex.: opacity, line-height). */
+  /** '' when unitless (e.g. opacity, line-height). */
   unit: string;
 }
 
@@ -16,7 +16,7 @@ export function parseCssNumber(v: string | undefined | null): CssNumber | null {
   return { value: Number(m[1]), unit: m[2]!.toLowerCase() };
 }
 
-/** Arredonda para no máximo `digits` casas, sem zeros à direita. */
+/** Rounds to at most `digits` decimal places, without trailing zeros. */
 export function round(n: number, digits = 2): number {
   const k = 10 ** digits;
   return Math.round(n * k) / k;
@@ -27,8 +27,8 @@ export function formatCssNumber(n: CssNumber): string {
 }
 
 /**
- * Interpreta o texto digitado pelo usuário: número puro recebe `defaultUnit`; palavras-chave
- * (`auto`, `fit-content`...) e expressões (`calc()`, `var()`) passam como estão. Vazio = remover.
+ * Interprets the text typed by the user: a plain number gets `defaultUnit`; keywords
+ * (`auto`, `fit-content`...) and expressions (`calc()`, `var()`) pass through as they are. Empty = remove.
  */
 export function normalizeInput(text: string, defaultUnit = 'px'): string {
   const t = text.trim();

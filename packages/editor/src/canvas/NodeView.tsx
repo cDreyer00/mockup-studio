@@ -28,20 +28,20 @@ import { convertStyle, resolveSrc, resolveTag, safeAttrs, svgToDataUri } from '.
 import { StateCtxContext, rootStateCtx, themedStateCtx, toCoreContext } from './stateContext';
 import type { StateCtx } from './stateContext';
 
-/** Id do documento (resolve o caminho de assets). Estável entre edições. */
+/** Document id (resolves the assets path). Stable across edits. */
 export const DocIdContext = createContext('');
 
 /**
- * Documento da página de render (que não usa o store). No canvas fica `null` e o SVG lê o
- * documento do store.
+ * Document of the render page (which does not use the store). On the canvas it is `null` and the SVG reads the
+ * document from the store.
  */
 export const RenderDocContext = createContext<Document | null>(null);
 
 const px = (n: number): string => `${n}px`;
 
 /**
- * CSS final do nó: estilo do documento (com os estados ativos de `states`, quando há contexto) +
- * prévia transitória (arrasto/redimensionamento).
+ * Final CSS of the node: document style (with the active states from `states`, when there is a context) +
+ * transient preview (drag/resize).
  */
 export function buildNodeStyle(
   node: Node,
@@ -51,7 +51,7 @@ export function buildNodeStyle(
 ): CSSProperties {
   const base = (states && node.states ? resolveStateStyle(node, states) : node.style) ?? {};
   const style: Record<string, unknown> = { ...convertStyle(base) };
-  // Filhos absolutos usam `position` como left/top quando não definidos no CSS.
+  // Absolute children use `position` as left/top when not defined in the CSS.
   if (!root && node.position && base.position === 'absolute') {
     style.left ??= px(node.position.x);
     style.top ??= px(node.position.y);
@@ -77,11 +77,11 @@ interface EditableProps {
   props: Record<string, unknown>;
   text: string;
   nodeId: string;
-  /** O nó já define `white-space` (então quebras de linha não precisam de `pre-wrap`). */
+  /** The node already defines `white-space` (so line breaks do not need `pre-wrap`). */
   hasWhiteSpace: boolean;
 }
 
-/** Texto em edição inline: o React não gerencia o conteúdo (evita sobrescrever o que se digita). */
+/** Text being edited inline: React does not manage the content (avoids overwriting what is typed). */
 function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps) {
   const ref = useRef<HTMLElement | null>(null);
   const done = useRef(false);
@@ -110,7 +110,7 @@ function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps
       return;
     }
     const ops: Op[] = [{ type: 'setText', changes: [{ nodeId, text: value }] }];
-    // Sem `pre-wrap` o render normal colapsa a quebra do Shift+Enter; vai na mesma chamada (um undo).
+    // Without `pre-wrap` the normal render collapses the Shift+Enter break; it goes in the same call (one undo).
     if (value.includes('\n') && !hasWhiteSpace) {
       ops.push({ type: 'updateStyles', changes: [{ nodeId, set: { 'white-space': 'pre-wrap' } }] });
     }
@@ -119,7 +119,7 @@ function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps
         ui.editText(null);
         return;
       }
-      // Falhou (desconectado, nó travado...): mantém a edição aberta para não perder o texto.
+      // Failed (disconnected, locked node...): keeps the edit open so the text is not lost.
       done.current = false;
       if (el?.isConnected) el.focus();
     });
@@ -153,7 +153,7 @@ function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps
 
 const hasVar = (svg: string): boolean => /var\(/i.test(svg);
 
-/** Markup com as `var()` resolvidas no escopo do nó (sem o nó no documento, fica como está). */
+/** Markup with the `var()`s resolved in the node's scope (without the node in the document, it stays as is). */
 function svgWithScope(doc: Document, node: Node, svg: string): string {
   try {
     return inlineSvgVars(svg, nodeScopeVars(doc, baseNodeId(node.id)));
@@ -163,15 +163,15 @@ function svgWithScope(doc: Document, node: Node, svg: string): string {
 }
 
 /**
- * Nó SVG. Nunca injeta HTML: o markup é isolado num `<img>` (sem scripts; `currentColor` não
- * herda). Como as custom properties do documento não chegam dentro da imagem, as `var()` do markup
- * são trocadas pelos valores do escopo do nó (tokens, tema efetivo e variáveis dos ancestrais).
+ * SVG node. Never injects HTML: the markup is isolated in an `<img>` (no scripts; `currentColor` is not
+ * inherited). Since the document's custom properties do not reach inside the image, the markup's `var()`s
+ * are replaced with the values from the node's scope (tokens, effective theme and ancestor variables).
  */
 function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
   const svg = node.svg ?? '';
   const renderDoc = useContext(RenderDocContext);
   const withVars = hasVar(svg);
-  // No canvas, o seletor devolve a string final: só re-renderiza quando o resultado muda.
+  // On the canvas, the selector returns the final string: it only re-renders when the result changes.
   const fromStore = useDoc((s) =>
     withVars && !renderDoc && s.doc ? svgWithScope(s.doc, node, svg) : null,
   );
@@ -185,14 +185,14 @@ function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
     alt: '',
     draggable: false,
     style,
-    // clones de repetidor (`id~3`) respondem ao id do template
+    // repeater clones (`id~3`) respond to the template id
     'data-node-id': baseNodeId(node.id),
   });
 }
 
 /**
- * Contexto de estados deste nó: o frame raiz usa a própria largura; nós com data-theme trocam o
- * dark da subárvore. Devolve o mesmo objeto enquanto nada muda (o contexto não re-renderiza a árvore).
+ * States context of this node: the root frame uses its own width; nodes with data-theme switch the
+ * subtree's dark. Returns the same object while nothing changes (the context does not re-render the tree).
  */
 function useStableCtx(
   node: Node,
@@ -218,22 +218,22 @@ function useStableCtx(
 
 interface NodeViewProps {
   node: Node;
-  /** Frame raiz da página (posicionado no canvas). */
+  /** Root frame of the page (positioned on the canvas). */
   root?: boolean;
 }
 
 /**
- * Renderiza um nó como elemento HTML real, recursivamente. `memo` por identidade de `node`:
- * seleção e hover não passam por aqui (ficam no overlay); só a prévia do próprio nó assina.
+ * Renders a node as a real HTML element, recursively. `memo` by `node` identity:
+ * selection and hover do not go through here (they live in the overlay); only the node's own preview subscribes.
  */
-/** O nó tem, em algum nível do template, um descendente com este id exato? */
+/** Does the node have, at any level of the template, a descendant with this exact id? */
 export function hasDescendant(node: Node, id: string): boolean {
   return node.children.some((c) => c.id === id || hasDescendant(c, id));
 }
 
 /**
- * Filhos expandidos do repetidor. Com um texto do template em edição, o item 0 volta ao nó cru
- * (a expansão já resolveu os bindings, mas o editor precisa do `{{campo}}`).
+ * Expanded children of the repeater. With a template text being edited, item 0 goes back to the raw node
+ * (the expansion already resolved the bindings, but the editor needs the `{{field}}`).
  */
 export function withRawEditing(node: Node, editingId: string | null): Node[] {
   const expanded = expandRepeaterChildren(node);
@@ -253,7 +253,7 @@ export function withRawEditing(node: Node, editingId: string | null): Node[] {
 
 export const NodeView = memo(function NodeView({ node, root = false }: NodeViewProps) {
   const docId = useContext(DocIdContext);
-  // Clones de repetidor (`id~3`) respondem ao id do template: clique, hover, prévia e overlay.
+  // Repeater clones (`id~3`) respond to the template id: click, hover, preview and overlay.
   const realId = baseNodeId(node.id);
   const preview = useUi((s) => s.preview[realId]);
   const editing = useUi((s) => s.editingTextId === node.id);
@@ -264,16 +264,16 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
     baseCtx,
     root ? (preview?.style?.width ?? node.style.width) : undefined,
   );
-  // Só quem tem estados reprocessa o estilo quando o contexto muda.
+  // Only nodes with states reprocess the style when the context changes.
   const statesCtx = node.states ? ctx : null;
   const style = useMemo(
     () => buildNodeStyle(node, preview, root, statesCtx ? toCoreContext(statesCtx) : undefined),
     [node, preview, root, statesCtx],
   );
-  /** A subárvore enxerga o contexto do frame raiz / do tema deste nó. */
+  /** The subtree sees the context of the root frame / of this node's theme. */
   const scoped = (el: ReactNode): ReactNode =>
     ctx === baseCtx ? el : <StateCtxContext.Provider value={ctx}>{el}</StateCtxContext.Provider>;
-  // Em edição inline de um texto do template, o item 0 mostra o texto cru (`{{campo}}`).
+  // While inline-editing a template text, item 0 shows the raw text (`{{field}}`).
   const editingInside = useUi((s) =>
     node.type === 'repeater' && s.editingTextId && hasDescendant(node, s.editingTextId)
       ? s.editingTextId
@@ -298,7 +298,7 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   }
 
   const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': realId };
-  // Prévia dark: o frame raiz assume o tema `dark` do documento (só no DOM).
+  // Dark preview: the root frame takes the document's `dark` theme (DOM only).
   if (root && baseCtx.preview === 'dark' && baseCtx.darkTheme) props['data-theme'] = 'dark';
   if (tag === 'form') props.onSubmit = (e: { preventDefault(): void }) => e.preventDefault();
 

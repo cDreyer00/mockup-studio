@@ -1,14 +1,14 @@
 /**
- * Compartilhamento estrutural: o daemon manda o documento completo a cada `doc:changed`, e cada
- * objeto chega novo (JSON). `shareStructure` reaproveita os objetos do documento anterior que não
- * mudaram, para que `React.memo` por identidade de nó evite re-render dos nós intocados.
+ * Structural sharing: the daemon sends the whole document on every `doc:changed`, and each
+ * object arrives new (JSON). `shareStructure` reuses the objects of the previous document that did not
+ * change, so that `React.memo` by node identity avoids re-rendering untouched nodes.
  */
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** Devolve `next`, reaproveitando de `prev` cada subárvore profundamente igual. */
+/** Returns `next`, reusing from `prev` every deeply equal subtree. */
 export function shareStructure<T>(prev: T, next: T): T {
   if (Object.is(prev, next)) return prev;
   if (Array.isArray(prev) && Array.isArray(next)) {

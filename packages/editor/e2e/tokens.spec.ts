@@ -2,12 +2,12 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Mcp, createDoc, getDoc, gotoEditor } from './helpers';
 
-/** Painel de tokens e temas: criar/editar/renomear, tema com sobrescrita, ligar a token e trocar o tema do frame. */
+/** Tokens and themes panel: create/edit/rename, theme with override, bind to token and switch the frame theme. */
 
 async function setup(name: string) {
   const info = await createDoc(name);
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 600, height: 400, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 600, height: 400, x: 0, y: 0 });
   await mcp.call('write_html', {
     html: '<section class="wrap"><div class="box">A</div></section>',
     css: '.wrap{padding:20px;width:500px;height:300px}.box{width:100px;height:60px}',
@@ -37,17 +37,17 @@ async function editValue(page: Page, slug: string, value: string) {
   await input.press('Enter');
 }
 
-test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de tema no frame', async ({
+test('tokens and themes: create, edit, rename, theme with override and frame theme switch', async ({
   page,
 }) => {
   const { info, frame } = await setup('tokens');
   await gotoEditor(page);
 
-  // Aba Tokens.
+  // Tokens tab.
   await page.getByTestId('tab-tokens').click();
   await expect(page.getByTestId('tokens-panel')).toBeVisible();
 
-  // Criar token de cor e editar o valor.
+  // Create a color token and edit the value.
   await createToken(page, 'color-surface', '#ffffff');
   const row = page.getByTestId('token-row-color-surface');
   await expect(row).toBeVisible();
@@ -59,7 +59,7 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
     .poll(async () => (await getDoc(info.docId)).tokens['--color-surface'])
     .toBe('#eeeeee');
 
-  // Valor inválido é bloqueado com mensagem.
+  // An invalid value is blocked with a message.
   await row.getByTestId('token-value-color-surface').click();
   await row.getByTestId('token-value-input').fill('rgb(1,2');
   await row.getByTestId('token-value-input').press('Enter');
@@ -67,7 +67,7 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
   await row.getByTestId('token-value-input').press('Escape');
   expect((await getDoc(info.docId)).tokens['--color-surface']).toBe('#eeeeee');
 
-  // Renomear (duplo clique no nome).
+  // Rename (double-click on the name).
   await row.getByTestId('token-name-color-surface').dblclick();
   await row.getByTestId('token-name-input').fill('color-bg');
   await row.getByTestId('token-name-input').press('Enter');
@@ -76,9 +76,9 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
     .poll(async () => Object.keys((await getDoc(info.docId)).tokens))
     .toContain('--color-bg');
 
-  // Criar o tema dark e sobrescrever o token nele.
+  // Create the dark theme and override the token in it.
   await page.getByTestId('tokens-theme-add').click();
-  const dialog = page.getByRole('dialog', { name: 'Novo tema' });
+  const dialog = page.getByRole('dialog', { name: 'New theme' });
   await dialog.locator('input[name="name"]').fill('dark');
   await dialog.locator('input[name="name"]').press('Enter');
   await expect(page.getByTestId('tokens-theme-select')).toHaveValue('dark');
@@ -87,11 +87,11 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
   await expect
     .poll(async () => (await getDoc(info.docId)).themes?.[0]?.overrides['--color-bg'])
     .toBe('#111111');
-  // A base não mudou.
+  // The base did not change.
   expect((await getDoc(info.docId)).tokens['--color-bg']).toBe('#eeeeee');
   await page.getByTestId('tokens-theme-select').selectOption('');
 
-  // Ligar o fundo do frame ao token pelo seletor do painel de propriedades.
+  // Bind the frame background to the token through the properties panel selector.
   await page.getByTestId('tab-layers').click();
   await page.getByTestId(`layer-row-${frame.id}`).click();
   await page.locator('.prop-bg [data-testid="token-bind"]').click();
@@ -103,7 +103,7 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
   await expect(page.getByTestId('token-chip-value')).toHaveText('#eeeeee');
   await expect.poll(() => bgOf(page, frame.id)).toBe('rgb(238, 238, 238)');
 
-  // Trocar o tema do frame: o canvas passa a usar a sobrescrita.
+  // Switch the frame theme: the canvas now uses the override.
   await page.locator('[data-testid="prop-theme"] select').selectOption('dark');
   await expect
     .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.attrs['data-theme'])
@@ -112,43 +112,41 @@ test('tokens e temas: criar, editar, renomear, tema com sobrescrita e troca de t
   await expect.poll(() => bgOf(page, frame.id)).toBe('rgb(17, 17, 17)');
   await expect(page.getByTestId('token-chip-value')).toHaveText('#111111');
 
-  // Voltar ao padrão (base).
+  // Back to the default (base).
   await page.locator('[data-testid="prop-theme"] select').selectOption('');
   await expect.poll(() => bgOf(page, frame.id)).toBe('rgb(238, 238, 238)');
 
-  // Desligar do token grava o valor resolvido.
+  // Unbinding from the token writes the resolved value.
   await page.getByTestId('token-unbind').click();
   await expect
     .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.style.background)
     .toBe('#eeeeee');
 });
 
-test('tokens: avisos de não usado e de referência quebrada; resumo do documento', async ({
-  page,
-}) => {
-  const { info } = await setup('tokens-avisos');
+test('tokens: unused and broken reference warnings; document summary', async ({ page }) => {
+  const { info } = await setup('tokens-warnings');
   await gotoEditor(page);
   await page.getByTestId('tab-tokens').click();
 
-  await createToken(page, 'space-solto', '8px');
-  await expect(page.getByTestId('token-unused-space-solto')).toBeVisible();
+  await createToken(page, 'space-loose', '8px');
+  await expect(page.getByTestId('token-unused-space-loose')).toBeVisible();
 
-  // Referência a token inexistente é aceita (aviso) e aparece como problema com a mensagem.
-  await createToken(page, 'color-ref', 'var(--nao-existe)');
+  // A reference to a nonexistent token is accepted (warning) and shows up as a problem with the message.
+  await createToken(page, 'color-ref', 'var(--does-not-exist)');
   const problem = page.getByTestId('token-problem-color-ref');
   await expect(problem).toBeVisible();
-  await expect(problem).toHaveAttribute('title', /nao-existe/);
+  await expect(problem).toHaveAttribute('title', /does-not-exist/);
   await expect(page.getByTestId('tokens-footer')).toBeVisible();
   await expect.poll(async () => Object.keys((await getDoc(info.docId)).tokens).length).toBe(2);
 
-  // Busca e exclusão.
-  await page.getByTestId('tokens-search').fill('solto');
+  // Search and delete.
+  await page.getByTestId('tokens-search').fill('loose');
   await expect(page.getByTestId('token-row-color-ref')).toHaveCount(0);
-  await page.getByTestId('token-menu-space-solto').click();
-  await page.getByTestId('token-delete-space-solto').click();
-  await expect(page.getByTestId('token-row-space-solto')).toHaveCount(0);
+  await page.getByTestId('token-menu-space-loose').click();
+  await page.getByTestId('token-delete-space-loose').click();
+  await expect(page.getByTestId('token-row-space-loose')).toHaveCount(0);
 
-  // Sem seleção, o painel de propriedades mostra o resumo e abre a aba Tokens.
+  // With no selection, the properties panel shows the summary and opens the Tokens tab.
   await page.getByTestId('tab-layers').click();
   await page.keyboard.press('Escape');
   await page.getByTestId('canvas').click({ position: { x: 5, y: 5 } });
@@ -158,7 +156,7 @@ test('tokens: avisos de não usado e de referência quebrada; resumo do document
   await expect(page.getByTestId('tokens-panel')).toBeVisible();
 });
 
-test('tokens: importar CSS e exportar', async ({ page }) => {
+test('tokens: import CSS and export', async ({ page }) => {
   const { info } = await setup('tokens-io');
   await gotoEditor(page);
   await page.getByTestId('tab-tokens').click();

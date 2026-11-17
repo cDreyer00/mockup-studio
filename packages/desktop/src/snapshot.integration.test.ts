@@ -1,7 +1,7 @@
 /**
- * Integração REAL da importação de páginas: sobe o Electron headless, um servidor http estático com
- * as fixtures do snapshot-core e chama `import_url`/`import_html` pelo MCP (Streamable HTTP em /mcp).
- * Requer `npm run build` (snapshot-core, server, desktop e editor) antes.
+ * REAL page import integration: starts headless Electron, a static http server with
+ * the snapshot-core fixtures and calls `import_url`/`import_html` via MCP (Streamable HTTP at /mcp).
+ * Requires `npm run build` (snapshot-core, server, desktop and editor) first.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -37,16 +37,16 @@ async function freePort(): Promise<number> {
 async function waitHealth(url: string, child: ChildProcess, ms = 60000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Electron encerrou (código ${child.exitCode})`);
+    if (child.exitCode !== null) throw new Error(`Electron exited (code ${child.exitCode})`);
     try {
       const r = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (r.ok && ((await r.json()) as { render?: boolean }).render === true) return;
     } catch {
-      /* ainda subindo */
+      /* still starting up */
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Timeout aguardando /api/health com render: true');
+  throw new Error('Timed out waiting for /api/health with render: true');
 }
 
 const MIME: Record<string, string> = {
@@ -59,7 +59,7 @@ const MIME: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
 };
 
-/** Servidor estático simples; procura o arquivo em cada raiz, na ordem. */
+/** Simple static server; looks for the file in each root, in order. */
 function staticServer(
   roots: string[],
   hits: string[] = [],
@@ -78,10 +78,10 @@ function staticServer(
         return;
       }
     }
-    res.writeHead(404).end('não encontrado');
+    res.writeHead(404).end('not found');
   });
-  // sem host: escuta em :: (dual-stack), então `localhost` também chega aqui e o teste de bloqueio
-  // prova que foi o guarda (e não uma falha de conexão) que impediu a requisição
+  // no host: listens on :: (dual-stack), so `localhost` also gets here and the blocking test
+  // proves it was the guard (and not a connection failure) that stopped the request
   return new Promise((resolve) =>
     server.listen(0, () =>
       resolve({ server, url: `http://127.0.0.1:${(server.address() as net.AddressInfo).port}` }),
@@ -106,7 +106,7 @@ interface DocNode {
   children: DocNode[];
 }
 
-describe.skipIf(!built || !editorReady)('import_url / import_html (integração Electron)', () => {
+describe.skipIf(!built || !editorReady)('import_url / import_html (Electron integration)', () => {
   let tmp: string;
   let extraDir: string;
   let child: ChildProcess;
@@ -135,29 +135,29 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
       path.join(extraDir, 'px.svg'),
       '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="red"/></svg>',
     );
-    // mesma origem (relativa) x outra origem da mesma máquina (localhost, porta igual)
+    // same origin (relative) vs. another origin on the same machine (localhost, same port)
     fs.writeFileSync(
-      path.join(extraDir, 'rede.html'),
-      `<!doctype html><html><body style="margin:0"><section class="alvo" style="padding:8px">
-  <h1>Rede</h1>
-  <img alt="mesma" src="/mesma.svg" width="20" height="20">
-  <img alt="outra" src="http://localhost:${webPort}/outra.svg" width="20" height="20">
+      path.join(extraDir, 'network.html'),
+      `<!doctype html><html><body style="margin:0"><section class="target" style="padding:8px">
+  <h1>Network</h1>
+  <img alt="same" src="/same.svg" width="20" height="20">
+  <img alt="other" src="http://localhost:${webPort}/other.svg" width="20" height="20">
 </section></body></html>`,
     );
-    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'mesma.svg'));
-    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'outra.svg'));
-    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'semBase.svg'));
-    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'comBase.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'same.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'other.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'noBase.svg'));
+    fs.copyFileSync(path.join(extraDir, 'px.svg'), path.join(extraDir, 'withBase.svg'));
 
-    // páginas hostis: tentam ler arquivo local e chamar a API do daemon
+    // hostile pages: they try to read a local file and call the daemon API
     fs.writeFileSync(
-      path.join(extraDir, 'hostil.html'),
+      path.join(extraDir, 'hostile.html'),
       `<!doctype html><html><body style="margin:0">
-<section class="alvo" style="padding:24px;background:#eef">
-  <h1>Página hostil</h1>
+<section class="target" style="padding:24px;background:#eef">
+  <h1>Hostile page</h1>
   <img alt="local" src="file:///C:/Windows/win.ini" width="40" height="40">
   <img alt="daemon" src="${daemonUrl}/api/health" width="40" height="40">
-  <p>Texto normal</p>
+  <p>Normal text</p>
 </section>
 <script>
   fetch('${daemonUrl}/api/docs').catch(() => {});
@@ -184,7 +184,7 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     const r = await fetch(`${daemonUrl}/api/new`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path: file, name: 'Importação' }),
+      body: JSON.stringify({ path: file, name: 'Import' }),
     });
     const info = (await r.json()) as { docId: string };
     docId = info.docId;
@@ -218,11 +218,11 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
       timeout: 60000,
     }) as Promise<TextResult>;
 
-  it('import_url de .hero da landing em menos de 10 s: frame, imagens em assets/ e Referência oculta', async () => {
+  it('import_url of .hero of the landing page in under 10 s: frame, images in assets/ and hidden Reference', async () => {
     const t0 = Date.now();
     const r = await call('import_url', { url: `${webUrl}/landing/index.html`, selector: '.hero' });
     const ms = Date.now() - t0;
-    console.log(`[snapshot] import_url (.hero) levou ${ms} ms`);
+    console.log(`[snapshot] import_url (.hero) took ${ms} ms`);
     const text = textOf(r);
     expect(r.isError, `${text}\n${stderr}`).toBeFalsy();
     expect(ms).toBeLessThan(10_000);
@@ -232,8 +232,8 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     const imported = all.find((f) => text.includes(f.id) && !f.hidden);
     expect(imported, text).toBeTruthy();
     expect(imported!.children.length).toBeGreaterThan(0);
-    const ref = all.find((f) => /Refer[eê]ncia/i.test(f.name));
-    expect(ref, 'frame Referência').toBeTruthy();
+    const ref = all.find((f) => /Reference/i.test(f.name));
+    expect(ref, 'Reference frame').toBeTruthy();
     expect(ref!.hidden).toBe(true);
 
     const assetsDir = path.join(docDir, 'assets');
@@ -241,8 +241,8 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     expect(fs.readdirSync(assetsDir, { recursive: true }).length).toBeGreaterThan(0);
   });
 
-  it('import_url com file:/// é recusado', async () => {
-    const bad = pathToFileURL(path.join(extraDir, 'hostil.html')).href;
+  it('import_url with file:/// is refused', async () => {
+    const bad = pathToFileURL(path.join(extraDir, 'hostile.html')).href;
     let failed = false;
     let text = '';
     try {
@@ -256,17 +256,17 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
     expect(failed, text).toBe(true);
   });
 
-  it('página que tenta carregar file:// e chamar o daemon não quebra a importação', async () => {
-    const r = await call('import_url', { url: `${webUrl}/hostil.html`, selector: '.alvo' });
+  it('a page that tries to load file:// and call the daemon does not break the import', async () => {
+    const r = await call('import_url', { url: `${webUrl}/hostile.html`, selector: '.target' });
     expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
     expect(textOf(r)).toMatch(/fr_\w+/);
-    // o daemon segue de pé
+    // the daemon is still up
     expect((await fetch(`${daemonUrl}/api/health`)).ok).toBe(true);
   });
 
-  it('import_html com render funciona', async () => {
+  it('import_html with render works', async () => {
     const r = await call('import_html', {
-      html: '<section class="x" style="padding:16px"><h2>Olá</h2><p>Mundo</p></section>',
+      html: '<section class="x" style="padding:16px"><h2>Hello</h2><p>World</p></section>',
       css: '.x { background: #fafafa; }',
       selector: '.x',
     });
@@ -277,24 +277,24 @@ describe.skipIf(!built || !editorReady)('import_url / import_html (integração 
   const sawHit = (p: string): boolean => hits.includes(p);
   const docText = async (): Promise<string> => JSON.stringify(await getDoc());
 
-  it('navegação principal em http://127.0.0.1 (dev server local) funciona; subrequisição de outra origem local é bloqueada', async () => {
-    const r = await call('import_url', { url: `${webUrl}/rede.html`, selector: '.alvo' });
+  it('main navigation to http://127.0.0.1 (local dev server) works; a subrequest to another local origin is blocked', async () => {
+    const r = await call('import_url', { url: `${webUrl}/network.html`, selector: '.target' });
     expect(
       r.isError,
       `${textOf(r)}
 ${stderr}`,
     ).toBeFalsy();
-    expect(sawHit('/rede.html')).toBe(true);
-    expect(sawHit('/mesma.svg')).toBe(true);
-    expect(sawHit('/outra.svg')).toBe(false);
+    expect(sawHit('/network.html')).toBe(true);
+    expect(sawHit('/same.svg')).toBe(true);
+    expect(sawHit('/other.svg')).toBe(false);
   });
 
-  it('import_html sem baseUrl: o JavaScript da página não roda e a rede local é bloqueada', async () => {
+  it('import_html without baseUrl: the page JavaScript does not run and the local network is blocked', async () => {
     const r = await call('import_html', {
-      html: `<section class="alvo"><h1>Original</h1>
-<img alt="x" src="${webUrl}/semBase.svg" width="20" height="20">
-<script>document.querySelector('h1').textContent = 'JS RODOU'</script></section>`,
-      selector: '.alvo',
+      html: `<section class="target"><h1>Original</h1>
+<img alt="x" src="${webUrl}/noBase.svg" width="20" height="20">
+<script>document.querySelector('h1').textContent = 'JS RAN'</script></section>`,
+      selector: '.target',
     });
     expect(
       r.isError,
@@ -303,22 +303,22 @@ ${stderr}`,
     ).toBeFalsy();
     const doc = await docText();
     expect(doc).toContain('Original');
-    expect(doc).not.toContain('JS RODOU');
-    expect(sawHit('/semBase.svg')).toBe(false);
+    expect(doc).not.toContain('JS RAN');
+    expect(sawHit('/noBase.svg')).toBe(false);
   });
 
-  it('import_html com assets_base_url 127.0.0.1: os assets dessa origem carregam', async () => {
+  it('import_html with assets_base_url 127.0.0.1: the assets from that origin load', async () => {
     const r = await call('import_html', {
-      html: '<section class="alvo"><h1>Com base</h1><img alt="x" src="/comBase.svg" width="20" height="20"></section>',
+      html: '<section class="target"><h1>With base</h1><img alt="x" src="/withBase.svg" width="20" height="20"></section>',
       assets_base_url: `${webUrl}/`,
-      selector: '.alvo',
+      selector: '.target',
     });
     expect(
       r.isError,
       `${textOf(r)}
 ${stderr}`,
     ).toBeFalsy();
-    expect(sawHit('/comBase.svg')).toBe(true);
+    expect(sawHit('/withBase.svg')).toBe(true);
   });
 
   const failure = async (
@@ -340,33 +340,33 @@ ${stderr}`,
     return { text, ms: Date.now() - t0 };
   };
 
-  it('seletor inexistente falha rápido com mensagem clara (import_html estático e import_url)', async () => {
+  it('a nonexistent selector fails fast with a clear message (static import_html and import_url)', async () => {
     const html = await failure('import_html', {
-      html: '<section class="alvo"><h1>x</h1></section>',
-      selector: '.nao-existe',
+      html: '<section class="target"><h1>x</h1></section>',
+      selector: '.does-not-exist',
     });
-    console.log(`[snapshot] import_html com seletor inexistente falhou em ${html.ms} ms`);
-    expect(html.text).toMatch(/Seletor "\.nao-existe" não encontrado no HTML informado/);
+    console.log(`[snapshot] import_html with a nonexistent selector failed in ${html.ms} ms`);
+    expect(html.text).toMatch(/Selector "\.does-not-exist" not found in the provided HTML/);
     expect(html.ms).toBeLessThan(5_000);
 
     const url = await failure('import_url', {
       url: `${webUrl}/landing/index.html`,
-      selector: '.nao-existe',
+      selector: '.does-not-exist',
     });
-    console.log(`[snapshot] import_url com seletor inexistente falhou em ${url.ms} ms`);
-    expect(url.text).toMatch(/Seletor "\.nao-existe" não encontrado em http/);
+    console.log(`[snapshot] import_url with a nonexistent selector failed in ${url.ms} ms`);
+    expect(url.text).toMatch(/Selector "\.does-not-exist" not found at http/);
     expect(url.ms).toBeLessThan(10_000);
   });
 
-  it('import_url de página que responde 404 importa com aviso do status HTTP', async () => {
-    const r = await call('import_url', { url: `${webUrl}/nao-existe.html` });
+  it('import_url of a page that responds 404 imports with an HTTP status warning', async () => {
+    const r = await call('import_url', { url: `${webUrl}/does-not-exist.html` });
     expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
-    expect(textOf(r)).toContain('respondeu HTTP 404');
+    expect(textOf(r)).toContain('responded with HTTP 404');
   });
 
-  it('import_url de página 200 não avisa status HTTP', async () => {
-    const r = await call('import_url', { url: `${webUrl}/rede.html`, selector: '.alvo' });
+  it('import_url of a 200 page does not warn about the HTTP status', async () => {
+    const r = await call('import_url', { url: `${webUrl}/network.html`, selector: '.target' });
     expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
-    expect(textOf(r)).not.toContain('respondeu HTTP');
+    expect(textOf(r)).not.toContain('responded with HTTP');
   });
 });

@@ -19,9 +19,9 @@
 ; mockup.cmd e a pasta se vazia; PENDÊNCIA: nesse caso a entrada no PATH do usuário fica para trás
 ; (inofensiva: aponta para uma pasta inexistente); `mockup uninstall-cli`/--uninstall-cli a limpa.
 !macro customInstall
-  WriteRegStr HKCU "Software\Classes\MockupStudio.Document" "" "Documento do Mockup Studio"
+  WriteRegStr HKCU "Software\Classes\MockupStudio.Document" "" "Mockup Studio Document"
   WriteRegStr HKCU "Software\Classes\MockupStudio.Document\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
-  WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open" "" "Abrir no Mockup Studio"
+  WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open" "" "Open in Mockup Studio"
   WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
   WriteRegStr HKCU "Software\Classes\.json\OpenWithProgids" "MockupStudio.Document" ""
 
@@ -30,7 +30,7 @@
   nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" install-cli --quiet'
   Pop $0
   System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", p 0)'
-  DetailPrint "install-cli terminou com código $0"
+  DetailPrint "install-cli finished with code $0"
 !macroend
 
 !macro customUnInstall
@@ -43,7 +43,7 @@
     nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" uninstall-cli --quiet'
     Pop $0
     System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", p 0)'
-    DetailPrint "uninstall-cli terminou com código $0"
+    DetailPrint "uninstall-cli finished with code $0"
     ; fallback mínimo em NSIS puro (não mexe no PATH)
     Delete "$LOCALAPPDATA\MockupStudio\bin\mockup.cmd"
     RMDir "$LOCALAPPDATA\MockupStudio\bin"

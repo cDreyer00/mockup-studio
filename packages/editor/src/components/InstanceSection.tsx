@@ -1,7 +1,7 @@
 /**
- * Seção "Instância" do painel de propriedades: componente de origem, um controle por prop (string,
- * number, boolean, enum, color) que gera `setInstanceProps`, slots (seleciona o contêiner) e as
- * ações "Ir para principal", "Destacar", "Restaurar" e "Enviar ao principal".
+ * "Instance" section of the properties panel: source component, one control per prop (string,
+ * number, boolean, enum, color) that generates `setInstanceProps`, slots (selects the container) and the
+ * actions "Go to main", "Detach", "Reset" and "Push to main".
  */
 import { useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
@@ -26,7 +26,7 @@ import {
 } from './componentActions';
 import './components.css';
 
-/** Tokens de cor do documento (`var(--x)`), para o controle de prop `color`. */
+/** Color tokens of the document (`var(--x)`), for the `color` prop control. */
 function useColorTokens(): string[] {
   const doc = useDoc((s) => s.doc);
   return useMemo(
@@ -40,7 +40,7 @@ function useColorTokens(): string[] {
   );
 }
 
-/** Controle de uma prop conforme o tipo. `onChange` recebe o valor já no tipo da prop. */
+/** Control of a prop according to its type. `onChange` receives the value already in the prop type. */
 export function PropControl({
   prop,
   value,
@@ -73,7 +73,7 @@ export function PropControl({
             disabled={locked}
             onChange={(e) => onChange(e.target.checked)}
           />
-          <span>{value === true || value === 'true' ? 'Sim' : 'Não'}</span>
+          <span>{value === true || value === 'true' ? 'Yes' : 'No'}</span>
         </label>
       );
     case 'enum':
@@ -81,7 +81,7 @@ export function PropControl({
         <SelectInput
           value={text}
           options={(prop.options ?? []).map((o) => ({ value: o, label: o }))}
-          placeholder="(padrão)"
+          placeholder="(default)"
           onChange={(v) => onChange(v === '' ? (prop.default ?? prop.options?.[0] ?? '') : v)}
         />
       );
@@ -92,7 +92,7 @@ export function PropControl({
           {colorTokens.length > 0 && (
             <SelectInput
               value=""
-              title="Usar um token de cor"
+              title="Use a color token"
               placeholder="Token"
               options={colorTokens.map((t) => ({ value: `var(${t})`, label: t }))}
               onChange={(v) => v && onChange(v)}
@@ -137,7 +137,7 @@ function ActionButton({
   );
 }
 
-/** Contêineres de slot reais da instância (nome do slot → id), na ordem do principal. */
+/** Real slot containers of the instance (slot name → id), in main component order. */
 function slotContainers(def: ComponentDef, node: Node): { slot: string; id: string }[] {
   const slots = def.props.filter((p) => p.type === 'slot').map((p) => p.name);
   const found = new Map<string, string>();
@@ -160,9 +160,9 @@ export function InstanceSection({ node }: { node: Node }) {
 
   if (!def) {
     return (
-      <Section id="props-instance" title="Instância">
+      <Section id="props-instance" title="Instance">
         <div className="cmp-hint" data-testid="instance-missing">
-          Componente ausente ({node.componentId}).
+          Component missing ({node.componentId}).
         </div>
       </Section>
     );
@@ -170,7 +170,7 @@ export function InstanceSection({ node }: { node: Node }) {
   const props = def.props.filter((p) => p.type !== 'slot');
   const slots = slotContainers(def, node);
   return (
-    <Section id="props-instance" title="Instância">
+    <Section id="props-instance" title="Instance">
       <div className="prop-fieldset" data-testid="instance-section">
         <div className="cmp-section-head">
           <Component size={14} />
@@ -206,7 +206,7 @@ export function InstanceSection({ node }: { node: Node }) {
                   type="button"
                   className="cmp-slot"
                   data-testid={`instance-slot-${s.slot}`}
-                  title="Selecionar o conteúdo do slot"
+                  title="Select the slot content"
                   onClick={() => ui.select([s.id])}
                 >
                   {s.slot}
@@ -219,26 +219,26 @@ export function InstanceSection({ node }: { node: Node }) {
           <ActionButton
             primary
             icon={<CornerUpLeft size={12} />}
-            label="Ir para principal"
-            title="Editar o principal (as mudanças valem para todas as instâncias)"
+            label="Go to main"
+            title="Edit the main component (changes apply to all instances)"
             testId="instance-go-main"
             onClick={() => goToMain(node.id)}
           />
           <ActionButton
             icon={<Unlink size={12} />}
-            label="Destacar"
-            title="Transformar a instância em nós comuns"
+            label="Detach"
+            title="Turn the instance into regular nodes"
             testId="instance-detach"
             disabled={virtual || locked}
             onClick={() => void detachInstance(node.id)}
           />
           <ActionButton
             icon={<RotateCcw size={12} />}
-            label="Restaurar"
+            label="Reset"
             title={
               overrides
-                ? `Remover ${overrides === 1 ? 'a sobrescrita' : `as ${overrides} sobrescritas`} da instância`
-                : 'A instância não tem sobrescritas'
+                ? `Remove ${overrides === 1 ? 'the override' : `the ${overrides} overrides`} from the instance`
+                : 'The instance has no overrides'
             }
             testId="instance-reset"
             disabled={virtual || locked || overrides === 0}
@@ -246,8 +246,8 @@ export function InstanceSection({ node }: { node: Node }) {
           />
           <ActionButton
             icon={<ArrowUpToLine size={12} />}
-            label="Enviar ao principal"
-            title="Gravar as sobrescritas desta instância no principal"
+            label="Push to main"
+            title="Write this instance overrides to the main component"
             testId="instance-push"
             disabled={virtual || locked || overrides === 0}
             onClick={() => void pushToMain(node.id)}

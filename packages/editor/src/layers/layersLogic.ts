@@ -1,4 +1,4 @@
-/** Lógica pura do painel de camadas: lista visível, intervalo de seleção e cálculo de drop. */
+/** Pure logic of the layers panel: visible list, selection range and drop computation. */
 import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Document, Node, Op, Page, StyleChange } from '@mockup/core';
 import {
@@ -19,7 +19,7 @@ export interface FlatRow {
   expanded: boolean;
 }
 
-/** Linhas visíveis (pré-ordem) da página, omitindo os descendentes de nós recolhidos. */
+/** Visible rows (pre-order) of the page, omitting the descendants of collapsed nodes. */
 export function flattenTree(page: Page, collapsed: ReadonlySet<string>): FlatRow[] {
   const out: FlatRow[] = [];
   const visit = (node: Node, depth: number, parentId: string | null) => {
@@ -32,7 +32,7 @@ export function flattenTree(page: Page, collapsed: ReadonlySet<string>): FlatRow
   return out;
 }
 
-/** Ids entre `anchor` e `id` (inclusive) na ordem visível; sem âncora válida, só `[id]`. */
+/** Ids between `anchor` and `id` (inclusive) in visible order; without a valid anchor, just `[id]`. */
 export function rangeBetween(
   visible: readonly string[],
   anchor: string | null,
@@ -46,12 +46,12 @@ export function rangeBetween(
   return visible.slice(from, to + 1);
 }
 
-/** Próximo nome livre "Página N". */
+/** Next free name "Page N". */
 export function nextPageName(pages: readonly Page[]): string {
   const names = new Set(pages.map((p) => p.name));
   let n = pages.length + 1;
-  while (names.has(`Página ${n}`)) n++;
-  return `Página ${n}`;
+  while (names.has(`Page ${n}`)) n++;
+  return `Page ${n}`;
 }
 
 export type DropZone = 'before' | 'after' | 'inside';
@@ -59,7 +59,7 @@ export type DropTarget = { id: string; zone: DropZone } | { rootOfPage: string; 
 
 export type Measure = (id: string) => { x: number; y: number; w: number; h: number } | null;
 
-/** Zona de drop a partir da posição vertical relativa (0..1) na linha. */
+/** Drop zone from the relative vertical position (0..1) in the row. */
 export function zoneFor(node: Node, fraction: number): DropZone {
   if (canHaveChildren(node)) {
     if (fraction < 0.25) return 'before';
@@ -70,9 +70,9 @@ export function zoneFor(node: Node, fraction: number): DropZone {
 }
 
 /**
- * Ops para soltar `draggedIds` em `target`. `null` quando o drop é inválido (dentro de si mesmo ou
- * de descendente, destino que não aceita filhos, nada para mover).
- * O `index` do core é aplicado após remover os nós movidos; aqui ele é descontado.
+ * Ops to drop `draggedIds` onto `target`. `null` when the drop is invalid (into itself or a
+ * descendant, a target that does not accept children, nothing to move).
+ * The core `index` is applied after removing the moved nodes; here it is adjusted for that.
  */
 export function computeDropOps(
   doc: Document,
@@ -82,7 +82,7 @@ export function computeDropOps(
 ): Op[] | null {
   const dragged = topLevel(doc, draggedIds);
   if (!dragged.length) return null;
-  // Nós internos de instâncias, contêineres de slot e a raiz do principal não se movem.
+  // Internal nodes of instances, slot containers and the main component root do not move.
   if (structureBlock(doc, dragged)) return null;
 
   let parentId: string | null;
@@ -116,7 +116,7 @@ export function computeDropOps(
     if (!p || !canHaveChildren(p) || !canInsertInto(doc, parentId)) return null;
   }
 
-  // Desconta os movidos que estão antes do ponto de inserção no mesmo contêiner.
+  // Subtracts the moved nodes that are before the insertion point in the same container.
   let before = 0;
   for (const id of dragged) {
     const e = getEntry(doc, id)!;
@@ -133,9 +133,9 @@ export function computeDropOps(
     const pad = LEAF_FRAME_PADDING;
     const positions: { nodeId: string; position: { x: number; y: number } | null }[] = [];
     const styles: StyleChange[] = [];
-    // Texto, imagem e SVG não viram frame sozinhos (como na colagem): ganham um frame em volta,
-    // no mesmo lugar. O `moveNodes` acima os pôs contíguos em `index + k`; cada embrulho insere o
-    // frame antes da folha e a move para dentro dele, sem mudar o índice das seguintes.
+    // Text, image and SVG do not become frames on their own (as with paste): they get a wrapping
+    // frame in the same place. The `moveNodes` above put them contiguously at `index + k`; each wrap inserts the
+    // frame before the leaf and moves the leaf into it, without changing the index of the following ones.
     const wraps: Op[] = [];
     dragged.forEach((id, k) => {
       const e = getEntry(doc, id)!;

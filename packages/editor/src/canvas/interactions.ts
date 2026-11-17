@@ -1,7 +1,7 @@
 /**
- * Interações do canvas (ponteiro, roda, teclado local, menu de contexto, drop) como módulo
- * imperativo: os handlers leem `useUi/useDoc.getState()` e nunca causam re-render da árvore.
- * Toda mutação do documento vira `Op`s numa única chamada `daemon.applySafe` por gesto.
+ * Canvas interactions (pointer, wheel, local keyboard, context menu, drop) as an
+ * imperative module: the handlers read `useUi/useDoc.getState()` and never cause a tree re-render.
+ * Every document mutation becomes `Op`s in a single `daemon.applySafe` call per gesture.
  */
 import { COMPONENT_EDIT_PAGE_ID, isGridContainer } from '@mockup/core';
 import type { Node, Op } from '@mockup/core';
@@ -49,14 +49,14 @@ import { penDoubleClick, penPointerDown, penPointerMove } from './penTool';
 import { createShape, isShapeTool, shapeDragRect } from './shapeTool';
 import type { ShapeTool } from './shapeTool';
 
-/** Deslocamento mínimo (px de tela) para um clique virar arrasto. */
+/** Minimum displacement (screen px) for a click to become a drag. */
 const DRAG_THRESHOLD = 3;
 
 const px = (n: number): string => `${Math.round(n)}px`;
 
 interface Gesture {
   move(e: PointerEvent): void;
-  /** `e` é o último evento (ou `null` se cancelado por Esc). */
+  /** `e` is the last event (or `null` if cancelled by Esc). */
   up(e: PointerEvent | null, cancelled: boolean): void;
 }
 
@@ -66,7 +66,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
   );
 }
 
-/** Liga todas as interações ao elemento raiz do canvas. Devolve a função que desliga. */
+/** Attaches all interactions to the canvas root element. Returns the function that detaches them. */
 export function attachInteractions(root: HTMLElement): () => void {
   let active: { gesture: Gesture; stop: () => void } | null = null;
   let localSpace = false;
@@ -89,7 +89,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (s.tool !== p.tool || s.spaceDown !== p.spaceDown) syncCursor();
   });
 
-  /* ------------------------------ gestos ------------------------------ */
+  /* ------------------------------ gestures ------------------------------ */
 
   function begin(gesture: Gesture): void {
     active?.stop();
@@ -129,7 +129,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     ui.hover(null);
   }
 
-  /** Pan (botão do meio, espaço, ferramenta mão). */
+  /** Pan (middle button, space, hand tool). */
   function startPan(e: PointerEvent): void {
     let lx = e.clientX;
     let ly = e.clientY;
@@ -146,7 +146,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     });
   }
 
-  /** Arrasto no fundo: marquee sobre os frames raiz. */
+  /** Drag on the background: marquee over the root frames. */
   function startMarquee(e: PointerEvent): void {
     const startX = e.clientX;
     const startY = e.clientY;
@@ -179,7 +179,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     });
   }
 
-  /** Arrasto de nós selecionados: frames/absolutos movem; filhos em fluxo reordenam. */
+  /** Dragging selected nodes: frames/absolutes move; flow children reorder. */
   function startMove(e: PointerEvent, selectOnUp: string | null): void {
     const startX = e.clientX;
     const startY = e.clientY;
@@ -211,7 +211,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     const doc = currentDoc();
     if (!doc) return null;
     const ids = topLevel(doc, st().selection).filter((id) => !isLockedDeep(doc, id));
-    // Nós internos de instâncias, contêineres de slot e a raiz do principal não se movem.
+    // Inner nodes of instances, slot containers and the main component root do not move.
     const block = structureBlock(doc, ids);
     if (block) {
       ui.toast(block);
@@ -263,7 +263,7 @@ export function attachInteractions(root: HTMLElement): () => void {
         },
       };
     }
-    // Filhos em fluxo: reordenar dentro do mesmo pai.
+    // Flow children: reorder within the same parent.
     if (
       nodes.length === 0 ||
       !haveSameParent(
@@ -274,7 +274,7 @@ export function attachInteractions(root: HTMLElement): () => void {
       return null;
     const parent = getParent(doc, nodes[0]!.id);
     if (!parent) return null;
-    // Pai grid: o arrasto escolhe a célula (grid-column/grid-row) em vez de reordenar.
+    // Grid parent: the drag picks the cell (grid-column/grid-row) instead of reordering.
     if (isGridContainer(parent.style)) return planGridMove(root, parent, nodes);
     const axis = flowAxis(parent);
     const siblings = siblingWorldRects(root, parent);
@@ -305,7 +305,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     };
   }
 
-  /** Redimensiona a caixa da seleção pelas alças (1 ou vários nós). */
+  /** Resizes the selection box via the handles (1 or several nodes). */
   function startResize(e: PointerEvent, handle: HandleName): void {
     const doc = currentDoc();
     if (!doc) return;
@@ -316,7 +316,7 @@ export function attachInteractions(root: HTMLElement): () => void {
       free: boolean;
       root: boolean;
       xy: Point;
-      /** Soma de padding + borda por eixo (para `content-box`). */
+      /** Sum of padding + border per axis (for `content-box`). */
       extraW: number;
       extraH: number;
     }
@@ -421,7 +421,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     });
   }
 
-  /** Ferramentas de criação: frame, rect, text, image. */
+  /** Creation tools: frame, rect, text, image. */
   function startCreate(
     e: PointerEvent,
     tool: 'frame' | 'rect' | 'text' | 'image' | ShapeTool,
@@ -473,13 +473,13 @@ export function attachInteractions(root: HTMLElement): () => void {
 
     let node: Node;
     let ops: Op[];
-    // Modo de edição do principal: só se cria dentro do principal.
+    // Main component edit mode: creation only happens inside the main component.
     if (
       pageId === COMPONENT_EDIT_PAGE_ID &&
       (tool === 'frame' || !planPlacement(doc, at, client).parentId)
     ) {
       if (st().tool === tool) ui.setTool('select');
-      ui.toast('No modo de edição do componente, desenhe dentro do principal');
+      ui.toast('In component edit mode, draw inside the main component');
       return;
     }
     if (tool === 'frame') {
@@ -497,14 +497,14 @@ export function attachInteractions(root: HTMLElement): () => void {
         }
       } else {
         if (!plan.parentId) {
-          ui.toast('Clique dentro de um frame para criar o texto', 'info');
+          ui.toast('Click inside a frame to create the text', 'info');
           return;
         }
         node = makeText({ x: plan.x, y: plan.y, absolute: !plan.flow });
       }
       ops = buildCreateOps(pageId, plan, node);
     }
-    // Volta para seleção já (antes do ack), para não sobrescrever uma ferramenta escolhida no meio.
+    // Switches back to selection right away (before the ack), so a tool chosen in the meantime is not overwritten.
     if (st().tool === tool) ui.setTool('select');
     const ack = await daemon.applySafe(ops);
     if (!ack) return;
@@ -512,7 +512,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (tool === 'text') ui.editText(node.id);
   }
 
-  /* ------------------------------ ponteiro ------------------------------ */
+  /* ------------------------------ pointer ------------------------------ */
 
   const nodeIdOf = (target: Element): { id: string | null; label: boolean } => {
     const label = target.closest('[data-frame-label]')?.getAttribute('data-frame-label');
@@ -528,20 +528,20 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (!(target instanceof Element)) return;
     if (target.closest('[data-testid="text-editor"]')) return;
     if (st().cropNodeId) {
-      // Modo de recorte: a interface de recorte cuida dos próprios gestos; clicar fora confirma.
+      // Crop mode: the crop UI handles its own gestures; clicking outside confirms.
       if (target.closest('[data-crop-ui]')) return;
       e.preventDefault();
       void commitCrop();
       return;
     }
-    // Alças de span do grid têm gesto próprio (canvas/gridDrag.ts).
+    // Grid span handles have their own gesture (canvas/gridDrag.ts).
     if (target.closest('[data-grid-span]')) return;
-    // Edição de pontos: o overlay trata o que é dele; clicar fora sai do modo e segue normalmente.
+    // Point editing: the overlay handles what is its own; clicking outside exits the mode and proceeds normally.
     if (st().editingVectorId) {
       if (target.closest('[data-vector-overlay]')) return;
       ui.editVector(null);
     }
-    // O que estava focado (inputs de propriedades, texto em edição) perde o foco ao clicar no canvas.
+    // Whatever was focused (property inputs, text being edited) loses focus when clicking the canvas.
     if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
       document.activeElement.blur();
     }
@@ -616,7 +616,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     const { id, label } = nodeIdOf(target);
     if (!id || !getEntry(doc, id)) return ui.hover(null);
     if (label) return ui.hover(getNode(doc, id)!.locked || id === COMPONENT_FRAME_ID ? null : id);
-    // Mesma regra do clique: Ctrl/Cmd = seleção profunda (Alt só liga a régua de distâncias).
+    // Same rule as click: Ctrl/Cmd = deep selection (Alt only turns on the distance ruler).
     const hovered = resolveClickTarget(doc, id, st().selection, { deep: e.ctrlKey || e.metaKey });
     ui.hover(hovered === COMPONENT_FRAME_ID ? null : hovered);
   }
@@ -637,7 +637,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     const r = resolveDoubleClick(doc, id, st().selection);
     if (r.select) ui.select([r.select]);
     if (r.edit) ui.editText(r.edit);
-    // Imagem já selecionada: duplo clique entra no recorte visual.
+    // Image already selected: double click enters visual crop.
     const sel = st().selection;
     if (
       !r.select &&
@@ -648,7 +648,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     ) {
       startCrop(id);
     }
-    // Duplo clique num svg já selecionado entra na edição de pontos.
+    // Double click on an already selected svg enters point editing.
     const only = st().selection;
     if (
       !r.select &&
@@ -698,7 +698,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     }
   }
 
-  /** Nada dentro do design navega, foca ou envia: bloqueia o comportamento padrão. */
+  /** Nothing inside the design navigates, focuses or submits: blocks the default behavior. */
   function blockDefault(e: Event): void {
     if (e.target instanceof Element && e.target.closest('[data-testid="text-editor"]')) return;
     e.preventDefault();
@@ -717,7 +717,7 @@ export function attachInteractions(root: HTMLElement): () => void {
   }
 
   function onDrop(e: DragEvent): void {
-    // Componente arrastado da aba Componentes: instância no ponto solto.
+    // Component dragged from the Components tab: instance at the drop point.
     const comp = e.dataTransfer ? readComponentDrag(e.dataTransfer) : null;
     if (comp) {
       e.preventDefault();
@@ -740,7 +740,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     })();
   }
 
-  /* ------------------------------ teclado local ------------------------------ */
+  /* ------------------------------ local keyboard ------------------------------ */
 
   function onKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Alt' && !st().altDown) useUi.setState({ altDown: true });

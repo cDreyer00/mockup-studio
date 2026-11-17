@@ -61,4 +61,4 @@ for (const file of ['manifest.json', 'popup.html', 'popup.css']) {
   fs.copyFileSync(path.join(root, file), path.join(dist, file));
 }
 fs.copyFileSync(path.resolve(root, '../desktop/build/icon.png'), path.join(dist, 'icons/icon.png'));
-console.log(`extensão montada em ${dist}`);
+console.log(`extension assembled in ${dist}`);

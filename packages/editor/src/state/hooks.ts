@@ -1,4 +1,4 @@
-/** Hooks de leitura com seletores finos (evitam re-render global). */
+/** Read hooks with fine-grained selectors (avoid global re-renders). */
 import { useShallow } from 'zustand/react/shallow';
 import type { Document, Node, Page } from '@mockup/core';
 import { getEntry, getNode } from '../model/tree';
@@ -9,7 +9,7 @@ export function useActiveDoc(): Document | null {
   return useDoc((s) => s.doc);
 }
 
-/** Página exibida: a escolhida, se existir; senão a primeira. */
+/** Displayed page: the chosen one, if it exists; otherwise the first. */
 export function selectPage(doc: Document | null, pageId: string | null): Page | null {
   if (!doc) return null;
   return doc.pages.find((p) => p.id === pageId) ?? doc.pages[0] ?? null;
@@ -21,12 +21,12 @@ export function useActivePage(): Page | null {
   return selectPage(doc, pageId);
 }
 
-/** Id da página exibida (estado local + fallback para a primeira). */
+/** Id of the displayed page (local state + fallback to the first). */
 export function currentPageId(): string | null {
   return selectPage(useDoc.getState().doc, useUi.getState().pageId)?.id ?? null;
 }
 
-/** Nó pelo id (re-renderiza só quando o objeto do nó muda, graças ao compartilhamento estrutural). */
+/** Node by id (re-renders only when the node object changes, thanks to structural sharing). */
 export function useNode(id: string | null | undefined): Node | undefined {
   return useDoc((s) => (s.doc && id ? getNode(s.doc, id) : undefined));
 }
@@ -35,7 +35,7 @@ export function useSelection(): string[] {
   return useUi((s) => s.selection);
 }
 
-/** Nós selecionados que existem no documento ativo (reage à seleção e ao documento). */
+/** Selected nodes that exist in the active document (reacts to the selection and the document). */
 export function useSelectedNodes(): Node[] {
   const sel = useUi((s) => s.selection);
   return useDoc(
@@ -49,7 +49,7 @@ export function useIsSelected(id: string): boolean {
   return useUi((s) => s.selection.includes(id));
 }
 
-/** Página do nó. */
+/** Page of the node. */
 export function pageOfNode(doc: Document, id: string): string | undefined {
   return getEntry(doc, id)?.pageId;
 }

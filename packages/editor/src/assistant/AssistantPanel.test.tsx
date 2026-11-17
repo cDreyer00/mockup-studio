@@ -17,7 +17,7 @@ function history(backends: AssistantBackendInfo[], messages: AssistantMessage[] 
   return { messages, running: null, backends, config: { backend: 'auto' } };
 }
 
-// O que `assistant:history` devolve; os testes trocam esta variável antes de renderizar.
+// What `assistant:history` returns; tests swap this variable before rendering.
 let served = history([CLAUDE]);
 
 describe('AssistantPanel', () => {
@@ -37,53 +37,56 @@ describe('AssistantPanel', () => {
     useDoc.setState({ activeDocId: null });
   });
 
-  it('textos de contexto e de alterações', () => {
-    expect(contextLabel(0)).toBe('sem seleção — o documento inteiro');
-    expect(contextLabel(1)).toBe('1 nó selecionado');
-    expect(contextLabel(2)).toBe('2 nós selecionados');
-    expect(opsLabel(1)).toBe('1 alteração — Ctrl+Z desfaz o turno');
-    expect(opsLabel(5)).toBe('5 alterações — Ctrl+Z desfaz o turno');
+  it('context and change texts', () => {
+    expect(contextLabel(0)).toBe('no selection — the whole document');
+    expect(contextLabel(1)).toBe('1 node selected');
+    expect(contextLabel(2)).toBe('2 nodes selected');
+    expect(opsLabel(1)).toBe('1 change — Ctrl+Z undoes the turn');
+    expect(opsLabel(5)).toBe('5 changes — Ctrl+Z undoes the turn');
   });
 
-  it('estado vazio com sugestões; clicar numa sugestão preenche o campo', async () => {
+  it('empty state with suggestions; clicking a suggestion fills the field', async () => {
     render(<AssistantPanel />);
     await act(async () => undefined);
     expect(daemon.assistantHistory).toHaveBeenCalledWith(DOC);
     expect(screen.getByTestId('assistant-empty')).toBeTruthy();
-    expect(screen.getByTestId('assistant-context').textContent).toContain('sem seleção');
+    expect(screen.getByTestId('assistant-context').textContent).toContain('no selection');
     fireEvent.click(screen.getAllByTestId('assistant-suggestion')[0]!);
     expect((screen.getByTestId('assistant-input') as HTMLTextAreaElement).value).toBe(
-      'Deixe o botão primário mais destacado',
+      'Make the primary button stand out more',
     );
   });
 
-  it('Enter envia com a seleção; Shift+Enter não envia', async () => {
+  it('Enter sends with the selection; Shift+Enter does not send', async () => {
     useUi.setState({ selection: ['n1', 'n2'] });
     const send = vi.spyOn(daemon, 'assistantSend').mockResolvedValue({ turnId: 't1' });
     render(<AssistantPanel />);
     await act(async () => undefined);
-    expect(screen.getByTestId('assistant-context').textContent).toBe('2 nós selecionados');
+    expect(screen.getByTestId('assistant-context').textContent).toBe('2 nodes selected');
     const input = screen.getByTestId('assistant-input');
-    fireEvent.change(input, { target: { value: 'Aumente o botão' } });
+    fireEvent.change(input, { target: { value: 'Make the button bigger' } });
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
     expect(send).not.toHaveBeenCalled();
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' });
     });
-    expect(send).toHaveBeenCalledWith('Aumente o botão', { selection: ['n1', 'n2'], docId: DOC });
+    expect(send).toHaveBeenCalledWith('Make the button bigger', {
+      selection: ['n1', 'n2'],
+      docId: DOC,
+    });
     expect((input as HTMLTextAreaElement).value).toBe('');
   });
 
-  it('mostra mensagens, ferramentas, rodapé de alterações, erro e cancelamento', async () => {
+  it('shows messages, tools, changes footer, error and cancellation', async () => {
     served = {
       ...history(
         [CLAUDE],
         [
-          { id: 'u1', role: 'user', text: 'Faça isso\ne aquilo', at, turnId: 't1' },
+          { id: 'u1', role: 'user', text: 'Do this\nand that', at, turnId: 't1' },
           {
             id: 'a1',
             role: 'assistant',
-            text: 'Feito.',
+            text: 'Done.',
             at,
             turnId: 't1',
             status: 'done',
@@ -100,24 +103,24 @@ describe('AssistantPanel', () => {
             at,
             turnId: 't2',
             status: 'error',
-            error: 'sem rede',
+            error: 'no network',
           },
-          { id: 'a3', role: 'assistant', text: 'meio', at, turnId: 't3', status: 'cancelled' },
+          { id: 'a3', role: 'assistant', text: 'half', at, turnId: 't3', status: 'cancelled' },
         ],
       ),
     };
     render(<AssistantPanel />);
     await act(async () => undefined);
     const list = screen.getByTestId('assistant-messages');
-    expect(list.textContent).toContain('3 alterações — Ctrl+Z desfaz o turno');
-    expect(list.textContent).toContain('sem rede');
-    expect(list.textContent).toContain('Cancelado.');
+    expect(list.textContent).toContain('3 changes — Ctrl+Z undoes the turn');
+    expect(list.textContent).toContain('no network');
+    expect(list.textContent).toContain('Cancelled.');
     const chips = screen.getAllByTestId('assistant-tool');
     expect(chips.map((c) => c.getAttribute('data-status'))).toEqual(['ok', 'error']);
     expect(chips[0]!.textContent).toBe('update_styles');
   });
 
-  it('turno em andamento: texto parcial, chip rodando e botão Cancelar', async () => {
+  it('turn in progress: partial text, running chip and Cancel button', async () => {
     render(<AssistantPanel />);
     await act(async () => undefined);
     const cancel = vi.spyOn(daemon, 'assistantCancel').mockResolvedValue({ cancelled: true });
@@ -125,34 +128,34 @@ describe('AssistantPanel', () => {
       assistantStore.applyEvent(DOC, {
         kind: 'turn-start',
         turnId: 't1',
-        user: { id: 'u1', role: 'user', text: 'oi', at, turnId: 't1' },
+        user: { id: 'u1', role: 'user', text: 'hi', at, turnId: 't1' },
         backend: 'claude',
       });
-      assistantStore.applyEvent(DOC, { kind: 'text', turnId: 't1', text: 'Trabalhando' });
+      assistantStore.applyEvent(DOC, { kind: 'text', turnId: 't1', text: 'Working' });
       assistantStore.applyEvent(DOC, {
         kind: 'tool',
         turnId: 't1',
         tool: { id: 'c1', name: 'mcp__mockup__get_tree' },
       });
     });
-    expect(screen.getByTestId('assistant-partial').textContent).toContain('Trabalhando');
+    expect(screen.getByTestId('assistant-partial').textContent).toContain('Working');
     expect(screen.getByTestId('assistant-tool').getAttribute('data-status')).toBe('running');
     expect(screen.queryByTestId('assistant-send')).toBeNull();
-    expect(screen.getByTestId('assistant-split-warning').textContent).toContain('dividem o undo');
+    expect(screen.getByTestId('assistant-split-warning').textContent).toContain('split the turn');
     fireEvent.click(screen.getByTestId('assistant-cancel'));
     expect(cancel).toHaveBeenCalledWith(DOC);
   });
 
-  it('sem backend disponível mostra o aviso e bloqueia o envio', async () => {
+  it('with no backend available shows the notice and blocks sending', async () => {
     served = history([{ id: 'claude', name: 'Claude Code', available: false }]);
     render(<AssistantPanel />);
     await act(async () => undefined);
     expect(screen.getByTestId('assistant-no-backend').textContent).toMatch(/Claude Code.*Codex/);
-    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'oi' } });
+    fireEvent.change(screen.getByTestId('assistant-input'), { target: { value: 'hi' } });
     expect((screen.getByTestId('assistant-send') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('seletor de backend grava via assistant:config', async () => {
+  it('backend selector writes via assistant:config', async () => {
     const cfg = vi
       .spyOn(daemon, 'assistantConfig')
       .mockResolvedValue({ config: { backend: 'claude' }, backends: [CLAUDE] });
@@ -162,8 +165,8 @@ describe('AssistantPanel', () => {
     expect(cfg).toHaveBeenCalledWith({ backend: 'claude' });
   });
 
-  it('limpar histórico chama assistant:clear', async () => {
-    served = history([CLAUDE], [{ id: 'u1', role: 'user', text: 'oi', at, turnId: 't1' }]);
+  it('clear history calls assistant:clear', async () => {
+    served = history([CLAUDE], [{ id: 'u1', role: 'user', text: 'hi', at, turnId: 't1' }]);
     const clear = vi.spyOn(daemon, 'assistantClear').mockResolvedValue({});
     render(<AssistantPanel />);
     await act(async () => undefined);

@@ -6,7 +6,7 @@ import { YouTubeView } from './YouTubeView';
 import { FX_INNER, fxRootStyle } from './types';
 import type { FxViewProps } from './types';
 
-/** Nó `embed`: despacha para a view do provedor. */
+/** `embed` node: dispatches to the provider's view. */
 export function EmbedView(props: FxViewProps) {
   switch (props.node.embed?.provider) {
     case 'lottie':

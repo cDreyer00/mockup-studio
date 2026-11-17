@@ -1,4 +1,4 @@
-/** Liga o menu nativo e o estado da janela do app desktop às ações do editor. */
+/** Connects the native menu and the window state of the desktop app to the editor actions. */
 import { useEffect } from 'react';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
@@ -8,7 +8,7 @@ import { getDesktop } from './bridge';
 import type { DesktopMenuAction } from './bridge';
 import { closeActiveDocument, newDocument, openDocument, saveDocumentAs } from './fileFlows';
 
-/** Desfazer/refazer do campo focado quando ele é editável; senão do histórico do documento. */
+/** Undo/redo of the focused field when it is editable; otherwise of the document history. */
 function undoRedo(kind: 'undo' | 'redo'): void {
   if (isEditableTarget(document.activeElement)) {
     document.execCommand(kind);
@@ -17,7 +17,7 @@ function undoRedo(kind: 'undo' | 'redo'): void {
   void (kind === 'undo' ? actions.undo() : actions.redo());
 }
 
-/** Executa uma ação do menu nativo. Exportada para teste. */
+/** Runs a native menu action. Exported for testing. */
 export function runDesktopMenu(action: DesktopMenuAction, arg?: string): void {
   switch (action) {
     case 'new':
@@ -46,7 +46,7 @@ export function runDesktopMenu(action: DesktopMenuAction, arg?: string): void {
   }
 }
 
-/** Estado da janela a partir do documento ativo. */
+/** Window state derived from the active document. */
 export function windowStateOf(info: ReturnType<typeof selectActiveInfo>): {
   title: string;
   path: string | null;
@@ -57,7 +57,7 @@ export function windowStateOf(info: ReturnType<typeof selectActiveInfo>): {
     : { title: '', path: null, dirty: false };
 }
 
-/** Sincroniza o estado do documento ativo com a janela nativa. Fora do React, para teste. */
+/** Syncs the active document state with the native window. Outside React, for testing. */
 export function syncDocumentState(): () => void {
   const desktop = getDesktop();
   if (!desktop) return () => undefined;

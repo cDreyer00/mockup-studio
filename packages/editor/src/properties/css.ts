@@ -1,8 +1,8 @@
-/** Funções puras de CSS usadas pelo painel de propriedades (parse/serialização de valores). */
+/** Pure CSS functions used by the properties panel (value parsing/serialization). */
 
 /**
- * Divide por qualquer um dos caracteres de `seps` fora de parênteses e aspas.
- * Partes vazias são mantidas (exceto quando `seps` é um espaço, onde são descartadas).
+ * Splits on any of the characters in `seps` outside parentheses and quotes.
+ * Empty parts are kept (except when `seps` is a space, where they are dropped).
  */
 export function splitTopLevel(value: string, seps: string): string[] {
   const out: string[] = [];
@@ -38,9 +38,9 @@ export function splitTopLevel(value: string, seps: string): string[] {
 const tokens = (v: string): string[] =>
   splitTopLevel(v.trim().replace(/\s+/g, ' '), ' ').map((t) => t.trim());
 
-/* ------------------------------ rotação / filtros ------------------------------ */
+/* ------------------------------ rotation / filters ------------------------------ */
 
-/** Rotação em graus de um `transform` (0 se não houver `rotate()`). */
+/** Rotation in degrees of a `transform` (0 if there is no `rotate()`). */
 export function getRotation(transform: string | undefined | null): number {
   if (!transform) return 0;
   for (const p of splitTopLevel(transform.trim(), ' ')) {
@@ -63,7 +63,7 @@ export function getRotation(transform: string | undefined | null): number {
   return 0;
 }
 
-/** Define a rotação preservando as demais funções do transform; 0 remove o `rotate()`. */
+/** Sets the rotation preserving the other transform functions; 0 removes `rotate()`. */
 export function setRotation(transform: string | undefined | null, deg: number): string {
   const parts = splitTopLevel((transform ?? '').trim(), ' ').filter(
     (p) => !/^rotate\(/i.test(p.trim()),
@@ -72,7 +72,7 @@ export function setRotation(transform: string | undefined | null, deg: number): 
   return parts.map((p) => p.trim()).join(' ');
 }
 
-/** Argumento de uma função de filtro (`blur(4px)` → `'4px'`), ou `null`. */
+/** Argument of a filter function (`blur(4px)` → `'4px'`), or `null`. */
 export function getFilterFn(value: string | undefined | null, name: string): string | null {
   if (!value) return null;
   const re = new RegExp(`^${name}\\((.*)\\)$`, 'i');
@@ -83,7 +83,7 @@ export function getFilterFn(value: string | undefined | null, name: string): str
   return null;
 }
 
-/** Define/remove (arg vazio ou null) uma função de filtro preservando as outras. */
+/** Sets/removes (empty arg or null) a filter function preserving the others. */
 export function setFilterFn(
   value: string | undefined | null,
   name: string,
@@ -97,7 +97,7 @@ export function setFilterFn(
   return parts.join(' ');
 }
 
-/* ------------------------------ shorthand de caixa ------------------------------ */
+/* ------------------------------ box shorthand ------------------------------ */
 
 export interface Box {
   top: string;
@@ -106,7 +106,7 @@ export interface Box {
   left: string;
 }
 
-/** `padding`/`margin`/`border-radius` com 1–4 valores → 4 lados; `null` se inválido/com `/`. */
+/** `padding`/`margin`/`border-radius` with 1–4 values → 4 sides; `null` if invalid/contains `/`. */
 export function parseBox(value: string | undefined | null): Box | null {
   if (!value || !value.trim() || value.includes('/')) return null;
   const t = tokens(value);
@@ -118,7 +118,7 @@ export function parseBox(value: string | undefined | null): Box | null {
   return { top: a, right: b, bottom: c, left: d };
 }
 
-/** Serializa para o menor shorthand equivalente. */
+/** Serializes to the shortest equivalent shorthand. */
 export function serializeBox(box: Box): string {
   const { top, right, bottom, left } = box;
   if (top === right && right === bottom && bottom === left) return top;
@@ -194,7 +194,7 @@ export function parseShadow(value: string): Shadow | null {
   return s;
 }
 
-/** Lista de sombras de um valor `box-shadow` (vírgulas dentro de `rgb()`/`var()` são respeitadas). */
+/** List of shadows from a `box-shadow` value (commas inside `rgb()`/`var()` are respected). */
 export function parseShadows(value: string | undefined | null): Shadow[] {
   if (!value || value.trim() === '' || value.trim() === 'none') return [];
   return splitTopLevel(value, ',')
@@ -214,7 +214,7 @@ export function serializeShadows(list: Shadow[]): string {
   return list.map(serializeShadow).join(', ');
 }
 
-/* --------------------------------- CSS bruto --------------------------------- */
+/* --------------------------------- raw CSS --------------------------------- */
 
 export function stylesToCssText(style: Record<string, string>): string {
   return Object.entries(style)
@@ -245,11 +245,11 @@ function stripComments(text: string): string {
 
 export interface ParsedCss {
   style: Record<string, string>;
-  /** Mensagem do primeiro erro; quando presente, nada deve ser aplicado. */
+  /** Message of the first error; when present, nothing should be applied. */
   error?: string;
 }
 
-/** Interpreta `prop: valor;` (uma por linha ou separadas por `;`), ignorando comentários. */
+/** Parses `prop: value;` (one per line or separated by `;`), ignoring comments. */
 export function parseCssText(text: string): ParsedCss {
   const style: Record<string, string> = {};
   for (const raw of splitTopLevel(stripComments(text), ';\n')) {
@@ -259,7 +259,7 @@ export function parseCssText(text: string): ParsedCss {
     const prop = i < 0 ? '' : decl.slice(0, i).trim();
     const value = i < 0 ? '' : decl.slice(i + 1).trim();
     if (!/^(--[\w-]+|-?[a-zA-Z][\w-]*)$/.test(prop) || value === '') {
-      return { style, error: `Linha inválida: "${decl}"` };
+      return { style, error: `Invalid line: "${decl}"` };
     }
     style[prop.startsWith('--') ? prop : prop.toLowerCase()] = value;
   }

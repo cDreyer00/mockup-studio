@@ -1,4 +1,4 @@
-/** Lógica pura da tabela de dados do repetidor: edita a lista e monta as ops `setData`. */
+/** Pure logic for the repeater data table: edits the list and builds the `setData` ops. */
 import { dataColumns, templateFields } from '@mockup/core';
 import type { DataSource, Node, Op } from '@mockup/core';
 
@@ -6,7 +6,7 @@ type Row = Record<string, unknown>;
 
 const isRow = (v: unknown): v is Row => !!v && typeof v === 'object' && !Array.isArray(v);
 
-/** Colunas da tabela: as dos dados e, depois, os campos usados pelo template que faltam nelas. */
+/** Table columns: those of the data, then the fields used by the template that are missing from them. */
 export function tableColumns(node: Node): string[] {
   const data = Array.isArray(node.data) ? node.data : [];
   const cols = dataColumns(data);
@@ -17,7 +17,7 @@ export function tableColumns(node: Node): string[] {
   return cols;
 }
 
-/** Campos do template que não existem nos dados nem no mapeamento (candidatos a mapear). */
+/** Template fields that exist in neither the data nor the mapping (candidates for mapping). */
 export function unmappedFields(node: Node): string[] {
   const data = Array.isArray(node.data) ? node.data : [];
   const cols = new Set(dataColumns(data));
@@ -27,14 +27,14 @@ export function unmappedFields(node: Node): string[] {
   );
 }
 
-/** Texto mostrado numa célula (objetos e listas viram JSON). */
+/** Text shown in a cell (objects and lists become JSON). */
 export function cellText(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 
-/** Converte o texto digitado de volta ao tipo do valor anterior (número, booleano, JSON). */
+/** Converts the typed text back to the type of the previous value (number, boolean, JSON). */
 export function parseCell(text: string, previous: unknown): unknown {
   if (typeof previous === 'number') {
     const n = Number(text);
@@ -63,7 +63,7 @@ export function setCell(data: unknown[], row: number, column: string, text: stri
   return next;
 }
 
-/** Linha nova com todas as colunas vazias. */
+/** New row with all columns empty. */
 export function addRow(data: unknown[], columns: string[]): unknown[] {
   return [...data, Object.fromEntries(columns.filter((c) => c !== '$item').map((c) => [c, '']))];
 }
@@ -72,7 +72,7 @@ export function removeRow(data: unknown[], row: number): unknown[] {
   return data.filter((_, i) => i !== row);
 }
 
-/** Coluna nova: entra vazia em todas as linhas (se já existir, não muda nada). */
+/** New column: added empty to every row (if it already exists, nothing changes). */
 export function addColumn(data: unknown[], column: string): unknown[] {
   return data.map((r) =>
     isRow(r) ? (column in r ? r : { ...r, [column]: '' }) : { [column]: '' },
@@ -87,7 +87,7 @@ export function removeColumn(data: unknown[], column: string): unknown[] {
   });
 }
 
-/** Op `setData` (uma entrada de undo) com a lista nova e, opcionalmente, a origem. */
+/** `setData` op (one undo entry) with the new list and, optionally, the source. */
 export function setDataOp(
   nodeId: string,
   change: { data?: unknown[]; source?: DataSource | null },
@@ -96,9 +96,9 @@ export function setDataOp(
 }
 
 /**
- * Origem depois de editar os dados à mão: arquivo/URL viram `inline` (o Atualizar relia a origem
- * e descartaria a edição), guardando `path`/`url` só como referência de onde vieram. `undefined`
- * quando a origem já é inline (nada muda).
+ * Source after editing the data by hand: file/URL become `inline` (Refresh would re-read the source
+ * and discard the edit), keeping `path`/`url` only as a reference to where they came from. `undefined`
+ * when the source is already inline (nothing changes).
  */
 export function editedSource(source: DataSource | undefined): DataSource | undefined {
   if (!source || source.kind === 'inline') return undefined;
@@ -110,7 +110,7 @@ export function editedSource(source: DataSource | undefined): DataSource | undef
   return next;
 }
 
-/** Origem com o mapeamento `campo → coluna` alterado (`column` vazio remove). */
+/** Source with the `field → column` mapping changed (empty `column` removes). */
 export function withMapping(
   source: DataSource | undefined,
   field: string,
@@ -125,12 +125,12 @@ export function withMapping(
   return next;
 }
 
-/** Descrição curta da origem para o painel. */
+/** Short description of the source for the panel. */
 export function describeSource(source: DataSource | undefined): string {
   if (!source || source.kind === 'inline') {
     const from = source?.path ?? source?.url;
-    return from ? `Dados editados (vieram de ${from})` : 'Dados inline';
+    return from ? `Edited data (came from ${from})` : 'Inline data';
   }
   if (source.kind === 'url') return `URL: ${source.url ?? ''}`;
-  return `Arquivo ${source.kind.toUpperCase()}: ${source.path ?? ''}`;
+  return `${source.kind.toUpperCase()} file: ${source.path ?? ''}`;
 }

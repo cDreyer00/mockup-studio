@@ -1,4 +1,4 @@
-/** Operações de estilo neutras (sem componentes): contexto de trava, leitura de valor comum e aplicação de ops. */
+/** Neutral style operations (no components): lock context, common-value reading and op application. */
 import { createContext } from 'react';
 import type { Node, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
@@ -6,10 +6,10 @@ import { ui } from '../state/uiStore';
 
 export const LockedContext = createContext(false);
 
-/* ------------------------------ leitura de valores ------------------------------ */
+/* ------------------------------ value reading ------------------------------ */
 
 /**
- * Valor comum: o valor, se todos iguais (`undefined` se todos sem valor); `null` se misto.
+ * Common value: the value, if all are equal (`undefined` if none has a value); `null` if mixed.
  */
 export function common<T>(
   items: readonly T[],
@@ -23,17 +23,17 @@ export function common<T>(
 
 export const styleOf = (prop: string) => (n: Node) => n.style[prop];
 
-/* ------------------------------ aplicação de ops ------------------------------ */
+/* ------------------------------ op application ------------------------------ */
 
 export type StyleDelta = { set?: Record<string, string>; unset?: string[] };
 
-/** Aplica ops numa única chamada e descarta a prévia depois do ack. */
+/** Applies ops in a single call and discards the preview after the ack. */
 export async function runOps(ops: Op[]): Promise<void> {
   if (ops.length) await daemon.applySafe(ops);
   ui.clearPreview();
 }
 
-/** Aplica estilos a todos os nós; `fn` pode devolver deltas distintos por nó. */
+/** Applies styles to all nodes; `fn` can return different deltas per node. */
 export function commitStyles(
   nodes: readonly Node[],
   fn: (node: Node) => StyleDelta | null,
@@ -50,13 +50,13 @@ export function commitStyles(
   return runOps(changes.length ? [{ type: 'updateStyles', changes }] : []);
 }
 
-/** Define (ou remove, se vazio) uma propriedade em todos os nós. */
+/** Sets (or removes, if empty) a property on all nodes. */
 export function commitStyle(nodes: readonly Node[], prop: string, value: string): Promise<void> {
   const v = value.trim();
   return commitStyles(nodes, () => (v === '' ? { unset: [prop] } : { set: { [prop]: v } }));
 }
 
-/** Prévia transitória de estilos por nó. */
+/** Transient style preview per node. */
 export function previewStyles(
   nodes: readonly Node[],
   fn: (node: Node) => Record<string, string>,

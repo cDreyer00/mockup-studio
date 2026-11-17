@@ -1,11 +1,11 @@
-/** Decisões puras do ciclo de vida do app (testáveis sem Electron). */
+/** Pure app lifecycle decisions (testable without Electron). */
 import path from 'node:path';
 import type { AppArgs } from './args.js';
 
 /**
- * Pasta de dados que troca o `userData` (e, com ele, o lock de instância única): só quando o
- * usuário a pediu (`--data-dir` ou `MOCKUP_DATA_DIR` já definida antes de iniciar). Sem isso o app
- * aberto pelo menu Iniciar e o headless do CLI usam o mesmo lock e viram uma só instância.
+ * Data folder that replaces `userData` (and, with it, the single-instance lock): only when the
+ * user asked for it (`--data-dir` or `MOCKUP_DATA_DIR` already set before starting). Without it, the app
+ * opened from the Start menu and the CLI's headless instance use the same lock and become a single instance.
  */
 export function dataDirOverride(args: AppArgs, env: NodeJS.ProcessEnv): string | null {
   const raw = args.dataDir || env.MOCKUP_DATA_DIR;
@@ -14,7 +14,7 @@ export function dataDirOverride(args: AppArgs, env: NodeJS.ProcessEnv): string |
 
 export type WindowsClosedAction = 'stay' | 'watch' | 'quit';
 
-/** O que fazer quando a última janela fecha. */
+/** What to do when the last window closes. */
 export function onAllWindowsClosed(
   startedHeadless: boolean,
   sessions: number,
@@ -23,7 +23,7 @@ export function onAllWindowsClosed(
   return sessions > 0 ? 'watch' : 'quit';
 }
 
-/** Verificação periódica em modo headless-após-fechar: sai quando as sessões MCP zeram. */
+/** Periodic check in headless-after-close mode: quits when the MCP sessions drop to zero. */
 export function shouldQuitAfterSessions(
   startedHeadless: boolean,
   hasWindow: boolean,
@@ -32,15 +32,15 @@ export function shouldQuitAfterSessions(
   return !startedHeadless && !hasWindow && sessions <= 0;
 }
 
-/** Intervalo da verificação de sessões MCP (ms). */
+/** Interval of the MCP sessions check (ms). */
 export const SESSION_WATCH_MS = 5000;
 
-/** Porta ocupada por outro daemon do Mockup Studio: assumir (sem render) ou usar o existente. */
+/** Port taken by another Mockup Studio daemon: take over (no render) or use the existing one. */
 export function existingDaemonAction(health: { render?: boolean }): 'takeover' | 'use' {
   return health.render === false ? 'takeover' : 'use';
 }
 
-/** Documentos a abrir ao assumir: os do daemon anterior e os do argv, sem repetir. */
+/** Documents to open on takeover: the previous daemon's and the argv's, without repeats. */
 export function mergeFiles(previous: string[], argv: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];

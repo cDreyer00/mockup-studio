@@ -7,7 +7,7 @@ const mk = (styles: Record<string, string>) => createNodeFromTag('div', { styles
 describe('sizeMode', () => {
   const row = mk({ display: 'flex' });
   const col = mk({ display: 'flex', 'flex-direction': 'column' });
-  it('detecta fixo, auto, 100% e outros', () => {
+  it('detects fixed, auto, 100% and others', () => {
     expect(sizeMode(mk({ width: '120px' }), null, 'width').mode).toBe('fixed');
     expect(sizeMode(mk({}), null, 'width').mode).toBe('auto');
     expect(sizeMode(mk({ height: 'auto' }), null, 'height').mode).toBe('auto');
@@ -16,7 +16,7 @@ describe('sizeMode', () => {
       expect(sizeMode(mk({ width: v }), null, 'width')).toEqual({ mode: 'other', value: v });
     }
   });
-  it('fill só no eixo principal de pai flex', () => {
+  it('fill only on the main axis of a flex parent', () => {
     const n = mk({ flex: '1 1 0' });
     expect(sizeMode(n, row, 'width').mode).toBe('fill');
     expect(sizeMode(n, row, 'height').mode).toBe('auto');
@@ -26,7 +26,7 @@ describe('sizeMode', () => {
 });
 
 describe('sizeModeChange', () => {
-  it('fill remove o eixo fixo; sair de fill remove flex', () => {
+  it('fill removes the fixed axis; leaving fill removes flex', () => {
     const n = mk({ width: '100px' });
     expect(sizeModeChange(n, 'width', 'fill', 0)).toEqual({
       set: { flex: '1 1 0' },

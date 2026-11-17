@@ -1,4 +1,4 @@
-/** Painel esquerdo com abas: Camadas (painel existente), Assets, Componentes e Tokens. */
+/** Left panel with tabs: Layers (existing panel), Assets, Components and Tokens. */
 import { useEffect, useState } from 'react';
 import { Component, Images, Layers, Palette } from 'lucide-react';
 import { AssetsPanel } from '../assets/AssetsPanel';
@@ -12,21 +12,21 @@ import { TokensPanel } from './TokensPanel';
 import './tokens.css';
 
 const TABS: { id: LeftTab; label: string; icon: typeof Layers }[] = [
-  { id: 'layers', label: 'Camadas', icon: Layers },
+  { id: 'layers', label: 'Layers', icon: Layers },
   { id: 'assets', label: 'Assets', icon: Images },
-  { id: 'components', label: 'Componentes', icon: Component },
+  { id: 'components', label: 'Components', icon: Component },
   { id: 'tokens', label: 'Tokens', icon: Palette },
 ];
 
 export function LeftDock() {
   const tab = useUi((s) => s.leftTab);
-  // Assets fica montado depois da primeira visita (preserva busca, rolagem e uploads em curso).
+  // Assets stays mounted after the first visit (preserves search, scroll position and uploads in progress).
   const [assetsSeen, setAssetsSeen] = useState(tab === 'assets');
   useEffect(() => {
     if (tab === 'assets') setAssetsSeen(true);
   }, [tab]);
 
-  // Ctrl+F fora da aba Camadas volta para ela e foca a busca de nós.
+  // Ctrl+F outside the Layers tab goes back to it and focuses the node search.
   useEffect(() => {
     if (tab === 'layers') return;
     const onKey = (e: KeyboardEvent) => {
@@ -58,12 +58,12 @@ export function LeftDock() {
             onClick={() => ui.setLeftTab(id)}
           >
             <Icon size={13} />
-            {/* Quatro abas no painel estreito: só a ativa mostra o nome. */}
+            {/* Four tabs in the narrow panel: only the active one shows its name. */}
             {tab === id && <span>{label}</span>}
           </button>
         ))}
       </div>
-      {/* Camadas continua montado (preserva rolagem e estado); só fica oculto. */}
+      {/* Layers stays mounted (preserves scroll position and state); it is only hidden. */}
       <div className="left-dock-body" hidden={tab !== 'layers'}>
         <LayersPanel />
       </div>

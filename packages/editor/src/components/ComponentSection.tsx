@@ -1,6 +1,6 @@
 /**
- * Seção "Componente" do painel de propriedades no modo de edição do principal: nome, descrição e
- * a lista de props (adicionar, remover, renomear, tipo, padrão e opções), via `updateComponent`.
+ * "Component" section of the properties panel in main component edit mode: name, description and
+ * the list of props (add, remove, rename, type, default and options), via `updateComponent`.
  */
 import { useContext } from 'react';
 import { Component, Plus, Trash2 } from 'lucide-react';
@@ -14,15 +14,15 @@ import { PropControl } from './InstanceSection';
 import './components.css';
 
 const TYPES: { value: PropType; label: string }[] = [
-  { value: 'string', label: 'Texto' },
-  { value: 'number', label: 'Número' },
-  { value: 'boolean', label: 'Booleano' },
-  { value: 'enum', label: 'Opções' },
-  { value: 'color', label: 'Cor' },
+  { value: 'string', label: 'Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'boolean', label: 'Boolean' },
+  { value: 'enum', label: 'Options' },
+  { value: 'color', label: 'Color' },
   { value: 'slot', label: 'Slot' },
 ];
 
-/** Padrão coerente com o tipo (ao trocar o tipo de uma prop). */
+/** Default consistent with the type (when changing the type of a prop). */
 function defaultFor(type: PropType, options?: string[]): PropValue | undefined {
   switch (type) {
     case 'number':
@@ -40,14 +40,14 @@ function defaultFor(type: PropType, options?: string[]): PropValue | undefined {
   }
 }
 
-/** Nome livre `prop`, `prop2`... */
+/** Free name `prop`, `prop2`... */
 export function nextPropName(props: readonly PropDef[]): string {
   const taken = new Set(props.map((p) => p.name));
   if (!taken.has('prop')) return 'prop';
   for (let i = 2; ; i++) if (!taken.has(`prop${i}`)) return `prop${i}`;
 }
 
-/** Nova lista de props com a prop `i` trocada por `next` (`null` remove). */
+/** New props list with prop `i` replaced by `next` (`null` removes). */
 export function replaceProp(props: readonly PropDef[], i: number, next: PropDef | null): PropDef[] {
   const out = [...props];
   if (next) out[i] = next;
@@ -55,7 +55,7 @@ export function replaceProp(props: readonly PropDef[], i: number, next: PropDef 
   return out;
 }
 
-/** Troca o tipo mantendo o que faz sentido (opções do enum, padrão convertido). */
+/** Changes the type keeping what makes sense (enum options, converted default). */
 export function withType(p: PropDef, type: PropType): PropDef {
   const out: PropDef = { name: p.name, type };
   if (p.description) out.description = p.description;
@@ -79,17 +79,17 @@ function PropEditor({ def, index }: { def: ComponentDef; index: number }) {
       <div className="cmp-prop-row">
         <TextInput
           value={p.name}
-          title="Nome (use {{nome}} em textos, atributos e estilos do principal)"
+          title="Name (use {{name}} in texts, attributes and styles of the main component)"
           onCommit={(v) => v.trim() && save({ ...p, name: v.trim() })}
         />
         <SelectInput
           value={p.type}
           options={TYPES}
-          title="Tipo"
+          title="Type"
           onChange={(v) => v && save(withType(p, v as PropType))}
         />
         <IconButton
-          title="Remover prop"
+          title="Remove prop"
           data-testid={`component-prop-remove-${p.name}`}
           onClick={() => save(null)}
         >
@@ -98,7 +98,7 @@ function PropEditor({ def, index }: { def: ComponentDef; index: number }) {
       </div>
       <div className="cmp-prop-detail">
         {p.type === 'enum' && (
-          <Row label="Opções">
+          <Row label="Options">
             <TextInput
               value={(p.options ?? []).join(', ')}
               placeholder="a, b, c"
@@ -116,10 +116,10 @@ function PropEditor({ def, index }: { def: ComponentDef; index: number }) {
         )}
         {p.type === 'slot' ? (
           <div className="cmp-hint">
-            Marque um contêiner do principal com data-slot="{p.name}" (Atributos).
+            Mark a container of the main component with data-slot="{p.name}" (Attributes).
           </div>
         ) : (
-          <Row label="Padrão">
+          <Row label="Default">
             <PropControl prop={p} value={p.default} onChange={(v) => save({ ...p, default: v })} />
           </Row>
         )}
@@ -137,10 +137,10 @@ export function ComponentSection({ def }: { def: ComponentDef }) {
   return (
     <Section
       id="props-component"
-      title="Componente"
+      title="Component"
       actions={
         <IconButton
-          title="Adicionar prop"
+          title="Add prop"
           data-testid="component-prop-add"
           disabled={locked}
           onClick={() => {
@@ -158,24 +158,24 @@ export function ComponentSection({ def }: { def: ComponentDef }) {
         <div className="cmp-section-head">
           <Component size={14} />
           <span className="cmp-section-name">{def.name}</span>
-          <span className="cmp-kit">{count === 1 ? '1 instância' : `${count} instâncias`}</span>
+          <span className="cmp-kit">{count === 1 ? '1 instance' : `${count} instances`}</span>
         </div>
-        <Row label="Nome">
+        <Row label="Name">
           <TextInput
             value={def.name}
             onCommit={(v) => v.trim() && void updateComponent(def.id, { name: v.trim() })}
           />
         </Row>
-        <Row label="Descrição">
+        <Row label="Description">
           <TextInput
             value={def.description ?? ''}
-            placeholder="Para o painel e para agentes"
+            placeholder="For the panel and for agents"
             onCommit={(v) => void updateComponent(def.id, { description: v.trim() || null })}
           />
         </Row>
         {def.props.length === 0 && (
           <div className="cmp-hint">
-            Sem props. Use + para adicionar e {'{{nome}}'} no principal.
+            No props. Use + to add and {'{{name}}'} in the main component.
           </div>
         )}
         {def.props.map((p, i) => (

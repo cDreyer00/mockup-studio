@@ -1,15 +1,15 @@
 /**
- * Mapeamento viewBox ↔ tela de um nó svg desenhado como `<img>` (`preserveAspectRatio` incluído):
- * é o que o overlay de edição de pontos usa para posicionar âncoras e alças sobre o desenho.
+ * viewBox ↔ screen mapping of an svg node drawn as an `<img>` (including `preserveAspectRatio`):
+ * it is what the point-editing overlay uses to position anchors and handles over the drawing.
  */
 import type { VectorViewBox } from '@mockup/core';
 import type { Point, Rect } from './geometry';
 
 export interface ViewMap {
-  /** Escala viewBox → tela por eixo. */
+  /** viewBox → screen scale per axis. */
   sx: number;
   sy: number;
-  /** x_tela = sx · x_view + tx; y_tela = sy · y_view + ty. */
+  /** x_screen = sx · x_view + tx; y_screen = sy · y_view + ty. */
   tx: number;
   ty: number;
   toScreen(p: Point): Point;
@@ -18,7 +18,7 @@ export interface ViewMap {
 
 const ALIGN: Record<string, number> = { Min: 0, Mid: 0.5, Max: 1 };
 
-/** `preserveAspectRatio` → alinhamento por eixo (0, 0.5, 1) e meet/slice; `none` = sem proporção. */
+/** `preserveAspectRatio` → alignment per axis (0, 0.5, 1) and meet/slice; `none` = no aspect ratio. */
 export function parseAspect(
   value?: string,
 ): { none: true } | { none: false; ax: number; ay: number; slice: boolean } {
@@ -36,8 +36,8 @@ export function parseAspect(
 }
 
 /**
- * Como o navegador encaixa o `viewBox` na caixa `rect` (em px de tela): escala uniforme (meet) e
- * centralizada por padrão, ou independente por eixo com `preserveAspectRatio="none"`.
+ * How the browser fits the `viewBox` into the `rect` box (in screen px): uniform scale (meet) and
+ * centered by default, or independent per axis with `preserveAspectRatio="none"`.
  */
 export function makeViewMap(vb: VectorViewBox, rect: Rect, preserveAspectRatio?: string): ViewMap {
   const vw = vb.width || 1;

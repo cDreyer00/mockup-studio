@@ -1,8 +1,8 @@
 /**
- * Fidelidade REAL: com o app aberto (janela), o screenshot do motor (`/render/...png`) deve ser
- * idêntico ao que o canvas mostra (mesmas fontes embutidas e assets). Sobe o Electron com o
- * Playwright, recorta o frame no canvas e compara pixel a pixel com o PNG do motor.
- * Requer `npm run build` (desktop e editor) antes.
+ * REAL fidelity: with the app open (window), the engine's screenshot (`/render/...png`) must be
+ * identical to what the canvas shows (same embedded fonts and assets). Launches Electron with
+ * Playwright, crops the frame on the canvas and compares pixel by pixel with the engine's PNG.
+ * Requires `npm run build` (desktop and editor) first.
  */
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
@@ -30,7 +30,7 @@ const fontSource = [
   '/System/Library/Fonts/Supplemental/Arial.ttf',
 ].find((f) => fs.existsSync(f));
 
-const FAMILY = 'FidelidadeSans';
+const FAMILY = 'FidelitySans';
 const FRAME_ID = 'fr_fidelity1';
 const DOC_ID = 'doc_fidelity1';
 
@@ -52,7 +52,7 @@ function chunk(type: string, data: Buffer): Buffer {
   crc.writeUInt32BE(crc32(body));
   return Buffer.concat([len, body, crc]);
 }
-/** PNG RGBA válido, com degradê colorido (sem dependências). */
+/** Valid RGBA PNG with a colored gradient (no dependencies). */
 function makePng(w: number, h: number): Buffer {
   const raw = Buffer.alloc((w * 4 + 1) * h);
   for (let y = 0; y < h; y++) {
@@ -127,14 +127,14 @@ function makeDocument() {
           'text',
           'h1',
           { margin: '0', 'font-size': '36px', 'font-weight': '700', 'letter-spacing': '0.5px' },
-          { text: 'Fidelidade do canvas' },
+          { text: 'Canvas fidelity' },
         ),
         node(
           'el_fid_body',
           'text',
           'p',
           { margin: '0', 'font-size': '16px', 'line-height': '1.5' },
-          { text: 'Texto com a fonte embutida do documento, para comparar com o motor.' },
+          { text: 'Text with the embedded document font, to compare with the engine.' },
         ),
         node(
           'el_fid_img',
@@ -157,7 +157,11 @@ function makeDocument() {
             'font-size': '18px',
             width: '200px',
           },
-          { children: [node('el_fid_btn_t', 'text', 'span', {}, { text: 'Botão herdando' })] },
+          {
+            children: [
+              node('el_fid_btn_t', 'text', 'span', {}, { text: 'Button inheriting — ação' }),
+            ],
+          },
         ),
       ],
     },
@@ -165,11 +169,11 @@ function makeDocument() {
   return {
     version: 1,
     id: DOC_ID,
-    name: 'Fidelidade',
+    name: 'Fidelity',
     tokens: {},
     fonts: [{ family: FAMILY, source: 'file', files: ['fonts/fidelidade.ttf'], weights: [400] }],
     meta: { createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
-    pages: [{ id: 'pg_fidelity1', name: 'Página', background: '#1e1e1e', frames: [frame] }],
+    pages: [{ id: 'pg_fidelity1', name: 'Page', background: '#1e1e1e', frames: [frame] }],
   };
 }
 
@@ -192,7 +196,7 @@ interface Box {
 }
 
 describe.skipIf(!built || !editorReady || !fontSource)(
-  'fidelidade canvas × screenshot (integração)',
+  'canvas × screenshot fidelity (integration)',
   () => {
     let tmp: string;
     let app: ElectronApplication | undefined;
@@ -232,14 +236,14 @@ describe.skipIf(!built || !editorReady || !fontSource)(
       });
       pid = app.process().pid;
 
-      // 2 janelas: a principal e a de render (fora da tela, render.html)
+      // 2 windows: the main one and the render one (off-screen, render.html)
       const end = Date.now() + 60000;
       let main: Page | undefined;
       while (!main && Date.now() < end) {
         main = app.windows().find((w) => !w.url().includes('render.html') && w.url() !== '');
         if (!main) await new Promise((r) => setTimeout(r, 250));
       }
-      if (!main) throw new Error('Janela principal do app não apareceu');
+      if (!main) throw new Error('The main app window did not show up');
       page = main;
 
       await app.evaluate(({ BrowserWindow }) => {
@@ -256,7 +260,7 @@ describe.skipIf(!built || !editorReady || !fontSource)(
       try {
         await app?.evaluate(({ app: a }) => a.exit(0)).catch(() => undefined);
       } catch {
-        /* melhor esforço */
+        /* best effort */
       }
       if (pid && process.platform === 'win32') {
         const { spawn } = await import('node:child_process');
@@ -269,13 +273,13 @@ describe.skipIf(!built || !editorReady || !fontSource)(
         try {
           process.kill(pid, 'SIGKILL');
         } catch {
-          /* já encerrou */
+          /* already exited */
         }
       }
       try {
         fs.rmSync(tmp, { recursive: true, force: true });
       } catch {
-        /* melhor esforço */
+        /* best effort */
       }
     });
 
@@ -287,10 +291,10 @@ describe.skipIf(!built || !editorReady || !fontSource)(
         return { frame: r(f), canvas: r(c) };
       }, FRAME_ID);
 
-    it('o frame do canvas é idêntico ao /render/<doc>/<frame>.png', async () => {
+    it('the canvas frame is identical to /render/<doc>/<frame>.png', async () => {
       await page.waitForSelector(`[data-node-id="${FRAME_ID}"]`, { timeout: 60000 });
 
-      // zoom 100% (Shift+0) e frame perto do canto superior esquerdo, só com eventos no DOM
+      // zoom 100% (Shift+0) and the frame near the top-left corner, using DOM events only
       await page.evaluate(() => {
         window.dispatchEvent(
           new KeyboardEvent('keydown', { key: ')', code: 'Digit0', shiftKey: true, bubbles: true }),
@@ -322,14 +326,14 @@ describe.skipIf(!built || !editorReady || !fontSource)(
       await page.waitForTimeout(300);
 
       const { frame, canvas } = await frameBox();
-      expect(frame.width).toBeCloseTo(600 + 0, 0); // 100%: o frame mede 600x400 (com borda inclusa)
+      expect(frame.width).toBeCloseTo(600 + 0, 0); // 100%: the frame measures 600x400 (border included)
       expect(frame.height).toBeCloseTo(400, 0);
       expect(frame.x).toBeGreaterThanOrEqual(canvas.x);
       expect(frame.y).toBeGreaterThanOrEqual(canvas.y);
       expect(frame.x + frame.width).toBeLessThanOrEqual(canvas.x + canvas.width);
       expect(frame.y + frame.height).toBeLessThanOrEqual(canvas.y + canvas.height);
 
-      // a fonte embutida está em uso no canvas
+      // the embedded font is in use on the canvas
       const fontState = await page.evaluate(
         async ([id, family]) => {
           await document.fonts.ready;
@@ -399,9 +403,7 @@ describe.skipIf(!built || !editorReady || !fontSource)(
         [canvasPng.toString('base64'), renderPng.toString('base64')] as const,
       );
       expect(diff.size).toBe(true);
-      console.log(
-        `fidelidade: ${a.width}x${a.height}, ${diff.bad} de ${diff.total} pixels diferentes`,
-      );
+      console.log(`fidelity: ${a.width}x${a.height}, ${diff.bad} of ${diff.total} pixels differ`);
       expect(diff.bad / diff.total).toBeLessThanOrEqual(0.005);
     });
   },

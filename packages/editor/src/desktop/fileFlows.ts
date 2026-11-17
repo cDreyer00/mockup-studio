@@ -1,4 +1,4 @@
-/** Fluxos de arquivo (novo/abrir/salvar como/fechar), com diálogo nativo no desktop ou caminho digitado. */
+/** File flows (new/open/save as/close), with a native dialog on desktop or a typed path. */
 import { daemon } from '../client/daemon';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import { ui } from '../state/uiStore';
@@ -11,7 +11,7 @@ export function fileNameOf(path: string | null | undefined): string {
   return path ? (path.split(/[/\\]/).pop() ?? path) : '';
 }
 
-/** Nome do arquivo sem a extensão `.mockup.json`. */
+/** File name without the `.mockup.json` extension. */
 export function baseNameOf(path: string): string {
   return fileNameOf(path)
     .replace(DOC_EXT_RE, '')
@@ -26,17 +26,17 @@ export async function newDocument(): Promise<void> {
   const desktop = getDesktop();
   try {
     if (desktop) {
-      const path = await desktop.showSaveDialog({ title: 'Novo documento' });
+      const path = await desktop.showSaveDialog({ title: 'New document' });
       if (!path) return;
-      await daemon.newDoc(path, baseNameOf(path) || 'Sem título');
+      await daemon.newDoc(path, baseNameOf(path) || 'Untitled');
       return;
     }
     const r = await prompt({
-      title: 'Novo documento',
-      confirmLabel: 'Criar',
+      title: 'New document',
+      confirmLabel: 'Create',
       fields: [
-        { name: 'path', label: 'Caminho', placeholder: 'C:\\projetos\\site' },
-        { name: 'name', label: 'Nome', placeholder: 'Meu site' },
+        { name: 'path', label: 'Path', placeholder: 'C:\\projects\\site' },
+        { name: 'name', label: 'Name', placeholder: 'My site' },
       ],
     });
     if (!r?.path?.trim()) return;
@@ -55,11 +55,9 @@ export async function openDocument(path?: string): Promise<void> {
         target = (await desktop.showOpenDialog()) ?? undefined;
       } else {
         const r = await prompt({
-          title: 'Abrir documento',
-          confirmLabel: 'Abrir',
-          fields: [
-            { name: 'path', label: 'Caminho', placeholder: 'C:\\projetos\\site.mockup.json' },
-          ],
+          title: 'Open document',
+          confirmLabel: 'Open',
+          fields: [{ name: 'path', label: 'Path', placeholder: 'C:\\projects\\site.mockup.json' }],
         });
         target = r?.path?.trim();
       }
@@ -79,18 +77,18 @@ export async function saveDocumentAs(): Promise<void> {
     let target: string | null | undefined;
     if (desktop) {
       target = await desktop.showSaveDialog({
-        title: 'Salvar como',
+        title: 'Save as',
         ...(info.path ? { defaultPath: info.path } : {}),
       });
     } else {
       const r = await prompt({
-        title: 'Salvar como',
-        confirmLabel: 'Salvar',
+        title: 'Save as',
+        confirmLabel: 'Save',
         fields: [
           {
             name: 'path',
-            label: 'Novo caminho',
-            placeholder: 'C:\\projetos\\copia.mockup.json',
+            label: 'New path',
+            placeholder: 'C:\\projects\\copy.mockup.json',
             value: info.path ?? '',
           },
         ],
@@ -99,7 +97,7 @@ export async function saveDocumentAs(): Promise<void> {
     }
     if (!target) return;
     const saved = await daemon.saveAs(target);
-    ui.toast(`Salvo em ${saved.path ?? target}`);
+    ui.toast(`Saved to ${saved.path ?? target}`);
   } catch (e) {
     reportError(e);
   }

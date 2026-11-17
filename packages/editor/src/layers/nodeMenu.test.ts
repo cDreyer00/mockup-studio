@@ -17,19 +17,19 @@ describe('nodeMenu: Remix', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('tem os cinco itens, o primeiro com separador', () => {
+  it('has the five items, the first with a separator', () => {
     const items = remixItems();
     expect(items.map((i) => i.label)).toEqual([
-      'Remix: escala de cor',
-      'Remix: pares de fontes',
-      'Remix: espaçamento',
+      'Remix: color scale',
+      'Remix: font pairs',
+      'Remix: spacing',
       'Remix: layout',
-      'Remix com IA…',
+      'Remix with AI…',
     ]);
     expect(items[0]!.separator).toBe(true);
   });
 
-  it('desabilitados sem seleção e com mais de um nó', () => {
+  it('disabled with no selection and with more than one node', () => {
     const { doc, a, b } = makeDoc();
     useDoc.setState({ doc, rawDoc: doc, activeDocId: doc.id });
     useUi.setState({ selection: [] });
@@ -38,7 +38,7 @@ describe('nodeMenu: Remix', () => {
     expect(remixItems().every((i) => i.disabled)).toBe(true);
   });
 
-  it('habilitados com exatamente um nó real; desabilitados em id virtual de instância', () => {
+  it('enabled with exactly one real node; disabled on a virtual instance id', () => {
     const { doc, a } = makeDoc();
     useDoc.setState({ doc, rawDoc: doc, activeDocId: doc.id });
     useUi.setState({ selection: [a.id] });
@@ -47,7 +47,7 @@ describe('nodeMenu: Remix', () => {
     expect(remixItems().every((i) => i.disabled)).toBe(true);
   });
 
-  it('selecionar o item chama daemon.remix com o nó e o tipo', async () => {
+  it('selecting the item calls daemon.remix with the node and the kind', async () => {
     const { doc, a } = makeDoc();
     useDoc.setState({ doc, rawDoc: doc, activeDocId: doc.id });
     useUi.setState({ selection: [a.id] });
@@ -65,13 +65,13 @@ describe('nodeMenu: Remix', () => {
     expect(useUi.getState().focusRequest?.nodeIds).toEqual(['f1', 'f2']);
   });
 
-  it('erro do daemon vira toast de erro', async () => {
+  it('daemon error becomes an error toast', async () => {
     const { doc, a } = makeDoc();
     useDoc.setState({ doc, rawDoc: doc, activeDocId: doc.id });
     useUi.setState({ selection: [a.id], toast: null });
-    vi.spyOn(daemon, 'remix').mockRejectedValue(new Error('Nó sem estilo de cor'));
+    vi.spyOn(daemon, 'remix').mockRejectedValue(new Error('Node has no color style'));
     remixItems()[1]!.onSelect!();
     await vi.waitFor(() => expect(useUi.getState().toast?.kind).toBe('error'));
-    expect(useUi.getState().toast?.text).toBe('Nó sem estilo de cor');
+    expect(useUi.getState().toast?.text).toBe('Node has no color style');
   });
 });

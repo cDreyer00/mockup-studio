@@ -74,10 +74,10 @@ app.whenReady().then(async () => {
       png: big.resize({ width: size, height: size, quality: 'best' }).toPNG(),
     }));
     fs.writeFileSync(path.join(root, 'build', 'icon.ico'), buildIco(entries));
-    console.log('ícones gerados em build/ (icon.png 512, icon.ico', ICO_SIZES.join('/') + ')');
+    console.log('icons generated in build/ (icon.png 512, icon.ico', ICO_SIZES.join('/') + ')');
     app.exit(0);
   } catch (e) {
-    console.error('falha ao gerar ícones:', e);
+    console.error('failed to generate icons:', e);
     app.exit(1);
   }
 });

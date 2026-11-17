@@ -21,9 +21,9 @@ function file(name: string, extra: Partial<FileEntry> = {}): FileEntry {
 }
 
 const ALL = [
-  file('alfa', { recent: 0, folder: 'Clientes/Acme', tags: ['site'] }),
+  file('alfa', { recent: 0, folder: 'Clients/Acme', tags: ['site'] }),
   file('beta', { recent: 1 }),
-  file('gama', { folder: 'Pessoal', tags: ['ideia'] }),
+  file('gama', { folder: 'Personal', tags: ['idea'] }),
 ];
 
 describe('HomeScreen', () => {
@@ -44,8 +44,8 @@ describe('HomeScreen', () => {
           new Response(
             JSON.stringify({
               files,
-              folders: ['Clientes/Acme', 'Pessoal'],
-              tags: ['site', 'ideia'],
+              folders: ['Clients/Acme', 'Personal'],
+              tags: ['site', 'idea'],
             }),
           ),
         );
@@ -57,25 +57,25 @@ describe('HomeScreen', () => {
     vi.unstubAllGlobals();
   });
 
-  it('mostra os recentes em ordem e as pastas/tags', async () => {
+  it('shows recent files in order and the folders/tags', async () => {
     render(<HomeScreen />);
     await waitFor(() => expect(screen.getAllByTestId('file-card')).toHaveLength(2));
     expect(screen.getAllByTestId('file-card').map((c) => c.getAttribute('data-path'))).toEqual([
       '/p/alfa.mockup.json',
       '/p/beta.mockup.json',
     ]);
-    expect(screen.getByTestId('home-folder-Clientes')).toBeTruthy();
-    expect(screen.getByTestId('home-folder-Clientes/Acme')).toBeTruthy();
+    expect(screen.getByTestId('home-folder-Clients')).toBeTruthy();
+    expect(screen.getByTestId('home-folder-Clients/Acme')).toBeTruthy();
     expect(screen.getByTestId('home-tag-site')).toBeTruthy();
   });
 
-  it('filtra por pasta e por tag consultando o servidor', async () => {
+  it('filters by folder and by tag by querying the server', async () => {
     render(<HomeScreen />);
     await screen.findAllByTestId('file-card');
-    fireEvent.click(screen.getByTestId('home-folder-Pessoal'));
+    fireEvent.click(screen.getByTestId('home-folder-Personal'));
     await waitFor(() => expect(screen.getAllByTestId('file-card')).toHaveLength(1));
     expect(screen.getByTestId('file-card').getAttribute('data-path')).toBe('/p/gama.mockup.json');
-    expect(urls.some((u) => u.includes('folder=Pessoal') && u.includes('recursive=1'))).toBe(true);
+    expect(urls.some((u) => u.includes('folder=Personal') && u.includes('recursive=1'))).toBe(true);
     fireEvent.click(screen.getByTestId('home-tag-site'));
     await waitFor(() =>
       expect(screen.getByTestId('file-card').getAttribute('data-path')).toBe('/p/alfa.mockup.json'),
@@ -83,7 +83,7 @@ describe('HomeScreen', () => {
     expect(urls.some((u) => u.includes('tag=site'))).toBe(true);
   });
 
-  it('busca envia query e usa miniatura lazy', async () => {
+  it('search sends a query and uses a lazy thumbnail', async () => {
     render(<HomeScreen />);
     await screen.findAllByTestId('file-card');
     const img = screen.getAllByRole('img')[0]!;
@@ -93,7 +93,7 @@ describe('HomeScreen', () => {
     await waitFor(() => expect(urls.some((u) => u.includes('query=acme'))).toBe(true));
   });
 
-  it('erro na miniatura cai no cartão neutro; favorito chama /meta', async () => {
+  it('thumbnail error falls back to the neutral card; favorite calls /meta', async () => {
     render(<HomeScreen />);
     const cards = await screen.findAllByTestId('file-card');
     fireEvent.error(cards[0]!.querySelector('img')!);

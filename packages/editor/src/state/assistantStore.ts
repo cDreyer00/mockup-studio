@@ -1,7 +1,7 @@
 /**
- * Estado do assistente de IA, por documento: histórico de mensagens, turno em andamento (texto
- * parcial e ferramentas com status), além dos backends e da configuração (globais do daemon).
- * Só o cliente (`client/daemon.ts`) e o painel do assistente escrevem aqui.
+ * AI assistant state, per document: message history, turn in progress (partial text
+ * and tools with status), plus the backends and the settings (global to the daemon).
+ * Only the client (`client/daemon.ts`) and the assistant panel write here.
  */
 import { create } from 'zustand';
 import type {
@@ -12,7 +12,7 @@ import type {
   AssistantToolCall,
 } from '@mockup/core';
 
-/** Turno em andamento: o que já chegou por streaming. */
+/** Turn in progress: what has already arrived by streaming. */
 export interface PartialTurn {
   turnId: string;
   text: string;
@@ -22,14 +22,14 @@ export interface PartialTurn {
 export interface DocAssistant {
   messages: AssistantMessage[];
   partial: PartialTurn | null;
-  /** `assistant:history` já foi carregado para este documento. */
+  /** `assistant:history` has already been loaded for this document. */
   loaded: boolean;
 }
 
 export interface AssistantState {
   byDoc: Record<string, DocAssistant>;
   backends: AssistantBackendInfo[];
-  /** `null` até a primeira resposta do daemon. */
+  /** `null` until the first daemon response. */
   config: AssistantConfig | null;
 }
 
@@ -57,7 +57,7 @@ function upsertTool(list: AssistantToolCall[], tool: AssistantToolCall): Assista
   return next;
 }
 
-/** Aplica um evento de streaming ao estado de um documento. */
+/** Applies a streaming event to a document's state. */
 export function reduceEvent(cur: DocAssistant, event: AssistantEvent): DocAssistant {
   switch (event.kind) {
     case 'turn-start':
@@ -119,7 +119,7 @@ export const assistantStore = {
     }));
   },
 
-  /** Resposta de `assistant:history`: substitui as mensagens e reconstrói o turno em andamento. */
+  /** `assistant:history` response: replaces the messages and rebuilds the turn in progress. */
   setHistory(
     docId: string,
     res: {
@@ -131,7 +131,7 @@ export const assistantStore = {
   ): void {
     useAssistant.setState((s) => {
       const prev = s.byDoc[docId] ?? EMPTY_ASSISTANT;
-      // Uma mensagem do assistente ainda "running" no histórico vira o turno parcial.
+      // An assistant message still "running" in the history becomes the partial turn.
       const live = res.messages.find((m) => m.role === 'assistant' && m.status === 'running');
       const messages = res.messages.filter((m) => m !== live);
       let partial: PartialTurn | null = null;

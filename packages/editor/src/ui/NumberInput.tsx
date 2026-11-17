@@ -3,20 +3,20 @@ import type { KeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode } from
 import { formatCssNumber, normalizeInput, parseCssNumber, round } from './units';
 
 export interface NumberInputProps {
-  /** Valor CSS atual (ex.: '120px', '50%', 'auto'); `undefined` = vazio; `null` = misto. */
+  /** Current CSS value (e.g. '120px', '50%', 'auto'); `undefined` = empty; `null` = mixed. */
   value: string | undefined | null;
-  /** Confirma o novo valor ('' = remover a propriedade). Chamado no Enter, blur e fim do arrasto. */
+  /** Commits the new value ('' = remove the property). Called on Enter, blur and drag end. */
   onCommit: (value: string) => void;
-  /** Prévia durante o arrasto do rótulo (opcional; ex.: `ui.setPreview`). */
+  /** Preview while dragging the label (optional; e.g. `ui.setPreview`). */
   onPreview?: (value: string) => void;
-  /** Rótulo/ícone que também serve de alça de arrasto horizontal. */
+  /** Label/icon that also serves as a horizontal drag handle. */
   label?: ReactNode;
   title?: string;
-  /** Unidade aplicada a números digitados sem unidade (padrão 'px'; '' para adimensional). */
+  /** Unit applied to numbers typed without a unit (default 'px'; '' for unitless). */
   unit?: string;
   min?: number;
   max?: number;
-  /** Incremento por pixel arrastado e por seta (Shift = ×10). */
+  /** Increment per dragged pixel and per arrow key (Shift = ×10). */
   step?: number;
   placeholder?: string;
   disabled?: boolean;
@@ -24,8 +24,8 @@ export interface NumberInputProps {
 }
 
 /**
- * Input numérico com unidades: aceita `12`, `12px`, `50%`, `2rem`, `auto`, `calc(...)`.
- * Arrastar o rótulo na horizontal ajusta o valor; setas ↑/↓ incrementam.
+ * Numeric input with units: accepts `12`, `12px`, `50%`, `2rem`, `auto`, `calc(...)`.
+ * Dragging the label horizontally adjusts the value; ↑/↓ arrows increment.
  */
 export function NumberInput({
   value,
@@ -45,7 +45,7 @@ export function NumberInput({
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
   const scrub = useRef<{ startX: number; base: number; unit: string; last: string } | null>(null);
-  // Enter/Esc já resolveram a edição: o blur que vem em seguida (antes do ack) não confirma de novo.
+  // Enter/Esc already resolved the edit: the blur that follows (before the ack) doesn't commit again.
   const settled = useRef(false);
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export function NumberInput({
       <input
         value={text}
         disabled={disabled}
-        placeholder={value === null ? 'Misto' : placeholder}
+        placeholder={value === null ? 'Mixed' : placeholder}
         spellCheck={false}
         onChange={(e) => setText(e.target.value)}
         onFocus={(e) => {

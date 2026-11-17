@@ -1,6 +1,6 @@
 /**
- * Onde um nó novo (retângulo, texto, imagem) entra: contêiner mais profundo sob o ponteiro e a
- * forma de posicioná-lo (fluxo flex ou absoluto relativo ao pai), mais as ops de criação.
+ * Where a new node (rectangle, text, image) goes: deepest container under the pointer and the
+ * way to position it (flex flow or absolute relative to the parent), plus the creation ops.
  */
 import type { Document, Node, Op } from '@mockup/core';
 import {
@@ -17,22 +17,22 @@ import { resolveFlowInsert } from './geometry';
 import type { Axis, Point, SiblingRect } from './geometry';
 
 export interface Placement {
-  /** Pai do novo nó; `null` = não há contêiner (vira frame raiz). */
+  /** Parent of the new node; `null` = no container (becomes a root frame). */
   parentId: string | null;
-  /** Entra no fluxo do pai (flex), sem `position`. */
+  /** Goes into the parent's flow (flex), without `position`. */
   flow: boolean;
-  /** Índice de inserção quando `flow`. */
+  /** Insertion index when `flow`. */
   index?: number;
-  /** Posição relativa ao pai (quando não é fluxo) ou, sem pai, posição no mundo. */
+  /** Position relative to the parent (when not flow) or, without a parent, position in the world. */
   x: number;
   y: number;
-  /** O pai é estático: incluir `position: relative` no mesmo apply. */
+  /** The parent is static: include `position: relative` in the same apply. */
   parentNeedsRelative: boolean;
 }
 
 /**
- * Contêiner mais profundo sob o ponto da janela que aceita filhos e não está travado/oculto.
- * Nós internos e raízes de instâncias de componente não aceitam filhos (só o conteúdo de slot).
+ * Deepest container under the window point that accepts children and is not locked/hidden.
+ * Inner nodes and roots of component instances do not accept children (only slot content).
  */
 export function findContainerAt(
   root: HTMLElement,
@@ -56,12 +56,12 @@ export function findContainerAt(
   return null;
 }
 
-/** Eixo de empilhamento dos filhos em fluxo: flex usa `flex-direction`; block é vertical. */
+/** Stacking axis of flow children: flex uses `flex-direction`; block is vertical. */
 export function flowAxis(parent: Node): Axis {
   return isFlex(parent) ? flexDirection(parent) : 'column';
 }
 
-/** Retângulos (mundo) dos filhos renderizados do pai, com o índice real em `children`. */
+/** Rectangles (world) of the parent's rendered children, with the real index in `children`. */
 export function siblingWorldRects(root: HTMLElement, parent: Node): SiblingRect[] {
   const out: SiblingRect[] = [];
   parent.children.forEach((c, index) => {
@@ -72,8 +72,8 @@ export function siblingWorldRects(root: HTMLElement, parent: Node): SiblingRect[
 }
 
 /**
- * Decide o pai e a posição para um nó criado em `at` (mundo). `client` é o ponto da janela
- * usado para achar o contêiner (padrão: derivado de `at`).
+ * Decides the parent and position for a node created at `at` (world). `client` is the window point
+ * used to find the container (default: derived from `at`).
  */
 export function planPlacement(doc: Document, at: Point, client?: Point): Placement {
   const root = getCanvasRoot();
@@ -98,7 +98,7 @@ export function planPlacement(doc: Document, at: Point, client?: Point): Placeme
     );
     return { parentId, flow: true, index: moveIndex, x: 0, y: 0, parentNeedsRelative: false };
   }
-  // Origem do filho absoluto = borda de preenchimento do pai (pai posicionado ou virando relative).
+  // Origin of the absolute child = parent's padding edge (positioned parent or becoming relative).
   const rect = measureWorldRect(root, parentId);
   const el = findNodeEl(root, parentId);
   const ox = (rect?.x ?? 0) + (el?.clientLeft ?? 0);
@@ -113,7 +113,7 @@ export function planPlacement(doc: Document, at: Point, client?: Point): Placeme
   };
 }
 
-/** Ops de criação: `node` é um frame raiz quando `placement.parentId` é nulo. */
+/** Creation ops: `node` is a root frame when `placement.parentId` is null. */
 export function buildCreateOps(pageId: string, placement: Placement, node: Node): Op[] {
   if (!placement.parentId) return [{ type: 'createNode', pageId, node }];
   const ops: Op[] = [];

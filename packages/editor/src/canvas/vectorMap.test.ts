@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeViewMap, parseAspect } from './vectorMap';
 
 describe('vectorMap', () => {
-  it('escala uniforme e centraliza (meet)', () => {
+  it('uniform scale and centering (meet)', () => {
     const m = makeViewMap({ x: 0, y: 0, width: 10, height: 10 }, { x: 100, y: 50, w: 200, h: 100 });
     expect(m.sx).toBe(10);
     expect(m.toScreen({ x: 0, y: 0 })).toEqual({ x: 150, y: 50 });
@@ -11,7 +11,7 @@ describe('vectorMap', () => {
     expect(back.y).toBeCloseTo(7);
   });
 
-  it('preserveAspectRatio none estica por eixo', () => {
+  it('preserveAspectRatio none stretches per axis', () => {
     const m = makeViewMap(
       { x: 0, y: 0, width: 10, height: 10 },
       { x: 0, y: 0, w: 200, h: 100 },

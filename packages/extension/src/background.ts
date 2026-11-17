@@ -1,6 +1,6 @@
 /**
- * Service worker: injeta o seletor na aba, tira o screenshot de referência e envia o snapshot ao
- * daemon do Mockup Studio (POST /api/snapshot). Nenhum dado sai da máquina além disso.
+ * Service worker: injects the picker into the tab, takes the reference screenshot and sends the snapshot to
+ * the Mockup Studio daemon (POST /api/snapshot). No data leaves the machine beyond that.
  */
 import type { SnapshotImportResult } from '@mockup/snapshot-core';
 
@@ -11,13 +11,13 @@ export interface StartOptions {
   port: number;
 }
 
-/** Injeta o content script na aba e inicia o seletor de seção. */
+/** Injects the content script into the tab and starts the section picker. */
 export async function startPicker(tabId: number, opts: StartOptions): Promise<void> {
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
   await chrome.tabs.sendMessage(tabId, { type: 'start', mode: opts.mode, port: opts.port });
 }
 
-// Exposto para o teste e2e (o Playwright não clica no ícone da barra).
+// Exposed for the e2e test (Playwright does not click the toolbar icon).
 (globalThis as unknown as { __mockupStartPicker: typeof startPicker }).__mockupStartPicker =
   startPicker;
 
@@ -38,13 +38,13 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 interface ReferenceResult {
   reference: { dataUrl: string; width: number; height: number } | null;
-  /** O retângulo passa da viewport (algum lado): a imagem cobre só a parte visível. */
+  /** The rectangle extends past the viewport (on any side): the image covers only the visible part. */
   clipped: boolean;
-  /** Tamanho do retângulo inteiro da seção (px CSS). */
+  /** Size of the whole section rectangle (CSS px). */
   full: { width: number; height: number };
 }
 
-/** Screenshot da aba recortado no retângulo (px CSS da viewport), limitado à parte visível. */
+/** Tab screenshot cropped to the rectangle (viewport CSS px), limited to the visible part. */
 async function captureReference(
   windowId: number,
   rect: Rect,
@@ -55,7 +55,7 @@ async function captureReference(
   const x1 = Math.min(viewport.width, rect.x + rect.width);
   const y1 = Math.min(viewport.height, rect.y + rect.height);
   const full = { width: rect.width, height: rect.height };
-  // Meio pixel de folga: arredondamento de layout não conta como recorte.
+  // Half a pixel of slack: layout rounding does not count as clipping.
   const clipped =
     rect.x < -0.5 ||
     rect.y < -0.5 ||
@@ -74,14 +74,14 @@ async function captureReference(
   bitmap.close();
   const blob = await canvas.convertToBlob({ type: 'image/png' });
   const b64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
-  // width/height da referência são o recorte visível (px CSS), coerentes com a imagem.
+  // The reference's width/height are the visible crop (CSS px), consistent with the image.
   const reference = { dataUrl: `data:image/png;base64,${b64}`, width: x1 - x0, height: y1 - y0 };
   return { reference, clipped, full };
 }
 
 /**
- * Resultado do envio ao daemon. `offline`: nada respondeu (fetch falhou); `http`: o daemon
- * respondeu com erro (`error` = mensagem do corpo `{ error }`, se houver).
+ * Result of sending to the daemon. `offline`: nothing answered (fetch failed); `http`: the daemon
+ * answered with an error (`error` = message from the `{ error }` body, if any).
  */
 export type SendResult =
   | { ok: true; nodes: number }
@@ -105,7 +105,7 @@ async function sendToApp(port: number, payload: unknown): Promise<SendResult> {
       const body = (await res.json()) as { error?: unknown };
       if (typeof body.error === 'string') error = body.error;
     } catch {
-      /* corpo sem JSON */
+      /* body without JSON */
     }
     return { ok: false, kind: 'http', status: res.status, error };
   }
@@ -113,7 +113,7 @@ async function sendToApp(port: number, payload: unknown): Promise<SendResult> {
     const result = (await res.json()) as SnapshotImportResult;
     return { ok: true, nodes: result.nodes };
   } catch {
-    return { ok: false, kind: 'http', status: res.status, error: 'resposta inválida do app' };
+    return { ok: false, kind: 'http', status: res.status, error: 'invalid response from the app' };
   }
 }
 
@@ -122,7 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     p.then(sendResponse, (err) =>
       sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }),
     );
-    return true; // resposta assíncrona
+    return true; // asynchronous response
   };
   switch (message?.type) {
     case 'popup-start':

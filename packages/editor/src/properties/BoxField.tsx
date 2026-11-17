@@ -1,4 +1,4 @@
-/** Campo de 4 lados vinculados (padding, margin, border-radius) com opção de expandir. */
+/** Field for 4 linked sides (padding, margin, border-radius) with an expand option. */
 import { useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
@@ -16,9 +16,9 @@ import { BoundNumberInput } from './TokenBinding';
 const SIDE_LABELS = ['T', 'R', 'B', 'L'];
 const SIDE_KEYS = ['top', 'right', 'bottom', 'left'] as const;
 const SIDE_TITLES: Record<string, string[]> = {
-  padding: ['Topo', 'Direita', 'Base', 'Esquerda'],
-  margin: ['Topo', 'Direita', 'Base', 'Esquerda'],
-  'border-radius': ['Sup. esq.', 'Sup. dir.', 'Inf. dir.', 'Inf. esq.'],
+  padding: ['Top', 'Right', 'Bottom', 'Left'],
+  margin: ['Top', 'Right', 'Bottom', 'Left'],
+  'border-radius': ['Top left', 'Top right', 'Bottom right', 'Bottom left'],
 };
 
 export function BoxField({
@@ -73,7 +73,7 @@ export function BoxField({
           onCommit={onLinked}
         />
         <IconButton
-          title={expanded ? 'Lados vinculados' : 'Editar cada lado'}
+          title={expanded ? 'Linked sides' : 'Edit each side'}
           active={expanded}
           onClick={() => setExpanded((e) => !e)}
         >

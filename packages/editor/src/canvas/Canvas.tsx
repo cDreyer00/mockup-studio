@@ -25,15 +25,15 @@ import { VectorEditOverlay } from './VectorEditOverlay';
 import './canvas.css';
 
 const FIT_PADDING = 60;
-/** Zoom máximo ao enquadrar a página inteira / ao enquadrar nós. */
+/** Maximum zoom when fitting the whole page / when fitting nodes. */
 const FIT_ALL_MAX_ZOOM = 1;
 const FIT_NODES_MAX_ZOOM = 2;
 const ZOOM_STEP = 1.25;
 
-/** Último pedido de foco tratado (sobrevive a remontagens do canvas). */
+/** Last focus request handled (survives canvas remounts). */
 let handledFocusNonce = 0;
 
-/** Aplica o viewport direto no DOM (sem re-render): transform do mundo, `--z` e grade de pontos. */
+/** Applies the viewport directly to the DOM (no re-render): world transform, `--z` and dot grid. */
 function applyViewport(root: HTMLElement, world: HTMLElement, vp: Viewport): void {
   world.style.transform = `translate(${vp.x}px, ${vp.y}px) scale(${vp.z})`;
   root.style.setProperty('--z', String(vp.z));
@@ -43,7 +43,7 @@ function applyViewport(root: HTMLElement, world: HTMLElement, vp: Viewport): voi
   root.style.backgroundPosition = `${vp.x - size / 2}px ${vp.y - size / 2}px`;
 }
 
-/** Canvas infinito: mundo transformado, frames da página e overlay de seleção/gestos. */
+/** Infinite canvas: transformed world, page frames and selection/gesture overlay. */
 export function Canvas() {
   const rootRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function Canvas() {
   const lastKey = useRef<string | null>(null);
   const pendingFit = useRef(false);
 
-  // Viewport → DOM (sem passar pelo React).
+  // Viewport → DOM (bypassing React).
   useLayoutEffect(() => {
     const root = rootRef.current;
     const world = worldRef.current;
@@ -78,14 +78,14 @@ export function Canvas() {
     });
   }, []);
 
-  // Interações (ponteiro, teclado, roda, menu de contexto, drop).
+  // Interactions (pointer, keyboard, wheel, context menu, drop).
   useEffect(() => {
     const root = rootRef.current;
     return root ? attachInteractions(root) : undefined;
   }, []);
 
-  // API imperativa para as outras áreas. Layout effect (declarado antes do enquadramento inicial)
-  // para já estar registrada quando o primeiro `fitAll` rodar.
+  // Imperative API for the other areas. Layout effect (declared before the initial fit)
+  // so it is already registered when the first `fitAll` runs.
   useLayoutEffect(() => {
     const size = (): { w: number; h: number } => {
       const r = rootRef.current;
@@ -111,7 +111,7 @@ export function Canvas() {
       const frames = (pageRef.current?.frames ?? []).filter((f) => !f.hidden);
       return unionRects(
         frames.map((f) => {
-          // Sem tamanho em px (quadro do modo de edição do componente): mede o DOM.
+          // No size in px (component edit mode frame): measures the DOM.
           const auto =
             pxValue(f.style.width) === undefined || pxValue(f.style.height) === undefined;
           const measured = auto ? nodeRect(f.id) : null;
@@ -148,8 +148,8 @@ export function Canvas() {
     return registerCanvasApi(api);
   }, []);
 
-  // Primeira exibição de um documento/página: restaura o viewport salvo ou enquadra tudo.
-  // A página do modo de edição é a mesma para todos os principais: o viewport é por principal.
+  // First display of a document/page: restores the saved viewport or fits everything.
+  // The edit mode page is the same for all main components: the viewport is per main component.
   const editingId = useUi((s) => s.editingComponentId);
   const pageKey = page?.id === COMPONENT_EDIT_PAGE_ID ? `${page.id}:${editingId}` : page?.id;
   const key = docId && page ? `${docId}:${pageKey}` : null;
@@ -171,7 +171,7 @@ export function Canvas() {
     }
   }, [key]);
 
-  // Se o canvas ainda não tinha tamanho no primeiro enquadramento, refaz quando ganhar.
+  // If the canvas had no size on the first fit, redo it once it gets one.
   useEffect(() => {
     const root = rootRef.current;
     if (!root || typeof ResizeObserver === 'undefined') return;
@@ -185,7 +185,7 @@ export function Canvas() {
     return () => ro.disconnect();
   }, []);
 
-  // Pedido de foco (seleção do MCP, Shift+2): espera o DOM e enquadra (ou só traz à vista).
+  // Focus request (MCP selection, Shift+2): waits for the DOM and fits (or just scrolls into view).
   useEffect(() => {
     const req = focusRequest;
     const root = rootRef.current;

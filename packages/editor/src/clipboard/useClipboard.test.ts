@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe('copySelection', () => {
-  it('copiar inclui nós travados; recortar deixa os travados de fora', () => {
+  it('copy includes locked nodes; cut leaves locked nodes out', () => {
     const { doc, a, b } = makeDoc();
     b.locked = true;
     useDoc.setState({ doc });
@@ -37,7 +37,7 @@ describe('copySelection', () => {
     expect(html).not.toContain('>b<');
   });
 
-  it('recortar só travados não copia nada e avisa', () => {
+  it('cutting only locked nodes copies nothing and warns', () => {
     const { doc, b } = makeDoc();
     b.locked = true;
     useDoc.setState({ doc });
@@ -46,6 +46,6 @@ describe('copySelection', () => {
     expect(copySelection(cut.e, true)).toBe(false);
     expect(cut.data.size).toBe(0);
     expect(cut.prevented()).toBe(true);
-    expect(useUi.getState().toast?.text).toContain('travados');
+    expect(useUi.getState().toast?.text).toContain('Locked');
   });
 });

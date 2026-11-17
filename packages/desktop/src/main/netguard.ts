@@ -1,13 +1,13 @@
 /**
- * Classificação de destinos de rede da janela de captura (funções puras, sem Electron). A navegação
- * principal pode ir a qualquer http(s) (inclusive o dev server do usuário em localhost), mas as
- * subrequisições de uma página só podem alcançar endereços locais/privados quando forem da MESMA
- * origem da página principal.
+ * Classification of network destinations for the capture window (pure functions, no Electron). The main
+ * navigation may go to any http(s) (including the user's dev server on localhost), but a page's
+ * subrequests may only reach local/private addresses when they are from the SAME
+ * origin as the main page.
  */
 
-/** Protocolos sem rede (ou locais ao documento): sempre liberados. */
+/** Protocols with no network (or local to the document): always allowed. */
 const LOCAL_PROTOCOLS = new Set(['data:', 'blob:', 'about:']);
-/** Protocolos de rede avaliados pelo guarda (ws/wss contam como http/https para comparar origens). */
+/** Network protocols evaluated by the guard (ws/wss count as http/https when comparing origins). */
 const NET_PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:']);
 
 export type SubrequestDecision = 'allow' | 'block' | 'resolve';
@@ -19,7 +19,7 @@ function parseIPv4(s: string): number[] | null {
   return p.every((n) => n <= 255) ? p : null;
 }
 
-/** Expande um IPv6 (com `::`, zona e/ou final IPv4) em 8 grupos de 16 bits. */
+/** Expands an IPv6 (with `::`, zone and/or trailing IPv4) into 8 groups of 16 bits. */
 function parseIPv6(raw: string): number[] | null {
   let s = raw.replace(/^\[|\]$/g, '');
   const zone = s.indexOf('%');
@@ -64,14 +64,14 @@ function isPrivateIPv4(p: number[]): boolean {
   );
 }
 
-/** Classifica um literal IP (v4 ou v6, com ou sem colchetes): loopback/privado/link-local/etc. */
+/** Classifies an IP literal (v4 or v6, with or without brackets): loopback/private/link-local/etc. */
 export function isPrivateAddress(addr: string): boolean {
   const v4 = parseIPv4(addr);
   if (v4) return isPrivateIPv4(v4);
   const g = parseIPv6(addr);
   if (!g) return false;
-  // IPv4 embutido: ::a.b.c.d / ::ffff:a.b.c.d (mapeado) / 64:ff9b::a.b.c.d (NAT64). Os 96 bits
-  // altos zerados também cobrem `::` e `::1` (viram 0.0.0.x).
+  // Embedded IPv4: ::a.b.c.d / ::ffff:a.b.c.d (mapped) / 64:ff9b::a.b.c.d (NAT64). The 96 high
+  // bits being zero also cover `::` and `::1` (they become 0.0.0.x).
   const embedded = [g[6]! >> 8, g[6]! & 255, g[7]! >> 8, g[7]! & 255];
   const zeros = g.slice(0, 5).every((x) => x === 0);
   if (zeros && (g[5] === 0 || g[5] === 0xffff)) return isPrivateIPv4(embedded);
@@ -82,13 +82,13 @@ export function isPrivateAddress(addr: string): boolean {
   return false;
 }
 
-/** `true` para `localhost` e `*.localhost` (o Chromium resolve esses nomes para loopback). */
+/** `true` for `localhost` and `*.localhost` (Chromium resolves these names to loopback). */
 export function isLocalhostName(host: string): boolean {
   const h = host.toLowerCase().replace(/\.$/, '');
   return h === 'localhost' || h.endsWith('.localhost');
 }
 
-/** Origem normalizada (`http://host:porta`); ws/wss contam como http/https. `null` se inválida. */
+/** Normalized origin (`http://host:port`); ws/wss count as http/https. `null` if invalid. */
 export function originOf(rawUrl: string): string | null {
   try {
     const u = new URL(rawUrl);
@@ -101,10 +101,10 @@ export function originOf(rawUrl: string): string | null {
 }
 
 /**
- * Decisão para uma SUBREQUISIÇÃO (imagem, CSS, fonte, fetch, iframe, websocket...).
- * - `allow`: liberada; `block`: cancelar; `resolve`: nome de host público-aparente, precisa resolver o
- *   DNS e bloquear se algum endereço for privado (ver `isPrivateAddress`).
- * `trustedOrigin` é a origem da página principal: destinos privados só passam se forem dessa origem.
+ * Decision for a SUBREQUEST (image, CSS, font, fetch, iframe, websocket...).
+ * - `allow`: allowed; `block`: cancel; `resolve`: apparently public hostname, must resolve the
+ *   DNS and block if any address is private (see `isPrivateAddress`).
+ * `trustedOrigin` is the main page's origin: private destinations only pass if they are from that origin.
  */
 export function subrequestDecision(
   rawUrl: string,

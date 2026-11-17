@@ -7,7 +7,7 @@ import type { FxViewProps } from './types';
 
 const SEEK_TIMEOUT_MS = 5000;
 
-/** Nó `video` no canvas. */
+/** `video` node on the canvas. */
 export function VideoView({ node, style, docId }: FxViewProps) {
   const spec = node.video;
   const ref = useRef<HTMLVideoElement>(null);
@@ -17,10 +17,10 @@ export function VideoView({ node, style, docId }: FxViewProps) {
   const src = spec?.src ? resolveSrc(docId, spec.src) : undefined;
   const poster = spec?.poster ? resolveSrc(docId, spec.poster) : undefined;
   const fit = style.objectFit ?? 'cover';
-  // Página de render sem tempo explícito e com poster: mostra o poster (sem baixar o vídeo).
+  // Render page without an explicit time and with a poster: shows the poster (without downloading the video).
   const posterOnly = manual !== null && !fxRenderInfo.explicitTime && !!poster;
 
-  // Editor: toca/pausa conforme o relógio e `autoplay`.
+  // Editor: plays/pauses according to the clock and `autoplay`.
   useEffect(() => {
     const v = ref.current;
     if (!v || manual !== null || posterOnly) return;
@@ -28,7 +28,7 @@ export function VideoView({ node, style, docId }: FxViewProps) {
     else v.pause();
   }, [manual, playing, spec?.autoplay, posterOnly, src]);
 
-  // Página de render: posiciona o quadro e espera o seek.
+  // Render page: positions the frame and waits for the seek.
   useEffect(() => {
     const v = ref.current;
     if (!v || manual === null || posterOnly || !src) return;
@@ -71,7 +71,7 @@ export function VideoView({ node, style, docId }: FxViewProps) {
     };
   }, [manual, posterOnly, src, spec?.time, spec?.loop]);
 
-  // Poster de um vídeo em tempo manual: a imagem precisa carregar antes de capturar.
+  // Poster of a video in manual time: the image must load before capturing.
   useEffect(() => {
     if (!posterOnly) return;
     const done = fxBegin(SEEK_TIMEOUT_MS);

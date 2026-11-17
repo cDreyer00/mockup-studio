@@ -1,4 +1,4 @@
-/* Componentes: cores (roxo), selo do modo de edição, aba Componentes e seção de instância. */
+/* Components: colors (purple), edit mode badge, Components tab and instance section. */
 
 :root {
   --component: #a855f7;
@@ -7,7 +7,7 @@
   --component-soft: rgba(168, 85, 247, 0.16);
 }
 
-/* ---------------- selo do modo de edição ---------------- */
+/* ---------------- edit mode badge ---------------- */
 
 .cmp-edit-bar {
   position: absolute;
@@ -47,7 +47,7 @@
   filter: brightness(1.1);
 }
 
-/* ---------------- aba Componentes ---------------- */
+/* ---------------- Components tab ---------------- */
 
 .cmp-panel {
   overflow: hidden;
@@ -128,7 +128,7 @@
   visibility: visible;
 }
 
-/* ---------------- seção de instância / principal ---------------- */
+/* ---------------- instance / main component section ---------------- */
 
 .cmp-section-head {
   display: flex;

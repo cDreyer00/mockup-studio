@@ -47,10 +47,10 @@ export function MessageView({ message: m }: { message: AssistantMessage }) {
     <div className={`as-msg assistant ${m.status ?? 'done'}`} data-testid="assistant-msg-assistant">
       {m.tools && <Tools tools={m.tools} />}
       {m.text && <div className="as-bubble">{m.text}</div>}
-      {m.status === 'cancelled' && <div className="as-note">Cancelado.</div>}
+      {m.status === 'cancelled' && <div className="as-note">Cancelled.</div>}
       {m.status === 'error' && (
         <div className="as-note error" role="alert">
-          {m.error ?? 'Erro no turno.'}
+          {m.error ?? 'Turn error.'}
         </div>
       )}
       {!!m.opsCount && <div className="as-foot">{opsLabel(m.opsCount)}</div>}
@@ -58,7 +58,7 @@ export function MessageView({ message: m }: { message: AssistantMessage }) {
   );
 }
 
-/** Turno em andamento: texto parcial e ferramentas com status. */
+/** Turn in progress: partial text and tools with status. */
 export function PartialView({ partial }: { partial: PartialTurn }) {
   return (
     <div className="as-msg assistant running" data-testid="assistant-partial">
@@ -66,7 +66,7 @@ export function PartialView({ partial }: { partial: PartialTurn }) {
       {partial.text ? (
         <div className="as-bubble">{partial.text}</div>
       ) : (
-        partial.tools.length === 0 && <div className="as-note">Pensando…</div>
+        partial.tools.length === 0 && <div className="as-note">Thinking…</div>
       )}
     </div>
   );

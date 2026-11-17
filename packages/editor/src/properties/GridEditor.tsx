@@ -1,4 +1,4 @@
-/** Modo Grid do painel Layout (colunas, linhas, gaps, alinhamento) e "Célula do grid" dos filhos. */
+/** Grid mode of the Layout panel (columns, rows, gaps, alignment) and the "Grid cell" of the children. */
 import { isGridContainer, parseGridPlacement, serializeTrackList } from '@mockup/core';
 import type { Node } from '@mockup/core';
 import { Plus, X } from 'lucide-react';
@@ -23,7 +23,7 @@ import {
 } from './gridTracks';
 import type { TrackDraft, TrackUnit } from './gridTracks';
 
-/** Estilos para virar um grid: `display: grid` e, sem colunas definidas, duas colunas `1fr`. */
+/** Styles to turn into a grid: `display: grid` and, with no columns defined, two `1fr` columns. */
 export function gridModeStyles(style: Record<string, string>): Record<string, string> {
   const set: Record<string, string> = { display: 'grid' };
   if (!style['grid-template-columns'] || style['grid-template-columns'] === 'none') {
@@ -33,11 +33,11 @@ export function gridModeStyles(style: Record<string, string>): Record<string, st
 }
 
 const ALIGN_OPTIONS = [
-  { value: '', label: 'Esticar' },
-  { value: 'start', label: 'Início' },
-  { value: 'center', label: 'Centro' },
-  { value: 'end', label: 'Fim' },
-  { value: 'baseline', label: 'Linha de base' },
+  { value: '', label: 'Stretch' },
+  { value: 'start', label: 'Start' },
+  { value: 'center', label: 'Center' },
+  { value: 'end', label: 'End' },
+  { value: 'baseline', label: 'Baseline' },
 ];
 
 function NativeSelect({
@@ -82,9 +82,9 @@ function TrackList({ node, axis }: { node: Node; axis: 'col' | 'row' }) {
   return (
     <div className="prop-tracks" data-testid={`grid-${axis}-tracks`}>
       <div className="prop-tracks-head">
-        <span className="prop-subhead">{axis === 'col' ? 'Colunas' : 'Linhas'}</span>
+        <span className="prop-subhead">{axis === 'col' ? 'Columns' : 'Rows'}</span>
         <IconButton
-          title={axis === 'col' ? 'Adicionar coluna' : 'Adicionar linha'}
+          title={axis === 'col' ? 'Add column' : 'Add row'}
           data-testid={`grid-${axis}-add`}
           disabled={locked}
           onClick={() => apply(addTrack(drafts))}
@@ -99,13 +99,13 @@ function TrackList({ node, axis }: { node: Node; axis: 'col' | 'row' }) {
             <div className="prop-track-pair">
               <DraftInput
                 value={d.min}
-                title="Mínimo"
+                title="Minimum"
                 testId={id(i, 'min')}
                 onCommit={(v) => apply(updateTrack(drafts, i, { min: v }))}
               />
               <DraftInput
                 value={d.max}
-                title="Máximo"
+                title="Maximum"
                 testId={id(i, 'max')}
                 onCommit={(v) => apply(updateTrack(drafts, i, { max: v }))}
               />
@@ -115,7 +115,7 @@ function TrackList({ node, axis }: { node: Node; axis: 'col' | 'row' }) {
           ) : (
             <DraftInput
               value={d.value}
-              title="Valor da trilha"
+              title="Track value"
               testId={id(i, 'value')}
               onCommit={(v) => apply(updateTrack(drafts, i, { value: v }))}
             />
@@ -123,12 +123,12 @@ function TrackList({ node, axis }: { node: Node; axis: 'col' | 'row' }) {
           <NativeSelect
             value={d.unit}
             options={TRACK_UNITS}
-            title="Unidade"
+            title="Unit"
             testId={id(i, 'unit')}
             onChange={(u) => apply(updateTrack(drafts, i, changeUnit(d, u as TrackUnit)))}
           />
           <IconButton
-            title="Remover trilha"
+            title="Remove track"
             data-testid={id(i, 'remove')}
             disabled={locked}
             onClick={() => apply(removeTrack(drafts, i))}
@@ -160,7 +160,7 @@ function GapField({
       <NumberInput
         value={value}
         label={label}
-        title={`Gap (${axis === 'both' ? 'colunas e linhas' : axis === 'col' ? 'colunas' : 'linhas'})`}
+        title={`Gap (${axis === 'both' ? 'columns and rows' : axis === 'col' ? 'columns' : 'rows'})`}
         min={0}
         disabled={locked}
         onCommit={(v) => void commitStyles([node], (n) => gapDelta(n.style, axis, v))}
@@ -169,7 +169,7 @@ function GapField({
   );
 }
 
-/** Editor visual de um contêiner grid: trilhas, gaps e alinhamento dos itens. */
+/** Visual editor for a grid container: tracks, gaps and item alignment. */
 export function GridEditor({ node }: { node: Node }) {
   const items = readPlaceItems(node.style);
   return (
@@ -179,13 +179,13 @@ export function GridEditor({ node }: { node: Node }) {
       <Row label="Gap">
         <GapField node={node} axis="both" label="G" testId="grid-gap" />
       </Row>
-      <Row label="Col / Lin">
+      <Row label="Col / Row">
         <div className="prop-row-2">
           <GapField node={node} axis="col" label="C" testId="grid-gap-col" />
-          <GapField node={node} axis="row" label="L" testId="grid-gap-row" />
+          <GapField node={node} axis="row" label="R" testId="grid-gap-row" />
         </div>
       </Row>
-      <Row label="Alinhar H">
+      <Row label="Align H">
         <NativeSelect
           value={items.justify ?? ''}
           options={ALIGN_OPTIONS.filter((o) => o.value !== 'baseline')}
@@ -194,7 +194,7 @@ export function GridEditor({ node }: { node: Node }) {
           onChange={(v) => void commitStyles([node], (n) => placeItemsDelta(n.style, 'justify', v))}
         />
       </Row>
-      <Row label="Alinhar V">
+      <Row label="Align V">
         <NativeSelect
           value={items.align ?? ''}
           options={ALIGN_OPTIONS}
@@ -207,23 +207,23 @@ export function GridEditor({ node }: { node: Node }) {
   );
 }
 
-/* ------------------------------ célula do grid ------------------------------ */
+/* ------------------------------ grid cell ------------------------------ */
 
 type CellKey = 'column' | 'row' | 'columnSpan' | 'rowSpan';
 
 const CELL_FIELDS: { key: CellKey; label: string; testId: string; title: string }[] = [
   {
     key: 'column',
-    label: 'Coluna',
+    label: 'Column',
     testId: 'grid-cell-column',
-    title: 'Coluna inicial (grid-column)',
+    title: 'Start column (grid-column)',
   },
-  { key: 'row', label: 'Linha', testId: 'grid-cell-row', title: 'Linha inicial (grid-row)' },
-  { key: 'columnSpan', label: 'Span col.', testId: 'grid-cell-colspan', title: 'Colunas ocupadas' },
-  { key: 'rowSpan', label: 'Span lin.', testId: 'grid-cell-rowspan', title: 'Linhas ocupadas' },
+  { key: 'row', label: 'Row', testId: 'grid-cell-row', title: 'Start row (grid-row)' },
+  { key: 'columnSpan', label: 'Col span', testId: 'grid-cell-colspan', title: 'Columns spanned' },
+  { key: 'rowSpan', label: 'Row span', testId: 'grid-cell-rowspan', title: 'Rows spanned' },
 ];
 
-/** Texto digitado → inteiro >= 1, `null` (vazio = automático) ou `undefined` (inválido: ignora). */
+/** Typed text → integer >= 1, `null` (empty = auto) or `undefined` (invalid: ignored). */
 export function parseCellInput(text: string): number | null | undefined {
   const t = text.trim();
   if (t === '' || t.toLowerCase() === 'auto') return null;
@@ -232,14 +232,14 @@ export function parseCellInput(text: string): number | null | undefined {
   return n >= 1 ? n : undefined;
 }
 
-/** Seção para filhos de um contêiner grid: coluna, linha e extensão (`grid-column`/`grid-row`). */
+/** Section for children of a grid container: column, row and span (`grid-column`/`grid-row`). */
 export function GridCellSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
   if (ctxs.length === 0 || !ctxs.every((c) => c.parent && isGridContainer(c.parent.style))) {
     return null;
   }
   const nodes = ctxs.map((c) => c.node);
   return (
-    <Section id="props-grid-cell" title="Célula do grid">
+    <Section id="props-grid-cell" title="Grid cell">
       <Body>
         <div className="prop-grid-2" data-testid="grid-cell">
           {CELL_FIELDS.map((f) => {

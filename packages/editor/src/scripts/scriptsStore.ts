@@ -1,20 +1,20 @@
 /**
- * Rascunho e saída do painel de scripts, por documento (sobrevive à troca de aba/documento).
- * O código só vai ao daemon ao executar ou salvar na biblioteca.
+ * Draft and output of the scripts panel, per document (survives tab/document switches).
+ * The code only goes to the daemon when run or saved to the library.
  */
 import { create } from 'zustand';
 import type { ScriptRunResult } from '@mockup/core';
 
 export const DEFAULT_SCRIPT = `// API: doc.select('text'), doc.selection(), doc.frames(), doc.apply(op), doc.screenshot()...
-// Ctrl+Enter executa; o valor de 'return' vira o resultado.
+// Ctrl+Enter runs; the 'return' value becomes the result.
 return doc.selection().map((n) => n.name);
 `;
 
 export interface ScriptDraft {
   code: string;
-  /** Nome do arquivo da biblioteca aberto (com .js) ou null. */
+  /** Name of the open library file (with .js) or null. */
   name: string | null;
-  /** Código foi alterado desde que abriu/salvou. */
+  /** Code was changed since it was opened/saved. */
   dirty: boolean;
   output: ScriptRunResult | null;
 }
@@ -43,7 +43,7 @@ export const scriptsStore = {
     if (cur.code === code) return;
     scriptsStore.patch(docId, { code, dirty: true });
   },
-  /** Substitui o código por um carregado/gerado/exemplo. */
+  /** Replaces the code with a loaded/generated/example one. */
   load(docId: string, code: string, name: string | null, dirty = false): void {
     scriptsStore.patch(docId, { code, name, dirty });
   },

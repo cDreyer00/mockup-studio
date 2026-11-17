@@ -21,7 +21,7 @@ const entries = {
 };
 for (const file of Object.values(entries)) {
   if (!fs.existsSync(file)) {
-    console.error(`[build-cli] ${file} não existe: rode o build do cli e do server antes.`);
+    console.error(`[build-cli] ${file} does not exist: run the cli and server build first.`);
     process.exit(1);
   }
 }

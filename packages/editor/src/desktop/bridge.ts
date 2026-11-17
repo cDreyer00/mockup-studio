@@ -1,6 +1,6 @@
 /**
- * Ponte com o app desktop (Electron). O preload expõe `window.mockupDesktop`; no navegador ela não
- * existe e o editor usa diálogos com caminho digitado.
+ * Bridge to the desktop app (Electron). The preload exposes `window.mockupDesktop`; in the browser it does not
+ * exist and the editor uses dialogs with a typed path.
  */
 export type DesktopMenuAction =
   | 'new'
@@ -19,13 +19,13 @@ export type DesktopMenuAction =
 export interface MockupDesktopApi {
   readonly isDesktop: true;
   readonly platform: string;
-  /** Diálogo nativo "Abrir"; devolve o caminho escolhido ou null. */
+  /** Native "Open" dialog; returns the chosen path or null. */
   showOpenDialog(): Promise<string | null>;
-  /** Diálogo nativo "Salvar"; devolve o caminho (já com .mockup.json) ou null. */
+  /** Native "Save" dialog; returns the path (already with .mockup.json) or null. */
   showSaveDialog(opts?: { title?: string; defaultPath?: string }): Promise<string | null>;
-  /** Ações do menu nativo; `arg` é o caminho em 'openRecent'. Devolve a função para remover o ouvinte. */
+  /** Native menu actions; `arg` is the path in 'openRecent'. Returns the function that removes the listener. */
   onMenu(cb: (action: DesktopMenuAction, arg?: string) => void): () => void;
-  /** Informa título/estado para a janela (título e indicador de não salvo). */
+  /** Reports title/state to the window (title and unsaved indicator). */
   setDocumentState(state: { title: string; path: string | null; dirty: boolean }): void;
 }
 
@@ -35,7 +35,7 @@ declare global {
   }
 }
 
-/** A ponte do desktop, ou `undefined` no navegador. */
+/** The desktop bridge, or `undefined` in the browser. */
 export function getDesktop(): MockupDesktopApi | undefined {
   return typeof window === 'undefined' ? undefined : window.mockupDesktop;
 }

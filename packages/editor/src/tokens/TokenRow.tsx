@@ -25,7 +25,7 @@ interface Props {
   doc: Document;
   report: TokenReport;
   info: TokenInfo;
-  /** Tema em edição (`null` = base). */
+  /** Theme being edited (`null` = base). */
   theme: string | null;
   run: (ops: Op[]) => void;
 }
@@ -43,7 +43,8 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
   const remove = () => {
     try {
       run(planDeleteTokens(doc, [info.name]));
-      if (uses > 0) ui.toast(`${info.name} removido; ${uses} uso(s) ficaram sem valor`, 'info');
+      if (uses > 0)
+        ui.toast(`${info.name} removed; ${uses} use(s) were left without a value`, 'info');
     } catch (e) {
       ui.toast(e instanceof Error ? e.message : String(e), 'error');
     }
@@ -51,22 +52,22 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
 
   const menu = (x: number, y: number) =>
     openContextMenu(x, y, [
-      { label: 'Renomear', onSelect: () => setEditing('name') },
-      { label: 'Editar valor', onSelect: () => setEditing('value') },
-      { label: 'Grupo e descrição…', onSelect: () => setOpen(true) },
+      { label: 'Rename', onSelect: () => setEditing('name') },
+      { label: 'Edit value', onSelect: () => setEditing('value') },
+      { label: 'Group and description…', onSelect: () => setOpen(true) },
       {
-        label: 'Copiar var()',
+        label: 'Copy var()',
         onSelect: () => void navigator.clipboard?.writeText(`var(${info.name})`),
       },
       ...(theme && shown.overridden
         ? [
             {
-              label: 'Remover sobrescrita do tema',
+              label: 'Remove theme override',
               onSelect: () => run([opClearOverride(info.name, theme)]),
             },
           ]
         : []),
-      { label: 'Excluir', danger: true, separator: true, onSelect: remove },
+      { label: 'Delete', danger: true, separator: true, onSelect: remove },
     ]);
 
   return (
@@ -107,7 +108,7 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
           <span
             className="tk-badge unused"
             data-testid={`token-unused-${slug}`}
-            title="Não usado: nenhum elemento nem outro token referencia este token"
+            title="Unused: no element or other token references this token"
           >
             <CircleOff size={11} />
           </span>
@@ -125,7 +126,7 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
           <span
             className="tk-badge override"
             data-testid={`token-override-${slug}`}
-            title={`Sobrescrito no tema ${theme}`}
+            title={`Overridden in theme ${theme}`}
           >
             {theme}
           </span>
@@ -133,8 +134,8 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
         <button
           type="button"
           className="tk-more"
-          title="Mais opções"
-          aria-label="Mais opções"
+          title="More options"
+          aria-label="More options"
           aria-expanded={open}
           data-testid={`token-menu-${slug}`}
           onClick={(e) => {
@@ -163,7 +164,7 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
           <span
             className="tk-resolved mono"
             data-testid={`token-resolved-${slug}`}
-            title="Valor resolvido"
+            title="Resolved value"
           >
             = {shown.resolved}
           </span>
@@ -172,8 +173,8 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
           <button
             type="button"
             className="tk-more"
-            title="Remover sobrescrita (volta ao valor base)"
-            aria-label="Remover sobrescrita"
+            title="Remove override (goes back to the base value)"
+            aria-label="Remove override"
             data-testid={`token-clear-override-${slug}`}
             onClick={() => run([opClearOverride(info.name, theme)])}
           >
@@ -187,11 +188,11 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
       {open && (
         <div className="tk-detail" data-testid={`token-detail-${slug}`}>
           <label>
-            <span>Grupo</span>
+            <span>Group</span>
             <DraftInput
               value={doc.tokenMeta?.[info.name]?.group ?? ''}
               list="tk-groups"
-              placeholder={`automático (${tokenGroupLabel(info.group)})`}
+              placeholder={`automatic (${tokenGroupLabel(info.group)})`}
               testId={`token-group-${slug}`}
               onCommit={(v) => {
                 const op = opSetMeta(doc, info.name, { group: v.trim() });
@@ -200,10 +201,10 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
             />
           </label>
           <label>
-            <span>Descrição</span>
+            <span>Description</span>
             <DraftInput
               value={info.description ?? ''}
-              placeholder="para que serve"
+              placeholder="what it is for"
               testId={`token-desc-${slug}`}
               onCommit={(v) => {
                 const op = opSetMeta(doc, info.name, { description: v.trim() });
@@ -212,14 +213,14 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
             />
           </label>
           <div className="tk-detail-actions">
-            <span className="tk-uses">{uses === 0 ? 'Sem usos' : `${uses} uso(s)`}</span>
+            <span className="tk-uses">{uses === 0 ? 'No uses' : `${uses} use(s)`}</span>
             <button
               type="button"
               className="btn danger"
               data-testid={`token-delete-${slug}`}
               onClick={remove}
             >
-              Excluir
+              Delete
             </button>
           </div>
         </div>
@@ -228,7 +229,7 @@ export function TokenRow({ doc, report, info, theme, run }: Props) {
   );
 }
 
-/** Opções de grupo para o `<datalist>` do editor da linha. */
+/** Group options for the `<datalist>` of the row editor. */
 export function GroupsDatalist({ doc }: { doc: Document }) {
   const free = new Set(
     Object.values(doc.tokenMeta ?? {}).flatMap((m) => (m.group ? [m.group] : [])),

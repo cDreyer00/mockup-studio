@@ -1,4 +1,4 @@
-/** Painel de dados do repetidor: origem, tabela editável, mapeamento de campos e conversão. */
+/** Repeater data panel: source, editable table, field mapping and conversion. */
 import { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link2, Plus, RefreshCw, Repeat, Trash2 } from 'lucide-react';
@@ -25,7 +25,7 @@ import {
 import { Body, LockedContext } from './shared';
 import { prompt } from '../ui/overlays';
 
-/** Linhas além disto não são desenhadas (a lista continua inteira no documento). */
+/** Rows beyond this are not rendered (the list stays whole in the document). */
 const MAX_ROWS_SHOWN = 500;
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -33,10 +33,10 @@ const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(
 function formatFetched(iso: string | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('pt-BR');
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(undefined);
 }
 
-/** Célula editável: confirma no blur/Enter, Esc descarta. */
+/** Editable cell: commits on blur/Enter, Esc discards. */
 function Cell({
   row,
   column,
@@ -73,7 +73,7 @@ function Cell({
   );
 }
 
-/** Diálogo "Vincular…": cola JSON/CSV, caminho de arquivo ou URL. */
+/** "Bind…" dialog: paste JSON/CSV, a file path or a URL. */
 function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
   const [text, setText] = useState('');
   const [origin, setOrigin] = useState('');
@@ -91,7 +91,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
       else body.format = /^\s*[[{]/.test(text) ? 'json' : 'csv';
     } else if (/^https?:\/\//i.test(origin.trim())) body.url = origin.trim();
     else if (origin.trim()) body.path = origin.trim();
-    else return setError('Cole os dados, informe o caminho de um arquivo ou uma URL.');
+    else return setError('Paste the data, or enter a file path or a URL.');
     if (select.trim()) body.select = select.trim();
     const n = Number(limit);
     if (limit.trim() && Number.isInteger(n) && n > 0) body.limit = n;
@@ -100,7 +100,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
     setError(null);
     try {
       const res = await features.bindData(node.id, body);
-      ui.toast(`${res.count} itens vinculados`);
+      ui.toast(`${res.count} items bound`);
       onClose();
     } catch (e) {
       setError(errMsg(e));
@@ -117,7 +117,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
       <form
         className="modal data-bind-dialog"
         role="dialog"
-        aria-label="Vincular dados"
+        aria-label="Bind data"
         data-testid="data-bind-dialog"
         onSubmit={(e) => {
           e.preventDefault();
@@ -128,45 +128,45 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
           e.stopPropagation();
         }}
       >
-        <h2>Vincular dados</h2>
+        <h2>Bind data</h2>
         <label className="modal-field">
-          <span>Colar JSON ou CSV</span>
+          <span>Paste JSON or CSV</span>
           <textarea
             className="data-bind-text"
             data-testid="data-bind-text"
             value={text}
             rows={6}
             spellCheck={false}
-            placeholder={'[{"nome": "Ana"}, {"nome": "Bia"}]\nou\nnome,cargo\nAna,Dev'}
+            placeholder={'[{"name": "Ana"}, {"name": "Bia"}]\nor\nname,role\nAna,Dev'}
             onChange={(e) => setText(e.target.value)}
           />
         </label>
         <label className="modal-field">
-          <span>ou caminho de arquivo / URL</span>
+          <span>or file path / URL</span>
           <input
             data-testid="data-bind-origin"
             value={origin}
-            placeholder="C:\dados\clientes.csv ou https://..."
+            placeholder="C:\data\customers.csv or https://..."
             spellCheck={false}
             onChange={(e) => setOrigin(e.target.value)}
           />
         </label>
         <div className="data-bind-row">
           <label className="modal-field">
-            <span>Formato</span>
+            <span>Format</span>
             <select
               className="select-input"
               data-testid="data-bind-format"
               value={format}
               onChange={(e) => setFormat(e.target.value)}
             >
-              <option value="">Automático</option>
+              <option value="">Auto</option>
               <option value="json">JSON</option>
               <option value="csv">CSV</option>
             </select>
           </label>
           <label className="modal-field">
-            <span>Caminho da lista (select)</span>
+            <span>List path (select)</span>
             <input
               data-testid="data-bind-select"
               value={select}
@@ -176,11 +176,11 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
             />
           </label>
           <label className="modal-field">
-            <span>Limite</span>
+            <span>Limit</span>
             <input
               data-testid="data-bind-limit"
               value={limit}
-              placeholder="todos"
+              placeholder="all"
               inputMode="numeric"
               onChange={(e) => setLimit(e.target.value)}
             />
@@ -193,7 +193,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
         )}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+            Cancel
           </button>
           <button
             type="submit"
@@ -201,7 +201,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
             data-testid="data-bind-submit"
             disabled={busy}
           >
-            Vincular
+            Bind
           </button>
         </div>
       </form>
@@ -210,7 +210,7 @@ function BindDialog({ node, onClose }: { node: Node; onClose: () => void }) {
   );
 }
 
-/** Seção "Dados" de um único repetidor. */
+/** "Data" section of a single repeater. */
 export function DataSection({ node }: { node: Node }) {
   const locked = useContext(LockedContext);
   const [binding, setBinding] = useState(false);
@@ -224,7 +224,7 @@ export function DataSection({ node }: { node: Node }) {
   const unmapped = unmappedFields(node);
   const mapping = source?.mapping ?? {};
 
-  // Editar à mão desliga a origem de arquivo/URL (vira inline) na mesma op: um undo só.
+  // Editing by hand turns off the file/URL source (becomes inline) in the same op: a single undo.
   const save = (next: unknown[]): void => {
     const edited = editedSource(source);
     void daemon.applySafe([
@@ -236,7 +236,7 @@ export function DataSection({ node }: { node: Node }) {
     setBusy(true);
     try {
       const res = await features.refreshData(node.id);
-      ui.toast(`${res.count} itens atualizados`);
+      ui.toast(`${res.count} items refreshed`);
     } catch (e) {
       ui.toast(errMsg(e), 'error');
     } finally {
@@ -246,26 +246,27 @@ export function DataSection({ node }: { node: Node }) {
 
   const newColumn = async (): Promise<void> => {
     const r = await prompt({
-      title: 'Nova coluna',
-      fields: [{ name: 'name', label: 'Nome da coluna', placeholder: 'titulo' }],
-      confirmLabel: 'Adicionar',
+      title: 'New column',
+      fields: [{ name: 'name', label: 'Column name', placeholder: 'title' }],
+      confirmLabel: 'Add',
     });
     const name = r?.name?.trim();
     if (!name) return;
-    if (columns.includes(name) && dataCols.includes(name)) return ui.toast('A coluna já existe.');
+    if (columns.includes(name) && dataCols.includes(name))
+      return ui.toast('The column already exists.');
     save(data.length ? addColumn(data, name) : [{ [name]: '' }]);
   };
 
   return (
-    <Section id="props-data" title="Dados" defaultOpen>
+    <Section id="props-data" title="Data" defaultOpen>
       <div data-testid="data-section">
         <Body>
           <div className="data-source" data-testid="data-source">
             <div className="data-source-kind">{describeSource(source)}</div>
-            {fetched && <div className="data-source-meta">Atualizado em {fetched}</div>}
+            {fetched && <div className="data-source-meta">Updated {fetched}</div>}
             {source?.select && <div className="data-source-meta">select: {source.select}</div>}
             <div className="data-count" data-testid="data-count">
-              {data.length} {data.length === 1 ? 'item' : 'itens'}
+              {data.length} {data.length === 1 ? 'item' : 'items'}
             </div>
           </div>
           <div className="img-actions">
@@ -274,10 +275,10 @@ export function DataSection({ node }: { node: Node }) {
               className="btn"
               data-testid="data-refresh"
               disabled={locked || busy || !refreshable}
-              title={refreshable ? 'Reler a origem' : 'Dados inline não têm origem para atualizar'}
+              title={refreshable ? 'Reload from source' : 'Inline data has no source to refresh'}
               onClick={() => void refresh()}
             >
-              <RefreshCw size={12} /> Atualizar
+              <RefreshCw size={12} /> Refresh
             </button>
             <button
               type="button"
@@ -286,19 +287,19 @@ export function DataSection({ node }: { node: Node }) {
               disabled={locked}
               onClick={() => setBinding(true)}
             >
-              <Link2 size={12} /> Vincular…
+              <Link2 size={12} /> Bind…
             </button>
           </div>
 
           {unmapped.length > 0 && (
             <div className="data-mapping" data-testid="data-mapping">
-              <div className="img-title">Mapeamento</div>
+              <div className="img-title">Mapping</div>
               {unmapped.map((f) => (
                 <div key={f} className="data-map-row">
                   <code>{`{{${f}}}`}</code>
                   <SelectInput
                     value=""
-                    placeholder="coluna…"
+                    placeholder="column…"
                     options={dataCols.map((c) => ({ value: c, label: c }))}
                     onChange={(c) =>
                       c &&
@@ -321,7 +322,7 @@ export function DataSection({ node }: { node: Node }) {
                   <button
                     type="button"
                     className="icon-btn"
-                    title="Remover mapeamento"
+                    title="Remove mapping"
                     onClick={() =>
                       void daemon.applySafe([
                         setDataOp(node.id, { source: withMapping(source, f, '') }),
@@ -349,7 +350,7 @@ export function DataSection({ node }: { node: Node }) {
                         <button
                           type="button"
                           className="data-col-del"
-                          title={`Remover a coluna ${c}`}
+                          title={`Remove the ${c} column`}
                           data-testid={`data-remove-column-${c}`}
                           onClick={() => save(removeColumn(data, c))}
                         >
@@ -385,7 +386,7 @@ export function DataSection({ node }: { node: Node }) {
                       <button
                         type="button"
                         className="data-col-del"
-                        title="Remover linha"
+                        title="Remove row"
                         data-testid={`data-remove-row-${i}`}
                         onClick={() => save(removeRow(data, i))}
                       >
@@ -398,7 +399,7 @@ export function DataSection({ node }: { node: Node }) {
             </table>
             {data.length > MAX_ROWS_SHOWN && (
               <div className="img-hint">
-                Mostrando {MAX_ROWS_SHOWN} de {data.length} itens.
+                Showing {MAX_ROWS_SHOWN} of {data.length} items.
               </div>
             )}
           </div>
@@ -410,7 +411,7 @@ export function DataSection({ node }: { node: Node }) {
               disabled={locked}
               onClick={() => save(addRow(data, columns))}
             >
-              <Plus size={12} /> Linha
+              <Plus size={12} /> Row
             </button>
             <button
               type="button"
@@ -419,7 +420,7 @@ export function DataSection({ node }: { node: Node }) {
               disabled={locked}
               onClick={() => void newColumn()}
             >
-              <Plus size={12} /> Coluna
+              <Plus size={12} /> Column
             </button>
           </div>
         </Body>
@@ -429,15 +430,15 @@ export function DataSection({ node }: { node: Node }) {
   );
 }
 
-/** Ação "Converter em repetidor" para um contêiner com filhos. */
+/** "Convert to repeater" action for a container with children. */
 export function ConvertToRepeater({ node }: { node: Node }) {
   const locked = useContext(LockedContext);
   return (
-    <Section id="props-repeater" title="Repetidor">
+    <Section id="props-repeater" title="Repeater">
       <Body>
         <div className="img-hint">
-          Transforma este contêiner em repetidor: os filhos viram o template, repetido por item dos
-          dados (<code>{'{{campo}}'}</code>).
+          Turns this container into a repeater: the children become the template, repeated for each
+          data item (<code>{'{{field}}'}</code>).
         </div>
         <button
           type="button"
@@ -446,7 +447,7 @@ export function ConvertToRepeater({ node }: { node: Node }) {
           disabled={locked}
           onClick={() => void convertToRepeater(node.id)}
         >
-          <Repeat size={12} /> Converter em repetidor
+          <Repeat size={12} /> Convert to repeater
         </button>
       </Body>
     </Section>

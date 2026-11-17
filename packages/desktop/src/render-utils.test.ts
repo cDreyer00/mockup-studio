@@ -23,28 +23,28 @@ function sampleDoc() {
 }
 
 describe('render-utils', () => {
-  it('pngSize lê o IHDR', () => {
+  it('pngSize reads the IHDR', () => {
     const b = Buffer.alloc(24);
     b.writeUInt32BE(0x89504e47, 0);
     b.writeUInt32BE(1440, 16);
     b.writeUInt32BE(900, 20);
     expect(pngSize(b)).toEqual({ width: 1440, height: 900 });
-    expect(() => pngSize(Buffer.from('nada'))).toThrow();
+    expect(() => pngSize(Buffer.from('nothing'))).toThrow();
   });
 
-  it('assertSize limita o lado final após a escala', () => {
+  it('assertSize limits the final side after scaling', () => {
     expect(() => assertSize(1440, 900, 3)).not.toThrow();
-    expect(() => assertSize(MAX_SIDE_PX, 10, 2)).toThrow(/grande demais/);
-    expect(() => assertSize(0, 10, 1)).toThrow(/vazio/);
+    expect(() => assertSize(MAX_SIDE_PX, 10, 2)).toThrow(/too large/);
+    expect(() => assertSize(0, 10, 1)).toThrow(/empty/);
   });
 
-  it('declaredSize lê px do estilo', () => {
+  it('declaredSize reads px from the style', () => {
     const { frame } = sampleDoc();
     expect(declaredSize(frame)).toEqual({ width: 1440, height: 900 });
     expect(declaredSize(undefined)).toEqual({});
   });
 
-  it('cacheKey é estável e muda com escala, tokens, temas e o frame', () => {
+  it('cacheKey is stable and changes with scale, tokens, themes and the frame', () => {
     const { doc, frame } = sampleDoc();
     const base = { doc, docId: 'd', nodeId: frame.id, scale: 1, format: 'png', transparent: false };
     const k = cacheKey(base);
@@ -52,7 +52,7 @@ describe('render-utils', () => {
     expect(cacheKey({ ...base, scale: 2 })).not.toBe(k);
     expect(cacheKey({ ...base, transparent: true })).not.toBe(k);
     expect(cacheKey({ ...base, time: 2 })).not.toBe(k);
-    // sem time (poster do vídeo) ≠ time 0 (primeiro quadro)
+    // no time (video poster) ≠ time 0 (first frame)
     expect(cacheKey({ ...base, time: 0 })).not.toBe(k);
     expect(cacheKey({ ...base, time: undefined })).toBe(k);
     const doc2 = structuredClone(doc);
@@ -70,7 +70,7 @@ describe('render-utils', () => {
     expect(cacheKey({ ...base, doc: doc5 })).not.toBe(k4);
   });
 
-  it('LruCache descarta o menos usado', () => {
+  it('LruCache drops the least recently used', () => {
     const c = new LruCache<number>(2);
     c.set('a', 1);
     c.set('b', 2);
@@ -81,11 +81,11 @@ describe('render-utils', () => {
     expect(c.size).toBe(2);
   });
 
-  it('withTimeout rejeita e chama onTimeout', async () => {
+  it('withTimeout rejects and calls onTimeout', async () => {
     let called = false;
     await expect(
       withTimeout(new Promise(() => undefined), 20, 'teste', () => (called = true)),
-    ).rejects.toThrow(/Tempo esgotado/);
+    ).rejects.toThrow(/Timed out/);
     expect(called).toBe(true);
     await expect(withTimeout(Promise.resolve(7), 1000, 'ok')).resolves.toBe(7);
   });

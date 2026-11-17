@@ -1,6 +1,6 @@
 /**
- * Ações de vetor: texto em contornos (rota do servidor), booleanas e achatar (builders do core).
- * Cada ação aplica as ops em UMA chamada `applySafe` (= uma entrada de undo) e seleciona o resultado.
+ * Vector actions: text to outlines (server route), booleans and flatten (core builders).
+ * Each action applies the ops in ONE `applySafe` call (= one undo entry) and selects the result.
  */
 import { buildBooleanOps, buildFlattenOps, findNode, isFreeNode } from '@mockup/core';
 import type { BooleanOp, Box, Document, Op } from '@mockup/core';
@@ -14,24 +14,24 @@ function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** Seleção de topo sem nós travados. */
+/** Top-level selection without locked nodes. */
 function selectedIds(doc: Document): string[] {
   return topLevel(doc, useUi.getState().selection).filter((id) => !isLockedDeep(doc, id));
 }
 
-/** Ids dos nós svg da seleção. */
+/** Ids of the selection's svg nodes. */
 export function selectedSvgIds(doc: Document | null, selection: readonly string[]): string[] {
   if (!doc) return [];
   return topLevel(doc, selection).filter((id) => getNode(doc, id)?.type === 'svg');
 }
 
-/** Converte os nós de texto selecionados em svg (contornos) e seleciona os nós novos. */
+/** Converts the selected text nodes to svg (outlines) and selects the new nodes. */
 export async function textToOutlines(): Promise<void> {
   const { doc, activeDocId } = useDoc.getState();
   if (!doc || !activeDocId) return;
   const ids = selectedIds(doc).filter((id) => getNode(doc, id)?.type === 'text');
   if (ids.length === 0) {
-    ui.toast('Selecione um texto para converter em contornos', 'info');
+    ui.toast('Select a text to convert to outlines', 'info');
     return;
   }
   try {
@@ -46,7 +46,7 @@ export async function textToOutlines(): Promise<void> {
       error?: string;
     };
     if (!res.ok || !body.nodeIds) {
-      ui.toast(body.error ?? `Falha ao converter em contornos (${res.status})`, 'error');
+      ui.toast(body.error ?? `Failed to convert to outlines (${res.status})`, 'error');
       return;
     }
     ui.select(body.nodeIds);
@@ -57,9 +57,9 @@ export async function textToOutlines(): Promise<void> {
 }
 
 /**
- * Caixas medidas no DOM dos nós em fluxo (não raiz e sem position absolute/fixed), em px do mundo,
- * relativas ao padding box do pai (retângulo do filho − do pai − borda do pai). Os livres seguem
- * o estilo e ficam de fora; sem canvas ou elemento, o core recusa o nó com mensagem clara.
+ * Boxes measured from the DOM for flow nodes (non-root and without position absolute/fixed), in world px,
+ * relative to the parent's padding box (child rect − parent rect − parent border). Free-positioned ones follow
+ * the style and are left out; without a canvas or element, the core rejects the node with a clear message.
  */
 export function measureFlowBoxes(doc: Document, ids: readonly string[]): Record<string, Box> {
   const boxes: Record<string, Box> = {};
@@ -107,20 +107,20 @@ async function applyBuilt(
   }
 }
 
-/** União, subtração, interseção ou exclusão entre os svg selecionados (2 ou mais). */
+/** Union, subtraction, intersection or exclusion between the selected svgs (2 or more). */
 export function booleanOp(op: BooleanOp): Promise<void> {
   return applyBuilt(
     (doc, ids, boxes) => buildBooleanOps(doc, ids, op, { boxes }),
     2,
-    'Selecione 2 ou mais vetores para combinar',
+    'Select 2 or more vectors to combine',
   );
 }
 
-/** Achatar: junta os paths do svg selecionado, ou dos vários svg selecionados, num só nó. */
+/** Flatten: merges the paths of the selected svg, or of several selected svgs, into a single node. */
 export function flatten(): Promise<void> {
   return applyBuilt(
     (doc, ids, boxes) => buildFlattenOps(doc, ids, { boxes }),
     1,
-    'Selecione um vetor para achatar',
+    'Select a vector to flatten',
   );
 }

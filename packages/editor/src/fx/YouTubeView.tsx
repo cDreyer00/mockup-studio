@@ -18,7 +18,7 @@ const placeholder: CSSProperties = {
   font: '600 14px system-ui, sans-serif',
 };
 
-/** Botão play desenhado em CSS (retângulo arredondado vermelho com triângulo). */
+/** Play button drawn in CSS (red rounded rectangle with a triangle). */
 function PlayButton() {
   return (
     <span
@@ -50,7 +50,7 @@ function PlayButton() {
   );
 }
 
-/** Embed `youtube`: iframe no editor; miniatura + botão play na página de render (sem rede ao vivo). */
+/** `youtube` embed: iframe in the editor; thumbnail + play button on the render page (no live network). */
 export function YouTubeView({ node, style }: FxViewProps) {
   const e = node.embed;
   const id = e?.url ? youtubeId(e.url) : null;
@@ -62,7 +62,7 @@ export function YouTubeView({ node, style }: FxViewProps) {
   useEffect(() => {
     setThumbFailed(false);
     if (!renderMode || !id) return;
-    // Garantia: pronto em até 5 s, mesmo se a imagem nunca responder.
+    // Safeguard: ready within 5 s, even if the image never responds.
     const done = fxBegin(THUMB_TIMEOUT_MS);
     const img = new Image();
     const timer = setTimeout(() => {

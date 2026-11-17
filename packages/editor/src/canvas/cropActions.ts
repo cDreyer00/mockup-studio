@@ -1,4 +1,4 @@
-/** Entrada, confirmação e cancelamento do modo de recorte visual (estado em `uiStore`). */
+/** Entering, confirming and cancelling visual crop mode (state in `uiStore`). */
 import type { ImageCrop } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { getNode } from '../model/tree';
@@ -6,7 +6,7 @@ import { useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 import { CROP_MODE_PREVIEW_STYLE, NO_CROP, buildCropOp, cropOfStyle } from './crop';
 
-/** Entra no modo de recorte da imagem; devolve `false` se o nó não é uma imagem ou está travado. */
+/** Enters the image crop mode; returns `false` if the node is not an image or is locked. */
 export function startCrop(nodeId: string): boolean {
   const node = useDoc.getState().doc ? getNode(useDoc.getState().doc!, nodeId) : undefined;
   if (!node || node.type !== 'image' || node.locked) return false;
@@ -22,13 +22,13 @@ function leave(nodeId: string): void {
   if (preview[nodeId]) ui.releasePreview({ [nodeId]: preview[nodeId]! });
 }
 
-/** Cancela (Esc): descarta o recorte em edição. */
+/** Cancels (Esc): discards the crop being edited. */
 export function cancelCrop(): void {
   const id = useUi.getState().cropNodeId;
   if (id) leave(id);
 }
 
-/** Confirma (Enter/clicar fora): uma op `updateStyles` com `object-view-box` (ou `unset` se zerado). */
+/** Confirms (Enter/click outside): one `updateStyles` op with `object-view-box` (or `unset` if reset). */
 export async function commitCrop(crop?: ImageCrop): Promise<void> {
   const { cropNodeId, cropDraft } = useUi.getState();
   if (!cropNodeId) return;
@@ -42,7 +42,7 @@ export async function commitCrop(crop?: ImageCrop): Promise<void> {
   leave(cropNodeId);
 }
 
-/** Remove o recorte da imagem (também fora do modo de recorte). */
+/** Removes the image crop (also outside crop mode). */
 export async function removeCrop(nodeId: string): Promise<void> {
   const doc = useDoc.getState().doc;
   const node = doc ? getNode(doc, nodeId) : undefined;

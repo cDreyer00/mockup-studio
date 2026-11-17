@@ -1,7 +1,7 @@
-/** Quando os atalhos e o clipboard do editor devem deixar o navegador agir. */
+/** When the editor's shortcuts and clipboard should let the browser act. */
 import { useUi } from '../state/uiStore';
 
-/** Alvo editável: input, textarea, select ou contentEditable. */
+/** Editable target: input, textarea, select or contentEditable. */
 export function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el || typeof el.tagName !== 'string') return false;
@@ -14,7 +14,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   return el.isContentEditable === true || el.contentEditable === 'true';
 }
 
-/** `true` se há modal aberto ou texto em edição inline. */
+/** `true` if a modal is open or text is being edited inline. */
 export function isInteractionBlocked(): boolean {
   return !!document.querySelector('.modal-backdrop') || useUi.getState().editingTextId !== null;
 }

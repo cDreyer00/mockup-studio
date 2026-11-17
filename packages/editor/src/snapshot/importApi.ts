@@ -1,4 +1,4 @@
-/** Cliente HTTP das rotas de importação do daemon e helpers de seleção do frame importado. */
+/** HTTP client for the daemon import routes and helpers to select the imported frame. */
 import { SNAPSHOT_ROUTES } from '@mockup/snapshot-core';
 import type {
   ImportUrlRequest,
@@ -10,7 +10,7 @@ import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui } from '../state/uiStore';
 
-/** Erro de uma rota de importação (guarda o status HTTP). */
+/** Error from an import route (keeps the HTTP status). */
 export class ImportError extends Error {
   constructor(
     message: string,
@@ -30,11 +30,10 @@ async function postJson<T>(route: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
     });
   } catch {
-    throw new ImportError('Sem conexão com o daemon', 0);
+    throw new ImportError('No connection to the daemon', 0);
   }
   const json = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok)
-    throw new ImportError(json.error ?? `Falha na importação (${res.status})`, res.status);
+  if (!res.ok) throw new ImportError(json.error ?? `Import failed (${res.status})`, res.status);
   return json;
 }
 
@@ -47,9 +46,9 @@ export function postImportUrl(req: ImportUrlRequest): Promise<SnapshotImportResu
 }
 
 /**
- * Espera o frame importado chegar no documento (o `doc:changed` pode vir depois da resposta HTTP)
- * e o seleciona (trocando de página se preciso). `fit` enquadra o frame no canvas.
- * Devolve `false` se o frame não apareceu a tempo.
+ * Waits for the imported frame to arrive in the document (`doc:changed` may come after the HTTP
+ * response) and selects it (switching page if needed). `fit` frames the frame on the canvas.
+ * Returns `false` if the frame did not show up in time.
  */
 export function selectImported(
   frameId: string,

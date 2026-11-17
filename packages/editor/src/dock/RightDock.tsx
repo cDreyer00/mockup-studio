@@ -1,7 +1,7 @@
 /**
- * Painel direito com abas: Design (propriedades), Assistente (IA) e Scripts.
- * Design fica sempre montado (só oculto); Assistente e Scripts montam na primeira visita e depois
- * também ficam montados (preservam o texto digitado, o código e a rolagem).
+ * Right panel with tabs: Design (properties), Assistant (AI) and Scripts.
+ * Design stays always mounted (just hidden); Assistant and Scripts mount on the first visit and then
+ * also stay mounted (preserving typed text, code and scroll position).
  */
 import { useEffect, useState } from 'react';
 import { Bot, Code2, SlidersHorizontal } from 'lucide-react';
@@ -14,7 +14,7 @@ import './dock.css';
 
 const TABS: { id: RightTab; label: string; icon: typeof Bot }[] = [
   { id: 'design', label: 'Design', icon: SlidersHorizontal },
-  { id: 'assistant', label: 'Assistente', icon: Bot },
+  { id: 'assistant', label: 'Assistant', icon: Bot },
   { id: 'scripts', label: 'Scripts', icon: Code2 },
 ];
 

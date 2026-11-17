@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import type { Node } from '@mockup/core';
 import { Mcp, createDoc, drag, getDoc, gotoEditor } from './helpers';
 
-/** Seleção (clique, Shift, marquee, duplo clique, Esc), setas, reordenar, redimensionar e undo de gesto. */
+/** Selection (click, Shift, marquee, double-click, Esc), arrows, reorder, resize and gesture undo. */
 
 const HTML =
   '<section class="wrap"><div class="box a"></div><div class="box b"><span class="inner">in</span></div><div class="box c"></div></section>';
@@ -13,7 +13,7 @@ const CSS =
 async function setup(name: string, html = HTML, css = CSS) {
   const info = await createDoc(name);
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 800, height: 600, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 800, height: 600, x: 0, y: 0 });
   await mcp.call('write_html', { html, css });
   const frame = (await getDoc(info.docId)).pages[0]!.frames[0]!;
   return { info, mcp, frame };
@@ -35,7 +35,9 @@ const rows = async (info: { docId: string }, parentId: string): Promise<string[]
   return p.children.map((c) => c.id);
 };
 
-test('Shift+clique alterna a seleção e o marquee seleciona vários frames', async ({ page }) => {
+test('Shift+click toggles the selection and the marquee selects multiple frames', async ({
+  page,
+}) => {
   const info = await createDoc('marquee');
   const mcp = await new Mcp().init();
   await mcp.call('create_frame', { name: 'A', width: 300, height: 200, x: 0, y: 0 });
@@ -47,12 +49,12 @@ test('Shift+clique alterna a seleção e o marquee seleciona vários frames', as
   await page.getByTestId(`frame-label-${fb!.id}`).click({ modifiers: ['Shift'] });
   await expect.poll(() => mcp.call('get_selection', {})).toContain(fb!.id);
   expect(await mcp.call('get_selection', {})).toContain(fa!.id);
-  // Shift+clique de novo em B tira B da seleção.
+  // Shift+click on B again removes B from the selection.
   await page.getByTestId(`frame-label-${fb!.id}`).click({ modifiers: ['Shift'] });
   await expect.poll(() => mcp.call('get_selection', {})).not.toContain(fb!.id);
   expect(await mcp.call('get_selection', {})).toContain(fa!.id);
 
-  // Marquee no vazio envolvendo os dois frames.
+  // Marquee on empty space enclosing both frames.
   await page.keyboard.press('Escape');
   const a = (await nodeEl(page, fa!.id).boundingBox())!;
   const b = (await nodeEl(page, fb!.id).boundingBox())!;
@@ -67,8 +69,8 @@ test('Shift+clique alterna a seleção e o marquee seleciona vários frames', as
   expect(await mcp.call('get_selection', {})).toContain(fb!.id);
 });
 
-test('clique seleciona o filho do frame, duplo clique desce e Esc sobe', async ({ page }) => {
-  const { mcp, info, frame } = await setup('niveis');
+test('click selects the frame child, double-click goes down and Esc goes up', async ({ page }) => {
+  const { mcp, info, frame } = await setup('levels');
   const wrap = frame.children[0]!;
   const a = wrap.children[0]!;
   await gotoEditor(page);
@@ -88,9 +90,9 @@ test('clique seleciona o filho do frame, duplo clique desce e Esc sobe', async (
   expect(await mcp.call('get_selection', {})).not.toContain(a.id);
 });
 
-test('setas movem 1 px e Shift+setas 10 px (frame e nó absolute)', async ({ page }) => {
+test('arrows move 1 px and Shift+arrows 10 px (frame and absolute node)', async ({ page }) => {
   const { info, frame } = await setup(
-    'setas',
+    'arrows',
     '<div class="abs">x</div>',
     '.abs{position:absolute;left:30px;top:40px;width:80px;height:50px;background:#9cf}',
   );
@@ -98,7 +100,7 @@ test('setas movem 1 px e Shift+setas 10 px (frame e nó absolute)', async ({ pag
   await gotoEditor(page);
 
   await page.getByTestId(`frame-label-${frame.id}`).click();
-  // Espera o canvas refletir cada seta antes da próxima (setas calculam a partir do documento local).
+  // Waits for the canvas to reflect each arrow before the next one (arrows compute from the local document).
   const press = async (key: string) => {
     const before = await nodeEl(page, frame.id).boundingBox();
     await page.keyboard.press(key);
@@ -134,21 +136,21 @@ test('setas movem 1 px e Shift+setas 10 px (frame e nó absolute)', async ({ pag
     .toEqual(['31px', '50px']);
 });
 
-test('reordenar filho em pai flex arrastando (para depois e para antes)', async ({ page }) => {
-  const { info, frame } = await setup('reordenar');
+test('reorder a child in a flex parent by dragging (to after and to before)', async ({ page }) => {
+  const { info, frame } = await setup('reorder');
   const wrap = frame.children[0]!;
   const [a, b, c] = wrap.children.map((n) => n.id) as [string, string, string];
   await gotoEditor(page);
 
-  // A -> depois de C: ordem B, C, A.
+  // A -> after C: order B, C, A.
   const pa = await centerOfNode(page, a);
   await page.mouse.dblclick(pa.x, pa.y);
   await expect(page.getByTestId(`layer-row-${a}`)).toHaveAttribute('aria-selected', 'true');
   const pc = await centerOfNode(page, c);
   await drag(page, pa, { x: pc.box.x + pc.box.width - 10, y: pc.y }, { steps: 20 });
   await expect.poll(() => rows(info, wrap.id)).toEqual([b, c, a]);
-  // O daemon responde ao HTTP antes de o editor renderizar o `doc:changed`: mede A só depois
-  // de o DOM refletir a nova ordem (senão o arrasto começa na posição antiga).
+  // The daemon answers the HTTP request before the editor renders `doc:changed`: measure A only after
+  // the DOM reflects the new order (otherwise the drag starts at the old position).
   const domRows = () =>
     page
       .getByTestId('canvas-world')
@@ -156,18 +158,18 @@ test('reordenar filho em pai flex arrastando (para depois e para antes)', async 
       .evaluateAll((els) => els.map((e) => e.getAttribute('data-node-id')));
   await expect.poll(domRows).toEqual([b, c, a]);
 
-  // A (agora por último) -> antes de B: ordem A, B, C.
+  // A (now last) -> before B: order A, B, C.
   const pa2 = await centerOfNode(page, a);
   const pb = await centerOfNode(page, b);
   await drag(page, pa2, { x: pb.box.x + 10, y: pb.y }, { steps: 20 });
   await expect.poll(() => rows(info, wrap.id)).toEqual([a, b, c]);
 
-  // Um único undo desfaz o gesto inteiro.
+  // A single undo reverts the whole gesture.
   await page.keyboard.press('Control+z');
   await expect.poll(() => rows(info, wrap.id)).toEqual([b, c, a]);
 });
 
-test('Shift mantém a proporção e Alt redimensiona a partir do centro', async ({ page }) => {
+test('Shift keeps the proportion and Alt resizes from the center', async ({ page }) => {
   const { info, frame } = await setup('resize');
   await gotoEditor(page);
   await page.getByTestId(`frame-label-${frame.id}`).click();
@@ -175,11 +177,11 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
     const f = (await getDoc(info.docId)).pages[0]!.frames[0]!;
     return { w: parseFloat(f.style.width!), h: parseFloat(f.style.height!), pos: f.position };
   };
-  /** Ajusta o zoom para caber tudo (a alça fica visível) e devolve a alça sudeste e a escala. */
+  /** Adjusts the zoom to fit everything (the handle stays visible) and returns the southeast handle and the scale. */
   const prepare = async () => {
-    // O overlay remede por rAF: espera a alça sudeste chegar ao canto do frame já enquadrado.
-    // O Shift+1 enquadra pelo tamanho do modelo: se o resize anterior ainda não chegou ao editor,
-    // enquadra o tamanho antigo e a alça fica fora do canvas (sob o painel). Repete até caber.
+    // The overlay re-measures via rAF: wait for the southeast handle to reach the corner of the already framed frame.
+    // Shift+1 frames by the model size: if the previous resize has not reached the editor yet,
+    // it frames the old size and the handle ends up outside the canvas (under the panel). Retry until it fits.
     const handle = page.getByTestId('handle-se');
     const canvas = page.getByTestId('canvas');
     await expect
@@ -201,7 +203,7 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
     return { x: h.x + h.width / 2, y: h.y + h.height / 2, z };
   };
 
-  // Shift: arrastar só em x mantém a proporção 4:3.
+  // Shift: dragging only in x keeps the 4:3 proportion.
   let h0 = await prepare();
   await page.keyboard.down('Shift');
   await page.mouse.move(h0.x, h0.y);
@@ -213,7 +215,7 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
   const s1 = await size();
   expect(s1.w / s1.h).toBeCloseTo(800 / 600, 1);
 
-  // Alt: cresce para os dois lados; a posição recua pela metade do aumento.
+  // Alt: grows to both sides; the position moves back by half of the increase.
   h0 = await prepare();
   await page.keyboard.down('Alt');
   await page.mouse.move(h0.x, h0.y);
@@ -227,8 +229,8 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
   expect(s1.pos!.y - after.pos!.y).toBeCloseTo((after.h - s1.h) / 2, 0);
 });
 
-test('um arrasto é uma única entrada de undo', async ({ page }) => {
-  const { info, frame } = await setup('undo-arrasto');
+test('a drag is a single undo entry', async ({ page }) => {
+  const { info, frame } = await setup('undo-drag');
   await gotoEditor(page);
   const label = (await page.getByTestId(`frame-label-${frame.id}`).boundingBox())!;
   const from = { x: label.x + 10, y: label.y + label.height / 2 };
@@ -242,8 +244,8 @@ test('um arrasto é uma única entrada de undo', async ({ page }) => {
     .toEqual({ x: 0, y: 0 });
 });
 
-test('setas repetidas rapidamente não perdem movimentos', async ({ page }) => {
-  const { info, frame } = await setup('setas-rapidas');
+test('rapidly repeated arrows do not lose moves', async ({ page }) => {
+  const { info, frame } = await setup('fast-arrows');
   await gotoEditor(page);
   await page.getByTestId(`frame-label-${frame.id}`).click();
   for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowDown');

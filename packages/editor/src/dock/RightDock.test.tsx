@@ -27,7 +27,7 @@ describe('RightDock', () => {
     useDoc.setState({ activeDocId: null });
   });
 
-  it('Design (propriedades) fica montado e oculto ao trocar de aba', async () => {
+  it('Design (properties) stays mounted and hidden when switching tabs', async () => {
     render(<RightDock />);
     expect(screen.getByTestId('properties-panel')).toBeTruthy();
     expect(screen.queryByTestId('assistant-panel')).toBeNull();
@@ -37,7 +37,7 @@ describe('RightDock', () => {
     });
     expect(useUi.getState().rightTab).toBe('assistant');
     expect(screen.getByTestId('assistant-panel')).toBeTruthy();
-    // propriedades continua no DOM, dentro de um contêiner oculto
+    // properties stays in the DOM, inside a hidden container
     expect(screen.getByTestId('properties-panel').closest('[hidden]')).not.toBeNull();
 
     await act(async () => {

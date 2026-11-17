@@ -1,8 +1,8 @@
 /**
- * Cliente do daemon: WebSocket com reconexão, requisições com Promise (ack/error por `reqId`),
- * integração das mensagens nos stores e helpers HTTP (assets, recentes).
+ * Daemon client: WebSocket with reconnection, Promise-based requests (ack/error by `reqId`),
+ * integration of messages into the stores and HTTP helpers (assets, recent).
  *
- * Regra central do editor: toda mutação do documento passa por `daemon.apply(ops)`.
+ * Core rule of the editor: every document mutation goes through `daemon.apply(ops)`.
  */
 import type {
   AssistantBackendInfo,
@@ -30,7 +30,7 @@ import { assistantStore } from '../state/assistantStore';
 import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc, withView } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 
-/** Mensagem do cliente sem `reqId` (gerado em `request`), distribuída por membro da união. */
+/** Client message without `reqId` (generated in `request`), distributed over each member of the union. */
 export type NewClientMessage = ClientMessage extends infer M
   ? M extends ClientMessage
     ? Omit<M, 'reqId'>
@@ -39,7 +39,7 @@ export type NewClientMessage = ClientMessage extends infer M
 
 export interface ApplyAck {
   revision: number;
-  /** Um item por op: ex. `{ nodeIds }` em createNode, `{ idMap, nodeIds }` em duplicateNodes. */
+  /** One item per op: e.g. `{ nodeIds }` for createNode, `{ idMap, nodeIds }` for duplicateNodes. */
   results: (Record<string, unknown> | null)[];
 }
 
@@ -50,11 +50,11 @@ interface Pending {
 }
 
 const REQUEST_TIMEOUT_MS = 15000;
-/** Scripts, geração com IA e remix com IA podem levar bem mais que uma op comum. */
+/** Scripts, AI generation and AI remix can take much longer than a regular op. */
 export const LONG_REQUEST_TIMEOUT_MS = 120000;
-/** Intervalo mínimo entre `selection:set` (o marquee muda a seleção a cada `pointermove`). */
+/** Minimum interval between `selection:set` (the marquee changes the selection on every `pointermove`). */
 export const SELECTION_SYNC_MS = 100;
-/** Atividade do agente mais antiga que isso é descartada (o selo some bem antes). */
+/** Agent activity older than this is discarded (the badge disappears well before). */
 const AGENT_ACTIVITY_TTL_MS = 10000;
 
 function defaultSocketUrl(): string {
@@ -93,8 +93,8 @@ export class DaemonClient {
   connect(): void {
     this.closed = false;
     this.open();
-    // Publica a seleção local no daemon (para `get_selection` do MCP), no máximo uma vez a cada
-    // SELECTION_SYNC_MS: a primeira mudança sai logo e as seguintes são agrupadas na última.
+    // Publishes the local selection to the daemon (for the MCP's `get_selection`), at most once per
+    // SELECTION_SYNC_MS: the first change goes out right away and the following ones are grouped into the last.
     this.unsubSelection ??= useUi.subscribe((s, prev) => {
       if (s.selection !== prev.selection) this.scheduleSelectionSync();
     });
@@ -109,7 +109,7 @@ export class DaemonClient {
     this.unsubSelection = null;
     const ws = this.ws;
     this.ws = null;
-    // Sem isso o `onclose` (que confere `this.ws`) ignora o socket e as pendentes só expiram em 15 s.
+    // Without this, `onclose` (which checks `this.ws`) ignores the socket and the pending ones only expire after 15 s.
     this.rejectPending();
     ws?.close();
   }
@@ -117,7 +117,7 @@ export class DaemonClient {
   private rejectPending(): void {
     for (const [id, p] of this.pending) {
       clearTimeout(p.timer);
-      p.reject(new Error('Conexão com o daemon perdida'));
+      p.reject(new Error('Connection to the daemon lost'));
       this.pending.delete(id);
     }
   }
@@ -163,17 +163,17 @@ export class DaemonClient {
     ws.onerror = () => ws.close();
   }
 
-  /** Envia uma requisição e resolve com o `result` do ack (rejeita com a mensagem do `error`). */
+  /** Sends a request and resolves with the ack's `result` (rejects with the `error` message). */
   request<T = unknown>(msg: NewClientMessage, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error('Sem conexão com o daemon'));
+      return Promise.reject(new Error('No connection to the daemon'));
     }
     const reqId = newReqId();
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(reqId);
-        reject(new Error('O daemon não respondeu a tempo'));
+        reject(new Error('The daemon did not respond in time'));
       }, timeoutMs);
       this.pending.set(reqId, { resolve: resolve as (v: unknown) => void, reject, timer });
       ws.send(JSON.stringify({ ...msg, reqId }));
@@ -181,13 +181,13 @@ export class DaemonClient {
   }
 
   /**
-   * Aplica ops no documento ativo (ou em `docId`). Uma chamada = uma entrada no histórico.
-   * Quando a Promise resolve, o `doc:changed` correspondente já foi integrado ao store.
-   * Erros viram toast e a Promise rejeita.
+   * Applies ops to the active document (or to `docId`). One call = one history entry.
+   * When the Promise resolves, the corresponding `doc:changed` has already been integrated into the store.
+   * Errors become a toast and the Promise rejects.
    */
   async apply(ops: Op[], docId?: string): Promise<ApplyAck> {
     const id = docId ?? useDoc.getState().activeDocId;
-    if (!id) throw new Error('Nenhum documento aberto');
+    if (!id) throw new Error('No document open');
     if (ops.length === 0) return { revision: useDoc.getState().revision, results: [] };
     try {
       return await this.request<ApplyAck>({ type: 'op:apply', docId: id, ops });
@@ -197,7 +197,7 @@ export class DaemonClient {
     }
   }
 
-  /** Igual a `apply`, mas sem propagar o erro (já exibido como toast). */
+  /** Same as `apply`, but without propagating the error (already shown as a toast). */
   applySafe(ops: Op[], docId?: string): Promise<ApplyAck | null> {
     return this.apply(ops, docId).catch(() => null);
   }
@@ -231,10 +231,10 @@ export class DaemonClient {
     return this.request({ type: 'active:set', docId });
   }
 
-  /** Envia uma imagem para `assets/` do documento; devolve o `src` relativo. */
+  /** Uploads an image to the document's `assets/`; returns the relative `src`. */
   async uploadAsset(file: Blob, name: string, docId?: string): Promise<string> {
     const id = docId ?? useDoc.getState().activeDocId;
-    if (!id) throw new Error('Nenhum documento aberto');
+    if (!id) throw new Error('No document open');
     const res = await fetch(
       `/api/assets/${encodeURIComponent(id)}?name=${encodeURIComponent(name)}`,
       {
@@ -244,25 +244,25 @@ export class DaemonClient {
       },
     );
     const body = (await res.json().catch(() => ({}))) as { src?: string; error?: string };
-    if (!res.ok || !body.src) throw new Error(body.error ?? `Falha no upload (${res.status})`);
+    if (!res.ok || !body.src) throw new Error(body.error ?? `Upload failed (${res.status})`);
     return body.src;
   }
 
-  /** Pede ao daemon que baixe um Lottie/Rive e o guarde em assets/lottie|rive/; devolve o src relativo. */
+  /** Asks the daemon to download a Lottie/Rive and store it in assets/lottie|rive/; returns the relative src. */
   async fetchAsset(url: string, kind: 'lottie' | 'rive', docId?: string): Promise<string> {
     const id = docId ?? useDoc.getState().activeDocId;
-    if (!id) throw new Error('Nenhum documento aberto');
+    if (!id) throw new Error('No document open');
     const res = await fetch(`/api/assets/${encodeURIComponent(id)}/fetch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, kind }),
     });
     const body = (await res.json().catch(() => ({}))) as { src?: string; error?: string };
-    if (!res.ok || !body.src) throw new Error(body.error ?? `Falha ao copiar (${res.status})`);
+    if (!res.ok || !body.src) throw new Error(body.error ?? `Copy failed (${res.status})`);
     return body.src;
   }
 
-  /** Caminhos recentes (mais recente primeiro). */
+  /** Recent paths (most recent first). */
   async recent(): Promise<string[]> {
     const res = await fetch('/api/recent');
     if (!res.ok) return [];
@@ -270,15 +270,15 @@ export class DaemonClient {
     return Array.isArray(body.recent) ? body.recent : [];
   }
 
-  /* ---------------- assistente, scripts e remix ---------------- */
+  /* ---------------- assistant, scripts and remix ---------------- */
 
   private activeDoc(docId?: string): string {
     const id = docId ?? useDoc.getState().activeDocId;
-    if (!id) throw new Error('Nenhum documento aberto');
+    if (!id) throw new Error('No document open');
     return id;
   }
 
-  /** Inicia um turno do assistente. Só espera o ack; o resto chega por `assistant:event`. */
+  /** Starts an assistant turn. Only waits for the ack; the rest arrives through `assistant:event`. */
   async assistantSend(
     prompt: string,
     opts: { selection?: string[]; backend?: string; docId?: string } = {},
@@ -294,7 +294,7 @@ export class DaemonClient {
   async assistantCancel(docId?: string): Promise<{ cancelled: boolean }> {
     return this.request({ type: 'assistant:cancel', docId: this.activeDoc(docId) });
   }
-  /** Carrega histórico, backends e configuração e os grava no `assistantStore`. */
+  /** Loads history, backends and settings and writes them to the `assistantStore`. */
   async assistantHistory(docId?: string): Promise<{
     messages: AssistantMessage[];
     running: string | null;
@@ -314,7 +314,7 @@ export class DaemonClient {
   async assistantClear(docId?: string): Promise<unknown> {
     return this.request({ type: 'assistant:clear', docId: this.activeDoc(docId) });
   }
-  /** Lê (sem argumento) ou grava a configuração; atualiza o `assistantStore`. */
+  /** Reads (without an argument) or writes the settings; updates the `assistantStore`. */
   async assistantConfig(
     config?: Partial<AssistantConfig>,
   ): Promise<{ config: AssistantConfig; backends: AssistantBackendInfo[] }> {
@@ -359,7 +359,7 @@ export class DaemonClient {
     );
   }
 
-  /** Gera variações lado a lado (o daemon seleciona os frames criados). `ai` pode demorar. */
+  /** Generates variations side by side (the daemon selects the created frames). `ai` can take a while. */
   async remix(
     nodeId: string,
     kind: RemixKind,
@@ -380,7 +380,7 @@ export class DaemonClient {
 
   /* ------------------------------------------------------------------ */
 
-  /** Integra uma mensagem do servidor nos stores. Público para testes. */
+  /** Integrates a server message into the stores. Public for tests. */
   handle(msg: ServerMessage): void {
     const s = useDoc.getState();
     switch (msg.type) {
@@ -496,12 +496,12 @@ export class DaemonClient {
       }
       case 'selection:changed': {
         if (msg.docId !== s.activeDocId || msg.source === 'editor') return;
-        // Nó de um principal (ex.: `go_to_main` do MCP): entra no modo de edição dele.
+        // Node of a main component (e.g. the MCP's `go_to_main`): enters its edit mode.
         const main = s.rawDoc ? mainOfSelection(s.rawDoc, msg.nodeIds) : null;
         if (main && main !== useUi.getState().editingComponentId) enterComponent(main);
         const doc = useDoc.getState().doc;
         const ids = doc ? msg.nodeIds.filter((id) => getEntry(doc, id)) : [];
-        // Seleção vinda do MCP: troca de página se preciso e enquadra os nós.
+        // Selection coming from the MCP: switches page if needed and frames the nodes.
         if (doc && ids.length) {
           const pageId = getEntry(doc, ids[0]!)!.pageId;
           if (pageId !== (useUi.getState().pageId ?? doc.pages[0]?.id)) ui.setPage(pageId);
@@ -528,7 +528,7 @@ export class DaemonClient {
     }
   }
 
-  /** Busca um documento que não está no cache (ex.: ativo trocado para um doc não recebido). */
+  /** Fetches a document that is not in the cache (e.g. active switched to a document not yet received). */
   private async fetchDoc(docId: string): Promise<void> {
     try {
       const res = await fetch(`/api/docs/${encodeURIComponent(docId)}`);
@@ -541,13 +541,13 @@ export class DaemonClient {
         docs: { ...s.docs, [docId]: data.doc },
       }));
     } catch {
-      /* ignorado */
+      /* ignored */
     }
   }
 
-  /** Remove da UI referências a nós/páginas que não existem mais. */
+  /** Removes from the UI references to nodes/pages that no longer exist. */
   private pruneUi(doc: Document): void {
-    // O principal em edição deixou de existir (ex.: desfazer a criação): volta para a página.
+    // The main component being edited no longer exists (e.g. undoing its creation): goes back to the page.
     if (useUi.getState().editingComponentId && !isEditingValid()) {
       exitComponent();
       doc = useDoc.getState().doc ?? doc;
@@ -562,5 +562,5 @@ export class DaemonClient {
   }
 }
 
-/** Instância única usada pelo app. */
+/** Single instance used by the app. */
 export const daemon = new DaemonClient();

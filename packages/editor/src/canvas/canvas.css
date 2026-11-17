@@ -1,4 +1,4 @@
-/* Canvas infinito: mundo transformado + overlay em coordenadas de tela. */
+/* Infinite canvas: transformed world + overlay in screen coordinates. */
 
 .cv {
   position: relative;
@@ -48,7 +48,7 @@
   caret-color: currentColor;
 }
 
-/* ---------------- rótulo do frame ---------------- */
+/* ---------------- frame label ---------------- */
 
 .cv-frame-label {
   position: absolute;
@@ -111,7 +111,7 @@
   overflow: hidden;
 }
 
-/* ---------------- overlay (coordenadas de tela) ---------------- */
+/* ---------------- overlay (screen coordinates) ---------------- */
 
 .cv-overlay {
   position: absolute;
@@ -204,7 +204,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------------- componentes (roxo) ---------------- */
+/* ---------------- components (purple) ---------------- */
 
 .cv-hover.cv-component,
 .cv-sel-node.cv-component,
@@ -218,13 +218,13 @@
   background: var(--component);
   color: #fff;
 }
-/* Quadro do modo de edição do principal (sintético, fora do documento). */
+/* Frame for main component edit mode (synthetic, outside the document). */
 .cv-world [data-component-frame] {
   outline: 1px dashed var(--component);
   outline-offset: -1px;
 }
 
-/* ---------------- recorte visual de imagens ---------------- */
+/* ---------------- visual image crop ---------------- */
 .cv-overlay > .cv-crop {
   inset: 0;
   pointer-events: none;
@@ -253,7 +253,7 @@
   pointer-events: auto;
 }
 
-/* Overlay de grid: trilhas, célula de destino e alças de span */
+/* Grid overlay: tracks, target cell and span handles */
 .cv-grid-track {
   box-sizing: border-box;
   border: 1px dashed rgba(236, 72, 153, 0.7);

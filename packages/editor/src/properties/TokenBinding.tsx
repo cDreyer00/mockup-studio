@@ -1,7 +1,7 @@
 /**
- * "Ligar a token": ícone ao lado dos inputs que abre um seletor de tokens e, quando o valor atual é
- * `var(--x)`, um chip com o nome do token e o valor resolvido (com botão para desligar).
- * Genérico: os componentes compartilhados (`StyleNum`, `StyleColor`, `BoxField`...) só o envolvem.
+ * "Bind to token": an icon next to the inputs that opens a token picker and, when the current value is
+ * `var(--x)`, a chip with the token name and the resolved value (with an unbind button).
+ * Generic: the shared components (`StyleNum`, `StyleColor`, `BoxField`...) just wrap it.
  */
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
@@ -26,7 +26,7 @@ import {
 import type { BindKind } from '../tokens/tokensLogic';
 import { LockedContext, commitStyles, common, runOps, styleOf } from './styleOps';
 
-/** Valor resolvido (literal) de `value` no escopo do nó. */
+/** Resolved (literal) value of `value` in the node's scope. */
 export function resolveForNode(doc: Document, nodeId: string, value: string): string {
   try {
     return resolveCssValue(value, nodeScopeVars(doc, nodeId));
@@ -35,7 +35,7 @@ export function resolveForNode(doc: Document, nodeId: string, value: string): st
   }
 }
 
-/** Ops que ligam a propriedade dos nós ao token (via `planApplyToken`). */
+/** Ops that bind the nodes' property to the token (via `planApplyToken`). */
 export function bindOps(doc: Document, nodes: readonly Node[], prop: string, token: string) {
   return planApplyToken(
     doc,
@@ -45,7 +45,7 @@ export function bindOps(doc: Document, nodes: readonly Node[], prop: string, tok
   );
 }
 
-/* ------------------------------ amostra ------------------------------ */
+/* ------------------------------ swatch ------------------------------ */
 
 function Swatch({
   info,
@@ -75,7 +75,7 @@ function Swatch({
 
 export { Swatch as TokenSwatch };
 
-/* ------------------------------ seletor (popover) ------------------------------ */
+/* ------------------------------ picker (popover) ------------------------------ */
 
 interface PickerProps {
   anchor: DOMRect;
@@ -123,7 +123,7 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
   const relevant = report ? pickerTokens(report.tokens, groups, false, query) : [];
   const items = report ? pickerTokens(report.tokens, groups, all, query) : [];
   const left = Math.max(4, Math.min(anchor.right - POP_W, window.innerWidth - POP_W - 4));
-  // Abaixo do campo; perto do fim da tela (painel com muitas seções), abre para cima.
+  // Below the field; near the bottom of the screen (panel with many sections), opens upward.
   const spaceBelow = window.innerHeight - anchor.bottom - 12;
   const spaceAbove = anchor.top - 12;
   const openBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
@@ -142,7 +142,7 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
       className="tk-picker"
       style={style}
       role="dialog"
-      aria-label="Escolher token"
+      aria-label="Choose token"
       data-testid="token-picker"
     >
       <div className="tk-picker-search">
@@ -150,7 +150,7 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
         <input
           autoFocus
           value={query}
-          placeholder="Buscar token…"
+          placeholder="Search token…"
           spellCheck={false}
           data-testid="token-picker-search"
           onChange={(e) => setQuery(e.target.value)}
@@ -170,13 +170,13 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
           data-testid="token-picker-all"
           onClick={() => setAll(true)}
         >
-          Todos
+          All
         </button>
       </div>
       <div className="tk-picker-list">
         {items.length === 0 && (
           <div className="tk-picker-empty">
-            {all || relevant.length > 0 ? 'Nenhum token.' : 'Nenhum token deste tipo.'}
+            {all || relevant.length > 0 ? 'No tokens.' : 'No tokens of this type.'}
           </div>
         )}
         {items.map((t) => {
@@ -235,7 +235,7 @@ function Chip({
         type="button"
         className="tk-chip-main"
         disabled={locked}
-        title="Trocar token"
+        title="Change token"
         onClick={(e) => onChange(e.currentTarget.getBoundingClientRect())}
       >
         <Swatch info={{ group, name }} resolved={resolved} />
@@ -249,8 +249,8 @@ function Chip({
       <button
         type="button"
         className="tk-chip-x"
-        title="Desligar do token (usa o valor atual)"
-        aria-label="Desligar do token"
+        title="Unbind from token (keeps the current value)"
+        aria-label="Unbind from token"
         data-testid="token-unbind"
         disabled={locked}
         onClick={onUnbind}
@@ -261,17 +261,17 @@ function Chip({
   );
 }
 
-/* ------------------------------ componente público ------------------------------ */
+/* ------------------------------ public component ------------------------------ */
 
 export interface TokenBoundProps {
   nodes: readonly Node[];
-  /** Propriedade CSS ligada (também decide os grupos do seletor). */
+  /** Bound CSS property (also decides the picker groups). */
   prop: string;
-  /** Valor atual comum (`null` = misto). Quando é `var(--x)` mostra o chip no lugar do input. */
+  /** Common current value (`null` = mixed). When it is `var(--x)` it shows the chip in place of the input. */
   value: string | undefined | null;
-  /** Escrita customizada (ex.: fundo, borda, sombra); padrão: `planApplyToken` / valor literal. */
+  /** Custom write (e.g. background, border, shadow); default: `planApplyToken` / literal value. */
   write?: (value: string) => void;
-  /** Força o tipo de token (padrão: deduzido de `prop`). */
+  /** Forces the token type (default: inferred from `prop`). */
   kind?: BindKind;
   children: ReactNode;
   className?: string;
@@ -310,7 +310,7 @@ export function TokenBound({
     const literal = (n: Node, v: string): string => resolveForNode(doc, n.id, v);
     if (write) return write(literal(nodes[0]!, value ?? ''));
     const bad = nodes.some((n) => /var\(/.test(literal(n, n.style[prop] ?? '')));
-    if (bad) return ui.toast('Não foi possível resolver o valor do token', 'error');
+    if (bad) return ui.toast('Could not resolve the token value', 'error');
     void commitStyles(nodes, (n) => {
       const v = n.style[prop];
       return v ? { set: { [prop]: literal(n, v) } } : null;
@@ -334,8 +334,8 @@ export function TokenBound({
           <button
             type="button"
             className="tk-bind-btn"
-            title="Ligar a um token"
-            aria-label="Ligar a um token"
+            title="Bind to a token"
+            aria-label="Bind to a token"
             data-testid="token-bind"
             disabled={locked}
             onClick={(e) => setRect(e.currentTarget.getBoundingClientRect())}
@@ -357,7 +357,7 @@ export function TokenBound({
   );
 }
 
-/** Atalho para propriedades de estilo comuns: lê o valor comum dos nós. */
+/** Shortcut for common style properties: reads the nodes' common value. */
 export function StyleTokenBound({
   nodes,
   prop,
@@ -376,14 +376,14 @@ export function StyleTokenBound({
   );
 }
 
-/* ------------------------------ inputs com `bind` ------------------------------ */
+/* ------------------------------ inputs with `bind` ------------------------------ */
 
-/** Opções de `bind` (as de `TokenBoundProps`, sem os filhos). */
+/** `bind` options (those of `TokenBoundProps`, without the children). */
 export type TokenBindProps = Omit<TokenBoundProps, 'children'>;
 
 /**
- * Devolve o input com uma prop opcional `bind`: com ela, o input vem envolvido em `TokenBound`;
- * sem ela, é o input original. Evita reindentar o JSX das seções só para envolvê-lo.
+ * Returns the input with an optional `bind` prop: with it, the input comes wrapped in `TokenBound`;
+ * without it, it is the original input. Avoids re-indenting the sections' JSX just to wrap it.
  */
 export function withTokenBinding<P extends object>(Input: ComponentType<P>) {
   return function Bindable(props: P & { bind?: TokenBindProps }) {

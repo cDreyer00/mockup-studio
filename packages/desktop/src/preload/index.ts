@@ -1,6 +1,6 @@
 /**
- * Preload (sandbox, CJS): expõe `window.mockupDesktop` ao editor. Só é exposto quando a página é
- * servida pelo daemon local (127.0.0.1/localhost); qualquer outra origem não recebe a ponte.
+ * Preload (sandbox, CJS): exposes `window.mockupDesktop` to the editor. It is only exposed when the page is
+ * served by the local daemon (127.0.0.1/localhost); any other origin does not get the bridge.
  */
 import { contextBridge, ipcRenderer } from 'electron';
 

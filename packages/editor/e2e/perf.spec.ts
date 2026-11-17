@@ -2,14 +2,14 @@ import { expect, test } from '@playwright/test';
 import { Mcp, createDoc, drag, getDoc, gotoEditor } from './helpers';
 
 /**
- * Medições de desempenho com ~300 nós (6 frames × 50). Os números saem no console e nas anotações
- * do teste; os limites são folgados (detectam regressões grosseiras, não microvariações).
+ * Performance measurements with ~300 nodes (6 frames × 50). The numbers go to the console and to the test
+ * annotations; the limits are loose (they catch gross regressions, not micro-variations).
  */
-test('documento com 300 nós: latência MCP → canvas e fluidez do arrasto', async ({ page }) => {
+test('document with 300 nodes: MCP → canvas latency and drag smoothness', async ({ page }) => {
   const info = await createDoc('perf-300');
   const mcp = await new Mcp().init();
   const items = Array.from({ length: 49 }, (_, i) =>
-    i % 3 === 0 ? `<p class="t">Texto ${i}</p>` : `<div class="c" data-i="${i}"></div>`,
+    i % 3 === 0 ? `<p class="t">Text ${i}</p>` : `<div class="c" data-i="${i}"></div>`,
   ).join('');
   for (let f = 0; f < 6; f++) {
     await mcp.call('create_frame', { name: `F${f}`, width: 1440, height: 900, x: f * 1600, y: 0 });
@@ -38,7 +38,7 @@ test('documento com 300 nós: latência MCP → canvas e fluidez do arrasto', as
   const el = page.getByTestId('canvas-world').locator(`[data-node-id="${target.id}"]`);
   await expect(el).toBeVisible();
 
-  // 1) Latência de uma op do MCP até o DOM refletir (inclui HTTP, store, WS e re-render).
+  // 1) Latency of an MCP op until the DOM reflects it (includes HTTP, store, WS and re-render).
   const latencies: number[] = [];
   for (let i = 0; i < 10; i++) {
     const width = `${130 + i}px`;
@@ -49,7 +49,7 @@ test('documento com 300 nós: latência MCP → canvas e fluidez do arrasto', as
   }
   const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length;
 
-  // 2) Fluidez: intervalos entre frames (rAF) durante o arrasto de um frame com 50 nós.
+  // 2) Smoothness: intervals between frames (rAF) while dragging a frame with 50 nodes.
   await page.evaluate(() => {
     const w = window as unknown as { __frames: number[]; __stop: boolean };
     w.__frames = [];
@@ -74,7 +74,7 @@ test('documento com 300 nós: latência MCP → canvas e fluidez do arrasto', as
   const sorted = [...frames].sort((a, b) => a - b);
   const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
 
-  const summary = `nós=${count} latênciaMCP→DOM média=${avg.toFixed(1)}ms máx=${Math.max(...latencies).toFixed(1)}ms; arrasto: ${frames.length} frames, p95=${p95.toFixed(1)}ms`;
+  const summary = `nodes=${count} MCP→DOM latency avg=${avg.toFixed(1)}ms max=${Math.max(...latencies).toFixed(1)}ms; drag: ${frames.length} frames, p95=${p95.toFixed(1)}ms`;
   console.log(`[perf] ${summary}`);
   test.info().annotations.push({ type: 'perf', description: summary });
   expect(avg).toBeLessThan(250);

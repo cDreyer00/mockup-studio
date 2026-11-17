@@ -1,4 +1,4 @@
-/** Aba "Tokens" do painel esquerdo: tokens por grupo, temas, importar/exportar. */
+/** "Tokens" tab of the left panel: tokens by group, themes, import/export. */
 import { useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { ChevronDown, ChevronRight, Download, Pencil, Plus, Trash2, Upload } from 'lucide-react';
@@ -13,7 +13,7 @@ import { GroupsDatalist, TokenRow } from './TokenRow';
 import { ExportDialog, ImportDialog } from './TokensDialogs';
 import { groupTokens, planCreateToken, summarizeTokens, themeNameError } from './tokensLogic';
 
-/** Envia as ops numa única entrada de undo (erros já viram toast no cliente). */
+/** Sends the ops as a single undo entry (errors already become a toast in the client). */
 function run(ops: Op[]): void {
   if (ops.length) void daemon.applySafe(ops);
 }
@@ -49,7 +49,7 @@ function NewTokenForm({ doc, onDone }: { doc: Document; onDone: () => void }) {
         data-testid="new-token-name"
         value={name}
         autoFocus
-        placeholder="nome (ex.: color-primary)"
+        placeholder="name (e.g. color-primary)"
         spellCheck={false}
         onChange={(e) => {
           setName(e.target.value);
@@ -61,7 +61,7 @@ function NewTokenForm({ doc, onDone }: { doc: Document; onDone: () => void }) {
         className="text-input mono"
         data-testid="new-token-value"
         value={value}
-        placeholder="valor (ex.: #2dd4bf)"
+        placeholder="value (e.g. #2dd4bf)"
         spellCheck={false}
         onChange={(e) => {
           setValue(e.target.value);
@@ -74,10 +74,10 @@ function NewTokenForm({ doc, onDone }: { doc: Document; onDone: () => void }) {
           className="select-input"
           data-testid="new-token-group"
           value={group}
-          title="Grupo"
+          title="Group"
           onChange={(e) => setGroup(e.target.value)}
         >
-          <option value="">Grupo: automático</option>
+          <option value="">Group: automatic</option>
           {TOKEN_GROUPS.map((g) => (
             <option key={g.id} value={g.id}>
               {g.label}
@@ -90,10 +90,10 @@ function NewTokenForm({ doc, onDone }: { doc: Document; onDone: () => void }) {
           data-testid="new-token-submit"
           onClick={submit}
         >
-          Criar
+          Create
         </button>
         <button type="button" className="btn" onClick={onDone}>
-          Cancelar
+          Cancel
         </button>
       </div>
       {error && (
@@ -120,7 +120,7 @@ export function TokensPanel() {
   if (!doc || !report) {
     return (
       <aside className="panel panel-left tk-panel" data-testid="tokens-panel">
-        <div className="tk-empty">Nenhum documento aberto.</div>
+        <div className="tk-empty">No document open.</div>
       </aside>
     );
   }
@@ -129,15 +129,15 @@ export function TokensPanel() {
 
   const newTheme = async () => {
     const r = await prompt({
-      title: 'Novo tema',
-      message: theme ? `Copia as sobrescritas de "${theme}".` : undefined,
-      fields: [{ name: 'name', label: 'Nome do tema', placeholder: 'dark' }],
-      confirmLabel: 'Criar',
+      title: 'New theme',
+      message: theme ? `Copies the overrides from "${theme}".` : undefined,
+      fields: [{ name: 'name', label: 'Theme name', placeholder: 'dark' }],
+      confirmLabel: 'Create',
     });
     if (!r) return;
     const name = r.name!.trim();
     const err = themeNameError(doc, name);
-    if (err) return ui.toast(`Tema inválido: ${err}`, 'error');
+    if (err) return ui.toast(`Invalid theme: ${err}`, 'error');
     run(planCreateTheme(doc, name, theme ? { copyFrom: theme } : {}));
     setThemeSel(name);
   };
@@ -145,15 +145,15 @@ export function TokensPanel() {
   const renameTheme = async () => {
     if (!theme) return;
     const r = await prompt({
-      title: `Renomear tema "${theme}"`,
-      fields: [{ name: 'name', label: 'Novo nome', value: theme }],
-      confirmLabel: 'Renomear',
+      title: `Rename theme "${theme}"`,
+      fields: [{ name: 'name', label: 'New name', value: theme }],
+      confirmLabel: 'Rename',
     });
     if (!r) return;
     const name = r.name!.trim();
     if (name === theme) return;
     const err = themeNameError(doc, name, theme);
-    if (err) return ui.toast(`Tema inválido: ${err}`, 'error');
+    if (err) return ui.toast(`Invalid theme: ${err}`, 'error');
     run(planRenameTheme(doc, theme, name));
     setThemeSel(name);
   };
@@ -162,7 +162,7 @@ export function TokensPanel() {
     if (!theme) return;
     run(planDeleteTheme(doc, theme));
     setThemeSel(null);
-    ui.toast(`Tema "${theme}" excluído (Ctrl+Z desfaz)`);
+    ui.toast(`Theme "${theme}" deleted (Ctrl+Z to undo)`);
   };
 
   return (
@@ -174,7 +174,7 @@ export function TokensPanel() {
             className="select-input"
             data-testid="tokens-theme-select"
             value={theme ?? ''}
-            title="Tema em edição"
+            title="Theme being edited"
             onChange={(e) => setThemeSel(e.target.value || null)}
           >
             <option value="">Base</option>
@@ -187,8 +187,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Novo tema"
-            aria-label="Novo tema"
+            title="New theme"
+            aria-label="New theme"
             data-testid="tokens-theme-add"
             onClick={() => void newTheme()}
           >
@@ -197,8 +197,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Renomear tema"
-            aria-label="Renomear tema"
+            title="Rename theme"
+            aria-label="Rename theme"
             data-testid="tokens-theme-rename"
             disabled={!theme}
             onClick={() => void renameTheme()}
@@ -208,8 +208,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Excluir tema"
-            aria-label="Excluir tema"
+            title="Delete theme"
+            aria-label="Delete theme"
             data-testid="tokens-theme-delete"
             disabled={!theme}
             onClick={deleteTheme}
@@ -221,8 +221,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Novo token"
-            aria-label="Novo token"
+            title="New token"
+            aria-label="New token"
             data-testid="tokens-add"
             onClick={() => setAdding((a) => !a)}
           >
@@ -231,8 +231,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Importar tokens"
-            aria-label="Importar tokens"
+            title="Import tokens"
+            aria-label="Import tokens"
             data-testid="tokens-import"
             onClick={() => setDialog('import')}
           >
@@ -241,8 +241,8 @@ export function TokensPanel() {
           <button
             type="button"
             className="icon-btn"
-            title="Exportar tokens"
-            aria-label="Exportar tokens"
+            title="Export tokens"
+            aria-label="Export tokens"
             data-testid="tokens-export"
             onClick={() => setDialog('export')}
           >
@@ -252,7 +252,8 @@ export function TokensPanel() {
       </div>
       {theme && (
         <div className="tk-theme-hint" data-testid="tokens-theme-hint">
-          Editando o tema <b>{theme}</b>: valores novos viram sobrescritas; o resto herda da base.
+          Editing the <b>{theme}</b> theme: new values become overrides; the rest inherits from the
+          base.
         </div>
       )}
       <div className="tk-search">
@@ -260,7 +261,7 @@ export function TokensPanel() {
           className="text-input"
           data-testid="tokens-search"
           value={query}
-          placeholder="Buscar por nome ou valor…"
+          placeholder="Search by name or value…"
           spellCheck={false}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -272,10 +273,10 @@ export function TokensPanel() {
       {adding && <NewTokenForm doc={doc} onDone={() => setAdding(false)} />}
       <div className="tk-list" data-testid="tokens-list">
         {report.tokens.length === 0 && !adding && (
-          <div className="tk-empty">Nenhum token. Crie um com + ou importe CSS/JSON.</div>
+          <div className="tk-empty">No tokens. Create one with + or import CSS/JSON.</div>
         )}
         {report.tokens.length > 0 && groups.length === 0 && (
-          <div className="tk-empty">Nada encontrado para “{query}”.</div>
+          <div className="tk-empty">Nothing found for “{query}”.</div>
         )}
         {groups.map((g) => {
           const closed = collapsedGroups.has(g.id) && !query;
@@ -312,8 +313,8 @@ export function TokensPanel() {
       </div>
       {summary && (summary.unused > 0 || summary.broken > 0) && (
         <div className="tk-footer" data-testid="tokens-footer">
-          {summary.broken > 0 && <span className="error">{summary.broken} com problema</span>}
-          {summary.unused > 0 && <span>{summary.unused} não usados</span>}
+          {summary.broken > 0 && <span className="error">{summary.broken} with issues</span>}
+          {summary.unused > 0 && <span>{summary.unused} unused</span>}
         </div>
       )}
       {dialog === 'import' && <ImportDialog doc={doc} run={run} onClose={() => setDialog(null)} />}

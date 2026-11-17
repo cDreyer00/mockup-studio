@@ -78,7 +78,7 @@ function PositionFields({ ctxs }: { ctxs: readonly NodeCtx[] }) {
       <div className="prop-field" data-testid="prop-x">
         <NumberInput
           label="X"
-          title="Posição X"
+          title="Position X"
           value={commonNum(xs)}
           disabled={locked}
           onPreview={(v) => preview('x', v)}
@@ -88,7 +88,7 @@ function PositionFields({ ctxs }: { ctxs: readonly NodeCtx[] }) {
       <div className="prop-field" data-testid="prop-y">
         <NumberInput
           label="Y"
-          title="Posição Y"
+          title="Position Y"
           value={commonNum(ys)}
           disabled={locked}
           onPreview={(v) => preview('y', v)}
@@ -100,7 +100,7 @@ function PositionFields({ ctxs }: { ctxs: readonly NodeCtx[] }) {
 }
 
 const MODE_LABELS: Record<SizeModeKind, string> = {
-  fixed: 'Fixo',
+  fixed: 'Fixed',
   auto: 'Auto',
   full: '100%',
   fill: 'Fill',
@@ -149,7 +149,7 @@ function SizeField({ ctxs, axis }: { ctxs: readonly NodeCtx[]; axis: Axis }) {
         <BoundNumberInput
           bind={{ nodes, prop: axis, value }}
           label={isW ? 'W' : 'H'}
-          title={isW ? 'Largura' : 'Altura'}
+          title={isW ? 'Width' : 'Height'}
           value={value}
           min={0}
           disabled={locked || modes.every((m) => m.mode === 'fill')}
@@ -173,7 +173,7 @@ function SizeField({ ctxs, axis }: { ctxs: readonly NodeCtx[]; axis: Axis }) {
       </div>
       <SelectInput
         className="prop-mode"
-        title={`Modo de ${isW ? 'largura' : 'altura'}`}
+        title={`${isW ? 'Width' : 'Height'} mode`}
         value={modeValue}
         options={options}
         onChange={onMode}
@@ -203,7 +203,7 @@ export function SizeSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
   const showPosition = ctxs.every((c) => !c.isRoot);
 
   return (
-    <Section id="props-size" title="Posição e tamanho">
+    <Section id="props-size" title="Position and size">
       <Body>
         {showXY && <PositionFields ctxs={ctxs} />}
         <SizeField ctxs={ctxs} axis="width" />
@@ -211,7 +211,7 @@ export function SizeSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
         <div className="prop-row-2">
           <NumberInput
             label={<RotateCw size={12} />}
-            title="Rotação (graus)"
+            title="Rotation (degrees)"
             unit="deg"
             value={rot}
             placeholder="0°"
@@ -222,7 +222,7 @@ export function SizeSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
             }}
             onCommit={(v) => {
               const deg = v === '' ? 0 : parseCssNumber(v)?.value;
-              if (deg === undefined) return ui.toast('Rotação inválida', 'error');
+              if (deg === undefined) return ui.toast('Invalid rotation', 'error');
               void commitStyles(nodes, (n) => {
                 const t = setRotation(n.style.transform, deg);
                 return t ? { set: { transform: t } } : { unset: ['transform'] };

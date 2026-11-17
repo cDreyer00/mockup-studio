@@ -1,6 +1,6 @@
 /**
- * Laço RAF compartilhado: enquanto o relógio está tocando e sem tempo manual, chama cada
- * assinante com o tempo atual. Para sozinho (sem assinantes, pausado ou em tempo manual).
+ * Shared RAF loop: while the clock is playing and without manual time, calls each
+ * subscriber with the current time. Stops on its own (no subscribers, paused or in manual time).
  */
 import { fxNow, useFxClock } from './clock';
 
@@ -25,7 +25,7 @@ function kick(): void {
 
 useFxClock.subscribe(kick);
 
-/** Assina o laço; devolve o cancelamento. */
+/** Subscribes to the loop; returns the unsubscribe function. */
 export function fxSubscribe(cb: FrameCb): () => void {
   subs.add(cb);
   kick();

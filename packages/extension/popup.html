@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Mockup Studio — Capturar seção</title>
+    <title>Mockup Studio — Capture section</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>Capturar seção</h1>
-    <button id="start" type="button">Selecionar seção</button>
+    <h1>Capture section</h1>
+    <button id="start" type="button">Select section</button>
     <fieldset>
-      <legend>Destino</legend>
-      <label><input type="radio" name="mode" value="send" checked /> Enviar ao Mockup Studio</label>
-      <label><input type="radio" name="mode" value="copy" /> Copiar para colar (Ctrl+V)</label>
+      <legend>Destination</legend>
+      <label><input type="radio" name="mode" value="send" checked /> Send to Mockup Studio</label>
+      <label><input type="radio" name="mode" value="copy" /> Copy to paste (Ctrl+V)</label>
     </fieldset>
     <label class="port">
-      Porta do app
+      App port
       <input id="port" type="number" min="1" max="65535" value="4747" />
     </label>
-    <p id="status" class="status" data-state="checking">Verificando o app…</p>
+    <p id="status" class="status" data-state="checking">Checking the app…</p>
     <p class="hint">
-      Passe o mouse sobre a página, clique para capturar. Esc cancela; ↑ e ↓ trocam entre pai e
-      filho.
+      Hover over the page and click to capture. Esc cancels; ↑ and ↓ switch between parent and
+      child.
     </p>
     <script src="popup.js"></script>
   </body>

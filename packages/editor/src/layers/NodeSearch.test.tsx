@@ -17,7 +17,7 @@ describe('NodeSearch', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('encontra por texto e seleciona ao clicar', async () => {
+  it('finds by text and selects on click', async () => {
     render(<NodeSearch />);
     fireEvent.change(screen.getByTestId('node-search-input'), { target: { value: 'c1' } });
     const results = await screen.findAllByTestId('node-search-result');
@@ -28,16 +28,16 @@ describe('NodeSearch', () => {
     expect(useUi.getState().focusRequest?.nodeIds).toEqual(useUi.getState().selection);
   });
 
-  it('filtra por tag:', async () => {
+  it('filters by tag:', async () => {
     render(<NodeSearch />);
     fireEvent.change(screen.getByTestId('node-search-input'), { target: { value: 'tag:p' } });
     await waitFor(() => expect(screen.getAllByTestId('node-search-result')).toHaveLength(1));
     expect(screen.getByTestId('node-search-result').textContent).toContain('B');
   });
 
-  it('sem resultados mostra aviso', async () => {
+  it('shows a notice when there are no results', async () => {
     render(<NodeSearch />);
     fireEvent.change(screen.getByTestId('node-search-input'), { target: { value: 'zzzxxx' } });
-    expect(await screen.findByText('Nenhum nó encontrado.')).toBeTruthy();
+    expect(await screen.findByText('No nodes found.')).toBeTruthy();
   });
 });

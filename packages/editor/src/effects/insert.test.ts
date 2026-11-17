@@ -5,7 +5,7 @@ import { buildEffectInsertOps, resolveEffectTarget } from './insert';
 import { parseParamValue, snapNumber, withParam } from './params';
 
 describe('buildEffectInsertOps', () => {
-  it('fundo: createNode no índice 0 e pai com position/isolation num único apply', () => {
+  it('background: createNode at index 0 and parent with position/isolation in a single apply', () => {
     const { doc, frame } = makeDoc();
     const plan = buildEffectInsertOps(doc, frame.id, 'mesh-gradient', { speed: 1 })!;
     expect(plan.ops).toHaveLength(2);
@@ -24,7 +24,7 @@ describe('buildEffectInsertOps', () => {
     expect(create.node.style.inset).toBe('0');
   });
 
-  it('não repete o que o pai já tem', () => {
+  it('does not repeat what the parent already has', () => {
     const { doc, frame } = makeDoc();
     frame.style.position = 'absolute';
     frame.style.isolation = 'isolate';
@@ -32,7 +32,7 @@ describe('buildEffectInsertOps', () => {
     expect(plan.ops.map((o) => o.type)).toEqual(['createNode']);
   });
 
-  it('só completa o que falta', () => {
+  it('only fills in what is missing', () => {
     const { doc, frame } = makeDoc();
     frame.style.position = 'fixed';
     const plan = buildEffectInsertOps(doc, frame.id, 'grain', {})!;
@@ -42,26 +42,26 @@ describe('buildEffectInsertOps', () => {
     });
   });
 
-  it('camada: 100% x 240px no fluxo, sem mexer no pai nem índice', () => {
+  it('layer: 100% x 240px in flow, without touching the parent or index', () => {
     const { doc, frame } = makeDoc();
     const plan = buildEffectInsertOps(doc, frame.id, 'grain', {}, { asLayer: true })!;
     expect(plan.ops).toHaveLength(1);
     const create = plan.ops[0]!;
-    if (create.type !== 'createNode') throw new Error('esperado createNode');
+    if (create.type !== 'createNode') throw new Error('expected createNode');
     expect(create.index).toBeUndefined();
     expect(create.node.style.width).toBe('100%');
     expect(create.node.style.height).toBe('240px');
     expect(create.node.style.position).toBeUndefined();
   });
 
-  it('alvo inexistente devolve null', () => {
+  it('nonexistent target returns null', () => {
     const { doc } = makeDoc();
     expect(buildEffectInsertOps(doc, 'nope', 'grain', {})).toBeNull();
   });
 });
 
 describe('resolveEffectTarget', () => {
-  it('frame/element direto; folha vai para o frame; sem seleção, primeiro frame', () => {
+  it('frame/element directly; leaf goes to its frame; with no selection, first frame', () => {
     const { doc, frame, a, b } = makeDoc();
     const pageId = doc.pages[0]!.id;
     expect(resolveEffectTarget(doc, [a.id], pageId)).toBe(a.id);
@@ -69,12 +69,12 @@ describe('resolveEffectTarget', () => {
     expect(resolveEffectTarget(doc, [], pageId)).toBe(frame.id);
     expect(resolveEffectTarget(doc, [], null)).toBe(frame.id);
   });
-  it('sem frames não há alvo', () => {
+  it('without frames there is no target', () => {
     const { doc } = makeDoc();
     doc.pages[0]!.frames = [];
     expect(resolveEffectTarget(doc, [], null)).toBeNull();
   });
-  it('nó de efeito selecionado cai no frame', () => {
+  it('selected effect node falls back to the frame', () => {
     const { doc, frame } = makeDoc();
     const fx = createNodeFromTag('div', { name: 'x' });
     fx.type = 'effect';
@@ -94,12 +94,12 @@ describe('params', () => {
     step: 0.1,
     description: '',
   } as const;
-  it('snapNumber arredonda ao passo e limita', () => {
+  it('snapNumber rounds to the step and clamps', () => {
     expect(snapNumber(num, 0.3000000004)).toBe(0.3);
     expect(snapNumber(num, 9)).toBe(3);
     expect(snapNumber(num, -2)).toBe(0);
   });
-  it('parseParamValue por tipo', () => {
+  it('parseParamValue by type', () => {
     expect(parseParamValue(num, '1,25')).toBe(1.3);
     expect(parseParamValue(num, 'abc')).toBeNull();
     expect(parseParamValue(num, '')).toBeNull();
@@ -110,7 +110,7 @@ describe('params', () => {
     expect(parseParamValue(sel, 'b')).toBe('b');
     expect(parseParamValue(sel, 'c')).toBeNull();
   });
-  it('withParam não muta', () => {
+  it('withParam does not mutate', () => {
     const p = { a: 1 };
     expect(withParam(p, 'b', 2)).toEqual({ a: 1, b: 2 });
     expect(p).toEqual({ a: 1 });

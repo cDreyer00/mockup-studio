@@ -1,7 +1,7 @@
 /**
- * Comandos de componentes (criar da seleção, inserir instância, destacar, restaurar, enviar ao
- * principal, props). Os planejadores do core recebem o documento real (`getRawDoc()`); cada
- * comando vai ao daemon numa única chamada (= uma entrada de undo).
+ * Component commands (create from selection, insert instance, detach, reset, push to main,
+ * props). The core planners receive the real document (`getRawDoc()`); each command goes to the
+ * daemon in a single call (= one undo entry).
  */
 import {
   COMPONENT_EDIT_PAGE_ID,
@@ -33,30 +33,30 @@ import { canInsertInto, isMainRoot } from './model';
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 /* ------------------------------------------------------------------ */
-/* criar componente                                                   */
+/* create component                                                   */
 /* ------------------------------------------------------------------ */
 
-/** Motivo para não criar um componente a partir de `id` (`null` = pode). */
+/** Reason for not creating a component from `id` (`null` = allowed). */
 export function createComponentBlock(view: Document, id: string): string | null {
   if (isVirtualId(id))
-    return 'Nós internos de uma instância não viram componente: destaque a instância antes';
+    return 'Internal nodes of an instance cannot become a component: detach the instance first';
   const e = getEntry(view, id);
-  if (!e) return 'Selecione um nó';
-  if (e.pageId === COMPONENT_EDIT_PAGE_ID) return 'Crie componentes a partir de nós das páginas';
+  if (!e) return 'Select a node';
+  if (e.pageId === COMPONENT_EDIT_PAGE_ID) return 'Create components from nodes on the pages';
   if (e.parentId === null)
-    return 'Frames raiz não viram componente: selecione um nó dentro do frame';
-  if (e.node.componentId !== undefined) return 'O nó já é uma instância de componente';
+    return 'Root frames cannot become a component: select a node inside the frame';
+  if (e.node.componentId !== undefined) return 'The node is already a component instance';
   return null;
 }
 
-/** Ctrl+Alt+K: transforma o nó selecionado num componente (o nó vira a primeira instância). */
+/** Ctrl+Alt+K: turns the selected node into a component (the node becomes the first instance). */
 export async function createComponentFromSelection(): Promise<boolean> {
   const view = useDoc.getState().doc;
   const raw = getRawDoc();
   if (!view || !raw) return false;
   const sel = topLevel(view, useUi.getState().selection);
   if (sel.length !== 1) {
-    ui.toast('Selecione um nó para criar o componente');
+    ui.toast('Select a node to create the component');
     return false;
   }
   const id = sel[0]!;
@@ -77,16 +77,16 @@ export async function createComponentFromSelection(): Promise<boolean> {
   ui.select([plan.instanceId]);
   const name = plan.ops.find((o) => o.type === 'addComponent');
   ui.toast(
-    `Componente "${name?.type === 'addComponent' ? name.component.name : ''}" criado (Ctrl+Alt+K)`,
+    `Component "${name?.type === 'addComponent' ? name.component.name : ''}" created (Ctrl+Alt+K)`,
   );
   return true;
 }
 
 /* ------------------------------------------------------------------ */
-/* inserir instância                                                  */
+/* insert instance                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Onde inserir sem ponto de soltura: dentro da seleção (se aceitar), ao lado dela ou no frame. */
+/** Where to insert without a drop point: inside the selection (if it accepts), next to it or in the frame. */
 export function insertTargetFromSelection(
   view: Document,
   selection: readonly string[],
@@ -96,7 +96,7 @@ export function insertTargetFromSelection(
   const first = sel[0];
   if (first) {
     if (canInsertInto(view, first) && sel.length === 1) return { parentId: first };
-    // Sobe até um pai que aceite filhos, inserindo logo depois do nó.
+    // Walks up to a parent that accepts children, inserting right after the node.
     let cur = getEntry(view, first);
     while (cur && cur.parentId) {
       if (canInsertInto(view, cur.parentId))
@@ -115,16 +115,16 @@ export function insertTargetFromSelection(
 }
 
 export interface InsertInstanceOptions {
-  /** Kit de origem: importa o componente (e os tokens que faltam) se ainda não estiver no documento. */
+  /** Source kit: imports the component (and the missing tokens) if it is not yet in the document. */
   kit?: string;
   props?: Record<string, PropValue>;
-  /** Ponto de soltura (mundo e janela); sem ele, usa a seleção. */
+  /** Drop point (world and window); without it, uses the selection. */
   drop?: { world: { x: number; y: number }; client: { x: number; y: number } };
 }
 
 /**
- * Insere uma instância de `componentId` numa única chamada: importa o kit (se preciso) e cria o
- * nó calculado sobre o documento já com o kit aplicado localmente. Devolve o id da instância.
+ * Inserts an instance of `componentId` in a single call: imports the kit (if needed) and creates
+ * the node computed on the document with the kit already applied locally. Returns the instance id.
  */
 export async function insertInstance(
   componentId: string,
@@ -139,14 +139,13 @@ export async function insertInstance(
   try {
     if (opts.kit && !getComponent(raw, componentId)) {
       const kit = await fetchKit(opts.kit);
-      // Só os componentes que faltam (pelo id do kit): principais já importados, editados ou
-      // renomeados, ficam como estão.
+      // Only the missing components (by kit id): main components already imported, edited or
+      // renamed stay as they are.
       const imported = importKitOps(raw, kit, opts.kit, { onlyMissing: true }).ops;
       ops.push(...imported);
       base = applyOps(raw, imported).doc;
     }
-    if (!getComponent(base, componentId))
-      throw new Error(`Componente "${componentId}" não encontrado`);
+    if (!getComponent(base, componentId)) throw new Error(`Component "${componentId}" not found`);
 
     let placement: Placement | null = null;
     if (opts.drop) {
@@ -158,7 +157,7 @@ export async function insertInstance(
     if (!placement) {
       const t = insertTargetFromSelection(view, useUi.getState().selection, pageId);
       if (!t) {
-        ui.toast('Crie um frame (F) para inserir o componente');
+        ui.toast('Create a frame (F) to insert the component');
         return null;
       }
       placement = {
@@ -178,7 +177,7 @@ export async function insertInstance(
     }
     const node = instanceNodeFor(base, componentId, { props: opts.props, style });
     if (placement.parentId === null) {
-      // Solto fora de qualquer frame: um frame novo em volta da instância.
+      // Dropped outside any frame: a new frame around the instance.
       const frame = makeFrame(
         placement.x,
         placement.y,
@@ -203,10 +202,10 @@ export async function insertInstance(
 }
 
 /* ------------------------------------------------------------------ */
-/* instância selecionada                                              */
+/* selected instance                                                  */
 /* ------------------------------------------------------------------ */
 
-/** Componente da instância (raiz expandida na visão) ou `undefined`. */
+/** Component of the instance (expanded root in the view) or `undefined`. */
 export function componentOfNode(
   raw: Document | null,
   node: Node | undefined,
@@ -214,7 +213,7 @@ export function componentOfNode(
   return raw && node?.componentId ? getComponent(raw, node.componentId) : undefined;
 }
 
-/** Overrides guardados na instância real (ou `{}`). */
+/** Overrides stored on the real instance (or `{}`). */
 export function instanceOverrides(raw: Document | null, id: string): Record<string, unknown> {
   if (!raw || isVirtualId(id)) return {};
   return findInstanceNode(raw, id)?.overrides ?? {};
@@ -232,18 +231,18 @@ async function runPlan(plan: () => Op[]): Promise<boolean> {
   return !!(await daemon.applySafe(ops));
 }
 
-/** "Ir para principal": entra no modo de edição do componente da instância. */
+/** "Go to main": enters edit mode of the instance component. */
 export function goToMain(id: string): boolean {
   const view = useDoc.getState().doc;
   const node = view ? getNode(view, id) : undefined;
   if (!node?.componentId) {
-    ui.toast('Selecione uma instância de componente');
+    ui.toast('Select a component instance');
     return false;
   }
   return enterComponent(node.componentId, id);
 }
 
-/** "Destacar": a instância vira nós comuns (seleciona o nó resultante). */
+/** "Detach": the instance becomes regular nodes (selects the resulting node). */
 export async function detachInstance(id: string): Promise<boolean> {
   const raw = getRawDoc();
   if (!raw) return false;
@@ -258,24 +257,24 @@ export async function detachInstance(id: string): Promise<boolean> {
   return ok;
 }
 
-/** "Restaurar": remove os overrides da instância. */
+/** "Reset": removes the instance overrides. */
 export function resetInstance(id: string): Promise<boolean> {
   const raw = getRawDoc();
   return raw ? runPlan(() => resetInstanceOps(raw, id)) : Promise.resolve(false);
 }
 
-/** "Enviar ao principal": grava os overrides no principal e limpa os da instância. */
+/** "Push to main": writes the overrides to the main component and clears the instance ones. */
 export function pushToMain(id: string): Promise<boolean> {
   const raw = getRawDoc();
   return raw ? runPlan(() => pushOverridesToMainOps(raw, id)) : Promise.resolve(false);
 }
 
-/** Valor efetivo da prop na instância (o da instância ou o padrão). */
+/** Effective prop value on the instance (the instance one or the default). */
 export function propValueOf(node: Node, p: PropDef): PropValue | undefined {
   return node.props?.[p.name] ?? p.default;
 }
 
-/** Op que define a prop (ou remove, quando volta ao padrão). */
+/** Op that sets the prop (or removes it, when it goes back to the default). */
 export function setPropOp(nodeId: string, p: PropDef, value: PropValue): Op {
   if (p.default !== undefined && String(p.default) === String(value)) {
     return { type: 'setInstanceProps', changes: [{ nodeId, unset: [p.name] }] };
@@ -287,7 +286,7 @@ export function setInstanceProp(nodeId: string, p: PropDef, value: PropValue): P
   return daemon.applySafe([setPropOp(nodeId, p, value)]).then((a) => !!a);
 }
 
-/** Principal em edição cujo nó raiz é `id` (ou `undefined`). */
+/** Main component being edited whose root node is `id` (or `undefined`). */
 export function editedComponentOf(view: Document, id: string): ComponentDef | undefined {
   const raw = getRawDoc();
   const cid = useUi.getState().editingComponentId;
@@ -295,7 +294,7 @@ export function editedComponentOf(view: Document, id: string): ComponentDef | un
   return getComponent(raw, cid);
 }
 
-/** Atualiza nome/descrição/props do principal. */
+/** Updates the name/description/props of the main component. */
 export function updateComponent(
   componentId: string,
   patch: { name?: string; description?: string | null; props?: PropDef[] },

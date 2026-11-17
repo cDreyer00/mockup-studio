@@ -27,7 +27,7 @@ describe('simplifyImport', () => {
     useDoc.setState({ doc: null, activeDocId: null });
   });
 
-  it('aplica as ops do plano numa única chamada e resume no toast', async () => {
+  it('applies the plan ops in a single call and summarizes in the toast', async () => {
     const ops = [
       { type: 'deleteNodes', nodeIds: ['x'] },
       { type: 'deleteNodes', nodeIds: ['y'] },
@@ -38,18 +38,18 @@ describe('simplifyImport', () => {
     expect(apply).toHaveBeenCalledTimes(1);
     expect(apply).toHaveBeenCalledWith(ops);
     expect(useUi.getState().toast?.text).toBe(
-      'Simplificado: 2 wrappers removidos, 1 desembrulhados, 3 tamanhos fluidos',
+      'Simplified: 2 wrappers removed, 1 unwrapped, 3 fluid sizes',
     );
   });
 
-  it('sem ops: não chama apply e avisa', async () => {
+  it('no ops: does not call apply and notifies', async () => {
     planCleanup.mockReturnValue({ ops: [], removed: 0, unwrapped: 0, fluid: 0 });
     await simplifyImport(frameId());
     expect(apply).not.toHaveBeenCalled();
-    expect(useUi.getState().toast?.text).toBe('Nada a simplificar');
+    expect(useUi.getState().toast?.text).toBe('Nothing to simplify');
   });
 
-  it('erro do planejador vira toast, sem propagar', async () => {
+  it('planner error becomes a toast, without propagating', async () => {
     planCleanup.mockImplementation(() => {
       throw new Error('boom');
     });
@@ -58,12 +58,12 @@ describe('simplifyImport', () => {
     expect(useUi.getState().toast?.text).toContain('boom');
   });
 
-  it('canSimplify exige nó com filhos', () => {
+  it('canSimplify requires a node with children', () => {
     const m = makeDoc();
     useDoc.setState({ doc: m.doc });
     expect(canSimplify(m.frame.id)).toBe(true);
     expect(canSimplify(m.a.id)).toBe(false);
     expect(canSimplify(undefined)).toBe(false);
-    expect(cleanupSummary({ removed: 0, unwrapped: 0, fluid: 0 })).toBe('Nada a simplificar');
+    expect(cleanupSummary({ removed: 0, unwrapped: 0, fluid: 0 })).toBe('Nothing to simplify');
   });
 });

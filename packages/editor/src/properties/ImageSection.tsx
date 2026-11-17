@@ -1,4 +1,4 @@
-/** Seção "Imagem": trocar arquivo, enquadramento, filtros, máscara, recorte e placeholder. */
+/** "Image" section: replace file, fit, filters, mask, crop and placeholder. */
 import { useContext, useRef, useState } from 'react';
 import { Crop, ImagePlus, RotateCcw, Sparkles } from 'lucide-react';
 import {
@@ -41,14 +41,14 @@ import {
 
 const KIND_LABEL: Record<string, string> = {
   avatar: 'Avatar',
-  product: 'Produto',
-  landscape: 'Paisagem',
+  product: 'Product',
+  landscape: 'Landscape',
   logo: 'Logo',
 };
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-/** Valor comum do filtro `name` na seleção (`undefined` se divergem; neutro se ausente). */
+/** Common value of the `name` filter in the selection (`undefined` if they differ; neutral if absent). */
 function commonFilter(nodes: readonly Node[], def: ImageFilterDef): number | undefined {
   const values = nodes.map((n) => filterValues(n.style.filter)[def.name] ?? def.neutral);
   return values.every((v) => v === values[0]) ? values[0] : undefined;
@@ -101,7 +101,7 @@ function FilterRow({ nodes, def }: { nodes: readonly Node[]; def: ImageFilterDef
         min={def.min}
         max={def.max}
         value={text ?? (value === undefined ? '' : String(value))}
-        placeholder={value === undefined ? 'Misto' : undefined}
+        placeholder={value === undefined ? 'Mixed' : undefined}
         disabled={locked}
         onChange={(e) => setText(e.target.value)}
         onBlur={() => {
@@ -135,7 +135,7 @@ function Filters({ nodes }: { nodes: readonly Node[] }) {
         disabled={locked || !active}
         onClick={() => void commitStyles(nodes, (n) => resetFiltersDelta(n.style.filter))}
       >
-        <RotateCcw size={12} /> Restaurar
+        <RotateCcw size={12} /> Reset
       </button>
     </div>
   );
@@ -163,11 +163,11 @@ function Placeholder({ nodes }: { nodes: readonly Node[] }) {
   };
   return (
     <div className="img-block">
-      <Row label="Tipo">
+      <Row label="Type">
         <SelectInput
           value={kind}
           options={PLACEHOLDER_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] ?? k }))}
-          title="Tipo de placeholder"
+          title="Placeholder type"
           onChange={(v) => v && setKind(v)}
         />
       </Row>
@@ -176,7 +176,7 @@ function Placeholder({ nodes }: { nodes: readonly Node[] }) {
           className="text-input"
           data-testid="placeholder-seed"
           value={seed}
-          placeholder="opcional: muda o desenho"
+          placeholder="optional: changes the artwork"
           spellCheck={false}
           onChange={(e) => setSeed(e.target.value)}
           onKeyDown={(e) => e.stopPropagation()}
@@ -189,7 +189,7 @@ function Placeholder({ nodes }: { nodes: readonly Node[] }) {
         disabled={busy}
         onClick={() => void generate()}
       >
-        <Sparkles size={12} /> Gerar placeholder
+        <Sparkles size={12} /> Generate placeholder
       </button>
     </div>
   );
@@ -218,7 +218,7 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
   };
 
   return (
-    <Section id="props-image" title="Imagem" defaultOpen>
+    <Section id="props-image" title="Image" defaultOpen>
       <div data-testid="image-section">
         <Body>
           <button
@@ -227,10 +227,10 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
             data-testid="image-replace"
             onClick={() => void replace()}
           >
-            <ImagePlus size={13} /> Trocar imagem…
+            <ImagePlus size={13} /> Replace image…
           </button>
 
-          <Row label="Ajuste">
+          <Row label="Fit">
             <div className="prop-seg img-fit">
               {OBJECT_FIT_VALUES.map((v) => (
                 <button
@@ -247,7 +247,7 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
             </div>
           </Row>
 
-          <Row label="Posição">
+          <Row label="Position">
             <div className="img-position">
               <div className="img-pos-grid" data-testid="image-position-grid">
                 {POSITION_GRID.map((p) => (
@@ -271,17 +271,17 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
             </div>
           </Row>
 
-          <div className="img-title">Filtros</div>
+          <div className="img-title">Filters</div>
           <Filters nodes={nodes} />
 
-          <div className="img-title">Máscara</div>
+          <div className="img-title">Mask</div>
           <div className="img-block">
             <div className="img-clips">
               <button
                 type="button"
                 className={`img-clip${clip === undefined ? ' active' : ''}`}
                 data-testid="image-clip-none"
-                title="Nenhuma"
+                title="None"
                 onClick={() => void commitStyles(nodes, () => clipPathDelta('none'))}
               >
                 <span className="img-clip-none">∅</span>
@@ -302,13 +302,13 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
             <DraftInput
               mono
               value={clip}
-              placeholder="clip-path livre"
+              placeholder="free clip-path"
               testId="image-clip-input"
               onCommit={(v) => void commitStyles(nodes, () => clipPathDelta(v))}
             />
           </div>
 
-          <div className="img-title">Recorte</div>
+          <div className="img-title">Crop</div>
           <div className="img-block">
             <div className="img-actions">
               <button
@@ -316,12 +316,10 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
                 className="btn"
                 data-testid="image-crop-button"
                 disabled={locked || !single}
-                title={
-                  single ? 'Recortar com alças (ou duplo clique na imagem)' : 'Selecione uma imagem'
-                }
+                title={single ? 'Crop with handles (or double-click the image)' : 'Select an image'}
                 onClick={() => single && startCrop(single.id)}
               >
-                <Crop size={12} /> Recortar
+                <Crop size={12} /> Crop
               </button>
               <button
                 type="button"
@@ -330,19 +328,19 @@ export function ImageSection({ nodes }: { nodes: readonly Node[] }) {
                 disabled={locked || !cropped}
                 onClick={() => single && void removeCrop(single.id)}
               >
-                Remover recorte
+                Remove crop
               </button>
             </div>
             {cropped && cropValue && (
               <div className="img-hint" data-testid="image-crop-info">
-                Recorte: {cropValue.top}% / {cropValue.right}% / {cropValue.bottom}% /{' '}
-                {cropValue.left}%
+                Crop: {cropValue.top}% / {cropValue.right}% / {cropValue.bottom}% / {cropValue.left}
+                %
               </div>
             )}
             {single && cropFitWarning(single.style) && (
               <div className="img-hint warn" data-testid="image-crop-warning">
-                O recorte usa <code>object-view-box</code> (Chromium; o código exportado também).
-                Com este ajuste, o recorte é calculado como se o ajuste fosse <code>fill</code>.
+                The crop uses <code>object-view-box</code> (Chromium; so does the exported code).
+                With this fit, the crop is calculated as if the fit were <code>fill</code>.
               </div>
             )}
           </div>

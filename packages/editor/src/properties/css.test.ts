@@ -18,14 +18,14 @@ import {
 } from './css';
 
 describe('splitTopLevel', () => {
-  it('respeita parênteses e aspas', () => {
+  it('respects parentheses and quotes', () => {
     expect(splitTopLevel('0 0 1px rgba(0,0,0,.2), 0 2px var(--a, #fff)', ',')).toEqual([
       '0 0 1px rgba(0,0,0,.2)',
       ' 0 2px var(--a, #fff)',
     ]);
     expect(splitTopLevel('a;"b;c";d', ';')).toEqual(['a', '"b;c"', 'd']);
   });
-  it('espaço descarta vazios', () => {
+  it('space drops empties', () => {
     expect(splitTopLevel('rotate(5deg)  scale(1, 2)', ' ')).toEqual([
       'rotate(5deg)',
       'scale(1, 2)',
@@ -33,8 +33,8 @@ describe('splitTopLevel', () => {
   });
 });
 
-describe('rotação', () => {
-  it('lê e escreve preservando outras funções', () => {
+describe('rotation', () => {
+  it('reads and writes preserving other functions', () => {
     expect(getRotation('translate(1px, 2px) rotate(45deg)')).toBe(45);
     expect(getRotation('rotate(0.5turn)')).toBe(180);
     expect(getRotation(undefined)).toBe(0);
@@ -48,7 +48,7 @@ describe('rotação', () => {
 });
 
 describe('filtros', () => {
-  it('get/set preservam outras funções', () => {
+  it('get/set preserve other functions', () => {
     expect(getFilterFn('brightness(1.2) blur(4px)', 'blur')).toBe('4px');
     expect(getFilterFn('brightness(1.2)', 'blur')).toBeNull();
     expect(setFilterFn('brightness(1.2) blur(4px)', 'blur', '8px')).toBe(
@@ -59,8 +59,8 @@ describe('filtros', () => {
   });
 });
 
-describe('shorthand de caixa', () => {
-  it('parse e serialização', () => {
+describe('box shorthand', () => {
+  it('parse and serialization', () => {
     expect(parseBox('8px')).toEqual({ top: '8px', right: '8px', bottom: '8px', left: '8px' });
     expect(parseBox('8px 16px')).toEqual({
       top: '8px',
@@ -91,7 +91,7 @@ describe('shorthand de caixa', () => {
 });
 
 describe('border', () => {
-  it('parse e serialização', () => {
+  it('parse and serialization', () => {
     expect(parseBorder('1px solid rgba(0, 0, 0, 0.1)')).toEqual({
       width: '1px',
       style: 'solid',
@@ -109,7 +109,7 @@ describe('border', () => {
 });
 
 describe('box-shadow', () => {
-  it('parse com vírgulas em rgba()', () => {
+  it('parse with commas in rgba()', () => {
     const list = parseShadows('0 1px 2px rgba(0,0,0,.2), inset 0 0 0 1px var(--c, #fff)');
     expect(list).toHaveLength(2);
     expect(list[0]).toEqual({
@@ -122,7 +122,7 @@ describe('box-shadow', () => {
     });
     expect(list[1]).toMatchObject({ inset: true, spread: '1px', color: 'var(--c, #fff)' });
   });
-  it('serializa de volta', () => {
+  it('serializes back', () => {
     const v = '0 1px 2px rgba(0,0,0,.2), inset 0 0 0 1px #fff';
     expect(serializeShadows(parseShadows(v))).toBe(v);
     expect(parseShadows('none')).toEqual([]);
@@ -137,13 +137,13 @@ describe('css bruto', () => {
     expect(text).toBe('color: red;\nbackground-image: url(data:image/png;base64,AAA);');
     expect(parseCssText(text).style).toEqual(style);
   });
-  it('ignora comentários e aceita linhas sem ponto e vírgula', () => {
+  it('ignores comments and accepts lines without a semicolon', () => {
     const r = parseCssText('/* x; y */\ncolor: red\nfont-family: "A;B", serif; --Tok: 1');
     expect(r.error).toBeUndefined();
     expect(r.style).toEqual({ color: 'red', 'font-family': '"A;B", serif', '--Tok': '1' });
   });
-  it('reporta linhas inválidas', () => {
-    expect(parseCssText('color red').error).toMatch(/inválida/);
+  it('reports invalid lines', () => {
+    expect(parseCssText('color red').error).toMatch(/Invalid line/);
     expect(parseCssText('color:').error).toBeDefined();
   });
   it('diffStyles', () => {

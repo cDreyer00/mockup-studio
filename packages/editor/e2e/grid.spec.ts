@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Mcp, createDoc, drag, getDoc, gotoEditor } from './helpers';
 
-/** CSS Grid no editor: modo Grid do painel Layout, editor de trilhas, células e span dos filhos. */
+/** CSS Grid in the editor: Grid mode of the Layout panel, track editor, cells and child span. */
 
 const HTML =
   '<section class="g"><div class="c">A</div><div class="c">B</div><div class="c">C</div><div class="c">D</div></section>';
@@ -18,8 +18,8 @@ async function centerOfNode(page: Page, id: string) {
 }
 
 /**
- * Ctrl+clique: seleciona o filho em vez do contêiner. Repete até a camada ficar selecionada: logo após
- * um commit o grid ainda pode estar reposicionando os filhos e o clique cairia em outro nó.
+ * Ctrl+click: selects the child instead of the container. Retries until the layer is selected: right after
+ * a commit the grid may still be repositioning the children and the click would land on another node.
  */
 async function selectDeep(page: Page, id: string) {
   await expect(async () => {
@@ -33,7 +33,7 @@ async function selectDeep(page: Page, id: string) {
   }).toPass({ timeout: 10_000 });
 }
 
-/** Espera a caixa do nó parar de se mover (o grid reposiciona os filhos depois de cada commit). */
+/** Waits for the node box to stop moving (the grid repositions the children after each commit). */
 async function waitStable(page: Page, id: string) {
   let last = '';
   await expect
@@ -59,10 +59,10 @@ async function boxOf(page: Page, testId: string) {
   return (await page.getByTestId(testId).boundingBox())!;
 }
 
-test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ page }) => {
+test('grid: mode, 3 columns x 2 rows, cells and child span', async ({ page }) => {
   const info = await createDoc('grid');
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 800, height: 600, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 800, height: 600, x: 0, y: 0 });
   await mcp.call('write_html', { html: HTML, css: CSS });
   const container = async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!;
   const kids = (await container()).children;
@@ -72,7 +72,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
 
   await gotoEditor(page);
 
-  // Clicar num filho seleciona o contêiner; o painel Layout oferece o modo Grid.
+  // Clicking a child selects the container; the Layout panel offers Grid mode.
   const first = await centerOfNode(page, a);
   await page.mouse.click(first.x, first.y);
   await expect(page.getByTestId('layout-mode-grid')).toBeVisible();
@@ -80,7 +80,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect.poll(async () => (await container()).style.display).toBe('grid');
   await expect(page.getByTestId('grid-col-1-value')).toBeVisible();
 
-  // Duas colunas de partida; a terceira coluna e as duas linhas vêm dos botões de adicionar.
+  // Two starting columns; the third column and the two rows come from the add buttons.
   await page.getByTestId('grid-col-add').click();
   await expect(page.getByTestId('grid-col-2-value')).toBeVisible();
   await page.getByTestId('grid-row-add').click();
@@ -98,19 +98,19 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
     .toBe(2);
   await expect.poll(async () => (await container()).style.gap).toBe('16px');
 
-  // Trocar a unidade de uma trilha: a coluna 1 passa a 200px.
+  // Changing a track's unit: column 1 becomes 200px.
   await page.getByTestId('grid-col-0-unit').selectOption('px');
   await fillCommit(page, 'grid-col-0-value', '200');
   await expect
     .poll(async () => parseTrackList((await container()).style['grid-template-columns'])[0]?.value)
     .toBe('200px');
 
-  // O overlay mostra as 3 colunas e 2 linhas medidas do DOM.
+  // The overlay shows the 3 columns and 2 rows measured from the DOM.
   await expect(page.getByTestId('grid-track-col-2')).toBeVisible();
   await expect(page.getByTestId('grid-track-row-1')).toBeVisible();
   await expect(page.getByTestId('grid-track-col-3')).toHaveCount(0);
 
-  // A: coluna 3, linha 2 pelos campos da "Célula do grid".
+  // A: column 3, row 2 through the "Grid cell" fields.
   await selectDeep(page, a);
   await expect(page.getByTestId('grid-cell-column')).toBeVisible();
   await fillCommit(page, 'grid-cell-column', '3');
@@ -118,8 +118,8 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect.poll(async () => (await style(a))['grid-column']).toBe('3');
   await expect.poll(async () => (await style(a))['grid-row']).toBe('2');
 
-  // B: arrastado para a célula (coluna 3, linha 1).
-  // O layout pode ainda estar se acomodando após o commit de A: refaz o gesto até a célula de destino aparecer.
+  // B: dragged to the cell (column 3, row 1).
+  // The layout may still be settling after A's commit: redo the gesture until the target cell shows up.
   await expect(async () => {
     await selectDeep(page, b);
     await expect(page.getByTestId('grid-track-col-2')).toBeVisible();
@@ -141,12 +141,12 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect.poll(async () => (await style(b))['grid-column']).toBe('3');
   await expect.poll(async () => (await style(b))['grid-row']).toBe('1');
   await expect(page.getByTestId('grid-drop-cell')).toHaveCount(0);
-  // Continua sendo filho do mesmo pai, na mesma ordem (não foi reordenado).
+  // Still a child of the same parent, in the same order (not reordered).
   await expect
     .poll(async () => (await container()).children.map((k) => k.id))
     .toEqual([a, b, c, d]);
 
-  // C: span de 2 colunas a partir da coluna 1, linha 1.
+  // C: span of 2 columns starting at column 1, row 1.
   await selectDeep(page, c);
   await fillCommit(page, 'grid-cell-colspan', '2');
   await fillCommit(page, 'grid-cell-column', '1');
@@ -154,7 +154,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   await expect.poll(async () => (await style(c))['grid-column']).toBe('1 / span 2');
   await expect.poll(async () => (await style(c))['grid-row']).toBe('1');
 
-  // D: coluna 1, linha 2 e esticado até a coluna 2 pela alça de span.
+  // D: column 1, row 2 and stretched to column 2 by the span handle.
   await selectDeep(page, d);
   await fillCommit(page, 'grid-cell-column', '1');
   await fillCommit(page, 'grid-cell-row', '2');
@@ -170,7 +170,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
   );
   await expect.poll(async () => (await style(d))['grid-column']).toBe('1 / span 2');
 
-  // Estilos finais do contêiner e dos filhos.
+  // Final styles of the container and the children.
   await expect
     .poll(async () => {
       const st = (await container()).style;
@@ -182,7 +182,7 @@ test('grid: modo, 3 colunas x 2 linhas, células e span dos filhos', async ({ pa
     })
     .toEqual(['grid', 3, 2]);
 
-  // Caixas renderizadas: A na coluna 3 / linha 2; B na coluna 3 / linha 1; C e D cobrem 2 colunas.
+  // Rendered boxes: A in column 3 / row 2; B in column 3 / row 1; C and D cover 2 columns.
   await page.keyboard.press('Escape');
   await expect
     .poll(async () =>

@@ -1,4 +1,4 @@
-/** Inserção de vídeo e embeds: seletor de arquivo, upload ao daemon e criação do nó (como imagens). */
+/** Video and embed insertion: file picker, upload to the daemon and node creation (like images). */
 import {
   DEFAULT_THREE_CODE,
   EmbedSpecSchema,
@@ -18,7 +18,7 @@ import { ui } from '../state/uiStore';
 import { specFromUrl } from './embedUrl';
 import { mediaDialogs } from './mediaStore';
 
-/** Mesmas extensões de vídeo que o MCP e o upload do daemon aceitam. */
+/** Same video extensions that the MCP and the daemon upload accept. */
 export const VIDEO_ACCEPT = '.mp4,.m4v,.mov,.webm,.ogv';
 export const LOTTIE_RIVE_ACCEPT = '.json,.lottie,.riv';
 export const IMAGE_ACCEPT = 'image/*';
@@ -33,7 +33,7 @@ const EMBED_SIZES: Record<EmbedSpec['provider'], { w: number; h: number }> = {
   three: THREE_SIZE,
 };
 
-/** Abre o seletor de arquivos com os tipos `accept`; `null` se cancelado. */
+/** Opens the file picker with the `accept` types; `null` if cancelled. */
 export function pickFile(accept: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -51,7 +51,7 @@ export function pickFile(accept: string): Promise<File | null> {
   });
 }
 
-/** Estilos de um nó de mídia `w`×`h` conforme o posicionamento (fluxo ou absoluto no pai). */
+/** Styles of a `w`×`h` media node according to placement (flow or absolute in the parent). */
 export function mediaStyles(
   w: number,
   h: number,
@@ -71,8 +71,8 @@ export function mediaStyles(
 }
 
 /**
- * Cria um nó de mídia `w`×`h` no contêiner sob o centro da tela (ou frame raiz do tamanho do nó,
- * se não houver contêiner) e o seleciona.
+ * Creates a `w`×`h` media node in the container under the screen center (or a root frame the size
+ * of the node, if there is no container) and selects it.
  */
 async function placeMedia(
   make: (styles: Record<string, string>) => Node,
@@ -81,7 +81,7 @@ async function placeMedia(
 ): Promise<string | null> {
   const doc = useDoc.getState().doc;
   const pageId = currentPageId();
-  if (!doc || !pageId) throw new Error('Nenhum documento aberto');
+  if (!doc || !pageId) throw new Error('No document open');
   const { w, h } = size;
   const center = canvasApi.viewportCenter();
   const point = { x: center.x - w / 2, y: center.y - h / 2 };
@@ -98,7 +98,7 @@ async function placeMedia(
     ops = buildCreateOps(pageId, plan, node);
   }
   const ack = await daemon.applySafe(ops);
-  if (!ack) throw new Error('Não foi possível inserir o nó de mídia.');
+  if (!ack) throw new Error('Could not insert the media node.');
   ui.select([node.id]);
   return node.id;
 }
@@ -108,7 +108,7 @@ function report(e: unknown): null {
   return null;
 }
 
-/** Vídeo a partir de `src` (caminho em assets/ ou URL). */
+/** Video from `src` (path in assets/ or URL). */
 export async function insertVideoSrc(src: string, name?: string): Promise<string | null> {
   try {
     return await placeMedia(
@@ -118,19 +118,19 @@ export async function insertVideoSrc(src: string, name?: string): Promise<string
           { styles, ...(name ? { name } : {}) },
         ),
       VIDEO_SIZE,
-      'Vídeo',
+      'Video',
     );
   } catch (e) {
     return report(e);
   }
 }
 
-/** Envia o arquivo ao daemon (confere os bytes e grava em assets/videos|lottie|rive/); devolve o src salvo. */
+/** Sends the file to the daemon (checks the bytes and writes to assets/videos|lottie|rive/); returns the saved src. */
 async function uploadChecked(file: File): Promise<string> {
   try {
     return await daemon.uploadAsset(file, file.name);
   } catch (e) {
-    throw new Error(`Arquivo recusado: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`File rejected: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -143,11 +143,11 @@ export async function insertVideoFile(file: File): Promise<string | null> {
   }
 }
 
-/** Embed a partir de uma especificação já montada (valida com o esquema do core). */
+/** Embed from an already built spec (validated with the core schema). */
 export async function insertEmbed(spec: EmbedSpec, name?: string): Promise<string | null> {
   try {
     const parsed = EmbedSpecSchema.safeParse(spec);
-    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Embed inválido');
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Invalid embed');
     return await placeMedia(
       (styles) => createEmbedNode(spec, { styles, ...(name ? { name } : {}) }),
       EMBED_SIZES[spec.provider],
@@ -158,11 +158,11 @@ export async function insertEmbed(spec: EmbedSpec, name?: string): Promise<strin
   }
 }
 
-/** Lottie (`.json`/`.lottie`) ou Rive (`.riv`) de arquivo local. */
+/** Lottie (`.json`/`.lottie`) or Rive (`.riv`) from a local file. */
 export async function insertLottieRiveFile(file: File): Promise<string | null> {
   const provider = detectEmbedProvider(file.name);
   if (provider !== 'lottie' && provider !== 'rive') {
-    return report(new Error('Use um arquivo .json, .lottie ou .riv'));
+    return report(new Error('Use a .json, .lottie or .riv file'));
   }
   try {
     const src = await uploadChecked(file);
@@ -173,9 +173,9 @@ export async function insertLottieRiveFile(file: File): Promise<string | null> {
 }
 
 /**
- * Lottie/Rive por URL: copia para assets/lottie|rive/ (offline-first) e usa o src relativo. Se o
- * download falhar (rede, documento sem caminho, arquivo inválido), mantém a URL e avisa: o embed
- * ainda funciona com rede, e o usuário vê o motivo em vez de perder a inserção.
+ * Lottie/Rive by URL: copies to assets/lottie|rive/ (offline-first) and uses the relative src. If
+ * the download fails (network, document without a path, invalid file), keeps the URL and warns: the embed
+ * still works with a network, and the user sees the reason instead of losing the insertion.
  */
 export async function localizeAnimation(spec: EmbedSpec): Promise<EmbedSpec> {
   const src = spec.src;
@@ -185,22 +185,22 @@ export async function localizeAnimation(spec: EmbedSpec): Promise<EmbedSpec> {
     return { ...spec, src: await daemon.fetchAsset(src, spec.provider) };
   } catch (e) {
     ui.toast(
-      `Não consegui copiar o arquivo para assets/ (${e instanceof Error ? e.message : String(e)}). Usando a URL: só funciona com rede.`,
+      `Could not copy the file to assets/ (${e instanceof Error ? e.message : String(e)}). Using the URL: it only works with a network.`,
       'info',
     );
     return spec;
   }
 }
 
-/** Insere o que a URL representa (vídeo, YouTube, Lottie, Rive ou iframe). */
+/** Inserts what the URL represents (video, YouTube, Lottie, Rive or iframe). */
 export async function insertFromUrl(url: string): Promise<string | null> {
   const spec = specFromUrl(url);
-  if (!spec) return report(new Error('Informe uma URL http(s) válida.'));
+  if (!spec) return report(new Error('Enter a valid http(s) URL.'));
   if (spec.kind === 'video') return insertVideoSrc(spec.src);
   return insertEmbed(await localizeAnimation(spec.spec));
 }
 
-/** Cria uma ilha Three.js com o código padrão e abre o editor de código. */
+/** Creates a Three.js island with the default code and opens the code editor. */
 export async function insertThreeIsland(): Promise<string | null> {
   const id = await insertEmbed({ provider: 'three', code: DEFAULT_THREE_CODE });
   if (id) mediaDialogs.openThree(id);

@@ -48,7 +48,7 @@ const DEFAULT_GRADIENT = 'linear-gradient(180deg, #2dd4bf 0%, #6366f1 100%)';
 const isComplexBg = (v: string): boolean =>
   /^(linear-|radial-|conic-|repeating-)?gradient|^url\(|^var\(|gradient\(/i.test(v.trim());
 
-/** Valor do fundo: `background` ou, se ausente, `background-color`. */
+/** Background value: `background` or, if absent, `background-color`. */
 const bgOf = (n: Node): string | undefined => n.style.background ?? n.style['background-color'];
 
 function Background({ nodes }: { nodes: readonly Node[] }) {
@@ -76,20 +76,20 @@ function Background({ nodes }: { nodes: readonly Node[] }) {
           bind={bind}
           value={value}
           mono
-          placeholder="gradiente, url(...) ou var(...)"
+          placeholder="gradient, url(...) or var(...)"
           onCommit={write}
         />
       ) : (
         <BoundColorInput
           bind={bind}
           value={value}
-          title="Cor de fundo"
+          title="Background color"
           onPreview={(v) => previewStyles(nodes, () => ({ background: v }))}
           onCommit={write}
         />
       )}
       <IconButton
-        title={complex ? 'Usar cor sólida' : 'Usar gradiente'}
+        title={complex ? 'Use solid color' : 'Use gradient'}
         active={complex && !isVar}
         disabled={locked || isVar}
         onClick={toggle}
@@ -125,13 +125,13 @@ function BorderFields({ nodes }: { nodes: readonly Node[] }) {
           write: (v) => edit({ color: v }),
         }}
         value={b === null ? null : b.color || undefined}
-        title="Cor da borda"
+        title="Border color"
         onCommit={(v) => edit({ color: v })}
       />
       <div className="prop-row-2">
         <NumberInput
           label="W"
-          title="Espessura"
+          title="Thickness"
           min={0}
           value={b === null ? null : b.width || undefined}
           disabled={locked}
@@ -140,7 +140,7 @@ function BorderFields({ nodes }: { nodes: readonly Node[] }) {
         <SelectInput
           value={b === null ? null : b.style}
           options={BORDER_STYLE}
-          title="Estilo da borda"
+          title="Border style"
           onChange={(v) => edit({ style: v })}
         />
       </div>
@@ -163,12 +163,12 @@ export function AppearanceSection({ nodes }: { nodes: readonly Node[] }) {
     );
   };
   return (
-    <Section id="props-appearance" title="Aparência">
+    <Section id="props-appearance" title="Appearance">
       <Body>
-        <Row label="Opacidade">
+        <Row label="Opacity">
           <NumberInput
             label={<Blend size={12} />}
-            title="Opacidade (%)"
+            title="Opacity (%)"
             unit="%"
             min={0}
             max={100}
@@ -182,20 +182,20 @@ export function AppearanceSection({ nodes }: { nodes: readonly Node[] }) {
             onCommit={setOpacity}
           />
         </Row>
-        <Row label="Fundo">
+        <Row label="Background">
           <Background nodes={nodes} />
         </Row>
-        <Row label="Borda">
+        <Row label="Border">
           <div className="prop-stack">
             <BorderFields nodes={nodes} />
           </div>
         </Row>
-        <Row label="Raio">
-          <BoxField nodes={nodes} spec={RADIUS} icon="R" title="Raio da borda" />
+        <Row label="Radius">
+          <BoxField nodes={nodes} spec={RADIUS} icon="R" title="Border radius" />
         </Row>
-        <div className="prop-subhead">Sombras</div>
+        <div className="prop-subhead">Shadows</div>
         <ShadowList nodes={nodes} />
-        <Row label="Mistura">
+        <Row label="Blend">
           <StyleSelect
             nodes={nodes}
             prop="mix-blend-mode"
@@ -204,7 +204,7 @@ export function AppearanceSection({ nodes }: { nodes: readonly Node[] }) {
             placeholder="normal"
           />
         </Row>
-        <Row label="Mist. fundo">
+        <Row label="Bg. blend">
           <StyleSelect
             nodes={nodes}
             prop="background-blend-mode"

@@ -1,4 +1,4 @@
-/* Painel de propriedades */
+/* Properties panel */
 
 .panel-right {
   overflow-y: auto;
@@ -223,7 +223,7 @@
   color: var(--muted);
 }
 
-/* Classes Tailwind */
+/* Tailwind classes */
 .prop-classes {
   position: relative;
 }
@@ -319,7 +319,7 @@
   font-size: 11px;
 }
 
-/* ---------------- seção Imagem ---------------- */
+/* ---------------- Image section ---------------- */
 .img-wide {
   width: 100%;
   margin-bottom: 6px;
@@ -450,7 +450,7 @@
   color: #e6b450;
 }
 
-/* ---------------- seção Dados (repetidor) ---------------- */
+/* ---------------- Data section (repeater) ---------------- */
 .data-source {
   display: flex;
   flex-direction: column;
@@ -568,7 +568,7 @@
   font-size: 12px;
 }
 
-/* ---------------- vetor ---------------- */
+/* ---------------- vector ---------------- */
 
 .vec-tid {
   display: contents;
@@ -598,7 +598,7 @@
   line-height: 1.4;
 }
 
-/* Editor de grid */
+/* Grid editor */
 .prop-grid-editor {
   display: flex;
   flex-direction: column;

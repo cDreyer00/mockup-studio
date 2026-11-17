@@ -1,4 +1,4 @@
-/** Seção "Efeito": tipo, presets e um controle por parâmetro do catálogo (nós `effect` do mesmo kind). */
+/** "Effect" section: type, presets and one control per catalog parameter (`effect` nodes of the same kind). */
 import { useEffect, useRef, useState } from 'react';
 import { EFFECTS, getEffect, presetParams, resolveEffectParams } from '@mockup/core';
 import type { EffectParamDef, EffectSpec, MediaParamValue, Node } from '@mockup/core';
@@ -11,9 +11,9 @@ import '../effects/effects.css';
 type Params = Record<string, MediaParamValue>;
 
 /**
- * Slider + número. Arrastar só muda o valor exibido (rascunho local); a op `setMedia` é enviada
- * uma única vez quando o controle é solto (evento nativo `change`), então um arrasto = um passo
- * de desfazer.
+ * Slider + number. Dragging only changes the displayed value (local draft); the `setMedia` op is sent
+ * only once when the control is released (native `change` event), so one drag = one undo
+ * step.
  */
 function NumberParam({
   def,
@@ -62,7 +62,7 @@ function NumberParam({
             const v = parseParamValue(def, t);
             if (typeof v === 'number' && v !== value) onCommit(v);
             else if (v === null) {
-              ui.toast(`Valor inválido para ${def.label}`, 'error');
+              ui.toast(`Invalid value for ${def.label}`, 'error');
               setResetKey((k) => k + 1);
             }
           }}
@@ -98,7 +98,7 @@ function ParamControl({
             onCommit={(t) => {
               const v = parseParamValue(def, t);
               if (v !== null) onCommit(v);
-              else ui.toast('Use uma cor hexadecimal (#rrggbb)', 'error');
+              else ui.toast('Use a hexadecimal color (#rrggbb)', 'error');
             }}
           />
         </div>
@@ -112,7 +112,7 @@ function ParamControl({
             checked={value === true}
             onChange={(e) => onCommit(e.target.checked)}
           />
-          <span>{value === true ? 'Ligado' : 'Desligado'}</span>
+          <span>{value === true ? 'On' : 'Off'}</span>
         </label>
       );
     case 'select':
@@ -148,19 +148,19 @@ export function EffectSection({ nodes }: { nodes: readonly Node[] }) {
   };
 
   return (
-    <Section id="props-effect" title="Efeito">
+    <Section id="props-effect" title="Effect">
       <Body>
-        <Row label="Tipo">
+        <Row label="Type">
           <div data-testid="effect-kind">
             <SelectInput
               value={kind}
               options={EFFECTS.map((e) => ({ value: e.kind, label: e.label }))}
-              title="Tipo de efeito"
+              title="Effect type"
               onChange={(k) => k && k !== kind && apply(() => ({ kind: k, params: {} }))}
             />
           </div>
         </Row>
-        {!def && <div className="prop-subtitle">Efeito desconhecido no catálogo: {kind}</div>}
+        {!def && <div className="prop-subtitle">Unknown effect in the catalog: {kind}</div>}
         {def && def.presets.length > 0 && (
           <div className="fx-chips" data-testid="effect-presets">
             {def.presets.map((p) => {
@@ -196,7 +196,7 @@ export function EffectSection({ nodes }: { nodes: readonly Node[] }) {
             data-testid="effect-reset"
             onClick={() => apply((s) => ({ ...s, params: {} }))}
           >
-            Restaurar padrões
+            Restore defaults
           </button>
         )}
       </Body>

@@ -22,10 +22,10 @@ afterEach(() => {
 
 const type = (label: string | RegExp, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
-const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Importar' }));
+const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 
 describe('validateImportUrl', () => {
-  it('aceita só http(s)', () => {
+  it('accepts only http(s)', () => {
     expect(validateImportUrl('')).toBeTruthy();
     expect(validateImportUrl('ftp://a.com')).toBeTruthy();
     expect(validateImportUrl('not a url')).toBeTruthy();
@@ -35,7 +35,7 @@ describe('validateImportUrl', () => {
 });
 
 describe('ImportUrlDialog', () => {
-  it('URL inválida mostra erro e não chama o daemon', async () => {
+  it('invalid URL shows an error and does not call the daemon', async () => {
     render(<ImportUrlDialog onClose={() => undefined} />);
     type('URL', 'ftp://x');
     submit();
@@ -43,60 +43,60 @@ describe('ImportUrlDialog', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('largura fora dos limites compartilhados mostra erro e não chama o daemon', async () => {
+  it('width outside the shared limits shows an error and does not call the daemon', async () => {
     render(<ImportUrlDialog onClose={() => undefined} />);
-    type('URL', 'https://exemplo.com');
+    type('URL', 'https://example.com');
     for (const w of ['250', '4000', 'abc']) {
-      type('Largura do viewport', w);
+      type('Viewport width', w);
       submit();
       expect((await screen.findByRole('alert')).textContent).toBe(
-        'Largura do viewport entre 320 e 3840',
+        'Viewport width between 320 and 3840',
       );
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('503 mostra a mensagem do motor de render', async () => {
+  it('503 shows the render engine message', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 503,
-      json: async () => ({ error: 'sem render' }),
+      json: async () => ({ error: 'no render' }),
     });
     render(<ImportUrlDialog onClose={() => undefined} />);
-    type('URL', 'https://exemplo.com');
+    type('URL', 'https://example.com');
     submit();
     expect((await screen.findByRole('alert')).textContent).toBe(NO_RENDER_MESSAGE);
   });
 
-  it('outros erros mostram a mensagem do daemon', async () => {
+  it('other errors show the daemon message', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 502,
-      json: async () => ({ error: 'timeout na página' }),
+      json: async () => ({ error: 'page timeout' }),
     });
     render(<ImportUrlDialog onClose={() => undefined} />);
-    type('URL', 'https://exemplo.com');
+    type('URL', 'https://example.com');
     submit();
-    expect((await screen.findByRole('alert')).textContent).toBe('timeout na página');
+    expect((await screen.findByRole('alert')).textContent).toBe('page timeout');
   });
 
-  it('sucesso: envia o corpo certo, desabilita durante o envio, seleciona e fecha', async () => {
+  it('success: sends the right body, disables while sending, selects and closes', async () => {
     const frameId = useDoc.getState().doc!.pages[0]!.frames[0]!.id;
     let resolve!: (v: unknown) => void;
     fetchMock.mockReturnValue(new Promise((r) => (resolve = r)));
     const onClose = vi.fn();
     render(<ImportUrlDialog onClose={onClose} />);
-    type('URL', 'https://exemplo.com');
-    type(/Seletor CSS/, '.hero');
-    type('Largura do viewport', '1280');
-    fireEvent.click(screen.getByLabelText('Anexar imagem de referência'));
+    type('URL', 'https://example.com');
+    type(/CSS selector/, '.hero');
+    type('Viewport width', '1280');
+    fireEvent.click(screen.getByLabelText('Attach reference image'));
     submit();
-    const busy = await screen.findByRole('button', { name: 'Importando…' });
+    const busy = await screen.findByRole('button', { name: 'Importing…' });
     expect((busy as HTMLButtonElement).disabled).toBe(true);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/import/url');
     expect(JSON.parse(init.body as string)).toMatchObject({
-      url: 'https://exemplo.com',
+      url: 'https://example.com',
       selector: '.hero',
       viewport: { width: 1280 },
       reference: false,
@@ -106,6 +106,6 @@ describe('ImportUrlDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(useUi.getState().selection).toEqual([frameId]);
     expect(useUi.getState().focusRequest?.nodeIds).toEqual([frameId]);
-    expect(useUi.getState().toast?.text).toBe('Seção importada (7 nós)');
+    expect(useUi.getState().toast?.text).toBe('Section imported (7 nodes)');
   });
 });

@@ -2,7 +2,7 @@
   "name": "@mockup/editor",
   "version": "0.1.0",
   "private": true,
-  "description": "Editor visual (canvas) do Mockup Studio.",
+  "description": "Visual (canvas) editor of Mockup Studio.",
   "license": "MIT",
   "type": "module",
   "scripts": {

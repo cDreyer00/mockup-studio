@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('Canvas', () => {
-  it('renderiza os frames e só atualiza o nó alterado', () => {
+  it('renders the frames and only updates the changed node', () => {
     const doc = makeBigDoc(2, 50);
     useDoc.setState({ doc, activeDocId: doc.id });
     const { getByTestId } = render(<Canvas />);
@@ -34,7 +34,7 @@ describe('Canvas', () => {
     const next = structuredClone(doc);
     next.pages[0]!.frames[1]!.children[4]!.style.background = '#ff0000';
     act(() => useDoc.setState({ doc: mergeDoc(doc, next) }));
-    // hover/seleção não tocam o DOM do design
+    // hover/selection do not touch the design DOM
     act(() => {
       ui.hover(target.id);
       ui.select([target.id]);
@@ -45,7 +45,7 @@ describe('Canvas', () => {
     expect([...mutated]).toEqual([target.id]);
   });
 
-  it('badge do agente aparece com atividade recente', () => {
+  it('agent badge appears with recent activity', () => {
     const doc = makeBigDoc(1, 5);
     const frame = doc.pages[0]!.frames[0]!;
     useDoc.setState({ doc, activeDocId: doc.id, agentActivity: { [frame.id]: Date.now() } });

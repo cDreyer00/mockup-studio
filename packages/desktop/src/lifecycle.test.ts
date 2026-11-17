@@ -11,10 +11,10 @@ import {
 const noArgs = { headless: false, files: [] as string[], cliArgs: [] as string[] };
 
 describe('dataDirOverride', () => {
-  it('sem --data-dir nem MOCKUP_DATA_DIR não troca o userData', () => {
+  it('without --data-dir or MOCKUP_DATA_DIR it does not change userData', () => {
     expect(dataDirOverride(noArgs, {})).toBeNull();
   });
-  it('--data-dir e MOCKUP_DATA_DIR do usuário trocam; a flag vence', () => {
+  it('the user-provided --data-dir and MOCKUP_DATA_DIR change it; the flag wins', () => {
     expect(dataDirOverride(noArgs, { MOCKUP_DATA_DIR: 'a' })).toBe(path.resolve('a'));
     expect(dataDirOverride({ ...noArgs, dataDir: 'b' }, { MOCKUP_DATA_DIR: 'a' })).toBe(
       path.resolve('b'),
@@ -22,16 +22,16 @@ describe('dataDirOverride', () => {
   });
 });
 
-describe('janelas fechadas e sessões MCP', () => {
-  it('headless nunca sai por fechar janelas', () => {
+describe('closed windows and MCP sessions', () => {
+  it('headless never quits when windows close', () => {
     expect(onAllWindowsClosed(true, 0)).toBe('stay');
     expect(onAllWindowsClosed(true, 3)).toBe('stay');
   });
-  it('com sessões ativas vigia; sem sessões sai', () => {
+  it('with active sessions it watches; without sessions it quits', () => {
     expect(onAllWindowsClosed(false, 2)).toBe('watch');
     expect(onAllWindowsClosed(false, 0)).toBe('quit');
   });
-  it('a vigia sai quando as sessões zeram, salvo headless ou janela aberta', () => {
+  it('the watch quits when the sessions drop to zero, unless headless or a window is open', () => {
     expect(shouldQuitAfterSessions(false, false, 1)).toBe(false);
     expect(shouldQuitAfterSessions(false, false, 0)).toBe(true);
     expect(shouldQuitAfterSessions(false, true, 0)).toBe(false);
@@ -39,12 +39,12 @@ describe('janelas fechadas e sessões MCP', () => {
   });
 });
 
-describe('assumir a porta', () => {
-  it('só assume daemon sem render', () => {
+describe('taking over the port', () => {
+  it('only takes over a daemon without render', () => {
     expect(existingDaemonAction({ render: false })).toBe('takeover');
     expect(existingDaemonAction({ render: true })).toBe('use');
   });
-  it('mergeFiles junta sem repetir', () => {
+  it('mergeFiles merges without repeats', () => {
     expect(
       mergeFiles(['a.mockup.json', 'b.mockup.json'], ['A.mockup.json', 'c.mockup.json']),
     ).toEqual(['a.mockup.json', 'b.mockup.json', 'c.mockup.json']);

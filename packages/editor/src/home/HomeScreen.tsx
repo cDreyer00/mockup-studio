@@ -1,4 +1,4 @@
-/** Tela inicial: recentes, favoritos, pastas virtuais, tags e grade de cartões dos arquivos. */
+/** Home screen: recent, favorites, virtual folders, tags and a grid of file cards. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -51,7 +51,7 @@ async function guard(fn: () => Promise<unknown>): Promise<boolean> {
   }
 }
 
-/* ---------------- cartão ---------------- */
+/* ---------------- card ---------------- */
 
 function FileCard({
   file,
@@ -94,7 +94,7 @@ function FileCard({
             <strong>{file.name}</strong>
             <span>
               {file.missing
-                ? 'Arquivo não encontrado'
+                ? 'File not found'
                 : `${file.frames} ${file.frames === 1 ? 'frame' : 'frames'}`}
             </span>
           </div>
@@ -112,7 +112,7 @@ function FileCard({
           className={`file-favorite${file.favorite ? ' on' : ''}`}
           data-testid="file-favorite"
           aria-pressed={file.favorite}
-          title={file.favorite ? 'Remover dos favoritos' : 'Favoritar'}
+          title={file.favorite ? 'Remove from favorites' : 'Add to favorites'}
           onClick={(e) => {
             e.stopPropagation();
             onFavorite();
@@ -120,12 +120,12 @@ function FileCard({
         >
           <Star size={14} fill={file.favorite ? 'currentColor' : 'none'} />
         </button>
-        {file.open && <span className="file-open-badge">aberto</span>}
+        {file.open && <span className="file-open-badge">open</span>}
       </div>
       <div className="file-info">
         <div className="file-name">{file.name}</div>
         <div className="file-folder">
-          {folderLabel(file.folder)} · {file.pages} {file.pages === 1 ? 'página' : 'páginas'}
+          {folderLabel(file.folder)} · {file.pages} {file.pages === 1 ? 'page' : 'pages'}
         </div>
         {file.match && file.match.field === 'content' && (
           <div className="file-snippet">{file.match.snippet}</div>
@@ -144,7 +144,7 @@ function FileCard({
   );
 }
 
-/* ---------------- árvore de pastas ---------------- */
+/* ---------------- folder tree ---------------- */
 
 function FolderItem({
   node,
@@ -218,7 +218,7 @@ function FolderItem({
   );
 }
 
-/* ---------------- tela ---------------- */
+/* ---------------- screen ---------------- */
 
 export function HomeScreen() {
   const [filter, setFilter] = useState<HomeFilter>(DEFAULT_FILTER);
@@ -276,29 +276,29 @@ export function HomeScreen() {
 
   const editTags = async (f: FileEntry) => {
     const r = await prompt({
-      title: 'Editar tags',
-      message: 'Separe as tags por vírgula.',
+      title: 'Edit tags',
+      message: 'Separate tags with commas.',
       fields: [
-        { name: 'tags', label: 'Tags', value: f.tags.join(', '), placeholder: 'cliente, landing' },
+        { name: 'tags', label: 'Tags', value: f.tags.join(', '), placeholder: 'client, landing' },
       ],
-      confirmLabel: 'Salvar',
+      confirmLabel: 'Save',
     });
     if (r) await patchMeta(f, { tags: parseTags(r.tags ?? '') });
   };
 
   const moveToFolder = async (f: FileEntry) => {
     const r = await prompt({
-      title: 'Mover para pasta',
-      message: 'Use "/" para pastas aninhadas. Deixe em branco para tirar da pasta.',
+      title: 'Move to folder',
+      message: 'Use "/" for nested folders. Leave blank to remove from the folder.',
       fields: [
         {
           name: 'folder',
-          label: 'Pasta',
+          label: 'Folder',
           value: f.folder ?? '',
-          placeholder: data.folders[0] ?? 'Clientes/Acme',
+          placeholder: data.folders[0] ?? 'Clients/Acme',
         },
       ],
-      confirmLabel: 'Mover',
+      confirmLabel: 'Move',
     });
     if (!r) return;
     const folder = r.folder?.trim().replace(/^\/+|\/+$/g, '') ?? '';
@@ -307,22 +307,22 @@ export function HomeScreen() {
 
   const forget = async (f: FileEntry) => {
     if (await guard(() => api.files.forget(f.path))) {
-      ui.toast(`"${f.name}" removido do índice. O arquivo não foi apagado.`);
+      ui.toast(`"${f.name}" removed from the index. The file was not deleted.`);
       reload();
     }
   };
 
   const cardMenu = (f: FileEntry, x: number, y: number) =>
     openContextMenu(x, y, [
-      { label: 'Abrir', onSelect: () => void open(f) },
+      { label: 'Open', onSelect: () => void open(f) },
       {
-        label: f.favorite ? 'Remover dos favoritos' : 'Favoritar',
+        label: f.favorite ? 'Remove from favorites' : 'Add to favorites',
         onSelect: () => void patchMeta(f, { favorite: !f.favorite }),
       },
-      { label: 'Editar tags…', onSelect: () => void editTags(f) },
-      { label: 'Mover para pasta…', onSelect: () => void moveToFolder(f) },
+      { label: 'Edit tags…', onSelect: () => void editTags(f) },
+      { label: 'Move to folder…', onSelect: () => void moveToFolder(f) },
       {
-        label: 'Remover do índice',
+        label: 'Remove from index',
         danger: true,
         separator: true,
         onSelect: () => void forget(f),
@@ -331,9 +331,9 @@ export function HomeScreen() {
 
   const createFolder = async (parent?: string) => {
     const r = await prompt({
-      title: parent ? `Nova subpasta em ${parent}` : 'Nova pasta',
-      fields: [{ name: 'name', label: 'Nome', placeholder: 'Clientes' }],
-      confirmLabel: 'Criar',
+      title: parent ? `New subfolder in ${parent}` : 'New folder',
+      fields: [{ name: 'name', label: 'Name', placeholder: 'Clients' }],
+      confirmLabel: 'Create',
     });
     const name = r?.name?.trim().replace(/\//g, '-');
     if (!name) return;
@@ -343,9 +343,9 @@ export function HomeScreen() {
 
   const renameFolder = async (node: FolderNode) => {
     const r = await prompt({
-      title: 'Renomear pasta',
-      fields: [{ name: 'name', label: 'Nome', value: node.name }],
-      confirmLabel: 'Renomear',
+      title: 'Rename folder',
+      fields: [{ name: 'name', label: 'Name', value: node.name }],
+      confirmLabel: 'Rename',
     });
     const name = r?.name?.trim().replace(/\//g, '-');
     if (!name || name === node.name) return;
@@ -360,10 +360,10 @@ export function HomeScreen() {
 
   const deleteFolder = async (node: FolderNode) => {
     const r = await prompt({
-      title: 'Excluir pasta',
-      message: `Excluir "${node.path}"? Os arquivos dela vão para a pasta-mãe.`,
+      title: 'Delete folder',
+      message: `Delete "${node.path}"? Its files will move to the parent folder.`,
       fields: [],
-      confirmLabel: 'Excluir',
+      confirmLabel: 'Delete',
     });
     if (!r) return;
     if (await guard(() => api.files.folders('delete', node.path))) {
@@ -374,9 +374,9 @@ export function HomeScreen() {
 
   const folderMenu = (node: FolderNode, x: number, y: number) =>
     openContextMenu(x, y, [
-      { label: 'Nova subpasta…', onSelect: () => void createFolder(node.path) },
-      { label: 'Renomear…', onSelect: () => void renameFolder(node) },
-      { label: 'Excluir', danger: true, separator: true, onSelect: () => void deleteFolder(node) },
+      { label: 'New subfolder…', onSelect: () => void createFolder(node.path) },
+      { label: 'Rename…', onSelect: () => void renameFolder(node) },
+      { label: 'Delete', danger: true, separator: true, onSelect: () => void deleteFolder(node) },
     ]);
 
   const moveFile = async (path: string, folder: string | null) => {
@@ -389,10 +389,10 @@ export function HomeScreen() {
     if (desktop) path = await desktop.showOpenDialog();
     else {
       const r = await prompt({
-        title: 'Adicionar arquivo ou pasta',
-        message: 'Informe o caminho de um .mockup.json ou de uma pasta com documentos.',
-        fields: [{ name: 'path', label: 'Caminho', placeholder: 'C:\\projetos' }],
-        confirmLabel: 'Adicionar',
+        title: 'Add file or folder',
+        message: 'Enter the path of a .mockup.json file or of a folder with documents.',
+        fields: [{ name: 'path', label: 'Path', placeholder: 'C:\\projects' }],
+        confirmLabel: 'Add',
       });
       path = r?.path?.trim();
     }
@@ -402,8 +402,8 @@ export function HomeScreen() {
       const added = await api.files.add(target);
       ui.toast(
         added.length
-          ? `${added.length} ${added.length === 1 ? 'arquivo adicionado' : 'arquivos adicionados'}.`
-          : 'Nenhum documento .mockup.json encontrado.',
+          ? `${added.length} ${added.length === 1 ? 'file added' : 'files added'}.`
+          : 'No .mockup.json documents found.',
       );
       reload();
     } catch (e) {
@@ -436,22 +436,22 @@ export function HomeScreen() {
   return (
     <div className="home-screen" data-testid="home-screen">
       <aside className="home-sidebar">
-        {nav({ kind: 'recent' }, 'Recentes', <Clock size={13} />, 'home-nav-recent')}
-        {nav({ kind: 'favorites' }, 'Favoritos', <Star size={13} />, 'home-nav-favorites')}
-        {nav({ kind: 'all' }, 'Todos', <Files size={13} />, 'home-nav-all')}
+        {nav({ kind: 'recent' }, 'Recent', <Clock size={13} />, 'home-nav-recent')}
+        {nav({ kind: 'favorites' }, 'Favorites', <Star size={13} />, 'home-nav-favorites')}
+        {nav({ kind: 'all' }, 'All', <Files size={13} />, 'home-nav-all')}
         <div className="home-section-title">
-          <span>Pastas</span>
+          <span>Folders</span>
           <button
             type="button"
             className="home-icon-btn"
             data-testid="home-folder-new"
-            title="Nova pasta"
+            title="New folder"
             onClick={() => void createFolder()}
           >
             <FolderPlus size={13} />
           </button>
         </div>
-        {tree.length === 0 && <div className="home-hint">Nenhuma pasta ainda.</div>}
+        {tree.length === 0 && <div className="home-hint">No folders yet.</div>}
         {tree.map((n) => (
           <FolderItem
             key={n.path}
@@ -466,7 +466,7 @@ export function HomeScreen() {
         <div className="home-section-title">
           <span>Tags</span>
         </div>
-        {data.tags.length === 0 && <div className="home-hint">Nenhuma tag ainda.</div>}
+        {data.tags.length === 0 && <div className="home-hint">No tags yet.</div>}
         {data.tags.map((t) => nav({ kind: 'tag', tag: t }, t, <Tag size={13} />, `home-tag-${t}`))}
       </aside>
       <main className="home-main">
@@ -475,7 +475,7 @@ export function HomeScreen() {
             <Search size={14} />
             <input
               data-testid="home-search"
-              placeholder="Buscar por nome, tag ou conteúdo"
+              placeholder="Search by name, tag or content"
               spellCheck={false}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -487,7 +487,7 @@ export function HomeScreen() {
             data-testid="home-add"
             onClick={() => void addPath()}
           >
-            <FilePlus size={13} /> Adicionar arquivo ou pasta
+            <FilePlus size={13} /> Add file or folder
           </button>
           <button
             type="button"
@@ -495,17 +495,17 @@ export function HomeScreen() {
             data-testid="home-new"
             onClick={() => void newDocument()}
           >
-            Novo documento
+            New document
           </button>
         </div>
         {error && <div className="home-error">{error}</div>}
         {!error && loaded && files.length === 0 && (
           <div className="home-empty" data-testid="home-empty">
             {search.trim()
-              ? 'Nenhum arquivo corresponde à busca.'
+              ? 'No files match your search.'
               : filter.kind === 'recent'
-                ? 'Nenhum arquivo recente. Crie um documento ou adicione arquivos.'
-                : 'Nenhum arquivo aqui.'}
+                ? 'No recent files. Create a document or add files.'
+                : 'No files here.'}
           </div>
         )}
         <div className="home-grid" data-testid="home-grid">

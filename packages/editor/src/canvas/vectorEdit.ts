@@ -1,8 +1,8 @@
 /**
- * Edição de pontos de um vetor (lógica pura): modelo de âncoras por subpath, mover âncoras e
- * alças, apagar, alternar canto/suave, inserir âncora num segmento e montar as ops de gravação.
- * Âncoras são endereçadas por `AnchorRef { s, i }`: `s` = índice do subpath em todos os paths do
- * vetor (em ordem) e `i` = índice da âncora no subpath. As coordenadas são as do viewBox.
+ * Point editing of a vector (pure logic): per-subpath anchor model, moving anchors and
+ * handles, deleting, toggling corner/smooth, inserting an anchor on a segment and building the save ops.
+ * Anchors are addressed by `AnchorRef { s, i }`: `s` = index of the subpath across all the paths of the
+ * vector (in order) and `i` = index of the anchor in the subpath. Coordinates are the viewBox's.
  */
 import {
   buildSetVectorOps,
@@ -31,17 +31,17 @@ export type HandleKind = 'in' | 'out';
 export const refKey = (r: AnchorRef): string => `${r.s}-${r.i}`;
 export const sameRef = (a: AnchorRef, b: AnchorRef): boolean => a.s === b.s && a.i === b.i;
 
-/** Modelo editável do vetor (todos os paths; o `d` de cada um vira subpaths de âncoras). */
+/** Editable vector model (all paths; each `d` becomes subpaths of anchors). */
 export function loadModel(v: Vector): EditModel {
   return { paths: v.paths.map((p) => ({ id: p.id, subpaths: pathToSubpaths(p.d) })) };
 }
 
-/** Todos os subpaths do modelo, em ordem (o índice é o `s` do `AnchorRef`). */
+/** All subpaths of the model, in order (the index is the `s` of the `AnchorRef`). */
 export function flatSubpaths(m: EditModel): Subpath[] {
   return m.paths.flatMap((p) => p.subpaths);
 }
 
-/** Aplica `fn` ao subpath de índice global `s`, devolvendo um modelo novo. */
+/** Applies `fn` to the subpath with global index `s`, returning a new model. */
 function mapSubpath(m: EditModel, s: number, fn: (sp: Subpath) => Subpath | null): EditModel {
   let k = 0;
   return {
@@ -57,7 +57,7 @@ function mapSubpath(m: EditModel, s: number, fn: (sp: Subpath) => Subpath | null
 
 const shift = (p: Point, dx: number, dy: number): Point => ({ x: p.x + dx, y: p.y + dy });
 
-/** Move as âncoras (e as alças delas) por (dx, dy), em unidades do viewBox. */
+/** Moves the anchors (and their handles) by (dx, dy), in viewBox units. */
 export function moveAnchors(
   m: EditModel,
   refs: readonly AnchorRef[],
@@ -90,8 +90,8 @@ export function moveAnchors(
 }
 
 /**
- * Leva a alça `kind` da âncora até `to`. Sem `alt` a alça oposta acompanha, simétrica em torno da
- * âncora; com `alt` a simetria quebra e só a alça movida muda.
+ * Moves the `kind` handle of the anchor to `to`. Without `alt` the opposite handle follows, symmetric around the
+ * anchor; with `alt` the symmetry breaks and only the moved handle changes.
  */
 export function moveHandle(
   m: EditModel,
@@ -115,7 +115,7 @@ export function moveHandle(
 }
 
 /**
- * Remove as âncoras. Subpaths que ficam com menos de 2 âncoras somem; paths sem subpaths também.
+ * Removes the anchors. Subpaths left with fewer than 2 anchors disappear; so do paths without subpaths.
  */
 export function deleteAnchors(m: EditModel, refs: readonly AnchorRef[]): EditModel {
   const keys = new Set(refs.map(refKey));
@@ -135,7 +135,7 @@ export function deleteAnchors(m: EditModel, refs: readonly AnchorRef[]): EditMod
   };
 }
 
-/** A âncora tem alça (é suave)? */
+/** Does the anchor have a handle (is it smooth)? */
 export function isSmooth(a: PathAnchor): boolean {
   return !!(a.in || a.out);
 }
@@ -143,8 +143,8 @@ export function isSmooth(a: PathAnchor): boolean {
 const dist = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
 
 /**
- * Alterna canto/suave: com alças remove-as (canto); sem alças cria alças alinhadas com a direção
- * dos vizinhos (um terço da distância até cada um).
+ * Toggles corner/smooth: with handles it removes them (corner); without handles it creates handles aligned with the direction
+ * of the neighbors (a third of the distance to each).
  */
 export function toggleSmooth(m: EditModel, ref: AnchorRef): EditModel {
   return mapSubpath(m, ref.s, (sp) => {
@@ -176,10 +176,10 @@ export function toggleSmooth(m: EditModel, ref: AnchorRef): EditModel {
   });
 }
 
-/* ------------------------------ segmentos ------------------------------ */
+/* ------------------------------ segments ------------------------------ */
 
 export interface SegmentHit {
-  /** Índice global do subpath e do segmento (o segmento `i` vai da âncora `i` à `i + 1`). */
+  /** Global index of the subpath and of the segment (segment `i` goes from anchor `i` to `i + 1`). */
   s: number;
   seg: number;
   t: number;
@@ -208,7 +208,7 @@ function segmentCount(sp: Subpath): number {
   return sp.closed ? sp.anchors.length : sp.anchors.length - 1;
 }
 
-/** Segmento mais próximo de `p` (a até `tol` de distância, em unidades do viewBox), ou `null`. */
+/** Segment closest to `p` (within `tol` distance, in viewBox units), or `null`. */
 export function hitSegment(m: EditModel, p: Point, tol: number): SegmentHit | null {
   let best: SegmentHit | null = null;
   const STEPS = 32;
@@ -241,7 +241,7 @@ const mid = (a: Point, b: Point, t: number): Point => ({
   y: a.y + (b.y - a.y) * t,
 });
 
-/** Insere uma âncora no segmento `seg` do subpath `s` em `t` (De Casteljau, mantém a forma). */
+/** Inserts an anchor on segment `seg` of subpath `s` at `t` (De Casteljau, keeps the shape). */
 export function insertAnchor(m: EditModel, s: number, seg: number, t: number): EditModel {
   return mapSubpath(m, s, (sp) => {
     const n = sp.anchors.length;
@@ -262,7 +262,7 @@ export function insertAnchor(m: EditModel, s: number, seg: number, t: number): E
       : { x: at.x, y: at.y };
     const anchors = sp.anchors.map((x, i) => {
       if (!curved) return x;
-      // Sem alça original o ponto de controle coincide com a âncora: continua sem alça.
+      // Without an original handle the control point coincides with the anchor: stays without a handle.
       if (i === seg && x.out) return { ...x, out: p01 };
       if (i === bi && x.in) return { ...x, in: p23 };
       return x;
@@ -272,9 +272,9 @@ export function insertAnchor(m: EditModel, s: number, seg: number, t: number): E
   });
 }
 
-/* ------------------------------ gravação ------------------------------ */
+/* ------------------------------ saving ------------------------------ */
 
-/** Vetor com os paths do modelo (cada `d` regenerado); paths que sumiram do modelo são removidos. */
+/** Vector with the model's paths (each `d` regenerated); paths that vanished from the model are removed. */
 export function modelToVector(v: Vector, m: EditModel): Vector {
   const byId = new Map(m.paths.map((p) => [p.id, p]));
   const paths = v.paths.flatMap((p) => {
@@ -287,9 +287,9 @@ export function modelToVector(v: Vector, m: EditModel): Vector {
 const px = (n: number): string => `${Math.round(n * 100) / 100}px`;
 
 /**
- * Ops de uma edição de pontos (uma entrada de undo): `setVector` com o vetor ajustado ao conteúdo
- * (`fitVectorToContent`, o desenho fica parado na tela) e `updateStyles` com a caixa nova do nó
- * (`left`/`top`/`width`/`height`; nó em fluxo: só `width`/`height`). Sem caixa em px, só `setVector`.
+ * Ops of a point edit (one undo entry): `setVector` with the vector fitted to the content
+ * (`fitVectorToContent`, the drawing stays still on screen) and `updateStyles` with the node's new box
+ * (`left`/`top`/`width`/`height`; flow node: only `width`/`height`). Without a box in px, only `setVector`.
  */
 export function buildVectorEditOps(node: Node, next: Vector, opts: { absolute: boolean }): Op[] {
   const box = nodeBoxInParent(node);

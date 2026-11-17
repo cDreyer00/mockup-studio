@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test';
 import type { Document, Node } from '@mockup/core';
 import { DAEMON, E2E_DIR, Mcp, createDoc, findByName, getDoc, gotoEditor } from './helpers';
 
-/** Fase de assets e dados: upload no painel de assets, recorte visual e repetidor com 20 itens. */
+/** Assets and data phase: upload in the assets panel, visual crop and repeater with 20 items. */
 
 const CRC = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -26,7 +26,7 @@ function chunk(type: string, data: Buffer): Buffer {
   crc.writeUInt32BE(crc32(body));
   return Buffer.concat([len, body, crc]);
 }
-/** PNG RGB com degradê (sem dependências). */
+/** RGB PNG with a gradient (no dependencies). */
 function makePng(w: number, h: number): Buffer {
   const raw = Buffer.alloc((w * 3 + 1) * h);
   for (let y = 0; y < h; y++) {
@@ -56,64 +56,64 @@ const nodeEls = (page: Page, id: string) =>
 async function setupFrame(name: string) {
   const info = await createDoc(name);
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 960, height: 1400, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 960, height: 1400, x: 0, y: 0 });
   const frame = (await getDoc(info.docId)).pages[0]!.frames[0]!;
   return { info, mcp, frame };
 }
 
-test('assets: upload no painel, uso, link direto pelo CDN e inserção', async ({ page }) => {
+test('assets: upload in the panel, usage, direct CDN link and insertion', async ({ page }) => {
   const { info } = await setupFrame('assets');
   await gotoEditor(page);
   await page.getByTestId('tab-assets').click();
   const panel = page.getByTestId('assets-panel');
   await expect(panel).toBeVisible();
 
-  const file = path.join(E2E_DIR, 'capa-e2e.png');
+  const file = path.join(E2E_DIR, 'cover-e2e.png');
   fs.writeFileSync(file, makePng(320, 200));
   await panel.locator('input[type="file"]').setInputFiles(file);
-  const item = page.getByTestId('asset-item-capa-e2e.png');
+  const item = page.getByTestId('asset-item-cover-e2e.png');
   await expect(item).toBeVisible();
 
   const list = (await (await fetch(`${DAEMON}/api/assets/${info.docId}`)).json()) as {
     assets: { path: string; cdnUrl: string; uses: number; width?: number }[];
   };
-  const asset = list.assets.find((a) => a.path === 'capa-e2e.png')!;
+  const asset = list.assets.find((a) => a.path === 'cover-e2e.png')!;
   expect(asset.uses).toBe(0);
   expect(asset.width).toBe(320);
   const cdn = await fetch(asset.cdnUrl);
   expect(cdn.status).toBe(200);
   expect(Buffer.from(await cdn.arrayBuffer()).equals(fs.readFileSync(file))).toBe(true);
 
-  // Inserir no frame: o asset passa a ter 1 uso.
+  // Insert into the frame: the asset now has 1 use.
   await item.click();
   await page.getByTestId('asset-insert').first().click();
   await expect
     .poll(async () => {
       const doc = await getDoc(info.docId);
       let found = false;
-      doc.pages[0]!.frames[0]!.children.forEach((c) => (found ||= c.src === 'capa-e2e.png'));
+      doc.pages[0]!.frames[0]!.children.forEach((c) => (found ||= c.src === 'cover-e2e.png'));
       return found;
     })
     .toBe(true);
 });
 
-test('imagem: recorte visual com alças grava object-view-box', async ({ page }) => {
-  const { info, mcp, frame } = await setupFrame('recorte');
+test('image: visual crop with handles writes object-view-box', async ({ page }) => {
+  const { info, mcp, frame } = await setupFrame('crop');
   const data = `data:image/png;base64,${makePng(400, 300).toString('base64')}`;
   await mcp.call('insert_image', {
     parentId: frame.id,
     source: data,
-    name: 'Foto',
+    name: 'Photo',
     styles: { width: '400px', height: '300px', 'object-fit': 'cover' },
   });
-  const img = findByName(await getDoc(info.docId), 'Foto')!;
+  const img = findByName(await getDoc(info.docId), 'Photo')!;
   await gotoEditor(page);
   await mcp.call('set_selection', { nodeIds: [img.id] });
   await expect(page.getByTestId('image-section')).toBeVisible();
   await page.getByTestId('image-crop-button').click();
   await expect(page.getByTestId('crop-overlay')).toBeVisible();
 
-  // Arrasta a alça leste para a esquerda (~25% da largura na tela).
+  // Drag the east handle to the left (~25% of the on-screen width).
   const handle = page.getByTestId('crop-handle-e');
   const hb = (await handle.boundingBox())!;
   const ib = (await nodeEls(page, img.id).first().boundingBox())!;
@@ -124,30 +124,30 @@ test('imagem: recorte visual com alças grava object-view-box', async ({ page })
   await page.getByTestId('crop-apply').click();
 
   await expect
-    .poll(async () => findByName(await getDoc(info.docId), 'Foto')!.style['object-view-box'])
+    .poll(async () => findByName(await getDoc(info.docId), 'Photo')!.style['object-view-box'])
     .toMatch(/^inset\(0% (2[0-9](\.\d+)?|30)% 0% 0%\)$/);
-  // Undo remove o recorte.
+  // Undo removes the crop.
   await mcp.call('undo', {});
   await expect
-    .poll(async () => findByName(await getDoc(info.docId), 'Foto')!.style['object-view-box'])
+    .poll(async () => findByName(await getDoc(info.docId), 'Photo')!.style['object-view-box'])
     .toBeUndefined();
 });
 
 const PEOPLE = Array.from({ length: 20 }, (_, i) => ({
-  nome: `Pessoa ${String(i + 1).padStart(2, '0')}`,
-  cargo: ['Design', 'Produto', 'Engenharia', 'Dados'][i % 4],
-  cor: ['#6c5ce7', '#00b894', '#e17055', '#0984e3'][i % 4],
+  name: `Person ${String(i + 1).padStart(2, '0')}`,
+  role: ['Design', 'Product', 'Engineering', 'Data'][i % 4],
+  color: ['#6c5ce7', '#00b894', '#e17055', '#0984e3'][i % 4],
 }));
 
-test('dados: bind de JSON com 20 itens aparece no canvas e no render', async ({ page }) => {
-  const { info, mcp, frame } = await setupFrame('dados');
+test('data: JSON bind with 20 items shows up on the canvas and in the render', async ({ page }) => {
+  const { info, mcp, frame } = await setupFrame('data');
   await mcp.call('write_html', {
     parentId: frame.id,
     html:
-      '<div data-name="Equipe" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:24px">' +
+      '<div data-name="Team" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:24px">' +
       '<article style="padding:16px;border-radius:12px;background:#f1f2f6;display:flex;flex-direction:column;gap:6px">' +
-      '<strong style="font-size:18px;color:#2d3436">{{nome}}</strong>' +
-      '<span style="font-size:14px;color:#636e72">{{cargo}} · #{{$number}}</span>' +
+      '<strong style="font-size:18px;color:#2d3436">{{name}}</strong>' +
+      '<span style="font-size:14px;color:#636e72">{{role}} · #{{$number}}</span>' +
       '</article></div>',
   });
   const doc0 = await getDoc(info.docId);
@@ -163,38 +163,38 @@ test('dados: bind de JSON com 20 itens aparece no canvas e no render', async ({ 
 
   await gotoEditor(page);
   await expect(nodeEls(page, card.id)).toHaveCount(20);
-  await expect(page.getByTestId('canvas-world')).toContainText('Pessoa 20');
-  await expect(page.getByTestId('canvas-world')).not.toContainText('{{nome}}');
+  await expect(page.getByTestId('canvas-world')).toContainText('Person 20');
+  await expect(page.getByTestId('canvas-world')).not.toContainText('{{name}}');
 
-  // Selecionar um item do meio seleciona o template e mostra o painel de dados no repetidor.
+  // Selecting a middle item selects the template and shows the data panel on the repeater.
   await nodeEls(page, card.id).nth(9).click();
   await mcp.call('set_selection', { nodeIds: [rp.id] });
   await expect(page.getByTestId('data-section')).toBeVisible();
   await expect(page.getByTestId('data-table')).toBeVisible();
-  await expect(page.getByTestId('data-cell-6-nome')).toHaveValue('Pessoa 07');
-  // Editar uma célula vira setData e o canvas atualiza.
-  await page.getByTestId('data-cell-0-nome').fill('Ana Lima');
-  await page.getByTestId('data-cell-0-nome').blur();
+  await expect(page.getByTestId('data-cell-6-name')).toHaveValue('Person 07');
+  // Editing a cell becomes setData and the canvas updates.
+  await page.getByTestId('data-cell-0-name').fill('Ana Lima');
+  await page.getByTestId('data-cell-0-name').blur();
   await expect(page.getByTestId('canvas-world')).toContainText('Ana Lima');
   await expect
     .poll(
       async () =>
         (
-          (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!.data as { nome: string }[]
-        )[0]!.nome,
+          (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!.data as { name: string }[]
+        )[0]!.name,
     )
     .toBe('Ana Lima');
-  // O render abaixo usa o documento antes da edição (20 pessoas originais).
+  // The render below uses the document before the edit (20 original people).
 
-  // Render: a mesma página que o motor de screenshot do app usa.
+  // Render: the same page the app's screenshot engine uses.
   const shot = await renderFrame(page, doc, info.docId, frame.id);
-  const out = path.join(process.env.MOCKUP_E2E_SHOTS ?? E2E_DIR, 'dados-20-itens.png');
+  const out = path.join(process.env.MOCKUP_E2E_SHOTS ?? E2E_DIR, 'data-20-items.png');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, shot.png);
-  console.log(`[e2e] screenshot do repetidor: ${out}`);
+  console.log(`[e2e] repeater screenshot: ${out}`);
   expect(shot.count).toBe(20);
-  expect(shot.texts).toContain('Pessoa 01');
-  expect(shot.texts).toContain('Pessoa 20');
+  expect(shot.texts).toContain('Person 01');
+  expect(shot.texts).toContain('Person 20');
 });
 
 async function renderFrame(

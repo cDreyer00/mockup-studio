@@ -6,12 +6,12 @@ const FULL = 'allow-scripts allow-same-origin allow-popups';
 const OPAQUE = 'allow-scripts allow-popups';
 
 describe('iframeSandbox', () => {
-  it('URL externa mantém allow-same-origin', () => {
-    expect(iframeSandbox('https://exemplo.com/widget', ORIGIN)).toBe(FULL);
+  it('external URL keeps allow-same-origin', () => {
+    expect(iframeSandbox('https://example.com/widget', ORIGIN)).toBe(FULL);
     expect(iframeSandbox('http://128.0.0.1/', ORIGIN)).toBe(FULL);
   });
 
-  it('loopback e mesma origem ficam sem allow-same-origin', () => {
+  it('loopback and same origin end up without allow-same-origin', () => {
     for (const u of [
       'http://localhost:4000/',
       'http://app.localhost/x',
@@ -23,12 +23,12 @@ describe('iframeSandbox', () => {
       'http://[::ffff:127.0.0.1]/',
       'http://2130706433/',
     ])
-      expect(iframeSandbox(u, 'https://outro.dev'), u).toBe(OPAQUE);
+      expect(iframeSandbox(u, 'https://other.dev'), u).toBe(OPAQUE);
     expect(iframeSandbox('https://studio.dev/app', 'https://studio.dev')).toBe(OPAQUE);
   });
 
-  it('URL inválida cai no mais restrito', () => {
-    expect(iframeSandbox('não é url', ORIGIN)).toBe(OPAQUE);
+  it('invalid URL falls back to the most restrictive', () => {
+    expect(iframeSandbox('not a url', ORIGIN)).toBe(OPAQUE);
   });
 
   it('isLoopbackHost', () => {

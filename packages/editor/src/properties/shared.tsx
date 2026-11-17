@@ -1,4 +1,4 @@
-/** Infraestrutura comum das seções: contexto de seleção, aplicação de ops e campos ligados a estilos. */
+/** Common infrastructure for the sections: selection context, op application and style-bound fields. */
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -26,16 +26,16 @@ import {
 export { LockedContext, commitStyle, commitStyles, common, previewStyles, runOps, styleOf };
 export type { StyleDelta } from './styleOps';
 
-/** Nó selecionado com o contexto necessário às seções. */
+/** Selected node with the context the sections need. */
 export interface NodeCtx {
   node: Node;
-  /** Pai imediato (`null` para frames raiz). */
+  /** Immediate parent (`null` for root frames). */
   parent: Node | null;
   isRoot: boolean;
   locked: boolean;
 }
 
-/** Seleção atual com pai e estado de trava; assina apenas os nós selecionados e seus pais. */
+/** Current selection with parent and lock state; subscribes only to the selected nodes and their parents. */
 export function useSelectionCtx(): NodeCtx[] {
   const nodes = useSelectedNodes();
   const extra = useDoc(
@@ -55,9 +55,9 @@ export function useSelectionCtx(): NodeCtx[] {
   );
 }
 
-/* ------------------------------ campos ligados a estilos ------------------------------ */
+/* ------------------------------ style-bound fields ------------------------------ */
 
-/** Corpo de seção: desabilita todos os campos nativos quando o painel está travado. */
+/** Section body: disables all native fields when the panel is locked. */
 export function Body({ children }: { children: ReactNode }) {
   const locked = useContext(LockedContext);
   return (
@@ -161,7 +161,7 @@ export function StyleColor({
   );
 }
 
-/** Grupo de botões exclusivos (clicar no ativo remove o valor). */
+/** Group of exclusive buttons (clicking the active one removes the value). */
 export function SegButtons({
   value,
   options,
@@ -205,7 +205,7 @@ export function StyleSeg({
   );
 }
 
-/** Campo de texto com rascunho local (confirma no blur/Enter, Esc cancela); aceita testid e datalist. */
+/** Text field with a local draft (commits on blur/Enter, Esc cancels); accepts testid and datalist. */
 export function DraftInput({
   value,
   onCommit,
@@ -238,7 +238,7 @@ export function DraftInput({
       list={list}
       title={title}
       spellCheck={false}
-      placeholder={value === null ? 'Misto' : placeholder}
+      placeholder={value === null ? 'Mixed' : placeholder}
       onChange={(e) => setText(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={() => {
@@ -261,5 +261,5 @@ export function DraftInput({
 
 export { Row };
 
-/** `DraftInput` com a prop opcional `bind` (ligar a token). */
+/** `DraftInput` with the optional `bind` prop (bind to a token). */
 export const BoundDraftInput = withTokenBinding(DraftInput);

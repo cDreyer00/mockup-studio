@@ -1,4 +1,4 @@
-/** Miniaturas dos presets: o quadro t=1 desenhado pelo runtime do core num canvas fora da tela. */
+/** Preset thumbnails: the t=1 frame drawn by the core runtime on an offscreen canvas. */
 import { effectMountSpec, mockupEffectsRuntime, presetParams } from '@mockup/core';
 
 export const THUMB_W = 160;
@@ -27,9 +27,9 @@ function render(kind: string, preset: string): string | null {
 }
 
 /**
- * Data URL da miniatura (cache por kind+preset), `null` se o efeito não pôde ser desenhado.
- * As renderizações entram numa fila, uma por vez, devolvendo o controle ao navegador entre elas
- * (cada uma cria e destrói um contexto WebGL).
+ * Thumbnail data URL (cached per kind+preset), `null` if the effect could not be drawn.
+ * Renders go through a queue, one at a time, yielding control back to the browser between them
+ * (each one creates and destroys a WebGL context).
  */
 export function effectThumbnail(kind: string, preset: string): Promise<string | null> {
   const key = `${kind}:${preset}`;

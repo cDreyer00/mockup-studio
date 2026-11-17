@@ -5,7 +5,7 @@ import { useDoc } from '../state/docStore';
 import { makeDoc } from '../test/fixtures';
 import { DaemonClient, LONG_REQUEST_TIMEOUT_MS } from './daemon';
 
-/** Requisições da fase 9 (assistente, scripts, remix) e integração do `assistant:event`. */
+/** Assistant, scripts and remix requests, and `assistant:event` integration. */
 
 class FakeSocket {
   static OPEN = 1;
@@ -39,7 +39,7 @@ const user = (id: string, turnId: string, text: string): AssistantMessage => ({
   turnId,
 });
 
-describe('DaemonClient: assistente, scripts e remix', () => {
+describe('DaemonClient: assistant, scripts and remix', () => {
   let client: DaemonClient;
   let docId: string;
   let ws: FakeSocket;
@@ -67,21 +67,21 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     useDoc.setState({ docs: {}, activeDocId: null, doc: null });
   });
 
-  /** Requisição sem interesse na resposta: evita rejeição não tratada ao desconectar. */
+  /** Request that does not care about the response: avoids an unhandled rejection on disconnect. */
   const swallow = (p: Promise<unknown>) => void p.catch(() => undefined);
   const lastSent = () => ws.sent.at(-1)!;
   const ack = (result: unknown) =>
     ws.emit({ type: 'ack', reqId: lastSent().reqId as string, result });
 
-  it('assistantSend envia prompt/seleção/backend e só espera o ack', async () => {
-    const p = client.assistantSend('Deixe o botão maior', {
+  it('assistantSend sends prompt/selection/backend and only waits for the ack', async () => {
+    const p = client.assistantSend('Make the button bigger', {
       selection: ['a', 'b'],
       backend: 'claude',
     });
     expect(lastSent()).toMatchObject({
       type: 'assistant:send',
       docId,
-      prompt: 'Deixe o botão maior',
+      prompt: 'Make the button bigger',
       selection: ['a', 'b'],
       backend: 'claude',
     });
@@ -89,13 +89,13 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     await expect(p).resolves.toEqual({ turnId: 't1' });
   });
 
-  it('assistantSend sem opções não inclui selection/backend', () => {
-    swallow(client.assistantSend('oi').catch(() => undefined));
+  it('assistantSend without options does not include selection/backend', () => {
+    swallow(client.assistantSend('hi').catch(() => undefined));
     expect(lastSent()).not.toHaveProperty('selection');
     expect(lastSent()).not.toHaveProperty('backend');
   });
 
-  it('cancel, clear e config', async () => {
+  it('cancel, clear and config', async () => {
     const c = client.assistantCancel();
     expect(lastSent()).toMatchObject({ type: 'assistant:cancel', docId });
     ack({ cancelled: true });
@@ -119,11 +119,11 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     expect(lastSent()).not.toHaveProperty('config');
   });
 
-  it('assistantHistory grava mensagens, backends e config no store', async () => {
+  it('assistantHistory writes messages, backends and config to the store', async () => {
     const p = client.assistantHistory();
     expect(lastSent()).toMatchObject({ type: 'assistant:history', docId });
     ack({
-      messages: [user('m1', 't0', 'oi')],
+      messages: [user('m1', 't0', 'hi')],
       running: null,
       backends: [{ id: 'claude', name: 'Claude Code', available: true }],
       config: { backend: 'auto' },
@@ -135,7 +135,7 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     expect(s.config?.backend).toBe('auto');
   });
 
-  it('assistant:event vira estado do store e doc:closed descarta o documento', () => {
+  it('assistant:event becomes store state and doc:closed discards the document', () => {
     const ev = (event: AssistantEvent) => ws.emit({ type: 'assistant:event', docId, event });
     ev({ kind: 'turn-start', turnId: 't1', user: user('u1', 't1', 'x'), backend: 'claude' });
     expect(useAssistant.getState().byDoc[docId]!.partial?.turnId).toBe('t1');
@@ -144,7 +144,7 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     expect(EMPTY_ASSISTANT.messages).toEqual([]);
   });
 
-  it('scripts: run, list, read, save, delete e generate', async () => {
+  it('scripts: run, list, read, save, delete and generate', async () => {
     const run = client.scriptRun('return 1', { selection: ['n1'] });
     expect(lastSent()).toMatchObject({
       type: 'script:run',
@@ -167,17 +167,17 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     swallow(client.scriptDelete('a.js'));
     expect(lastSent()).toMatchObject({ type: 'script:delete', docId, name: 'a.js' });
     ack({});
-    const gen = client.scriptGenerate('renomeie tudo');
+    const gen = client.scriptGenerate('rename everything');
     expect(lastSent()).toMatchObject({
       type: 'script:generate',
       docId,
-      prompt: 'renomeie tudo',
+      prompt: 'rename everything',
     });
     ack({ code: 'return 2' });
     await expect(gen).resolves.toEqual({ code: 'return 2' });
   });
 
-  it('remix envia kind/count/prompt', async () => {
+  it('remix sends kind/count/prompt', async () => {
     const p = client.remix('n1', 'color-scale', { count: 10 });
     expect(lastSent()).toMatchObject({
       type: 'remix',
@@ -190,11 +190,11 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     ack({ frameIds: ['f1'], labels: ['A'] });
     await expect(p).resolves.toEqual({ frameIds: ['f1'], labels: ['A'] });
 
-    swallow(client.remix('n1', 'ai', { prompt: 'mais ousado', count: 3 }));
-    expect(lastSent()).toMatchObject({ kind: 'ai', prompt: 'mais ousado', count: 3 });
+    swallow(client.remix('n1', 'ai', { prompt: 'bolder', count: 3 }));
+    expect(lastSent()).toMatchObject({ kind: 'ai', prompt: 'bolder', count: 3 });
   });
 
-  it('script:run usa o timeout longo (a requisição não expira em 15 s)', async () => {
+  it('script:run uses the long timeout (the request does not expire after 15 s)', async () => {
     const { vi } = await import('vitest');
     vi.useFakeTimers();
     try {
@@ -212,9 +212,9 @@ describe('DaemonClient: assistente, scripts e remix', () => {
     }
   });
 
-  it('sem documento ativo as requisições do documento rejeitam', async () => {
+  it('without an active document, document requests reject', async () => {
     useDoc.setState({ activeDocId: null });
-    await expect(client.assistantSend('x')).rejects.toThrow('Nenhum documento');
-    await expect(client.scriptRun('x')).rejects.toThrow('Nenhum documento');
+    await expect(client.assistantSend('x')).rejects.toThrow('No document');
+    await expect(client.scriptRun('x')).rejects.toThrow('No document');
   });
 });

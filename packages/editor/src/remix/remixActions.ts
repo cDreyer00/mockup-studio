@@ -1,4 +1,4 @@
-/** Remix: gera variações de um nó lado a lado (cada remix = uma entrada de undo). */
+/** Remix: generates variations of a node side by side (each remix = one undo entry). */
 import type { RemixKind } from '@mockup/core';
 import { isVirtualId } from '@mockup/core';
 import { daemon } from '../client/daemon';
@@ -11,13 +11,13 @@ export const REMIX_DEFAULT_COUNT = 3;
 export const REMIX_MAX_COUNT = 10;
 
 export const REMIX_LABELS: Record<Exclude<RemixKind, 'ai'>, string> = {
-  'color-scale': 'Remix: escala de cor',
-  'font-pairs': 'Remix: pares de fontes',
-  spacing: 'Remix: espaçamento',
+  'color-scale': 'Remix: color scale',
+  'font-pairs': 'Remix: font pairs',
+  spacing: 'Remix: spacing',
   layout: 'Remix: layout',
 };
 
-/** Nó que o remix usaria: exatamente 1 selecionado, real (não instância expandida). */
+/** Node the remix would use: exactly 1 selected, real (not an expanded instance). */
 export function remixTarget(selection: readonly string[]): string | null {
   if (selection.length !== 1) return null;
   const id = selection[0]!;
@@ -31,7 +31,7 @@ export function parseCount(raw: string | undefined): number {
   return Math.min(n, REMIX_MAX_COUNT);
 }
 
-/** Executa o remix do nó selecionado e enquadra os frames criados. */
+/** Runs the remix of the selected node and frames the created frames. */
 export async function runRemix(
   kind: RemixKind,
   opts: { count?: number; prompt?: string } = {},
@@ -40,41 +40,41 @@ export async function runRemix(
   const docId = useDoc.getState().activeDocId;
   if (!nodeId || !docId) return;
   if (kind === 'ai') {
-    // O progresso (texto e ferramentas do turno) aparece no Assistente.
+    // Progress (text and tools of the turn) shows up in the Assistant.
     ui.setRightTab('assistant');
-    ui.toast('Remix com IA em andamento…');
+    ui.toast('Remix with AI in progress…');
   }
   try {
     const res = await daemon.remix(nodeId, kind, { ...opts, docId });
     if (res.frameIds.length > 0) {
-      // O daemon já selecionou os frames criados; garante seleção e enquadramento locais.
+      // The daemon already selected the created frames; ensure local selection and framing.
       ui.select(res.frameIds);
       ui.focus(res.frameIds);
       ui.toast(
-        `${res.frameIds.length} ${res.frameIds.length === 1 ? 'variação criada' : 'variações criadas'} — Ctrl+Z desfaz tudo`,
+        `${res.frameIds.length} ${res.frameIds.length === 1 ? 'variation created' : 'variations created'} — Ctrl+Z undoes all`,
       );
     } else if (kind === 'ai') {
-      ui.toast('Remix com IA concluído');
+      ui.toast('Remix with AI done');
     }
   } catch (e) {
     ui.toast(e instanceof Error ? e.message : String(e), 'error');
   }
 }
 
-/** "Remix com IA…": pergunta o pedido e a quantidade de variações. */
+/** "Remix with AI…": asks for the request and the number of variations. */
 export async function runAiRemix(): Promise<void> {
   const r = await prompt({
-    title: 'Remix com IA',
-    message: 'Descreva como as variações devem diferir do nó selecionado.',
+    title: 'Remix with AI',
+    message: 'Describe how the variations should differ from the selected node.',
     fields: [
       {
         name: 'prompt',
-        label: 'Pedido',
-        placeholder: 'ex.: versões mais ousadas, com mais contraste',
+        label: 'Request',
+        placeholder: 'e.g. bolder versions, with more contrast',
       },
-      { name: 'count', label: 'Quantidade de variações', value: String(REMIX_DEFAULT_COUNT) },
+      { name: 'count', label: 'Number of variations', value: String(REMIX_DEFAULT_COUNT) },
     ],
-    confirmLabel: 'Gerar',
+    confirmLabel: 'Generate',
   });
   const text = r?.prompt?.trim();
   if (!r || !text) return;

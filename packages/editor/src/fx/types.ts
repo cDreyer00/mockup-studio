@@ -1,21 +1,21 @@
 import type { CSSProperties } from 'react';
 import type { Node } from '@mockup/core';
 
-/** Props comuns das views de mídia do canvas. */
+/** Common props of the canvas media views. */
 export interface FxViewProps {
   node: Node;
-  /** Estilo final do nó (`buildNodeStyle`). */
+  /** Final style of the node (`buildNodeStyle`). */
   style: CSSProperties;
   docId: string;
 }
 
-/** Estilo do elemento raiz de uma view de mídia. */
+/** Style of the root element of a media view. */
 export const fxRootStyle = (style: CSSProperties): CSSProperties => ({
   ...style,
   overflow: 'hidden',
 });
 
-/** Conteúdo interno: preenche o box e não rouba cliques do canvas. */
+/** Inner content: fills the box and does not steal clicks from the canvas. */
 export const FX_INNER: CSSProperties = {
   display: 'block',
   width: '100%',

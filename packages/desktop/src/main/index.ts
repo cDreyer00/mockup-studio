@@ -1,6 +1,6 @@
 /**
- * Processo principal do Mockup Studio desktop: daemon embutido (HTTP + WS + MCP), motor de render,
- * janela do editor, menu nativo e modo `--headless` (sem janela, usado por `mockup mcp`).
+ * Mockup Studio desktop main process: embedded daemon (HTTP + WS + MCP), render engine,
+ * editor window, native menu and `--headless` mode (no window, used by `mockup mcp`).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -37,50 +37,50 @@ let args: AppArgs;
 try {
   args = parseArgs(userArgs(process.argv, process.defaultApp));
 } catch (e) {
-  console.error('[mockup-desktop] erro:', e instanceof Error ? e.message : e);
+  console.error('[mockup-desktop] error:', e instanceof Error ? e.message : e);
   process.exit(2);
 }
 
 /**
- * `--install-cli` / `--uninstall-cli` (reparo da instalação): roda o bundle do CLI embutido com o
- * próprio Electron como Node, herdando o stdio, e sai com o código dele. Roda antes de qualquer
- * userData, lock de instância única, daemon ou janela. No executável portátil o `install-cli` recusa
- * (o CLI vê `PORTABLE_EXECUTABLE_DIR`): ele roda de uma pasta temporária.
+ * `--install-cli` / `--uninstall-cli` (install repair): runs the embedded CLI bundle with
+ * Electron itself as Node, inheriting stdio, and exits with its code. Runs before any
+ * userData, single-instance lock, daemon or window. In the portable executable `install-cli` refuses
+ * (the CLI sees `PORTABLE_EXECUTABLE_DIR`): it runs from a temporary folder.
  */
 if (args.cliAction) {
   const script = app.isPackaged
     ? path.join(process.resourcesPath, 'cli', 'mockup.mjs')
     : path.resolve(app.getAppPath(), 'out', 'cli', 'mockup.mjs');
   if (!fs.existsSync(script)) {
-    console.error(`[mockup-desktop] CLI embutido não encontrado: ${script}`);
+    console.error(`[mockup-desktop] embedded CLI not found: ${script}`);
     process.exit(1);
   }
   const r = spawnSync(process.execPath, [script, args.cliAction, ...args.cliArgs], {
     stdio: 'inherit',
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
   });
-  if (r.error) console.error('[mockup-desktop] erro ao rodar o CLI:', r.error.message);
+  if (r.error) console.error('[mockup-desktop] error running the CLI:', r.error.message);
   process.exit(r.status ?? 1);
 }
 
-// userData próprio só quando o usuário pediu (--data-dir ou MOCKUP_DATA_DIR definida antes de
-// iniciar): o lock de instância única é por userData (testes e instâncias isoladas).
+// Own userData only when the user asked for it (--data-dir or MOCKUP_DATA_DIR set before
+// starting): the single-instance lock is per userData (tests and isolated instances).
 const userDataDir = dataDirOverride(args, process.env);
 if (userDataDir) {
   process.env.MOCKUP_DATA_DIR = userDataDir;
   app.setPath('userData', path.join(userDataDir, 'electron'));
 }
 if (args.headless && process.env.MOCKUP_DISABLE_GPU === '1') app.disableHardwareAcceleration();
-// WebGL no render dos efeitos sem GPU: o SwiftShader (software) só é liberado no modo headless
-// (motor de screenshot, sem iframes nem YouTube de terceiros) ou com `MOCKUP_RENDER_GL=swiftshader`,
-// que também força o software (VM/CI). A janela interativa usa só a GPU.
+// WebGL in the effects render without a GPU: SwiftShader (software) is only enabled in headless mode
+// (screenshot engine, no third-party iframes or YouTube) or with `MOCKUP_RENDER_GL=swiftshader`,
+// which also forces software rendering (VM/CI). The interactive window uses the GPU only.
 const forceSwiftShader = process.env.MOCKUP_RENDER_GL === 'swiftshader';
 if (args.headless || forceSwiftShader) app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 if (forceSwiftShader) {
   app.commandLine.appendSwitch('use-angle', 'swiftshader');
   app.commandLine.appendSwitch('use-gl', 'angle');
 }
-// ffmpeg empacotado (extraResources) para exportar mp4/webm/gif; o server respeita MOCKUP_FFMPEG
+// Bundled ffmpeg (extraResources) to export mp4/webm/gif; the server honors MOCKUP_FFMPEG
 if (app.isPackaged) {
   const bundled = path.join(
     process.resourcesPath,
@@ -91,9 +91,9 @@ if (app.isPackaged) {
 }
 app.setAppUserModelId('app.mockupstudio.desktop');
 
-// ---------------------------------------------------------------- recursos
+// ---------------------------------------------------------------- resources
 
-/** Raiz dos recursos extras: `resources/` empacotado, ou o repositório em desenvolvimento. */
+/** Root of the extra resources: the packaged `resources/`, or the repository in development. */
 function resolveEditorDir(): string {
   if (process.env.MOCKUP_EDITOR_DIR) return process.env.MOCKUP_EDITOR_DIR;
   return app.isPackaged
@@ -111,18 +111,18 @@ function resolveIcon(): string {
     : path.join(app.getAppPath(), 'build', 'icon.png');
 }
 
-// ---------------------------------------------------------------- estado
+// ---------------------------------------------------------------- state
 
 let daemon: DaemonHandle | null = null;
 let baseUrl = '';
 let mainWindow: BrowserWindow | null = null;
-/** Iniciado como headless: nunca encerra por fechar janelas (só por sinal/`before-quit`). */
+/** Started as headless: never quits when windows close (only by signal/`before-quit`). */
 const startedHeadless = args.headless;
 let quitting = false;
 
 const origin = (): string => new URL(baseUrl).origin;
 
-// ---------------------------------------------------------------- abrir arquivos
+// ---------------------------------------------------------------- open files
 
 function resolveFiles(files: string[], cwd?: string): string[] {
   return files.map((f) => path.resolve(cwd ?? process.cwd(), f));
@@ -135,7 +135,7 @@ async function openFiles(files: string[]): Promise<void> {
         const info = await daemon.store.open(file);
         daemon.store.setActive(info.docId);
       } else {
-        // daemon de outra instância: abre por HTTP
+        // daemon of another instance: open via HTTP
         const res = await fetch(`${baseUrl}/api/open`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -144,7 +144,7 @@ async function openFiles(files: string[]): Promise<void> {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }
     } catch (e) {
-      log(`não foi possível abrir ${file}:`, e instanceof Error ? e.message : e);
+      log(`could not open ${file}:`, e instanceof Error ? e.message : e);
     }
   }
 }
@@ -175,15 +175,15 @@ function refreshMenu(force = false): void {
     send: sendMenu,
     recent,
     openMcpDocs: () => void shell.openPath(docFile(['MCP.md'])),
-    openExportDocs: () => void shell.openPath(docFile(['EXPORTACAO.md', 'EXPORT.md', 'MCP.md'])),
+    openExportDocs: () => void shell.openPath(docFile(['EXPORT.md', 'MCP.md'])),
     showAbout: () =>
       void dialog.showMessageBox({
         type: 'info',
-        title: `Sobre o ${APP_NAME}`,
+        title: `About ${APP_NAME}`,
         message: APP_NAME,
         detail:
-          `Versão ${app.getVersion()}\n` +
-          `Servidor MCP local em ${baseUrl}/mcp\n\n` +
+          `Version ${app.getVersion()}\n` +
+          `Local MCP server at ${baseUrl}/mcp\n\n` +
           `Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}`,
         icon: undefined,
       }),
@@ -191,7 +191,7 @@ function refreshMenu(force = false): void {
   });
 }
 
-// ---------------------------------------------------------------- janela
+// ---------------------------------------------------------------- window
 
 function isTrustedSender(frameUrl: string | undefined): boolean {
   if (!frameUrl || !baseUrl) return false;
@@ -207,11 +207,11 @@ function setupIpc(): void {
     if (!isTrustedSender(e.senderFrame?.url)) return null;
     const win = BrowserWindow.fromWebContents(e.sender) ?? undefined;
     const opts = {
-      title: 'Abrir documento',
+      title: 'Open document',
       properties: ['openFile' as const],
       filters: [
         { name: 'Mockup Studio (*.mockup.json)', extensions: ['json'] },
-        { name: 'Todos os arquivos', extensions: ['*'] },
+        { name: 'All files', extensions: ['*'] },
       ],
     };
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
@@ -224,7 +224,7 @@ function setupIpc(): void {
       if (!isTrustedSender(e.senderFrame?.url)) return null;
       const win = BrowserWindow.fromWebContents(e.sender) ?? undefined;
       const opts = {
-        title: typeof o?.title === 'string' ? o.title : 'Salvar documento',
+        title: typeof o?.title === 'string' ? o.title : 'Save document',
         defaultPath: typeof o?.defaultPath === 'string' ? o.defaultPath : undefined,
         filters: [{ name: 'Mockup Studio (*.mockup.json)', extensions: ['mockup.json'] }],
       };
@@ -243,7 +243,7 @@ function setupIpc(): void {
       win.setRepresentedFilename(s.path ?? '');
       win.setDocumentEdited(!!s.dirty);
     } catch {
-      /* só macOS */
+      /* macOS only */
     }
     refreshMenu();
   });
@@ -280,7 +280,7 @@ function createMainWindow(): BrowserWindow {
     try {
       same = new URL(url).origin === origin();
     } catch {
-      /* URL inválida */
+      /* invalid URL */
     }
     if (!same) {
       ev.preventDefault();
@@ -309,9 +309,9 @@ function showWindow(): void {
   createMainWindow();
 }
 
-// ---------------------------------------------------------------- inicialização
+// ---------------------------------------------------------------- startup
 
-/** Sobe o daemon embutido (com render) na porta; lança se a porta estiver ocupada. */
+/** Starts the embedded daemon (with render) on the port; throws if the port is in use. */
 function startEmbedded(port: number, files: string[]): Promise<DaemonHandle> {
   const render = new RenderService({ baseUrl: () => baseUrl });
   return startDaemon({
@@ -321,7 +321,7 @@ function startEmbedded(port: number, files: string[]): Promise<DaemonHandle> {
     openFiles: files,
     writeInfo: true,
     mode: 'desktop',
-    // headless (ex.: aberto pelo CLI): `mockup stop` encerra o app; com janela, o daemon recusa (409)
+    // headless (e.g. opened by the CLI): `mockup stop` quits the app; with a window, the daemon refuses (409)
     onShutdown: startedHeadless ? () => app.quit() : undefined,
   });
 }
@@ -332,7 +332,7 @@ async function startServices(): Promise<boolean> {
   try {
     daemon = await startEmbedded(port, argvFiles);
     baseUrl = daemon.url;
-    log(`daemon embutido em ${daemon.url} (render ativo)`);
+    log(`embedded daemon at ${daemon.url} (render active)`);
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -340,67 +340,63 @@ async function startServices(): Promise<boolean> {
     const other = port > 0 ? await checkHealth(url) : null;
     if (other?.ok && other.name === 'mockup-studio') {
       if (existingDaemonAction(other) === 'takeover') {
-        // daemon Node sem render (ex.: um headless antigo): pede o encerramento, espera a porta
-        // liberar e assume o lugar, reabrindo os documentos que ele tinha
+        // Node daemon without render (e.g. an old headless one): asks it to shut down, waits for the port
+        // to free up and takes its place, reopening the documents it had
         log(
-          `porta ${port} ocupada por um daemon sem render (pid ${other.pid}); assumindo o lugar dele.`,
+          `port ${port} is in use by a daemon without render (pid ${other.pid}); taking its place.`,
         );
         const r = await takeOverDaemon(url);
         if (r.ok) {
           if (r.unsaved > 0)
-            log(
-              `${r.unsaved} documento(s) sem arquivo do daemon anterior não puderam ser reabertos.`,
-            );
+            log(`${r.unsaved} unsaved document(s) from the previous daemon could not be reopened.`);
           try {
             daemon = await startEmbedded(port, mergeFiles(r.paths, argvFiles));
             baseUrl = daemon.url;
             log(
-              `daemon embutido em ${daemon.url} (render ativo; ${r.paths.length} documento(s) reaberto(s))`,
+              `embedded daemon at ${daemon.url} (render active; ${r.paths.length} document(s) reopened)`,
             );
             return true;
           } catch (e2) {
             console.error(
-              '[mockup-desktop] não foi possível subir o daemon após encerrar o anterior:',
+              '[mockup-desktop] could not start the daemon after shutting down the previous one:',
               e2 instanceof Error ? e2.message : e2,
             );
-            if (!startedHeadless)
-              dialog.showErrorBox(APP_NAME, 'Não foi possível iniciar o daemon.');
+            if (!startedHeadless) dialog.showErrorBox(APP_NAME, 'Could not start the daemon.');
             return false;
           }
         }
         log(
-          `não foi possível encerrar o daemon sem render (${r.reason ?? 'recusou'}); mantendo-o.`,
+          `could not shut down the daemon without render (${r.reason ?? 'refused'}); keeping it.`,
         );
       }
       if (startedHeadless) {
         console.error(
-          `[mockup-desktop] já existe um daemon do Mockup Studio na porta ${port}; encerrando o headless.`,
+          `[mockup-desktop] a Mockup Studio daemon already exists on port ${port}; shutting down the headless instance.`,
         );
         return false;
       }
       baseUrl = url;
       log(
-        `porta ${port} ocupada por outro daemon do Mockup Studio: a janela usará esse daemon; ` +
-          `o render/screenshot é o dele (${other.render ? 'ativo' : 'indisponível'}).`,
+        `port ${port} is in use by another Mockup Studio daemon: the window will use that daemon; ` +
+          `render/screenshot is its own (${other.render ? 'active' : 'unavailable'}).`,
       );
       await openFiles(argvFiles);
       return true;
     }
-    console.error('[mockup-desktop] não foi possível iniciar o daemon:', msg);
-    if (!startedHeadless)
-      dialog.showErrorBox(APP_NAME, `Não foi possível iniciar o daemon.\n\n${msg}`);
+    console.error('[mockup-desktop] could not start the daemon:', msg);
+    if (!startedHeadless) dialog.showErrorBox(APP_NAME, `Could not start the daemon.\n\n${msg}`);
     return false;
   }
 }
 
-/** Sem janela e com sessões MCP ativas: segue headless e sai quando as sessões zerarem. */
+/** No window and with active MCP sessions: keeps running headless and quits when the sessions drop to zero. */
 let sessionWatch: NodeJS.Timeout | null = null;
 function watchSessions(): void {
   if (sessionWatch) return;
   sessionWatch = setInterval(() => {
     const hasWindow = !!mainWindow && !mainWindow.isDestroyed();
     if (shouldQuitAfterSessions(startedHeadless, hasWindow, daemon?.sessionCount() ?? 0)) {
-      log('sessões MCP encerradas; saindo');
+      log('MCP sessions ended; quitting');
       app.quit();
     }
   }, SESSION_WATCH_MS);
@@ -418,7 +414,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     void (async () => {
       await openFiles(resolveFiles(second.files, cwd));
-      // um `--headless` repetido (ex.: CLI) não deve abrir janela
+      // a repeated `--headless` (e.g. CLI) must not open a window
       if (!second.headless) showWindow();
     })();
   });
@@ -428,7 +424,7 @@ if (!app.requestSingleInstanceLock()) {
     if (action === 'stay') return;
     if (action === 'watch' && daemon) {
       log(
-        `janela fechada; ${daemon.sessionCount()} sessão(ões) MCP ativa(s): seguindo em modo headless`,
+        `window closed; ${daemon.sessionCount()} active MCP session(s): continuing in headless mode`,
       );
       Menu.setApplicationMenu(null);
       watchSessions();
@@ -444,7 +440,7 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true;
     e.preventDefault();
     void (daemon?.close() ?? Promise.resolve())
-      .catch((err: unknown) => log('erro ao encerrar o daemon:', err))
+      .catch((err: unknown) => log('error shutting down the daemon:', err))
       .finally(() => app.exit(0));
   });
 
@@ -464,7 +460,7 @@ if (!app.requestSingleInstanceLock()) {
     if (startedHeadless) {
       Menu.setApplicationMenu(null);
       app.dock?.hide();
-      log('modo headless: sem janela');
+      log('headless mode: no window');
     } else {
       createMainWindow();
     }

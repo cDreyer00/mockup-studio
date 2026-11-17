@@ -3,12 +3,12 @@ import type { Locator, Page } from '@playwright/test';
 import type { Node } from '@mockup/core';
 import { Mcp, createDoc, getDoc, gotoEditor } from './helpers';
 
-/** Efeitos (painel, propriedades, imagem renderizada), embed por URL e editor da ilha Three.js. */
+/** Effects (panel, properties, rendered image), embed by URL and the Three.js island editor. */
 
 async function setup(name: string) {
   const info = await createDoc(name);
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 800, height: 600, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 800, height: 600, x: 0, y: 0 });
   const frame = (await getDoc(info.docId)).pages[0]!.frames[0]!;
   return { info, frame };
 }
@@ -18,7 +18,7 @@ const frameOf = async (docId: string) => (await getDoc(docId)).pages[0]!.frames[
 const nodeEl = (page: Page, id: string) =>
   page.getByTestId('canvas-world').locator(`[data-node-id="${id}"]`).first();
 
-/** Aplica um preset de efeito como fundo do frame e devolve o nó `effect` criado. */
+/** Applies an effect preset as the frame background and returns the created `effect` node. */
 async function applyMeshGradient(page: Page, docId: string, frameId: string): Promise<Node> {
   await page.getByTestId(`layer-row-${frameId}`).click();
   await page.getByTestId('effects-button').click();
@@ -31,7 +31,7 @@ async function applyMeshGradient(page: Page, docId: string, frameId: string): Pr
   return (await frameOf(docId)).children.find((c) => c.type === 'effect')!;
 }
 
-/** Decodifica o PNG no navegador e conta as cores distintas (canais quantizados em 4 bits). */
+/** Decodes the PNG in the browser and counts the distinct colors (channels quantized to 4 bits). */
 async function distinctColors(page: Page, target: Locator): Promise<number> {
   const png = (await target.screenshot()).toString('base64');
   return page.evaluate(async (b64) => {
@@ -51,15 +51,15 @@ async function distinctColors(page: Page, target: Locator): Promise<number> {
   }, png);
 }
 
-test('painel de efeitos: preset como fundo do frame e slider de parâmetro', async ({ page }) => {
+test('effects panel: preset as the frame background and parameter slider', async ({ page }) => {
   const { info, frame } = await setup('fx-panel');
   await gotoEditor(page);
   const fx = await applyMeshGradient(page, info.docId, frame.id);
 
   expect(fx.effect?.kind).toBe('mesh-gradient');
-  expect(fx.effect?.params?.color1).toBe('#ff5e62'); // preset "Pôr do sol"
-  expect((await frameOf(info.docId)).children[0]!.id).toBe(fx.id); // fica no fundo (índice 0)
-  await expect(page.getByTestId('effect-kind')).toBeVisible(); // seção Efeito com o nó selecionado
+  expect(fx.effect?.params?.color1).toBe('#ff5e62'); // preset "Sunset"
+  expect((await frameOf(info.docId)).children[0]!.id).toBe(fx.id); // stays in the background (index 0)
+  await expect(page.getByTestId('effect-kind')).toBeVisible(); // Effect section with the node selected
 
   const slider = page.getByTestId('effect-param-distortion');
   await slider.fill('0.9');
@@ -67,14 +67,14 @@ test('painel de efeitos: preset como fundo do frame e slider de parâmetro', asy
     .poll(async () => (await frameOf(info.docId)).children[0]!.effect?.params?.distortion)
     .toBe(0.9);
 
-  // Preset pelo chip da seção de propriedades.
+  // Preset through the chip in the properties section.
   await page.getByTestId('effect-chip-ocean').click();
   await expect
     .poll(async () => (await frameOf(info.docId)).children[0]!.effect?.params?.color1)
     .toBe('#03045e');
 });
 
-test('mesh gradient como fundo do frame renderiza uma imagem não uniforme', async ({ page }) => {
+test('mesh gradient as the frame background renders a non-uniform image', async ({ page }) => {
   const { info, frame } = await setup('fx-pixels');
   await gotoEditor(page);
   const fx = await applyMeshGradient(page, info.docId, frame.id);
@@ -83,7 +83,7 @@ test('mesh gradient como fundo do frame renderiza uma imagem não uniforme', asy
   await expect.poll(() => distinctColors(page, el), { timeout: 15_000 }).toBeGreaterThan(8);
 });
 
-test('diálogo de embed por URL: detecta o provedor e insere o nó embed', async ({ page }) => {
+test('embed by URL dialog: detects the provider and inserts the embed node', async ({ page }) => {
   const { info } = await setup('fx-embed');
   await gotoEditor(page);
   await page.getByTestId('media-button').click();
@@ -95,9 +95,9 @@ test('diálogo de embed por URL: detecta o provedor e insere o nó embed', async
 
   await input.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   await expect(provider).toHaveText('YouTube');
-  await input.fill('https://example.com/animacao.json');
+  await input.fill('https://example.com/animation.json');
   await expect(provider).toHaveText('Lottie');
-  await input.fill('texto qualquer');
+  await input.fill('any text');
   await expect(page.getByTestId('embed-provider-none')).toBeVisible();
   await expect(page.getByTestId('embed-insert')).toBeDisabled();
   await input.fill('https://example.com');
@@ -113,7 +113,9 @@ test('diálogo de embed por URL: detecta o provedor e insere o nó embed', async
   expect(embed.embed?.url).toBe('https://example.com');
 });
 
-test('editor da ilha Three.js: edita o código, mostra a prévia e salva no nó', async ({ page }) => {
+test('Three.js island editor: edits the code, shows the preview and saves to the node', async ({
+  page,
+}) => {
   const { info } = await setup('fx-three');
   await gotoEditor(page);
   await page.getByTestId('media-button').click();
@@ -132,12 +134,12 @@ test('editor da ilha Three.js: edita o código, mostra a prévia e salva no nó'
   expect(before.embed?.provider).toBe('three');
   const oldCode = before.embed!.code!;
 
-  const marker = '/* e2e-cor: 0xff0000 */\n';
+  const marker = '/* e2e-color: 0xff0000 */\n';
   await page.locator('[data-testid="three-code"] .cm-content').click();
   await page.keyboard.press('Control+Home');
   await page.keyboard.type(marker);
-  // A prévia recarrega com o código novo (debounce) e passa a conter o marcador.
-  await expect(preview).toHaveAttribute('srcdoc', /e2e-cor: 0xff0000/);
+  // The preview reloads with the new code (debounce) and now contains the marker.
+  await expect(preview).toHaveAttribute('srcdoc', /e2e-color: 0xff0000/);
 
   await page.getByTestId('three-apply').click();
   await expect(editor).toBeHidden();
@@ -145,7 +147,7 @@ test('editor da ilha Three.js: edita o código, mostra a prévia e salva no nó'
     .poll(
       async () => (await frameOf(info.docId)).children.find((c) => c.type === 'embed')?.embed?.code,
     )
-    .toContain('e2e-cor: 0xff0000');
+    .toContain('e2e-color: 0xff0000');
   const after = (await frameOf(info.docId)).children.find((c) => c.type === 'embed')!;
   expect(after.embed!.code!.length).toBeGreaterThan(oldCode.length);
 });

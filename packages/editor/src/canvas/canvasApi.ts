@@ -1,19 +1,19 @@
 /**
- * API imperativa do canvas para as outras áreas (atalhos, barra de ferramentas, clipboard).
- * O componente do canvas registra a implementação real ao montar (`registerCanvasApi`).
+ * Imperative canvas API for the other areas (shortcuts, toolbar, clipboard).
+ * The canvas component registers the real implementation on mount (`registerCanvasApi`).
  */
 export interface CanvasApi {
   zoomIn(): void;
   zoomOut(): void;
-  /** Define o zoom (1 = 100%) mantendo o centro da tela. */
+  /** Sets the zoom (1 = 100%) keeping the screen center. */
   zoomTo(z: number): void;
-  /** Shift+1: enquadra todos os frames visíveis da página. */
+  /** Shift+1: fits all visible frames on the page. */
   fitAll(): void;
-  /** Shift+2: enquadra os nós (padrão: a seleção). */
+  /** Shift+2: fits the nodes (default: the selection). */
   fitNodes(ids?: string[]): void;
-  /** Centro da área visível em coordenadas do mundo (para inserir/colar). */
+  /** Center of the visible area in world coordinates (for insert/paste). */
   viewportCenter(): { x: number; y: number };
-  /** Retângulo de um nó em coordenadas do mundo (medido no DOM), ou null se não renderizado. */
+  /** Rectangle of a node in world coordinates (measured from the DOM), or null if not rendered. */
   nodeRect(id: string): { x: number; y: number; w: number; h: number } | null;
 }
 
@@ -31,7 +31,7 @@ const fallback: CanvasApi = {
 
 let impl: CanvasApi = fallback;
 
-/** Registra a implementação; devolve a função que a remove. */
+/** Registers the implementation; returns the function that removes it. */
 export function registerCanvasApi(api: CanvasApi): () => void {
   impl = api;
   return () => {
@@ -39,7 +39,7 @@ export function registerCanvasApi(api: CanvasApi): () => void {
   };
 }
 
-/** Proxy estável: sempre chama a implementação registrada no momento. */
+/** Stable proxy: always calls the implementation currently registered. */
 export const canvasApi: CanvasApi = {
   zoomIn: () => impl.zoomIn(),
   zoomOut: () => impl.zoomOut(),

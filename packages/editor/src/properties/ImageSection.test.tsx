@@ -19,7 +19,7 @@ import {
 import { PropertiesPanel } from './PropertiesPanel';
 
 describe('imageOps', () => {
-  it('filterDelta preserva funções desconhecidas e omite neutros', () => {
+  it('filterDelta preserves unknown functions and omits neutrals', () => {
     expect(filterDelta('drop-shadow(0 0 2px #000)', 'sepia', 40)).toEqual({
       set: { filter: 'sepia(40%) drop-shadow(0 0 2px #000)' },
     });
@@ -27,14 +27,14 @@ describe('imageOps', () => {
     expect(filterDelta(undefined, 'blur', 0)).toBeNull();
   });
 
-  it('convive com o blur da seção Efeitos (mesmo filter, sem se pisar)', () => {
+  it('coexists with the Effects section blur (same filter, without clobbering)', () => {
     expect(filterDelta('blur(4px) contrast(120%)', 'brightness', 80)).toEqual({
       set: { filter: 'blur(4px) brightness(80%) contrast(120%)' },
     });
     expect(filterPreview('blur(4px)', 'blur', 0)).toBe('');
   });
 
-  it('resetFiltersDelta zera o que é do painel e mantém o resto', () => {
+  it("resetFiltersDelta zeroes the panel's filters and keeps the rest", () => {
     expect(resetFiltersDelta('blur(2px) invert(100%) drop-shadow(0 0 2px #000)')).toEqual({
       set: { filter: 'drop-shadow(0 0 2px #000)' },
     });
@@ -70,7 +70,7 @@ describe('ImageSection', () => {
     useUi.setState({ selection: [], preview: {}, cropNodeId: null, cropDraft: null });
   });
 
-  it('só aparece quando todos os nós são imagens', () => {
+  it('only appears when all nodes are images', () => {
     render(<PropertiesPanel />);
     expect(screen.getByTestId('image-section')).toBeTruthy();
     cleanup();
@@ -81,7 +81,7 @@ describe('ImageSection', () => {
     expect(screen.queryByTestId('image-section')).toBeNull();
   });
 
-  it('object-fit e máscara geram updateStyles', () => {
+  it('object-fit and mask generate updateStyles', () => {
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('image-fit-contain'));
     expect(daemon.applySafe).toHaveBeenLastCalledWith([
@@ -96,7 +96,7 @@ describe('ImageSection', () => {
     ]);
   });
 
-  it('slider de filtro: prévia ao vivo e uma única op ao soltar', () => {
+  it('filter slider: live preview and a single op on release', () => {
     render(<PropertiesPanel />);
     const range = screen.getByTestId('image-filter-brightness');
     fireEvent.change(range, { target: { value: '150' } });
@@ -113,13 +113,13 @@ describe('ImageSection', () => {
     ]);
   });
 
-  it('botão Recortar entra no modo de recorte', () => {
+  it('Crop button enters crop mode', () => {
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('image-crop-button'));
     expect(useUi.getState().cropNodeId).toBe(image.id);
   });
 
-  it('Gerar chama a rota de placeholder para cada imagem', () => {
+  it('Generate calls the placeholder route for each image', () => {
     const spy = vi
       .spyOn(features, 'placeholder')
       .mockResolvedValue({ src: 'x.svg', nodeId: image.id });

@@ -6,7 +6,7 @@ import { fxBegin } from './ready';
 import { FX_INNER, fxRootStyle } from './types';
 import type { FxViewProps } from './types';
 
-/** Embed `lottie` (lottie-web light, renderer SVG; carregado sob demanda). */
+/** `lottie` embed (lottie-web light, SVG renderer; loaded on demand). */
 export function LottieView({ node, style, docId }: FxViewProps) {
   const e = node.embed;
   const src = e?.src ? resolveSrc(docId, e.src) : '';

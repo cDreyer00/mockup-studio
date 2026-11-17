@@ -10,7 +10,7 @@ import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
 
-/** Nome do arquivo (sem pasta) para o título da janela. */
+/** File name (without folder) for the window title. */
 function fileName(path: string | null | undefined): string | null {
   if (!path) return null;
   return path.split(/[/\\]/).pop() ?? path;
@@ -31,7 +31,7 @@ export function App() {
     document.title = name ? `${info?.dirty ? '● ' : ''}${name} — Mockup Studio` : 'Mockup Studio';
   }, [info?.path, info?.name, info?.dirty]);
 
-  // Ao trocar/abrir o documento ativo, a tela inicial sai da frente.
+  // When the active document changes or opens, the home screen gets out of the way.
   useEffect(() => {
     if (activeDocId) ui.setHome(false);
   }, [activeDocId]);
@@ -50,10 +50,10 @@ export function App() {
         ) : (
           <div className="canvas-empty">
             {status === 'offline'
-              ? 'Daemon não encontrado — rode `npm run dev`'
+              ? 'Daemon not found — run `npm run dev`'
               : status === 'connecting'
-                ? 'Conectando ao daemon…'
-                : 'Nenhum documento aberto. Use Arquivo › Abrir ou Novo, `mockup open <arquivo>` ou o MCP.'}
+                ? 'Connecting to the daemon…'
+                : 'No document open. Use File › Open or New, `mockup open <file>` or the MCP.'}
           </div>
         )}
         <RightDock />

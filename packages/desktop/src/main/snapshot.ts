@@ -1,8 +1,8 @@
 /**
- * SnapshotService: motor de captura de páginas (import_url/import_html). Cada importação abre uma
- * BrowserWindow NOVA e isolada (sessão em memória dedicada, sem preload, só http/https/data/blob/about),
- * carrega a URL/HTML, injeta o bundle do `@mockup/snapshot-core` num mundo isolado e devolve o
- * `SnapshotPayload`, com a captura de referência (PNG/JPEG via CDP). Importações são serializadas.
+ * SnapshotService: page capture engine (import_url/import_html). Each import opens a NEW,
+ * isolated BrowserWindow (dedicated in-memory session, no preload, only http/https/data/blob/about),
+ * loads the URL/HTML, injects the `@mockup/snapshot-core` bundle into an isolated world and returns the
+ * `SnapshotPayload`, with the reference capture (PNG/JPEG via CDP). Imports are serialized.
  */
 import dns from 'node:dns';
 import { BrowserWindow, nativeImage, session, type Session } from 'electron';
@@ -11,16 +11,16 @@ import { SNAPSHOT_SCRIPT } from '@mockup/snapshot-core/inject';
 import { isPrivateAddress, originOf, subrequestDecision } from './netguard.js';
 
 export interface SnapshotServiceOptions {
-  /** Origem do daemon (ex.: `http://127.0.0.1:4747`); páginas importadas não podem chamá-la. */
+  /** Daemon origin (e.g. `http://127.0.0.1:4747`); imported pages cannot call it. */
   baseUrl: () => string;
 }
 
 const log = (...a: unknown[]): void => console.error('[mockup-snapshot]', ...a);
 
 const PARTITION = 'mockup-snapshot';
-/** Id fixo do mundo isolado em que o bundle roda (o DOM é compartilhado com a página). */
+/** Fixed id of the isolated world the bundle runs in (the DOM is shared with the page). */
 const WORLD_ID = 1001;
-/** Validade do cache de resolução de DNS por host (evita resolver a cada requisição). */
+/** Validity of the per-host DNS resolution cache (avoids resolving on every request). */
 const DNS_TTL_MS = 30_000;
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 
@@ -30,21 +30,21 @@ const REF_JPEG_THRESHOLD = 3 * 1024 * 1024;
 const SETTLE_MS = 300;
 const ASSETS_WAIT_MS = 3000;
 /**
- * Quanto esperar pelo seletor depois do load. Páginas com JS (import_url, import_html com base) podem
- * montar o DOM depois do load; HTML estático (import_html sem base, JS desligado pela CSP) já está
- * todo no DOM, então a tolerância é curta.
+ * How long to wait for the selector after load. Pages with JS (import_url, import_html with a base) may
+ * build the DOM after load; static HTML (import_html without a base, JS turned off by the CSP) is already
+ * entirely in the DOM, so the tolerance is short.
  */
 const SELECTOR_WAIT_MS = 5000;
 const SELECTOR_WAIT_STATIC_MS = 1000;
 
-/** Insere o CSS extra como `<style>` no fim do `<head>` (ou no início do documento/fragmento). */
+/** Inserts the extra CSS as `<style>` at the end of `<head>` (or at the start of the document/fragment). */
 export function buildHtml(html: string, css?: string, noScript = false): string {
   const out = insertCss(html, css);
   if (!noScript) return out;
-  // CSP por <meta> logo no início (depois do doctype, para não cair em quirks mode): nenhum <script>,
-  // handler `on*=` ou `javascript:` da página executa. O bundle da captura não é afetado porque roda
-  // num mundo isolado via `executeJavaScriptInIsolatedWorld`, que não obedece à CSP da página.
-  // (`webPreferences.javascript: false` não serve: derruba também o mundo isolado e a captura trava.)
+  // CSP via <meta> right at the start (after the doctype, to avoid quirks mode): no <script>,
+  // `on*=` handler or `javascript:` from the page runs. The capture bundle is unaffected because it runs
+  // in an isolated world via `executeJavaScriptInIsolatedWorld`, which does not obey the page's CSP.
+  // (`webPreferences.javascript: false` does not work: it also takes down the isolated world and the capture hangs.)
   const csp = `<meta http-equiv="Content-Security-Policy" content="script-src 'none'">`;
   const doctype = /^\s*(?:<!--[\s\S]*?-->\s*)*<!doctype[^>]*>/i.exec(out);
   const at = doctype ? doctype[0].length : 0;
@@ -66,7 +66,7 @@ function insertCss(html: string, css?: string): string {
   return style + html;
 }
 
-/** `true` quando a requisição aponta para a origem do daemon (127.0.0.1/localhost/[::1] na porta dele). */
+/** `true` when the request points to the daemon's origin (127.0.0.1/localhost/[::1] on its port). */
 export function isDaemonRequest(rawUrl: string, daemonBase: string): boolean {
   try {
     const u = new URL(rawUrl);
@@ -91,21 +91,21 @@ export class SnapshotService {
   private win: BrowserWindow | null = null;
   private ses: Session | null = null;
   private closed = false;
-  /** Origem da página principal da importação corrente (as importações são serializadas). */
+  /** Origin of the main page of the current import (imports are serialized). */
   private mainOrigin: string | null = null;
   private dnsCache = new Map<string, { priv: boolean; until: number }>();
 
   constructor(private opts: SnapshotServiceOptions) {}
 
-  /** Sessão em memória dedicada, configurada uma única vez. */
+  /** Dedicated in-memory session, configured only once. */
   private getSession(): Session {
     if (this.ses) return this.ses;
-    const ses = session.fromPartition(PARTITION); // sem prefixo `persist:` = em memória
+    const ses = session.fromPartition(PARTITION); // no `persist:` prefix = in memory
     ses.webRequest.onBeforeRequest((details, callback) => {
       this.shouldCancel(details.url, details.resourceType)
         .catch(() => true)
         .then((cancel) => {
-          if (cancel && process.env.MOCKUP_RENDER_DEBUG) log('requisição bloqueada:', details.url);
+          if (cancel && process.env.MOCKUP_RENDER_DEBUG) log('request blocked:', details.url);
           callback({ cancel });
         });
     });
@@ -117,11 +117,11 @@ export class SnapshotService {
   }
 
   /**
-   * Política de rede da janela de captura. O daemon é bloqueado sempre. A navegação principal vai a
-   * qualquer http(s) (o dev server do usuário em localhost é um caso legítimo) e passa a ser a origem
-   * confiável (redirecionamentos do servidor incluídos). Subrequisições a rede local/privada só passam
-   * se forem da origem confiável; nomes de host são resolvidos aqui e bloqueados se algum endereço for
-   * privado.
+   * Network policy of the capture window. The daemon is always blocked. The main navigation goes to
+   * any http(s) (the user's dev server on localhost is a legitimate case) and becomes the trusted
+   * origin (server redirects included). Subrequests to the local/private network only pass
+   * if they are from the trusted origin; hostnames are resolved here and blocked if any address is
+   * private.
    */
   private async shouldCancel(rawUrl: string, resourceType: string): Promise<boolean> {
     let u: URL;
@@ -144,9 +144,9 @@ export class SnapshotService {
   }
 
   /**
-   * Resolve o host via `dns.lookup` (com cache curto). Falha de resolução = bloqueia. Risco residual:
-   * o resolvedor do Chromium (DoH, cache próprio, rebinding entre a checagem e a conexão) pode
-   * divergir deste lookup.
+   * Resolves the host via `dns.lookup` (with a short cache). Resolution failure = block. Residual risk:
+   * Chromium's resolver (DoH, its own cache, rebinding between the check and the connection) may
+   * diverge from this lookup.
    */
   private async resolvesToPrivate(host: string): Promise<boolean> {
     const key = host.toLowerCase();
@@ -176,31 +176,31 @@ export class SnapshotService {
     try {
       win.webContents.debugger.detach();
     } catch {
-      /* já desanexado */
+      /* already detached */
     }
     win.destroy();
   }
 
   snapshot(req: PageSnapshotRequest): Promise<PageSnapshotResult> {
-    if (this.closed) return Promise.reject(new Error('SnapshotService encerrado'));
+    if (this.closed) return Promise.reject(new Error('SnapshotService closed'));
     return this.enqueue(() => this.run(req));
   }
 
   private async run(req: PageSnapshotRequest): Promise<PageSnapshotResult> {
-    if (this.closed) throw new Error('SnapshotService encerrado');
+    if (this.closed) throw new Error('SnapshotService closed');
     if (req.kind === 'url') {
       let proto = '';
       try {
         proto = new URL(req.url).protocol;
       } catch {
-        throw new Error(`URL inválida: ${req.url}`);
+        throw new Error(`Invalid URL: ${req.url}`);
       }
       if (proto !== 'http:' && proto !== 'https:')
-        throw new Error(`Só URLs http(s) podem ser importadas (recebido ${proto || req.url}).`);
+        throw new Error(`Only http(s) URLs can be imported (received ${proto || req.url}).`);
     }
-    const what = req.kind === 'url' ? req.url : 'o HTML informado';
-    // import_html sem baseUrl: nenhuma origem privada é confiável e o JS da página fica desligado
-    // (CSP em buildHtml)
+    const what = req.kind === 'url' ? req.url : 'the provided HTML';
+    // import_html without baseUrl: no private origin is trusted and the page's JS is turned off
+    // (CSP in buildHtml)
     const base = req.kind === 'html' ? this.htmlBase(req) : undefined;
     this.mainOrigin = req.kind === 'url' ? originOf(req.url) : base ? originOf(base) : null;
     const win = this.createWindow(req.viewport);
@@ -209,12 +209,12 @@ export class SnapshotService {
       timer = setTimeout(() => {
         this.destroyWindow(win);
         reject(
-          new Error(`Tempo esgotado (${Math.round(req.timeoutMs / 1000)} s) ao importar ${what}.`),
+          new Error(`Timed out (${Math.round(req.timeoutMs / 1000)} s) while importing ${what}.`),
         );
       }, req.timeoutMs);
     });
     const work = this.doSnapshot(win, req, Date.now() + req.timeoutMs);
-    work.catch(() => undefined); // se o prazo vencer primeiro, o erro tardio é descartado
+    work.catch(() => undefined); // if the deadline expires first, the late error is discarded
     try {
       return await Promise.race([work, timeout]);
     } finally {
@@ -256,10 +256,10 @@ export class SnapshotService {
     const wc = win.webContents;
     wc.setAudioMuted(true);
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
-    // só a navegação inicial é permitida (a do `loadURL` não dispara will-navigate; redirecionamentos
-    // do servidor passam por will-redirect). Qualquer navegação posterior da página é bloqueada.
+    // only the initial navigation is allowed (the `loadURL` one does not fire will-navigate; server redirects
+    // go through will-redirect). Any later navigation of the page is blocked.
     wc.on('will-navigate', (ev) => ev.preventDefault());
-    // mesmo truque do RenderService: janela "mostrada" fora da tela (oculta quebra o screenshot no Windows)
+    // same trick as RenderService: window "shown" off-screen (hidden breaks the screenshot on Windows)
     win.setIgnoreMouseEvents(true);
     win.showInactive();
     return win;
@@ -271,7 +271,7 @@ export class SnapshotService {
     return dbg.sendCommand(method, params);
   }
 
-  /** Carrega a página; devolve o status HTTP da navegação principal (import_url; 0 se não houver). */
+  /** Loads the page; returns the HTTP status of the main navigation (import_url; 0 if none). */
   private async load(win: BrowserWindow, req: PageSnapshotRequest): Promise<number> {
     const wc = win.webContents;
     let failure = '';
@@ -279,7 +279,7 @@ export class SnapshotService {
     wc.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
       if (isMainFrame && code !== -3) failure = `${desc} (${code})`;
     });
-    // `did-navigate` só dispara para o frame principal (o último vale: redirecionamentos do servidor)
+    // `did-navigate` only fires for the main frame (the last one counts: server redirects)
     wc.on('did-navigate', (_e, _url, code) => {
       status = code;
     });
@@ -294,8 +294,8 @@ export class SnapshotService {
       }
     } catch (e) {
       const reason = failure || (e instanceof Error ? e.message : String(e));
-      const target = req.kind === 'url' ? req.url : 'o HTML informado';
-      throw new Error(`Não foi possível carregar ${target}: ${reason}`);
+      const target = req.kind === 'url' ? req.url : 'the provided HTML';
+      throw new Error(`Could not load ${target}: ${reason}`);
     }
     return req.kind === 'url' ? status : 0;
   }
@@ -310,7 +310,7 @@ export class SnapshotService {
     deadline: number,
   ): Promise<PageSnapshotResult> {
     const selector = req.selector?.trim() || 'body';
-    // o alvo CDP só responde depois da primeira navegação: about:blank antes do override da viewport
+    // the CDP target only responds after the first navigation: about:blank before the viewport override
     await win.webContents.loadURL('about:blank');
     await this.cdp(win, 'Emulation.setDeviceMetricsOverride', {
       width: req.viewport.width,
@@ -320,7 +320,7 @@ export class SnapshotService {
     });
     const status = await this.load(win, req);
 
-    // espera o seletor (curta: ver SELECTOR_WAIT_MS), as fontes e as imagens (limite ~3 s) + folga
+    // waits for the selector (short: see SELECTOR_WAIT_MS), the fonts and the images (limit ~3 s) + slack
     const sel = JSON.stringify(selector);
     const staticHtml = req.kind === 'html' && !this.htmlBase(req);
     const selectorWait = staticHtml ? SELECTOR_WAIT_STATIC_MS : SELECTOR_WAIT_MS;
@@ -330,7 +330,7 @@ export class SnapshotService {
       `(async () => {
         const end = Date.now() + ${waitMs};
         let el = null;
-        try { el = document.querySelector(${sel}); } catch (e) { throw new Error('Seletor inválido: ' + ${sel}); }
+        try { el = document.querySelector(${sel}); } catch (e) { throw new Error('Invalid selector: ' + ${sel}); }
         while (!el && Date.now() < end) {
           await new Promise((r) => setTimeout(r, 50));
           el = document.querySelector(${sel});
@@ -348,25 +348,25 @@ export class SnapshotService {
       })()`,
     );
     if (!found) {
-      const where = req.kind === 'url' ? `em ${req.url}` : 'no HTML informado';
+      const where = req.kind === 'url' ? `at ${req.url}` : 'in the provided HTML';
       const waited = Math.round(waitMs / 100) / 10;
       throw new Error(
-        `Seletor "${selector}" não encontrado ${where} (esperou ${waited} s após o carregamento).`,
+        `Selector "${selector}" not found ${where} (waited ${waited} s after loading).`,
       );
     }
 
-    // o bundle define globalThis.MockupSnapshot (no mundo isolado); o retorno é clonado como JSON
+    // the bundle defines globalThis.MockupSnapshot (in the isolated world); the return value is cloned as JSON
     const payload = await this.isolated<PageSnapshotResult>(
       win,
       `${SNAPSHOT_SCRIPT}\n;globalThis.MockupSnapshot.captureSelector(${sel}, { inlineAssets: true })`,
     );
     if (!payload || typeof payload !== 'object')
-      throw new Error('A captura não devolveu um snapshot.');
+      throw new Error('The capture did not return a snapshot.');
     if (status >= 400) {
-      // aviso, não erro: a página de erro pode ser exatamente o que se quer importar
+      // a warning, not an error: the error page may be exactly what you want to import
       payload.stats = payload.stats ?? { nodes: 0, truncated: false, warnings: [] };
       (payload.stats.warnings ??= []).push(
-        `A página respondeu HTTP ${status}: o conteúdo importado pode ser a página de erro do servidor.`,
+        `The page responded with HTTP ${status}: the imported content may be the server's error page.`,
       );
     }
 
@@ -375,11 +375,9 @@ export class SnapshotService {
       if (ref) payload.reference = ref;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      log('referência falhou:', msg);
+      log('reference failed:', msg);
       payload.stats = payload.stats ?? { nodes: 0, truncated: false, warnings: [] };
-      (payload.stats.warnings ??= []).push(
-        `Não foi possível capturar a imagem de referência: ${msg}`,
-      );
+      (payload.stats.warnings ??= []).push(`Could not capture the reference image: ${msg}`);
     }
     return payload;
   }
@@ -402,7 +400,7 @@ export class SnapshotService {
         return { x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height };
       })()`,
     );
-    if (!rect || rect.width < 1 || rect.height < 1) throw new Error('elemento sem tamanho');
+    if (!rect || rect.width < 1 || rect.height < 1) throw new Error('element has no size');
     const height = Math.min(rect.height, REF_MAX_HEIGHT);
     const shot = await this.cdp(win, 'Page.captureScreenshot', {
       format: 'png',
@@ -410,7 +408,7 @@ export class SnapshotService {
       captureBeyondViewport: true,
     });
     let img = nativeImage.createFromBuffer(Buffer.from(shot.data as string, 'base64'));
-    if (img.isEmpty()) throw new Error('imagem vazia');
+    if (img.isEmpty()) throw new Error('empty image');
     if (img.getSize().width > REF_MAX_WIDTH_PX)
       img = img.resize({ width: REF_MAX_WIDTH_PX, quality: 'best' });
     let data = img.toPNG();

@@ -1,4 +1,4 @@
-/** Painel de propriedades: edita estilos, atributos e texto dos nós selecionados via ops. */
+/** Properties panel: edits styles, attributes and text of the selected nodes via ops. */
 import { Lock } from 'lucide-react';
 import { getComponent } from '@mockup/core';
 import { ComponentSection } from '../components/ComponentSection';
@@ -27,7 +27,7 @@ import './properties.css';
 
 export function PropertiesPanel() {
   const ctxs = useSelectionCtx();
-  // Modo de edição do principal: a seção do componente aparece sem seleção e com a raiz dele.
+  // Main edit mode: the component section appears with no selection and with its root.
   const editing = useUi((s) => s.editingComponentId);
   const mainDef = useDoc((s) => {
     const raw = s.rawDoc ?? s.doc;
@@ -55,7 +55,7 @@ export function PropertiesPanel() {
       <aside className="panel panel-right" data-testid="properties-panel">
         {locked && (
           <div className="prop-locked" data-testid="prop-locked">
-            <Lock size={12} /> Seleção travada: somente leitura
+            <Lock size={12} /> Selection locked: read-only
           </div>
         )}
         <HeaderSection nodes={nodes} locked={locked} />

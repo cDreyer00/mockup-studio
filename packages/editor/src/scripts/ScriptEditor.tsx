@@ -1,7 +1,7 @@
 /**
- * Editor de código do painel de scripts. O CodeMirror é carregado sob demanda; enquanto isso (e se
- * o carregamento falhar) um textarea simples faz o papel de editor. O contêiner expõe o
- * `EditorView` em `element.mockupEditorView` para os testes e2e.
+ * Code editor of the scripts panel. CodeMirror is loaded on demand; meanwhile (and if loading
+ * fails) a plain textarea acts as the editor. The container exposes the `EditorView` as
+ * `element.mockupEditorView` for the e2e tests.
  */
 import { useEffect, useRef, useState } from 'react';
 import type { EditorView } from '@codemirror/view';
@@ -18,7 +18,7 @@ export function ScriptEditor({ value, onChange, onRun }: Props) {
   const hostRef = useRef<EditorHost>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
-  // Callbacks e valor mais recentes, lidos pelo editor sem recriá-lo.
+  // Latest callbacks and value, read by the editor without recreating it.
   const latest = useRef({ value, onChange, onRun });
   latest.current = { value, onChange, onRun };
 
@@ -51,7 +51,7 @@ export function ScriptEditor({ value, onChange, onRun }: Props) {
     };
   }, []);
 
-  // Valor trocado de fora (abrir script, exemplo, geração): sincroniza o editor.
+  // Value changed from outside (open script, example, generation): sync the editor.
   useEffect(() => {
     const view = viewRef.current;
     if (!view || state !== 'ready') return;
@@ -74,7 +74,7 @@ export function ScriptEditor({ value, onChange, onRun }: Props) {
           data-testid="script-editor-fallback"
           spellCheck={false}
           value={value}
-          placeholder={state === 'loading' ? 'Carregando editor…' : ''}
+          placeholder={state === 'loading' ? 'Loading editor…' : ''}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

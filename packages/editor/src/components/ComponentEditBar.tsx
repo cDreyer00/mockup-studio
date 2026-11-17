@@ -1,4 +1,4 @@
-/** Selo do modo de edição do principal, no topo do canvas: "Editando componente X — Concluir". */
+/** Badge for main-component edit mode, at the top of the canvas: "Editing component X — Done". */
 import { useEffect, useRef } from 'react';
 import { Component } from 'lucide-react';
 import { getComponent, listInstances } from '@mockup/core';
@@ -19,7 +19,7 @@ export function ComponentEditBar() {
   });
   const ref = useRef<HTMLDivElement>(null);
 
-  // O canvas escuta o ponteiro no elemento raiz (nativo): o selo não inicia gestos.
+  // The canvas listens to the pointer on the root element (native): the badge does not start gestures.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -36,17 +36,17 @@ export function ComponentEditBar() {
     <div className="cmp-edit-bar" data-testid="component-edit-bar" ref={ref}>
       <Component size={13} />
       <span>
-        Editando componente <strong data-testid="component-edit-name">{name}</strong>
+        Editing component <strong data-testid="component-edit-name">{name}</strong>
       </span>
-      <span className="cmp-edit-count">{count === 1 ? '1 instância' : `${count} instâncias`}</span>
+      <span className="cmp-edit-count">{count === 1 ? '1 instance' : `${count} instances`}</span>
       <button
         type="button"
         className="cmp-edit-done"
         data-testid="component-edit-done"
-        title="Voltar à página (Esc)"
+        title="Back to page (Esc)"
         onClick={() => exitComponent()}
       >
-        Concluir
+        Done
       </button>
     </div>
   );

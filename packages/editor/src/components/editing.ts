@@ -1,7 +1,7 @@
 /**
- * Modo de edição isolado do principal: o canvas mostra só a página sintética com a raiz do
- * principal (ver `components/model.ts`); as edições usam os ids reais dos nós do principal e o
- * daemon as roteia para `updateComponent` (propagam para todas as instâncias; undo/redo normais).
+ * Isolated edit mode of the main component: the canvas shows only the synthetic page with the main
+ * component root (see `components/model.ts`); edits use the real ids of the main component nodes and the
+ * daemon routes them to `updateComponent` (they propagate to all instances; normal undo/redo).
  */
 import { COMPONENT_EDIT_PAGE_ID, findComponentNode, getComponent } from '@mockup/core';
 import type { Document } from '@mockup/core';
@@ -11,7 +11,7 @@ import { getRawDoc, useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
 
-/** Componente dono do primeiro id que é nó de um principal (ou `null`). */
+/** Component that owns the first id that is a node of a main component (or `null`). */
 export function mainOfSelection(raw: Document, ids: readonly string[]): string | null {
   for (const id of ids) {
     const hit = findComponentNode(raw, id);
@@ -20,7 +20,7 @@ export function mainOfSelection(raw: Document, ids: readonly string[]): string |
   return null;
 }
 
-/** O principal em edição ainda existe no documento? */
+/** Does the main component being edited still exist in the document? */
 export function isEditingValid(): boolean {
   const id = useUi.getState().editingComponentId;
   const raw = getRawDoc();
@@ -28,21 +28,21 @@ export function isEditingValid(): boolean {
 }
 
 /**
- * Entra no modo de edição do principal `componentId` (seleciona a raiz dele). `originId` é a
- * instância de onde se entrou: a área do principal usa a largura dela e ela volta a ser
- * selecionada ao concluir.
+ * Enters edit mode of the main component `componentId` (selects its root). `originId` is the
+ * instance it was entered from: the main component area uses its width and it is selected
+ * again when done.
  */
 export function enterComponent(componentId: string, originId: string | null = null): boolean {
   const raw = getRawDoc();
   const def = raw ? getComponent(raw, componentId) : undefined;
   if (!def) {
-    ui.toast(`Componente "${componentId}" não encontrado`, 'error');
+    ui.toast(`Component "${componentId}" not found`, 'error');
     return false;
   }
   const u = useUi.getState();
   const prev = u.editingComponentId ? u.componentEdit : null;
   const rect = originId ? canvasApi.nodeRect(originId) : null;
-  // Primeiro o modo (a visão ganha a página sintética), depois a página e a seleção.
+  // First the mode (the view gets the synthetic page), then the page and the selection.
   useUi.setState({
     editingComponentId: componentId,
     componentEdit: {
@@ -61,7 +61,7 @@ export function enterComponent(componentId: string, originId: string | null = nu
   return true;
 }
 
-/** Sai do modo de edição: volta à página de origem e seleciona a instância de onde se entrou. */
+/** Leaves edit mode: returns to the origin page and selects the instance it was entered from. */
 export function exitComponent(): void {
   const u = useUi.getState();
   if (!u.editingComponentId) return;
@@ -81,7 +81,7 @@ export function exitComponent(): void {
   }
 }
 
-/** Nome do principal em edição (para a barra do modo). */
+/** Name of the main component being edited (for the mode bar). */
 export function editingComponentName(): string | null {
   const id = useUi.getState().editingComponentId;
   const raw = getRawDoc();

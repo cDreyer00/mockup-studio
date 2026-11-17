@@ -55,7 +55,7 @@ describe('DaemonClient', () => {
   });
   afterEach(() => client.disconnect());
 
-  it('hello popula o store e doc:changed reaproveita a estrutura', () => {
+  it('hello populates the store and doc:changed reuses the structure', () => {
     const { doc, a, b } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     expect(useDoc.getState().doc?.id).toBe(doc.id);
@@ -81,10 +81,10 @@ describe('DaemonClient', () => {
     expect(useDoc.getState().documents[0]!.dirty).toBe(true);
   });
 
-  it('ops do MCP marcam atividade do agente no frame', () => {
+  it('MCP ops mark agent activity on the frame', () => {
     const { doc, frame } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
-    const node = createNodeFromTag('div', { name: 'Novo' });
+    const node = createNodeFromTag('div', { name: 'New' });
     const op = { type: 'createNode' as const, parentId: frame.id, node };
     FakeSocket.last!.emit({
       type: 'doc:changed',
@@ -98,29 +98,29 @@ describe('DaemonClient', () => {
     expect(useDoc.getState().agentActivity[frame.id]).toBeGreaterThan(0);
   });
 
-  it('agent:finished apaga o badge dos frames dos nós (ou de todos quando vazio)', () => {
+  it('agent:finished clears the badge of the frames of the nodes (or of all when empty)', () => {
     const { doc, frame, a } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     const now = Date.now();
-    useDoc.setState({ agentActivity: { [frame.id]: now, fr_outro: now } });
+    useDoc.setState({ agentActivity: { [frame.id]: now, fr_other: now } });
     FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [a.id] });
-    expect(useDoc.getState().agentActivity).toEqual({ fr_outro: now });
+    expect(useDoc.getState().agentActivity).toEqual({ fr_other: now });
     useDoc.setState({ agentActivity: { [frame.id]: now } });
     FakeSocket.last!.emit({ type: 'agent:finished', docId: doc.id, nodeIds: [] });
     expect(useDoc.getState().agentActivity).toEqual({});
   });
 
-  it('doc:saved com caminho novo atualiza o caminho do documento', () => {
+  it('doc:saved with a new path updates the document path', () => {
     const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
-    FakeSocket.last!.emit({ type: 'doc:saved', docId: doc.id, path: '/novo/x.mockup.json' });
+    FakeSocket.last!.emit({ type: 'doc:saved', docId: doc.id, path: '/new/x.mockup.json' });
     expect(useDoc.getState().documents[0]).toMatchObject({
-      path: '/novo/x.mockup.json',
+      path: '/new/x.mockup.json',
       dirty: false,
     });
   });
 
-  it('seleção do MCP seleciona e pede foco; a do editor é ignorada', () => {
+  it('MCP selection selects and requests focus; the editor selection is ignored', () => {
     const { doc, a } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     FakeSocket.last!.emit({
@@ -140,7 +140,7 @@ describe('DaemonClient', () => {
     expect(useUi.getState().selection).toEqual([a.id]);
   });
 
-  it('request resolve com o ack e rejeita com o error', async () => {
+  it('request resolves with the ack and rejects with the error', async () => {
     const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     const ws = FakeSocket.last!;
@@ -150,11 +150,11 @@ describe('DaemonClient', () => {
     ws.emit({ type: 'ack', reqId: sent.reqId as string, result: { revision: 2, results: [null] } });
     await expect(p).resolves.toEqual({ revision: 2, results: [null] });
     const p2 = client.undo();
-    ws.emit({ type: 'error', reqId: ws.sent.at(-1)!.reqId as string, message: 'falhou' });
-    await expect(p2).rejects.toThrow('falhou');
+    ws.emit({ type: 'error', reqId: ws.sent.at(-1)!.reqId as string, message: 'failed' });
+    await expect(p2).rejects.toThrow('failed');
   });
 
-  it('mudança de seleção local é publicada no daemon, agrupada no tempo', () => {
+  it('local selection change is published to the daemon, batched over time', () => {
     vi.useFakeTimers();
     try {
       const { doc, a, b, c } = makeDoc();
@@ -164,7 +164,7 @@ describe('DaemonClient', () => {
       vi.advanceTimersByTime(0);
       expect(sent()).toHaveLength(1);
       expect(sent()[0]).toMatchObject({ docId: doc.id, nodeIds: [a.id] });
-      // marquee: várias mudanças seguidas viram um único envio com a última seleção
+      // marquee: several consecutive changes become a single send with the last selection
       for (const sel of [[a.id, b.id], [b.id], [a.id, b.id, c.id]]) {
         useUi.setState({ selection: sel });
         vi.advanceTimersByTime(10);
@@ -178,21 +178,21 @@ describe('DaemonClient', () => {
     }
   });
 
-  it('disconnect rejeita as requisições pendentes na hora', async () => {
+  it('disconnect rejects pending requests immediately', async () => {
     const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     const p = client.undo();
     client.disconnect();
-    await expect(p).rejects.toThrow('perdida');
+    await expect(p).rejects.toThrow('lost');
   });
 
-  it('doc:closed remove o histórico e active:changed atualiza a revisão', () => {
+  it('doc:closed removes the history and active:changed updates the revision', () => {
     const { doc } = makeDoc();
-    const other = { ...structuredClone(doc), id: 'doc_outro01' };
+    const other = { ...structuredClone(doc), id: 'doc_other01' };
     FakeSocket.last!.emit(hello(doc));
     FakeSocket.last!.emit({
       type: 'doc:opened',
-      info: { docId: other.id, name: 'Outro', path: null, dirty: false, revision: 7 },
+      info: { docId: other.id, name: 'Other', path: null, dirty: false, revision: 7 },
       doc: other,
       history: { canUndo: true, canRedo: false },
     });
@@ -205,11 +205,11 @@ describe('DaemonClient', () => {
     expect(useDoc.getState().docs[other.id]).toBeUndefined();
   });
 
-  it('atividade antiga do agente é descartada quando chega nova', () => {
+  it('old agent activity is discarded when new activity arrives', () => {
     const { doc, frame } = makeDoc();
     FakeSocket.last!.emit(hello(doc));
     useDoc.setState({ agentActivity: { fr_velho: Date.now() - 60_000 } });
-    const node = createNodeFromTag('div', { name: 'Novo' });
+    const node = createNodeFromTag('div', { name: 'New' });
     const op = { type: 'createNode' as const, parentId: frame.id, node };
     FakeSocket.last!.emit({
       type: 'doc:changed',

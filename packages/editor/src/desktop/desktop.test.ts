@@ -15,7 +15,7 @@ function fakeBridge(over: Partial<MockupDesktopApi> = {}): Bridge {
     isDesktop: true,
     platform: 'win32',
     showOpenDialog: vi.fn(async () => 'C:\\p\\a.mockup.json'),
-    showSaveDialog: vi.fn(async () => 'C:\\p\\novo.mockup.json'),
+    showSaveDialog: vi.fn(async () => 'C:\\p\\new.mockup.json'),
     onMenu: vi.fn((cb) => {
       b.menu = cb;
       return () => undefined;
@@ -34,7 +34,7 @@ const info = {
   revision: 0,
 };
 
-describe('ponte com o desktop', () => {
+describe('desktop bridge', () => {
   beforeEach(() => {
     useDoc.setState({ documents: [info], activeDocId: 'd1' });
   });
@@ -43,49 +43,49 @@ describe('ponte com o desktop', () => {
     vi.restoreAllMocks();
   });
 
-  it('baseNameOf tira a extensão do documento', () => {
-    expect(baseNameOf('C:\\p\\meu site.mockup.json')).toBe('meu site');
+  it('baseNameOf strips the document extension', () => {
+    expect(baseNameOf('C:\\p\\my site.mockup.json')).toBe('my site');
     expect(baseNameOf('/p/x.json')).toBe('x');
   });
 
-  it('Novo usa o diálogo de salvar e cria com o nome do arquivo', async () => {
+  it('New uses the save dialog and creates with the file name', async () => {
     const b = fakeBridge();
     window.mockupDesktop = b;
     const spy = vi.spyOn(daemon, 'newDoc').mockResolvedValue(info);
     await newDocument();
-    expect(b.showSaveDialog).toHaveBeenCalledWith({ title: 'Novo documento' });
-    expect(spy).toHaveBeenCalledWith('C:\\p\\novo.mockup.json', 'novo');
+    expect(b.showSaveDialog).toHaveBeenCalledWith({ title: 'New document' });
+    expect(spy).toHaveBeenCalledWith('C:\\p\\new.mockup.json', 'new');
   });
 
-  it('Novo cancelado não cria', async () => {
+  it('cancelled New does not create', async () => {
     window.mockupDesktop = fakeBridge({ showSaveDialog: vi.fn(async () => null) });
     const spy = vi.spyOn(daemon, 'newDoc');
     await newDocument();
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('Abrir usa o diálogo nativo', async () => {
+  it('Open uses the native dialog', async () => {
     window.mockupDesktop = fakeBridge();
     const spy = vi.spyOn(daemon, 'openDoc').mockResolvedValue(info);
     await openDocument();
     expect(spy).toHaveBeenCalledWith('C:\\p\\a.mockup.json');
   });
 
-  it('Salvar como usa defaultPath do caminho atual e doc:saveAs', async () => {
+  it('Save as uses defaultPath from the current path and doc:saveAs', async () => {
     const b = fakeBridge();
     window.mockupDesktop = b;
     const spy = vi
       .spyOn(daemon, 'saveAs')
-      .mockResolvedValue({ ...info, path: 'C:\\p\\novo.mockup.json' });
+      .mockResolvedValue({ ...info, path: 'C:\\p\\new.mockup.json' });
     await saveDocumentAs();
     expect(b.showSaveDialog).toHaveBeenCalledWith({
-      title: 'Salvar como',
+      title: 'Save as',
       defaultPath: info.path,
     });
-    expect(spy).toHaveBeenCalledWith('C:\\p\\novo.mockup.json');
+    expect(spy).toHaveBeenCalledWith('C:\\p\\new.mockup.json');
   });
 
-  it('ações do menu chamam os fluxos existentes', () => {
+  it('menu actions call the existing flows', () => {
     window.mockupDesktop = fakeBridge();
     const save = vi.spyOn(actions, 'save').mockResolvedValue();
     const undo = vi.spyOn(actions, 'undo').mockResolvedValue();
@@ -110,7 +110,7 @@ describe('ponte com o desktop', () => {
     expect(fit).toHaveBeenCalled();
   });
 
-  it('undo/redo em campo editável usam execCommand', () => {
+  it('undo/redo in an editable field use execCommand', () => {
     const exec = vi.fn(() => true);
     document.execCommand = exec;
     const input = document.createElement('input');
@@ -125,7 +125,7 @@ describe('ponte com o desktop', () => {
     input.remove();
   });
 
-  it('informa o estado do documento quando nome/caminho/dirty mudam', () => {
+  it('reports the document state when name/path/dirty change', () => {
     const b = fakeBridge();
     window.mockupDesktop = b;
     const stop = syncDocumentState();

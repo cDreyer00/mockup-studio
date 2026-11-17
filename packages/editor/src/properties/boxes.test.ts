@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PADDING, RADIUS, readBox, uniformBox, writeBox } from './boxes';
 
 describe('boxes', () => {
-  it('readBox combina shorthand e longhands', () => {
+  it('readBox combines shorthand and longhands', () => {
     expect(readBox({ padding: '8px 16px', 'padding-top': '2px' }, PADDING)).toEqual({
       top: '2px',
       right: '16px',
@@ -12,7 +12,7 @@ describe('boxes', () => {
     expect(readBox({}, PADDING)).toEqual({ top: '', right: '', bottom: '', left: '' });
     expect(readBox({ 'border-top-right-radius': '4px' }, RADIUS).right).toBe('4px');
   });
-  it('writeBox escreve o shorthand e remove longhands conflitantes', () => {
+  it('writeBox writes the shorthand and removes conflicting longhands', () => {
     const style = { padding: '8px', 'padding-left': '12px' };
     const box = readBox(style, PADDING);
     box.top = '1px';
@@ -21,7 +21,7 @@ describe('boxes', () => {
       unset: ['padding-left'],
     });
   });
-  it('lados vazios viram 0; box vazio remove', () => {
+  it('empty sides become 0; an empty box removes', () => {
     expect(writeBox({}, PADDING, { top: '4px', right: '', bottom: '', left: '' }).set).toEqual({
       padding: '4px 0 0',
     });

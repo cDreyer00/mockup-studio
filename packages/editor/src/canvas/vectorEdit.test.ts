@@ -20,7 +20,7 @@ const vec: Vector = {
 };
 
 describe('vectorEdit', () => {
-  it('carrega âncoras e regenera o d, removendo raw', () => {
+  it('loads anchors and regenerates d, removing raw', () => {
     const m = loadModel(vec);
     expect(flatSubpaths(m)[0]!.anchors).toHaveLength(4);
     expect(flatSubpaths(m)[0]!.closed).toBe(true);
@@ -29,14 +29,14 @@ describe('vectorEdit', () => {
     expect(out.paths[0]!.fill).toBe('#fff');
   });
 
-  it('move âncoras', () => {
+  it('moves anchors', () => {
     const m = moveAnchors(loadModel(vec), [{ s: 0, i: 1 }], 5, -5);
     const a = flatSubpaths(m)[0]!.anchors;
     expect(a[1]).toMatchObject({ x: 105, y: -5 });
     expect(a[0]).toMatchObject({ x: 0, y: 0 });
   });
 
-  it('mover alça acompanha a oposta; Alt quebra', () => {
+  it('moving a handle mirrors the opposite one; Alt breaks it', () => {
     const base = toggleSmooth(loadModel(vec), { s: 0, i: 1 });
     expect(isSmooth(flatSubpaths(base)[0]!.anchors[1]!)).toBe(true);
     const sym = moveHandle(base, { s: 0, i: 1 }, 'out', { x: 100, y: 30 });
@@ -45,7 +45,7 @@ describe('vectorEdit', () => {
     expect(flatSubpaths(alt)[0]!.anchors[1]!.in).toEqual(flatSubpaths(base)[0]!.anchors[1]!.in);
   });
 
-  it('apaga âncoras e o subpath some com menos de 2', () => {
+  it('deletes anchors and the subpath disappears with fewer than 2', () => {
     const m = deleteAnchors(loadModel(vec), [{ s: 0, i: 0 }]);
     expect(flatSubpaths(m)[0]!.anchors).toHaveLength(3);
     const none = deleteAnchors(m, [
@@ -55,7 +55,7 @@ describe('vectorEdit', () => {
     expect(none.paths).toHaveLength(0);
   });
 
-  it('acha o segmento e insere âncora mantendo a forma', () => {
+  it('finds the segment and inserts an anchor keeping the shape', () => {
     const m = loadModel(vec);
     const hit = hitSegment(m, { x: 50, y: 2 }, 5)!;
     expect(hit).toMatchObject({ s: 0, seg: 0 });

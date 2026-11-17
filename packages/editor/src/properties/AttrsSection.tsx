@@ -37,7 +37,7 @@ const COMMON_TAGS = [
 ];
 const ROOT_TAGS = ['div', 'section', 'main'];
 const FORBIDDEN_ATTRS = new Set(['class', 'style']);
-/** Atributos com campo dedicado (não entram na lista genérica). */
+/** Attributes with a dedicated field (not part of the generic list). */
 const DEDICATED = new Set(['id', 'href', 'alt', 'placeholder', 'type']);
 
 const toOptions = (tags: string[]): SelectOption[] => tags.map((t) => ({ value: t, label: t }));
@@ -48,7 +48,7 @@ const OBJECT_FIT: SelectOption[] = ['cover', 'contain', 'fill', 'none', 'scale-d
 
 function setAttr(nodes: readonly Node[], key: string, value: string): void {
   if (FORBIDDEN_ATTRS.has(key)) {
-    ui.toast(`O atributo "${key}" não pode ser editado aqui (use o CSS).`, 'error');
+    ui.toast(`The "${key}" attribute can't be edited here (use CSS).`, 'error');
     return;
   }
   const v = value.trim();
@@ -92,8 +92,7 @@ function GenericAttrs({ node }: { node: Node }) {
   const add = () => {
     const k = key.trim();
     if (!k) return;
-    if (!/^[a-zA-Z_:][\w:.-]*$/.test(k))
-      return ui.toast(`Nome de atributo inválido: "${k}"`, 'error');
+    if (!/^[a-zA-Z_:][\w:.-]*$/.test(k)) return ui.toast(`Invalid attribute name: "${k}"`, 'error');
     setAttr([node], k, val === '' ? ' ' : val);
     if (!FORBIDDEN_ATTRS.has(k)) {
       setKey('');
@@ -108,7 +107,7 @@ function GenericAttrs({ node }: { node: Node }) {
             {k}
           </span>
           <DraftInput value={v} mono onCommit={(nv) => setAttr([node], k, nv)} />
-          <IconButton title={`Remover ${k}`} onClick={() => setAttr([node], k, '')}>
+          <IconButton title={`Remove ${k}`} onClick={() => setAttr([node], k, '')}>
             <X size={12} />
           </IconButton>
         </div>
@@ -116,7 +115,7 @@ function GenericAttrs({ node }: { node: Node }) {
       <div className="prop-attr">
         <input
           className="text-input mono"
-          placeholder="atributo"
+          placeholder="attribute"
           value={key}
           spellCheck={false}
           onChange={(e) => setKey(e.target.value)}
@@ -127,7 +126,7 @@ function GenericAttrs({ node }: { node: Node }) {
         />
         <input
           className="text-input mono"
-          placeholder="valor"
+          placeholder="value"
           value={val}
           spellCheck={false}
           onChange={(e) => setVal(e.target.value)}
@@ -136,7 +135,7 @@ function GenericAttrs({ node }: { node: Node }) {
             e.stopPropagation();
           }}
         />
-        <IconButton title="Adicionar atributo" onClick={add}>
+        <IconButton title="Add attribute" onClick={add}>
           <Plus size={12} />
         </IconButton>
       </div>
@@ -155,18 +154,18 @@ export function AttrsSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
   const setTag = (t: string) => {
     const v = t.trim().toLowerCase();
     if (!v || v === tag) return;
-    if (!/^[a-z][a-z0-9-]*$/.test(v)) return ui.toast(`Tag inválida: "${t}"`, 'error');
+    if (!/^[a-z][a-z0-9-]*$/.test(v)) return ui.toast(`Invalid tag: "${t}"`, 'error');
     void runOps([{ type: 'setTag', changes: nodes.map((n) => ({ nodeId: n.id, tag: v })) }]);
   };
 
   return (
-    <Section id="props-attrs" title="Tag e atributos" defaultOpen={false}>
+    <Section id="props-attrs" title="Tag and attributes" defaultOpen={false}>
       <Body>
         <Row label="Tag">
           <div className="prop-tag" data-testid="prop-tag">
-            <SelectInput value={tag} options={options} title="Tag HTML" onChange={setTag} />
+            <SelectInput value={tag} options={options} title="HTML tag" onChange={setTag} />
             {!fixedTag && !allRoot && (
-              <DraftInput value="" placeholder="outra…" mono onCommit={setTag} />
+              <DraftInput value="" placeholder="other…" mono onCommit={setTag} />
             )}
           </div>
         </Row>
@@ -188,10 +187,10 @@ export function AttrsSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
                 value={common(nodes, (n) => n.src)}
                 mono
                 placeholder="src"
-                onCommit={() => ui.toast('O src da imagem é somente leitura.', 'info')}
+                onCommit={() => ui.toast('The image src is read-only.', 'info')}
               />
             </Row>
-            <Row label="Ajuste">
+            <Row label="Fit">
               <StyleSelect
                 nodes={nodes}
                 prop="object-fit"

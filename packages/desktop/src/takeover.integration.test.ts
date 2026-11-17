@@ -1,6 +1,6 @@
 /**
- * Integração REAL: um daemon Node sem render ocupa a porta; o Electron headless pede o shutdown dele,
- * assume a porta (com render) e reabre os documentos; `POST /api/shutdown` encerra o app headless.
+ * REAL integration: a Node daemon without render occupies the port; headless Electron asks it to shut down,
+ * takes over the port (with render) and reopens the documents; `POST /api/shutdown` quits the headless app.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -39,7 +39,7 @@ function killTree(child: ChildProcess): void {
 }
 
 describe.skipIf(!built || !editorReady)(
-  'Electron assume a porta de um daemon Node sem render',
+  'Electron takes over the port of a Node daemon without render',
   () => {
     let tmp: string;
     let node: DaemonHandle;
@@ -84,12 +84,12 @@ describe.skipIf(!built || !editorReady)(
       fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     });
 
-    it('troca pelo daemon do Electron (render, modo desktop) com o documento reaberto', async () => {
+    it('switches to the Electron daemon (render, desktop mode) with the document reopened', async () => {
       const end = Date.now() + 60000;
       let h = await checkHealth(url, 500);
       while (Date.now() < end && !(h?.render === true)) {
         if (child.exitCode !== null)
-          throw new Error(`Electron encerrou (${child.exitCode}): ${stderr}`);
+          throw new Error(`Electron exited (${child.exitCode}): ${stderr}`);
         await new Promise((r) => setTimeout(r, 250));
         h = await checkHealth(url, 500);
       }
@@ -102,7 +102,7 @@ describe.skipIf(!built || !editorReady)(
       expect(docs.documents.map((d) => path.resolve(d.path))).toEqual([path.resolve(file)]);
     });
 
-    it('POST /api/shutdown encerra o app headless', async () => {
+    it('POST /api/shutdown quits the headless app', async () => {
       const exited = new Promise<number | null>((r) => child.once('exit', (c) => r(c)));
       const res = await fetch(`${url}/api/shutdown`, { method: 'POST' });
       expect(res.status).toBe(202);

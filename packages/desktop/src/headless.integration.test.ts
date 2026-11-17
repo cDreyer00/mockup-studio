@@ -1,6 +1,6 @@
 /**
- * Integração REAL: sobe o Electron headless (binário do pacote `electron` + `out/main`) e captura
- * o frame do exemplo pelas rotas `/render`. Requer `npm run build` (desktop e editor) antes.
+ * REAL integration: starts headless Electron (the `electron` package binary + `out/main`) and captures
+ * the example frame through the `/render` routes. Requires `npm run build` (desktop and editor) first.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -33,19 +33,19 @@ async function freePort(): Promise<number> {
 async function waitHealth(url: string, child: ChildProcess, ms = 60000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Electron encerrou (código ${child.exitCode})`);
+    if (child.exitCode !== null) throw new Error(`Electron exited (code ${child.exitCode})`);
     try {
       const r = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (r.ok && ((await r.json()) as { render?: boolean }).render === true) return;
     } catch {
-      /* ainda subindo */
+      /* still starting up */
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Timeout aguardando /api/health com render: true');
+  throw new Error('Timed out waiting for /api/health with render: true');
 }
 
-describe.skipIf(!built || !editorReady)('Electron headless (integração)', () => {
+describe.skipIf(!built || !editorReady)('Headless Electron (integration)', () => {
   let tmp: string;
   let child: ChildProcess;
   let url: string;
@@ -97,7 +97,7 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     };
   };
 
-  it('frame desktop em 1x: PNG 1440x900', async () => {
+  it('desktop frame at 1x: PNG 1440x900', async () => {
     const r = await get(`/render/${docId}/fr_d3sk1440.png?scale=1`);
     expect(r.status, stderr).toBe(200);
     expect(r.type).toBe('image/png');
@@ -110,7 +110,7 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     expect(pngSize(r.body)).toEqual({ width: 2880, height: 1800 });
   });
 
-  it('nó interno (Navbar) tem a largura do frame', async () => {
+  it('inner node (Navbar) has the width of the frame', async () => {
     const r = await get(`/render/${docId}/el_dsk00007.png?scale=1`);
     expect(r.status, stderr).toBe(200);
     const s = pngSize(r.body);
@@ -118,7 +118,7 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     expect(s.height).toBeLessThan(900);
   });
 
-  it('JPG começa com FFD8', async () => {
+  it('JPG starts with FFD8', async () => {
     const r = await get(`/render/${docId}/fr_d3sk1440.jpg?quality=80`);
     expect(r.status, stderr).toBe(200);
     expect(r.type).toBe('image/jpeg');
@@ -126,13 +126,13 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     expect(r.body[1]).toBe(0xd8);
   });
 
-  it('WebSocket: mensagem do cliente com 32 bytes ou mais recebe ack e o daemon segue respondendo', async () => {
-    // Regressão: o bundle trocava o `bufferutil` opcional do `ws` por `{}` e o primeiro frame
-    // mascarado grande travava o processo principal.
+  it('WebSocket: a client message of 32 bytes or more gets an ack and the daemon keeps responding', async () => {
+    // Regression: the bundle replaced the optional `bufferutil` of `ws` with `{}` and the first large
+    // masked frame hung the main process.
     const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
     const ack = await new Promise<{ type: string; reqId?: string }>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('sem ack em 10 s')), 10000);
-      ws.addEventListener('error', () => reject(new Error('erro no WebSocket')));
+      const timer = setTimeout(() => reject(new Error('no ack in 10 s')), 10000);
+      ws.addEventListener('error', () => reject(new Error('WebSocket error')));
       ws.addEventListener('open', () =>
         ws.send(
           JSON.stringify({
@@ -162,7 +162,7 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     expect(h.ok).toBe(true);
   });
 
-  it('chamadas repetidas usam o cache e dão o mesmo resultado', async () => {
+  it('repeated calls use the cache and give the same result', async () => {
     const a = await get(`/render/${docId}/fr_d3sk1440.png?scale=1`);
     const b = await get(`/render/${docId}/fr_d3sk1440.png?scale=1`);
     expect(a.body.equals(b.body)).toBe(true);

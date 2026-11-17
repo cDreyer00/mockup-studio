@@ -1,18 +1,18 @@
-/** Interpretação de URLs coladas no diálogo de embed. Lógica pura. */
+/** Interpretation of URLs pasted into the embed dialog. Pure logic. */
 import { detectEmbedProvider, youtubeId, youtubeStart } from '@mockup/core';
 import type { EmbedSpec, MediaParamValue } from '@mockup/core';
 
-/** Nome do provedor detectado, para exibir ao digitar. */
+/** Name of the detected provider, shown while typing. */
 export const PROVIDER_LABELS: Record<string, string> = {
   youtube: 'YouTube',
   lottie: 'Lottie',
   rive: 'Rive',
   iframe: 'Iframe',
-  video: 'Vídeo',
+  video: 'Video',
   three: 'Three.js',
 };
 
-/** Especificação de embed (ou vídeo) inferida de uma URL; `null` se não reconhecida. */
+/** Embed (or video) spec inferred from a URL; `null` if not recognized. */
 export function specFromUrl(
   url: string,
 ): { kind: 'video'; src: string } | { kind: 'embed'; spec: EmbedSpec } | null {

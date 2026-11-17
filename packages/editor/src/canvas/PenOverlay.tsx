@@ -22,13 +22,13 @@ function anchorToScreen(vp: Viewport, a: PathAnchor): PathAnchor {
   };
 }
 
-/** Caminho em andamento da Caneta (coordenadas de tela): segmentos, prévia, alças e âncoras. */
+/** Path in progress of the Pen (screen coordinates): segments, preview, handles and anchors. */
 export function PenOverlay() {
   const tool = useUi((s) => s.tool);
   const vp = useUi((s) => s.viewport);
   const pen = usePen();
 
-  // Teclas (Enter/Esc/Backspace) e conclusão ao trocar de ferramenta no meio do caminho.
+  // Keys (Enter/Esc/Backspace) and completion when switching tools mid-path.
   useEffect(() => {
     if (tool !== 'pen') return;
     const off = attachPenKeys();

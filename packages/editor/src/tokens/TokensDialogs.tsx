@@ -1,4 +1,4 @@
-/** Diálogos de importar e exportar tokens (CSS, W3C/JSON e Tailwind). */
+/** Import and export dialogs for tokens (CSS, W3C/JSON and Tailwind). */
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { exportTokens, parseTokens, planImportTokens } from '@mockup/core';
@@ -16,7 +16,7 @@ function Modal({
   children: ReactNode;
   testId: string;
 }) {
-  // Esc fecha mesmo quando o foco ainda está fora do diálogo.
+  // Esc closes even when focus is still outside the dialog.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -46,7 +46,7 @@ function Modal({
   );
 }
 
-/** Interpreta o texto colado (CSS ou JSON W3C); devolve o conjunto ou a mensagem de erro. */
+/** Parses the pasted text (CSS or W3C JSON); returns the set or the error message. */
 export function tryParseTokens(text: string): { set?: TokenSet; error?: string } {
   if (!text.trim()) return {};
   try {
@@ -83,10 +83,10 @@ export function ImportDialog({
   };
 
   return (
-    <Modal title="Importar tokens" onClose={onClose} testId="tokens-import-dialog">
+    <Modal title="Import tokens" onClose={onClose} testId="tokens-import-dialog">
       <div className="modal-message">
-        Cole CSS (<code>:root {'{ --x: … }'}</code> e <code>[data-theme]</code>) ou JSON no formato
-        W3C Design Tokens.
+        Paste CSS (<code>:root {'{ --x: … }'}</code> and <code>[data-theme]</code>) or JSON in the
+        W3C Design Tokens format.
       </div>
       <textarea
         className="tk-textarea mono"
@@ -99,15 +99,15 @@ export function ImportDialog({
         onChange={(e) => setText(e.target.value)}
       />
       <label className="tk-mode">
-        <span>Modo</span>
+        <span>Mode</span>
         <select
           className="select-input"
           data-testid="tokens-import-mode"
           value={mode}
           onChange={(e) => setMode(e.target.value as 'merge' | 'replace')}
         >
-          <option value="merge">Mesclar (mantém o que existe)</option>
-          <option value="replace">Substituir tudo</option>
+          <option value="merge">Merge (keeps what exists)</option>
+          <option value="replace">Replace all</option>
         </select>
       </label>
       <div className="tk-import-info" data-testid="tokens-import-info">
@@ -115,7 +115,7 @@ export function ImportDialog({
         {set && (
           <div>
             {count} {count === 1 ? 'token' : 'tokens'}, {themeCount}{' '}
-            {themeCount === 1 ? 'tema' : 'temas'} encontrados.
+            {themeCount === 1 ? 'theme' : 'themes'} found.
           </div>
         )}
         {set?.warnings.map((w, i) => (
@@ -124,12 +124,12 @@ export function ImportDialog({
           </div>
         ))}
         {mode === 'replace' && set && (
-          <div className="tk-warning">Substituir troca todos os tokens e temas atuais.</div>
+          <div className="tk-warning">Replace swaps out all current tokens and themes.</div>
         )}
       </div>
       <div className="modal-actions">
         <button type="button" className="btn" onClick={onClose}>
-          Cancelar
+          Cancel
         </button>
         <button
           type="button"
@@ -138,7 +138,7 @@ export function ImportDialog({
           disabled={!set || (count === 0 && themeCount === 0)}
           onClick={confirm}
         >
-          Importar
+          Import
         </button>
       </div>
     </Modal>
@@ -146,12 +146,12 @@ export function ImportDialog({
 }
 
 const FORMATS: { id: TokenExportFormat; label: string }[] = [
-  { id: 'css', label: 'CSS (variáveis)' },
+  { id: 'css', label: 'CSS (variables)' },
   { id: 'json', label: 'JSON (W3C Design Tokens)' },
   { id: 'tailwind', label: 'Tailwind v4 (@theme)' },
 ];
 
-/** Copia texto para a área de transferência (com plano B para contextos sem a API). */
+/** Copies text to the clipboard (with a fallback for contexts without the API). */
 export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -180,9 +180,9 @@ export function ExportDialog({ doc, onClose }: { doc: Document; onClose: () => v
   }, [doc, format]);
 
   return (
-    <Modal title="Exportar tokens" onClose={onClose} testId="tokens-export-dialog">
+    <Modal title="Export tokens" onClose={onClose} testId="tokens-export-dialog">
       <label className="tk-mode">
-        <span>Formato</span>
+        <span>Format</span>
         <select
           className="select-input"
           data-testid="tokens-export-format"
@@ -206,7 +206,7 @@ export function ExportDialog({ doc, onClose }: { doc: Document; onClose: () => v
       />
       <div className="modal-actions">
         <button type="button" className="btn" onClick={onClose}>
-          Fechar
+          Close
         </button>
         <button
           type="button"
@@ -214,14 +214,11 @@ export function ExportDialog({ doc, onClose }: { doc: Document; onClose: () => v
           data-testid="tokens-export-copy"
           onClick={() =>
             void copyText(out).then((ok) =>
-              ui.toast(
-                ok ? 'Copiado para a área de transferência' : 'Não foi possível copiar',
-                ok ? 'info' : 'error',
-              ),
+              ui.toast(ok ? 'Copied to the clipboard' : 'Could not copy', ok ? 'info' : 'error'),
             )
           }
         >
-          Copiar
+          Copy
         </button>
       </div>
     </Modal>

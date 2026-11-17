@@ -19,47 +19,47 @@ function file(name: string, extra: Partial<FileEntry> = {}): FileEntry {
 }
 
 describe('buildFolderTree', () => {
-  it('aninha por "/" criando pais implícitos e ordena', () => {
-    const tree = buildFolderTree(['Clientes/Acme/Sites', 'Zeta', 'Clientes', 'Alfa']);
-    expect(tree.map((n) => n.path)).toEqual(['Alfa', 'Clientes', 'Zeta']);
+  it('nests by "/" creating implicit parents and sorts', () => {
+    const tree = buildFolderTree(['Clients/Acme/Sites', 'Zeta', 'Clients', 'Alfa']);
+    expect(tree.map((n) => n.path)).toEqual(['Alfa', 'Clients', 'Zeta']);
     const acme = tree[1]!.children[0]!;
-    expect(acme).toMatchObject({ path: 'Clientes/Acme', name: 'Acme' });
-    expect(acme.children[0]!.path).toBe('Clientes/Acme/Sites');
+    expect(acme).toMatchObject({ path: 'Clients/Acme', name: 'Acme' });
+    expect(acme.children[0]!.path).toBe('Clients/Acme/Sites');
   });
-  it('pai implícito sem a pasta pai listada', () => {
+  it('implicit parent without the parent folder listed', () => {
     const tree = buildFolderTree(['A/B']);
     expect(tree[0]!.path).toBe('A');
     expect(tree[0]!.children[0]!.path).toBe('A/B');
   });
-  it('ignora vazios e normaliza barras', () => {
+  it('ignores empty entries and normalizes slashes', () => {
     expect(buildFolderTree(['', ' / ', '/X/'])).toHaveLength(1);
   });
 });
 
 describe('buildFilesQuery', () => {
-  it('monta os parâmetros por filtro', () => {
+  it('builds the parameters per filter', () => {
     expect(buildFilesQuery({ kind: 'recent' }, '')).toEqual({});
     expect(buildFilesQuery({ kind: 'favorites' }, ' x ')).toEqual({ favorites: true, query: 'x' });
     expect(buildFilesQuery({ kind: 'folder', path: 'A/B' }, '')).toEqual({
       folder: 'A/B',
       recursive: true,
     });
-    expect(buildFilesQuery({ kind: 'tag', tag: 'cliente' }, '')).toEqual({ tag: 'cliente' });
+    expect(buildFilesQuery({ kind: 'tag', tag: 'client' }, '')).toEqual({ tag: 'client' });
   });
 });
 
 describe('arrangeFiles', () => {
   const list = [file('b', { recent: 1 }), file('a'), file('c', { recent: 0 })];
-  it('recentes: só os recentes, em ordem', () => {
+  it('recent: only recent files, in order', () => {
     expect(arrangeFiles(list, { kind: 'recent' }).map((f) => f.name)).toEqual(['c', 'b']);
   });
-  it('com busca ou outros filtros: por nome', () => {
+  it('with search or other filters: by name', () => {
     expect(arrangeFiles(list, { kind: 'recent' }, 'x').map((f) => f.name)).toEqual(['a', 'b', 'c']);
     expect(arrangeFiles(list, { kind: 'all' }).map((f) => f.name)).toEqual(['a', 'b', 'c']);
   });
 });
 
-describe('utilitários', () => {
+describe('utilities', () => {
   it('sameFilter', () => {
     expect(sameFilter({ kind: 'all' }, { kind: 'all' })).toBe(true);
     expect(sameFilter({ kind: 'tag', tag: 'a' }, { kind: 'tag', tag: 'b' })).toBe(false);

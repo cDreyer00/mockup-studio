@@ -1,4 +1,4 @@
-/** Busca de nós no documento ativo (cliente, sem rede): nome, tag, texto, classe, id, atributos e dados. */
+/** Node search in the active document (client-side, no network): name, tag, text, class, id, attributes and data. */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { searchNodes } from '@mockup/core';
@@ -8,7 +8,7 @@ import './nodeSearch.css';
 
 const MAX_RESULTS = 50;
 
-/** Pedido de foco feito antes do campo existir (Ctrl+F estando na aba Assets). */
+/** Focus request made before the field exists (Ctrl+F while on the Assets tab). */
 let pendingFocus = false;
 export function requestNodeSearchFocus(): void {
   pendingFocus = true;
@@ -57,7 +57,7 @@ export function NodeSearch() {
           ref={inputRef}
           className="node-search-input"
           data-testid="node-search-input"
-          placeholder="Buscar nós (tag:button, text:preço)"
+          placeholder="Search nodes (tag:button, text:price)"
           spellCheck={false}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -71,8 +71,8 @@ export function NodeSearch() {
           <button
             type="button"
             className="node-search-clear"
-            title="Limpar busca"
-            aria-label="Limpar busca"
+            title="Clear search"
+            aria-label="Clear search"
             onClick={() => setQuery('')}
           >
             <X size={12} />
@@ -82,7 +82,7 @@ export function NodeSearch() {
       {active && (
         <div className="node-search-results" data-testid="node-search-results" role="listbox">
           {matches.length === 0 ? (
-            <div className="node-search-empty">Nenhum nó encontrado.</div>
+            <div className="node-search-empty">No nodes found.</div>
           ) : (
             matches.map((m) => (
               <button

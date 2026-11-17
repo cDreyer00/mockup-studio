@@ -1,7 +1,7 @@
 /**
- * Estado vindo do daemon: conexão, documentos abertos, documento ativo, histórico e atividade do
- * agente. Só o cliente (`client/daemon.ts`) escreve aqui, a partir das mensagens do WebSocket.
- * O documento NUNCA é mutado localmente: toda edição vira `Op` enviada ao daemon.
+ * State coming from the daemon: connection, open documents, active document, history and agent
+ * activity. Only the client (`client/daemon.ts`) writes here, from the WebSocket messages.
+ * The document is NEVER mutated locally: every edit becomes an `Op` sent to the daemon.
  */
 import { create } from 'zustand';
 import { listInstances, splitVirtualId } from '@mockup/core';
@@ -18,20 +18,20 @@ export interface DocState {
   documents: OpenDocumentInfo[];
   activeDocId: string | null;
   /**
-   * Visão do documento ativo: instâncias de componentes expandidas e, no modo de edição do
-   * principal, a página sintética (ver `components/model.ts`). É o que canvas, camadas, seleção e
-   * propriedades usam. Com compartilhamento estrutural entre versões.
+   * View of the active document: expanded component instances and, in main component edit
+   * mode, the synthetic page (see `components/model.ts`). It is what the canvas, layers, selection and
+   * properties use. With structural sharing between versions.
    */
   doc: Document | null;
-  /** Documento ativo como o daemon o guarda (instâncias não expandidas). Para os planejadores. */
+  /** Active document as the daemon stores it (instances not expanded). For the planners. */
   rawDoc: Document | null;
   revision: number;
   history: HistoryState;
-  /** Cache dos documentos conhecidos (por id). */
+  /** Cache of known documents (by id). */
   docs: Record<string, Document>;
-  /** Histórico por documento (por id). */
+  /** History per document (by id). */
   histories: Record<string, HistoryState>;
-  /** frameId → timestamp (ms) da última op do MCP que tocou o frame. */
+  /** frameId → timestamp (ms) of the last MCP op that touched the frame. */
   agentActivity: Record<string, number>;
 }
 
@@ -50,14 +50,14 @@ export const useDoc = create<DocState>(() => ({
   agentActivity: {},
 }));
 
-/* ---------------- visão (instâncias expandidas + modo de edição) ---------------- */
+/* ---------------- view (expanded instances + edit mode) ---------------- */
 
 let memo: { raw: Document; key: string; view: Document } | null = null;
 
 /**
- * Visão de `raw` para o estado atual da interface (principal em edição). Memoizada pelo objeto do
- * documento e pelo modo; reaproveita os objetos da visão anterior (`prev`) que não mudaram, para
- * que o `React.memo` dos nós funcione também nas árvores expandidas.
+ * View of `raw` for the current UI state (main component being edited). Memoized by the document
+ * object and the mode; reuses the objects of the previous view (`prev`) that did not change, so
+ * that the nodes' `React.memo` also works in the expanded trees.
  */
 export function viewOf(raw: Document, prev: Document | null = useDoc.getState().doc): Document {
   const u = useUi.getState();
@@ -78,30 +78,30 @@ export function viewOf(raw: Document, prev: Document | null = useDoc.getState().
   return view;
 }
 
-/** Campos `rawDoc` + `doc` (visão) para gravar o documento ativo no store. */
+/** `rawDoc` + `doc` (view) fields to write the active document into the store. */
 export function withView(raw: Document | null): Pick<DocState, 'rawDoc' | 'doc'> {
   return { rawDoc: raw, doc: raw ? viewOf(raw) : null };
 }
 
-/** Documento real ativo (cai na visão quando só ela foi definida, como em testes antigos). */
+/** Real active document (falls back to the view when only it was set, as in old tests). */
 export function getRawDoc(): Document | null {
   const s = useDoc.getState();
   return s.rawDoc ?? s.doc;
 }
 
-// Entrar/sair do modo de edição (ou mudar a largura dele) recalcula a visão.
+// Entering/leaving edit mode (or changing its width) recomputes the view.
 useUi.subscribe((s, p) => {
   if (s.editingComponentId === p.editingComponentId && s.componentEdit === p.componentEdit) return;
   const raw = useDoc.getState().rawDoc;
   if (raw) useDoc.setState({ doc: viewOf(raw) });
 });
 
-/** Info do documento ativo (nome, caminho, dirty). */
+/** Active document info (name, path, dirty). */
 export function selectActiveInfo(s: DocState): OpenDocumentInfo | undefined {
   return s.documents.find((d) => d.docId === s.activeDocId);
 }
 
-/** Ids de nós tocados por uma op (para o badge "agente trabalhando"). */
+/** Ids of nodes touched by an op (for the "agent working" badge). */
 export function touchedNodeIds(op: Op): string[] {
   switch (op.type) {
     case 'createNode':
@@ -132,17 +132,17 @@ export function touchedNodeIds(op: Op): string[] {
   }
 }
 
-/** Ids reais tocados: ids virtuais (`in_x/caminho`) contam como a instância dona. */
+/** Real ids touched: virtual ids (`in_x/path`) count as the owning instance. */
 function realTouchedIds(op: Op, next: Document): string[] {
   const ids = touchedNodeIds(op).map((id) => splitVirtualId(id)?.instanceId ?? id);
-  // Mudar um principal toca todos os frames com instâncias dele.
+  // Changing a main component touches all frames with instances of it.
   if (op.type === 'updateComponent') {
     for (const ref of listInstances(next, op.componentId)) if (ref.pageId) ids.push(ref.node.id);
   }
   return ids;
 }
 
-/** Frames raiz tocados pelas ops (procurados no doc novo e, para exclusões, no anterior). */
+/** Root frames touched by the ops (looked up in the new doc and, for deletions, in the previous one). */
 export function touchedFrameIds(ops: Op[], next: Document, prev: Document | null): string[] {
   const frames = new Set<string>();
   for (const op of ops) {
@@ -155,7 +155,7 @@ export function touchedFrameIds(ops: Op[], next: Document, prev: Document | null
   return [...frames];
 }
 
-/** Integra um documento recebido do daemon reaproveitando a estrutura da versão anterior. */
+/** Integrates a document received from the daemon, reusing the structure of the previous version. */
 export function mergeDoc(prev: Document | undefined, next: Document): Document {
   return prev && prev.id === next.id ? shareStructure(prev, next) : next;
 }

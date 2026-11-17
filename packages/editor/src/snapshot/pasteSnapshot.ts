@@ -1,4 +1,4 @@
-/** Colar snapshot: o texto do clipboard vira um frame no documento ativo via `POST /api/snapshot`. */
+/** Paste snapshot: the clipboard text becomes a frame in the active document via `POST /api/snapshot`. */
 import { decodeClipboard } from '@mockup/snapshot-core';
 import { canvasApi } from '../canvas/canvasApi';
 import { useDoc } from '../state/docStore';
@@ -6,24 +6,24 @@ import { currentPageId } from '../state/hooks';
 import { ui } from '../state/uiStore';
 import { postSnapshot, selectImported } from './importApi';
 
-/** Texto do toast de sucesso (com aviso quando a captura trouxe `warnings`). */
+/** Success toast text (with a warning when the capture brought `warnings`). */
 export function importToastText(r: { nodes: number; warnings: string[] }): string {
-  const base = `Seção importada (${r.nodes} nós)`;
+  const base = `Section imported (${r.nodes} nodes)`;
   if (!r.warnings.length) return base;
   const extra = r.warnings.length > 1 ? ` (+${r.warnings.length - 1})` : '';
-  return `${base}. Aviso: ${r.warnings[0]}${extra}`;
+  return `${base}. Warning: ${r.warnings[0]}${extra}`;
 }
 
-/** Importa o snapshot colado. Erros viram toast (nunca propagam). */
+/** Imports the pasted snapshot. Errors become a toast (they never propagate). */
 export async function pasteSnapshot(text: string): Promise<void> {
   const payload = decodeClipboard(text);
   if (!payload) {
-    ui.toast('Snapshot inválido ou de versão não suportada', 'error');
+    ui.toast('Invalid snapshot or unsupported version', 'error');
     return;
   }
   const docId = useDoc.getState().activeDocId;
   if (!docId) {
-    ui.toast('Nenhum documento aberto', 'error');
+    ui.toast('No document open', 'error');
     return;
   }
   const c = canvasApi.viewportCenter();

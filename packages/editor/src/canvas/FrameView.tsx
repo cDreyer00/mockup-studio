@@ -6,10 +6,10 @@ import { useUi } from '../state/uiStore';
 import { frameSize } from '../model/tree';
 import { NodeView } from './NodeView';
 
-/** Janela em que o badge "IA" fica visível após a última op do agente no frame. */
+/** Window in which the "AI" badge stays visible after the agent's last op on the frame. */
 export const AGENT_BADGE_MS = 4000;
 
-/** Isola falhas de render de um frame; volta a tentar quando o frame muda. */
+/** Isolates render failures of a frame; retries when the frame changes. */
 class FrameBoundary extends Component<
   { frame: Node; fallback: (error: Error) => ReactNode; children: ReactNode },
   { error: Error | null; frame: Node }
@@ -32,7 +32,7 @@ class FrameBoundary extends Component<
   }
 }
 
-/** Ponto pulsante + "IA" enquanto o agente mexeu no frame há menos de 4 s. */
+/** Pulsing dot + "AI" while the agent touched the frame less than 4 s ago. */
 function AgentBadge({ frameId }: { frameId: string }) {
   const at = useDoc((s) => s.agentActivity[frameId]);
   const [now, setNow] = useState(() => Date.now());
@@ -48,12 +48,12 @@ function AgentBadge({ frameId }: { frameId: string }) {
   return (
     <span className="cv-agent-badge" data-testid={`agent-badge-${frameId}`}>
       <i className="cv-agent-dot" />
-      IA
+      AI
     </span>
   );
 }
 
-/** Nome do frame acima dele (escala inversa ao zoom via `--z`); clicar seleciona, arrastar move. */
+/** Frame name above it (inverse zoom scale via `--z`); click selects, drag moves. */
 function FrameLabel({ frame }: { frame: Node }) {
   const preview = useUi((s) => s.preview[frame.id]);
   const pos = preview?.position ?? frame.position;
@@ -70,7 +70,7 @@ function FrameLabel({ frame }: { frame: Node }) {
   );
 }
 
-/** Frame raiz: rótulo + nó posicionado no canvas. */
+/** Root frame: label + node positioned on the canvas. */
 export const FrameView = memo(function FrameView({ frame }: { frame: Node }) {
   if (frame.hidden) return null;
   const { w, h } = frameSize(frame);
@@ -87,7 +87,7 @@ export const FrameView = memo(function FrameView({ frame }: { frame: Node }) {
             style={{ left: x, top: y, width: w, height: h }}
             data-node-id={frame.id}
           >
-            Falha ao renderizar este frame: {error.message}
+            Failed to render this frame: {error.message}
           </div>
         )}
       >

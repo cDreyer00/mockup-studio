@@ -12,13 +12,13 @@ import '../canvas/canvas.css';
 export interface RenderAppProps {
   doc: Document;
   docId: string;
-  /** Frame raiz já ajustado para o modo render (em 0,0, sem sombra e visível). */
+  /** Root frame already adjusted for render mode (at 0,0, without shadow and visible). */
   frame: Node;
-  /** Prévia de estado (hover, focus, dark...) aplicada a todos os nós. */
+  /** State preview (hover, focus, dark...) applied to all nodes. */
   state?: PreviewState;
 }
 
-/** Prepara o frame para o modo render: em (0,0), visível e sem a sombra padrão do canvas. */
+/** Prepares the frame for render mode: at (0,0), visible and without the canvas's default shadow. */
 export function renderFrameOf(frame: Node): Node {
   return {
     ...frame,
@@ -31,9 +31,9 @@ export function renderFrameOf(frame: Node): Node {
   };
 }
 
-/** Mesma árvore do canvas (`NodeView`), tokens no wrapper e fontes embutidas; sem rótulo/overlay. */
+/** Same tree as the canvas (`NodeView`), tokens on the wrapper and embedded fonts; no label/overlay. */
 export function RenderApp({ doc, docId, frame: received, state }: RenderAppProps) {
-  // Tolerante a instâncias não expandidas (mesmo objeto quando não há nenhuma).
+  // Tolerant of unexpanded instances (same object when there are none).
   const frame = useMemo(() => expandNodeTree(doc, received), [doc, received]);
   const stateCtx = useMemo(
     () => ({

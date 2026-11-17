@@ -81,15 +81,15 @@ const WEIGHTS: SelectOption[] = [
 ].map(([w, name]) => ({ value: String(w), label: `${w} ${name}` }));
 
 const DECORATION: SelectOption[] = [
-  { value: 'none', label: 'Nenhuma' },
-  { value: 'underline', label: 'Sublinhado' },
-  { value: 'line-through', label: 'Tachado' },
+  { value: 'none', label: 'None' },
+  { value: 'underline', label: 'Underline' },
+  { value: 'line-through', label: 'Strikethrough' },
 ];
 const TRANSFORM: SelectOption[] = [
-  { value: 'none', label: 'Nenhuma' },
-  { value: 'uppercase', label: 'MAIÚSCULAS' },
-  { value: 'lowercase', label: 'minúsculas' },
-  { value: 'capitalize', label: 'Capitalizar' },
+  { value: 'none', label: 'None' },
+  { value: 'uppercase', label: 'UPPERCASE' },
+  { value: 'lowercase', label: 'lowercase' },
+  { value: 'capitalize', label: 'Capitalize' },
 ];
 
 function TextContent({ nodes }: { nodes: readonly Node[] }) {
@@ -112,7 +112,7 @@ function TextContent({ nodes }: { nodes: readonly Node[] }) {
       value={text}
       rows={3}
       disabled={locked}
-      placeholder={mixed ? 'Misto' : 'Texto'}
+      placeholder={mixed ? 'Mixed' : 'Text'}
       onChange={(e) => setText(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={() => {
@@ -133,15 +133,15 @@ export function TypographySection({ nodes }: { nodes: readonly Node[] }) {
   const allText = nodes.every((n) => n.type === 'text');
   const families = [...new Set([...(docFonts?.map((f) => f.family) ?? []), ...COMMON_FONTS])];
   return (
-    <Section key={String(textual)} id="props-type" title="Tipografia" defaultOpen={textual}>
+    <Section key={String(textual)} id="props-type" title="Typography" defaultOpen={textual}>
       <Body>
         {allText && <TextContent nodes={nodes} />}
-        <Row label="Fonte">
+        <Row label="Font">
           <BoundDraftInput
             bind={{ nodes, prop: 'font-family', value: common(nodes, styleOf('font-family')) }}
             value={common(nodes, styleOf('font-family'))}
             list="prop-font-list"
-            placeholder="herdada"
+            placeholder="inherited"
             title="font-family"
             onCommit={(v) => void commitStyle(nodes, 'font-family', v)}
           />
@@ -151,16 +151,16 @@ export function TypographySection({ nodes }: { nodes: readonly Node[] }) {
             ))}
           </datalist>
         </Row>
-        <Row label="Peso">
+        <Row label="Weight">
           <StyleSelect nodes={nodes} prop="font-weight" options={WEIGHTS} title="font-weight" />
         </Row>
         <div className="prop-row-2">
-          <StyleNum nodes={nodes} prop="font-size" label="Aa" title="Tamanho da fonte" min={0} />
+          <StyleNum nodes={nodes} prop="font-size" label="Aa" title="Font size" min={0} />
           <StyleNum
             nodes={nodes}
             prop="line-height"
             label={<MoveVertical size={12} />}
-            title="Altura da linha (1.4 ou 24px)"
+            title="Line height (1.4 or 24px)"
             unit=""
             min={0}
             step={0.1}
@@ -171,7 +171,7 @@ export function TypographySection({ nodes }: { nodes: readonly Node[] }) {
             nodes={nodes}
             prop="letter-spacing"
             label={<MoveHorizontal size={12} />}
-            title="Espaçamento entre letras"
+            title="Letter spacing"
             step={0.1}
           />
           <StyleSelect
@@ -179,25 +179,25 @@ export function TypographySection({ nodes }: { nodes: readonly Node[] }) {
             prop="text-transform"
             options={TRANSFORM}
             title="text-transform"
-            placeholder="Caixa"
+            placeholder="Case"
           />
         </div>
-        <Row label="Alinhar">
+        <Row label="Align">
           <StyleSeg
             nodes={nodes}
             prop="text-align"
             options={[
-              { value: 'left', title: 'Esquerda', icon: <AlignLeft size={13} /> },
-              { value: 'center', title: 'Centro', icon: <AlignCenter size={13} /> },
-              { value: 'right', title: 'Direita', icon: <AlignRight size={13} /> },
-              { value: 'justify', title: 'Justificado', icon: <AlignJustify size={13} /> },
+              { value: 'left', title: 'Left', icon: <AlignLeft size={13} /> },
+              { value: 'center', title: 'Center', icon: <AlignCenter size={13} /> },
+              { value: 'right', title: 'Right', icon: <AlignRight size={13} /> },
+              { value: 'justify', title: 'Justified', icon: <AlignJustify size={13} /> },
             ]}
           />
         </Row>
-        <Row label="Cor">
-          <StyleColor nodes={nodes} prop="color" title="Cor do texto" />
+        <Row label="Color">
+          <StyleColor nodes={nodes} prop="color" title="Text color" />
         </Row>
-        <Row label="Decoração">
+        <Row label="Decoration">
           <StyleSelect
             nodes={nodes}
             prop="text-decoration"

@@ -9,7 +9,7 @@ afterEach(cleanup);
 const input = (sel = 'input') => document.querySelector<HTMLInputElement>(sel)!;
 
 describe('ColorInput', () => {
-  it('arrastar no seletor só faz prévia; o change nativo confirma uma vez', () => {
+  it('dragging in the picker only previews; the native change commits once', () => {
     const onCommit = vi.fn();
     const onPreview = vi.fn();
     render(<ColorInput value="#000000" onCommit={onCommit} onPreview={onPreview} />);
@@ -26,7 +26,7 @@ describe('ColorInput', () => {
 });
 
 describe('NumberInput', () => {
-  it('Enter confirma uma única vez (o blur seguinte não repete)', () => {
+  it("Enter commits only once (the following blur doesn't repeat)", () => {
     const onCommit = vi.fn();
     render(<NumberInput value="10px" onCommit={onCommit} />);
     const el = input();
@@ -38,7 +38,7 @@ describe('NumberInput', () => {
     expect(onCommit).toHaveBeenCalledWith('25px');
   });
 
-  it('Esc descarta o texto digitado', () => {
+  it('Esc discards the typed text', () => {
     const onCommit = vi.fn();
     render(<NumberInput value="10px" onCommit={onCommit} />);
     const el = input();
@@ -49,7 +49,7 @@ describe('NumberInput', () => {
     expect(el.value).toBe('10px');
   });
 
-  it('blur sem Enter confirma uma vez; nova edição volta a confirmar', () => {
+  it('blur without Enter commits once; a new edit commits again', () => {
     const onCommit = vi.fn();
     render(<NumberInput value="10px" onCommit={onCommit} />);
     const el = input();
@@ -65,7 +65,7 @@ describe('NumberInput', () => {
 });
 
 describe('TextInput', () => {
-  it('Enter confirma uma vez e Esc descarta', () => {
+  it('Enter commits once and Esc discards', () => {
     const onCommit = vi.fn();
     render(<TextInput value="a" onCommit={onCommit} />);
     const el = input();

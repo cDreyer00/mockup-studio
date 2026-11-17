@@ -1,4 +1,4 @@
-/** Painel de camadas: páginas no topo e árvore de camadas da página ativa. */
+/** Layers panel: pages at the top and the layer tree of the active page. */
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent, MouseEvent } from 'react';
 import {
@@ -68,21 +68,21 @@ function iconFor(node: Node, role: ComponentRole | null): LucideIcon {
 }
 
 /**
- * Página como as camadas a mostram: no modo de edição do principal, a raiz do principal fica no
- * topo (o quadro sintético em volta dela não aparece).
+ * Page as the layers show it: in main component edit mode, the main component root is at the
+ * top (the synthetic frame around it does not show).
  */
 function layerPage(page: Page): Page {
   if (page.id !== COMPONENT_EDIT_PAGE_ID) return page;
   return { ...page, frames: page.frames[0]?.children ?? [] };
 }
 
-/** Lê a lista visível atual (para Shift+clique), sempre do estado mais recente. */
+/** Reads the current visible list (for Shift+click), always from the latest state. */
 function currentVisibleIds(): string[] {
   const page = selectPage(useDoc.getState().doc, useUi.getState().pageId);
   return page ? flattenTree(layerPage(page), useLayers.getState().collapsed).map((r) => r.id) : [];
 }
 
-/* ---------------- campo de renomear inline ---------------- */
+/* ---------------- inline rename field ---------------- */
 
 function InlineInput({
   initial,
@@ -121,7 +121,7 @@ function InlineInput({
   );
 }
 
-/* ---------------- páginas ---------------- */
+/* ---------------- pages ---------------- */
 
 function PageItem({ page, active, only }: { page: Page; active: boolean; only: boolean }) {
   const [editing, setEditing] = useState(false);
@@ -147,8 +147,8 @@ function PageItem({ page, active, only }: { page: Page; active: boolean; only: b
       onContextMenu={(e) => {
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, [
-          { label: 'Renomear', onSelect: () => setEditing(true) },
-          { label: 'Excluir', danger: true, disabled: only, onSelect: () => void remove() },
+          { label: 'Rename', onSelect: () => setEditing(true) },
+          { label: 'Delete', danger: true, disabled: only, onSelect: () => void remove() },
         ]);
       }}
     >
@@ -178,7 +178,7 @@ function PagesList() {
   const doc = useDoc((s) => s.doc);
   const active = useActivePage();
   if (!doc) return null;
-  // A página sintética do modo de edição do principal não é uma página do documento.
+  // The synthetic page of main component edit mode is not a page of the document.
   const pages = doc.pages.filter((p) => p.id !== COMPONENT_EDIT_PAGE_ID);
   const add = async () => {
     const pageId = newPageId();
@@ -188,12 +188,12 @@ function PagesList() {
   return (
     <div className="layers-pages">
       <div className="layers-heading">
-        <span>Páginas</span>
+        <span>Pages</span>
         <button
           type="button"
           className="layer-btn"
           data-testid="add-page"
-          title="Nova página"
+          title="New page"
           onClick={() => void add()}
         >
           <Plus size={14} />
@@ -225,7 +225,7 @@ function performDrop(target: DropTarget): void {
   if (ops?.length) void daemon.applySafe(ops);
 }
 
-/* ---------------- linha ---------------- */
+/* ---------------- row ---------------- */
 
 interface RowProps {
   id: string;
@@ -239,7 +239,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
   const selected = useIsSelected(id);
   const dropZone = useLayers((s) => (s.drop?.id === id ? s.drop.zone : null));
   const role = useDoc((s) => componentRole(s.doc, id));
-  // Nós internos, contêineres de slot e a raiz do principal não são arrastáveis.
+  // Internal nodes, slot containers and the main component root are not draggable.
   const fixed = useDoc((s) => !!s.doc && structureBlock(s.doc, [id]) !== null);
   const [editing, setEditing] = useState(false);
   if (!node) return null;
@@ -348,7 +348,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
           className="layer-name"
           onDoubleClick={(e) => {
             e.stopPropagation();
-            // Nó interno: o nome vem do principal (renomeie no modo de edição dele).
+            // Internal node: the name comes from the main component (rename it in its edit mode).
             if (!internal) setEditing(true);
           }}
         >
@@ -361,7 +361,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
           type="button"
           className={`layer-btn${node.hidden ? ' on' : ''}`}
           data-testid={`layer-toggle-hidden-${id}`}
-          title={node.hidden ? 'Mostrar' : 'Ocultar'}
+          title={node.hidden ? 'Show' : 'Hide'}
           onClick={(e) => {
             e.stopPropagation();
             void actions.setHidden([id], !node.hidden);
@@ -374,7 +374,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
             type="button"
             className={`layer-btn${node.locked ? ' on' : ''}`}
             data-testid={`layer-toggle-locked-${id}`}
-            title={node.locked ? 'Destravar' : 'Travar'}
+            title={node.locked ? 'Unlock' : 'Lock'}
             onClick={(e) => {
               e.stopPropagation();
               void actions.setLocked([id], !node.locked);
@@ -388,7 +388,7 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
   );
 });
 
-/* ---------------- árvore ---------------- */
+/* ---------------- tree ---------------- */
 
 function LayerTree() {
   const page = useActivePage();
@@ -400,7 +400,7 @@ function LayerTree() {
     [page, collapsed],
   );
 
-  // Seleção externa: expande ancestrais e rola até a primeira linha selecionada.
+  // External selection: expands ancestors and scrolls to the first selected row.
   useEffect(() => {
     const doc = useDoc.getState().doc;
     if (!doc || !selection.length || !topLevel(doc, selection).length) return;
@@ -444,7 +444,7 @@ function LayerTree() {
     >
       {rows.length === 0 ? (
         <div className="layers-empty" data-testid="layers-empty">
-          Sem frames nesta página. Use F para criar um frame.
+          No frames on this page. Use F to create a frame.
         </div>
       ) : (
         rows.map((r) => (
@@ -467,7 +467,7 @@ export function LayersPanel() {
       <NodeSearch />
       <PagesList />
       <div className="layers-heading">
-        <span>Camadas</span>
+        <span>Layers</span>
       </div>
       <LayerTree />
     </aside>

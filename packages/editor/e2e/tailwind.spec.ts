@@ -4,16 +4,16 @@ import type { Node } from '@mockup/core';
 import { Mcp, createDoc, findByName, getDoc, gotoEditor } from './helpers';
 
 /**
- * Tailwind nativo no editor: markup real do shadcn/ui vira estilo no canvas (tokens resolvidos),
- * prévia de estado, edição das classes e "mostrar como Tailwind". O daemon do e2e não tem página
- * de render, então tudo é conferido pelo DOM/estilo computado do canvas.
+ * Native Tailwind in the editor: real shadcn/ui markup becomes style on the canvas (resolved tokens),
+ * state preview, class editing and "show as Tailwind". The e2e daemon has no render page,
+ * so everything is checked through the canvas DOM/computed style.
  */
 
 const BUTTON =
-  '<button data-slot="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">Salvar</button>';
+  '<button data-slot="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2">Save</button>';
 
 const CARD = `<div data-slot="card" class="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm">
-  <div data-slot="card-header" class="px-6"><div data-slot="card-title" class="font-semibold leading-none">Plano Pro</div></div>
+  <div data-slot="card-header" class="px-6"><div data-slot="card-title" class="font-semibold leading-none">Pro Plan</div></div>
   <div data-slot="card-content" class="px-6">${BUTTON}</div>
 </div>`;
 
@@ -37,18 +37,20 @@ async function setup(page: Page): Promise<{ docId: string; button: Node; card: N
       'radius-xl': '14px',
     },
   });
-  await mcp.call('create_frame', { name: 'Tela', width: 800, height: 500, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 800, height: 500, x: 0, y: 0 });
   await mcp.call('write_html', { html: CARD });
   const doc = await getDoc(info.docId);
   const button = findByName(doc, 'Button');
   const card = findByName(doc, 'Card');
-  if (!button || !card) throw new Error('write_html não criou o card/botão do shadcn');
+  if (!button || !card) throw new Error('write_html did not create the shadcn card/button');
   await gotoEditor(page);
   await expect(nodeEl(page, button.id)).toBeVisible();
   return { docId: info.docId, button, card, mcp };
 }
 
-test('botão e card do shadcn/ui no canvas: altura, raio e cor vêm dos tokens', async ({ page }) => {
+test('shadcn/ui button and card on the canvas: height, radius and color come from the tokens', async ({
+  page,
+}) => {
   const { button, card } = await setup(page);
   await expect.poll(() => computed(page, button.id, 'height')).toBe('36px');
   await expect.poll(() => computed(page, button.id, 'border-top-left-radius')).toBe('6px');
@@ -57,7 +59,7 @@ test('botão e card do shadcn/ui no canvas: altura, raio e cor vêm dos tokens',
   await expect.poll(() => computed(page, card.id, 'border-top-left-radius')).toBe('14px');
 });
 
-test('prévia "hover" troca o fundo do botão e "Nenhum" volta', async ({ page }) => {
+test('"hover" preview swaps the button background and "None" goes back', async ({ page }) => {
   const { button } = await setup(page);
   await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
   await page.getByTestId('preview-state').selectOption('hover');
@@ -68,7 +70,9 @@ test('prévia "hover" troca o fundo do botão e "Nenhum" volta', async ({ page }
   await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
 });
 
-test('prévia "dark" troca os tokens para os do tema dark e "Nenhum" volta', async ({ page }) => {
+test('"dark" preview swaps the tokens for those of the dark theme and "None" goes back', async ({
+  page,
+}) => {
   const { button, mcp } = await setup(page);
   await mcp.call('create_theme', {
     name: 'dark',
@@ -81,7 +85,9 @@ test('prévia "dark" troca os tokens para os do tema dark e "Nenhum" volta', asy
   await expect.poll(() => computed(page, button.id, 'background-color')).toBe('rgb(24, 24, 27)');
 });
 
-test('editar o campo de classes (px-4 → px-8) muda o canvas e o documento', async ({ page }) => {
+test('editing the classes field (px-4 → px-8) changes the canvas and the document', async ({
+  page,
+}) => {
   const { docId, button, mcp } = await setup(page);
   await mcp.call('set_selection', { nodeIds: [button.id] });
   const field = page.getByTestId('prop-classes');
@@ -97,12 +103,12 @@ test('editar o campo de classes (px-4 → px-8) muda o canvas e o documento', as
   expect(node.classes).toContain('px-8');
   expect(node.classes).not.toContain('px-4');
   expect(JSON.stringify(node.style)).toContain('2rem');
-  // O estado hover continua no nó depois de reaplicar as classes.
+  // The hover state stays on the node after reapplying the classes.
   expect(node.states?.hover).toBeTruthy();
   await expect(field).toHaveValue(/\bpx-8\b/);
 });
 
-test('"Mostrar como Tailwind" exibe as classes e a lista de estados do nó', async ({ page }) => {
+test('"Show as Tailwind" displays the classes and the list of node states', async ({ page }) => {
   const { button, mcp } = await setup(page);
   await mcp.call('set_selection', { nodeIds: [button.id] });
   await expect(page.getByTestId('prop-classes')).toBeVisible();
@@ -113,12 +119,12 @@ test('"Mostrar como Tailwind" exibe as classes e a lista de estados do nó', asy
   await expect(text).toContainText('hover:bg-primary/90');
   await expect(page.getByTestId('state-row-hover')).toBeVisible();
 
-  // Remover o estado hover tira o hover do documento.
+  // Removing the hover state removes hover from the document.
   await page.getByTestId('state-remove-hover').click();
   await expect(page.getByTestId('state-row-hover')).toHaveCount(0);
 });
 
-test('autocomplete mostra o CSS da classe destacada', async ({ page }) => {
+test('autocomplete shows the CSS of the highlighted class', async ({ page }) => {
   const { button, mcp } = await setup(page);
   await mcp.call('set_selection', { nodeIds: [button.id] });
   const field = page.getByTestId('prop-classes');
@@ -130,11 +136,11 @@ test('autocomplete mostra o CSS da classe destacada', async ({ page }) => {
   await field.press('Escape');
 });
 
-test('CSS base do documento: o seletor liga o preflight do Tailwind', async ({ page }) => {
+test('document base CSS: the selector turns on the Tailwind preflight', async ({ page }) => {
   const { docId, mcp } = await setup(page);
   await mcp.call('set_selection', { nodeIds: [] });
   await expect(page.getByTestId('css-base')).toBeVisible();
-  // write_html com classes Tailwind já ligou o preflight; troca para o padrão e volta.
+  // write_html with Tailwind classes already turned on the preflight; switch to the default and back.
   await page.getByTestId('css-base').selectOption('default');
   await expect.poll(async () => (await getDoc(docId)).cssBase).toBeUndefined();
   await page.getByTestId('css-base').selectOption('tailwind');
