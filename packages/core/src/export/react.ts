@@ -179,6 +179,8 @@ export interface Usage {
   cssProperties: boolean;
   /** Algum componente gerado usa `ReactNode` (props de slot e `children`). */
   reactNode?: boolean;
+  /** Algum atributo de URL recebe `{{prop}}`: o arquivo ganha o helper `safeUrl`. */
+  safeUrl?: boolean;
 }
 
 /** `style={{ ... }}`; custom properties exigem `as CSSProperties` (marcado em `usage`). */
@@ -290,7 +292,7 @@ const VALUE_AS_DEFAULT = new Set(['input', 'textarea', 'select']);
 export function attrProps(
   node: Node,
   skip: Set<string>,
-  fmt: (v: string) => string = attrValue,
+  fmt: (v: string, attr?: string) => string = attrValue,
 ): string[] {
   const out: string[] = [];
   for (const [k, v] of Object.entries(safeAttrs(node))) {
@@ -309,7 +311,7 @@ export function attrProps(
     } else if (NUMERIC_PROPS.has(prop)) {
       if (/^-?\d+$/.test(v.trim())) out.push(`${prop}={${v.trim()}}`);
     } else {
-      out.push(`${prop}=${fmt(v)}`);
+      out.push(`${prop}=${fmt(v, lower)}`);
     }
   }
   return out;
@@ -735,7 +737,7 @@ export function renderNode(
     const fmt = ctx.scope?.attrValue ?? attrValue;
     if (slot.src) props.push(`src={item.${slot.src.field}}`);
     else if (node.src !== undefined) {
-      if (ctx.scope?.hasPlaceholder(node.src)) props.push(`src=${fmt(node.src)}`);
+      if (ctx.scope?.hasPlaceholder(node.src)) props.push(`src=${fmt(node.src, 'src')}`);
       else {
         const url = assetUrl(node.src, ctx.assetsBase);
         if (!isUnsafeUrl(url)) props.push(`src=${attrValue(url)}`);
@@ -824,6 +826,18 @@ function camelCaseOr(slug: string, fallback: string): string {
 /* API                                                                     */
 /* ====================================================================== */
 
+/** Helper emitido uma vez quando um atributo de URL recebe `{{prop}}` (mesmo critério do `isUnsafeUrl`). */
+const SAFE_URL_HELPER = [
+  'function safeUrl(url: string): string {',
+  "  const v = url.replace(/[\\s\\u0000-\\u001f]+/g, '').toLowerCase();",
+  '  const unsafe =',
+  "    v.startsWith('javascript:') ||",
+  "    v.startsWith('vbscript:') ||",
+  "    (v.startsWith('data:') && !v.startsWith('data:image/'));",
+  "  return unsafe ? '#' : url;",
+  '}',
+];
+
 /** Gera um componente TSX funcional a partir de um nó (Vite + React + TypeScript strict). */
 export function exportReact(doc: Document, options: ReactExportOptions): ReactExport {
   const mode = options.styles ?? 'tailwind';
@@ -845,7 +859,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     extractRepeats: options.extractRepeats ?? true,
     usage,
     arrays: [],
-    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode']),
+    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode', 'safeUrl']),
   };
   ctx.components = createComponentSupport(doc, ctx);
 
@@ -856,6 +870,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   if (imports.some(Boolean)) {
     code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
   }
+  if (usage.safeUrl) code.push(...SAFE_URL_HELPER, '');
   for (const a of ctx.arrays) code.push(a, '');
   for (const g of generated) code.push(g, '');
   code.push(

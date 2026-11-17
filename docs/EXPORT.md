@@ -409,6 +409,9 @@ export function Button({ variant = 'default', size = 'default', label = 'Botão'
   props usadas no corpo são desestruturadas, o `tsc --noUnusedParameters` continua passando). Todo
   componente aceita `className` e `style`, mesclados na raiz (o `style` por último).
 - **Placeholders**: `{{prop}}` vira `{label}` em texto, `title={`Selo ${texto}`}` em atributo e
+- **URLs de props**: `{{prop}}` em `href`, `src`, `action`, `formaction`, `xlink:href` ou `srcdoc` sai como
+  `href={safeUrl(url)}`; o arquivo ganha uma vez o helper `safeUrl` (`javascript:`, `vbscript:` e `data:`
+  que não seja imagem viram `#`, ignorando espaços, controles e maiúsculas).
   `width: `calc(${largura}px + 2px)`` em estilo (nunca vira classe Tailwind). Num estado (`hover` etc.)
   o placeholder fica com o valor padrão.
 - **Variantes**: cada propriedade de estilo (e de estado, no Tailwind) alterada por variantes vira uma

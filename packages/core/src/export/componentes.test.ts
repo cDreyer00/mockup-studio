@@ -315,6 +315,71 @@ describe('export React com componentes', () => {
   });
 });
 
+/** Componente Link com `<a href="{{url}}">` e uma instância (com `javascript:` na prop). */
+function docComLink(url: string | undefined): Document {
+  const doc = tela();
+  doc.components = [
+    ...(doc.components ?? []),
+    {
+      id: 'cp_link00001',
+      name: 'Link',
+      props: [{ name: 'url', type: 'string', default: '/inicio' }],
+      root: n('el_link0001', 'element', 'a', {
+        attrs: { href: url === undefined ? '/fixo' : '{{url}}' },
+        children: [n('tx_link0001', 'text', 'span', { text: 'Ir' })],
+      }),
+      variants: [],
+    },
+  ];
+  doc.pages[0].frames[0].children.push(
+    n('in_link0001', 'instance', 'a', {
+      componentId: 'cp_link00001',
+      props: url === undefined ? {} : { url },
+    }),
+  );
+  return doc;
+}
+
+describe('URLs vindas de props no export React', () => {
+  it.each(['tailwind', 'inline'] as const)(
+    'href com {{url}} usa safeUrl e compila (%s)',
+    (styles) => {
+      const { code } = exportReact(docComLink('javascript:alert(1)'), {
+        nodeId: 'fr_comp0001',
+        styles,
+      });
+      expect(code).toContain('href={safeUrl(url)}');
+      expect(code.match(/function safeUrl\(/g)).toHaveLength(1);
+      expect(code).toContain("startsWith('javascript:')");
+      expect(code).toContain(String.raw`[\s\u0000-\u001f]`);
+      expect(compile(code)).toEqual([]);
+    },
+  );
+
+  it('a prop javascript: da instância só aparece como valor de prop, nunca num href cru', () => {
+    const { code } = exportReact(docComLink('javascript:alert(1)'), { nodeId: 'fr_comp0001' });
+    expect(code).toContain('<Link url="javascript:alert(1)" />');
+    expect(code).not.toMatch(/href="javascript:/);
+    expect(code).not.toContain('href={url}');
+  });
+
+  it('sem atributo de URL com placeholder não há helper', () => {
+    const { code } = exportReact(docComLink(undefined), { nodeId: 'fr_comp0001' });
+    expect(code).toContain('href="/fixo"');
+    expect(code).not.toContain('safeUrl');
+    expect(compile(code)).toEqual([]);
+  });
+
+  it('href literal inseguro é descartado pela sanitização existente', () => {
+    const doc = docComLink(undefined);
+    doc.pages[0].frames[0].children.push(
+      n('el_lit00001', 'element', 'a', { attrs: { href: 'javascript:alert(1)' } }),
+    );
+    const { code } = exportReact(doc, { nodeId: 'fr_comp0001' });
+    expect(code).not.toContain('javascript:');
+  });
+});
+
 describe('HTML, Tailwind e SVG expandem as instâncias', () => {
   it('HTML: texto e estilo da variante outline', () => {
     const html = exportHtml(tela());

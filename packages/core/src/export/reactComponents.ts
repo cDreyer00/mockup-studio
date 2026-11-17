@@ -35,7 +35,7 @@ export interface ScopeHooks {
   /** `className`/`style` do nó (props mescladas na raiz, variantes e `{{prop}}`). */
   styleProps(node: Node, ctx: RenderCtx): string[];
   /** Valor de atributo (`"literal"` ou `{expressão}`) para um texto que pode ter `{{prop}}`. */
-  attrValue(v: string): string;
+  attrValue(v: string, attr?: string): string;
   hasPlaceholder(v: string): boolean;
   /** Filhos de texto do nó; `undefined` quando o texto é estático. */
   textChildren(node: Node, pre: boolean): string[] | undefined;
@@ -61,6 +61,9 @@ export interface ComponentSupport {
 /* ====================================================================== */
 /* Props                                                                   */
 /* ====================================================================== */
+
+/** Atributos de URL (mesmo conjunto do `safeAttrs`). */
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'srcdoc']);
 
 const PLACEHOLDER_RE = /\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g;
 
@@ -543,8 +546,13 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
       styleProps,
       hasPlaceholder,
       valueExpr: (v) => strExpr(v, true),
-      attrValue: (v) => {
+      attrValue: (v, attr) => {
         if (!hasPlaceholder(v)) return attrValue(v);
+        // atributo de URL com `{{prop}}`: a prop pode trazer `javascript:`; passa pelo `safeUrl`
+        if (attr !== undefined && URL_ATTRS.has(attr.toLowerCase())) {
+          base.usage.safeUrl = true;
+          return `{safeUrl(${strExpr(v, false)})}`;
+        }
         return `{${strExpr(v, false)}}`;
       },
       textChildren: (node, pre) => {
