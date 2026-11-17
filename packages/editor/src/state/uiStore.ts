@@ -52,8 +52,7 @@ export interface UiState {
   altDown: boolean;
   /** Aba ativa do painel esquerdo. */
   leftTab: LeftTab;
-  /** Prévia de estado (hover, focus, dark...) aplicada a todos os nós do canvas; 
-ull = nenhuma. */
+  /** Prévia de estado (hover, focus, dark...) aplicada a todos os nós do canvas; null = nenhuma. */
   previewState: PreviewState | null;
   /** Seção Classes: mostra o estilo atual como classes Tailwind (somente leitura). */
   showAsTailwind: boolean;

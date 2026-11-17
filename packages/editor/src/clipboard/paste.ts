@@ -54,15 +54,14 @@ const HAS_CLASS_RE = /\bclass\s*=\s*["']/i;
 
 export interface HtmlPaste {
   nodes: Node[];
-  /** Ops extras aplicadas junto com a criação (ex.: setCssBase para 	ailwind). */
+  /** Ops extras aplicadas junto com a criação (ex.: setCssBase para Tailwind). */
   ops: Op[];
   tailwind: boolean;
 }
 
 /**
  * HTML colado → nós. Se parece Tailwind (detectTailwind), carrega o motor sob demanda, mantém as
- * classes (
-ode.classes), compila-as em style/states e pede o preflight (setCssBase) se o
+ * classes (node.classes), compila-as em style/states e pede o preflight (setCssBase) se o
  * documento ainda não o usa. Sem Tailwind (ou se o motor falhar), é o htmlToNodes de sempre.
  */
 export async function htmlToPasteNodes(html: string, doc: Document): Promise<HtmlPaste> {
