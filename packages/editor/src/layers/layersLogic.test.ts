@@ -15,7 +15,7 @@ function setup() {
 }
 
 describe('flattenTree', () => {
-  it('respeita recolhidos', () => {
+  it('respects collapsed nodes', () => {
     const { doc, frame, c } = setup();
     const page = doc.pages[0]!;
     const all = flattenTree(page, new Set()).map((r) => r.id);
@@ -31,23 +31,23 @@ describe('flattenTree', () => {
 });
 
 describe('rangeBetween / nextPageName', () => {
-  it('intervalo nos dois sentidos', () => {
+  it('range in both directions', () => {
     const v = ['a', 'b', 'c', 'd'];
     expect(rangeBetween(v, 'b', 'd')).toEqual(['b', 'c', 'd']);
     expect(rangeBetween(v, 'c', 'a')).toEqual(['a', 'b', 'c']);
     expect(rangeBetween(v, null, 'c')).toEqual(['c']);
   });
-  it('próximo nome livre', () => {
+  it('next free name', () => {
     const p = (name: string) => ({ name }) as Page;
-    expect(nextPageName([p('Página 1')])).toBe('Página 2');
-    expect(nextPageName([p('Página 1'), p('Página 3')])).toBe('Página 4');
-    expect(nextPageName([p('A'), p('Página 3')])).toBe('Página 4');
-    expect(nextPageName([p('A'), p('Página 2')])).toBe('Página 3');
+    expect(nextPageName([p('Page 1')])).toBe('Page 2');
+    expect(nextPageName([p('Page 1'), p('Page 3')])).toBe('Page 4');
+    expect(nextPageName([p('A'), p('Page 3')])).toBe('Page 4');
+    expect(nextPageName([p('A'), p('Page 2')])).toBe('Page 3');
   });
 });
 
 describe('computeDropOps', () => {
-  it('mesmo pai, para baixo e para cima', () => {
+  it('same parent, downwards and upwards', () => {
     const { doc, frame, a, b, c, abs } = setup();
     const down = applyOps(doc, computeDropOps(doc, [a.id], { id: c.id, zone: 'after' })!).doc;
     expect(kids(down, frame.id)).toEqual([b.id, c.id, a.id, abs.id]);
@@ -60,7 +60,7 @@ describe('computeDropOps', () => {
     expect(kids(multi, frame.id)).toEqual([c.id, a.id, b.id, abs.id]);
   });
 
-  it('para dentro de outro pai (e frame raiz perde a posição)', () => {
+  it('into another parent (and a root frame loses its position)', () => {
     const { doc, a, c, f2 } = setup();
     const r = applyOps(doc, computeDropOps(doc, [a.id], { id: c.id, zone: 'inside' })!).doc;
     expect(kids(r, c.id)).toEqual([c.children[0]!.id, a.id]);
@@ -70,7 +70,7 @@ describe('computeDropOps', () => {
     expect(getNode(r2, f2.id)!.position).toBeUndefined();
   });
 
-  it('para a raiz da página com posição e tamanho medidos', () => {
+  it('to the page root with measured position and size', () => {
     const { doc, a, frame } = setup();
     const page = doc.pages[0]!;
     const ops = computeDropOps(doc, [a.id], { rootOfPage: page.id, index: 0 }, () => ({
@@ -90,15 +90,15 @@ describe('computeDropOps', () => {
     expect(getNode(applyOps(doc, fb).doc, a.id)!.position).toEqual({ x: 0, y: 0 });
   });
 
-  it('texto/imagem soltos na raiz ganham um frame em volta, no mesmo lugar (um undo)', () => {
+  it('text/image dropped on the root get a wrapping frame, in the same place (one undo)', () => {
     const { doc, a, b, c, abs, frame } = setup();
     const img = createNodeFromTag('img', {
-      name: 'Foto',
+      name: 'Photo',
       src: 'x.png',
       styles: { position: 'absolute', left: '5px', top: '6px', width: '30px', height: '20px' },
       position: { x: 5, y: 6 },
     });
-    frame.children.push(img); // antes de qualquer getNode (o índice é cacheado por documento)
+    frame.children.push(img); // before any getNode (the index is cached per document)
     const rects: Record<string, { x: number; y: number; w: number; h: number }> = {
       [a.id]: { x: 100, y: 50, w: 10, h: 18 },
       [b.id]: { x: 100, y: 76, w: 80, h: 18 },
@@ -113,7 +113,7 @@ describe('computeDropOps', () => {
     )!;
     const r = applyOps(doc, ops);
     const frames = r.doc.pages[0]!.frames;
-    // elemento vai direto (mantém type: element); texto e imagem ficam dentro de frames novos
+    // element goes directly (keeps type: element); text and image end up inside new frames
     expect(frames.map((f) => f.type)).toEqual(['element', 'frame', 'frame', 'frame', 'frame']);
     expect(frames[0]!.id).toBe(a.id);
     expect(frames[3]!.id).toBe(frame.id);
@@ -129,18 +129,18 @@ describe('computeDropOps', () => {
     expect(movedImg.position).toBeUndefined();
     expect(movedImg.style).toEqual({ width: '30px', height: '20px' });
     expect(kids(r.doc, frame.id)).toEqual([c.id, abs.id]);
-    // inverso único restaura o documento original
+    // a single inverse restores the original document
     const back = applyOps(r.doc, r.inverse).doc;
     expect(back.pages).toEqual(doc.pages);
   });
 
-  it('reordena frames raiz descontando índice', () => {
+  it('reorders root frames adjusting the index', () => {
     const { doc, frame, f2 } = setup();
     const r = applyOps(doc, computeDropOps(doc, [frame.id], { id: f2.id, zone: 'after' })!).doc;
     expect(r.pages[0]!.frames.map((f) => f.id)).toEqual([f2.id, frame.id]);
   });
 
-  it('recusa soltar em si mesmo, descendente ou nó sem filhos', () => {
+  it('refuses to drop into itself, a descendant or a node without children', () => {
     const { doc, frame, c, b } = setup();
     expect(computeDropOps(doc, [frame.id], { id: c.id, zone: 'inside' })).toBeNull();
     expect(computeDropOps(doc, [c.id], { id: c.id, zone: 'inside' })).toBeNull();

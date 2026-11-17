@@ -1,7 +1,7 @@
-/** Conversão de parâmetros de efeito (texto da interface ↔ valor tipado do catálogo). Lógica pura. */
+/** Conversion of effect parameters (UI text ↔ typed catalog value). Pure logic. */
 import type { EffectParamDef, MediaParamValue } from '@mockup/core';
 
-/** Arredonda ao passo `step` (relativo a `min`) e limita a `min`/`max`; evita ruído de ponto flutuante. */
+/** Rounds to the `step` (relative to `min`) and clamps to `min`/`max`; avoids floating-point noise. */
 export function snapNumber(def: Pick<EffectParamDef, 'min' | 'max' | 'step'>, n: number): number {
   let v = n;
   if (def.step && def.step > 0) {
@@ -13,7 +13,7 @@ export function snapNumber(def: Pick<EffectParamDef, 'min' | 'max' | 'step'>, n:
   return Number(v.toFixed(6));
 }
 
-/** Converte o texto digitado para o valor do parâmetro; `null` se inválido. */
+/** Converts the typed text to the parameter value; `null` if invalid. */
 export function parseParamValue(def: EffectParamDef, raw: string): MediaParamValue | null {
   const text = raw.trim();
   switch (def.type) {
@@ -31,7 +31,7 @@ export function parseParamValue(def: EffectParamDef, raw: string): MediaParamVal
   }
 }
 
-/** Valor atual do parâmetro com fallback para o padrão do catálogo. */
+/** Current parameter value, falling back to the catalog default. */
 export function paramValue(
   def: EffectParamDef,
   params: Record<string, MediaParamValue>,
@@ -39,7 +39,7 @@ export function paramValue(
   return params[def.name] ?? def.default;
 }
 
-/** Parâmetros novos com `name` trocado; os demais ficam como estão. */
+/** New params with `name` replaced; the others stay as they are. */
 export function withParam(
   params: Record<string, MediaParamValue>,
   name: string,

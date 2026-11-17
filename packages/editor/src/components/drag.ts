@@ -1,11 +1,11 @@
-/** Arrastar um componente da aba Componentes para o canvas (HTML5 drag and drop). */
+/** Drag a component from the Components tab onto the canvas (HTML5 drag and drop). */
 
-/** Tipo MIME próprio no `dataTransfer` (o canvas só aceita o drop quando ele está presente). */
+/** Custom MIME type in `dataTransfer` (the canvas only accepts the drop when it is present). */
 export const COMPONENT_DRAG_TYPE = 'application/x-mockup-component';
 
 export interface ComponentDragPayload {
   componentId: string;
-  /** Kit de origem (importado se o componente ainda não estiver no documento). */
+  /** Source kit (imported if the component is not yet in the document). */
   kit?: string;
 }
 

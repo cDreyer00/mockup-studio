@@ -1,4 +1,4 @@
-/** Diálogos de mídia: embed por URL e editor de código da ilha Three.js. */
+/** Media dialogs: URL embed and the Three.js island code editor. */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { basicSetup, EditorView } from 'codemirror';
@@ -13,7 +13,7 @@ import { insertFromUrl } from './mediaFlows';
 import { mediaDialogs, useMediaDialogs } from './mediaStore';
 import './effects.css';
 
-/* ---------------- embed por URL ---------------- */
+/* ---------------- URL embed ---------------- */
 
 function EmbedUrlDialog() {
   const [url, setUrl] = useState('');
@@ -32,7 +32,7 @@ function EmbedUrlDialog() {
       <form
         className="modal"
         role="dialog"
-        aria-label="Embed por URL"
+        aria-label="Embed from URL"
         data-testid="embed-dialog"
         onSubmit={(e) => {
           e.preventDefault();
@@ -43,9 +43,9 @@ function EmbedUrlDialog() {
           e.stopPropagation();
         }}
       >
-        <h2>Embed por URL</h2>
+        <h2>Embed from URL</h2>
         <div className="modal-message">
-          YouTube, Lottie (.json), Rive (.riv), vídeo (.mp4, .webm) ou qualquer página (iframe).
+          YouTube, Lottie (.json), Rive (.riv), video (.mp4, .webm) or any page (iframe).
         </div>
         <label className="modal-field">
           <span>URL</span>
@@ -62,19 +62,19 @@ function EmbedUrlDialog() {
           {url.trim() &&
             (providerKey ? (
               <>
-                Provedor detectado:{' '}
+                Detected provider:{' '}
                 <strong data-testid="embed-provider">{PROVIDER_LABELS[providerKey]}</strong>
               </>
             ) : (
-              <span data-testid="embed-provider-none">URL não reconhecida</span>
+              <span data-testid="embed-provider-none">URL not recognized</span>
             ))}
         </div>
         <div className="modal-actions">
           <button type="button" className="btn" onClick={mediaDialogs.closeEmbedUrl}>
-            Cancelar
+            Cancel
           </button>
           <button type="submit" className="btn primary" data-testid="embed-insert" disabled={!spec}>
-            Inserir
+            Insert
           </button>
         </div>
       </form>
@@ -82,7 +82,7 @@ function EmbedUrlDialog() {
   );
 }
 
-/* ---------------- editor de código Three.js ---------------- */
+/* ---------------- Three.js code editor ---------------- */
 
 type ThreeViewProps = {
   code: string;
@@ -90,7 +90,7 @@ type ThreeViewProps = {
   style?: CSSProperties;
 };
 
-// O ThreeView vive em fx/ (outro módulo): se ainda não existir, o preview cai no aviso.
+// ThreeView lives in fx/ (another module): if it does not exist yet, the preview falls back to the notice.
 const threeModules = import.meta.glob('../fx/ThreeView.tsx') as Record<
   string,
   () => Promise<{
@@ -140,7 +140,7 @@ function ThreeEditorDialog({ nodeId }: { nodeId: string }) {
     };
   }, [initial]);
 
-  // O nó sumiu (desfazer, exclusão remota): fecha.
+  // The node is gone (undo, remote deletion): close.
   useEffect(() => {
     if (!node?.embed) mediaDialogs.closeThree();
   }, [node?.embed]);
@@ -162,9 +162,9 @@ function ThreeEditorDialog({ nodeId }: { nodeId: string }) {
       <div
         className="modal fx-modal-wide"
         role="dialog"
-        aria-label="Editor de código Three.js"
+        aria-label="Three.js code editor"
         data-testid="three-editor"
-        // Captura: Ctrl+Enter e Esc são tratados antes do CodeMirror; nada vaza para os atalhos do canvas.
+        // Capture: Ctrl+Enter and Esc are handled before CodeMirror; nothing leaks to the canvas shortcuts.
         onKeyDownCapture={(e) => {
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
@@ -178,12 +178,12 @@ function ThreeEditorDialog({ nodeId }: { nodeId: string }) {
         }}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <h2>Ilha Three.js</h2>
+        <h2>Three.js island</h2>
         <div className="fx-three">
           <div className="fx-three-code" ref={host} data-testid="three-code" />
           <div className="fx-three-preview" data-testid="three-preview">
             {LazyThreeView ? (
-              <Suspense fallback="Carregando prévia…">
+              <Suspense fallback="Loading preview…">
                 <LazyThreeView
                   code={previewCode}
                   params={params}
@@ -191,19 +191,19 @@ function ThreeEditorDialog({ nodeId }: { nodeId: string }) {
                 />
               </Suspense>
             ) : (
-              <span>Prévia indisponível: aplique o código para vê-lo no canvas.</span>
+              <span>Preview unavailable: apply the code to see it on the canvas.</span>
             )}
           </div>
         </div>
         <div className="modal-actions">
           <span className="modal-message" style={{ marginRight: 'auto' }}>
-            Ctrl+Enter aplica · Esc descarta
+            Ctrl+Enter applies · Esc discards
           </span>
           <button type="button" className="btn" onClick={mediaDialogs.closeThree}>
-            Fechar
+            Close
           </button>
           <button type="button" className="btn primary" data-testid="three-apply" onClick={apply}>
-            Aplicar
+            Apply
           </button>
         </div>
       </div>
@@ -211,7 +211,7 @@ function ThreeEditorDialog({ nodeId }: { nodeId: string }) {
   );
 }
 
-/** Monte uma vez (na barra): renderiza o diálogo aberto, se houver. */
+/** Mount once (in the bar): renders the open dialog, if any. */
 export function MediaDialogsHost() {
   const embedOpen = useMediaDialogs((s) => s.embedUrlOpen);
   const threeId = useMediaDialogs((s) => s.threeNodeId);

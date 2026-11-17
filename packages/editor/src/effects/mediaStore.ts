@@ -1,9 +1,9 @@
-/** Estado dos diálogos de mídia (embed por URL e editor de código Three.js). */
+/** State of the media dialogs (URL embed and Three.js code editor). */
 import { create } from 'zustand';
 
 interface MediaDialogs {
   embedUrlOpen: boolean;
-  /** Nó embed three cujo código está em edição. */
+  /** Three embed node whose code is being edited. */
   threeNodeId: string | null;
 }
 

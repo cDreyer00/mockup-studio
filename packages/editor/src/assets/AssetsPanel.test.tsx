@@ -62,7 +62,7 @@ describe('AssetsPanel', () => {
     useDoc.setState({ activeDocId: null, documents: [] });
   });
 
-  it('lista os assets, busca e filtra não usados', async () => {
+  it('lists the assets, searches and filters unused', async () => {
     render(<AssetsPanel />);
     expect(await screen.findByTestId('asset-item-used.png')).toBeTruthy();
     expect(screen.getByTestId('asset-item-free.png')).toBeTruthy();
@@ -73,7 +73,7 @@ describe('AssetsPanel', () => {
     expect(screen.getByTestId('asset-item-used.png')).toBeTruthy();
   });
 
-  it('copia o link do CDN e mostra toast', async () => {
+  it('copies the CDN link and shows a toast', async () => {
     render(<AssetsPanel />);
     const item = await screen.findByTestId('asset-item-free.png');
     fireEvent.click(within(item).getByTestId('asset-copy-link'));
@@ -82,7 +82,7 @@ describe('AssetsPanel', () => {
     expect(calls.some((c) => c.url === '/api/assets/d1/link' && c.method === 'POST')).toBe(true);
   });
 
-  it('remove com confirmação (DELETE)', async () => {
+  it('removes with confirmation (DELETE)', async () => {
     render(
       <>
         <AssetsPanel />
@@ -92,7 +92,7 @@ describe('AssetsPanel', () => {
     const item = await screen.findByTestId('asset-item-free.png');
     fireEvent.click(within(item).getByTestId('asset-delete'));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByText('Remover'));
+    fireEvent.click(within(dialog).getByText('Remove'));
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'DELETE' && c.url.includes('path=free.png'))).toBe(
         true,
@@ -101,7 +101,7 @@ describe('AssetsPanel', () => {
     expect(calls.find((c) => c.method === 'DELETE')!.url).not.toContain('force');
   });
 
-  it('asset em uso pede force', async () => {
+  it('asset in use asks for force', async () => {
     render(
       <>
         <AssetsPanel />
@@ -110,16 +110,16 @@ describe('AssetsPanel', () => {
     );
     const item = await screen.findByTestId('asset-item-used.png');
     fireEvent.click(within(item).getByTestId('asset-delete'));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByText('Remover'));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByText('Remove'));
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
     expect(calls.find((c) => c.method === 'DELETE')!.url).toContain('force=1');
   });
 
-  it('documento sem caminho mostra aviso', () => {
+  it('document without a path shows a notice', () => {
     useDoc.setState({
       documents: [{ docId: 'd1', name: 'Doc', path: null, dirty: false, revision: 0 }],
     });
     render(<AssetsPanel />);
-    expect(screen.getByText('Salve o documento para gerenciar assets')).toBeTruthy();
+    expect(screen.getByText('Save the document to manage assets')).toBeTruthy();
   });
 });

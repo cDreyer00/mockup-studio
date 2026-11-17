@@ -1,22 +1,22 @@
-/** Montagem pura das ops que inserem um efeito (como fundo ou como camada). Sem DOM nem daemon. */
+/** Pure assembly of the ops that insert an effect (as a background or as a layer). No DOM or daemon. */
 import { EFFECT_BACKGROUND_STYLE, createEffectNode, getEffect } from '@mockup/core';
 import type { Document, MediaParamValue, Node, Op } from '@mockup/core';
 import { getFrameOf, getNode } from '../model/tree';
 
 export interface EffectInsertOptions {
-  /** Camada filha comum (100% x 240px, no fluxo) em vez de fundo do pai. */
+  /** Plain child layer (100% x 240px, in flow) instead of the parent background. */
   asLayer?: boolean;
 }
 
 export interface EffectInsertPlan {
   ops: Op[];
-  /** Id do nó effect criado. */
+  /** Id of the created effect node. */
   nodeId: string;
-  /** Pai que recebe o efeito. */
+  /** Parent that receives the effect. */
   parentId: string;
 }
 
-/** Estilo de uma camada de efeito comum. */
+/** Style of a plain effect layer. */
 export const EFFECT_LAYER_STYLE: Readonly<Record<string, string>> = {
   width: '100%',
   height: '240px',
@@ -24,8 +24,8 @@ export const EFFECT_LAYER_STYLE: Readonly<Record<string, string>> = {
 };
 
 /**
- * Pai do efeito: o primeiro selecionado se for frame/elemento; senão o frame dele; sem seleção,
- * o primeiro frame da página `pageId` (ou da primeira página).
+ * Effect parent: the first selected node if it is a frame/element; otherwise its frame; with no
+ * selection, the first frame of page `pageId` (or of the first page).
  */
 export function resolveEffectTarget(
   doc: Document,
@@ -44,8 +44,8 @@ export function resolveEffectTarget(
 }
 
 /**
- * Ops para inserir um efeito em `targetId`: um `createNode` (índice 0 no fundo) e, quando faltarem,
- * `position: relative` e `isolation: isolate` no pai, tudo no mesmo apply. `null` se o alvo não existe.
+ * Ops to insert an effect into `targetId`: a `createNode` (index 0 for the background) and, when
+ * missing, `position: relative` and `isolation: isolate` on the parent, all in the same apply. `null` if the target does not exist.
  */
 export function buildEffectInsertOps(
   doc: Document,
@@ -56,7 +56,7 @@ export function buildEffectInsertOps(
 ): EffectInsertPlan | null {
   const parent = getNode(doc, targetId);
   if (!parent) return null;
-  const name = getEffect(kind)?.label ?? 'Efeito';
+  const name = getEffect(kind)?.label ?? 'Effect';
   const styles = opts.asLayer ? EFFECT_LAYER_STYLE : EFFECT_BACKGROUND_STYLE;
   const node: Node = createEffectNode(kind, params, { name, styles: { ...styles } });
   const ops: Op[] = [];

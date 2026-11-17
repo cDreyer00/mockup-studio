@@ -1,6 +1,6 @@
 /**
- * Itens do menu de contexto de nós, compartilhado pelo painel de camadas e pelo canvas.
- * Opera sobre a seleção atual (quem abre o menu seleciona o nó clicado antes, se preciso).
+ * Node context menu items, shared by the layers panel and the canvas.
+ * Operates on the current selection (whoever opens the menu selects the clicked node first, if needed).
  */
 import { actions } from '../actions';
 import {
@@ -42,10 +42,10 @@ export function buildNodeMenu(): MenuItem[] {
     ...(allSvg && nodes.length >= 2
       ? (
           [
-            ['union', 'União'],
-            ['subtract', 'Subtração'],
-            ['intersect', 'Interseção'],
-            ['exclude', 'Exclusão'],
+            ['union', 'Union'],
+            ['subtract', 'Subtract'],
+            ['intersect', 'Intersect'],
+            ['exclude', 'Exclude'],
           ] as const
         ).map(([op, label], i) => ({
           label,
@@ -56,7 +56,7 @@ export function buildNodeMenu(): MenuItem[] {
     ...(allSvg
       ? [
           {
-            label: 'Achatar',
+            label: 'Flatten',
             separator: nodes.length < 2,
             onSelect: () => void flatten(),
           },
@@ -65,7 +65,7 @@ export function buildNodeMenu(): MenuItem[] {
     ...(anyText
       ? [
           {
-            label: 'Texto em contornos',
+            label: 'Outline text',
             shortcut: 'Ctrl+Shift+O',
             separator: true,
             onSelect: () => void textToOutlines(),
@@ -75,87 +75,87 @@ export function buildNodeMenu(): MenuItem[] {
   ];
   return [
     {
-      label: 'Criar componente',
+      label: 'Create component',
       shortcut: 'Ctrl+Alt+K',
       disabled: !one || !doc || createComponentBlock(doc, one) !== null,
       onSelect: () => void createComponentFromSelection(),
     },
     {
-      label: 'Ir para principal',
+      label: 'Go to main',
       disabled: !instance,
       onSelect: () => void (instance && goToMain(instance)),
     },
     {
-      label: 'Destacar instância',
+      label: 'Detach instance',
       disabled: !instance || !doc || !isRealInstance(doc, instance),
       onSelect: () => void (instance && detachInstance(instance)),
     },
 
     {
-      label: 'Duplicar',
+      label: 'Duplicate',
       shortcut: 'Ctrl+D',
       separator: true,
       disabled: none,
       onSelect: () => void actions.duplicateSelection(),
     },
     {
-      label: 'Agrupar em container',
+      label: 'Group into container',
       shortcut: 'Ctrl+G',
       disabled: none,
       onSelect: () => void actions.group(),
     },
     {
-      label: 'Desagrupar',
+      label: 'Ungroup',
       shortcut: 'Ctrl+Shift+G',
       disabled: none || nodes.every((n) => n.children.length === 0),
       onSelect: () => void actions.ungroup(),
     },
     {
-      label: 'Converter em repetidor',
+      label: 'Convert to repeater',
       disabled: !convertible,
       onSelect: () => void convertToRepeater(sel[0]!),
     },
     {
-      label: 'Trazer para frente',
+      label: 'Bring to front',
       shortcut: 'Ctrl+Shift+]',
       separator: true,
       disabled: none,
       onSelect: () => void actions.reorder('front'),
     },
     {
-      label: 'Avançar',
+      label: 'Bring forward',
       shortcut: 'Ctrl+]',
       disabled: none,
       onSelect: () => void actions.reorder('forward'),
     },
     {
-      label: 'Recuar',
+      label: 'Send backward',
       shortcut: 'Ctrl+[',
       disabled: none,
       onSelect: () => void actions.reorder('backward'),
     },
     {
-      label: 'Enviar para trás',
+      label: 'Send to back',
       shortcut: 'Ctrl+Shift+[',
       disabled: none,
       onSelect: () => void actions.reorder('back'),
     },
     {
-      label: allHidden ? 'Mostrar' : 'Ocultar',
+      label: allHidden ? 'Show' : 'Hide',
       shortcut: 'Ctrl+Shift+H',
       separator: true,
       disabled: none,
       onSelect: () => void actions.setHidden(sel, !allHidden),
     },
     {
-      label: allLocked ? 'Destravar' : 'Travar',
+      label: allLocked ? 'Unlock' : 'Lock',
       shortcut: 'Ctrl+Shift+L',
       disabled: none,
       onSelect: () => void actions.setLocked(sel, !allLocked),
     },
     ...vectorItems,
     {
-      label: 'Simplificar importação',
+      label: 'Simplify import',
       separator: true,
       disabled: sel.length !== 1 || !canSimplify(sel[0]),
       onSelect: () => void simplifyImport(sel[0]!),
@@ -182,12 +182,12 @@ export function buildNodeMenu(): MenuItem[] {
       onSelect: () => void runRemix('layout'),
     },
     {
-      label: 'Remix com IA…',
+      label: 'Remix with AI…',
       disabled: !remixable,
       onSelect: () => void runAiRemix(),
     },
     {
-      label: 'Excluir',
+      label: 'Delete',
       shortcut: 'Delete',
       separator: true,
       danger: true,

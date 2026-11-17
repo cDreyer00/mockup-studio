@@ -1,4 +1,4 @@
-/** Painel de scripts: editor, execução, saída, biblioteca `scripts/*.js` e geração com IA. */
+/** Scripts panel: editor, execution, output, `scripts/*.js` library and AI generation. */
 import { useCallback, useEffect, useState } from 'react';
 import { isVirtualId } from '@mockup/core';
 import type { ScriptFileInfo } from '@mockup/core';
@@ -65,16 +65,16 @@ export function ScriptsPanel() {
     let name = forceAsk ? null : draft.name;
     if (!name) {
       const r = await prompt({
-        title: forceAsk ? 'Salvar script como' : 'Salvar script',
+        title: forceAsk ? 'Save script as' : 'Save script',
         fields: [
           {
             name: 'name',
-            label: 'Nome do arquivo (em scripts/)',
+            label: 'File name (in scripts/)',
             value: draft.name ?? '',
-            placeholder: 'renomear-textos',
+            placeholder: 'rename-texts',
           },
         ],
-        confirmLabel: 'Salvar',
+        confirmLabel: 'Save',
       });
       name = r?.name.trim() || null;
       if (!name) return;
@@ -82,7 +82,7 @@ export function ScriptsPanel() {
     try {
       const res = await daemon.scriptSave(name, draft.code, docId);
       scriptsStore.patch(docId, { name: res.name, dirty: false });
-      ui.toast(`Script salvo: ${res.name}`);
+      ui.toast(`Script saved: ${res.name}`);
       void refreshLibrary();
     } catch (e) {
       ui.toast(message(e), 'error');
@@ -102,10 +102,10 @@ export function ScriptsPanel() {
   const remove = async (name: string) => {
     if (!docId) return;
     const ok = await prompt({
-      title: 'Excluir script',
-      message: `Excluir "${name}" da biblioteca? Esta ação não pode ser desfeita.`,
+      title: 'Delete script',
+      message: `Delete "${name}" from the library? This action cannot be undone.`,
       fields: [],
-      confirmLabel: 'Excluir',
+      confirmLabel: 'Delete',
     });
     if (!ok) return;
     try {
@@ -135,7 +135,7 @@ export function ScriptsPanel() {
   if (!docId) {
     return (
       <div className="sc-panel" data-testid="scripts-panel">
-        <div className="sc-muted sc-pad">Abra um documento para escrever scripts.</div>
+        <div className="sc-muted sc-pad">Open a document to write scripts.</div>
       </div>
     );
   }
@@ -147,23 +147,23 @@ export function ScriptsPanel() {
           type="button"
           className="btn primary sc-run"
           data-testid="script-run"
-          title="Executar (Ctrl+Enter)"
+          title="Run (Ctrl+Enter)"
           disabled={running}
           onClick={() => void run()}
         >
-          <Play size={12} /> {running ? 'Executando…' : 'Executar'}
+          <Play size={12} /> {running ? 'Running…' : 'Run'}
         </button>
         <select
           className="select-input sc-examples"
           data-testid="script-examples"
-          aria-label="Exemplos"
+          aria-label="Examples"
           value=""
           onChange={(e) => {
             const ex = SCRIPT_EXAMPLES.find((x) => x.id === e.target.value);
             if (ex) scriptsStore.load(docId, ex.code, null, true);
           }}
         >
-          <option value="">Exemplos…</option>
+          <option value="">Examples…</option>
           {SCRIPT_EXAMPLES.map((ex) => (
             <option key={ex.id} value={ex.id}>
               {ex.label}
@@ -173,7 +173,7 @@ export function ScriptsPanel() {
         <button
           type="button"
           className="icon-btn"
-          title="Novo script"
+          title="New script"
           data-testid="script-new"
           onClick={() => scriptsStore.load(docId, DEFAULT_SCRIPT, null)}
         >
@@ -182,7 +182,7 @@ export function ScriptsPanel() {
         <button
           type="button"
           className={`icon-btn${showLibrary ? ' active' : ''}`}
-          title="Biblioteca de scripts"
+          title="Script library"
           data-testid="script-library-toggle"
           onClick={() => setShowLibrary((v) => !v)}
         >
@@ -191,7 +191,7 @@ export function ScriptsPanel() {
         <button
           type="button"
           className="icon-btn"
-          title="Salvar"
+          title="Save"
           data-testid="script-save"
           onClick={() => void saveAs(false)}
         >
@@ -200,7 +200,7 @@ export function ScriptsPanel() {
         <button
           type="button"
           className="icon-btn"
-          title="Salvar como…"
+          title="Save as…"
           data-testid="script-save-as"
           onClick={() => void saveAs(true)}
         >
@@ -212,11 +212,11 @@ export function ScriptsPanel() {
         <div className="sc-library" data-testid="script-library">
           {library?.dir === null ? (
             <div className="sc-warn" data-testid="script-library-nopath">
-              Salve o documento em um arquivo para usar a biblioteca de scripts (pasta{' '}
-              <code>scripts/</code> ao lado dele).
+              Save the document to a file to use the script library (the <code>scripts/</code>{' '}
+              folder next to it).
             </div>
           ) : !library || library.scripts.length === 0 ? (
-            <div className="sc-muted sc-pad">Nenhum script salvo ainda.</div>
+            <div className="sc-muted sc-pad">No saved scripts yet.</div>
           ) : (
             library.scripts.map((s) => (
               <div key={s.name} className={`sc-lib-row${draft.name === s.name ? ' active' : ''}`}>
@@ -224,7 +224,7 @@ export function ScriptsPanel() {
                   type="button"
                   className="sc-lib-open"
                   data-testid={`script-open-${s.name}`}
-                  title={`Abrir ${s.name}`}
+                  title={`Open ${s.name}`}
                   onClick={() => void open(s.name)}
                 >
                   {s.name}
@@ -232,7 +232,7 @@ export function ScriptsPanel() {
                 <button
                   type="button"
                   className="icon-btn"
-                  title={`Excluir ${s.name}`}
+                  title={`Delete ${s.name}`}
                   data-testid={`script-delete-${s.name}`}
                   onClick={() => void remove(s.name)}
                 >
@@ -254,7 +254,7 @@ export function ScriptsPanel() {
         <input
           className="text-input"
           data-testid="script-ai-prompt"
-          placeholder="Gerar com IA: descreva o script…"
+          placeholder="Generate with AI: describe the script…"
           value={aiPrompt}
           disabled={generating}
           onChange={(e) => setAiPrompt(e.target.value)}
@@ -264,9 +264,9 @@ export function ScriptsPanel() {
           className="btn"
           data-testid="script-ai-generate"
           disabled={generating || !aiPrompt.trim()}
-          title="Gerar script com IA"
+          title="Generate script with AI"
         >
-          <Sparkles size={12} /> {generating ? 'Gerando…' : 'Gerar'}
+          <Sparkles size={12} /> {generating ? 'Generating…' : 'Generate'}
         </button>
       </form>
       {aiError && (
@@ -276,7 +276,7 @@ export function ScriptsPanel() {
       )}
 
       <div className="sc-name" data-testid="script-name">
-        {draft.name ?? 'Sem título'}
+        {draft.name ?? 'Untitled'}
         {draft.dirty ? ' •' : ''}
       </div>
       <div className="sc-editor-wrap">

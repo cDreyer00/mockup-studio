@@ -18,7 +18,7 @@ describe('localizeAnimation', () => {
     toast.mockReset();
   });
 
-  it('troca a URL do Lottie/Rive pelo src copiado em assets/', async () => {
+  it('replaces the Lottie/Rive URL with the src copied to assets/', async () => {
     fetchAsset.mockResolvedValueOnce('lottie/a.json');
     const out = await localizeAnimation({ provider: 'lottie', src: 'https://x.dev/a.json' });
     expect(out).toEqual({ provider: 'lottie', src: 'lottie/a.json' });
@@ -30,7 +30,7 @@ describe('localizeAnimation', () => {
     });
   });
 
-  it('se o download falha, mantém a URL e avisa', async () => {
+  it('if the download fails, keeps the URL and warns', async () => {
     fetchAsset.mockRejectedValueOnce(new Error('HTTP 404'));
     const spec = { provider: 'rive', src: 'https://x.dev/b.riv' } as const;
     expect(await localizeAnimation(spec)).toEqual(spec);
@@ -38,7 +38,7 @@ describe('localizeAnimation', () => {
     expect(String(toast.mock.calls[0]![0])).toContain('HTTP 404');
   });
 
-  it('não mexe em outros provedores nem em caminhos locais', async () => {
+  it('leaves other providers and local paths alone', async () => {
     const yt = { provider: 'youtube', url: 'https://youtu.be/dQw4w9WgXcQ' } as const;
     expect(await localizeAnimation(yt)).toBe(yt);
     const local = { provider: 'lottie', src: 'lottie/a.json' } as const;
@@ -48,7 +48,7 @@ describe('localizeAnimation', () => {
 });
 
 describe('VIDEO_ACCEPT', () => {
-  it('é igual ao conjunto do MCP', () => {
+  it('matches the MCP set', () => {
     expect(VIDEO_ACCEPT.split(',').sort()).toEqual(['.m4v', '.mov', '.mp4', '.ogv', '.webm']);
   });
 });

@@ -1,4 +1,4 @@
-/** Painel de assets do documento ativo + biblioteca global (CDN). */
+/** Assets panel of the active document + global library (CDN). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent, ReactNode } from 'react';
 import {
@@ -89,14 +89,14 @@ function AssetItem({
           type="button"
           className={`asset-uses${unused ? ' none' : ''}`}
           data-testid="asset-uses"
-          title={unused ? 'Não usado' : 'Selecionar os nós que usam'}
+          title={unused ? 'Unused' : 'Select the nodes that use it'}
           disabled={unused}
           onClick={() => {
             if (!revealNodes(asset.nodeIds))
-              ui.toast('Os nós que usam este asset não estão no documento.');
+              ui.toast('The nodes that use this asset are not in the document.');
           }}
         >
-          {unused ? 'não usado' : `${asset.uses} ${asset.uses === 1 ? 'uso' : 'usos'}`}
+          {unused ? 'unused' : `${asset.uses} ${asset.uses === 1 ? 'use' : 'uses'}`}
         </button>
       </div>
       <div className="asset-name">{asset.name}</div>
@@ -110,7 +110,7 @@ function AssetItem({
             type="button"
             className="asset-btn"
             data-testid="asset-insert"
-            title="Inserir no canvas"
+            title="Insert into canvas"
             onClick={() => void insertAsset(asset).then(onChanged)}
           >
             <Plus size={13} />
@@ -120,7 +120,7 @@ function AssetItem({
           type="button"
           className="asset-btn"
           data-testid="asset-copy-link"
-          title="Copiar link (CDN)"
+          title="Copy link (CDN)"
           onClick={() => void onAssets.copyLink(asset)}
         >
           <Copy size={13} />
@@ -129,7 +129,7 @@ function AssetItem({
           type="button"
           className="asset-btn"
           data-testid="asset-to-library"
-          title="Enviar para a biblioteca"
+          title="Send to library"
           onClick={() => void onAssets.toLibrary(asset)}
         >
           <Library size={13} />
@@ -138,7 +138,7 @@ function AssetItem({
           type="button"
           className="asset-btn danger"
           data-testid="asset-delete"
-          title="Remover"
+          title="Remove"
           onClick={() => void onAssets.remove(asset)}
         >
           <Trash2 size={13} />
@@ -192,7 +192,7 @@ function LibrarySection({
   const importOne = async (a: LibraryAsset) => {
     try {
       await api.library.import(a.hash, docId);
-      ui.toast(`"${a.name}" importado para o documento.`);
+      ui.toast(`"${a.name}" imported into the document.`);
       onImported();
     } catch (e) {
       ui.toast(errorText(e), 'error');
@@ -201,9 +201,9 @@ function LibrarySection({
   const removeOne = async (a: LibraryAsset) => {
     if (
       !(await confirmDialog(
-        'Remover da biblioteca',
-        `Remover "${a.name}" da biblioteca?`,
-        'Remover',
+        'Remove from library',
+        `Remove "${a.name}" from the library?`,
+        'Remove',
       ))
     )
       return;
@@ -226,20 +226,20 @@ function LibrarySection({
         onClick={() => setOpen(!open)}
       >
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <span>Biblioteca</span>
+        <span>Library</span>
       </button>
       {open && (
         <div className="assets-library-body">
           <input
             className="assets-search"
             data-testid="library-search"
-            placeholder="Buscar na biblioteca"
+            placeholder="Search the library"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {error && <div className="assets-error">{error}</div>}
           {!error && items.length === 0 && (
-            <div className="assets-empty">Biblioteca vazia. Envie um asset do documento.</div>
+            <div className="assets-empty">Library is empty. Send an asset from the document.</div>
           )}
           <div className="assets-grid">
             {items.map((a) => (
@@ -256,14 +256,14 @@ function LibrarySection({
                 <div className="asset-name">{a.name}</div>
                 <div className="asset-meta">
                   {formatBytes(a.size)}
-                  {inDoc.has(a.hash) ? ' · no documento' : ''}
+                  {inDoc.has(a.hash) ? ' · in document' : ''}
                 </div>
                 <div className="asset-actions">
                   <button
                     type="button"
                     className="asset-btn"
                     data-testid="library-import"
-                    title="Importar para o documento"
+                    title="Import into document"
                     onClick={() => void importOne(a)}
                   >
                     <Download size={13} />
@@ -272,7 +272,7 @@ function LibrarySection({
                     type="button"
                     className="asset-btn danger"
                     data-testid="library-delete"
-                    title="Remover da biblioteca"
+                    title="Remove from library"
                     onClick={() => void removeOne(a)}
                   >
                     <Trash2 size={13} />
@@ -315,13 +315,13 @@ export function AssetsPanel() {
     }
   }, [docId, hasPath]);
 
-  // Recarrega ao trocar de documento e (com debounce) quando o documento muda.
+  // Reloads when switching documents and (debounced) when the document changes.
   useEffect(() => {
     const t = setTimeout(() => void reload(), 300);
     return () => clearTimeout(t);
   }, [reload, doc]);
 
-  // Soltar um asset sobre o canvas insere um nó `img`.
+  // Dropping an asset on the canvas inserts an `img` node.
   useEffect(() => listenAssetDrops((path) => assetsRef.current.find((a) => a.path === path)), []);
 
   const visible = useMemo(
@@ -341,7 +341,7 @@ export function AssetsPanel() {
         ui.toast(`${f.name}: ${errorText(e)}`, 'error');
       }
     }
-    if (ok) ui.toast(ok === 1 ? 'Arquivo enviado.' : `${ok} arquivos enviados.`);
+    if (ok) ui.toast(ok === 1 ? 'File uploaded.' : `${ok} files uploaded.`);
     await reload();
   };
 
@@ -352,9 +352,9 @@ export function AssetsPanel() {
         const { url } = await api.assets.link(docId, a.path);
         try {
           await navigator.clipboard.writeText(url);
-          ui.toast(`Link copiado: ${url}`);
+          ui.toast(`Link copied: ${url}`);
         } catch {
-          ui.toast(`Não foi possível copiar automaticamente. Link: ${url}`);
+          ui.toast(`Could not copy automatically. Link: ${url}`);
         }
       } catch (e) {
         ui.toast(errorText(e), 'error');
@@ -364,11 +364,11 @@ export function AssetsPanel() {
       if (!docId) return;
       const inUse = a.uses > 0;
       const ok = await confirmDialog(
-        'Remover asset',
+        'Remove asset',
         inUse
-          ? `"${a.path}" é usado por ${a.uses} ${a.uses === 1 ? 'nó' : 'nós'}. Remover mesmo assim? Os nós ficarão com imagem quebrada.`
-          : `Remover "${a.path}" do documento?`,
-        'Remover',
+          ? `"${a.path}" is used by ${a.uses} ${a.uses === 1 ? 'node' : 'nodes'}. Remove anyway? The nodes will have a broken image.`
+          : `Remove "${a.path}" from the document?`,
+        'Remove',
       );
       if (!ok) return;
       try {
@@ -378,15 +378,15 @@ export function AssetsPanel() {
           if (!(e instanceof ApiError && e.status === 409)) throw e;
           if (
             !(await confirmDialog(
-              'Asset em uso',
-              `"${a.path}" está em uso. Remover mesmo assim?`,
-              'Remover',
+              'Asset in use',
+              `"${a.path}" is in use. Remove anyway?`,
+              'Remove',
             ))
           )
             return;
           await api.assets.remove(docId, a.path, true);
         }
-        ui.toast(`"${a.name}" removido.`);
+        ui.toast(`"${a.name}" removed.`);
       } catch (e) {
         ui.toast(errorText(e), 'error');
       }
@@ -396,9 +396,9 @@ export function AssetsPanel() {
       if (!docId) return;
       try {
         const res = await fetch(assetViewUrl(docId, a.path));
-        if (!res.ok) throw new Error(`Não foi possível ler "${a.name}" (${res.status}).`);
+        if (!res.ok) throw new Error(`Could not read "${a.name}" (${res.status}).`);
         await api.library.upload(await res.blob(), a.name);
-        ui.toast(`"${a.name}" enviado para a biblioteca.`);
+        ui.toast(`"${a.name}" sent to the library.`);
         setLibKey((k) => k + 1);
       } catch (e) {
         ui.toast(errorText(e), 'error');
@@ -411,15 +411,15 @@ export function AssetsPanel() {
     try {
       const dry = await api.assets.removeUnused(docId, true);
       if (!dry.removed.length) {
-        ui.toast('Não há assets sem uso.');
+        ui.toast('There are no unused assets.');
         return;
       }
       const ok = await confirmDialog(
-        'Remover não usados',
+        'Remove unused',
         <div>
           <p>
             {dry.removed.length}{' '}
-            {dry.removed.length === 1 ? 'arquivo será removido' : 'arquivos serão removidos'}:
+            {dry.removed.length === 1 ? 'file will be removed' : 'files will be removed'}:
           </p>
           <ul className="assets-confirm-list" data-testid="assets-remove-list">
             {dry.removed.map((p) => (
@@ -427,12 +427,12 @@ export function AssetsPanel() {
             ))}
           </ul>
         </div>,
-        'Remover',
+        'Remove',
       );
       if (!ok) return;
       const res = await api.assets.removeUnused(docId, false);
       ui.toast(
-        `${res.removed.length} ${res.removed.length === 1 ? 'arquivo removido' : 'arquivos removidos'}.`,
+        `${res.removed.length} ${res.removed.length === 1 ? 'file removed' : 'files removed'}.`,
       );
     } catch (e) {
       ui.toast(errorText(e), 'error');
@@ -443,11 +443,11 @@ export function AssetsPanel() {
   const optimize = async () => {
     if (!docId) return;
     const r = await prompt({
-      title: 'Otimizar imagens',
+      title: 'Optimize images',
       message:
-        'Converte as imagens para WebP. Informe a largura máxima ou deixe em branco para manter o tamanho.',
-      fields: [{ name: 'maxWidth', label: 'Largura máxima (px, opcional)', placeholder: '1600' }],
-      confirmLabel: 'Otimizar',
+        'Converts the images to WebP. Enter the maximum width or leave blank to keep the size.',
+      fields: [{ name: 'maxWidth', label: 'Max width (px, optional)', placeholder: '1600' }],
+      confirmLabel: 'Optimize',
     });
     if (!r) return;
     const maxWidth = Number.parseInt(r.maxWidth ?? '', 10);
@@ -472,7 +472,7 @@ export function AssetsPanel() {
   if (!docId) {
     return (
       <div className="assets-panel" data-testid="assets-panel">
-        <div className="assets-empty">Abra um documento para ver os assets.</div>
+        <div className="assets-empty">Open a document to see the assets.</div>
       </div>
     );
   }
@@ -480,7 +480,7 @@ export function AssetsPanel() {
     return (
       <div className="assets-panel" data-testid="assets-panel">
         <div className="assets-empty" data-testid="assets-unsaved">
-          Salve o documento para gerenciar assets
+          Save the document to manage assets
         </div>
       </div>
     );
@@ -494,7 +494,7 @@ export function AssetsPanel() {
           <input
             className="assets-search"
             data-testid="assets-search"
-            placeholder="Buscar assets"
+            placeholder="Search assets"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -506,7 +506,7 @@ export function AssetsPanel() {
             data-testid="assets-upload"
             onClick={() => fileInput.current?.click()}
           >
-            <Upload size={12} /> Enviar
+            <Upload size={12} /> Upload
           </button>
           <button
             type="button"
@@ -515,7 +515,7 @@ export function AssetsPanel() {
             disabled={!assets.some((a) => a.kind === 'image')}
             onClick={() => void optimize()}
           >
-            <Sparkles size={12} /> Otimizar
+            <Sparkles size={12} /> Optimize
           </button>
           <input
             ref={fileInput}
@@ -538,7 +538,7 @@ export function AssetsPanel() {
               checked={unusedOnly}
               onChange={(e) => setUnusedOnly(e.target.checked)}
             />
-            Não usados ({unusedCount})
+            Unused ({unusedCount})
           </label>
           <button
             type="button"
@@ -547,7 +547,7 @@ export function AssetsPanel() {
             disabled={unusedCount === 0}
             onClick={() => void removeUnused()}
           >
-            Remover não usados
+            Remove unused
           </button>
         </div>
       </div>
@@ -567,8 +567,8 @@ export function AssetsPanel() {
         {!error && visible.length === 0 && (
           <div className="assets-empty">
             {assets.length === 0
-              ? 'Nenhum asset ainda. Arraste arquivos para cá ou use Enviar.'
-              : 'Nenhum asset corresponde ao filtro.'}
+              ? 'No assets yet. Drag files here or use Upload.'
+              : 'No assets match the filter.'}
           </div>
         )}
         <div className="assets-grid">

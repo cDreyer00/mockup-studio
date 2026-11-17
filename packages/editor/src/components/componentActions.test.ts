@@ -36,8 +36,8 @@ afterEach(() => {
   useDoc.setState({ doc: null, rawDoc: null });
 });
 
-describe('bloqueio de estrutura em nós de instâncias', () => {
-  it('excluir, duplicar e mover nós internos é bloqueado com aviso (sem op)', async () => {
+describe('structure blocking on instance nodes', () => {
+  it('deleting, duplicating and moving internal nodes is blocked with a notice (no op)', async () => {
     const f = makeComponentDoc();
     useDoc.setState(withView(f.doc));
     const inner = `${f.instanceIds[0]}/${f.main.textId}`;
@@ -46,16 +46,16 @@ describe('bloqueio de estrutura em nós de instâncias', () => {
     await actions.duplicateSelection();
     await actions.nudge(1, 0);
     expect(apply).not.toHaveBeenCalled();
-    expect(useUi.getState().toast?.text).toMatch(/internos/);
+    expect(useUi.getState().toast?.text).toMatch(/Internal nodes/);
     const view = useDoc.getState().doc!;
     expect(computeDropOps(view, [inner], { id: f.frameId, zone: 'inside' })).toBeNull();
-    // Soltar dentro da instância (fora do slot) também não vale.
+    // Dropping inside the instance (outside the slot) is not allowed either.
     expect(
       computeDropOps(view, [f.instanceIds[2]!], { id: f.instanceIds[0]!, zone: 'inside' }),
     ).toBeNull();
   });
 
-  it('a instância em si pode ser excluída', async () => {
+  it('the instance itself can be deleted', async () => {
     const f = makeComponentDoc();
     useDoc.setState(withView(f.doc));
     ui.select([f.instanceIds[1]!]);
@@ -64,8 +64,8 @@ describe('bloqueio de estrutura em nós de instâncias', () => {
   });
 });
 
-describe('criar componente (Ctrl+Alt+K)', () => {
-  it('manda replaceNode + addComponent + replaceNode numa chamada e seleciona a instância', async () => {
+describe('create component (Ctrl+Alt+K)', () => {
+  it('sends replaceNode + addComponent + replaceNode in one call and selects the instance', async () => {
     const { doc, c } = makeDoc();
     useDoc.setState(withView(doc));
     ui.select([c.id]);
@@ -78,7 +78,7 @@ describe('criar componente (Ctrl+Alt+K)', () => {
     expect(useUi.getState().selection).toEqual([replaced!.id]);
   });
 
-  it('recusa frame raiz e nós internos', async () => {
+  it('refuses root frames and internal nodes', async () => {
     const { doc, frame } = makeDoc();
     useDoc.setState(withView(doc));
     ui.select([frame.id]);
@@ -92,8 +92,8 @@ describe('criar componente (Ctrl+Alt+K)', () => {
   });
 });
 
-describe('inserir instância', () => {
-  it('sem seleção, insere no primeiro frame; com instância selecionada, logo depois dela', () => {
+describe('insert instance', () => {
+  it('with no selection, inserts into the first frame; with an instance selected, right after it', () => {
     const f = makeComponentDoc();
     const view = withView(f.doc).doc!;
     expect(insertTargetFromSelection(view, [], null)).toEqual({ parentId: f.frameId });
@@ -103,7 +103,7 @@ describe('inserir instância', () => {
     });
   });
 
-  it('do documento: um createNode com a instância e os contêineres de slot', async () => {
+  it('from the document: a createNode with the instance and the slot containers', async () => {
     const f = makeComponentDoc();
     useDoc.setState(withView(f.doc));
     const id = await insertInstance(f.componentId);
@@ -118,7 +118,7 @@ describe('inserir instância', () => {
     expect(useUi.getState().selection).toEqual([id]);
   });
 
-  it('do kit: importa o componente e cria a instância na mesma chamada', async () => {
+  it('from the kit: imports the component and creates the instance in the same call', async () => {
     const kit = JSON.parse(fs.readFileSync(KIT_FILE, 'utf8')) as Document;
     const fetchMock = vi.fn(async (url: string) => ({
       ok: true,
@@ -128,7 +128,7 @@ describe('inserir instância', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { doc } = makeDoc();
     useDoc.setState(withView(doc));
-    await insertInstance('cp_sbutton1', { kit: 'shadcn-like', props: { label: 'Salvar' } });
+    await insertInstance('cp_sbutton1', { kit: 'shadcn-like', props: { label: 'Save' } });
     const ops = lastOps();
     const types = ops.map((o) => o.type);
     expect(types).toContain('addComponent');
@@ -137,11 +137,11 @@ describe('inserir instância', () => {
     expect(create.type).toBe('createNode');
     if (create.type !== 'createNode') return;
     expect(create.node.componentId).toBe('cp_sbutton1');
-    expect(create.node.props).toEqual({ label: 'Salvar' });
+    expect(create.node.props).toEqual({ label: 'Save' });
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
-  it('do kit: com o kit já importado, só adiciona o que falta (o principal editado fica)', async () => {
+  it('from the kit: with the kit already imported, only adds what is missing (the edited main component stays)', async () => {
     const kit = JSON.parse(fs.readFileSync(KIT_FILE, 'utf8')) as Document;
     vi.stubGlobal(
       'fetch',
@@ -149,7 +149,7 @@ describe('inserir instância', () => {
     );
     const { doc } = makeDoc();
     const imported = applyOps(doc, importKitOps(doc, parseDocument(kit), 'shadcn-like').ops).doc;
-    // Button editado e Card apagado (sem instâncias).
+    // Button edited and Card deleted (no instances).
     const raw = applyOps(imported, [
       { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
       { type: 'deleteComponent', componentId: 'cp_scard001' },

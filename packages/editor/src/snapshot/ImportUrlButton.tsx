@@ -1,4 +1,4 @@
-/** Botão "Importar de URL" da toolbar e o diálogo correspondente. */
+/** "Import from URL" toolbar button and its dialog. */
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Globe } from 'lucide-react';
@@ -11,18 +11,18 @@ import { ImportError, postImportUrl, selectImported } from './importApi';
 import { importToastText } from './pasteSnapshot';
 
 export const NO_RENDER_MESSAGE =
-  'Importar de URL precisa do motor de render: abra o app desktop (ou `mockup serve --render`).';
+  'Import from URL needs the render engine: open the desktop app (or `mockup serve --render`).';
 
-/** Valida a URL (http/https); devolve a mensagem de erro ou `null`. */
+/** Validates the URL (http/https); returns the error message or `null`. */
 export function validateImportUrl(raw: string): string | null {
   const value = raw.trim();
-  if (!value) return 'Informe a URL';
+  if (!value) return 'Enter the URL';
   try {
     const u = new URL(value);
     if (u.protocol !== 'http:' && u.protocol !== 'https:')
-      return 'A URL deve começar com http:// ou https://';
+      return 'The URL must start with http:// or https://';
   } catch {
-    return 'URL inválida';
+    return 'Invalid URL';
   }
   return null;
 }
@@ -41,7 +41,7 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
     if (invalid) return setError(invalid);
     const { minWidth, maxWidth } = IMPORT_VIEWPORT_LIMITS;
     if (!Number.isFinite(w) || w < minWidth || w > maxWidth) {
-      return setError(`Largura do viewport entre ${minWidth} e ${maxWidth}`);
+      return setError(`Viewport width between ${minWidth} and ${maxWidth}`);
     }
     setError(null);
     setLoading(true);
@@ -78,7 +78,7 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
       <form
         className="modal"
         role="dialog"
-        aria-label="Importar de URL"
+        aria-label="Import from URL"
         data-testid="import-url-dialog"
         onSubmit={(e) => {
           e.preventDefault();
@@ -89,20 +89,20 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
           e.stopPropagation();
         }}
       >
-        <h2>Importar de URL</h2>
+        <h2>Import from URL</h2>
         <label className="modal-field">
           <span>URL</span>
           <input
             name="url"
             autoFocus
             value={url}
-            placeholder="https://exemplo.com"
+            placeholder="https://example.com"
             spellCheck={false}
             onChange={(e) => setUrl(e.target.value)}
           />
         </label>
         <label className="modal-field">
-          <span>Seletor CSS (opcional; vazio = página inteira)</span>
+          <span>CSS selector (optional; empty = whole page)</span>
           <input
             name="selector"
             value={selector}
@@ -112,7 +112,7 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
           />
         </label>
         <label className="modal-field">
-          <span>Largura do viewport</span>
+          <span>Viewport width</span>
           <input
             name="width"
             inputMode="numeric"
@@ -127,7 +127,7 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
             checked={reference}
             onChange={(e) => setReference(e.target.checked)}
           />
-          <span>Anexar imagem de referência</span>
+          <span>Attach reference image</span>
         </label>
         {error && (
           <div
@@ -141,10 +141,10 @@ export function ImportUrlDialog({ onClose }: { onClose: () => void }) {
         )}
         <div className="modal-actions">
           <button type="button" className="btn" disabled={loading} onClick={onClose}>
-            Cancelar
+            Cancel
           </button>
           <button type="submit" className="btn primary" disabled={loading}>
-            {loading ? 'Importando…' : 'Importar'}
+            {loading ? 'Importing…' : 'Import'}
           </button>
         </div>
       </form>
@@ -158,7 +158,7 @@ export function ImportUrlButton() {
   return (
     <>
       <IconButton
-        title="Importar de URL"
+        title="Import from URL"
         disabled={!hasDoc}
         data-testid="import-url"
         onClick={() => setOpen(true)}

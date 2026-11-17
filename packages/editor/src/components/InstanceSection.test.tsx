@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe('InstanceSection', () => {
-  it('aparece no painel para a instância selecionada, com o nome do componente', () => {
+  it('shows in the panel for the selected instance, with the component name', () => {
     const { ids } = setup();
     ui.select([ids[1]!]);
     render(<PropertiesPanel />);
@@ -55,7 +55,7 @@ describe('InstanceSection', () => {
     expect(screen.getByTestId('instance-slot-content')).toBeTruthy();
   });
 
-  it('cada tipo de prop tem o controle certo e gera setInstanceProps', () => {
+  it('each prop type has the right control and generates setInstanceProps', () => {
     const { ids } = setup();
     const id = ids[1]!;
     const node = getNode(useDoc.getState().doc!, id)!;
@@ -65,13 +65,13 @@ describe('InstanceSection', () => {
     const label = field('label').querySelector('input')!;
     expect(label.value).toBe('B');
     fireEvent.focus(label);
-    fireEvent.change(label, { target: { value: 'Salvar' } });
+    fireEvent.change(label, { target: { value: 'Save' } });
     fireEvent.blur(label);
     expect(lastOps()).toEqual([
-      { type: 'setInstanceProps', changes: [{ nodeId: id, set: { label: 'Salvar' } }] },
+      { type: 'setInstanceProps', changes: [{ nodeId: id, set: { label: 'Save' } }] },
     ]);
 
-    // enum (select); voltar ao padrão remove a prop
+    // enum (select); going back to the default removes the prop
     const select = field('variant').querySelector('select')!;
     fireEvent.change(select, { target: { value: 'outline' } });
     expect(lastOps()).toEqual([
@@ -98,7 +98,7 @@ describe('InstanceSection', () => {
       { type: 'setInstanceProps', changes: [{ nodeId: id, set: { active: true } }] },
     ]);
 
-    // color (texto do ColorInput)
+    // color (ColorInput text)
     const color = field('tint').querySelector<HTMLInputElement>('input.text-input')!;
     fireEvent.focus(color);
     fireEvent.change(color, { target: { value: '#ff0000' } });
@@ -108,7 +108,7 @@ describe('InstanceSection', () => {
     ]);
   });
 
-  it('Restaurar e Enviar ao principal só com overrides; Destacar gera replaceNode', () => {
+  it('Reset and Push to main only with overrides; Detach generates replaceNode', () => {
     const { doc, ids, textId } = setup();
     const id = ids[0]!;
     render(<InstanceSection node={getNode(useDoc.getState().doc!, id)!} />);
@@ -118,10 +118,10 @@ describe('InstanceSection', () => {
     expect(lastOps()[0]!.type).toBe('replaceNode');
     cleanup();
 
-    // Com um override no texto da instância, os dois botões ficam ativos.
+    // With an override on the instance text, both buttons become enabled.
     const withOv = applyOp(doc, {
       type: 'setInstanceOverrides',
-      changes: [{ nodeId: id, overrides: { [textId]: { text: 'Outro' } } }],
+      changes: [{ nodeId: id, overrides: { [textId]: { text: 'Other' } } }],
     }).doc;
     useDoc.setState(withView(withOv));
     render(<InstanceSection node={getNode(useDoc.getState().doc!, id)!} />);

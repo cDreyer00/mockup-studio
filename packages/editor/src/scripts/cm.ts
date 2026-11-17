@@ -1,6 +1,6 @@
 /**
- * CodeMirror 6 do painel de scripts. Este módulo só é importado sob demanda (`import()`), para o
- * CodeMirror não entrar no chunk principal do editor.
+ * CodeMirror 6 for the scripts panel. This module is only imported on demand (`import()`), so
+ * CodeMirror stays out of the editor main chunk.
  */
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { javascript, javascriptLanguage } from '@codemirror/lang-javascript';
@@ -27,35 +27,35 @@ const prop = (label: string, detail: string, info?: string): Completion => ({
 
 /** `doc.` */
 export const DOC_COMPLETIONS: Completion[] = [
-  method('select', '(query)', 'Nós que casam com o seletor (tipo, tag, #id, nome...).'),
-  method('selectOne', '(query)', 'Primeiro nó que casa com o seletor.'),
-  method('get', '(id)', 'Nó pelo id.'),
-  method('selection', '()', 'Nós selecionados no editor.'),
-  method('frames', '()', 'Frames da página.'),
-  method('pages', '()', 'Páginas do documento.'),
-  method('create', '(parent, spec)', 'Cria um nó dentro de parent (null = novo frame).'),
-  method('apply', '(op)', 'Aplica uma op do protocolo diretamente.'),
-  method('screenshot', '(nodeId?)', 'Imagem do nó (ou do frame); aparece na saída.'),
-  method('tokens', '()', 'Tokens de design do documento.'),
-  method('setTokens', '(tokens)', 'Define tokens de design.'),
+  method('select', '(query)', 'Nodes matching the selector (type, tag, #id, name...).'),
+  method('selectOne', '(query)', 'First node matching the selector.'),
+  method('get', '(id)', 'Node by id.'),
+  method('selection', '()', 'Nodes selected in the editor.'),
+  method('frames', '()', 'Frames of the page.'),
+  method('pages', '()', 'Pages of the document.'),
+  method('create', '(parent, spec)', 'Creates a node inside parent (null = new frame).'),
+  method('apply', '(op)', 'Applies a protocol op directly.'),
+  method('screenshot', '(nodeId?)', 'Image of the node (or of the frame); shows up in the output.'),
+  method('tokens', '()', 'Design tokens of the document.'),
+  method('setTokens', '(tokens)', 'Sets design tokens.'),
 ];
 
-/** Membros de um handle de nó. */
+/** Members of a node handle. */
 export const HANDLE_COMPLETIONS: Completion[] = [
   prop('id', 'string'),
   prop('type', 'string'),
   prop('tag', 'string'),
-  prop('name', 'string', 'Nome da camada (atribuível).'),
-  prop('text', 'string', 'Texto do nó (atribuível).'),
-  prop('style', 'proxy', 'Estilos CSS (leitura e atribuição).'),
+  prop('name', 'string', 'Layer name (assignable).'),
+  prop('text', 'string', 'Node text (assignable).'),
+  prop('style', 'proxy', 'CSS styles (read and assign).'),
   prop('attrs', 'object'),
   prop('children', 'Handle[]'),
   prop('parent', 'Handle'),
   prop('frame', 'Handle'),
-  method('setStyle', '(obj)', 'Define vários estilos de uma vez.'),
-  method('remove', '()', 'Exclui o nó.'),
-  method('duplicate', '()', 'Duplica o nó.'),
-  method('select', '(query)', 'Descendentes que casam com o seletor.'),
+  method('setStyle', '(obj)', 'Sets several styles at once.'),
+  method('remove', '()', 'Deletes the node.'),
+  method('duplicate', '()', 'Duplicates the node.'),
+  method('select', '(query)', 'Descendants matching the selector.'),
 ];
 
 const CONSOLE_COMPLETIONS: Completion[] = ['log', 'info', 'warn', 'error'].map((l) =>
@@ -63,11 +63,11 @@ const CONSOLE_COMPLETIONS: Completion[] = ['log', 'info', 'warn', 'error'].map((
 );
 
 const GLOBALS: Completion[] = [
-  { label: 'doc', type: 'variable', detail: 'API do documento' },
+  { label: 'doc', type: 'variable', detail: 'Document API' },
   { label: 'console', type: 'variable' },
 ];
 
-/** Fonte de autocomplete da API de scripts. */
+/** Autocomplete source for the scripts API. */
 export function scriptCompletions(context: CompletionContext): CompletionResult | null {
   const member = context.matchBefore(/([A-Za-z_$][\w$]*)\.([\w$]*)$/);
   if (member) {
@@ -138,7 +138,7 @@ export interface CreateEditorOptions {
   onRun: () => void;
 }
 
-/** Cria o editor (JavaScript, tema escuro, autocomplete da API `doc.`). */
+/** Creates the editor (JavaScript, dark theme, `doc.` API autocomplete). */
 export function createScriptEditor({ parent, doc, onChange, onRun }: CreateEditorOptions) {
   return new EditorView({
     parent,

@@ -1,10 +1,10 @@
-/** Seleciona nós, troca de página se preciso e pede ao canvas para enquadrá-los (como a seleção do MCP). */
+/** Selects nodes, switches page if needed and asks the canvas to frame them (like the MCP selection). */
 import { baseNodeId } from '@mockup/core';
 import { getEntry } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 
-/** Devolve quantos nós existem de fato no documento ativo. */
+/** Returns how many of the nodes actually exist in the active document. */
 export function revealNodes(nodeIds: readonly string[]): number {
   const doc = useDoc.getState().doc;
   if (!doc) return 0;

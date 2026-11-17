@@ -1,7 +1,7 @@
 /**
- * Aba "Componentes" do painel esquerdo: biblioteca do documento (clique = editar o principal;
- * arrastar ou "+" = inserir instância) e os kits do daemon (clique ou arrastar = inserir; o kit é
- * importado no mesmo passo se preciso). Busca por nome.
+ * "Components" tab of the left panel: the document library (click = edit the main component;
+ * drag or "+" = insert instance) and the daemon kits (click or drag = insert; the kit is
+ * imported in the same step if needed). Search by name.
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { DragEvent } from 'react';
@@ -17,8 +17,8 @@ import type { KitComponentInfo, KitInfo } from './kits';
 import './components.css';
 
 /**
- * Nº de instâncias por componente nas páginas, numa passada (as aninhadas em outros principais,
- * como os Buttons dentro do Dialog do kit, não contam).
+ * Number of instances per component on the pages, in one pass (those nested inside other main
+ * components, like the Buttons inside the kit Dialog, do not count).
  */
 export function countInstances(doc: Document): Map<string, number> {
   const out = new Map<string, number>();
@@ -32,7 +32,7 @@ export function countInstances(doc: Document): Map<string, number> {
   return out;
 }
 
-const plural = (n: number): string => (n === 1 ? '1 instância' : `${n} instâncias`);
+const plural = (n: number): string => (n === 1 ? '1 instance' : `${n} instances`);
 
 function matches(q: string, name: string, extra?: string): boolean {
   if (!q) return true;
@@ -46,7 +46,7 @@ function DocItem({ c, count, active }: { c: ComponentDef; count: number; active:
       data-testid={`component-item-${c.id}`}
       role="option"
       aria-selected={active}
-      title={c.description ?? 'Clique para editar o principal; arraste para inserir'}
+      title={c.description ?? 'Click to edit the main component; drag to insert'}
       draggable
       onDragStart={(e: DragEvent) => writeComponentDrag(e.dataTransfer, { componentId: c.id })}
       onClick={() => enterComponent(c.id)}
@@ -63,7 +63,7 @@ function DocItem({ c, count, active }: { c: ComponentDef; count: number; active:
         type="button"
         className="layer-btn"
         data-testid={`component-insert-${c.id}`}
-        title="Inserir instância"
+        title="Insert instance"
         onClick={(e) => {
           e.stopPropagation();
           void insertInstance(c.id);
@@ -82,7 +82,7 @@ function KitItem({ kit, c }: { kit: string; c: KitComponentInfo }) {
       data-testid={`kit-item-${kit}-${c.name}`}
       role="option"
       aria-selected={false}
-      title={c.description ?? 'Clique ou arraste para inserir'}
+      title={c.description ?? 'Click or drag to insert'}
       draggable
       onDragStart={(e: DragEvent) => writeComponentDrag(e.dataTransfer, { componentId: c.id, kit })}
       onClick={() => void insertInstance(c.id, { kit })}
@@ -123,7 +123,7 @@ export function ComponentsPanel() {
         <input
           className="text-input"
           data-testid="components-search"
-          placeholder="Buscar componentes"
+          placeholder="Search components"
           value={query}
           spellCheck={false}
           onChange={(e) => setQuery(e.target.value)}
@@ -135,14 +135,14 @@ export function ComponentsPanel() {
       </div>
       <div className="cmp-body">
         <div className="cmp-heading">
-          <span>Neste documento</span>
+          <span>In this document</span>
         </div>
         <div role="listbox" data-testid="components-library">
           {library.length === 0 ? (
             <div className="cmp-empty">
               {q
-                ? 'Nenhum componente com esse nome.'
-                : 'Nenhum componente. Selecione um nó e use Ctrl+Alt+K, ou insira um do kit abaixo.'}
+                ? 'No components with that name.'
+                : 'No components. Select a node and use Ctrl+Alt+K, or insert one from the kit below.'}
             </div>
           ) : (
             library.map((c) => (
@@ -150,17 +150,17 @@ export function ComponentsPanel() {
             ))
           )}
         </div>
-        {kitError && <div className="cmp-empty">Kits indisponíveis: {kitError}</div>}
+        {kitError && <div className="cmp-empty">Kits unavailable: {kitError}</div>}
         {kits?.map((kit) => {
           const list = kit.components.filter((c) => matches(q, c.name, c.description));
           return (
             <div key={kit.name} data-testid={`kit-${kit.name}`}>
               <div className="cmp-heading">
-                <span>Kit {kit.name}</span>
+                <span>{kit.name} kit</span>
               </div>
               <div role="listbox">
                 {list.length === 0 ? (
-                  <div className="cmp-empty">Nenhum componente com esse nome.</div>
+                  <div className="cmp-empty">No components with that name.</div>
                 ) : (
                   list.map((c) => <KitItem key={c.id} kit={kit.name} c={c} />)
                 )}

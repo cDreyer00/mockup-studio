@@ -1,6 +1,6 @@
 /**
- * Inserção de um asset já existente no documento como nó `img`: no nó selecionado (se aceita
- * filhos) ou no contêiner sob o ponteiro/centro da tela. Reaproveita `planPlacement`/`buildCreateOps`.
+ * Inserts an existing asset into the document as an `img` node: into the selected node (if it
+ * accepts children) or into the container under the pointer/screen center. Reuses `planPlacement`/`buildCreateOps`.
  */
 import type { Node, Op } from '@mockup/core';
 import { buildCreateOps, planPlacement } from '../canvas/placement';
@@ -19,14 +19,14 @@ const FALLBACK_SIZE = { w: 240, h: 160 };
 
 type InsertableAsset = Pick<AssetInfo, 'path' | 'name' | 'width' | 'height'>;
 
-/** Dimensão inicial: tamanho natural limitado a 800 px de largura. */
+/** Initial size: natural size capped at 800 px width. */
 export function initialImageSize(a: Pick<AssetInfo, 'width' | 'height'>): { w: number; h: number } {
   const nat = a.width && a.height ? { w: a.width, h: a.height } : FALLBACK_SIZE;
   const k = nat.w > MAX_IMAGE_W ? MAX_IMAGE_W / nat.w : 1;
   return { w: Math.max(1, Math.round(nat.w * k)), h: Math.max(1, Math.round(nat.h * k)) };
 }
 
-/** Insere o asset. `client` = ponto da janela (soltar no canvas). Devolve o id do nó ou `null`. */
+/** Inserts the asset. `client` = window point (drop on the canvas). Returns the node id or `null`. */
 export async function insertAsset(
   asset: InsertableAsset,
   client?: { x: number; y: number },
@@ -34,10 +34,9 @@ export async function insertAsset(
   try {
     const doc = useDoc.getState().doc;
     const pageId = currentPageId();
-    if (!doc || !pageId)
-      throw new Error('Nenhum documento aberto. Abra um documento para inserir.');
+    if (!doc || !pageId) throw new Error('No document open. Open a document to insert.');
     const { w, h } = initialImageSize(asset);
-    // Mesmo padrão do upload (`imageTool`): caminho relativo a assets/, sem o prefixo.
+    // Same pattern as upload (`imageTool`): path relative to assets/, without the prefix.
     const src = asset.path;
     const alt = asset.name.replace(/\.[^.]+$/, '');
     let image: Node;
@@ -58,7 +57,7 @@ export async function insertAsset(
       const plan = planPlacement(doc, at, client);
       if (!plan.parentId) {
         image = makeImage(src, { w, h, alt });
-        const frame = makeFrame(at.x, at.y, w, h, 'Imagem');
+        const frame = makeFrame(at.x, at.y, w, h, 'Image');
         frame.children.push(image);
         ops = buildCreateOps(pageId, plan, frame);
       } else {
@@ -76,10 +75,10 @@ export async function insertAsset(
   }
 }
 
-/** Tipo de arrasto usado para soltar um asset no canvas. */
+/** Drag type used to drop an asset on the canvas. */
 export const ASSET_DRAG_TYPE = 'application/x-mockup-asset';
 
-/** Ouve o drop de assets sobre o canvas (um único listener; devolve a função de remoção). */
+/** Listens for asset drops on the canvas (a single listener; returns the removal function). */
 export function listenAssetDrops(
   lookup: (path: string) => InsertableAsset | undefined,
 ): () => void {

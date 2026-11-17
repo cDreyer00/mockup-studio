@@ -1,4 +1,4 @@
-/** Saída da última execução: logs, resultado, erro, imagens e resumo. */
+/** Output of the last run: logs, result, error, images and summary. */
 import type { ScriptRunResult } from '@mockup/core';
 
 export function formatResult(value: unknown): string {
@@ -20,14 +20,14 @@ export function ScriptOutput({
   if (running) {
     return (
       <div className="sc-output" data-testid="script-output" data-state="running">
-        <div className="sc-muted">Executando…</div>
+        <div className="sc-muted">Running…</div>
       </div>
     );
   }
   if (!output) {
     return (
       <div className="sc-output" data-testid="script-output" data-state="empty">
-        <div className="sc-muted">A saída da execução aparece aqui.</div>
+        <div className="sc-muted">The run output appears here.</div>
       </div>
     );
   }
@@ -55,7 +55,7 @@ export function ScriptOutput({
             <img
               key={`${img.nodeId}-${i}`}
               data-testid="script-image"
-              alt={`Captura de ${img.nodeId}`}
+              alt={`Capture of ${img.nodeId}`}
               width={img.width}
               height={img.height}
               src={`data:${img.mime};base64,${img.data}`}
@@ -66,7 +66,7 @@ export function ScriptOutput({
       <div className="sc-meta" data-testid="script-meta">
         {output.opsCount} {output.opsCount === 1 ? 'op' : 'ops'} • {Math.round(output.durationMs)}{' '}
         ms
-        {output.opsCount > 0 && ' • Ctrl+Z desfaz tudo'}
+        {output.opsCount > 0 && ' • Ctrl+Z undoes all'}
       </div>
     </div>
   );

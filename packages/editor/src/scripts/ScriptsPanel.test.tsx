@@ -28,7 +28,7 @@ describe('ScriptsPanel', () => {
     useUi.setState({ selection: [] });
   });
 
-  it('mostra o editor (fallback até o CodeMirror carregar) e o botão Executar', async () => {
+  it('shows the editor (fallback until CodeMirror loads) and the Run button', async () => {
     render(<ScriptsPanel />);
     await act(async () => undefined);
     expect(screen.getByTestId('script-editor')).toBeTruthy();
@@ -36,10 +36,10 @@ describe('ScriptsPanel', () => {
     expect(screen.getByTestId('script-output').getAttribute('data-state')).toBe('empty');
   });
 
-  it('Executar envia o código e a seleção real e mostra a saída', async () => {
+  it('Run sends the code and the real selection and shows the output', async () => {
     const run = vi.spyOn(daemon, 'scriptRun').mockResolvedValue({
       ok: true,
-      logs: ['olá'],
+      logs: ['hello'],
       result: { n: 2 },
       images: [{ nodeId: 'n1', mime: 'image/png', data: 'AAAA', width: 10, height: 5 }],
       opsCount: 3,
@@ -53,7 +53,7 @@ describe('ScriptsPanel', () => {
     expect(run).toHaveBeenCalledWith(DEFAULT_SCRIPT, { selection: ['n1'], docId: DOC });
     const out = screen.getByTestId('script-output');
     expect(out.getAttribute('data-state')).toBe('ok');
-    expect(out.textContent).toContain('olá');
+    expect(out.textContent).toContain('hello');
     expect(screen.getByTestId('script-result').textContent).toContain('"n": 2');
     expect(screen.getByTestId('script-image').getAttribute('src')).toBe(
       'data:image/png;base64,AAAA',
@@ -61,17 +61,17 @@ describe('ScriptsPanel', () => {
     expect(screen.getByTestId('script-meta').textContent).toContain('3 ops • 12 ms');
   });
 
-  it('erro de execução aparece em vermelho (alert)', async () => {
-    vi.spyOn(daemon, 'scriptRun').mockRejectedValue(new Error('Sem conexão com o daemon'));
+  it('run error shows in red (alert)', async () => {
+    vi.spyOn(daemon, 'scriptRun').mockRejectedValue(new Error('No connection to the daemon'));
     render(<ScriptsPanel />);
     await act(async () => undefined);
     await act(async () => {
       fireEvent.click(screen.getByTestId('script-run'));
     });
-    expect(screen.getByTestId('script-error').textContent).toContain('Sem conexão');
+    expect(screen.getByTestId('script-error').textContent).toContain('No connection');
   });
 
-  it('biblioteca: lista, abre e avisa quando o documento não tem caminho', async () => {
+  it('library: lists, opens and warns when the document has no path', async () => {
     const read = vi
       .spyOn(daemon, 'scriptRead')
       .mockResolvedValue({ name: 'a.js', code: 'return 7' });
@@ -92,26 +92,26 @@ describe('ScriptsPanel', () => {
     expect(screen.getByTestId('script-library-nopath')).toBeTruthy();
   });
 
-  it('Gerar com IA preenche o editor; falha mostra o erro', async () => {
+  it('Generate with AI fills the editor; failure shows the error', async () => {
     const gen = vi
       .spyOn(daemon, 'scriptGenerate')
       .mockResolvedValueOnce({ code: 'return 42' })
-      .mockRejectedValueOnce(new Error('Backend indisponível'));
+      .mockRejectedValueOnce(new Error('Backend unavailable'));
     render(<ScriptsPanel />);
     await act(async () => undefined);
-    fireEvent.change(screen.getByTestId('script-ai-prompt'), { target: { value: 'liste frames' } });
+    fireEvent.change(screen.getByTestId('script-ai-prompt'), { target: { value: 'list frames' } });
     await act(async () => {
       fireEvent.click(screen.getByTestId('script-ai-generate'));
     });
-    expect(gen).toHaveBeenCalledWith('liste frames', DOC);
+    expect(gen).toHaveBeenCalledWith('list frames', DOC);
     expect(useScripts.getState().drafts[DOC]!.code).toBe('return 42');
     await act(async () => {
       fireEvent.click(screen.getByTestId('script-ai-generate'));
     });
-    expect(screen.getByTestId('script-ai-error').textContent).toBe('Backend indisponível');
+    expect(screen.getByTestId('script-ai-error').textContent).toBe('Backend unavailable');
   });
 
-  it('exemplo carrega o código no rascunho', async () => {
+  it('example loads the code into the draft', async () => {
     render(<ScriptsPanel />);
     await act(async () => undefined);
     fireEvent.change(screen.getByTestId('script-examples'), { target: { value: 'rename-texts' } });
@@ -122,7 +122,7 @@ describe('ScriptsPanel', () => {
 describe('ScriptOutput / completions', () => {
   afterEach(cleanup);
 
-  it('formatResult serializa em JSON e tolera valores não serializáveis', () => {
+  it('formatResult serializes to JSON and tolerates non-serializable values', () => {
     expect(formatResult(undefined)).toBe('');
     expect(formatResult([1, 2])).toBe('[\n  1,\n  2\n]');
     const cyc: Record<string, unknown> = {};
@@ -130,7 +130,7 @@ describe('ScriptOutput / completions', () => {
     expect(formatResult(cyc)).toBe('[object Object]');
   });
 
-  it('erro de script: estado "error" e resumo de ops', () => {
+  it('script error: "error" state and ops summary', () => {
     render(
       <ScriptOutput
         running={false}
@@ -148,7 +148,7 @@ describe('ScriptOutput / completions', () => {
     expect(screen.getByTestId('script-meta').textContent).toBe('0 ops • 1 ms');
   });
 
-  it('autocomplete oferece a API de doc. e dos handles', () => {
+  it('autocomplete offers the doc. and handle APIs', () => {
     const ctx = (text: string) => ({
       explicit: false,
       matchBefore: (re: RegExp) => {

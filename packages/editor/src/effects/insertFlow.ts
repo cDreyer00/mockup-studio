@@ -1,4 +1,4 @@
-/** Inserção de efeitos no documento: resolve o alvo, aplica as ops num único apply e seleciona. */
+/** Effect insertion into the document: resolves the target, applies the ops in a single apply and selects. */
 import { getEffect, presetParams, resolveEffectParams } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { isLockedDeep } from '../model/tree';
@@ -7,7 +7,7 @@ import { useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 import { buildEffectInsertOps, resolveEffectTarget } from './insert';
 
-/** Insere o efeito (`preset` opcional) como fundo do alvo ou, com `asLayer`, como camada filha. */
+/** Inserts the effect (optional `preset`) as the target background or, with `asLayer`, as a child layer. */
 export async function insertEffect(
   kind: string,
   preset?: string,
@@ -15,20 +15,20 @@ export async function insertEffect(
 ): Promise<string | null> {
   const doc = useDoc.getState().doc;
   if (!doc) {
-    ui.toast('Nenhum documento aberto', 'error');
+    ui.toast('No document open', 'error');
     return null;
   }
   const targetId = resolveEffectTarget(doc, useUi.getState().selection, currentPageId());
   if (!targetId) {
-    ui.toast('Crie um frame antes de inserir um efeito.', 'error');
+    ui.toast('Create a frame before inserting an effect.', 'error');
     return null;
   }
   if (isLockedDeep(doc, targetId)) {
-    ui.toast('O destino está travado.', 'error');
+    ui.toast('The target is locked.', 'error');
     return null;
   }
   if (!getEffect(kind)) {
-    ui.toast(`Efeito desconhecido: ${kind}`, 'error');
+    ui.toast(`Unknown effect: ${kind}`, 'error');
     return null;
   }
   const params = (preset ? presetParams(kind, preset) : undefined) ?? resolveEffectParams(kind);
@@ -36,7 +36,7 @@ export async function insertEffect(
   if (!plan) return null;
   const ack = await daemon.applySafe(plan.ops);
   if (!ack) {
-    ui.toast('Não foi possível inserir o efeito.', 'error');
+    ui.toast('Could not insert the effect.', 'error');
     return null;
   }
   ui.select([plan.nodeId]);

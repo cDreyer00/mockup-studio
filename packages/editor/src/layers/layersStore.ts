@@ -1,4 +1,4 @@
-/** Estado local do painel de camadas (recolhidos, âncora do Shift+clique, alvo de drop). */
+/** Local state of the layers panel (collapsed, Shift+click anchor, drop target). */
 import { create } from 'zustand';
 import type { DropZone } from './layersLogic';
 
@@ -20,7 +20,7 @@ export const layers = {
     if (!next.delete(id)) next.add(id);
     useLayers.setState({ collapsed: next });
   },
-  /** Expande os ids informados (se algum estiver recolhido). */
+  /** Expands the given ids (if any is collapsed). */
   expand(ids: readonly string[]): void {
     const cur = useLayers.getState().collapsed;
     if (!ids.some((id) => cur.has(id))) return;

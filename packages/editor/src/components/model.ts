@@ -1,11 +1,11 @@
 /**
- * Componentes no editor (ver `docs/COMPONENTES.md`, seção Editor): a visão do documento com as
- * instâncias expandidas, a página sintética do modo de edição do principal, o papel de cada nó
- * (instância, nó interno, slot, principal) e as regras do que pode ser movido/inserido.
+ * Components in the editor (see `docs/COMPONENTS.md`, Editor section): the document view with
+ * instances expanded, the synthetic page of the main component edit mode, the role of each node
+ * (instance, internal node, slot, main) and the rules for what can be moved/inserted.
  *
- * O canvas, as camadas, a seleção e as propriedades trabalham sobre a visão (`useDoc().doc`); os
- * planejadores do core (`createComponentOps`, `instanceNodeFor`, `detachInstanceOps`...) recebem o
- * documento real (`useDoc().rawDoc`).
+ * The canvas, layers, selection and properties work on the view (`useDoc().doc`); the core
+ * planners (`createComponentOps`, `instanceNodeFor`, `detachInstanceOps`...) receive the real
+ * document (`useDoc().rawDoc`).
  */
 import {
   COMPONENT_EDIT_PAGE_ID,
@@ -20,27 +20,27 @@ import {
 import type { Document, Node, Page } from '@mockup/core';
 import { canHaveChildren, getEntry, getNode } from '../model/tree';
 
-/** Frame sintético (não editável) que envolve a raiz do principal no modo de edição. */
+/** Synthetic (non-editable) frame that wraps the main component root in edit mode. */
 export const COMPONENT_FRAME_ID = 'fr__component';
-/** Respiro entre o quadro do modo de edição e a raiz do principal. */
+/** Padding between the edit mode frame and the main component root. */
 export const COMPONENT_FRAME_PADDING = 48;
 
-/** Parâmetros do modo de edição isolado do principal. */
+/** Parameters of the isolated edit mode of the main component. */
 export interface ComponentEditView {
   componentId: string;
-  /** Largura (px) da área do principal: a da instância de origem, quando conhecida. */
+  /** Width (px) of the main component area: that of the origin instance, when known. */
   width: number | null;
-  /** Fundo da página sintética (o da página de onde se entrou). */
+  /** Background of the synthetic page (that of the page it was entered from). */
   background: string | null;
 }
 
-/** Quadro sintético com a raiz do principal (instâncias aninhadas expandidas). */
+/** Synthetic frame with the main component root (nested instances expanded). */
 function componentFrame(raw: Document, root: Node, name: string, width: number | null): Node {
   const pad = COMPONENT_FRAME_PADDING;
   return {
     id: COMPONENT_FRAME_ID,
     type: 'frame',
-    name: `Componente ${name}`,
+    name: `Component ${name}`,
     tag: 'div',
     attrs: { 'data-component-frame': '' },
     style: {
@@ -63,9 +63,9 @@ function componentFrame(raw: Document, root: Node, name: string, width: number |
 }
 
 /**
- * Visão do documento: instâncias expandidas (`expandDocument`, com cache) e, no modo de edição,
- * uma página sintética `COMPONENT_EDIT_PAGE_ID` com o principal. Sem instâncias e sem edição,
- * devolve o próprio `raw`.
+ * Document view: expanded instances (`expandDocument`, cached) and, in edit mode, a synthetic
+ * page `COMPONENT_EDIT_PAGE_ID` with the main component. With no instances and no editing,
+ * returns `raw` itself.
  */
 export function buildView(raw: Document, edit: ComponentEditView | null): Document {
   const expanded = expandDocument(raw);
@@ -81,15 +81,15 @@ export function buildView(raw: Document, edit: ComponentEditView | null): Docume
 }
 
 /* ------------------------------------------------------------------ */
-/* papel dos nós                                                      */
+/* node roles                                                         */
 /* ------------------------------------------------------------------ */
 
 /**
- * - `instance`: raiz de uma instância (marcador `componentId` na árvore expandida);
- * - `internal`: nó vindo da árvore de um principal (id virtual): estilo/texto viram overrides;
- * - `slot`: contêiner de slot de uma instância (nó real; o conteúdo dele é comum);
- * - `main`: nó do principal em edição (página sintética);
- * - `frame`: o quadro sintético do modo de edição.
+ * - `instance`: root of an instance (`componentId` marker in the expanded tree);
+ * - `internal`: node coming from the tree of a main component (virtual id): style/text become overrides;
+ * - `slot`: slot container of an instance (real node; its content is regular);
+ * - `main`: node of the main component being edited (synthetic page);
+ * - `frame`: the synthetic edit mode frame.
  */
 export type ComponentRole = 'instance' | 'internal' | 'slot' | 'main' | 'frame';
 
@@ -108,43 +108,43 @@ export function componentRole(doc: Document | null, id: string): ComponentRole |
   return null;
 }
 
-/** Papéis desenhados em roxo no canvas (contorno de hover/seleção). */
+/** Roles drawn in purple on the canvas (hover/selection outline). */
 export function isPurpleRole(role: ComponentRole | null): boolean {
   return role === 'instance' || role === 'internal' || role === 'main' || role === 'slot';
 }
 
-/** Raiz do principal em edição (filha do quadro sintético). */
+/** Root of the main component being edited (child of the synthetic frame). */
 export function isMainRoot(doc: Document, id: string): boolean {
   const e = getEntry(doc, id);
   return !!e && e.pageId === COMPONENT_EDIT_PAGE_ID && e.parentId === COMPONENT_FRAME_ID;
 }
 
-/** Instância real (raiz expandida com id real) na visão. */
+/** Real instance (expanded root with a real id) in the view. */
 export function isRealInstance(doc: Document, id: string): boolean {
   return !isVirtualId(id) && getNode(doc, id)?.componentId !== undefined;
 }
 
 /**
- * Mensagem quando mover, reordenar, excluir, duplicar ou agrupar não vale para algum dos nós;
- * `null` quando pode.
+ * Message when move, reorder, delete, duplicate or group does not apply to one of the nodes;
+ * `null` when it is allowed.
  */
 export function structureBlock(doc: Document, ids: readonly string[]): string | null {
   for (const id of ids) {
-    if (id === COMPONENT_FRAME_ID) return 'O quadro do componente não é editável';
+    if (id === COMPONENT_FRAME_ID) return 'The component frame is not editable';
     if (isVirtualId(id)) {
-      return 'Nós internos de uma instância não podem ser movidos, duplicados nem excluídos: edite o principal ou destaque a instância';
+      return 'Internal nodes of an instance cannot be moved, duplicated or deleted: edit the main component or detach the instance';
     }
-    if (isMainRoot(doc, id)) return 'A raiz do principal não pode ser movida nem excluída';
+    if (isMainRoot(doc, id)) return 'The main component root cannot be moved or deleted';
     if (componentRole(doc, id) === 'slot') {
-      return 'O contêiner de slot faz parte da instância: mova ou exclua o conteúdo dele';
+      return 'The slot container is part of the instance: move or delete its content';
     }
   }
   return null;
 }
 
 /**
- * O nó aceita filhos novos (criar, colar, soltar)? Não: nós internos, raízes de instância (só
- * aceitam conteúdo dentro de um slot) e o quadro sintético.
+ * Does the node accept new children (create, paste, drop)? No: internal nodes, instance roots (they
+ * only accept content inside a slot) and the synthetic frame.
  */
 export function canInsertInto(doc: Document, id: string): boolean {
   if (id === COMPONENT_FRAME_ID || isVirtualId(id)) return false;
@@ -153,7 +153,7 @@ export function canInsertInto(doc: Document, id: string): boolean {
   return canHaveChildren(n);
 }
 
-/** Remove os marcadores de instância de nós concretos (árvore expandida copiada). */
+/** Removes instance markers from concrete nodes (copied expanded tree). */
 function stripMarkers(n: Node): Node {
   const out: Node = { ...n, children: n.children.map(stripMarkers) };
   if (out.type !== 'instance') {
@@ -165,8 +165,8 @@ function stripMarkers(n: Node): Node {
 }
 
 /**
- * Nó para copiar: o nó real do documento quando existe (instâncias continuam instâncias); nós
- * internos saem como a árvore concreta da visão (sem marcadores).
+ * Node to copy: the real document node when it exists (instances stay instances); internal
+ * nodes come out as the concrete tree of the view (without markers).
  */
 export function copyableNode(raw: Document | null, view: Document, id: string): Node | undefined {
   if (raw && !isVirtualId(id)) {

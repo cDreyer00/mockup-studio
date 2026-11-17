@@ -25,7 +25,7 @@ afterEach(() => {
   useDoc.setState({ doc: null, rawDoc: null });
 });
 
-/** Simula um `doc:changed`: aplica a op, passa pelo JSON e integra como o cliente faz. */
+/** Simulates a `doc:changed`: applies the op, round-trips through JSON and merges like the client does. */
 function receive(prev: Document, op: Parameters<typeof applyOp>[1]): Document {
   const next = JSON.parse(JSON.stringify(applyOp(prev, op).doc)) as Document;
   const merged = mergeDoc(prev, next);
@@ -33,8 +33,8 @@ function receive(prev: Document, op: Parameters<typeof applyOp>[1]): Document {
   return merged;
 }
 
-describe('visão do documento (instâncias expandidas)', () => {
-  it('sem instâncias, a visão é o próprio documento', () => {
+describe('document view (expanded instances)', () => {
+  it('without instances, the view is the document itself', () => {
     const { doc } = makeDoc();
     expect(buildView(doc, null)).toBe(doc);
     useDoc.setState(withView(doc));
@@ -42,7 +42,7 @@ describe('visão do documento (instâncias expandidas)', () => {
     expect(useDoc.getState().rawDoc).toBe(doc);
   });
 
-  it('expande as instâncias com props e ids virtuais; o documento real fica intacto', () => {
+  it('expands instances with props and virtual ids; the real document stays intact', () => {
     const { doc, instanceIds, main } = makeComponentDoc();
     useDoc.setState(withView(doc));
     const view = useDoc.getState().doc!;
@@ -54,11 +54,11 @@ describe('visão do documento (instâncias expandidas)', () => {
     expect(getNode(view, `${instanceIds[2]}/${main.textId}`)?.text).toBe('C');
     expect(i2!.props).toEqual({ label: 'B' });
     expect(i3!.children.length).toBe(2);
-    // No documento real a instância continua instância (filhos = contêineres de slot).
+    // In the real document the instance is still an instance (children = slot containers).
     expect(getNode(doc, instanceIds[0]!)?.type).toBe('instance');
   });
 
-  it('mantém a identidade das instâncias que não mudaram entre versões', () => {
+  it('keeps the identity of instances that did not change between versions', () => {
     const { doc, instanceIds, main } = makeComponentDoc();
     useDoc.setState(withView(doc));
     const before = useDoc.getState().doc!;
@@ -73,7 +73,7 @@ describe('visão do documento (instâncias expandidas)', () => {
     expect(getNode(after, `${instanceIds[1]}/${main.textId}`)?.text).toBe('B2');
   });
 
-  it('editar o principal propaga para todas as instâncias da visão', () => {
+  it('editing the main component propagates to all instances in the view', () => {
     const { doc, instanceIds, main } = makeComponentDoc();
     useDoc.setState(withView(doc));
     receive(doc, {
@@ -85,8 +85,8 @@ describe('visão do documento (instâncias expandidas)', () => {
   });
 });
 
-describe('modo de edição do principal', () => {
-  it('a visão ganha a página sintética com o quadro e a raiz do principal', () => {
+describe('main component edit mode', () => {
+  it('the view gets the synthetic page with the frame and the main component root', () => {
     const { doc, main } = makeComponentDoc();
     useDoc.setState(withView(doc));
     expect(enterComponent('cp_card0001')).toBe(true);
@@ -97,18 +97,18 @@ describe('modo de edição do principal', () => {
     expect(useUi.getState().pageId).toBe(COMPONENT_EDIT_PAGE_ID);
     expect(useUi.getState().selection).toEqual([main.rootId]);
     expect(componentRole(view, main.rootId)).toBe('main');
-    // O quadro sintético não é selecionável nem aceita filhos.
+    // The synthetic frame is not selectable nor does it accept children.
     ui.select([COMPONENT_FRAME_ID]);
     expect(useUi.getState().selection).toEqual([]);
     expect(canInsertInto(view, COMPONENT_FRAME_ID)).toBe(false);
-    expect(structureBlock(view, [main.rootId])).toMatch(/raiz do principal/);
+    expect(structureBlock(view, [main.rootId])).toMatch(/main component root/);
 
     exitComponent();
     expect(useUi.getState().editingComponentId).toBeNull();
     expect(useDoc.getState().doc!.pages.some((p) => p.id === COMPONENT_EDIT_PAGE_ID)).toBe(false);
   });
 
-  it('concluir volta à página e seleciona a instância de origem', () => {
+  it('done returns to the page and selects the origin instance', () => {
     const { doc, instanceIds } = makeComponentDoc();
     useDoc.setState(withView(doc));
     const pageId = doc.pages[0]!.id;
@@ -119,7 +119,7 @@ describe('modo de edição do principal', () => {
     expect(useUi.getState().selection).toEqual([instanceIds[1]]);
   });
 
-  it('trocar de página sai do modo de edição', () => {
+  it('switching page leaves edit mode', () => {
     const { doc } = makeComponentDoc();
     useDoc.setState(withView(doc));
     enterComponent('cp_card0001');
@@ -128,8 +128,8 @@ describe('modo de edição do principal', () => {
   });
 });
 
-describe('papéis e bloqueios', () => {
-  it('classifica instância, nó interno, contêiner de slot e conteúdo de slot', () => {
+describe('roles and blocks', () => {
+  it('classifies instance, internal node, slot container and slot content', () => {
     const { doc, instanceIds, main } = makeComponentDoc();
     const view = buildView(doc, null);
     const inst = getNode(doc, instanceIds[0]!)!;
@@ -140,11 +140,11 @@ describe('papéis e bloqueios', () => {
     expect(componentRole(view, getEntry(view, instanceIds[0]!)!.parentId!)).toBeNull();
   });
 
-  it('nós internos e contêineres de slot não se movem; inserir só no slot', () => {
+  it('internal nodes and slot containers do not move; insert only into the slot', () => {
     const { doc, instanceIds, main, frameId } = makeComponentDoc();
     const view = buildView(doc, null);
     const slotId = getNode(doc, instanceIds[0]!)!.children[0]!.id;
-    expect(structureBlock(view, [`${instanceIds[0]}/${main.textId}`])).toMatch(/internos/);
+    expect(structureBlock(view, [`${instanceIds[0]}/${main.textId}`])).toMatch(/Internal nodes/);
     expect(structureBlock(view, [slotId])).toMatch(/slot/);
     expect(structureBlock(view, [instanceIds[0]!])).toBeNull();
     expect(canInsertInto(view, instanceIds[0]!)).toBe(false);
@@ -153,7 +153,7 @@ describe('papéis e bloqueios', () => {
     expect(canInsertInto(view, frameId)).toBe(true);
   });
 
-  it('copiar uma instância copia o nó real; um nó interno sai concreto', () => {
+  it('copying an instance copies the real node; an internal node comes out concrete', () => {
     const { doc, instanceIds, main } = makeComponentDoc();
     const view = buildView(doc, null);
     expect(copyableNode(doc, view, instanceIds[1]!)?.type).toBe('instance');

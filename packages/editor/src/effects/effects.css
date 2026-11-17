@@ -1,4 +1,4 @@
-/* Painel de efeitos (popover da barra), diálogos de mídia e controles de parâmetros. */
+/* Effects panel (bar popover), media dialogs and parameter controls. */
 .fx-panel {
   position: absolute;
   top: calc(100% + 4px);
@@ -88,7 +88,7 @@
   padding: 0 2px 1px;
 }
 
-/* parâmetros (seção Efeito) */
+/* parameters (Effect section) */
 .fx-chips {
   display: flex;
   flex-wrap: wrap;
@@ -140,7 +140,7 @@
   color: var(--text-dim);
 }
 
-/* diálogos */
+/* dialogs */
 .modal.fx-modal-wide {
   width: min(1100px, 94vw);
   height: min(640px, 86vh);
