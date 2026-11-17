@@ -5,6 +5,7 @@ export const GUIDE_TOPICS = [
   'layout',
   'responsive',
   'screenshot-loop',
+  'tailwind',
   'export',
   'troubleshooting',
   'setup',
@@ -50,6 +51,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description:
       'Render indisponível, nó não encontrado, porta ocupada, overflow, logs e erros de parâmetro.',
   },
+  tailwind: {
+    title: 'Guia: Tailwind nativo',
+    description:
+      'Classes Tailwind em write_html e import_component (shadcn), set_classes, estados hover/dark/md, screenshot por estado e limitações.',
+  },
   setup: {
     title: 'Guia: instalação e registro do MCP',
     description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
@@ -77,6 +83,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame; passe \`parentId\` para ter certeza.
 - \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
+- HTML com classes Tailwind (shadcn/ui, Tailwind UI): \`write_html\` detecta sozinho e \`import_component\` cria os tokens shadcn; veja \`get_guide('tailwind')\`.
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`), \`add_font\` (\`list_fonts\`).
 - \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
 
@@ -373,6 +380,33 @@ A mensagem lista o campo com problema (obrigatório ausente, tipo errado, valor 
 ## Logs
 
 O daemon grava em \`<pasta de dados>/daemon.log\` (\`mockup doctor\` mostra o caminho).
+`,
+  tailwind: `# Tailwind nativo
+
+O Mockup Studio entende classes Tailwind v4 (o mesmo compilador do editor): as classes viram CSS real do nó
+(\`style\`, e \`states\` para hover/dark/md), e as classes que você escreveu ficam em \`node.classes\` para o export
+devolver o mesmo código. O CSS base do documento passa a ser o preflight do Tailwind (\`set_css_base\`).
+
+## Fluxo recomendado
+
+1. \`write_html(html)\` com \`class="..."\`: o Tailwind é detectado sozinho (\`tailwind: "auto"\`); force com \`tailwind: "on"\` ou \`css: "tailwind"\`, desligue com \`"off"\`. Tokens viram classes (\`--color-brand\` → \`bg-brand\`): defina com \`set_tokens\` antes.
+2. shadcn/ui ou Tailwind UI colados: \`import_component(html)\` cria os tokens do preset shadcn que faltam (\`--color-primary\`, \`--radius\`... e o tema "dark") na mesma chamada (um undo só). \`tokens: "none"\` não cria.
+3. Ajustes: \`set_classes(nodeIds, classes, mode)\` — \`replace\` (padrão), \`add\` ou \`remove\`. \`get_classes(nodeIds)\` mostra o nó como Tailwind; \`suggest_classes(query)\` completa nomes (\`hover:bg-\`, \`bg-pri\`).
+4. Confira: \`get_screenshot(nodeId, state?)\` com \`state\` = hover, focus, focus-visible, focus-within, active, disabled ou dark.
+5. Código: \`get_code(nodeId, 'tailwind')\` / \`'react'\` (as classes do autor são reaproveitadas); \`get_tailwind_config\` mostra o \`@theme\` gerado dos tokens.
+
+## Estados e breakpoints
+
+- \`hover:\`, \`focus:\`, \`focus-visible:\`, \`focus-within:\`, \`active:\`, \`disabled:\`, \`dark:\` e \`sm:\`/\`md:\`/\`lg:\`/\`xl:\`/\`2xl:\` (combináveis: \`md:hover:\`, \`dark:hover:\`) viram \`states\` do nó. Para editar um estado direto: \`update_styles(nodeIds, styles, state: "hover")\`.
+- Breakpoints valem pela LARGURA DO FRAME raiz (mobile first): \`md:\` vale quando o frame tem 768px ou mais (sm 640, lg 1024, xl 1280, 2xl 1536). Um frame de 390px mostra só o base. Para ver o desktop, crie ou duplique um frame de 1280px (um frame por breakpoint; veja \`get_guide('responsive')\`).
+- \`dark:\` vale em frames/nós com tema "dark" (\`data-theme\`) e na prévia \`state: "dark"\`.
+- \`get_styles(nodeIds, state?)\` e \`get_node_info\` mostram estilo, classes e states.
+
+## Limitações
+
+- Variantes sem equivalente ficam só em \`node.classes\` (e no código exportado), sem efeito no render: \`group-*\`, \`peer-*\`, \`aria-*\`, \`data-*\`, \`before:\`/\`after:\`, \`has-*\`, \`[&_svg]:\` e seletores arbitrários. A resposta de write_html/set_classes lista essas classes com o motivo.
+- Classes desconhecidas (\`foo-bar\`) são mantidas, sem efeito.
+- Os valores do tema padrão entram inline (\`p-4\` → \`padding: 1rem\`); os tokens do documento entram como \`var(--...)\`.
 `,
   setup: `# Instalação e registro do MCP
 

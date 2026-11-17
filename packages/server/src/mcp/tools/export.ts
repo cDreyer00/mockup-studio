@@ -13,6 +13,7 @@ import {
 } from '@mockup/core';
 import { assetDataUrl, safeJoin } from '../../assets.js';
 import { renderUnavailableMessage } from '../../render.js';
+import { getTailwindEngine } from '@mockup/core/tailwind';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
@@ -208,13 +209,18 @@ export function registerExportTools(ctx: ToolContext): void {
         } else if (format === 'tailwind') {
           await write(
             uniq(slug, '.tailwind.html'),
-            exportTailwind(doc, { nodeIds: [node.id], title: node.name }),
+            exportTailwind(doc, {
+              nodeIds: [node.id],
+              title: node.name,
+              tailwind: await getTailwindEngine(doc),
+            }),
             true,
           );
         } else {
           const name = pascalOf(slug);
           const r = exportReact(doc, {
             nodeId: node.id,
+            tailwind: await getTailwindEngine(doc),
             styles: styles ?? 'tailwind',
             componentName: name,
             ...(assetsBase ? { assetsBase } : {}),
@@ -299,7 +305,7 @@ export function registerExportTools(ctx: ToolContext): void {
       },
       annotations: READ,
     },
-    ({ nodeId, format, styles, assetsBase, docId }) => {
+    async ({ nodeId, format, styles, assetsBase, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       const node = nodeSubtree(doc, nodeId);
       if (format === 'html') {
@@ -311,12 +317,18 @@ export function registerExportTools(ctx: ToolContext): void {
         });
       }
       if (format === 'tailwind') {
-        const html = exportTailwind(doc, { nodeIds: [nodeId], title: node.name, fragment: true });
+        const html = exportTailwind(doc, {
+          nodeIds: [nodeId],
+          title: node.name,
+          fragment: true,
+          tailwind: await getTailwindEngine(doc),
+        });
         const css = Object.keys(doc.tokens).length ? tailwindThemeCss(doc) : undefined;
         return css ? `${html}\n\n/* theme.css */\n${css}` : html;
       }
       const r = exportReact(doc, {
         nodeId,
+        tailwind: await getTailwindEngine(doc),
         styles: styles ?? 'tailwind',
         componentName: pascalOf(slugOf(node.name, node.id)),
         ...(assetsBase ? { assetsBase } : {}),

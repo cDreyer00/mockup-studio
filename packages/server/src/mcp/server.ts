@@ -3,13 +3,19 @@ import { z } from 'zod';
 import {
   createNodeFromTag,
   findNode,
+  BREAKPOINT_PX,
+  PSEUDO_STATES,
+  fixedWidthPx,
   getComputedLike,
   getDocumentSummary,
   getTreeSummary,
-  htmlToNodes,
+  hasStates,
   newPageId,
   nodesToHtml,
+  parseStateKey,
+  resolveStateStyle,
   summarizeNode,
+  walk,
   type Document,
   type Node,
   type Op,
@@ -32,6 +38,12 @@ import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
 import { registerRenderTools } from './tools/render.js';
+import {
+  parseStateOrThrow,
+  planStateStyles,
+  registerTailwindTools,
+  writeHtml,
+} from './tools/tailwind.js';
 import { registerTokenTools } from './tools/tokens.js';
 
 export type { McpServerOptions } from './context.js';
@@ -50,6 +62,7 @@ const stylesField = z
 export const SERVER_INSTRUCTIONS = [
   'Mockup Studio é um editor de design em canvas: documentos com páginas, frames (artboards) e nós HTML/CSS reais.',
   "Comece com get_guide('getting-started') (fluxo em 6 passos) e get_basic_info.",
+  "Para HTML com classes Tailwind (shadcn/ui, Tailwind UI): write_html/import_component, set_classes, get_screenshot(state) e get_guide('tailwind').",
   "Defina o design system (set_tokens, create_theme; get_guide('tokens')) antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.",
   'Sempre confira o resultado com get_screenshot e corrija (update_styles, set_text, undo) antes de seguir.',
   'docId é opcional (vale o documento ativo), exceto em close_document.',
@@ -105,6 +118,38 @@ function interceptInputErrors(
 function pxOf(v: string | undefined): number {
   const n = v ? parseFloat(v) : NaN;
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Documento com o estilo efetivo dos estados: breakpoints pela largura do frame raiz (como o
+ * render) e, com `state`, a pseudo-classe e o `dark` da chave. Sem estados no documento devolve o
+ * próprio documento.
+ */
+function withResolvedStates(doc: Document, state?: string): { doc: Document; dark: boolean } {
+  const key = state ? parseStateOrThrow(state) : undefined;
+  const parts = key ? (parseStateKey(key) ?? {}) : {};
+  let any = false;
+  walk(doc, (n) => {
+    if (hasStates(n)) any = true;
+  });
+  if (!any) return { doc, dark: !!parts.dark };
+  const clone = structuredClone(doc);
+  for (const page of clone.pages) {
+    for (const frame of page.frames) {
+      const width = fixedWidthPx(frame.style['width']);
+      const frameWidth = parts.breakpoint
+        ? Math.max(width ?? 0, BREAKPOINT_PX[parts.breakpoint])
+        : width;
+      walk(frame, (n) => {
+        n.style = resolveStateStyle(n, {
+          frameWidth,
+          dark: parts.dark,
+          pseudo: parts.pseudo ?? null,
+        });
+      });
+    }
+  }
+  return { doc: clone, dark: !!parts.dark };
 }
 
 export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {}): McpServer {
@@ -433,6 +478,13 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         `attrs: ${kv(n.attrs)}`,
         `style: ${kv(n.style)}`,
       ];
+      if (n.classes) lines.push(`classes: ${n.classes}`);
+      if (n.states && Object.keys(n.states).length)
+        lines.push(
+          `states: ${Object.entries(n.states)
+            .map(([k, v]) => `${k} { ${kv(v)} }`)
+            .join(' | ')}`,
+        );
       if (n.position) lines.push(`posição: ${n.position.x}, ${n.position.y}`);
       if (n.text !== undefined) lines.push(`texto: ${JSON.stringify(n.text)}`);
       if (n.src) lines.push(`src: ${n.src.length > 120 ? `${n.src.slice(0, 120)}…` : n.src}`);
@@ -499,7 +551,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Estilos efetivos',
       description:
-        'Estilos efetivos (herdados, com var() resolvido e calc()/color-mix() avaliados) de um ou mais nós, no formato "prop: valor". Com theme, como se o próprio nó tivesse data-theme com esse tema (no lugar do que tiver); propriedades herdadas dos ancestrais continuam calculadas no tema deles, como no CSS.',
+        'Estilos efetivos (herdados, var() resolvido, calc()/color-mix() avaliados) de nós, como "prop: valor". Aplica states de breakpoint pela largura do frame; state (hover, dark...) mostra esse estado. theme resolve os tokens como se o nó tivesse data-theme com esse tema.',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: {
         nodeIds: nodeIdsField,
@@ -507,13 +559,22 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           .string()
           .optional()
           .describe('Nome de um tema (veja get_tokens) para resolver os tokens, ex.: "dark".'),
+        state: z
+          .string()
+          .optional()
+          .describe(
+            `Estado a mostrar: ${PSEUDO_STATES.join(', ')}, dark ou breakpoint, combináveis (ex.: "hover", "dark:hover", "md"). Padrão: estilo base.`,
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
-    ({ nodeIds, theme, docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
-      requireNodes(doc, nodeIds);
+    ({ nodeIds, theme: themeArg, state, docId }) => {
+      const stored = store.get(store.resolveDocId(docId));
+      requireNodes(stored, nodeIds);
+      const { doc, dark } = withResolvedStates(stored, state);
+      const theme =
+        themeArg ?? (dark && stored.themes?.some((t) => t.name === 'dark') ? 'dark' : undefined);
       if (theme && !doc.themes?.some((t) => t.name === theme))
         throw new ToolError(
           `Tema "${theme}" não existe. Crie com create_theme ou veja get_tokens.`,
@@ -636,7 +697,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Escrever HTML',
       description:
-        'Cria nós a partir de HTML + CSS (a forma preferida de montar telas). mode: append (padrão), replace-children ou replace. Sem parentId usa o nó selecionado ou o primeiro frame. Devolve os ids criados.',
+        'Cria nós a partir de HTML + CSS (a forma preferida de montar telas). HTML com classes Tailwind é detectado e compilado (tailwind auto/on/off). mode: append (padrão), replace-children ou replace. Sem parentId usa a seleção ou o primeiro frame.',
       example: {
         parentId: 'fr_ab12cd34',
         html: '<section class="hero"><h1>Olá</h1><p>Texto</p></section>',
@@ -661,65 +722,21 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         css: z
           .string()
           .optional()
-          .describe('CSS com os seletores usados no HTML, ex.: ".hero{display:flex}".'),
+          .describe(
+            'CSS com os seletores usados no HTML, ex.: ".hero{display:flex}". O literal "tailwind" equivale a tailwind: "on" (não é CSS).',
+          ),
+        tailwind: z
+          .enum(['auto', 'on', 'off'])
+          .optional()
+          .describe(
+            'Classes Tailwind: "auto" (padrão) detecta pelo HTML, "on" força, "off" trata class como CSS comum. Ao compilar, o CSS base do documento passa a ser o do Tailwind.',
+          ),
         docId: docIdField,
       },
       annotations: DESTRUCTIVE,
     },
-    ({ html, mode, parentId, css, docId }) => {
-      const id = store.resolveDocId(docId);
-      const doc = store.get(id);
-      const m = mode ?? 'append';
-      const targetId = parentId ?? selectedOrFirstFrame(id, doc);
-      const target = requireNode(doc, targetId);
-      const nodes = htmlToNodes(html, { css });
-      if (!nodes.length)
-        throw new ToolError('O HTML não gerou nenhum nó. Ex.: "<div><h1>Título</h1></div>".');
-      const ops: Op[] = [];
-      let summaryParent = targetId;
-      if (m === 'replace') {
-        const parent = target.parent;
-        if (!parent) {
-          if (nodes.length !== 1) {
-            throw new ToolError(
-              'mode "replace" em frame raiz exige um único elemento de topo; envolva o conteúdo em um <div> ou use mode "replace-children".',
-            );
-          }
-          const nn = nodes[0]!;
-          const old = target.node;
-          nn.type = 'frame';
-          if (old.position) nn.position = { ...old.position };
-          for (const k of ['width', 'height'] as const) {
-            if (!nn.style[k] && old.style[k]) nn.style[k] = old.style[k]!;
-          }
-          const generic = nn.tag.charAt(0).toUpperCase() + nn.tag.slice(1);
-          if (nn.name === generic) nn.name = old.name;
-        }
-        ops.push({ type: 'deleteNodes', nodeIds: [targetId] });
-        nodes.forEach((node, i) => {
-          ops.push(
-            parent
-              ? { type: 'createNode', parentId: parent.id, node, index: target.index + i }
-              : {
-                  type: 'createNode',
-                  parentId: null,
-                  pageId: target.page.id,
-                  node,
-                  index: target.index + i,
-                },
-          );
-        });
-        summaryParent = parent?.id ?? '';
-      } else {
-        if (m === 'replace-children' && target.node.children.length) {
-          ops.push({ type: 'deleteNodes', nodeIds: target.node.children.map((c) => c.id) });
-        }
-        for (const node of nodes) ops.push({ type: 'createNode', parentId: targetId, node });
-      }
-      const r = apply(id, ops, 'write_html');
-      const created = nodes.map((n) => n.id);
-      return `HTML aplicado (${m}). Nós criados: ${created.join(', ')}.\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
-    },
+    ({ html, mode, parentId, css, tailwind, docId }) =>
+      writeHtml(ctx, { html, mode, parentId, css, tailwind, docId }),
   );
 
   tool(
@@ -764,7 +781,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Atualizar estilos',
       description:
-        'Define e/ou remove propriedades CSS em vários nós. Informe styles e/ou unset; valor "" em styles também remove. Devolve o resumo dos nós.',
+        'Define e/ou remove propriedades CSS em vários nós. Informe styles e/ou unset; valor "" em styles também remove. Com state (hover, dark, md...) grava no estado do nó (mescla), como editar com a prévia de estado. Devolve o resumo.',
       example: { nodeIds: ['el_ab12cd34'], styles: { gap: '24px' }, unset: ['margin'] },
       inputSchema: {
         nodeIds: nodeIdsField,
@@ -777,15 +794,37 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
           .array(z.string())
           .optional()
           .describe('Propriedades CSS a remover, ex.: ["margin", "box-shadow"].'),
+        state: z
+          .string()
+          .optional()
+          .describe(
+            'Grava no estado em vez do estilo base: hover, focus, focus-visible, focus-within, active, disabled, dark, sm...2xl ou combinação (ex.: "hover", "md:hover").',
+          ),
         docId: docIdField,
       },
       annotations: WRITE,
     },
-    ({ nodeIds, styles, unset, docId }) => {
+    ({ nodeIds, styles, unset, state, docId }) => {
       const id = store.resolveDocId(docId);
       requireNodes(store.get(id), nodeIds);
       if (!styles && !unset?.length) {
         throw new ToolError('Informe styles e/ou unset. Ex.: styles { "color": "#333" }.');
+      }
+      if (state) {
+        const doc = store.get(id);
+        const key = parseStateOrThrow(state);
+        const r = apply(
+          id,
+          planStateStyles(
+            nodeIds.map((n) => requireNode(doc, n).node),
+            key,
+            styles,
+            unset,
+          ),
+          'update_styles',
+        );
+        return `Estilos do estado "${key}" atualizados em ${nodeIds.length} nó(s).
+${summaryOf(r.doc, nodeIds)}`;
       }
       const r = apply(
         id,
@@ -1239,6 +1278,7 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerImageTools(ctx);
   registerFontTools(ctx);
   registerTokenTools(ctx);
+  registerTailwindTools(ctx);
 
   /* ---------- resources ---------- */
 
