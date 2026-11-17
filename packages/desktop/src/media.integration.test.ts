@@ -208,7 +208,7 @@ describe.skipIf(!built || !editorReady)(
         else child.kill('SIGKILL');
         await Promise.race([exited, new Promise((r) => setTimeout(r, 10000))]);
       }
-      fs.rmSync(tmp, { recursive: true, force: true });
+      fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     });
 
     const idOf = (text: string, prefix: string): string => {

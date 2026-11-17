@@ -62,7 +62,7 @@ describe.skipIf(!built || !editorReady)('Efeitos WebGL e exportação de vídeo 
       else child.kill('SIGKILL');
       await Promise.race([exited, new Promise((r) => setTimeout(r, 10000))]);
     }
-    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   const shot = async (args: Record<string, unknown>): Promise<Buffer> => {
