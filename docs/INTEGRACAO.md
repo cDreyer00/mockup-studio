@@ -131,6 +131,19 @@ MOCKUP_PORT = "4747"
 
 Ou use `--env K=V` no `codex mcp add`.
 
+**Aprovação das ferramentas.** O Codex só deixa passar sem pergunta as ferramentas marcadas como somente leitura. As que gravam (`create_document`, `write_html`, `export`...) pedem aprovação, e no `codex exec` (política `never`) elas são **bloqueadas** (`MCP tool call requires approval, but approval policy is never`). Para liberar as do Mockup Studio, que só mexem em documentos de design e na pasta de exportação:
+
+```toml
+[mcp_servers.mockup-studio]
+command = "mockup"
+args = ["mcp"]
+default_tools_approval_mode = "approve"
+```
+
+Ou só numa execução: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. O `mockup setup codex` não liga isso por conta própria (é uma decisão de permissão do usuário).
+
+**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. Cole o trecho no `~/.codex/AGENTS.md` ou no `AGENTS.md` do projeto (veja abaixo).
+
 **HTTP** (daemon rodando):
 
 ```bash

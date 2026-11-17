@@ -274,6 +274,10 @@ O id não existe (ou foi removido/regerado, ex.: após \`write_html\` com mode "
 
 Use \`list_documents\`; se vazio, \`open_document(path)\` ou \`create_document(path, name)\`.
 
+## "MCP tool call requires approval, but approval policy is never" (Codex)
+
+O Codex bloqueia as ferramentas que gravam quando roda sem aprovação interativa (\`codex exec\`). O usuário precisa liberar o servidor no \`~/.codex/config.toml\` (\`[mcp_servers.mockup-studio]\` com \`default_tools_approval_mode = "approve"\`) ou rodar com \`-c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"'\`. Avise o usuário em vez de contornar escrevendo o HTML à mão.
+
 ## Porta 4747 ocupada
 
 Outro processo usa a porta. Libere-a ou escolha outra com a variável \`MOCKUP_PORT\` (ex.: \`MOCKUP_PORT=4848\`) e ajuste a URL do cliente HTTP.
