@@ -46,7 +46,9 @@ const DIMENSION = /^-?(?:\d+\.?\d*|\.\d+)(?:px|rem)$/;
 function dtcgType(name: string, group: string, value: string): string | undefined {
   if (/^var\(--[a-zA-Z0-9_-]+\)$/.test(value.trim())) return undefined;
   if (group === 'typography') {
-    if (/family/.test(name)) return 'fontFamily';
+    if (/family|^--font-(?!weight|size|style)/.test(name) && !/^\d+$/.test(value.trim())) {
+      return 'fontFamily';
+    }
     if (/weight/.test(name) && /^\d+$/.test(value.trim())) return 'fontWeight';
     if (DIMENSION.test(value.trim())) return 'dimension';
     return undefined;

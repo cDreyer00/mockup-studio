@@ -204,17 +204,24 @@ export function resolveScope(
 ): Record<string, string> {
   const out: Record<string, string> = { ...inherited };
   const done = new Map<string, string | undefined>();
-  const visiting = new Set<string>();
+  const stack: string[] = [];
+  const poisoned = new Set<string>();
   const get = (name: string): string | undefined => {
     if (!(name in declared)) return inherited[name];
     if (done.has(name)) return done.get(name);
-    if (visiting.has(name)) return undefined;
-    visiting.add(name);
+    const at = stack.indexOf(name);
+    if (at !== -1) {
+      // Ciclo: todas as variáveis do laço ficam inválidas (sem valor).
+      for (const n of stack.slice(at)) poisoned.add(n);
+      return undefined;
+    }
+    stack.push(name);
     const r = substituteVars(declared[name]!, get);
-    visiting.delete(name);
+    stack.pop();
     // Referência ausente fica no texto (`var(--x)`), para o problema aparecer no valor resolvido.
-    done.set(name, r.value);
-    return r.value;
+    const result = poisoned.has(name) ? undefined : r.value;
+    done.set(name, result);
+    return result;
   };
   for (const name of Object.keys(declared)) {
     const v = get(name);
