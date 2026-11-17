@@ -28,21 +28,22 @@ test('creates a container and text, edits inline text, renames, copies and paste
   const editor = page.getByTestId('text-editor');
   await expect(editor).toBeVisible();
   await page.keyboard.press('Control+a');
-  await page.keyboard.type('Hello, world');
+  // Non-ASCII on purpose: typing, rename and copy/paste must keep accented text intact.
+  await page.keyboard.type('Hello, café — olá, ação');
   await page.keyboard.press('Enter');
   await expect
     .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children[1]?.text)
-    .toBe('Hello, world');
+    .toBe('Hello, café — olá, ação');
   const text = (await getDoc(info.docId)).pages[0]!.frames[0]!.children[1]!;
 
   // Rename through the layer tree (double-click).
   await page.getByTestId(`layer-row-${text.id}`).dblclick();
   const rename = page.getByTestId('layer-rename-input');
-  await rename.fill('Greeting');
+  await rename.fill('Greeting — saudação');
   await rename.press('Enter');
   await expect
     .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children[1]!.name)
-    .toBe('Greeting');
+    .toBe('Greeting — saudação');
 
   // Copy and paste (new ids), then undo the paste.
   await page.getByTestId(`layer-row-${text.id}`).click();
@@ -54,7 +55,7 @@ test('creates a container and text, edits inline text, renames, copies and paste
     .toBe(3);
   const pasted = (await getDoc(info.docId)).pages[0]!.frames[0]!.children[2]!;
   expect(pasted.id).not.toBe(text.id);
-  expect(pasted.text).toBe('Hello, world');
+  expect(pasted.text).toBe('Hello, café — olá, ação');
   await page.keyboard.press('Control+z');
   await expect
     .poll(async () => (await getDoc(info.docId)).pages[0]!.frames[0]!.children.length)

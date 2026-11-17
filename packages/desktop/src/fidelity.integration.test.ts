@@ -157,7 +157,11 @@ function makeDocument() {
             'font-size': '18px',
             width: '200px',
           },
-          { children: [node('el_fid_btn_t', 'text', 'span', {}, { text: 'Button inheriting' })] },
+          {
+            children: [
+              node('el_fid_btn_t', 'text', 'span', {}, { text: 'Button inheriting — ação' }),
+            ],
+          },
         ),
       ],
     },
