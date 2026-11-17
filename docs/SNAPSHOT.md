@@ -104,7 +104,7 @@ The app's `RenderProvider.snapshot` (`packages/desktop/src/main/snapshot.ts`) op
 
 - network: only `http`, `https`, `ws`, `wss`, `data`, `blob` and `about`; `file://` is canceled; permissions, downloads, popups and navigations after the initial one are denied; audio muted. Local network isolation is detailed in [Capture window isolation](#capture-window-isolation);
 - exact viewport via CDP; after load it waits for the selector to appear (up to 5 s in `import_url` and `import_html` with `assets_base_url`, where the page's JS may build the DOM; up to 1 s in `import_html` without a base, static HTML with JS off), then `document.fonts.ready` and the images (up to 3 s). A selector that does not appear gives the error `Selector "..." not found ... (waited N s after load)`;
-- the HTTP status of the main navigation (`import_url`) 4xx/5xx is **not** an error: the error page is imported (it may be what you want, e.g. the design of a 404) and the result carries the warning `The page responded HTTP <status>: ...`. A network failure (DNS, connection refused) is still an error;
+- the HTTP status of the main navigation (`import_url`) 4xx/5xx is **not** an error: the error page is imported (it may be what you want, e.g. the design of a 404) and the result carries the warning `The page responded with HTTP <status>: ...`. A network failure (DNS, connection refused) is still an error;
 - the capture runs in an isolated world (the page's JS does not interfere); the reference comes from `Page.captureScreenshot` with the element's rectangle;
 - total deadline `timeout_ms` (default 20 s): once exceeded, the window is destroyed and the tool responds with an error.
 
