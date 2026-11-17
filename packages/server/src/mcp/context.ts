@@ -54,7 +54,13 @@ export interface ToolContext {
     cfg: ToolConfig<S>,
     handler: (args: z.infer<z.ZodObject<S>>) => Promise<string | RichResult> | string | RichResult,
   ): void;
+  /** Nó para ESCRITA (real, ou id virtual/nó de principal): instâncias não são expandidas. */
   requireNode(doc: Document, id: string): NodePath;
+  /**
+   * Nó para LEITURA: aceita também ids virtuais (`in_x/...`) e nós de principais, lendo do documento
+   * expandido (instância = HTML expandido); `doc` é o documento em que o nó vive.
+   */
+  readNode(doc: Document, id: string): { path: NodePath; doc: Document };
   summaryOf(doc: Document, ids: string[], fallbackIds?: string[]): string;
   apply(docId: string, ops: Op[], label?: string): ReturnType<DocumentStore['applyOps']>;
   selectedOrFirstFrame(docId: string, doc: Document): string;

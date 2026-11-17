@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PREVIEW_STATES, type LayoutNode } from '@mockup/core';
+import { renderTargetFor, type RenderTarget } from '../../component-view.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
@@ -36,7 +37,20 @@ export function formatLayout(root: LayoutNode, depth: number): string {
 }
 
 export function registerRenderTools(ctx: ToolContext): void {
-  const { tool, store, opts, requireNode } = ctx;
+  const { tool, store, opts, readNode } = ctx;
+
+  /**
+   * Alvo de render: documento com instâncias expandidas (a página de render não conhece
+   * componentes); `cp_...` e nós de um principal rendem numa instância padrão.
+   */
+  const targetOf = (doc: Parameters<typeof renderTargetFor>[0], id: string): RenderTarget => {
+    const t = renderTargetFor(doc, id);
+    if (!t) {
+      readNode(doc, id); // lança o erro padrão de nó não encontrado
+      throw new ToolError(`Nó não encontrado: "${id}".`);
+    }
+    return t;
+  };
 
   const needRender = () => {
     if (!opts.render)
@@ -89,14 +103,14 @@ export function registerRenderTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const target = nodeId ?? ctx.selectedOrFirstFrame(id, doc);
-      const { node } = requireNode(doc, target);
+      const rt = targetOf(doc, target);
       const fmt = format ?? 'png';
       let r;
       try {
         r = await render.capture({
-          doc,
+          doc: rt.doc,
           docId: id,
-          nodeId: target,
+          nodeId: rt.nodeId,
           assetsDir: store.assetsDir(id),
           scale: scale ?? 1,
           format: fmt,
@@ -112,7 +126,7 @@ export function registerRenderTools(ctx: ToolContext): void {
       const ext = r.mime === 'image/jpeg' ? 'jpg' : 'png';
       return {
         images: [{ data: r.data.toString('base64'), mimeType: r.mime }],
-        text: `${node.id} "${node.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (imagem ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` com o estado "${state}"` : ''}`,
+        text: `${target} "${rt.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (imagem ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` com o estado "${state}"` : ''}`,
       };
     },
   );
@@ -143,10 +157,15 @@ export function registerRenderTools(ctx: ToolContext): void {
       const render = needRender();
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
-      requireNode(doc, nodeId);
+      const rt = targetOf(doc, nodeId);
       let layout: LayoutNode;
       try {
-        layout = await render.measure({ doc, docId: id, nodeId, assetsDir: store.assetsDir(id) });
+        layout = await render.measure({
+          doc: rt.doc,
+          docId: id,
+          nodeId: rt.nodeId,
+          assetsDir: store.assetsDir(id),
+        });
       } catch (e) {
         throw new ToolError(
           `Falha ao medir ${nodeId}: ${e instanceof Error ? e.message : String(e)}`,

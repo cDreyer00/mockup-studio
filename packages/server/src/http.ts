@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { PREVIEW_STATES, exportSvg, findNode, type PreviewState } from '@mockup/core';
+import { PREVIEW_STATES, exportSvg, type PreviewState } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { assetDataUrl } from './assets.js';
+import { renderTargetFor } from './component-view.js';
+import { KitError, listKits, loadKit } from './kits.js';
 import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
@@ -263,6 +265,29 @@ export function createApp(
     }),
   );
 
+  // Kits de componentes (pasta kits/): o editor lista e importa por aqui.
+  app.get(
+    '/api/kits',
+    wrap((_req, res) => {
+      res.json({ kits: listKits() });
+    }),
+  );
+
+  app.get(
+    '/api/kits/:name',
+    wrap((req, res) => {
+      const name = String(req.params.name);
+      // só nomes simples: caminhos de arquivo não são aceitos por HTTP
+      if (!/^[\w.-]+$/.test(name)) throw new HttpError(404, `Kit não encontrado: ${name}`);
+      try {
+        res.json(loadKit(name).doc);
+      } catch (e) {
+        if (e instanceof KitError) throw new HttpError(e.status, e.message);
+        throw e;
+      }
+    }),
+  );
+
   app.post(
     '/api/open',
     wrap(async (req, res) => {
@@ -338,19 +363,27 @@ export function createApp(
       const ext = m[2]!.toLowerCase();
       if (!store.list().some((d) => d.docId === docId))
         throw new HttpError(404, `Documento não encontrado: ${docId}`);
-      const doc = store.get(docId);
-      if (!findNode(doc, nodeId)) throw new HttpError(404, `Nó não encontrado: ${nodeId}`);
+      // instâncias expandidas (e prévia de um principal `cp_...`): a página de render não conhece componentes
+      const target = renderTargetFor(store.get(docId), nodeId);
+      if (!target) throw new HttpError(404, `Nó não encontrado: ${nodeId}`);
+      const doc = target.doc;
+      const renderNodeId = target.nodeId;
       res.setHeader('Cache-Control', 'no-store');
 
       if (ext === 'svg') {
         const layout = ctx.render
-          ? await ctx.render.measure({ doc, docId, nodeId, assetsDir: store.assetsDir(docId) })
+          ? await ctx.render.measure({
+              doc,
+              docId,
+              nodeId: renderNodeId,
+              assetsDir: store.assetsDir(docId),
+            })
           : undefined;
         const assets = store.assetsDir(docId);
         const resolveImage = (src: string): string | undefined => assetDataUrl(assets, src);
         let svg: string;
         try {
-          svg = exportSvg(doc, { nodeId, layout, resolveImage });
+          svg = exportSvg(doc, { nodeId: renderNodeId, layout, resolveImage });
         } catch (e) {
           console.error('[mockup-daemon] erro no exportSvg:', e instanceof Error ? e.message : e);
           res.status(500).json({ error: 'Falha ao exportar o SVG' });
@@ -386,7 +419,7 @@ export function createApp(
         result = await ctx.render.capture({
           doc,
           docId,
-          nodeId,
+          nodeId: renderNodeId,
           assetsDir: store.assetsDir(docId),
           scale: scale as RenderScale,
           format: ext === 'jpg' ? 'jpg' : 'png',

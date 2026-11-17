@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import {
+  COMPONENT_EDIT_PAGE_ID,
   exportHtml,
   exportReact,
   exportSvg,
@@ -12,6 +13,7 @@ import {
   type Node,
 } from '@mockup/core';
 import { assetDataUrl, safeJoin } from '../../assets.js';
+import { renderTargetFor } from '../../component-view.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { getTailwindEngine } from '@mockup/core/tailwind';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
@@ -80,9 +82,19 @@ export async function copyAssets(
 }
 
 export function registerExportTools(ctx: ToolContext): void {
-  const { tool, store, opts, requireNode } = ctx;
+  const { tool, store, opts, readNode } = ctx;
 
-  const nodeSubtree = (doc: Document, id: string): Node => requireNode(doc, id).node;
+  const nodeSubtree = (doc: Document, id: string): Node => readNode(doc, id).path.node;
+
+  /**
+   * Documento para exportar o nó: o expandido (instâncias concretas; ids virtuais) ou o temporário de
+   * um principal. React usa o documento original para nós reais (gera um componente por principal).
+   */
+  const exportDocFor = (doc: Document, id: string, format: string): Document => {
+    const r = readNode(doc, id);
+    const real = !id.includes('/') && r.path.page.id !== COMPONENT_EDIT_PAGE_ID;
+    return format === 'react' && real ? doc : r.doc;
+  };
 
   tool(
     'export',
@@ -138,7 +150,7 @@ export function registerExportTools(ctx: ToolContext): void {
           );
         dir = path.join(path.dirname(info.path), 'exports');
       }
-      const paths = nodeIds.map((n) => requireNode(doc, n));
+      const paths = nodeIds.map((n) => readNode(doc, n).path);
       const isImage = format === 'png' || format === 'jpg';
       if (isImage && !opts.render)
         throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
@@ -167,14 +179,16 @@ export function registerExportTools(ctx: ToolContext): void {
       };
 
       let themeCss: string | undefined;
-      for (const p of paths) {
+      for (const [pi, p] of paths.entries()) {
         const node = p.node;
+        const ref = nodeIds[pi]!;
         const slug = slugOf(node.name, node.id);
         if (isImage) {
+          const rt = renderTargetFor(doc, ref)!;
           const r = await opts.render!.capture({
-            doc,
+            doc: rt.doc,
             docId: id,
-            nodeId: node.id,
+            nodeId: rt.nodeId,
             assetsDir: store.assetsDir(id),
             scale: scale ?? 1,
             format,
@@ -184,10 +198,11 @@ export function registerExportTools(ctx: ToolContext): void {
           let layout: LayoutNode | undefined;
           if (opts.render) {
             try {
+              const rt = renderTargetFor(doc, ref)!;
               layout = await opts.render.measure({
-                doc,
+                doc: rt.doc,
                 docId: id,
-                nodeId: node.id,
+                nodeId: rt.nodeId,
                 assetsDir: store.assetsDir(id),
               });
             } catch {
@@ -198,18 +213,22 @@ export function registerExportTools(ctx: ToolContext): void {
           const resolveImage = (src: string): string | undefined => assetDataUrl(assets, src);
           await write(
             uniq(slug, '.svg'),
-            exportSvg(doc, { nodeId: node.id, layout, resolveImage }),
+            exportSvg(exportDocFor(doc, ref, 'svg'), { nodeId: node.id, layout, resolveImage }),
           );
         } else if (format === 'html') {
           await write(
             uniq(slug, '.html'),
-            exportHtml(doc, { nodeIds: [node.id], title: node.name, mode: 'classes' }),
+            exportHtml(exportDocFor(doc, ref, 'html'), {
+              nodeIds: [node.id],
+              title: node.name,
+              mode: 'classes',
+            }),
             true,
           );
         } else if (format === 'tailwind') {
           await write(
             uniq(slug, '.tailwind.html'),
-            exportTailwind(doc, {
+            exportTailwind(exportDocFor(doc, ref, 'tailwind'), {
               nodeIds: [node.id],
               title: node.name,
               tailwind: await getTailwindEngine(doc),
@@ -218,7 +237,7 @@ export function registerExportTools(ctx: ToolContext): void {
           );
         } else {
           const name = pascalOf(slug);
-          const r = exportReact(doc, {
+          const r = exportReact(exportDocFor(doc, ref, 'react'), {
             nodeId: node.id,
             // O motor só serve ao Tailwind: com estilos inline nem é carregado.
             ...((styles ?? 'tailwind') === 'tailwind'
@@ -311,8 +330,9 @@ export function registerExportTools(ctx: ToolContext): void {
     async ({ nodeId, format, styles, assetsBase, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       const node = nodeSubtree(doc, nodeId);
+      const codeDoc = exportDocFor(doc, nodeId, format);
       if (format === 'html') {
-        return exportHtml(doc, {
+        return exportHtml(codeDoc, {
           nodeIds: [nodeId],
           title: node.name,
           mode: 'classes',
@@ -320,7 +340,7 @@ export function registerExportTools(ctx: ToolContext): void {
         });
       }
       if (format === 'tailwind') {
-        const html = exportTailwind(doc, {
+        const html = exportTailwind(codeDoc, {
           nodeIds: [nodeId],
           title: node.name,
           fragment: true,
@@ -329,7 +349,7 @@ export function registerExportTools(ctx: ToolContext): void {
         const css = Object.keys(doc.tokens).length ? tailwindThemeCss(doc) : undefined;
         return css ? `${html}\n\n/* theme.css */\n${css}` : html;
       }
-      const r = exportReact(doc, {
+      const r = exportReact(codeDoc, {
         nodeId,
         // O motor só serve ao Tailwind: com estilos inline nem é carregado.
         ...((styles ?? 'tailwind') === 'tailwind'

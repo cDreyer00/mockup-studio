@@ -27,6 +27,9 @@ extraResources:
   # skill/snippets para integrar com Claude Code e Codex (pasta na raiz do repositório)
   - from: ../../integrations
     to: integrations
+  # kits de componentes (*.mockup.json): o daemon os acha em resources/kits (packages/server/src/kits.ts)
+  - from: ../../kits
+    to: kits
 win:
   icon: build/icon.ico
   target:

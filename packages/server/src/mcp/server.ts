@@ -2,7 +2,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   createNodeFromTag,
+  findInstanceNode,
   findNode,
+  getComponent,
   breakpointsOf,
   PSEUDO_STATES,
   fixedWidthPx,
@@ -18,8 +20,10 @@ import {
   walk,
   type Document,
   type Node,
+  type NodePath,
   type Op,
 } from '@mockup/core';
+import { resolveRead } from '../component-view.js';
 import type { DocumentStore } from '../store.js';
 import {
   DESTRUCTIVE,
@@ -34,6 +38,7 @@ import {
 } from './context.js';
 import { formatToolInputError, notFoundToolMessage } from './errors.js';
 import { GUIDES, GUIDE_INFO, GUIDE_TOPICS } from './guides.js';
+import { registerComponentTools } from './tools/components.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
@@ -63,6 +68,7 @@ export const SERVER_INSTRUCTIONS = [
   'Mockup Studio é um editor de design em canvas: documentos com páginas, frames (artboards) e nós HTML/CSS reais.',
   "Comece com get_guide('getting-started') (fluxo em 6 passos) e get_basic_info.",
   "Para HTML com classes Tailwind (shadcn/ui, Tailwind UI): write_html/import_component, set_classes, get_screenshot(state) e get_guide('tailwind').",
+  "Componentes reutilizáveis (shadcn-like: Button, Card, Navbar...): insert_component, list_components e get_guide('components').",
   "Defina o design system (set_tokens, create_theme; get_guide('tokens')) antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.",
   'Sempre confira o resultado com get_screenshot e corrija (update_styles, set_text, undo) antes de seguir.',
   'docId é opcional (vale o documento ativo), exceto em close_document.',
@@ -193,14 +199,21 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     server.registerTool(name, sdkCfg, cb as never);
   }
 
-  const requireNode = (doc: Document, id: string) => {
-    const p = findNode(doc, id);
-    if (!p) {
-      throw new ToolError(
-        `Nó não encontrado: "${id}". Use get_tree_summary para listar ids válidos (ex.: "fr_ab12cd34").`,
-      );
-    }
+  const nodeNotFound = (id: string) =>
+    new ToolError(
+      `Nó não encontrado: "${id}". Use get_tree_summary para listar ids válidos (ex.: "fr_ab12cd34"; dentro de instâncias: "in_ab12cd34/el_ab12cd34"; nós de um principal: get_component).`,
+    );
+  /** Nó para escrita: real (instâncias sem expandir), ou id virtual / nó de principal. */
+  const requireNode = (doc: Document, id: string): NodePath => {
+    const p = findNode(doc, id) ?? resolveRead(doc, id)?.path;
+    if (!p) throw nodeNotFound(id);
     return p;
+  };
+  /** Nó para leitura: do documento expandido (instâncias viram HTML concreto). */
+  const readNode = (doc: Document, id: string) => {
+    const r = resolveRead(doc, id);
+    if (!r) throw nodeNotFound(id);
+    return { path: r.path, doc: r.doc };
   };
   const requirePage = (doc: Document, pageId: string) => {
     const p = doc.pages.find((x) => x.id === pageId);
@@ -219,10 +232,10 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     const seen = new Set<string>();
     const add = (id: string): boolean => {
       if (seen.has(id)) return true;
-      const p = findNode(doc, id);
+      const p = resolveRead(doc, id);
       if (!p) return false;
       seen.add(id);
-      parts.push(getTreeSummary(p.node, 2));
+      parts.push(getTreeSummary(p.path.node, 2, { doc }));
       return true;
     };
     for (const id of ids) add(id);
@@ -235,7 +248,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
   function fallbackFor(doc: Document, ids: string[]): string[] {
     const out: string[] = [];
     for (const id of ids) {
-      const p = findNode(doc, id);
+      const p = resolveRead(doc, id)?.path;
       if (p) out.push(p.parent?.id ?? p.node.id);
     }
     return out;
@@ -420,8 +433,8 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       if (!sel.length) return 'Nenhum nó selecionado.';
       return sel
         .map((n) => {
-          const p = findNode(doc, n);
-          return p ? summarizeNode(p.node) : `${n} (não existe mais)`;
+          const p = resolveRead(doc, n)?.path;
+          return p ? summarizeNode(p.node, doc) : `${n} (não existe mais)`;
         })
         .join('\n');
     },
@@ -463,8 +476,8 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       annotations: READ,
     },
     ({ nodeId, docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
-      const p = requireNode(doc, nodeId);
+      const stored = store.get(store.resolveDocId(docId));
+      const { path: p } = readNode(stored, nodeId);
       const n = p.node;
       const kv = (o: Record<string, string>) =>
         Object.keys(o).length
@@ -493,6 +506,25 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       lines.push(
         `filhos: ${n.children.length}${n.locked ? ' | bloqueado' : ''}${n.hidden ? ' | oculto' : ''}`,
       );
+      const inst = findInstanceNode(stored, nodeId);
+      if (inst) {
+        const def = getComponent(stored, inst.componentId);
+        const props = Object.entries(inst.props ?? {})
+          .map(([k, v]) => `${k}=${String(v)}`)
+          .join(', ');
+        lines.push(
+          `instância de ${def ? `${def.name} (${def.id})` : `${inst.componentId} (ausente)`} | props: ${props || '(padrão)'} | overrides: ${Object.keys(inst.overrides ?? {}).join(', ') || '(nenhum)'}`,
+          'Os dados acima são da árvore expandida; edite com set_instance_props / set_instance_override (get_guide("components")).',
+        );
+      } else if (nodeId.includes('/')) {
+        lines.push(
+          'Nó interno de uma instância: update_styles/set_text neste id viram override da instância; para mudar todas, edite o principal (get_component).',
+        );
+      } else if (p.page.id.startsWith('pg__')) {
+        lines.push(
+          'Nó da árvore de um principal: update_styles/set_text neste id editam o principal e todas as instâncias.',
+        );
+      }
       return lines.join('\n');
     },
   );
@@ -510,10 +542,10 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       annotations: READ,
     },
     ({ nodeId, docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
-      const { node } = requireNode(doc, nodeId);
+      const stored = store.get(store.resolveDocId(docId));
+      const node = readNode(stored, nodeId).path.node;
       if (!node.children.length) return `${node.id} não tem filhos.`;
-      return node.children.map((c) => summarizeNode(c)).join('\n');
+      return node.children.map((c) => summarizeNode(c, stored)).join('\n');
     },
   );
 
@@ -544,7 +576,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       const doc = store.get(store.resolveDocId(docId));
       const d = depth ?? 2;
       if (!nodeId) return getDocumentSummary(doc, d);
-      return getTreeSummary(requireNode(doc, nodeId).node, d);
+      return getTreeSummary(readNode(doc, nodeId).path.node, d, { doc });
     },
   );
 
@@ -573,17 +605,27 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     },
     ({ nodeIds, theme: themeArg, state, docId }) => {
       const stored = store.get(store.resolveDocId(docId));
-      requireNodes(stored, nodeIds);
-      const { doc, dark } = withResolvedStates(stored, state);
+      // ids virtuais e de principais vivem no documento expandido / temporário
+      const reads = nodeIds.map((id) => readNode(stored, id).doc);
+      const resolved = new Map<Document, { doc: Document; dark: boolean }>();
+      const resolve = (d: Document) => {
+        let r = resolved.get(d);
+        if (!r) {
+          r = withResolvedStates(d, state);
+          resolved.set(d, r);
+        }
+        return r;
+      };
+      const dark = resolve(reads[0]!).dark;
       const theme =
         themeArg ?? (dark && stored.themes?.some((t) => t.name === 'dark') ? 'dark' : undefined);
-      if (theme && !doc.themes?.some((t) => t.name === theme))
+      if (theme && !stored.themes?.some((t) => t.name === theme))
         throw new ToolError(
           `Tema "${theme}" não existe. Crie com create_theme ou veja get_tokens.`,
         );
       return nodeIds
-        .map((id) => {
-          const styles = getComputedLike(doc, id, { theme });
+        .map((id, i) => {
+          const styles = getComputedLike(resolve(reads[i]!).doc, id, { theme });
           const body = Object.entries(styles)
             .map(([k, v]) => `  ${k}: ${v}`)
             .join('\n');
@@ -611,9 +653,9 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       annotations: READ,
     },
     ({ nodeId, mode, docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
-      const { node } = requireNode(doc, nodeId);
-      const out = nodesToHtml([node], { mode: mode ?? 'inline' });
+      // instância: HTML expandido (props, variantes e overrides aplicados)
+      const { path } = readNode(store.get(store.resolveDocId(docId)), nodeId);
+      const out = nodesToHtml([path.node], { mode: mode ?? 'inline' });
       return out.css && (mode ?? 'inline') === 'classes'
         ? `${out.html}\n<style>\n${out.css}\n</style>`
         : out.html;
@@ -1271,6 +1313,7 @@ ${summaryOf(r.doc, nodeIds)}`;
     opts,
     tool,
     requireNode,
+    readNode,
     summaryOf,
     apply,
     selectedOrFirstFrame,
@@ -1281,6 +1324,7 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerFontTools(ctx);
   registerTokenTools(ctx);
   registerTailwindTools(ctx);
+  registerComponentTools(ctx);
 
   /* ---------- resources ---------- */
 

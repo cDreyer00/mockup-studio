@@ -6,6 +6,7 @@ export const GUIDE_TOPICS = [
   'responsive',
   'screenshot-loop',
   'tailwind',
+  'components',
   'export',
   'troubleshooting',
   'setup',
@@ -56,6 +57,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description:
       'Classes Tailwind em write_html e import_component (shadcn), set_classes, estados hover/dark/md, screenshot por estado e limitações.',
   },
+  components: {
+    title: 'Guia: componentes',
+    description:
+      'Kit shadcn-like, insert_component com props e slots, criar componentes com bind, editar o principal, overrides, destacar e exportar React.',
+  },
   setup: {
     title: 'Guia: instalação e registro do MCP',
     description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
@@ -84,12 +90,13 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
 - HTML com classes Tailwind (shadcn/ui, Tailwind UI): \`write_html\` detecta sozinho e \`import_component\` cria os tokens shadcn; veja \`get_guide('tailwind')\`.
+- Componentes reutilizáveis (Button, Card, Navbar...): \`insert_component('shadcn-like/Button', parentId, props)\`; veja \`get_guide('components')\`.
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`; kits Lucide e Heroicons, nomes \`kit/nome\`), \`add_font\` (\`list_fonts\`).
 - \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
 
 ## Guias
 
-\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -407,6 +414,33 @@ devolver o mesmo código. O CSS base do documento passa a ser o preflight do Tai
 - Variantes sem equivalente ficam só em \`node.classes\` (e no código exportado), sem efeito no render: \`group-*\`, \`peer-*\`, \`aria-*\`, \`data-*\`, \`before:\`/\`after:\`, \`has-*\`, \`[&_svg]:\` e seletores arbitrários. A resposta de write_html/set_classes lista essas classes com o motivo.
 - Classes desconhecidas (\`foo-bar\`) são mantidas, sem efeito.
 - Os valores do tema padrão entram inline (\`p-4\` → \`padding: 1rem\`); os tokens do documento entram como \`var(--...)\`.
+`,
+  components: `# Componentes
+
+Componente = **principal** (na biblioteca do documento) + **instâncias** (nós \`◆Nome\` espalhados). Editar o principal muda todas as instâncias; cada instância tem props, slots e overrides próprios.
+
+## Usar o kit
+
+- \`list_components\` mostra a biblioteca e os kits; \`get_component('shadcn-like/Button')\` mostra props, opções e a árvore.
+- Kit \`shadcn-like\`: Button, Input, Card, Navbar, Tabs, Dialog, Table, List (usa os tokens shadcn; \`import_kit\` cria os que faltam).
+- \`insert_component('shadcn-like/Button', parentId, { variant: 'outline', label: 'Salvar' })\` importa o kit se preciso e insere a instância.
+- Slots recebem HTML (Tailwind aceito): \`insert_component('shadcn-like/Card', parentId, { title: 'Plano' }, slots: { content: '<p>…</p>' })\`. A resposta traz os ids dos slots (use como parentId de write_html).
+- Props: \`set_instance_props(nodeIds, { variant: 'ghost' })\`. Props inválidas listam as válidas; enum lista as opções.
+
+## Criar um componente
+
+\`create_component(nodeId, name, props: [{ name: 'label', type: 'string', bind: { nodeId: 'tx_…', target: 'text' } }])\`: o nó vira a primeira instância e o texto vira \`{{label}}\`. \`bind.target\`: \`text\`, \`attr:href\` ou \`style:color\`. Um contêiner com \`data-slot="content"\` vira slot. Props enum/boolean mudam a aparência por variantes (\`update_component\`: \`variants: [{ when: { variant: 'outline' }, overrides: { '': { style: {...} } } }]\`).
+
+## Editar
+
+- O principal (afeta todas): \`update_styles\`/\`set_text\`/\`set_attrs\` nos ids do \`get_component\` (ou \`go_to_main\`), ou \`update_component_html(componentId, html)\` (um elemento raiz; mantenha \`{{prop}}\` e \`data-slot\`).
+- Uma instância: \`set_instance_override(nodeId, path, { style, text, ... })\`, ou \`update_styles\` no id virtual \`in_x/tx_y\` (vira override). \`reset_instance\` descarta, \`push_overrides_to_main\` promove ao principal.
+- Soltar do componente: \`detach_instance(nodeId)\` (devolve o novo id). \`delete_component(id, detach_instances)\`.
+- Estrutura interna (criar/mover/excluir nós) só no principal ou depois de destacar; dentro de slots vale tudo (write_html, create_node).
+
+## Ler e conferir
+
+\`get_tree_summary\`, \`get_html\`, \`get_styles\` e \`get_screenshot\` aceitam o id da instância e ids virtuais (\`in_x/...\`) e leem a versão expandida. \`get_screenshot('cp_…')\` renderiza o principal numa instância padrão. \`get_code(nodeId, 'react')\` gera um componente React por principal (props tipadas, instâncias como \`<Button variant="outline" />\`).
 `,
   setup: `# Instalação e registro do MCP
 

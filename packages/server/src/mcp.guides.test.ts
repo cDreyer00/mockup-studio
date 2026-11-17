@@ -33,7 +33,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos são os 10 esperados', () => {
+  it('os tópicos são os 11 esperados', () => {
     expect([...GUIDE_TOPICS]).toEqual([
       'getting-started',
       'design-system',
@@ -42,6 +42,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
       'responsive',
       'screenshot-loop',
       'tailwind',
+      'components',
       'export',
       'troubleshooting',
       'setup',
@@ -87,7 +88,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     expect(d).toContain('4.5:1');
   });
 
-  it('resources guide://<topic> para os 10 guias', async () => {
+  it('resources guide://<topic> para os 11 guias', async () => {
     const { resources } = await client.listResources();
     const uris = resources.map((x) => x.uri);
     for (const topic of GUIDE_TOPICS) {
