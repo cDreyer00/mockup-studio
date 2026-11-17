@@ -250,7 +250,7 @@ export function placeholderFileName(kind: PlaceholderKind, opts: PlaceholderOpti
   const seed =
     String(opts.seed ?? '1')
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036F]/g, '')
       .replace(/[^a-zA-Z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 40) || `h${hashSeed(String(opts.seed)).toString(36)}`;

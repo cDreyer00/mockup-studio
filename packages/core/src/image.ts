@@ -166,12 +166,10 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 /** Limita o recorte a 0..100 e garante pelo menos 1% visível em cada eixo. */
 export function clampCrop(c: ImageCrop): ImageCrop {
   const cl = (n: number): number => Math.min(99, Math.max(0, Number.isFinite(n) ? n : 0));
-  let { top, right, bottom, left } = {
-    top: cl(c.top),
-    right: cl(c.right),
-    bottom: cl(c.bottom),
-    left: cl(c.left),
-  };
+  const top = cl(c.top);
+  const left = cl(c.left);
+  let right = cl(c.right);
+  let bottom = cl(c.bottom);
   if (left + right > 99) right = 99 - left;
   if (top + bottom > 99) bottom = 99 - top;
   return { top: round2(top), right: round2(right), bottom: round2(bottom), left: round2(left) };

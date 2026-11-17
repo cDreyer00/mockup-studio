@@ -147,17 +147,17 @@ function bindNode(n: Node, ctx: BindingContext, suffix: string): Node {
   if (n.position) out.position = { ...n.position };
   if (n.type === 'repeater') {
     // Repetidor aninhado: o template interno usa os próprios itens, não o item externo.
-    const inner = expandRepeater({ ...out, children: n.children });
-    inner.children = inner.children.map((c) => addSuffix(c, suffix));
+    const inner: Node = {
+      ...out,
+      type: 'element',
+      children: expandItems({ ...out, children: n.children }, {}, suffix),
+    };
+    delete inner.data;
+    delete inner.dataSource;
     return inner;
   }
   out.children = n.children.map((c) => bindNode(c, ctx, suffix));
   return out;
-}
-
-function addSuffix(n: Node, suffix: string): Node {
-  if (!suffix) return n;
-  return { ...n, id: n.id + suffix, children: n.children.map((c) => addSuffix(c, suffix)) };
 }
 
 export interface ExpandOptions {
@@ -171,6 +171,14 @@ export interface ExpandOptions {
  * template com os bindings resolvidos contra um item vazio.
  */
 export function expandRepeaterChildren(node: Node, opts: ExpandOptions = {}): Node[] {
+  return expandItems(node, opts, '');
+}
+
+/**
+ * `outer` é o sufixo do item externo (repetidor aninhado): dentro dele todo item ganha `~<i>`,
+ * inclusive o 0, para os ids não colidirem com os de outro item externo.
+ */
+function expandItems(node: Node, opts: ExpandOptions, outer: string): Node[] {
   const template = node.children.filter((c) => !c.hidden);
   const mapping = node.dataSource?.mapping;
   const data = Array.isArray(node.data) ? node.data : [];
@@ -178,7 +186,11 @@ export function expandRepeaterChildren(node: Node, opts: ExpandOptions = {}): No
   const items = data.length > 0 ? data.slice(0, max) : [undefined];
   const out: Node[] = [];
   items.forEach((item, index) => {
-    const suffix = index === 0 ? '' : `${REPEAT_ID_SEP}${index}`;
+    const suffix = outer
+      ? `${outer}${REPEAT_ID_SEP}${index}`
+      : index === 0
+        ? ''
+        : `${REPEAT_ID_SEP}${index}`;
     const ctx: BindingContext = { item: item ?? {}, index, mapping };
     for (const c of template) out.push(bindNode(c, ctx, suffix));
   });
@@ -258,7 +270,7 @@ export function detectCsvDelimiter(text: string): string {
 
 /** Linhas de um CSV (RFC 4180: aspas, aspas duplicadas e quebras dentro de aspas). */
 export function parseCsvRows(text: string, delimiter?: string): string[][] {
-  const src = text.replace(/^﻿/, '');
+  const src = text.replace(/^\uFEFF/, '');
   const d = delimiter ?? detectCsvDelimiter(src);
   const rows: string[][] = [];
   let row: string[] = [];
@@ -347,7 +359,7 @@ export function parseDataText(
   else {
     let json: unknown;
     try {
-      json = JSON.parse(text.replace(/^﻿/, ''));
+      json = JSON.parse(text.replace(/^\uFEFF/, ''));
     } catch (e) {
       throw new Error(`JSON inválido: ${e instanceof Error ? e.message : String(e)}`);
     }
