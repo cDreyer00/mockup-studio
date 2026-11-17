@@ -19,7 +19,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 ## Layout
 
 - **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
-- **Painel esquerdo**: duas abas, **Camadas** (páginas e a árvore de camadas da página ativa) e **Tokens** (ver [Tokens e temas](#tokens-e-temas)).
+- **Painel esquerdo**: três abas, **Camadas** (páginas e a árvore de camadas da página ativa), **Componentes** (ver [Componentes](#componentes)) e **Tokens** (ver [Tokens e temas](#tokens-e-temas)).
 - **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
 - **Painel direito**: propriedades da seleção (ou, sem seleção, o nome do documento e um resumo de tokens e temas).
 
@@ -33,7 +33,7 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 - **Redimensionar** pelas 8 alças (`width`/`height` em px); Alt redimensiona a partir do centro; Shift mantém a proporção. O rótulo `W × H` aparece sob a seleção.
 - **Criar**: Frame (F) e Container (R) desenhando com arrasto (clique simples cria no tamanho padrão); Texto (T) com clique, já em edição; Imagem (botão da barra, clique no canvas, `Ctrl+Shift+K`, colar ou soltar arquivo) envia o arquivo para `assets/` do documento (`POST /api/assets/:docId`) e cria um nó `img` com `src` relativo. Dentro de pai flex o nó entra no fluxo; em pai bloco vira `absolute` (o pai ganha `position: relative` se for estático).
 - **Texto inline**: duplo clique num texto selecionado edita; Enter confirma, Shift+Enter quebra linha, Esc cancela.
-- **Menu de contexto** (botão direito, também nas camadas): duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, excluir.
+- **Menu de contexto** (botão direito, também nas camadas): criar componente, ir para principal, destacar instância, duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, excluir.
 - **MCP ao vivo**: mudanças feitas por agentes aparecem sem recarregar; a seleção feita pelo MCP (`set_selection`) seleciona e enquadra os nós; frames tocados pelo MCP nos últimos 4 s mostram o badge **IA** pulsante ao lado do nome. A seleção do editor é publicada no daemon (`get_selection`).
 
 ## Camadas e páginas
@@ -58,6 +58,19 @@ Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
 - **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
 
 Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+
+## Componentes
+
+Modelo, expansão e ops em [COMPONENTES.md](COMPONENTES.md). No editor:
+
+- **Visão expandida**: o `docStore` guarda o documento do daemon em `rawDoc` e expõe em `doc` a **visão** (`expandDocument`, memoizada, com compartilhamento estrutural entre versões). Canvas, índice, camadas, seleção, overlay e propriedades trabalham sobre a visão sem código especial; os planejadores do core (`createComponentOps`, `instanceNodeFor`, `detachInstanceOps`, `importKitOps`...) recebem o `rawDoc`. Uma instância aparece com o id dela (tipo da raiz do principal, `componentId`/`props` como marcador), os nós internos com ids virtuais `in_x/caminho` e o conteúdo de slot com os ids reais.
+- **Seleção**: clicar numa instância seleciona a instância; duplo clique desce para os nós internos (como em qualquer filho), Ctrl+clique vai direto. Nós internos **não** se movem, reordenam, duplicam, agrupam nem são excluídos (aviso na tela; nas camadas não são arrastáveis nem renomeáveis), mas estilo, texto (duplo clique), atributos, classes e ocultar viram **overrides** da instância (o daemon roteia as ops). Inserir (ferramentas, colar, soltar) nunca entra num nó interno nem na raiz da instância, só no **conteúdo de slot**, que é nó real: seleciona, edita texto, insere e arrasta como qualquer nó. O contêiner de slot em si não se move.
+- **Indicador roxo**: contorno de hover/seleção, alças e rótulo de tamanho roxos em instâncias, nós internos, contêineres de slot e no principal em edição; nas camadas, instância com ícone de componente (roxo forte), nós internos em roxo-claro e contêiner de slot com ícone tracejado.
+- **Criar componente** (Ctrl+Alt+K ou menu de contexto): o nó selecionado (não frame raiz, não interno) vira o principal e é trocado pela primeira instância, numa entrada de undo; props inferidas de `{{nome}}` e `data-slot`.
+- **Aba Componentes**: busca por nome; **Neste documento** lista os principais (nome, kit, nº de instâncias nas páginas): clique edita o principal, arrastar para o canvas ou o botão + insere uma instância (dentro do contêiner selecionado, logo depois da seleção ou no primeiro frame). Os **kits** do daemon (`GET /api/kits`, ex. **Kit shadcn-like**) inserem com clique ou arrastando: `importKitOps` (se o componente ainda não está no documento; traz os tokens que faltam) e o `createNode` da instância (calculado sobre o documento com o kit aplicado localmente) vão numa única chamada. Solto em pai bloco, a instância fica `absolute` no ponto; fora de frames, ganha um frame em volta.
+- **Painel da instância** (seção Instância): componente de origem, um controle por prop (texto, número, liga/desliga, opções, cor com seletor de token) que gera `setInstanceProps` (voltar ao padrão remove a prop), botões dos slots (selecionam o contêiner) e **Ir para principal**, **Destacar** (`detachInstanceOps`), **Restaurar** (remove os overrides; desabilitado sem overrides) e **Enviar ao principal** (`pushOverridesToMainOps`).
+- **Modo de edição do principal** (Ir para principal, clique na aba, menu de contexto ou `go_to_main` do MCP): o canvas mostra só a página sintética `COMPONENT_EDIT_PAGE_ID` com a raiz do principal (instâncias aninhadas expandidas) dentro de um quadro tracejado não editável, com a largura da instância de origem; o selo "Editando componente X · N instâncias · **Concluir**" fica no topo. As edições usam os ids reais dos nós do principal (o daemon as transforma em `updateComponent`) e propagam para todas as instâncias; undo/redo normais. O painel mostra a seção **Componente** (nome, descrição e props: adicionar, remover, renomear, tipo, padrão e opções). **Esc** sem seleção (ou Concluir) volta à página de origem e seleciona a instância de onde se entrou; trocar de página também sai do modo. Os textos do principal mostram os placeholders (`{{label}}`).
+- **Copiar/colar**: copiar uma instância copia a instância (não a árvore expandida); um nó interno sai como nós concretos. Colar na raiz da página embrulha a instância num frame.
 
 ## Tokens e temas
 
@@ -104,26 +117,27 @@ O Tailwind é nativo no modelo: `node.classes` (classes como escritas), `node.st
 
 ## Atalhos
 
-| Atalho                              | Ação                                          |
-| ----------------------------------- | --------------------------------------------- |
-| V / H / F (ou A) / R / T            | Selecionar / Mão / Frame / Container / Texto  |
-| Ctrl+Shift+K                        | Inserir imagem                                |
-| Espaço (segurar)                    | Pan temporário                                |
-| Alt (segurar)                       | Régua de distâncias; redimensionar do centro  |
-| Delete / Backspace                  | Excluir                                       |
-| Ctrl+D                              | Duplicar                                      |
-| Ctrl+G / Ctrl+Shift+G               | Agrupar em container / desagrupar             |
-| Ctrl+] / Ctrl+[                     | Avançar / recuar                              |
-| Ctrl+Shift+] / Ctrl+Shift+[         | Trazer para frente / enviar para trás         |
-| Ctrl+Shift+H / Ctrl+Shift+L         | Ocultar / travar                              |
-| Setas / Shift+setas                 | Mover 1 px / 10 px (reordena filhos em fluxo) |
-| Esc                                 | Volta à ferramenta Selecionar; sobe um nível  |
-| Enter / Shift+Enter                 | Seleciona os filhos / o pai                   |
-| Ctrl+A                              | Seleciona irmãos (ou todos os frames)         |
-| Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y     | Desfazer / refazer                            |
-| Ctrl+C / Ctrl+X / Ctrl+V            | Copiar / recortar / colar                     |
-| Ctrl+S / Ctrl+Shift+S               | Salvar / Salvar como                          |
-| + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: aproximar, afastar, 100%, tudo, seleção |
+| Atalho                              | Ação                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| V / H / F (ou A) / R / T            | Selecionar / Mão / Frame / Container / Texto                                             |
+| Ctrl+Shift+K                        | Inserir imagem                                                                           |
+| Ctrl+Alt+K                          | Criar componente da seleção                                                              |
+| Espaço (segurar)                    | Pan temporário                                                                           |
+| Alt (segurar)                       | Régua de distâncias; redimensionar do centro                                             |
+| Delete / Backspace                  | Excluir                                                                                  |
+| Ctrl+D                              | Duplicar                                                                                 |
+| Ctrl+G / Ctrl+Shift+G               | Agrupar em container / desagrupar                                                        |
+| Ctrl+] / Ctrl+[                     | Avançar / recuar                                                                         |
+| Ctrl+Shift+] / Ctrl+Shift+[         | Trazer para frente / enviar para trás                                                    |
+| Ctrl+Shift+H / Ctrl+Shift+L         | Ocultar / travar                                                                         |
+| Setas / Shift+setas                 | Mover 1 px / 10 px (reordena filhos em fluxo)                                            |
+| Esc                                 | Volta à ferramenta Selecionar; sobe um nível; sem seleção, conclui a edição do principal |
+| Enter / Shift+Enter                 | Seleciona os filhos / o pai                                                              |
+| Ctrl+A                              | Seleciona irmãos (ou todos os frames)                                                    |
+| Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y     | Desfazer / refazer                                                                       |
+| Ctrl+C / Ctrl+X / Ctrl+V            | Copiar / recortar / colar                                                                |
+| Ctrl+S / Ctrl+Shift+S               | Salvar / Salvar como                                                                     |
+| + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: aproximar, afastar, 100%, tudo, seleção                                            |
 
 Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo ou na edição inline (exceto Ctrl+S).
 
@@ -135,21 +149,22 @@ Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo
 
 ## Arquitetura interna
 
-| Pasta / arquivo                        | Conteúdo                                                                                                                                      |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes. |
-| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo, histórico (`canUndo`/`canRedo`), atividade do agente.                                          |
-| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts.   |
-| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                     |
-| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                   |
-| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                       |
-| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                  |
-| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                |
-| `layers/`                              | Páginas e árvore de camadas.                                                                                                                  |
-| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                     |
-| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                             |
-| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                          |
-| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                  |
+| Pasta / arquivo                        | Conteúdo                                                                                                                                       |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes.  |
+| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo (`rawDoc`) e a visão expandida (`doc`), histórico (`canUndo`/`canRedo`), atividade do agente.    |
+| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts.    |
+| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                      |
+| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                    |
+| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                        |
+| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                   |
+| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                 |
+| `layers/`                              | Páginas e árvore de camadas.                                                                                                                   |
+| `components/`                          | Componentes: visão expandida e página do principal (`model.ts`), modo de edição, comandos, kits, aba Componentes, seções Instância/Componente. |
+| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                      |
+| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                              |
+| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                           |
+| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                   |
 
 ## Salvar como, fontes embutidas e app desktop
 
@@ -187,7 +202,7 @@ Com esses números, a clonagem por JSON no core e o documento completo no `doc:c
 ## Testes
 
 - Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
-- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
+- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página), os componentes (Ctrl+Alt+K, instâncias com props pelo painel, edição do principal propagando para 3 instâncias e undo, override de texto e Restaurar, bloqueio de nó interno, kit shadcn-like por clique e arrastando, slot editável, `go_to_main` e Esc) e as medições de desempenho.
 - `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
 - Portas e pasta do e2e por variável de ambiente: `MOCKUP_E2E_DAEMON_PORT` (padrão 4848), `MOCKUP_E2E_EDITOR_PORT` (padrão 5273) e `MOCKUP_E2E_DIR` (padrão: pasta temporária nova por execução, com os documentos e o `MOCKUP_DATA_DIR` do daemon). `MOCKUP_E2E_DAEMON` é derivada da porta e lida pelos helpers. Mude as portas se o daemon de uso (4747) ou outro processo ocupar as padrão.
 

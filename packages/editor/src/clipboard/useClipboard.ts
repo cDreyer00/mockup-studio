@@ -6,7 +6,8 @@ import { daemon } from '../client/daemon';
 import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile } from '../canvas/imageTool';
 import { makeText } from '../model/factory';
-import { getNode, isLockedDeep, topLevel } from '../model/tree';
+import { isLockedDeep, topLevel } from '../model/tree';
+import { copyableNode } from '../components/model';
 import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
@@ -55,9 +56,11 @@ export function copySelection(e: ClipboardEvent, editableOnly = false): boolean 
   }
   if (!ids.length) return false;
   const nodes: Node[] = [];
+  // Instâncias saem como instâncias (nó real); nós internos, como a árvore concreta.
+  const raw = useDoc.getState().rawDoc;
   for (const id of ids) {
-    const n = getNode(doc, id);
-    if (n) nodes.push(structuredClone(n));
+    const n = copyableNode(raw, doc, id);
+    if (n) nodes.push(n);
   }
   if (!nodes.length) return false;
   const token = newToken();

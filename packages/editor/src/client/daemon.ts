@@ -12,8 +12,14 @@ import type {
   OpenDocumentInfo,
   ServerMessage,
 } from '@mockup/core';
+import {
+  enterComponent,
+  exitComponent,
+  isEditingValid,
+  mainOfSelection,
+} from '../components/editing';
 import { getEntry, getFrameOf } from '../model/tree';
-import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc } from '../state/docStore';
+import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc, withView } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 
 /** Mensagem do cliente sem `reqId` (gerado em `request`), distribuída por membro da união. */
@@ -265,13 +271,14 @@ export class DaemonClient {
         useDoc.setState({
           documents: msg.documents,
           activeDocId: msg.activeDocId,
-          doc: msg.doc,
+          ...withView(msg.doc),
           revision: msg.revision,
           history,
           docs: msg.doc ? { [msg.doc.id]: msg.doc } : {},
           histories: msg.doc ? { [msg.doc.id]: history } : {},
         });
-        if (msg.doc) this.pruneUi(msg.doc);
+        const view = useDoc.getState().doc;
+        if (view) this.pruneUi(view);
         else ui.setPage(null);
         return;
       }
@@ -284,7 +291,7 @@ export class DaemonClient {
           documents,
           docs: { ...s.docs, [msg.info.docId]: doc },
           histories: { ...s.histories, [msg.info.docId]: history },
-          ...(isActive ? { doc, history, revision: msg.info.revision } : {}),
+          ...(isActive ? { ...withView(doc), history, revision: msg.info.revision } : {}),
         });
         return;
       }
@@ -306,9 +313,9 @@ export class DaemonClient {
           histories: { ...s.histories, [msg.docId]: history },
           documents: patchInfo(s.documents, msg.docId, { dirty: true, revision: msg.revision }),
           agentActivity,
-          ...(isActive ? { doc, history, revision: msg.revision } : {}),
+          ...(isActive ? { ...withView(doc), history, revision: msg.revision } : {}),
         });
-        if (isActive) this.pruneUi(doc);
+        if (isActive) this.pruneUi(useDoc.getState().doc ?? doc);
         return;
       }
       case 'agent:finished': {
@@ -346,14 +353,17 @@ export class DaemonClient {
           docs,
           histories,
           documents: s.documents.filter((d) => d.docId !== msg.docId),
-          ...(wasActive ? { activeDocId: null, doc: null, history: NO_HISTORY } : {}),
+          ...(wasActive ? { activeDocId: null, ...withView(null), history: NO_HISTORY } : {}),
         });
         if (wasActive) ui.setPage(null);
         return;
       }
       case 'selection:changed': {
         if (msg.docId !== s.activeDocId || msg.source === 'editor') return;
-        const doc = s.doc;
+        // Nó de um principal (ex.: `go_to_main` do MCP): entra no modo de edição dele.
+        const main = s.rawDoc ? mainOfSelection(s.rawDoc, msg.nodeIds) : null;
+        if (main && main !== useUi.getState().editingComponentId) enterComponent(main);
+        const doc = useDoc.getState().doc;
         const ids = doc ? msg.nodeIds.filter((id) => getEntry(doc, id)) : [];
         // Seleção vinda do MCP: troca de página se preciso e enquadra os nós.
         if (doc && ids.length) {
@@ -367,13 +377,13 @@ export class DaemonClient {
       case 'active:changed': {
         const doc = msg.docId ? (s.docs[msg.docId] ?? null) : null;
         const info = msg.docId ? s.documents.find((d) => d.docId === msg.docId) : undefined;
+        ui.setPage(null);
         useDoc.setState({
           activeDocId: msg.docId,
-          doc,
+          ...withView(doc),
           revision: info?.revision ?? 0,
           history: msg.docId ? (s.histories[msg.docId] ?? NO_HISTORY) : NO_HISTORY,
         });
-        ui.setPage(null);
         if (msg.docId && !doc) void this.fetchDoc(msg.docId);
         return;
       }
@@ -390,7 +400,7 @@ export class DaemonClient {
       const data = (await res.json()) as { info: OpenDocumentInfo; doc: Document };
       if (useDoc.getState().activeDocId !== docId) return;
       useDoc.setState((s) => ({
-        doc: data.doc,
+        ...withView(data.doc),
         revision: data.info.revision,
         docs: { ...s.docs, [docId]: data.doc },
       }));
@@ -401,6 +411,11 @@ export class DaemonClient {
 
   /** Remove da UI referências a nós/páginas que não existem mais. */
   private pruneUi(doc: Document): void {
+    // O principal em edição deixou de existir (ex.: desfazer a criação): volta para a página.
+    if (useUi.getState().editingComponentId && !isEditingValid()) {
+      exitComponent();
+      doc = useDoc.getState().doc ?? doc;
+    }
     const u = useUi.getState();
     if (u.pageId && !doc.pages.some((p) => p.id === u.pageId)) ui.setPage(null);
     const sel = u.selection.filter((id) => getEntry(doc, id));

@@ -1,5 +1,6 @@
-/** Painel esquerdo com abas: Camadas (painel existente) e Tokens. */
-import { Layers, Palette } from 'lucide-react';
+/** Painel esquerdo com abas: Camadas (painel existente), Componentes e Tokens. */
+import { Component, Layers, Palette } from 'lucide-react';
+import { ComponentsPanel } from '../components/ComponentsPanel';
 import { LayersPanel } from '../layers/LayersPanel';
 import { ui, useUi } from '../state/uiStore';
 import type { LeftTab } from '../state/uiStore';
@@ -8,6 +9,7 @@ import './tokens.css';
 
 const TABS: { id: LeftTab; label: string; icon: typeof Layers }[] = [
   { id: 'layers', label: 'Camadas', icon: Layers },
+  { id: 'components', label: 'Componentes', icon: Component },
   { id: 'tokens', label: 'Tokens', icon: Palette },
 ];
 
@@ -35,6 +37,11 @@ export function LeftDock() {
       <div className="left-dock-body" hidden={tab !== 'layers'}>
         <LayersPanel />
       </div>
+      {tab === 'components' && (
+        <div className="left-dock-body">
+          <ComponentsPanel />
+        </div>
+      )}
       {tab === 'tokens' && (
         <div className="left-dock-body">
           <TokensPanel />

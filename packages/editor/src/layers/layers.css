@@ -166,3 +166,25 @@
   outline-offset: -1px;
   background: var(--accent-soft);
 }
+
+/* ---------------- componentes (roxo) ---------------- */
+
+.layer-row.role-instance .layer-icon,
+.layer-row.role-instance.selected .layer-icon {
+  color: var(--component);
+}
+.layer-row.role-instance .layer-name {
+  color: var(--component-text);
+}
+.layer-row.role-internal .layer-name,
+.layer-row.role-internal .layer-icon,
+.layer-row.role-slot .layer-icon,
+.layer-row.role-main .layer-icon {
+  color: var(--component-light);
+}
+.layer-row.role-instance.selected,
+.layer-row.role-internal.selected,
+.layer-row.role-main.selected,
+.layer-row.role-slot.selected {
+  background: var(--component-soft);
+}

@@ -1,6 +1,12 @@
 /** Documentos de teste do editor. */
-import { createDocument, createNodeFromTag } from '@mockup/core';
-import type { Document, Node } from '@mockup/core';
+import {
+  applyOps,
+  createComponentOps,
+  createDocument,
+  createNodeFromTag,
+  instanceNodeFor,
+} from '@mockup/core';
+import type { Document, Node, Op } from '@mockup/core';
 
 /** Doc com 1 frame flex (coluna) contendo 3 filhos e 1 filho absoluto. */
 export function makeDoc(): { doc: Document; frame: Node; a: Node; b: Node; c: Node; abs: Node } {
@@ -71,4 +77,56 @@ export function makeBigDoc(frames = 6, perFrame = 50): Document {
     );
   }
   return doc;
+}
+
+/**
+ * Doc com um componente "Card" (texto `{{label}}` e slot `content`) e 3 instâncias no frame:
+ * `in_card0001` (o nó original, sem props), `in_card0002` (label B) e `in_card0003` (label C).
+ */
+export function makeComponentDoc(): {
+  doc: Document;
+  frameId: string;
+  componentId: string;
+  instanceIds: string[];
+  /** Ids dos nós do principal: raiz, texto e contêiner do slot. */
+  main: { rootId: string; textId: string; slotId: string };
+} {
+  const doc = createDocument('Componentes');
+  const text = createNodeFromTag('p', { name: 'Rótulo', text: '{{label}}' });
+  const slot = createNodeFromTag('div', {
+    name: 'Conteúdo',
+    attrs: { 'data-slot': 'content' },
+    children: [createNodeFromTag('span', { name: 'Padrão', text: 'padrão' })],
+  });
+  const card = createNodeFromTag('div', {
+    name: 'Card',
+    styles: { padding: '8px', background: '#ffffff' },
+    children: [text, slot],
+  });
+  const frame = createNodeFromTag('div', {
+    isRoot: true,
+    name: 'Frame',
+    styles: { width: '600px', height: '400px', display: 'flex', 'flex-direction': 'column' },
+    position: { x: 0, y: 0 },
+    children: [card],
+  });
+  doc.pages[0]!.frames.push(frame);
+  const created = createComponentOps(doc, card.id, {
+    componentId: 'cp_card0001',
+    instanceId: 'in_card0001',
+  });
+  let cur = applyOps(doc, created.ops).doc;
+  const more: Op[] = ['B', 'C'].map((label, i) => ({
+    type: 'createNode',
+    parentId: frame.id,
+    node: instanceNodeFor(cur, 'cp_card0001', { props: { label }, id: `in_card000${i + 2}` }),
+  }));
+  cur = applyOps(cur, more).doc;
+  return {
+    doc: cur,
+    frameId: frame.id,
+    componentId: 'cp_card0001',
+    instanceIds: ['in_card0001', 'in_card0002', 'in_card0003'],
+    main: { rootId: card.id, textId: text.id, slotId: slot.id },
+  };
 }

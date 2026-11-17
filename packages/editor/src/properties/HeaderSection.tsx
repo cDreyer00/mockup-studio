@@ -1,5 +1,6 @@
-import { Frame, Image as ImageIcon, Lock, Shapes, Square, Type } from 'lucide-react';
+import { Component, Frame, Image as ImageIcon, Lock, Shapes, Square, Type } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { isVirtualId } from '@mockup/core';
 import type { Node, NodeType } from '@mockup/core';
 import { Section } from '../ui/controls';
 import { runOps, Body, DraftInput, common } from './shared';
@@ -11,6 +12,7 @@ const ICONS: Record<NodeType, ReactNode> = {
   text: <Type size={14} />,
   image: <ImageIcon size={14} />,
   svg: <Shapes size={14} />,
+  instance: <Component size={14} />,
 };
 
 const TYPE_NAMES: Record<NodeType, string> = {
@@ -19,23 +21,29 @@ const TYPE_NAMES: Record<NodeType, string> = {
   text: 'Texto',
   image: 'Imagem',
   svg: 'SVG',
+  instance: 'Instância',
 };
+
+/** Tipo exibido: na árvore expandida, a raiz da instância tem o tipo da raiz do principal. */
+function kindOf(n: Node): NodeType {
+  return n.componentId !== undefined ? 'instance' : n.type;
+}
 
 export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locked: boolean }) {
   const first = nodes[0]!;
-  const sameType = nodes.every((n) => n.type === first.type);
+  const sameType = nodes.every((n) => kindOf(n) === kindOf(first));
   const sameTag = nodes.every((n) => n.tag === first.tag);
   const name = common(nodes, (n) => n.name);
   const subtitle =
     nodes.length > 1
       ? `${nodes.length} itens selecionados`
-      : `${TYPE_NAMES[first.type]} · <${first.tag}>`;
+      : `${TYPE_NAMES[kindOf(first)]}${isVirtualId(first.id) ? ' (interno)' : ''} · <${first.tag}>`;
   return (
     <Section id="props-header" title={nodes.length > 1 ? 'Seleção' : 'Elemento'}>
       <Body>
         <div className="prop-header">
           <span className="prop-header-icon">
-            {sameType ? ICONS[first.type] : <Square size={14} />}
+            {sameType ? ICONS[kindOf(first)] : <Square size={14} />}
           </span>
           <div className="prop-header-name" data-testid="prop-name">
             <DraftInput

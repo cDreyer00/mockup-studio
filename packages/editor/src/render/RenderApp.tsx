@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { Document, Node } from '@mockup/core';
-import { breakpointsOf } from '@mockup/core';
+import { breakpointsOf, expandNodeTree } from '@mockup/core';
 import type { PreviewState } from '@mockup/core';
 import { DocIdContext, NodeView, RenderDocContext } from '../canvas/NodeView';
 import { BASE_STATE_CTX, StateCtxContext } from '../canvas/stateContext';
@@ -32,7 +32,9 @@ export function renderFrameOf(frame: Node): Node {
 }
 
 /** Mesma árvore do canvas (`NodeView`), tokens no wrapper e fontes embutidas; sem rótulo/overlay. */
-export function RenderApp({ doc, docId, frame, state }: RenderAppProps) {
+export function RenderApp({ doc, docId, frame: received, state }: RenderAppProps) {
+  // Tolerante a instâncias não expandidas (mesmo objeto quando não há nenhuma).
+  const frame = useMemo(() => expandNodeTree(doc, received), [doc, received]);
   const stateCtx = useMemo(
     () => ({
       ...BASE_STATE_CTX,

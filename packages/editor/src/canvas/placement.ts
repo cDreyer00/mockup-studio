@@ -11,6 +11,7 @@ import {
   isHiddenDeep,
   isLockedDeep,
 } from '../model/tree';
+import { canInsertInto } from '../components/model';
 import { clientToWorld, findNodeEl, getCanvasRoot, measureWorldRect, worldToClient } from './dom';
 import { resolveFlowInsert } from './geometry';
 import type { Axis, Point, SiblingRect } from './geometry';
@@ -29,7 +30,10 @@ export interface Placement {
   parentNeedsRelative: boolean;
 }
 
-/** Contêiner mais profundo sob o ponto da janela que aceita filhos e não está travado/oculto. */
+/**
+ * Contêiner mais profundo sob o ponto da janela que aceita filhos e não está travado/oculto.
+ * Nós internos e raízes de instâncias de componente não aceitam filhos (só o conteúdo de slot).
+ */
 export function findContainerAt(
   root: HTMLElement,
   doc: Document,
@@ -41,7 +45,13 @@ export function findContainerAt(
     const id = el.closest('[data-node-id]')?.getAttribute('data-node-id');
     const node = id ? getNode(doc, id) : undefined;
     if (!id || !node) continue;
-    if (canHaveChildren(node) && !isLockedDeep(doc, id) && !isHiddenDeep(doc, id)) return id;
+    if (
+      canHaveChildren(node) &&
+      canInsertInto(doc, id) &&
+      !isLockedDeep(doc, id) &&
+      !isHiddenDeep(doc, id)
+    )
+      return id;
   }
   return null;
 }

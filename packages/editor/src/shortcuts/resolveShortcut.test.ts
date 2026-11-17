@@ -103,6 +103,17 @@ describe('resolveShortcut', () => {
     for (const [input, expected] of cases) expect(resolveShortcut(input)).toEqual(expected);
   });
 
+  it('Ctrl+Alt+K cria componente (também pelo code, com AltGr/layouts)', () => {
+    const ctrlAlt = { ctrlKey: true, altKey: true };
+    expect(resolveShortcut(key('k', ctrlAlt))).toEqual({ type: 'createComponent' });
+    expect(resolveShortcut(key('K', { metaKey: true, altKey: true }))).toEqual({
+      type: 'createComponent',
+    });
+    expect(resolveShortcut(key('Dead', ctrlAlt, 'KeyK'))).toEqual({ type: 'createComponent' });
+    expect(resolveShortcut(key('k', { ...ctrlAlt, shiftKey: true }))).toBeNull();
+    expect(resolveShortcut(key('k', { altKey: true }))).toBeNull();
+  });
+
   it('ignora combinações não mapeadas', () => {
     expect(resolveShortcut(key('v', { altKey: true }))).toBeNull();
     expect(resolveShortcut(key('v', ctrl))).toBeNull();

@@ -4,6 +4,7 @@ import type { DragEvent, KeyboardEvent, MouseEvent } from 'react';
 import {
   ChevronDown,
   ChevronRight,
+  Component,
   Eye,
   EyeOff,
   Frame,
@@ -17,15 +18,18 @@ import {
   RectangleHorizontal,
   Shapes,
   Square,
+  SquareDashed,
   TextCursorInput,
   Type,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { newPageId } from '@mockup/core';
+import { COMPONENT_EDIT_PAGE_ID, newPageId } from '@mockup/core';
 import type { Node, Page } from '@mockup/core';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
 import { daemon } from '../client/daemon';
+import { componentRole, structureBlock } from '../components/model';
+import type { ComponentRole } from '../components/model';
 import { getChain, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { selectPage, useActivePage, useIsSelected, useNode } from '../state/hooks';
@@ -50,7 +54,9 @@ const TAG_ICONS: Record<string, LucideIcon> = {
   input: TextCursorInput,
 };
 
-function iconFor(node: Node): LucideIcon {
+function iconFor(node: Node, role: ComponentRole | null): LucideIcon {
+  if (role === 'instance') return Component;
+  if (role === 'slot') return SquareDashed;
   if (node.type === 'frame') return Frame;
   if (node.type === 'text') return Type;
   if (node.type === 'image') return ImageIcon;
@@ -58,10 +64,19 @@ function iconFor(node: Node): LucideIcon {
   return TAG_ICONS[node.tag] ?? Square;
 }
 
+/**
+ * Página como as camadas a mostram: no modo de edição do principal, a raiz do principal fica no
+ * topo (o quadro sintético em volta dela não aparece).
+ */
+function layerPage(page: Page): Page {
+  if (page.id !== COMPONENT_EDIT_PAGE_ID) return page;
+  return { ...page, frames: page.frames[0]?.children ?? [] };
+}
+
 /** Lê a lista visível atual (para Shift+clique), sempre do estado mais recente. */
 function currentVisibleIds(): string[] {
   const page = selectPage(useDoc.getState().doc, useUi.getState().pageId);
-  return page ? flattenTree(page, useLayers.getState().collapsed).map((r) => r.id) : [];
+  return page ? flattenTree(layerPage(page), useLayers.getState().collapsed).map((r) => r.id) : [];
 }
 
 /* ---------------- campo de renomear inline ---------------- */
@@ -160,11 +175,11 @@ function PagesList() {
   const doc = useDoc((s) => s.doc);
   const active = useActivePage();
   if (!doc) return null;
+  // A página sintética do modo de edição do principal não é uma página do documento.
+  const pages = doc.pages.filter((p) => p.id !== COMPONENT_EDIT_PAGE_ID);
   const add = async () => {
     const pageId = newPageId();
-    const ok = await daemon.applySafe([
-      { type: 'createPage', pageId, name: nextPageName(doc.pages) },
-    ]);
+    const ok = await daemon.applySafe([{ type: 'createPage', pageId, name: nextPageName(pages) }]);
     if (ok) ui.setPage(pageId);
   };
   return (
@@ -182,8 +197,8 @@ function PagesList() {
         </button>
       </div>
       <div className="pages-list" data-testid="pages-list" role="listbox">
-        {doc.pages.map((p) => (
-          <PageItem key={p.id} page={p} active={p.id === active?.id} only={doc.pages.length <= 1} />
+        {pages.map((p) => (
+          <PageItem key={p.id} page={p} active={p.id === active?.id} only={pages.length <= 1} />
         ))}
       </div>
     </div>
@@ -220,9 +235,13 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
   const node = useNode(id);
   const selected = useIsSelected(id);
   const dropZone = useLayers((s) => (s.drop?.id === id ? s.drop.zone : null));
+  const role = useDoc((s) => componentRole(s.doc, id));
+  // Nós internos, contêineres de slot e a raiz do principal não são arrastáveis.
+  const fixed = useDoc((s) => !!s.doc && structureBlock(s.doc, [id]) !== null);
   const [editing, setEditing] = useState(false);
   if (!node) return null;
-  const Icon = iconFor(node);
+  const Icon = iconFor(node, role);
+  const internal = role === 'internal';
 
   const onClick = (e: MouseEvent) => {
     if (e.shiftKey) {
@@ -270,15 +289,16 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
   return (
     <div
       className={`layer-row${selected ? ' selected' : ''}${node.hidden ? ' hidden-node' : ''}${
-        dropZone ? ` drop-${dropZone}` : ''
-      }`}
+        role ? ` role-${role}` : ''
+      }${dropZone ? ` drop-${dropZone}` : ''}`}
       data-testid={`layer-row-${id}`}
       data-layer-id={id}
+      data-component-role={role ?? undefined}
       role="treeitem"
       aria-selected={selected}
       aria-expanded={hasChildren ? expanded : undefined}
       aria-level={depth + 1}
-      draggable={!editing}
+      draggable={!editing && !fixed}
       style={{ paddingLeft: 6 + depth * 14 }}
       onClick={onClick}
       onMouseEnter={() => ui.hover(id)}
@@ -325,7 +345,8 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
           className="layer-name"
           onDoubleClick={(e) => {
             e.stopPropagation();
-            setEditing(true);
+            // Nó interno: o nome vem do principal (renomeie no modo de edição dele).
+            if (!internal) setEditing(true);
           }}
         >
           {node.name}
@@ -345,18 +366,20 @@ const LayerRow = memo(function LayerRow({ id, depth, hasChildren, expanded }: Ro
         >
           {node.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
-        <button
-          type="button"
-          className={`layer-btn${node.locked ? ' on' : ''}`}
-          data-testid={`layer-toggle-locked-${id}`}
-          title={node.locked ? 'Destravar' : 'Travar'}
-          onClick={(e) => {
-            e.stopPropagation();
-            void actions.setLocked([id], !node.locked);
-          }}
-        >
-          {node.locked ? <Lock size={13} /> : <LockOpen size={13} />}
-        </button>
+        {!internal && (
+          <button
+            type="button"
+            className={`layer-btn${node.locked ? ' on' : ''}`}
+            data-testid={`layer-toggle-locked-${id}`}
+            title={node.locked ? 'Destravar' : 'Travar'}
+            onClick={(e) => {
+              e.stopPropagation();
+              void actions.setLocked([id], !node.locked);
+            }}
+          >
+            {node.locked ? <Lock size={13} /> : <LockOpen size={13} />}
+          </button>
+        )}
       </span>
     </div>
   );
@@ -369,7 +392,10 @@ function LayerTree() {
   const collapsed = useLayers((s) => s.collapsed);
   const selection = useUi((s) => s.selection);
   const treeRef = useRef<HTMLDivElement>(null);
-  const rows = useMemo(() => (page ? flattenTree(page, collapsed) : []), [page, collapsed]);
+  const rows = useMemo(
+    () => (page ? flattenTree(layerPage(page), collapsed) : []),
+    [page, collapsed],
+  );
 
   // Seleção externa: expande ancestrais e rola até a primeira linha selecionada.
   useEffect(() => {

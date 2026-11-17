@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { frameSize } from '../model/tree';
+import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
+import { ComponentEditBar } from '../components/ComponentEditBar';
+import { frameSize, pxValue } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useActivePage } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
@@ -105,7 +107,13 @@ export function Canvas() {
     const fitModelRect = (): Rect | null => {
       const frames = (pageRef.current?.frames ?? []).filter((f) => !f.hidden);
       return unionRects(
-        frames.map((f) => ({ x: f.position?.x ?? 0, y: f.position?.y ?? 0, ...frameSize(f) })),
+        frames.map((f) => {
+          // Sem tamanho em px (quadro do modo de edição do componente): mede o DOM.
+          const auto =
+            pxValue(f.style.width) === undefined || pxValue(f.style.height) === undefined;
+          const measured = auto ? nodeRect(f.id) : null;
+          return measured ?? { x: f.position?.x ?? 0, y: f.position?.y ?? 0, ...frameSize(f) };
+        }),
       );
     };
     const api: CanvasApi = {
@@ -138,7 +146,10 @@ export function Canvas() {
   }, []);
 
   // Primeira exibição de um documento/página: restaura o viewport salvo ou enquadra tudo.
-  const key = docId && page ? `${docId}:${page.id}` : null;
+  // A página do modo de edição é a mesma para todos os principais: o viewport é por principal.
+  const editingId = useUi((s) => s.editingComponentId);
+  const pageKey = page?.id === COMPONENT_EDIT_PAGE_ID ? `${page.id}:${editingId}` : page?.id;
+  const key = docId && page ? `${docId}:${pageKey}` : null;
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || key === lastKey.current) return;
@@ -229,6 +240,7 @@ export function Canvas() {
       <ThemeStyles tokens={tokens ?? {}} themes={themes} />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
       <Overlay rootRef={rootRef} />
+      <ComponentEditBar />
     </div>
   );
 }

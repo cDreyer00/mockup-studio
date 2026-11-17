@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile, pickImageFile } from '../canvas/imageTool';
+import { createComponentFromSelection } from '../components/componentActions';
+import { exitComponent } from '../components/editing';
 import { saveDocumentAs } from '../desktop/fileFlows';
 import { useClipboard } from '../clipboard/useClipboard';
 import { getNode, topLevel } from '../model/tree';
@@ -56,6 +58,10 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return void actions.nudge(cmd.dx, cmd.dy);
     case 'escape':
       if (useUi.getState().tool !== 'select') return ui.setTool('select');
+      // Modo de edição do principal: Esc sem seleção conclui (volta à instância de origem).
+      if (useUi.getState().editingComponentId && !useUi.getState().selection.length) {
+        return exitComponent();
+      }
       return actions.selectParent();
     case 'selectChildren': {
       const { doc } = useDoc.getState();
@@ -84,6 +90,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return canvasApi.fitAll();
     case 'zoomSelection':
       return canvasApi.fitNodes();
+    case 'createComponent':
+      return void createComponentFromSelection();
   }
 }
 

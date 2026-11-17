@@ -3,6 +3,13 @@
  * Opera sobre a seleção atual (quem abre o menu seleciona o nó clicado antes, se preciso).
  */
 import { actions } from '../actions';
+import {
+  createComponentBlock,
+  createComponentFromSelection,
+  detachInstance,
+  goToMain,
+} from '../components/componentActions';
+import { isRealInstance } from '../components/model';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
@@ -15,10 +22,30 @@ export function buildNodeMenu(): MenuItem[] {
   const none = nodes.length === 0;
   const allHidden = nodes.length > 0 && nodes.every((n) => n.hidden);
   const allLocked = nodes.length > 0 && nodes.every((n) => n.locked);
+  const one = doc && sel.length === 1 ? sel[0]! : null;
+  const instance = one && nodes[0]?.componentId !== undefined ? one : null;
   return [
+    {
+      label: 'Criar componente',
+      shortcut: 'Ctrl+Alt+K',
+      disabled: !one || !doc || createComponentBlock(doc, one) !== null,
+      onSelect: () => void createComponentFromSelection(),
+    },
+    {
+      label: 'Ir para principal',
+      disabled: !instance,
+      onSelect: () => void (instance && goToMain(instance)),
+    },
+    {
+      label: 'Destacar instância',
+      disabled: !instance || !doc || !isRealInstance(doc, instance),
+      onSelect: () => void (instance && detachInstance(instance)),
+    },
+
     {
       label: 'Duplicar',
       shortcut: 'Ctrl+D',
+      separator: true,
       disabled: none,
       onSelect: () => void actions.duplicateSelection(),
     },

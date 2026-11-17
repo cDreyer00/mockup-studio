@@ -6,6 +6,7 @@
 import { createNodeFromTag } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
 import { daemon } from './client/daemon';
+import { structureBlock } from './components/model';
 import {
   canHaveChildren,
   flexDirection,
@@ -190,10 +191,17 @@ export function buildReorderOps(doc: Document, ids: readonly string[], kind: Reo
 
 let nudgeQueue: Promise<void> = Promise.resolve();
 
+/** Avisa e devolve `true` quando a seleção tem nós que não aceitam mudanças de estrutura. */
+function structureBlocked(doc: Document, ids: readonly string[]): boolean {
+  const msg = structureBlock(doc, topLevel(doc, ids));
+  if (msg) ui.toast(msg);
+  return msg !== null;
+}
+
 export const actions = {
   async deleteSelection(): Promise<void> {
     const { doc, selection } = state();
-    if (!doc) return;
+    if (!doc || structureBlocked(doc, selection)) return;
     const ops = buildDeleteOps(doc, selection);
     if (!ops.length) return;
     if (await daemon.applySafe(ops)) ui.select([]);
@@ -201,7 +209,7 @@ export const actions = {
 
   async duplicateSelection(): Promise<void> {
     const { doc, selection } = state();
-    if (!doc) return;
+    if (!doc || structureBlocked(doc, selection)) return;
     const top = topLevel(doc, selection);
     if (!top.length) return;
     const ack = await daemon.applySafe([{ type: 'duplicateNodes', nodeIds: top }]);
@@ -211,7 +219,7 @@ export const actions = {
 
   async group(): Promise<void> {
     const { doc, selection } = state();
-    if (!doc) return;
+    if (!doc || structureBlocked(doc, selection)) return;
     const r = buildGroupOps(doc, selection);
     if (!r) return ui.toast('Selecione irmãos (mesmo pai) dentro de um frame para agrupar');
     if (await daemon.applySafe(r.ops)) ui.select([r.groupId]);
@@ -219,7 +227,10 @@ export const actions = {
 
   async ungroup(): Promise<void> {
     const { doc, selection } = state();
-    if (!doc) return;
+    if (!doc || structureBlocked(doc, selection)) return;
+    if (selection.some((id) => getNode(doc, id)?.componentId !== undefined)) {
+      return ui.toast('Destaque a instância para desagrupar o conteúdo dela');
+    }
     const r = buildUngroupOps(doc, selection);
     if (!r) return;
     if (await daemon.applySafe(r.ops)) ui.select(r.childIds);
@@ -227,7 +238,7 @@ export const actions = {
 
   async reorder(kind: ReorderKind): Promise<void> {
     const { doc, selection } = state();
-    if (!doc) return;
+    if (!doc || structureBlocked(doc, selection)) return;
     await daemon.applySafe(buildReorderOps(doc, selection, kind));
   },
 
@@ -235,7 +246,7 @@ export const actions = {
   nudge(dx: number, dy: number): Promise<void> {
     nudgeQueue = nudgeQueue.then(async () => {
       const { doc, selection } = state();
-      if (!doc) return;
+      if (!doc || structureBlocked(doc, selection)) return;
       await daemon.applySafe(buildNudgeOps(doc, selection, dx, dy));
     });
     return nudgeQueue;

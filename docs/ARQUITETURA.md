@@ -58,7 +58,7 @@ Undo e redo executam as ops inversas guardadas no `History` e seguem o mesmo cam
 
 ## Editor
 
-- **Estado**: `docStore` (espelho do daemon: documentos, documento ativo, histórico, atividade do agente) e `uiStore` (seleção, hover, ferramenta, página ativa, viewport, prévias de arrasto), ambos zustand. Só o cliente WS escreve no `docStore`.
+- **Estado**: `docStore` (espelho do daemon: documentos, documento ativo, histórico, atividade do agente) e `uiStore` (seleção, hover, ferramenta, página ativa, viewport, prévias de arrasto, principal em edição), ambos zustand. Só o cliente WS escreve no `docStore`. O documento ativo fica em `rawDoc` (como o daemon o guarda) e em `doc` a **visão** usada pela interface: instâncias de componentes expandidas (`expandDocument`) e, no modo de edição de um principal, a página sintética com ele (ver [COMPONENTES.md](COMPONENTES.md#editor)).
 - **Cliente** (`client/daemon.ts`): uma requisição por `reqId`, resolvida pelo `ack` ou rejeitada pelo `error`; `apply(ops)` = uma entrada no histórico. A seleção local é publicada com `selection:set`; `selection:changed` com `source: 'mcp'` seleciona e enquadra os nós no editor.
 - **Render**: frames e nós como HTML/CSS real (`React.memo` por nó); seleção, alças e réguas numa camada de overlay; pan/zoom direto no `transform`.
 - **Prévias**: arrastar e redimensionar mostram uma prévia local transitória; ao soltar, as ops vão numa única chamada.

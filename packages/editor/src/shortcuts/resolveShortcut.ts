@@ -25,7 +25,8 @@ export type ShortcutCommand =
   | { type: 'zoomOut' }
   | { type: 'zoom100' }
   | { type: 'zoomFit' }
-  | { type: 'zoomSelection' };
+  | { type: 'zoomSelection' }
+  | { type: 'createComponent' };
 
 export type KeyInfo = Pick<
   KeyboardEvent,
@@ -98,6 +99,8 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
         return null;
     }
   }
+  // Ctrl+Alt+K: criar componente da seleção (como no Figma).
+  if (mod && alt && !shift && letterOf(e) === 'k') return { type: 'createComponent' };
   if (mod || alt) return null;
 
   switch (e.key) {

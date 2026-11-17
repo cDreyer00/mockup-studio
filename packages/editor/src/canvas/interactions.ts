@@ -3,9 +3,13 @@
  * imperativo: os handlers leem `useUi/useDoc.getState()` e nunca causam re-render da árvore.
  * Toda mutação do documento vira `Op`s numa única chamada `daemon.applySafe` por gesto.
  */
+import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Node, Op } from '@mockup/core';
 import { buildPositionOps, isFreelyPositioned, nodeXY } from '../actions';
 import { daemon } from '../client/daemon';
+import { COMPONENT_DRAG_TYPE, readComponentDrag } from '../components/drag';
+import { insertInstance } from '../components/componentActions';
+import { COMPONENT_FRAME_ID, structureBlock } from '../components/model';
 import { buildNodeMenu } from '../layers/nodeMenu';
 import { makeContainer, makeFrame, makeText } from '../model/factory';
 import {
@@ -154,7 +158,7 @@ export function attachInteractions(root: HTMLElement): () => void {
           const frames = doc ? (selectPage(doc, st().pageId)?.frames ?? []) : [];
           items = [];
           for (const f of frames) {
-            if (f.hidden || f.locked) continue;
+            if (f.hidden || f.locked || f.id === COMPONENT_FRAME_ID) continue;
             const rect = measureWorldRect(root, f.id);
             if (rect) items.push({ id: f.id, rect });
           }
@@ -202,6 +206,12 @@ export function attachInteractions(root: HTMLElement): () => void {
     const doc = currentDoc();
     if (!doc) return null;
     const ids = topLevel(doc, st().selection).filter((id) => !isLockedDeep(doc, id));
+    // Nós internos de instâncias, contêineres de slot e a raiz do principal não se movem.
+    const block = structureBlock(doc, ids);
+    if (block) {
+      ui.toast(block);
+      return null;
+    }
     const nodes = ids.map((id) => getNode(doc, id)!).filter(Boolean);
     const free = nodes.filter((n) => isFreelyPositioned(doc, n));
     if (free.length > 0) {
@@ -447,6 +457,15 @@ export function attachInteractions(root: HTMLElement): () => void {
 
     let node: Node;
     let ops: Op[];
+    // Modo de edição do principal: só se cria dentro do principal.
+    if (
+      pageId === COMPONENT_EDIT_PAGE_ID &&
+      (tool === 'frame' || !planPlacement(doc, at, client).parentId)
+    ) {
+      if (st().tool === tool) ui.setTool('select');
+      ui.toast('No modo de edição do componente, desenhe dentro do principal');
+      return;
+    }
     if (tool === 'frame') {
       node = size ? makeFrame(at.x, at.y, size.w, size.h) : makeFrame(at.x, at.y);
       ops = [{ type: 'createNode', pageId, node }];
@@ -526,6 +545,7 @@ export function attachInteractions(root: HTMLElement): () => void {
           : id
         : resolveClickTarget(doc, id, sel, { deep: e.ctrlKey || e.metaKey });
     }
+    if (resolved === COMPONENT_FRAME_ID) resolved = null;
     if (!resolved) {
       startMarquee(e);
       return;
@@ -553,9 +573,10 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (!(target instanceof Element) || !doc) return;
     const { id, label } = nodeIdOf(target);
     if (!id || !getEntry(doc, id)) return ui.hover(null);
-    if (label) return ui.hover(getNode(doc, id)!.locked ? null : id);
+    if (label) return ui.hover(getNode(doc, id)!.locked || id === COMPONENT_FRAME_ID ? null : id);
     // Mesma regra do clique: Ctrl/Cmd = seleção profunda (Alt só liga a régua de distâncias).
-    ui.hover(resolveClickTarget(doc, id, st().selection, { deep: e.ctrlKey || e.metaKey }));
+    const hovered = resolveClickTarget(doc, id, st().selection, { deep: e.ctrlKey || e.metaKey });
+    ui.hover(hovered === COMPONENT_FRAME_ID ? null : hovered);
   }
 
   function onPointerLeave(): void {
@@ -584,7 +605,7 @@ export function attachInteractions(root: HTMLElement): () => void {
     if (!id || !getEntry(doc, id)) return;
     const sel = st().selection;
     const resolved = resolveClickTarget(doc, id, sel, { deep: e.ctrlKey || e.metaKey });
-    if (!resolved) return;
+    if (!resolved || resolved === COMPONENT_FRAME_ID) return;
     if (!sel.includes(resolved)) ui.select([resolved]);
     openContextMenu(e.clientX, e.clientY, buildNodeMenu());
   }
@@ -619,6 +640,11 @@ export function attachInteractions(root: HTMLElement): () => void {
   }
 
   function onDragOver(e: DragEvent): void {
+    if (e.dataTransfer?.types.includes(COMPONENT_DRAG_TYPE)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      return;
+    }
     if (e.dataTransfer?.types.includes('Files')) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
@@ -626,6 +652,16 @@ export function attachInteractions(root: HTMLElement): () => void {
   }
 
   function onDrop(e: DragEvent): void {
+    // Componente arrastado da aba Componentes: instância no ponto solto.
+    const comp = e.dataTransfer ? readComponentDrag(e.dataTransfer) : null;
+    if (comp) {
+      e.preventDefault();
+      void insertInstance(comp.componentId, {
+        ...(comp.kit ? { kit: comp.kit } : {}),
+        drop: { world: toWorld(e), client: { x: e.clientX, y: e.clientY } },
+      });
+      return;
+    }
     const files = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith('image/'));
     if (files.length === 0) return;
     e.preventDefault();

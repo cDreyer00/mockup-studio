@@ -5,8 +5,19 @@
  */
 import { create } from 'zustand';
 import type { Position, PreviewState } from '@mockup/core';
+import { COMPONENT_FRAME_ID } from '../components/model';
 
-export type LeftTab = 'layers' | 'tokens';
+export type LeftTab = 'layers' | 'tokens' | 'components';
+
+/** Contexto do modo de edição isolado do principal (para montar a visão e para voltar). */
+export interface ComponentEdit {
+  /** Página exibida antes de entrar. */
+  fromPageId: string | null;
+  /** Instância de onde se entrou (selecionada de novo ao concluir). */
+  originId: string | null;
+  /** Largura (px) da instância de origem: a área do principal usa a mesma. */
+  width: number | null;
+}
 
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image';
 
@@ -58,6 +69,10 @@ export interface UiState {
   showAsTailwind: boolean;
   /** Mensagem transitória para o usuário (erros de op, avisos). */
   toast: { text: string; kind: 'info' | 'error'; at: number } | null;
+  /** Principal em edição no modo isolado (null = fora do modo). */
+  editingComponentId: string | null;
+  /** Contexto do modo de edição (presente junto com `editingComponentId`). */
+  componentEdit: ComponentEdit | null;
 }
 
 export const useUi = create<UiState>(() => ({
@@ -75,18 +90,26 @@ export const useUi = create<UiState>(() => ({
   previewState: null,
   showAsTailwind: false,
   toast: null,
+  editingComponentId: null,
+  componentEdit: null,
 }));
+
+/** O quadro sintético do modo de edição nunca entra na seleção. */
+const selectable = (ids: string[]): string[] =>
+  ids.includes(COMPONENT_FRAME_ID) ? ids.filter((id) => id !== COMPONENT_FRAME_ID) : ids;
 
 let focusNonce = 0;
 
 export const ui = {
   /** Define a seleção local. A publicação ao daemon é feita pelo cliente (assinatura). */
   select(ids: string[]): void {
+    ids = selectable(ids);
     const cur = useUi.getState().selection;
     if (cur.length === ids.length && cur.every((id, i) => id === ids[i])) return;
     useUi.setState({ selection: ids });
   },
   toggle(id: string): void {
+    if (id === COMPONENT_FRAME_ID) return;
     const cur = useUi.getState().selection;
     useUi.setState({ selection: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id] });
   },
@@ -96,8 +119,16 @@ export const ui = {
   setTool(tool: Tool): void {
     useUi.setState({ tool });
   },
+  /** Troca a página exibida; sair para outra página encerra o modo de edição do principal. */
   setPage(pageId: string | null): void {
-    useUi.setState({ pageId, selection: [], hoverId: null, editingTextId: null });
+    const leaving = useUi.getState().editingComponentId !== null;
+    useUi.setState({
+      pageId,
+      selection: [],
+      hoverId: null,
+      editingTextId: null,
+      ...(leaving ? { editingComponentId: null, componentEdit: null } : {}),
+    });
   },
   setViewport(v: Viewport | ((v: Viewport) => Viewport)): void {
     const next = typeof v === 'function' ? v(useUi.getState().viewport) : v;

@@ -10,9 +10,18 @@ const px = (n: number): string => `${Math.round(n)}px`;
 
 let frameCounter = 0;
 
-/** Folhas que não viram frame raiz sozinhas: levadas para a raiz, ganham um frame em volta. */
+/**
+ * Folhas que não viram frame raiz sozinhas: levadas para a raiz, ganham um frame em volta.
+ * Instâncias de componente também (um frame raiz não pode ser instância).
+ */
 export function isLeafNode(node: Node): boolean {
-  return node.type === 'text' || node.type === 'image' || node.type === 'svg';
+  return (
+    node.type === 'text' ||
+    node.type === 'image' ||
+    node.type === 'svg' ||
+    node.type === 'instance' ||
+    node.componentId !== undefined
+  );
 }
 
 /** Recuo entre o frame que embrulha uma folha e o conteúdo. */

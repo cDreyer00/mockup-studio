@@ -3,7 +3,9 @@
  * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
  */
 import { cloneNodeWithNewIds, htmlToNodes, nodesToHtml } from '@mockup/core';
+import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
+import { canInsertInto } from '../components/model';
 import { loadTailwindEngine } from '../tailwind/loader';
 import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
 import {
@@ -174,7 +176,9 @@ export function resolvePasteTarget(
   const entries = selection.map((id) => getEntry(doc, id)).filter((e) => !!e);
   const fallbackPage = (pageId && doc.pages.find((p) => p.id === pageId)) || doc.pages[0];
   if (entries.length === 0) {
-    return fallbackPage ? { parentId: null, parent: null, pageId: fallbackPage.id } : null;
+    return fallbackPage
+      ? intoMain(doc, { parentId: null, parent: null, pageId: fallbackPage.id })
+      : null;
   }
   let target: PasteTarget;
   if (entries.length === 1 && canHaveChildren(entries[0]!.node)) {
@@ -195,7 +199,11 @@ export function resolvePasteTarget(
   }
   // Nada entra em nó travado (nem em descendente dele): sobe até o primeiro pai livre, colando
   // logo depois do travado; acima do frame raiz, a colagem vai para a raiz da página.
-  while (target.parentId && isLockedDeep(doc, target.parentId)) {
+  // Nem em nós internos/raízes de instâncias (só no conteúdo de slot) e no quadro do principal.
+  while (
+    target.parentId &&
+    (isLockedDeep(doc, target.parentId) || !canInsertInto(doc, target.parentId))
+  ) {
     const locked = getEntry(doc, target.parentId)!;
     target = locked.parentId
       ? {
@@ -206,7 +214,15 @@ export function resolvePasteTarget(
         }
       : { parentId: null, parent: null, pageId: locked.pageId };
   }
-  return target;
+  return intoMain(doc, target);
+}
+
+/** No modo de edição do principal não há raiz de página: cola dentro da raiz do principal. */
+function intoMain(doc: Document, target: PasteTarget): PasteTarget | null {
+  if (target.parentId || target.pageId !== COMPONENT_EDIT_PAGE_ID) return target;
+  const root = doc.pages.find((p) => p.id === COMPONENT_EDIT_PAGE_ID)?.frames[0]?.children[0];
+  if (!root || !canInsertInto(doc, root.id)) return null;
+  return { parentId: root.id, parent: root, pageId: target.pageId };
 }
 
 /* ------------------------------------------------------------------ */

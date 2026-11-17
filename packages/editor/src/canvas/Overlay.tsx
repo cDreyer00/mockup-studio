@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, RefObject } from 'react';
 import { flushSync } from 'react-dom';
+import { componentRole, isPurpleRole } from '../components/model';
 import { isLockedDeep, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
@@ -14,9 +15,18 @@ interface Measured {
   hover: Rect | null;
   /** Há nós selecionáveis para redimensionar (nenhum travado). */
   resizable: boolean;
+  /** Seleção/hover em instância de componente (ou nó dela, ou do principal): contorno roxo. */
+  selComponent: boolean;
+  hoverComponent: boolean;
 }
 
-const EMPTY: Measured = { sel: [], hover: null, resizable: false };
+const EMPTY: Measured = {
+  sel: [],
+  hover: null,
+  resizable: false,
+  selComponent: false,
+  hoverComponent: false,
+};
 
 function sameRect(a: Rect | null, b: Rect | null): boolean {
   return a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
@@ -25,6 +35,8 @@ function sameRect(a: Rect | null, b: Rect | null): boolean {
 function sameMeasured(a: Measured, b: Measured): boolean {
   return (
     a.resizable === b.resizable &&
+    a.selComponent === b.selComponent &&
+    a.hoverComponent === b.hoverComponent &&
     sameRect(a.hover, b.hover) &&
     a.sel.length === b.sel.length &&
     a.sel.every((s, i) => s.id === b.sel[i]!.id && sameRect(s.rect, b.sel[i]!.rect))
@@ -47,7 +59,14 @@ function measure(root: HTMLElement): Measured {
       doc,
       sel.map((s) => s.id),
     ).every((id) => !isLockedDeep(doc, id));
-  return { sel, hover, resizable };
+  const purple = (id: string): boolean => isPurpleRole(componentRole(doc, id));
+  return {
+    sel,
+    hover,
+    resizable,
+    selComponent: sel.some((s) => purple(s.id)),
+    hoverComponent: !!hover && !!hoverId && purple(hoverId),
+  };
 }
 
 const px = (r: Rect): CSSProperties => ({ left: r.x, top: r.y, width: r.w, height: r.h });
@@ -117,6 +136,7 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
   const box = unionRects(m.sel.map((s) => s.rect));
   const boxS = box ? screen(box) : null;
   const interactive = tool === 'select' && !editing;
+  const sc = m.selComponent ? ' cv-component' : '';
 
   let guides: ReturnType<typeof distanceGuides> = [];
   if (alt && m.sel.length === 1 && m.hover) {
@@ -129,12 +149,24 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
 
   return (
     <div className="cv-overlay" data-testid="canvas-overlay">
-      {m.hover && interactive && <div className="cv-hover" style={px(screen(m.hover))} />}
+      {m.hover && interactive && (
+        <div
+          className={`cv-hover${m.hoverComponent ? ' cv-component' : ''}`}
+          style={px(screen(m.hover))}
+        />
+      )}
       {m.sel.length > 1 &&
-        m.sel.map((s) => <div key={s.id} className="cv-sel-node" style={px(screen(s.rect))} />)}
+        m.sel.map((s) => (
+          <div key={s.id} className={`cv-sel-node${sc}`} style={px(screen(s.rect))} />
+        ))}
       {boxS && (
         <>
-          <div className="cv-sel-box" data-testid="selection-box" style={px(boxS)}>
+          <div
+            className={`cv-sel-box${sc}`}
+            data-testid="selection-box"
+            data-component={m.selComponent ? '' : undefined}
+            style={px(boxS)}
+          >
             {interactive &&
               m.resizable &&
               HANDLES.map((h) => (
@@ -148,7 +180,7 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
               ))}
           </div>
           <div
-            className="cv-dim"
+            className={`cv-dim${sc}`}
             style={{ left: boxS.x + boxS.w / 2, top: boxS.y + boxS.h + 8 }}
             data-testid="selection-size"
           >

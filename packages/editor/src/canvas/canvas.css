@@ -203,3 +203,23 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------- componentes (roxo) ---------------- */
+
+.cv-hover.cv-component,
+.cv-sel-node.cv-component,
+.cv-sel-box.cv-component {
+  outline-color: var(--component);
+}
+.cv-sel-box.cv-component .cv-handle {
+  border-color: var(--component);
+}
+.cv-dim.cv-component {
+  background: var(--component);
+  color: #fff;
+}
+/* Quadro do modo de edição do principal (sintético, fora do documento). */
+.cv-world [data-component-frame] {
+  outline: 1px dashed var(--component);
+  outline-offset: -1px;
+}

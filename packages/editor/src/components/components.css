@@ -1,0 +1,243 @@
+/* Componentes: cores (roxo), selo do modo de edição, aba Componentes e seção de instância. */
+
+:root {
+  --component: #a855f7;
+  --component-text: #d8b4fe;
+  --component-light: #c4b5fd;
+  --component-soft: rgba(168, 85, 247, 0.16);
+}
+
+/* ---------------- selo do modo de edição ---------------- */
+
+.cmp-edit-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--component);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--component) 22%, var(--surface));
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.cmp-edit-bar svg {
+  color: var(--component-text);
+}
+.cmp-edit-count {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.cmp-edit-done {
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--component);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cmp-edit-done:hover {
+  filter: brightness(1.1);
+}
+
+/* ---------------- aba Componentes ---------------- */
+
+.cmp-panel {
+  overflow: hidden;
+}
+.cmp-search {
+  flex: none;
+  padding: 6px 8px 4px;
+}
+.cmp-search .text-input {
+  width: 100%;
+}
+.cmp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 4px 24px;
+}
+.cmp-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cmp-empty {
+  padding: 6px 8px 10px;
+  color: var(--muted);
+}
+.cmp-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 4px 2px 8px;
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: grab;
+  user-select: none;
+}
+.cmp-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.cmp-item.active {
+  background: var(--component-soft);
+  color: var(--text);
+}
+.cmp-item > svg {
+  flex: none;
+  color: var(--component);
+}
+.cmp-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cmp-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-item-meta {
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-item .layer-btn {
+  visibility: hidden;
+}
+.cmp-item:hover .layer-btn {
+  visibility: visible;
+}
+
+/* ---------------- seção de instância / principal ---------------- */
+
+.cmp-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--component-text);
+}
+.cmp-section-head svg {
+  flex: none;
+  color: var(--component);
+}
+.cmp-section-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.cmp-kit {
+  color: var(--muted);
+  font-size: 10px;
+}
+.cmp-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.cmp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cmp-btn:hover:not(:disabled) {
+  border-color: var(--component);
+  color: var(--text);
+}
+.cmp-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.cmp-btn.primary {
+  border-color: var(--component);
+  background: var(--component-soft);
+  color: var(--text);
+}
+.cmp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.cmp-toggle input {
+  accent-color: var(--component);
+  margin: 0;
+}
+.cmp-color {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.cmp-color > .color-input {
+  flex: 1;
+  min-width: 0;
+}
+.cmp-color > .select-input {
+  width: 72px;
+}
+.cmp-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cmp-slot {
+  height: 20px;
+  padding: 0 6px;
+  border: 1px dashed var(--component-light);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--component-text);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+.cmp-prop-row {
+  display: grid;
+  grid-template-columns: 1fr 76px 20px;
+  gap: 4px;
+  align-items: center;
+}
+.cmp-prop-detail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 0 0 6px 8px;
+  border-left: 1px solid var(--border);
+  margin-left: 2px;
+}
+.cmp-hint {
+  color: var(--muted);
+  font-size: 11px;
+}

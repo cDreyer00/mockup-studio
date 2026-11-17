@@ -1,4 +1,5 @@
 /** Lógica pura do painel de camadas: lista visível, intervalo de seleção e cálculo de drop. */
+import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Document, Node, Op, Page, StyleChange } from '@mockup/core';
 import {
   LEAF_FRAME_PADDING,
@@ -6,6 +7,7 @@ import {
   isLeafNode,
   makeLeafFrame,
 } from '../model/factory';
+import { canInsertInto, structureBlock } from '../components/model';
 import { canHaveChildren, getEntry, getNode, isAncestor, pxValue, topLevel } from '../model/tree';
 
 export interface FlatRow {
@@ -80,13 +82,15 @@ export function computeDropOps(
 ): Op[] | null {
   const dragged = topLevel(doc, draggedIds);
   if (!dragged.length) return null;
+  // Nós internos de instâncias, contêineres de slot e a raiz do principal não se movem.
+  if (structureBlock(doc, dragged)) return null;
 
   let parentId: string | null;
   let pageId: string;
   let index: number;
   if ('rootOfPage' in target) {
     const page = doc.pages.find((p) => p.id === target.rootOfPage);
-    if (!page) return null;
+    if (!page || page.id === COMPONENT_EDIT_PAGE_ID) return null;
     parentId = null;
     pageId = page.id;
     index = target.index ?? page.frames.length;
@@ -109,7 +113,7 @@ export function computeDropOps(
     if (dragged.includes(parentId)) return null;
     if (dragged.some((d) => isAncestor(doc, d, parentId!))) return null;
     const p = getNode(doc, parentId);
-    if (!p || !canHaveChildren(p)) return null;
+    if (!p || !canHaveChildren(p) || !canInsertInto(doc, parentId)) return null;
   }
 
   // Desconta os movidos que estão antes do ponto de inserção no mesmo contêiner.

@@ -15,6 +15,7 @@ import type {
   PreviewState,
   RenderBox,
 } from '@mockup/core';
+import { expandDocument } from '@mockup/core';
 import { RenderApp, renderFrameOf } from './RenderApp';
 import { LAYOUT_STYLE_PROPS, fitLineBox, groupLines, pickFrame } from './measure';
 import type { CharBox } from './measure';
@@ -177,7 +178,9 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
   let last: Last | null = null;
 
   const api: MockupRenderApi = {
-    async render({ doc, docId, nodeId, transparent, state }) {
+    async render({ doc: received, docId, nodeId, transparent, state }) {
+      // O daemon manda o documento já expandido; um documento com instâncias cruas também serve.
+      const doc = expandDocument(received);
       const picked = pickFrame(doc, nodeId);
       if (!picked) throw new Error(`Nó não encontrado no documento: ${nodeId}`);
       const frame = renderFrameOf(picked.frame);
