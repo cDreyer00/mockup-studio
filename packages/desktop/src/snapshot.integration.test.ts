@@ -320,4 +320,53 @@ ${stderr}`,
     ).toBeFalsy();
     expect(sawHit('/comBase.svg')).toBe(true);
   });
+
+  const failure = async (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{ text: string; ms: number }> => {
+    const t0 = Date.now();
+    let failed: boolean;
+    let text: string;
+    try {
+      const r = await call(name, args);
+      failed = !!r.isError;
+      text = textOf(r);
+    } catch (e) {
+      failed = true;
+      text = String(e);
+    }
+    expect(failed, text).toBe(true);
+    return { text, ms: Date.now() - t0 };
+  };
+
+  it('seletor inexistente falha rápido com mensagem clara (import_html estático e import_url)', async () => {
+    const html = await failure('import_html', {
+      html: '<section class="alvo"><h1>x</h1></section>',
+      selector: '.nao-existe',
+    });
+    console.log(`[snapshot] import_html com seletor inexistente falhou em ${html.ms} ms`);
+    expect(html.text).toMatch(/Seletor "\.nao-existe" não encontrado no HTML informado/);
+    expect(html.ms).toBeLessThan(5_000);
+
+    const url = await failure('import_url', {
+      url: `${webUrl}/landing/index.html`,
+      selector: '.nao-existe',
+    });
+    console.log(`[snapshot] import_url com seletor inexistente falhou em ${url.ms} ms`);
+    expect(url.text).toMatch(/Seletor "\.nao-existe" não encontrado em http/);
+    expect(url.ms).toBeLessThan(10_000);
+  });
+
+  it('import_url de página que responde 404 importa com aviso do status HTTP', async () => {
+    const r = await call('import_url', { url: `${webUrl}/nao-existe.html` });
+    expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
+    expect(textOf(r)).toContain('respondeu HTTP 404');
+  });
+
+  it('import_url de página 200 não avisa status HTTP', async () => {
+    const r = await call('import_url', { url: `${webUrl}/rede.html`, selector: '.alvo' });
+    expect(r.isError, `${textOf(r)}\n${stderr}`).toBeFalsy();
+    expect(textOf(r)).not.toContain('respondeu HTTP');
+  });
 });

@@ -29,6 +29,13 @@ const REF_MAX_WIDTH_PX = 2000;
 const REF_JPEG_THRESHOLD = 3 * 1024 * 1024;
 const SETTLE_MS = 300;
 const ASSETS_WAIT_MS = 3000;
+/**
+ * Quanto esperar pelo seletor depois do load. Páginas com JS (import_url, import_html com base) podem
+ * montar o DOM depois do load; HTML estático (import_html sem base, JS desligado pela CSP) já está
+ * todo no DOM, então a tolerância é curta.
+ */
+const SELECTOR_WAIT_MS = 5000;
+const SELECTOR_WAIT_STATIC_MS = 1000;
 
 /** Insere o CSS extra como `<style>` no fim do `<head>` (ou no início do documento/fragmento). */
 export function buildHtml(html: string, css?: string, noScript = false): string {
@@ -264,11 +271,17 @@ export class SnapshotService {
     return dbg.sendCommand(method, params);
   }
 
-  private async load(win: BrowserWindow, req: PageSnapshotRequest): Promise<void> {
+  /** Carrega a página; devolve o status HTTP da navegação principal (import_url; 0 se não houver). */
+  private async load(win: BrowserWindow, req: PageSnapshotRequest): Promise<number> {
     const wc = win.webContents;
     let failure = '';
+    let status = 0;
     wc.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
       if (isMainFrame && code !== -3) failure = `${desc} (${code})`;
+    });
+    // `did-navigate` só dispara para o frame principal (o último vale: redirecionamentos do servidor)
+    wc.on('did-navigate', (_e, _url, code) => {
+      status = code;
     });
     try {
       if (req.kind === 'url') {
@@ -284,6 +297,7 @@ export class SnapshotService {
       const target = req.kind === 'url' ? req.url : 'o HTML informado';
       throw new Error(`Não foi possível carregar ${target}: ${reason}`);
     }
+    return req.kind === 'url' ? status : 0;
   }
 
   private isolated<T>(win: BrowserWindow, code: string): Promise<T> {
@@ -304,14 +318,17 @@ export class SnapshotService {
       deviceScaleFactor: 1,
       mobile: false,
     });
-    await this.load(win, req);
+    const status = await this.load(win, req);
 
-    // espera o seletor (até o prazo), as fontes e as imagens (limite ~3 s) + folga
+    // espera o seletor (curta: ver SELECTOR_WAIT_MS), as fontes e as imagens (limite ~3 s) + folga
     const sel = JSON.stringify(selector);
+    const staticHtml = req.kind === 'html' && !this.htmlBase(req);
+    const selectorWait = staticHtml ? SELECTOR_WAIT_STATIC_MS : SELECTOR_WAIT_MS;
+    const waitMs = Math.max(0, Math.min(selectorWait, deadline - Date.now() - 1000));
     const found = await this.isolated<boolean>(
       win,
       `(async () => {
-        const end = Date.now() + ${Math.max(500, deadline - Date.now() - 1000)};
+        const end = Date.now() + ${waitMs};
         let el = null;
         try { el = document.querySelector(${sel}); } catch (e) { throw new Error('Seletor inválido: ' + ${sel}); }
         while (!el && Date.now() < end) {
@@ -331,9 +348,10 @@ export class SnapshotService {
       })()`,
     );
     if (!found) {
-      const where = req.kind === 'url' ? req.url : 'no HTML informado';
+      const where = req.kind === 'url' ? `em ${req.url}` : 'no HTML informado';
+      const waited = Math.round(waitMs / 100) / 10;
       throw new Error(
-        `Seletor "${selector}" não encontrado ${req.kind === 'url' ? 'em ' : ''}${where}.`,
+        `Seletor "${selector}" não encontrado ${where} (esperou ${waited} s após o carregamento).`,
       );
     }
 
@@ -344,6 +362,13 @@ export class SnapshotService {
     );
     if (!payload || typeof payload !== 'object')
       throw new Error('A captura não devolveu um snapshot.');
+    if (status >= 400) {
+      // aviso, não erro: a página de erro pode ser exatamente o que se quer importar
+      payload.stats = payload.stats ?? { nodes: 0, truncated: false, warnings: [] };
+      (payload.stats.warnings ??= []).push(
+        `A página respondeu HTTP ${status}: o conteúdo importado pode ser a página de erro do servidor.`,
+      );
+    }
 
     try {
       const ref = await this.captureReference(win, sel);
