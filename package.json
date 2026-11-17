@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "description": "Editor de design em canvas voltado para IA, com servidor MCP completo.",
+  "license": "MIT",
+  "author": "Cristian",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cDreyer00/mockup-studio.git"
+  },
+  "homepage": "https://github.com/cDreyer00/mockup-studio#readme",
+  "bugs": {
+    "url": "https://github.com/cDreyer00/mockup-studio/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"

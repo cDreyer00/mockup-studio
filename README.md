@@ -28,6 +28,8 @@ Fases 1 a 9 integradas (17/11/2026): tokens e temas, Tailwind nativo, componente
 **A partir do código.** Requisitos: Node 24 e npm 11.
 
 ```bash
+git clone https://github.com/cDreyer00/mockup-studio.git
+cd mockup-studio
 npm install
 npm run build
 npm link -w @mockup/cli     # cria o comando `mockup`
@@ -98,13 +100,16 @@ npm run lint
 ```
 packages/
   core/      @mockup/core    modelo, ops, History, HTML <-> nós, exportadores, schema zod
+  snapshot-core/ @mockup/snapshot-core captura de sites em nós (usado pelo server e pela extensão)
   server/    @mockup/server  daemon: documentos, HTTP, WebSocket, MCP
   cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new, stop, doctor, setup, install-cli, uninstall-cli)
   editor/    @mockup/editor  Vite + React 19 + zustand: editor visual (e2e em editor/e2e)
   desktop/   @mockup/desktop shell Electron, motor de render e empacotamento
-docs/        PLANO, ARQUITETURA, MCP, EDITOR, EXPORT, INTEGRACAO
+  extension/ @mockup/extension extensão do Chrome para snapshot de páginas
+docs/        PLANO, ARQUITETURA, MCP, EDITOR, EXPORT, INTEGRACAO e guias de cada recurso
 integrations/ skill do Claude Code e trecho de AGENTS.md para o Codex
 examples/    documentos de exemplo
+kits/        kits de componentes prontos (.mockup.json)
 ```
 
 ## Documentação
