@@ -1,3 +1,4 @@
+/* global console */
 /**
  * Gera o bundle IIFE injetável (`dist/snapshot.iife.js`, global `MockupSnapshot`) e o módulo
  * `dist/inject.js`, que exporta o mesmo código como string (`SNAPSHOT_SCRIPT`) para quem injeta via

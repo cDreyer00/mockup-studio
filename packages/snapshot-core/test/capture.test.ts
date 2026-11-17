@@ -10,6 +10,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CaptureOptions } from '../src/browser.js';
 import type { SnapshotPayload } from '../src/format.js';
 
+type MockupApi = {
+  captureSelector: (selector: string, opts?: CaptureOptions) => Promise<SnapshotPayload>;
+};
+
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(pkgRoot, '../..');
 const fixtures = path.join(pkgRoot, 'test', 'fixtures');
@@ -77,10 +81,11 @@ async function open(pathname: string): Promise<void> {
 }
 
 function capture(selector: string, opts: CaptureOptions = {}): Promise<SnapshotPayload> {
-  return page.evaluate(([s, o]) => (globalThis as any).MockupSnapshot.captureSelector(s, o), [
-    selector,
-    opts,
-  ] as [string, CaptureOptions]) as Promise<SnapshotPayload>;
+  return page.evaluate(
+    ([s, o]) =>
+      (globalThis as unknown as { MockupSnapshot: MockupApi }).MockupSnapshot.captureSelector(s, o),
+    [selector, opts] as [string, CaptureOptions],
+  ) as Promise<SnapshotPayload>;
 }
 
 function walk(node: Node, fn: (n: Node, depth: number) => void, depth = 0): void {

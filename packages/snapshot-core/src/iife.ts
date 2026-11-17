@@ -8,7 +8,6 @@ import { SNAPSHOT_VERSION } from './format.js';
 const api = { version: SNAPSHOT_VERSION, captureElement, captureSelector };
 
 declare global {
-  // eslint-disable-next-line no-var
   var MockupSnapshot: typeof api | undefined;
 }
 

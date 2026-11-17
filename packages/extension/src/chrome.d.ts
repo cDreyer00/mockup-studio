@@ -1,4 +1,5 @@
 /** Declarações mínimas da API `chrome.*` usada pela extensão (sem depender de @types/chrome). */
+/* eslint-disable @typescript-eslint/no-explicit-any -- mensagens vêm sem tipo da API e são conferidas no uso */
 declare namespace chrome {
   namespace runtime {
     interface MessageSender {

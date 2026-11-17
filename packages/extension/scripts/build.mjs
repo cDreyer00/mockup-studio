@@ -1,3 +1,4 @@
+/* global console */
 /**
  * Build da extensão: bundla content/background/popup com esbuild e monta `dist/` (carregável em
  * "Carregar sem compactação"). `@mockup/snapshot-core` é resolvido para os fontes, sem depender do dist.

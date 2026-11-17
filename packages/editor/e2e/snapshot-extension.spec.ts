@@ -110,8 +110,11 @@ async function startPicker(mode: 'send' | 'copy'): Promise<Page> {
   expect(tabId, 'aba da fixture encontrada pelo service worker').toBeDefined();
   await sw.evaluate(
     async ([id, opts]) => {
-      const start = (globalThis as unknown as { __mockupStartPicker: Function })
-        .__mockupStartPicker;
+      const start = (
+        globalThis as unknown as {
+          __mockupStartPicker: (tabId: number, opts: unknown) => Promise<void>;
+        }
+      ).__mockupStartPicker;
       await start(id, opts);
     },
     [tabId, { mode, port: daemonPort }] as const,

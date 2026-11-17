@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as SnapshotCore from '@mockup/snapshot-core';
 
 const planCleanup = vi.hoisted(() => vi.fn());
 vi.mock('@mockup/snapshot-core', async (orig) => ({
-  ...(await orig<typeof import('@mockup/snapshot-core')>()),
+  ...(await orig<typeof SnapshotCore>()),
   planCleanup,
 }));
 
