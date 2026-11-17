@@ -1,6 +1,7 @@
 /** Validação (zod) do modelo vetorial: usada pela op `setVector` e pela leitura de arquivos. */
 import { z } from 'zod';
 import { sanitizeSvg } from '../svg.js';
+import { parsePathData } from './path.js';
 import type { Vector, VectorGradient, VectorPaint, VectorPath } from '../types.js';
 
 /** Atributos do `<svg>` que o gerador controla: nunca vão para `Vector.attrs`. */
@@ -57,7 +58,17 @@ const ATTR_KEY_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
 
 const PathSchema = z.object({
   id: z.string().regex(PATH_ID_RE, { error: 'id de path inválido (use letras, dígitos, "-" e "_")' }),
-  d: z.string().regex(PATH_DATA_RE, { error: 'path data com caracteres inválidos' }),
+  d: z
+    .string()
+    .regex(PATH_DATA_RE, { error: 'path data com caracteres inválidos' })
+    .superRefine((d, ctx) => {
+      try {
+        parsePathData(d);
+      } catch (err) {
+        const why = (err instanceof Error ? err.message : String(err)).replace(/^Path inválido:\s*/, '');
+        ctx.addIssue({ code: 'custom', message: `Path data inválido em "d": ${why}` });
+      }
+    }),
   fill: PaintSchema.optional(),
   stroke: PaintSchema.optional(),
   strokeWidth: z.number().min(0).optional(),
