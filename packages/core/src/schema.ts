@@ -15,10 +15,21 @@ import type { Document, FontRef, Node, Page, Theme, TokenMeta } from './types.js
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
-/** Classes Tailwind do nó: espaços colapsados; vazio vira ausente. */
+/** Caracteres que nunca aparecem em classes Tailwind legítimas (mesmo filtro de `setClasses` e do import HTML). */
+export const UNSAFE_CLASS_CHARS_RE = /[<{};"`]/;
+
+/**
+ * Classes Tailwind do nó: espaços colapsados; classes com caracteres proibidos são descartadas
+ * (documentos antigos continuam carregando); vazio vira ausente.
+ */
 const ClassesSchema = z
   .string()
-  .transform((s) => s.trim().replace(/\s+/g, ' '))
+  .transform((s) =>
+    s
+      .split(/\s+/)
+      .filter((c) => c !== '' && !UNSAFE_CLASS_CHARS_RE.test(c))
+      .join(' '),
+  )
   .transform((s) => (s === '' ? undefined : s))
   .optional();
 

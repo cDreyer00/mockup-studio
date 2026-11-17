@@ -5,6 +5,7 @@ import { createDocument, createNodeFromTag, findNode } from './document.js';
 import { parseDocument, serializeDocument } from './schema.js';
 import {
   BREAKPOINT_PX,
+  breakpointsOf,
   formatStateKey,
   hasStates,
   normalizeStateKey,
@@ -80,6 +81,20 @@ describe('stateMatches / resolveStateStyle', () => {
     expect(stateMatches('md', { frameWidth: BREAKPOINT_PX.md - 1 })).toBe(false);
     expect(stateMatches('md', {})).toBe(false);
     expect(stateMatches('lg', { frameWidth: 800, breakpoints: { lg: 700 } })).toBe(true);
+  });
+
+  it('breakpointsOf lê --breakpoint-* (px/rem) do documento e cai no padrão', () => {
+    expect(breakpointsOf({ tokens: {} })).toEqual(BREAKPOINT_PX);
+    const bp = breakpointsOf({
+      tokens: {
+        '--breakpoint-md': '900px',
+        '--breakpoint-lg': '60rem',
+        '--breakpoint-xl': 'calc(1px)',
+      },
+    });
+    expect(bp).toMatchObject({ sm: 640, md: 900, lg: 960, xl: 1280, '2xl': 1536 });
+    expect(stateMatches('md', { frameWidth: 800, breakpoints: bp })).toBe(false);
+    expect(stateMatches('md', { frameWidth: 900, breakpoints: bp })).toBe(true);
   });
 
   it('dark e pseudo dependem do contexto', () => {
@@ -252,6 +267,17 @@ describe('schema: classes, states e cssBase', () => {
     const node = findNode(parseDocument(json), 'el_state0001')!.node;
     expect('classes' in node).toBe(false);
     expect('states' in node).toBe(false);
+  });
+
+  it('parseDocument descarta só as classes com caracteres proibidos e mantém as válidas', () => {
+    const json = raw();
+    const child = json.pages[0].frames[0].children[0];
+    child.classes = 'p-4 bg-[url("x")] hover:bg-red-500 a;b {x} <y>';
+    expect(findNode(parseDocument(json), 'el_state0001')!.node.classes).toBe(
+      'p-4 hover:bg-red-500',
+    );
+    child.classes = '{x} a;b';
+    expect('classes' in findNode(parseDocument(json), 'el_state0001')!.node).toBe(false);
   });
 
   it('serializeDocument mantém classes, states e cssBase (round-trip estável)', () => {
