@@ -118,6 +118,24 @@ describe('placementDelta', () => {
     expect(d.set).toEqual({ 'grid-column': '2 / span 2', 'grid-row': '1' });
     expect(d.unset).toEqual(['grid-area']);
   });
+  it('remove as formas longas -start/-end ao gravar grid-column/grid-row', () => {
+    const d = placementDelta(
+      {
+        'grid-column-start': '2',
+        'grid-column-end': 'span 2',
+        'grid-row-start': '1',
+        'grid-row-end': '3',
+      },
+      { column: 3, row: 2, columnSpan: 1, rowSpan: 1 },
+    );
+    expect(d.set).toEqual({ 'grid-column': '3', 'grid-row': '2' });
+    expect(d.unset.sort()).toEqual([
+      'grid-column-end',
+      'grid-column-start',
+      'grid-row-end',
+      'grid-row-start',
+    ]);
+  });
   it('preserva o que não está no patch', () => {
     const d = placementDelta({ 'grid-column': '2 / span 2', 'grid-row': '1' }, { row: 2 });
     expect(d.set).toEqual({ 'grid-column': '2 / span 2', 'grid-row': '2' });
