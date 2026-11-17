@@ -52,7 +52,9 @@ describe('render-utils', () => {
     expect(cacheKey({ ...base, scale: 2 })).not.toBe(k);
     expect(cacheKey({ ...base, transparent: true })).not.toBe(k);
     expect(cacheKey({ ...base, time: 2 })).not.toBe(k);
-    expect(cacheKey({ ...base, time: 0 })).toBe(k);
+    // sem time (poster do vídeo) ≠ time 0 (primeiro quadro)
+    expect(cacheKey({ ...base, time: 0 })).not.toBe(k);
+    expect(cacheKey({ ...base, time: undefined })).toBe(k);
     const doc2 = structuredClone(doc);
     doc2.tokens['--x'] = '1';
     expect(cacheKey({ ...base, doc: doc2 })).not.toBe(k);
