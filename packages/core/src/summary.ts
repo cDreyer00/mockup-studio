@@ -1,5 +1,6 @@
 import { getComponent } from './components/expand.js';
 import { sortStateKeys } from './states.js';
+import { isGridContainer, parseGridPlacement, trackCount } from './grid.js';
 import type { Document, Node } from './types.js';
 
 const TEXT_MAX = 40;
@@ -41,13 +42,46 @@ function sides(s: Record<string, string>, base: string, label: string): string |
   return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
+/** `grid 3x2` (colunas x linhas declaradas); só um dos eixos vira `grid 3col`/`grid 2row`. */
+function gridToken(s: Record<string, string>): string {
+  const cols = trackCount(s, 'columns');
+  const rows = trackCount(s, 'rows');
+  if (cols > 0 && rows > 0) return `grid ${cols}x${rows}`;
+  if (cols > 0) return `grid ${cols}col`;
+  if (rows > 0) return `grid ${rows}row`;
+  return 'grid';
+}
+
+/** Posição num grid: `cell:2/1 span:2x1` (coluna/linha 1-based) ou `area:nome`. */
+function placementTokens(node: Node): string[] {
+  const s = node.style;
+  if (
+    !s['grid-column'] &&
+    !s['grid-row'] &&
+    !s['grid-area'] &&
+    !s['grid-column-start'] &&
+    !s['grid-row-start']
+  )
+    return [];
+  const p = parseGridPlacement(s);
+  if (p.area) return [`area:${p.area}`];
+  const out: string[] = [];
+  if (p.column !== undefined || p.row !== undefined) {
+    out.push(`cell:${p.column ?? '?'}/${p.row ?? '?'}`);
+  }
+  if ((p.columnSpan ?? 1) > 1 || (p.rowSpan ?? 1) > 1) {
+    out.push(`span:${p.columnSpan ?? 1}x${p.rowSpan ?? 1}`);
+  }
+  return out;
+}
+
 function layoutTokens(node: Node): string[] {
   const s = node.style;
   const out: string[] = [];
   const display = s.display;
   if (display === 'flex' || display === 'inline-flex') {
     out.push((s['flex-direction'] ?? 'row').startsWith('column') ? 'flex-col' : 'flex-row');
-  } else if (display === 'grid' || display === 'inline-grid') out.push('grid');
+  } else if (isGridContainer(s)) out.push(gridToken(s));
   else if (display === 'block') out.push('block');
   if (s.position === 'absolute') {
     const x = node.position?.x ?? (s.left ? num(s.left) : undefined);
@@ -113,6 +147,21 @@ export function summarizeNode(node: Node, doc?: Document): string {
     const font = [s['font-size'], s['font-weight']].filter(Boolean).join('/');
     if (font) parts.push(font);
     if (s.color) parts.push(`color:${s.color}`);
+    parts.push(...placementTokens(node), ...tailwindTokens(node), ...flags(node));
+    return parts.join(' ');
+  }
+
+  if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
+    if (node.effect) parts.push(`effect:${node.effect.kind}`);
+    if (node.video) parts.push(`video:${shortSrc(node.video.src)}`);
+    if (node.embed) {
+      const e = node.embed;
+      const where = e.url ?? e.src;
+      parts.push(`embed:${e.provider}${where ? ` ${shortSrc(where)}` : ''}`);
+    }
+    const size = sizeToken(s);
+    if (size) parts.push(size);
+    if (s.position === 'absolute') parts.push('abs');
     parts.push(...tailwindTokens(node), ...flags(node));
     return parts.join(' ');
   }
@@ -121,14 +170,24 @@ export function summarizeNode(node: Node, doc?: Document): string {
     if (node.src) parts.push(`src:${shortSrc(node.src)}`);
     const size = sizeToken(s);
     if (size) parts.push(size);
-    parts.push(...tailwindTokens(node), ...flags(node));
+    parts.push(...placementTokens(node), ...tailwindTokens(node), ...flags(node));
     return parts.join(' ');
   }
 
   const size = sizeToken(s);
   if (size) parts.push(size);
+  if (node.type === 'repeater') {
+    const src =
+      node.dataSource && node.dataSource.kind !== 'inline' ? `<${node.dataSource.kind}` : '';
+    parts.push(`repeat:${node.data?.length ?? 0}${src}`);
+  }
   parts.push(...layoutTokens(node));
   if (s.gap) parts.push(`gap:${shorten(s.gap)}`);
+  else if (isGridContainer(s)) {
+    if (s['column-gap']) parts.push(`gap-x:${shorten(s['column-gap'])}`);
+    if (s['row-gap']) parts.push(`gap-y:${shorten(s['row-gap'])}`);
+  }
+  parts.push(...placementTokens(node));
   const p = sides(s, 'padding', 'p');
   if (p) parts.push(p);
   const m = sides(s, 'margin', 'm');

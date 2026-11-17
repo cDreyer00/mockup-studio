@@ -48,8 +48,14 @@ const cases: Case[] = [
   ['display none', { display: 'none' }, ['hidden']],
   [
     'grid repeat',
-    { display: 'grid', 'grid-template-columns': 'repeat(3, 1fr)' },
+    { display: 'grid', 'grid-template-columns': 'repeat(3, minmax(0, 1fr))' },
     ['grid', 'grid-cols-3'],
+  ],
+  // `repeat(3, 1fr)` tem mínimo auto: não é o `grid-cols-3` (minmax(0, 1fr))
+  [
+    'grid repeat com 1fr',
+    { 'grid-template-columns': 'repeat(3, 1fr)' },
+    ['grid-cols-[repeat(3,1fr)]'],
   ],
   ['grid arbitrário', { 'grid-template-columns': '200px 1fr 2fr' }, ['grid-cols-[200px_1fr_2fr]']],
   // espaçamento

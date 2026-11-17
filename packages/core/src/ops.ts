@@ -14,6 +14,11 @@ import type {
   PropValue,
   Theme,
   TokenMeta,
+  DataSource,
+  EffectSpec,
+  EmbedSpec,
+  Vector,
+  VideoSpec,
 } from './types.js';
 
 export interface CreateNodeOp {
@@ -261,6 +266,34 @@ export interface SetInstanceOverridesOp {
   changes: { nodeId: string; overrides: Record<string, NodeOverride> | null }[];
 }
 
+/**
+ * Dados de nós repeater: `data` substitui a lista (omitido = mantém); `source` define a origem
+ * (omitido = mantém, `null` = remove).
+ */
+export interface SetDataOp {
+  type: 'setData';
+  /** `data: null` apaga a lista (usado pelo undo quando o nó não tinha dados). */
+  changes: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[];
+}
+
+/**
+ * Define (ou remove, com `vector: null`) o modelo vetorial de nós svg. Com vetor, `node.svg` passa
+ * a ser `svg` (se informado) ou `vectorToSvg(vector)`; o inverso restaura vetor e markup.
+ */
+export interface SetVectorOp {
+  type: 'setVector';
+  changes: { nodeId: string; vector: Vector | null; svg?: string }[];
+}
+
+/**
+ * Troca a especificação de mídia de nós: `effect` em nós effect, `video` em nós video e `embed`
+ * em nós embed (substitui o objeto inteiro; o campo precisa casar com o tipo do nó).
+ */
+export interface SetMediaOp {
+  type: 'setMedia';
+  changes: { nodeId: string; effect?: EffectSpec; video?: VideoSpec; embed?: EmbedSpec }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -292,7 +325,10 @@ export type Op =
   | UpdateComponentOp
   | ReplaceNodeOp
   | SetInstancePropsOp
-  | SetInstanceOverridesOp;
+  | SetInstanceOverridesOp
+  | SetDataOp
+  | SetVectorOp
+  | SetMediaOp;
 
 export type OpType = Op['type'];
 

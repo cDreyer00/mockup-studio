@@ -6,10 +6,12 @@ import type { AnyNode, Element } from 'domhandler';
 import { fontFaceCss } from '../fonts.js';
 import { isUnsafeUrl, slugify } from '../html.js';
 import { toCamelCase } from '../styles.js';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import { VOID_TAGS } from '../tags.js';
 import { nodeTheme, themeDeclarations } from '../tokens.js';
 import type { Document, Node } from '../types.js';
+import { effectKinds } from '../effects/catalog.js';
+import { effectMountSpec } from '../effects/runtime.js';
 import {
   BOOLEAN_ATTRS,
   assetUrl,
@@ -21,6 +23,22 @@ import {
 import { neutralLeadingSizes, tailwindNodeParts, tailwindThemeCss } from './tailwind.js';
 import { createComponentSupport } from './reactComponents.js';
 import type { ComponentSupport, ScopeHooks } from './reactComponents.js';
+import {
+  mediaElement,
+  paramBool,
+  reactEffectsFiles,
+  reactThreeFiles,
+  type MediaAttr,
+} from './media.js';
+import {
+  REACT_MEDIA_BOX,
+  REACT_MEDIA_HELPERS,
+  REACT_MEDIA_IMPORTS,
+  REACT_MEDIA_NAMES,
+  REACT_MEDIA_ORDER,
+  REACT_MEDIA_TYPES,
+  type ReactMediaHelper,
+} from './react-media.js';
 
 export interface ReactExportOptions {
   /** Nó raiz do componente (um componente por nó). */
@@ -35,6 +53,11 @@ export interface ReactExportOptions {
   assetsBase?: string;
   /** Motor Tailwind do documento (ver `TailwindExportOptions.tailwind`). */
   tailwind?: TailwindEngine;
+  /**
+   * Efeitos estáticos: id do nó de efeito → imagem (relativa a `assetsBase`, ex.:
+   * `effects/fx_ab12cd34.png`). Esses efeitos viram `<img>`; os demais ficam animados (canvas).
+   */
+  effectImages?: Record<string, string>;
 }
 
 export interface ReactExport {
@@ -46,6 +69,11 @@ export interface ReactExport {
    * `styles: 'inline'`, o reset básico e os `@font-face` (ausente se não houver nada a declarar).
    */
   css?: string;
+  /**
+   * Arquivos que o componente importa, ao lado do `.tsx`: `mockup-effects.js`/`.d.ts` (runtime
+   * dos efeitos) e `<slug>-three-<n>.js`/`.d.ts` (ilhas Three.js). Ausente sem efeitos/ilhas.
+   */
+  files?: { name: string; code: string }[];
 }
 
 /* ====================================================================== */
@@ -538,7 +566,7 @@ function signature(node: Node): string {
     varying,
     node.text !== undefined && node.text !== '',
     node.src !== undefined,
-    node.type === 'svg' ? (node.svg ?? '') : null,
+    node.type === 'svg' ? [node.svg ?? '', /\sid\s*=/i.test(node.svg ?? '') ? node.id : ''] : null,
     node.type === 'instance' ? [node.componentId, node.props, node.overrides] : null,
     node.children.map(signature),
   ]);
@@ -671,6 +699,18 @@ export interface RenderCtx {
   components?: ComponentSupport;
   /** Presente enquanto se renderiza o corpo de um principal (props, variantes e slots). */
   scope?: ScopeHooks;
+  media: ReactMedia;
+}
+
+/** O que os nós de mídia exigem no arquivo: helpers, imports e arquivos extras. */
+interface ReactMedia {
+  effectImages: Record<string, string>;
+  slug: string;
+  helpers: Set<ReactMediaHelper>;
+  /** Linhas de import das ilhas Three.js. */
+  imports: string[];
+  files: { name: string; code: string }[];
+  threeCount: number;
 }
 
 function uniqueName(base: string, ctx: RenderCtx): string {
@@ -729,7 +769,12 @@ export function renderNode(
   const props: string[] = [...extraProps, ...styleProps(node, ctx, isRoot)];
 
   if (node.type === 'svg') {
-    return svgToJsx(node.svg ?? '', depth, props, ctx.usage);
+    return svgToJsx(scopeSvgIds(sanitizeSvg(node.svg ?? ''), node.id), depth, props, ctx.usage);
+  }
+
+  if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
+    const lines = renderMedia(node, depth, ctx, props);
+    if (lines) return lines;
   }
 
   const isImg = node.type === 'image' || node.tag === 'img';
@@ -762,6 +807,129 @@ export function renderNode(
   const slotKids = ctx.scope?.slotChildren(node, depth + 1, ctx, pre);
   kids.push(...(slotKids ?? renderChildren(node.children, depth + 1, ctx, pre, node)));
   return emitElement(node.tag, props, kids, depth);
+}
+
+/* ---------------- Mídia (effect, video, embed) ---------------- */
+
+/** Atributo HTML de mídia → prop JSX. */
+const MEDIA_PROPS: Record<string, string> = {
+  autoplay: 'autoPlay',
+  playsinline: 'playsInline',
+  allowfullscreen: 'allowFullScreen',
+};
+
+function mediaJsxProps(attrs: MediaAttr[]): string[] {
+  return attrs.map(([k, v]) => {
+    const prop = MEDIA_PROPS[k] ?? k;
+    return v === true ? prop : `${prop}=${attrValue(v)}`;
+  });
+}
+
+/** Constante tipada no topo do arquivo (referência estável entre renders). */
+function moduleConst(
+  ctx: RenderCtx,
+  node: Node,
+  suffix: string,
+  type: string,
+  value: unknown,
+): string {
+  const name = uniqueName(`${fieldIdent(node.name) ?? 'media'}${suffix}`, ctx);
+  ctx.arrays.push(`const ${name}: ${type} = ${JSON.stringify(value, null, 2)};`);
+  return name;
+}
+
+/** JSX de um nó de mídia; `null` quando a especificação falta (cai no elemento comum). */
+function renderMedia(node: Node, depth: number, ctx: RenderCtx, props: string[]): string[] | null {
+  const m = ctx.media;
+  const url = (ref: string): string | null => {
+    const u = assetUrl(ref, ctx.assetsBase);
+    return isUnsafeUrl(u) ? null : u;
+  };
+
+  if (node.type === 'effect' && node.effect) {
+    const image = m.effectImages[node.id];
+    const src = image !== undefined ? url(image) : null;
+    if (src) return emitElement('img', [`src=${attrValue(src)}`, 'alt=""', ...props], [], depth);
+    const { kind, category, params, selects } = effectMountSpec(node.effect);
+    m.helpers.add('effect');
+    const spec = moduleConst(ctx, node, 'Effect', 'EffectMount', {
+      kind,
+      category,
+      params,
+      ...(selects ? { selects } : {}),
+    });
+    return emitElement('MockupEffect', [`spec={${spec}}`, ...props], [], depth);
+  }
+
+  if (node.type === 'embed' && node.embed) {
+    const e = node.embed;
+    if (e.provider === 'lottie' || e.provider === 'rive') {
+      const src = e.src ? url(e.src) : null;
+      if (!src) return null;
+      const out = [`src=${attrValue(src)}`];
+      if (!paramBool(e.params, 'autoplay', true)) out.push('autoplay={false}');
+      if (e.provider === 'lottie') {
+        if (!paramBool(e.params, 'loop', true)) out.push('loop={false}');
+        m.helpers.add('lottie');
+        return emitElement('MockupLottie', [...out, ...props], [], depth);
+      }
+      for (const [param, prop] of [
+        ['artboard', 'artboard'],
+        ['stateMachine', 'stateMachine'],
+      ] as const) {
+        const v = e.params?.[param];
+        if (typeof v === 'string' && v !== '') out.push(`${prop}=${attrValue(v)}`);
+      }
+      m.helpers.add('rive');
+      return emitElement('MockupRive', [...out, ...props], [], depth);
+    }
+    if (e.provider === 'three') {
+      if (typeof e.code !== 'string') return null;
+      m.threeCount++;
+      const file = `${m.slug}-three-${m.threeCount}`;
+      const setup = uniqueName(`setupThree${m.threeCount}`, ctx);
+      m.files.push(...reactThreeFiles(file, e.code));
+      m.imports.push(`import { setup as ${setup} } from './${file}.js';`);
+      m.helpers.add('three');
+      const params = moduleConst(ctx, node, 'Params', 'ThreeParams', e.params ?? {});
+      return emitElement(
+        'ThreeIsland',
+        [`setup={${setup}}`, `params={${params}}`, ...props],
+        [],
+        depth,
+      );
+    }
+  }
+
+  // vídeo, YouTube e iframe: elemento nativo
+  const el = mediaElement(node, { mode: 'live', url });
+  if (!el) return null;
+  return emitElement(el.tag, [...mediaJsxProps(el.attrs), ...props], [], depth);
+}
+
+/** Cabeçalho (imports, tipos e helpers) que os nós de mídia exigem; vazio sem mídia. */
+function mediaPreamble(m: ReactMedia, extraTypes: string[] = []): string[] {
+  if (m.helpers.size === 0) return [];
+  const types = ['CSSProperties', ...extraTypes].map((t) => `type ${t}`).join(', ');
+  const out = [`import { useEffect, useRef, ${types} } from 'react';`];
+  for (const h of REACT_MEDIA_ORDER) {
+    const imp = m.helpers.has(h) ? REACT_MEDIA_IMPORTS[h] : null;
+    if (imp) out.push(imp);
+  }
+  out.push(...m.imports, '', REACT_MEDIA_BOX);
+  for (const h of REACT_MEDIA_ORDER) {
+    const t = m.helpers.has(h) ? REACT_MEDIA_TYPES[h] : null;
+    if (t) out.push(t);
+  }
+  out.push('');
+  for (const h of REACT_MEDIA_ORDER) if (m.helpers.has(h)) out.push(REACT_MEDIA_HELPERS[h], '');
+  if (m.helpers.has('effect')) {
+    // runtime com os fragments de TODO o catálogo: o arquivo é o mesmo para todos os componentes
+    const all = new Map<string, string | undefined>();
+    for (const kind of effectKinds()) all.set(kind, effectMountSpec({ kind, params: {} }).fragment);
+    m.files.unshift(...reactEffectsFiles(all));
+  }
+  return out;
 }
 
 /** Filhos de um nó; irmãos repetidos viram `array.map(...)` quando `extractRepeats` está ligado. */
@@ -859,16 +1027,28 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     extractRepeats: options.extractRepeats ?? true,
     usage,
     arrays: [],
-    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode', 'safeUrl']),
+    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode', 'safeUrl', ...REACT_MEDIA_NAMES]),
+    media: {
+      effectImages: options.effectImages ?? {},
+      slug: componentName.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
+      helpers: new Set(),
+      imports: [],
+      files: [],
+      threeCount: 0,
+    },
   };
   ctx.components = createComponentSupport(doc, ctx);
 
   const body = renderNode(root, 2, ctx, false, true);
+  // os principais renderizam antes do preâmbulo: nós de mídia dentro deles também registram helpers
   const generated = ctx.components.renderAll(); // um componente por principal usado
-  const code: string[] = [];
-  const imports = [usage.cssProperties ? 'CSSProperties' : '', usage.reactNode ? 'ReactNode' : ''];
-  if (imports.some(Boolean)) {
-    code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
+  const code = mediaPreamble(ctx.media, usage.reactNode ? ['ReactNode'] : []);
+  const { files } = ctx.media;
+  if (code.length === 0) {
+    const imports = [usage.cssProperties ? 'CSSProperties' : '', usage.reactNode ? 'ReactNode' : ''];
+    if (imports.some(Boolean)) {
+      code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
+    }
   }
   if (usage.safeUrl) code.push(...SAFE_URL_HELPER, '');
   for (const a of ctx.arrays) code.push(a, '');
@@ -890,5 +1070,5 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     const faces = fontFaceCss(doc, (f) => `${ctx.assetsBase}${f}`, 'swap');
     css = `${documentBaseCssFor(doc)}\n${faces ? faces + '\n' : ''}`;
   }
-  return { componentName, code: code.join('\n'), css };
+  return { componentName, code: code.join('\n'), css, ...(files.length > 0 ? { files } : {}) };
 }

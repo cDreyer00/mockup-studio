@@ -8,9 +8,18 @@ import {
   useRef,
 } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { VOID_TAGS, inlineSvgVars, resolveStateStyle } from '@mockup/core';
+import {
+  VOID_TAGS,
+  baseNodeId,
+  expandRepeaterChildren,
+  inlineSvgVars,
+  resolveStateStyle,
+} from '@mockup/core';
 import type { Document, Node, Op, StateContext } from '@mockup/core';
 import { daemon } from '../client/daemon';
+import { EffectView } from '../fx/EffectView';
+import { EmbedView } from '../fx/EmbedView';
+import { VideoView } from '../fx/VideoView';
 import { useDoc } from '../state/docStore';
 import { nodeScopeVars } from '../tokens/reportCache';
 import { ui, useUi } from '../state/uiStore';
@@ -147,7 +156,7 @@ const hasVar = (svg: string): boolean => /var\(/i.test(svg);
 /** Markup com as `var()` resolvidas no escopo do nó (sem o nó no documento, fica como está). */
 function svgWithScope(doc: Document, node: Node, svg: string): string {
   try {
-    return inlineSvgVars(svg, nodeScopeVars(doc, node.id));
+    return inlineSvgVars(svg, nodeScopeVars(doc, baseNodeId(node.id)));
   } catch {
     return svg;
   }
@@ -176,7 +185,8 @@ function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
     alt: '',
     draggable: false,
     style,
-    'data-node-id': node.id,
+    // clones de repetidor (`id~3`) respondem ao id do template
+    'data-node-id': baseNodeId(node.id),
   });
 }
 
@@ -216,9 +226,36 @@ interface NodeViewProps {
  * Renderiza um nó como elemento HTML real, recursivamente. `memo` por identidade de `node`:
  * seleção e hover não passam por aqui (ficam no overlay); só a prévia do próprio nó assina.
  */
+/** O nó tem, em algum nível do template, um descendente com este id exato? */
+export function hasDescendant(node: Node, id: string): boolean {
+  return node.children.some((c) => c.id === id || hasDescendant(c, id));
+}
+
+/**
+ * Filhos expandidos do repetidor. Com um texto do template em edição, o item 0 volta ao nó cru
+ * (a expansão já resolveu os bindings, mas o editor precisa do `{{campo}}`).
+ */
+export function withRawEditing(node: Node, editingId: string | null): Node[] {
+  const expanded = expandRepeaterChildren(node);
+  if (!editingId) return expanded;
+  const raw = new Map<string, Node>();
+  const index = (n: Node): void => {
+    raw.set(n.id, n);
+    n.children.forEach(index);
+  };
+  node.children.forEach(index);
+  const swap = (n: Node): Node => {
+    if (n.id === editingId) return raw.get(n.id) ?? n;
+    return hasDescendant(n, editingId) ? { ...n, children: n.children.map(swap) } : n;
+  };
+  return expanded.map(swap);
+}
+
 export const NodeView = memo(function NodeView({ node, root = false }: NodeViewProps) {
   const docId = useContext(DocIdContext);
-  const preview = useUi((s) => s.preview[node.id]);
+  // Clones de repetidor (`id~3`) respondem ao id do template: clique, hover, prévia e overlay.
+  const realId = baseNodeId(node.id);
+  const preview = useUi((s) => s.preview[realId]);
   const editing = useUi((s) => s.editingTextId === node.id);
   const baseCtx = useContext(StateCtxContext);
   const ctx = useStableCtx(
@@ -236,17 +273,31 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   /** A subárvore enxerga o contexto do frame raiz / do tema deste nó. */
   const scoped = (el: ReactNode): ReactNode =>
     ctx === baseCtx ? el : <StateCtxContext.Provider value={ctx}>{el}</StateCtxContext.Provider>;
+  // Em edição inline de um texto do template, o item 0 mostra o texto cru (`{{campo}}`).
+  const editingInside = useUi((s) =>
+    node.type === 'repeater' && s.editingTextId && hasDescendant(node, s.editingTextId)
+      ? s.editingTextId
+      : null,
+  );
+  const repeated = useMemo(
+    () => (node.type === 'repeater' ? withRawEditing(node, editingInside) : null),
+    [node, editingInside],
+  );
   const attrs = useMemo(() => safeAttrs(node, docId), [node, docId]);
   if (node.hidden) return null;
 
   const tag = resolveTag(node.tag);
 
+  if (node.type === 'effect') return <EffectView node={node} style={style} docId={docId} />;
+  if (node.type === 'video') return <VideoView node={node} style={style} docId={docId} />;
+  if (node.type === 'embed') return <EmbedView node={node} style={style} docId={docId} />;
+
   if (node.type === 'svg') {
-    if (!node.svg) return createElement('div', { style, 'data-node-id': node.id });
+    if (!node.svg) return createElement('div', { style, 'data-node-id': realId });
     return <SvgView node={node} style={style} />;
   }
 
-  const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': node.id };
+  const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': realId };
   // Prévia dark: o frame raiz assume o tema `dark` do documento (só no DOM).
   if (root && baseCtx.preview === 'dark' && baseCtx.darkTheme) props['data-theme'] = 'dark';
   if (tag === 'form') props.onSubmit = (e: { preventDefault(): void }) => e.preventDefault();
@@ -272,7 +323,7 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
 
   const children: ReactNode[] = [];
   if (node.type === 'text' && node.text) children.push(node.text);
-  for (const child of node.children ?? []) {
+  for (const child of repeated ?? node.children ?? []) {
     if (!child.hidden) children.push(<NodeView key={child.id} node={child} />);
   }
   return scoped(createElement(tag, props, ...children));

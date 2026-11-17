@@ -1,4 +1,16 @@
-import { Component, Frame, Image as ImageIcon, Lock, Shapes, Square, Type } from 'lucide-react';
+import {
+  Box,
+  Clapperboard,
+  Component,
+  Frame,
+  Image as ImageIcon,
+  Lock,
+  Repeat,
+  Shapes,
+  Sparkles,
+  Square,
+  Type,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { isVirtualId } from '@mockup/core';
 import type { Node, NodeType } from '@mockup/core';
@@ -13,6 +25,10 @@ const ICONS: Record<NodeType, ReactNode> = {
   image: <ImageIcon size={14} />,
   svg: <Shapes size={14} />,
   instance: <Component size={14} />,
+  repeater: <Repeat size={14} />,
+  effect: <Sparkles size={14} />,
+  video: <Clapperboard size={14} />,
+  embed: <Box size={14} />,
 };
 
 const TYPE_NAMES: Record<NodeType, string> = {
@@ -22,6 +38,10 @@ const TYPE_NAMES: Record<NodeType, string> = {
   image: 'Imagem',
   svg: 'SVG',
   instance: 'Instância',
+  repeater: 'Repetidor',
+  effect: 'Efeito',
+  video: 'Vídeo',
+  embed: 'Embed',
 };
 
 /** Tipo exibido: na árvore expandida, a raiz da instância tem o tipo da raiz do principal. */

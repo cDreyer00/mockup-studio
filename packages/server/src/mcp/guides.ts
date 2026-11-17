@@ -1,20 +1,28 @@
 import { ASSISTANT_GUIDE } from './guide-assistant.js';
 import { SCRIPTS_GUIDE } from './guide-scripts.js';
+import { IMPORT_GUIDE, IMPORT_GUIDE_INFO } from '../snapshot/guide.js';
+import { EFFECTS_GUIDE } from './guides-effects.js';
 
 export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
   'tokens',
   'layout',
+  'grid',
+  'vectors',
   'responsive',
   'screenshot-loop',
   'tailwind',
   'components',
   'export',
+  'effects',
   'troubleshooting',
   'setup',
   'assistant',
   'scripts',
+  'import',
+  'assets',
+  'data',
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
@@ -37,6 +45,16 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     title: 'Guia: layout',
     description: 'Flexbox, tamanhos, posição absoluta e boas práticas de espaçamento.',
   },
+  grid: {
+    title: 'Guia: CSS Grid',
+    description:
+      'Grid com write_html ou set_grid, posicionar filhos com place_in_grid, áreas nomeadas e get_layout.',
+  },
+  vectors: {
+    title: 'Guia: vetores e formas',
+    description:
+      'create_shape, insert_svg, set_path, set_vector_paint, boolean_op, flatten e text_to_outlines.',
+  },
   responsive: {
     title: 'Guia: responsivo',
     description:
@@ -51,6 +69,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     title: 'Guia: exportação',
     description:
       'get_code x export, formatos (png, svg, html, tailwind, react), pasta de saída e assets.',
+  },
+  effects: {
+    title: 'Guia: efeitos, vídeo, embeds e export animado',
+    description:
+      'add_effect como fundo, presets, screenshot com time, vídeo, Lottie/Rive/YouTube, Three.js e export mp4/webm/gif.',
   },
   troubleshooting: {
     title: 'Guia: solução de problemas',
@@ -81,6 +104,17 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description:
       'run_script: API JavaScript do documento (doc.select, node.style, doc.apply, doc.screenshot), sandbox, timeout e biblioteca scripts/*.js.',
   },
+  import: IMPORT_GUIDE_INFO,
+  assets: {
+    title: 'Guia: assets, imagens e placeholders',
+    description:
+      'Assets do documento x biblioteca/CDN, upload, links estáveis, otimizar, set_image e generate_placeholder.',
+  },
+  data: {
+    title: 'Guia: dados reais e repetidores',
+    description:
+      'Template com {{campo}}, bind_data com JSON/CSV/URL, select, mapping, refresh_data e limites.',
+  },
 };
 
 export const GUIDES: Record<GuideTopic, string> = {
@@ -108,12 +142,13 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - O salvamento em disco é automático; \`save_document\` força a gravação.
 - HTML com classes Tailwind (shadcn/ui, Tailwind UI): \`write_html\` detecta sozinho e \`import_component\` cria os tokens shadcn; veja \`get_guide('tailwind')\`.
 - Componentes reutilizáveis (Button, Card, Navbar...): \`insert_component('shadcn-like/Button', parentId, props)\`; veja \`get_guide('components')\`.
+- Efeitos, vídeo e embeds: \`add_effect\`, \`insert_video\`, \`insert_embed\`, \`insert_three\` (veja \`get_guide('effects')\`).
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`; kits Lucide e Heroicons, nomes \`kit/nome\`), \`add_font\` (\`list_fonts\`).
 - \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
 
 ## Guias
 
-\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\` — use \`get_guide(topic)\`.
+\`design-system\`, \`tokens\`, \`layout\`, \`grid\`, \`vectors\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`effects\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -272,6 +307,68 @@ Os nós usam CSS real. Use flexbox para quase tudo.
 - Frames raiz têm largura/altura fixas (ex.: 1440x900); o conteúdo interno deve fluir (\`width:100%\`, \`max-width\`).
 - Monte por seções: um \`write_html\` por bloco, cada um com um container flex próprio.
 - \`get_styles(nodeIds)\` mostra os estilos efetivos; \`get_layout(nodeId)\` mostra posição e tamanho reais (precisa de render).
+- Grades em duas dimensões: \`get_guide('grid')\` (\`set_grid\`, \`place_in_grid\`). Formas e SVG: \`get_guide('vectors')\`.
+`,
+  grid: `# CSS Grid
+
+Use grid para layouts em duas dimensões (cards, dashboards, galerias, formulários); flex continua melhor para uma linha ou coluna só.
+
+## Com write_html
+
+\`\`\`html
+<section class="cards">
+  <article class="card">A</article>
+  <article class="card wide">B</article>
+  <article class="card">C</article>
+</section>
+\`\`\`
+
+css: \`.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.wide{grid-column:span 2}\`
+
+## Com ferramentas
+
+- \`set_grid(nodeId, columns, rows?, gap?, columnGap?, rowGap?, areas?, placeItems?, justifyItems?, alignItems?)\` — \`columns\` aceita número (\`3\` = três colunas 1fr), texto CSS (\`"1fr 200px minmax(100px, 1fr)"\`, \`"repeat(auto-fill, minmax(200px, 1fr))"\`) ou lista (\`["200px", "1fr"]\`).
+- \`place_in_grid(nodeIds, column, row, span?)\` — célula (começa em 1); \`span\` é número (colunas) ou \`{ columns: 2, rows: 1 }\`; \`area: "header"\` usa uma área nomeada. O pai precisa ser grid.
+
+Exemplo de dashboard:
+
+\`\`\`
+set_grid({ nodeId: "el_main", columns: "240px 1fr", rows: "64px 1fr", gap: 16, areas: ["side top", "side content"] })
+place_in_grid({ nodeIds: ["el_sidebar"], area: "side" })
+place_in_grid({ nodeIds: ["el_topbar"], area: "top" })
+\`\`\`
+
+## Dicas
+
+- Prefira \`fr\` e \`minmax()\` a larguras fixas; \`repeat(auto-fill, minmax(220px, 1fr))\` cria grades responsivas sem breakpoint.
+- Cada nome em \`areas\` precisa formar um retângulo; use \`.\` para célula vazia.
+- \`get_layout(nodeId)\` mostra as trilhas medidas (tamanhos e linhas de coluna/linha) quando há render; use para conferir se os filhos caíram nas células certas.
+- Filho com \`position:absolute\` sai do grid. Itens fora das trilhas declaradas criam trilhas implícitas (\`grid-auto-rows\` controla a altura).
+- O código exportado (html, tailwind, react) mantém \`display:grid\`, as trilhas e o posicionamento.
+`,
+  vectors: `# Vetores e formas
+
+Formas e ícones são nós \`svg\`. Os criados por estas ferramentas têm um modelo vetorial editável (paths, viewBox, tinta); \`get_svg(nodeId)\` mostra o markup e os paths.
+
+## Criar
+
+- \`create_shape({ parentId, shape: "rect"|"ellipse"|"line"|"polygon"|"star", x?, y?, width?, height?, sides?, points?, styles? })\` — estilos de tinta (\`fill\`, \`stroke\`, \`stroke-width\`...) vão para o vetor. Com x/y fica absoluto (o pai precisa ser frame ou position:relative).
+- \`insert_svg({ parentId, svg, width?, height? })\` — importa markup SVG; o original é preservado até a primeira edição. Se o SVG usa filtros, máscaras, texto ou opacidade parcial, ele aparece mas não é editável (a resposta avisa).
+- \`insert_icon\` (Lucide) também gera nós svg; \`set_vector_paint\` e \`get_svg\` funcionam neles.
+
+## Editar
+
+- \`set_path({ nodeId, d, pathId?, fit? })\` — troca o \`d\` (ex.: \`"M 0 0 L 100 0 L 50 80 Z"\`); \`fit: true\` ajusta o viewBox e a caixa do nó.
+- \`set_vector_paint({ nodeId, pathIds?, fill?, stroke?, strokeWidth?, linecap?, linejoin?, dasharray?, opacity? })\` — \`fill\`/\`stroke\` aceitam cor ou gradiente: \`{ type: "linear", stops: [{ offset: 0, color: "#f00" }, { offset: 1, color: "#00f" }], x1: 0, y1: 0, x2: 1, y2: 0 }\`.
+- \`boolean_op({ nodeIds, op: "union"|"subtract"|"intersect"|"exclude" })\` — entre 2+ svgs irmãos; o de baixo é o "primeiro" do subtract; curvas são achatadas.
+- \`flatten({ nodeIds })\` — junta os paths num só nó/path.
+- \`text_to_outlines({ nodeIds })\` — texto vira contornos com a fonte do documento ou do sistema; deixa de ser editável como texto.
+
+## Dicas
+
+- Em ícones simples a cor sai do \`stroke\`/\`fill\` dos paths (\`currentColor\` acompanha a cor de texto do pai).
+- Confira com \`get_screenshot\`; tudo se desfaz com \`undo\`.
+- Um svg vindo de \`write_html\` é legado: \`get_svg\` infere os paths e a primeira edição cria o vetor.
 `,
   responsive: `# Responsivo com frames
 
@@ -365,6 +462,7 @@ as ferramentas avisam como habilitar (veja \`get_guide('troubleshooting')\`); en
 - Dê nomes claros às camadas (\`rename_nodes\`): viram nomes de arquivo e de componente.
 - Exporte um nó por componente; use \`get_screenshot\` antes para conferir o visual.
 `,
+  effects: EFFECTS_GUIDE,
   troubleshooting: `# Solução de problemas
 
 ## "Render indisponível" / get_screenshot falha
@@ -506,5 +604,86 @@ VS Code (\`.vscode/mcp.json\`):
 Se o cliente não achar \`mockup\` (shim \`.cmd\`), use o caminho absoluto impresso por \`mockup doctor\`.
 
 Detalhes em \`docs/INTEGRACAO.md\`.
+`,
+  import: IMPORT_GUIDE,
+  assets: `# Assets, imagens e placeholders
+
+## Onde ficam os arquivos
+
+- **Assets do documento**: a pasta \`assets/\` ao lado do \`.mockup.json\`. É o que o mockup realmente usa (\`src\` das imagens, fundos, fontes). Documento sem caminho em disco embute imagens como data URL.
+- **Biblioteca / CDN**: arquivos guardados por conteúdo, fora de qualquer documento, reaproveitáveis em vários mockups.
+
+## Ferramentas
+
+- \`upload_asset(source, name?, library?)\` — traz um arquivo (caminho absoluto, URL ou data URL) para os assets do documento ou para a biblioteca.
+- \`list_assets(scope?, query?, unused?)\` — lista os arquivos com tamanho, dimensões e quantos nós usam cada um.
+- \`get_asset_url(id)\` — link direto \`/cdn/<hash>.<ext>\`, estável por conteúdo: o mesmo arquivo dá sempre o mesmo link.
+- \`optimize_assets(paths?, maxWidth?, format?, quality?)\` — reduz e converte imagens (webp) e atualiza as referências.
+- \`remove_unused_assets(dryRun?)\` — remove o que nenhum nó usa; rode antes com \`dryRun: true\`.
+- \`insert_image(parentId, source)\` — cria um nó img a partir de uma imagem.
+
+## Ajustar uma imagem: \`set_image\`
+
+Uma chamada, um undo:
+
+\`\`\`
+set_image({ nodeId, fit: 'cover', position: 'top-left',
+  filters: { grayscale: 100, blur: 2 },   // null volta ao neutro; drop-shadow existente é preservado
+  crop: { top: 10, bottom: 10 },           // % de cada lado (object-view-box)
+  clipPath: 'circle' })                    // circle, ellipse, rounded, triangle, diamond, pentagon, hexagon, star, arrow ou 'none'
+\`\`\`
+
+Também troca a imagem (\`source\`: caminho, URL, data URL ou um arquivo já em \`assets/\`) e o \`alt\`.
+
+## Imagens de exemplo: \`generate_placeholder\`
+
+\`generate_placeholder(nodeId, kind, seed?)\` com kind \`avatar\`, \`product\`, \`landscape\` ou \`logo\`. Em um nó image troca o src; em um contêiner cria uma imagem filha. É offline e determinístico: a mesma seed dá o mesmo arquivo (\`assets/placeholders/\`). Varie a seed (nome da pessoa, id do produto) para listas com imagens diferentes.
+
+## Dicas
+
+- Prefira imagens reais do usuário quando existirem; placeholders são para preencher.
+- Em \`src\`, prefira o caminho relativo de \`assets/\` ao link \`/cdn\`: o link só funciona com o daemon rodando (o \`export\` de código copia os links \`/cdn\` do daemon para \`assets/cdn/\`).
+- Confira o resultado com \`get_screenshot\`.
+`,
+  data: `# Dados reais e repetidores
+
+Um **repetidor** repete o seu conteúdo (o template) uma vez por item de uma lista. Render, screenshot e export (html, tailwind, react, svg) já saem com os dados.
+
+## Fluxo
+
+1. Escreva UM item de exemplo com \`write_html\`, dentro de um contêiner, usando \`{{campo}}\`:
+   \`<div class="lista"><article class="card"><img src="{{foto}}" alt="{{nome}}"><h3>{{nome}}</h3><p>{{preco | a combinar}}</p></article></div>\`
+2. \`bind_data(nodeId: <id da div .lista>, ...)\` com UMA origem. O contêiner vira um repetidor (o id muda, os filhos mantêm os ids).
+3. \`get_screenshot\` para conferir; ajuste o template com as ferramentas de sempre e use \`get_data\` para ver colunas e linhas.
+
+## Bindings
+
+\`{{campo}}\`, \`{{a.b}}\` (caminho aninhado, \`{{itens.0.nome}}\`), \`{{campo | padrão}}\` (usa o padrão se faltar) e especiais: \`{{$index}}\` (0, 1, ...), \`{{$number}}\` (1, 2, ...), \`{{$item}}\` (o item inteiro, para lista de textos). Valem em textos, \`src\` e atributos.
+
+## Origens de \`bind_data\`
+
+- \`data\`: lista direta (\`[{ "nome": "Ana" }]\`).
+- \`text\` + \`format\` (\`json\` ou \`csv\`): conteúdo colado.
+- \`path\`: arquivo absoluto \`.json\`, \`.csv\` ou \`.tsv\` (até 5 MB; o separador do CSV é detectado: vírgula, ponto e vírgula, tab).
+- \`url\`: http(s) que devolve JSON ou CSV (até 5 MB, 20 s).
+- \`select\`: caminho da lista dentro do JSON (\`data.items\`); sem ele o servidor acha a primeira lista.
+- \`mapping\`: \`{ "nome": "user.fullName" }\` liga o campo do template a outro caminho do item sem reescrever o template.
+- \`limit\`: só os primeiros N itens.
+
+A resposta lista as colunas, os campos do template e avisa de campos sem coluna correspondente.
+
+## Atualizar e conferir
+
+- \`refresh_data(nodeId)\` relê o arquivo ou a URL de origem (dados colados não têm origem para reler).
+- \`get_data(nodeId, limit?)\` mostra origem, colunas, campos do template e as primeiras linhas.
+- Rodar \`bind_data\` de novo no repetidor só troca os dados. Um \`undo\` desfaz a conversão.
+
+## Reescrever um repetidor com HTML
+
+\`get_html\` devolve só o template do repetidor, marcado com \`data-mockup-repeat="<id>"\` (e \`data-repeat="<itens>"\`, informativo). Mantenha esse atributo no HTML enviado a \`write_html\` (ex.: \`mode: "replace"\`): o elemento volta como repetidor com os dados e a origem do original (id novo). Sem a marca ele vira um contêiner comum e a resposta avisa que os dados foram perdidos (\`undo\` restaura). Para mudar só o card, prefira editar os nós do template.
+
+## Limites
+
+Até 1000 itens e 2 MB de dados por repetidor; passou disso, use \`limit\` ou \`select\`. Contêiner sem filhos não vira repetidor (crie o template antes); frame raiz também não (coloque o template numa div dentro dele).
 `,
 };

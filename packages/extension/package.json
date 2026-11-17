@@ -1,0 +1,16 @@
+{
+  "name": "@mockup/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extensão de navegador (Chrome/Edge, Manifest V3) que captura seções de sites para o Mockup Studio.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@mockup/snapshot-core": "0.1.0",
+    "esbuild": "^0.28.2"
+  }
+}

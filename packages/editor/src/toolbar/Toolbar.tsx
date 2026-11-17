@@ -3,11 +3,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronDown,
+  Circle,
+  Clapperboard,
   Frame,
   Hand,
+  Home,
+  Hexagon,
   Image as ImageIcon,
   MousePointer2,
+  PenTool,
+  Pause,
+  Play,
   Redo2,
+  Slash,
   Square,
   Type,
   Undo2,
@@ -24,10 +32,20 @@ import {
   saveDocumentAs,
 } from '../desktop/fileFlows';
 import { canvasApi } from '../canvas/canvasApi';
+import { EffectsButton } from '../effects/EffectsPanel';
+import { MediaDialogsHost } from '../effects/MediaDialogs';
+import {
+  insertThreeIsland,
+  pickAndInsertLottieRive,
+  pickAndInsertVideo,
+} from '../effects/mediaFlows';
+import { mediaDialogs } from '../effects/mediaStore';
+import { fxClock, useFxClock } from '../fx/clock';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import type { ConnectionStatus } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 import type { Tool } from '../state/uiStore';
+import { ImportUrlButton } from '../snapshot/ImportUrlButton';
 import { IconButton } from '../ui/controls';
 import './toolbar.css';
 
@@ -40,6 +58,10 @@ const TOOLS: { tool: Tool; title: string; key: string; icon: ReactNode }[] = [
   { tool: 'rect', title: 'Container', key: 'R', icon: <Square size={ICON} /> },
   { tool: 'text', title: 'Texto', key: 'T', icon: <Type size={ICON} /> },
   { tool: 'image', title: 'Imagem', key: 'Ctrl+Shift+K', icon: <ImageIcon size={ICON} /> },
+  { tool: 'pen', title: 'Caneta', key: 'P', icon: <PenTool size={ICON} /> },
+  { tool: 'ellipse', title: 'Elipse', key: 'O', icon: <Circle size={ICON} /> },
+  { tool: 'line', title: 'Linha', key: 'L', icon: <Slash size={ICON} /> },
+  { tool: 'polygon', title: 'Polígono', key: '', icon: <Hexagon size={ICON} /> },
 ];
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
@@ -154,7 +176,8 @@ function FileMenu() {
   const [recent, setRecent] = useState<string[]>([]);
   const activeDocId = useDoc((s) => s.activeDocId);
   const items: DropItem[] = [
-    { label: 'Novo…', testId: 'file-new', onSelect: () => void newDocument() },
+    { label: 'Início', testId: 'file-home', onSelect: () => ui.setHome(true) },
+    { label: 'Novo…', testId: 'file-new', separator: true, onSelect: () => void newDocument() },
     { label: 'Abrir…', testId: 'file-open', onSelect: () => void openDocument() },
     ...recent.slice(0, 8).map<DropItem>((path, i) => ({
       label: fileNameOf(path) || path,
@@ -319,6 +342,50 @@ function ZoomMenu() {
   );
 }
 
+/* ---------------- mídia e animações ---------------- */
+
+function MediaMenu() {
+  const items: DropItem[] = [
+    { label: 'Inserir vídeo…', testId: 'media-video', onSelect: () => void pickAndInsertVideo() },
+    {
+      label: 'Inserir Lottie/Rive de arquivo…',
+      testId: 'media-lottie-rive',
+      onSelect: () => void pickAndInsertLottieRive(),
+    },
+    { label: 'Embed por URL…', testId: 'media-embed-url', onSelect: mediaDialogs.openEmbedUrl },
+    {
+      label: 'Ilha Three.js',
+      testId: 'media-three',
+      separator: true,
+      onSelect: () => void insertThreeIsland(),
+    },
+  ];
+  return (
+    <Dropdown
+      testId="media-button"
+      title="Mídia"
+      items={items}
+      trigger={<Clapperboard size={ICON} />}
+    />
+  );
+}
+
+function PlayToggle() {
+  const playing = useFxClock((s) => s.playing);
+  const title = playing ? 'Pausar animações' : 'Tocar animações';
+  return (
+    <IconButton
+      title={`${title} (Shift+Espaço)`}
+      active={!playing}
+      data-testid="fx-play-toggle"
+      data-playing={playing}
+      onClick={() => fxClock.toggle()}
+    >
+      {playing ? <Pause size={ICON} /> : <Play size={ICON} />}
+    </IconButton>
+  );
+}
+
 /* ---------------- barra ---------------- */
 
 export function Toolbar() {
@@ -326,6 +393,7 @@ export function Toolbar() {
   const canUndo = useDoc((s) => s.history.canUndo);
   const canRedo = useDoc((s) => s.history.canRedo);
   const status = useDoc((s) => s.status);
+  const homeOpen = useUi((s) => s.homeOpen);
 
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -334,12 +402,20 @@ export function Toolbar() {
         <span>Mockup Studio</span>
       </div>
       <FileMenu />
+      <IconButton
+        title="Início (arquivos)"
+        active={homeOpen}
+        data-testid="home-button"
+        onClick={() => ui.setHome(!homeOpen)}
+      >
+        <Home size={ICON} />
+      </IconButton>
       <span className="tb-sep" />
       <div className="tb-group" role="toolbar" aria-label="Ferramentas">
         {TOOLS.map((t) => (
           <IconButton
             key={t.tool}
-            title={`${t.title} (${t.key})`}
+            title={t.key ? `${t.title} (${t.key})` : t.title}
             active={tool === t.tool}
             data-testid={`tool-${t.tool}`}
             onClick={() => ui.setTool(t.tool)}
@@ -347,6 +423,12 @@ export function Toolbar() {
             {t.icon}
           </IconButton>
         ))}
+      </div>
+      <span className="tb-sep" />
+      <div className="tb-group" role="toolbar" aria-label="Efeitos e mídia">
+        <EffectsButton />
+        <MediaMenu />
+        <PlayToggle />
       </div>
       <span className="tb-sep" />
       <IconButton
@@ -365,6 +447,7 @@ export function Toolbar() {
       >
         <Redo2 size={ICON} />
       </IconButton>
+      <ImportUrlButton />
       <div className="tb-center">
         <DocumentTitle />
       </div>
@@ -375,6 +458,7 @@ export function Toolbar() {
         <span className={`tb-dot ${status}`} />
         <span>{STATUS_TEXT[status]}</span>
       </div>
+      <MediaDialogsHost />
     </header>
   );
 }

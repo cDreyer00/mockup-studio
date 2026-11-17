@@ -39,8 +39,12 @@ import {
 import { formatToolInputError, notFoundToolMessage } from './errors.js';
 import { GUIDES, GUIDE_INFO, GUIDE_TOPICS } from './guides.js';
 import { registerComponentTools } from './tools/components.js';
+import { markRepeaters } from './repeaterHtml.js';
+import { registerEffectTools } from './tools/effects.js';
+import { registerEmbedTools } from './tools/embeds.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
+import { registerGridTools } from './tools/grid.js';
 import { registerImageTools } from './tools/images.js';
 import { registerRemixTools } from './tools/remix.js';
 import { registerRenderTools } from './tools/render.js';
@@ -52,6 +56,11 @@ import {
   writeHtml,
 } from './tools/tailwind.js';
 import { registerTokenTools } from './tools/tokens.js';
+import { registerSnapshotTools } from './tools/snapshot.js';
+import { registerAssetsTools } from './tools/assets.js';
+import { registerDataTools } from './tools/data.js';
+import { registerFilesTools } from './tools/files.js';
+import { registerVectorTools } from './tools/vector.js';
 
 export type { McpServerOptions } from './context.js';
 
@@ -514,6 +523,12 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       if (n.position) lines.push(`posição: ${n.position.x}, ${n.position.y}`);
       if (n.text !== undefined) lines.push(`texto: ${JSON.stringify(n.text)}`);
       if (n.src) lines.push(`src: ${n.src.length > 120 ? `${n.src.slice(0, 120)}…` : n.src}`);
+      if (n.effect) lines.push(`effect: ${JSON.stringify(n.effect)}`);
+      if (n.video) lines.push(`video: ${JSON.stringify(n.video)}`);
+      if (n.embed)
+        lines.push(
+          `embed: ${JSON.stringify(n.embed.code ? { ...n.embed, code: `(${n.embed.code.length} caracteres)` } : n.embed)}`,
+        );
       lines.push(
         `filhos: ${n.children.length}${n.locked ? ' | bloqueado' : ''}${n.hidden ? ' | oculto' : ''}`,
       );
@@ -664,9 +679,10 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       annotations: READ,
     },
     ({ nodeId, mode, docId }) => {
-      // instância: HTML expandido (props, variantes e overrides aplicados)
+      // instância: HTML expandido (props, variantes e overrides aplicados); repetidores marcados
+      // com data-mockup-repeat para o write_html recriá-los com os dados
       const { path } = readNode(store.get(store.resolveDocId(docId)), nodeId);
-      const out = nodesToHtml([path.node], { mode: mode ?? 'inline' });
+      const out = nodesToHtml([markRepeaters(path.node)], { mode: mode ?? 'inline' });
       return out.css && (mode ?? 'inline') === 'classes'
         ? `${out.html}\n<style>\n${out.css}\n</style>`
         : out.html;
@@ -1343,6 +1359,14 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerComponentTools(ctx);
   registerScriptTools(ctx);
   registerRemixTools(ctx);
+  registerSnapshotTools(ctx);
+  registerAssetsTools(ctx);
+  registerDataTools(ctx);
+  registerFilesTools(ctx);
+  registerVectorTools(ctx);
+  registerGridTools(ctx);
+  registerEffectTools(ctx);
+  registerEmbedTools(ctx);
 
   /* ---------- resources ---------- */
 

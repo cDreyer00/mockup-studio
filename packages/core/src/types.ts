@@ -13,7 +13,57 @@ export const DOCUMENT_VERSION = 1 as const;
  * contêineres de slot (ver `docs/COMPONENTES.md`). Render, export e screenshot usam a árvore
  * concreta de `expandInstance`.
  */
-export type NodeType = 'frame' | 'element' | 'text' | 'image' | 'svg' | 'instance';
+export type NodeType =
+  | 'frame'
+  | 'element'
+  | 'text'
+  | 'image'
+  | 'svg'
+  | 'instance'
+  | 'repeater'
+  | 'effect'
+  | 'video'
+  | 'embed';
+
+/** Valor de parâmetro de efeito/embed: número, texto (cor, opção) ou booleano. */
+export type MediaParamValue = number | string | boolean;
+
+/** Efeito visual (shader WebGL ou partículas) de um nó `type: 'effect'` (ver `effects/catalog.ts`). */
+export interface EffectSpec {
+  /** Tipo do efeito, ex.: `mesh-gradient`, `grain`, `particles` (ver `list_effects`). */
+  kind: string;
+  /** Parâmetros do efeito; os ausentes usam o padrão do catálogo. */
+  params: Record<string, MediaParamValue>;
+}
+
+/** Vídeo de um nó `type: 'video'`. */
+export interface VideoSpec {
+  /** Caminho relativo a `assets/` ou URL http(s). */
+  src: string;
+  /** Imagem de capa (relativa a `assets/` ou URL http(s)). */
+  poster?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  controls?: boolean;
+  /** Momento (s) mostrado no screenshot quando não há `poster` (padrão 0). */
+  time?: number;
+}
+
+export type EmbedProvider = 'lottie' | 'rive' | 'youtube' | 'three' | 'iframe';
+
+/** Conteúdo incorporado de um nó `type: 'embed'`. */
+export interface EmbedSpec {
+  provider: EmbedProvider;
+  /** Arquivo local relativo a `assets/` ou URL http(s) (lottie `.json`, rive `.riv`). */
+  src?: string;
+  /** URL http(s) (youtube, iframe). */
+  url?: string;
+  /** Código JavaScript da ilha Three.js (corpo de função; ver docs/EMBEDS.md). */
+  code?: string;
+  /** Opções do provedor (ex.: `autoplay`, `loop`, `artboard`, `stateMachine`, `start`). */
+  params?: Record<string, MediaParamValue>;
+}
 
 export interface Position {
   x: number;
@@ -37,6 +87,17 @@ export interface Node {
   src?: string;
   /** Markup SVG inline (type 'svg'). */
   svg?: string;
+  /**
+   * Modelo vetorial editável (type 'svg'). Quando presente, `svg` é o markup gerado a partir dele
+   * (`vectorToSvg`): `raw` intacto enquanto não houver edição, senão regenerado dos `paths`.
+   */
+  vector?: Vector;
+  /** Efeito (type 'effect'). */
+  effect?: EffectSpec;
+  /** Vídeo (type 'video'). */
+  video?: VideoSpec;
+  /** Embed: Lottie, Rive, YouTube, Three.js ou iframe (type 'embed'). */
+  embed?: EmbedSpec;
   children: Node[];
   locked: boolean;
   hidden: boolean;
@@ -65,7 +126,34 @@ export interface Node {
    * separados por `/` (atravessando instâncias aninhadas), ex. `el_label01` ou `el_btn0001/el_label01`.
    */
   overrides?: Record<string, NodeOverride>;
+  /**
+   * Repetidor (type 'repeater'): itens de dados. Os filhos são o template, repetido uma vez por
+   * item, com bindings `{{campo}}` resolvidos em textos, `src` e atributos (ver `data.ts`).
+   */
+  data?: unknown[];
+  /** Repetidor: origem dos dados (para atualizar) e mapeamento de campos. */
+  dataSource?: DataSource;
 }
+
+
+/** Origem dos dados de um repetidor. */
+export interface DataSource {
+  /** `inline`: dados colados/editados; `json`/`csv`: arquivo local; `url`: HTTP(S) (JSON ou CSV). */
+  kind: 'inline' | 'json' | 'csv' | 'url';
+  /** Caminho absoluto do arquivo (`json`/`csv`). */
+  path?: string;
+  /** URL http(s) (`url`). */
+  url?: string;
+  /** Caminho até a lista dentro do JSON, ex.: `data.items`. */
+  select?: string;
+  /** Campo do template → caminho no item, ex.: `{ "nome": "user.fullName" }`. */
+  mapping?: Record<string, string>;
+  /** Máximo de itens lidos da origem. */
+  limit?: number;
+  /** Quando os dados foram lidos da origem (ISO 8601). */
+  fetchedAt?: string;
+}
+
 
 /* ---------------- Componentes ---------------- */
 
@@ -196,4 +284,69 @@ export interface NodePath {
   index: number;
   /** Cadeia de ancestrais, do frame raiz até o pai imediato (vazia para frames raiz). */
   ancestors: Node[];
+}
+
+/* -------------------------------------------------------------------------------- vetores */
+
+/** Retângulo do viewBox de um vetor (unidades do SVG). */
+export interface VectorViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface VectorGradientStop {
+  /** 0 a 1. */
+  offset: number;
+  /** Cor CSS. */
+  color: string;
+  /** 0 a 1 (padrão 1). */
+  opacity?: number;
+}
+
+/** Gradiente de preenchimento/traço. Coordenadas em fração da caixa do path (objectBoundingBox). */
+export interface VectorGradient {
+  type: 'linear' | 'radial';
+  stops: VectorGradientStop[];
+  /** Linear: início e fim (padrão 0,0 → 1,0). */
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  /** Radial: centro e raio (padrão 0.5, 0.5, 0.5). */
+  cx?: number;
+  cy?: number;
+  r?: number;
+}
+
+/** Tinta: cor CSS (`#111`, `none`, `currentColor`, `var(--x)`) ou gradiente. */
+export type VectorPaint = string | VectorGradient;
+
+/** Um `<path>` editável, com estilos já resolvidos (sem herança de `<g>`/`<svg>`). */
+export interface VectorPath {
+  /** Id estável dentro do vetor (ex.: `p1`). */
+  id: string;
+  /** Path data SVG (`M 0 0 L 10 0 Z`). */
+  d: string;
+  fill?: VectorPaint;
+  stroke?: VectorPaint;
+  strokeWidth?: number;
+  /** 0 a 1. */
+  opacity?: number;
+  strokeLinecap?: 'butt' | 'round' | 'square';
+  strokeLinejoin?: 'miter' | 'round' | 'bevel';
+  /** Ex.: `4 2`. */
+  strokeDasharray?: string;
+  fillRule?: 'nonzero' | 'evenodd';
+}
+
+export interface Vector {
+  viewBox: VectorViewBox;
+  /** Paths editáveis. Vazio quando o SVG importado não é simples (só `raw` vale). */
+  paths: VectorPath[];
+  /** Markup original (sanitizado), preservado intacto até a primeira edição dos paths. */
+  raw?: string;
+  /** Atributos extras do `<svg>` raiz mantidos na regeneração (ex.: `preserveAspectRatio`). */
+  attrs?: Record<string, string>;
 }

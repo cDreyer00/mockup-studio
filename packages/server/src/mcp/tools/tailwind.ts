@@ -32,6 +32,7 @@ import {
   type TailwindReport,
 } from '@mockup/core/tailwind';
 import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
+import { lostRepeaters, restoreRepeaters } from '../repeaterHtml.js';
 
 const MAX_LISTED = 10;
 
@@ -164,16 +165,29 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
     useTailwind = detectTailwind(a.html, engine, css ?? '').tailwind;
   }
 
+  // Repetidores marcados por get_html (data-mockup-repeat) voltam com os dados do original.
+  const lostWarning = (ops: Op[], restored: string[]): string => {
+    const deleted = ops.flatMap((o) => (o.type === 'deleteNodes' ? o.nodeIds : []));
+    const lost = lostRepeaters(doc, deleted, restored);
+    return lost.length
+      ? `Aviso: repetidor(es) substituído(s) sem a marca data-mockup-repeat perderam os dados: ${lost.map((l) => `${l.id} (${l.count} itens)`).join(', ')}. Use undo e mantenha o atributo data-mockup-repeat que get_html devolve, ou ligue os dados de novo com bind_data.`
+      : '';
+  };
+
   if (!useTailwind) {
-    const nodes = htmlToNodes(a.html, { css });
+    const { nodes, restored } = restoreRepeaters(htmlToNodes(a.html, { css }), doc);
     if (!nodes.length) throw empty();
     const { ops, summaryParent } = htmlInsertOps(target, mode, nodes);
+    const warn = lostWarning(ops, restored);
     const r = apply(id, ops, label);
     const created = nodes.map((n) => n.id);
-    return `HTML aplicado (${mode}). Nós criados: ${created.join(', ')}.\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
+    return `HTML aplicado (${mode}). Nós criados: ${created.join(', ')}.${warn ? `\n${warn}` : ''}\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
   }
 
-  const nodes = htmlToNodes(a.html, { css, keepClasses: true });
+  const { nodes, restored } = restoreRepeaters(
+    htmlToNodes(a.html, { css, keepClasses: true }),
+    doc,
+  );
   if (!nodes.length) throw empty();
   const extra: Op[] = [];
   const notes: string[] = [];
@@ -224,10 +238,12 @@ export async function writeHtml(ctx: ToolContext, a: WriteHtmlArgs): Promise<str
   ops.push(...extra);
   const { ops: insert, summaryParent } = htmlInsertOps(target, mode, nodes);
   ops.push(...insert);
+  const warn = lostWarning(insert, restored);
   const r = apply(id, ops, label);
   const created = nodes.map((n) => n.id);
   const lines = [
     `HTML com Tailwind aplicado (${mode}). Nós criados: ${created.join(', ')}.`,
+    ...(warn ? [warn] : []),
     `${report.nodes} nó(s) com classes Tailwind compiladas para estilo; as classes ficam em node.classes.`,
     ...notes,
     ...reportLines(report),

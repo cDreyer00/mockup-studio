@@ -46,6 +46,9 @@ await build({
   target: 'node22',
   minify: false,
   legalComments: 'none',
+  // sharp é nativo e opcional (import dinâmico em optimize_assets) e ffmpeg-static é um binário
+  // resolvido em runtime: ficam fora do bundle; no app empacotado vêm em resources/native.
+  external: ['sharp', 'ffmpeg-static'],
   banner: { js: banner },
   logLevel: 'info',
 });

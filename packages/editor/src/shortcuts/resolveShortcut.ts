@@ -5,6 +5,7 @@ import type { Tool } from '../state/uiStore';
 export type ShortcutCommand =
   | { type: 'tool'; tool: Tool }
   | { type: 'pickImage' }
+  | { type: 'textToOutlines' }
   | { type: 'save' }
   | { type: 'saveAs' }
   | { type: 'delete' }
@@ -40,6 +41,9 @@ const TOOL_KEYS: Record<string, Tool> = {
   a: 'frame',
   r: 'rect',
   t: 'text',
+  p: 'pen',
+  o: 'ellipse',
+  l: 'line',
 };
 
 /** Letra da tecla: `key` quando for uma letra ASCII, senão a partir do `code` (`KeyV` → `v`). */
@@ -95,6 +99,8 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
         return shift ? { type: 'toggleHidden' } : null;
       case 'l':
         return shift ? { type: 'toggleLocked' } : null;
+      case 'o':
+        return shift ? { type: 'textToOutlines' } : null;
       default:
         return null;
     }

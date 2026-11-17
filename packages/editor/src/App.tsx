@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { Canvas } from './canvas/Canvas';
 import { RightDock } from './dock/RightDock';
 import { useDesktop } from './desktop/useDesktop';
+import { HomeScreen } from './home/HomeScreen';
 import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
-import { useUi } from './state/uiStore';
+import { ui, useUi } from './state/uiStore';
 import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
@@ -20,6 +21,8 @@ export function App() {
   const hasDoc = useDoc((s) => !!s.doc);
   const info = useDoc(selectActiveInfo);
   const rightTab = useUi((s) => s.rightTab);
+  const activeDocId = useDoc((s) => s.activeDocId);
+  const homeOpen = useUi((s) => s.homeOpen);
   useShortcuts();
   useDesktop();
 
@@ -28,12 +31,21 @@ export function App() {
     document.title = name ? `${info?.dirty ? '● ' : ''}${name} — Mockup Studio` : 'Mockup Studio';
   }, [info?.path, info?.name, info?.dirty]);
 
+  // Ao trocar/abrir o documento ativo, a tela inicial sai da frente.
+  useEffect(() => {
+    if (activeDocId) ui.setHome(false);
+  }, [activeDocId]);
+
+  const showHome = status === 'online' && (homeOpen || !hasDoc);
+
   return (
     <div className="app">
       <Toolbar />
       <div className={`main${rightTab === 'design' ? '' : ' right-wide'}`}>
         <LeftDock />
-        {hasDoc ? (
+        {showHome ? (
+          <HomeScreen />
+        ) : hasDoc ? (
           <Canvas />
         ) : (
           <div className="canvas-empty">

@@ -1,14 +1,21 @@
 /** Peças compartilhadas pelos exportadores (html, tailwind, react, svg). */
 import { deepClone } from '../clone.js';
+import { expandRepeaters } from '../data.js';
 import { findNode, findPage } from '../document.js';
 import { isUnsafeUrl, slugify } from '../html.js';
 import { cssValueProblem, dropUnsafeStyles, isValidCssPropertyName } from '../styles.js';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
 import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss, documentRootDeclarations } from '../base.js';
 import { BREAKPOINT_PX, parseStateKey, sortStateKeys } from '../states.js';
 import type { Breakpoint } from '../states.js';
+import {
+  mediaElement,
+  mediaStyleDefaults,
+  renderMediaAttrs,
+  type MediaCollector,
+} from './media.js';
 
 /** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
@@ -52,6 +59,10 @@ function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
     }
     if (Object.keys(states).length > 0) node.states = states;
     else delete node.states;
+  }
+  if (node.type === 'effect' || node.type === 'embed') {
+    // fundo de fallback do efeito (visível sem JS) e `border:0` em iframes; o estilo do nó vence
+    node.style = { ...mediaStyleDefaults(node), ...node.style };
   }
   if (!isRoot && node.style.position === 'absolute' && node.position) {
     if (!node.style.left) node.style.left = `${node.position.x}px`;
@@ -98,7 +109,8 @@ export function resolveRoots(
     if (!page) throw new Error(`Página "${selection.pageId ?? ''}" não encontrada`);
     nodes = page.frames;
   }
-  const copies = deepClone(nodes);
+  // Repetidores viram contêineres com os itens expandidos (dados reais no código exportado).
+  const copies = deepClone(nodes).map((n) => expandRepeaters(n));
   for (const n of copies) prepareNode(n, true, opts);
   return copies;
 }
@@ -232,6 +244,15 @@ export interface HtmlRenderOptions {
   xhtml?: boolean;
   /** Recuo inicial em níveis (padrão 0). */
   depth?: number;
+  /**
+   * Nós de mídia: `live` (padrão) gera canvas/iframe/video prontos para os scripts de
+   * `mediaScripts(media)`; `static` gera markup inerte (`data-mockup-*`), sem scripts.
+   */
+  mediaMode?: 'live' | 'static';
+  /** Recebe o que os nós de mídia `live` precisam carregar (scripts, fragments). */
+  media?: MediaCollector;
+  /** Lê arquivos de `assets/` para embutir o JSON de animações Lottie pequenas no HTML. */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 /** Texto do nó: `\n` fica literal (o CSS decide se vira quebra); apenas escapa. */
@@ -261,13 +282,32 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
     const sa = opts.styleOf(node, isRoot);
 
     if (node.type === 'svg') {
-      const markup = sanitizeSvg(node.svg ?? '') || '<svg></svg>';
+      const markup = scopeSvgIds(sanitizeSvg(node.svg ?? '') || '<svg></svg>', node.id);
       lines.push(pad(depth) + injectIntoSvg(markup, sa, xhtml));
       return;
     }
 
     const parts: string[] = [];
     if (sa.cls) parts.push(`class="${escapeHtmlAttr(sa.cls)}"`);
+    if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
+      const m = mediaElement(node, {
+        mode: opts.mediaMode ?? 'live',
+        collector: opts.media,
+        readAsset: opts.readAsset,
+        url: (ref, kind) => {
+          const url =
+            (kind === 'poster' ? opts.resolveSrc?.(ref) : undefined) ??
+            assetUrl(ref, opts.assetsBase);
+          return isUnsafeUrl(url) ? null : url;
+        },
+      });
+      if (m) {
+        parts.push(...renderMediaAttrs(m.attrs, xhtml));
+        if (sa.style) parts.push(`style="${escapeHtmlAttr(sa.style)}"`);
+        lines.push(`${pad(depth)}<${m.tag} ${parts.join(' ')}></${m.tag}>`);
+        return;
+      }
+    }
     const isImg = node.type === 'image' || node.tag === 'img';
     if (isImg && node.src !== undefined) {
       const url = opts.resolveSrc?.(node.src) ?? assetUrl(node.src, opts.assetsBase);

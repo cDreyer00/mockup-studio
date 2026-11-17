@@ -71,6 +71,24 @@ if (userDataDir) {
   app.setPath('userData', path.join(userDataDir, 'electron'));
 }
 if (args.headless && process.env.MOCKUP_DISABLE_GPU === '1') app.disableHardwareAcceleration();
+// WebGL no render dos efeitos sem GPU: o SwiftShader (software) só é liberado no modo headless
+// (motor de screenshot, sem iframes nem YouTube de terceiros) ou com `MOCKUP_RENDER_GL=swiftshader`,
+// que também força o software (VM/CI). A janela interativa usa só a GPU.
+const forceSwiftShader = process.env.MOCKUP_RENDER_GL === 'swiftshader';
+if (args.headless || forceSwiftShader) app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+if (forceSwiftShader) {
+  app.commandLine.appendSwitch('use-angle', 'swiftshader');
+  app.commandLine.appendSwitch('use-gl', 'angle');
+}
+// ffmpeg empacotado (extraResources) para exportar mp4/webm/gif; o server respeita MOCKUP_FFMPEG
+if (app.isPackaged) {
+  const bundled = path.join(
+    process.resourcesPath,
+    'ffmpeg',
+    process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg',
+  );
+  if (fs.existsSync(bundled)) process.env.MOCKUP_FFMPEG ??= bundled;
+}
 app.setAppUserModelId('app.mockupstudio.desktop');
 
 // ---------------------------------------------------------------- recursos

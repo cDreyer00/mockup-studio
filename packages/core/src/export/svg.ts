@@ -5,9 +5,11 @@ import { expandDocument } from '../components/expand.js';
 import { findNode } from '../document.js';
 import { fontFaceCss } from '../fonts.js';
 import type { LayoutNode, LayoutRect } from '../layout.js';
-import { sanitizeSvg } from '../svg.js';
+import { effectFallbackCss } from '../effects/catalog.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import { inlineSvgVars, scopeVarsFor, themeRulesCss } from '../tokens.js';
 import type { Document, FontRef } from '../types.js';
+import { EMBED_LABELS } from './media.js';
 import {
   cleanTokens,
   escapeHtmlAttr,
@@ -482,11 +484,15 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
       );
     }
 
+    if (n.type === 'effect' || n.type === 'video' || n.type === 'embed') {
+      out.push(...mediaShapes(n, rect, radii));
+    }
+
     if (n.type === 'svg') {
       // Fora do DOM do documento as custom properties não chegam: resolve no escopo do nó.
       const raw = findNode(doc, n.id)?.node.svg ?? '';
       const markup = sanitizeSvg(raw && inlineSvgVars(raw, scopeVarsFor(doc, n.id)));
-      if (markup) out.push(nestedSvg(markup, rect, st.color));
+      if (markup) out.push(nestedSvg(scopeSvgIds(markup, n.id), rect, st.color));
     }
 
     for (const line of n.lines ?? []) {
@@ -514,6 +520,45 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
       );
     }
     return out;
+  };
+
+  /** Efeito: gradiente/cor de fallback; vídeo: poster ou retângulo escuro; embed: placeholder com o provedor. */
+  const mediaShapes = (n: LayoutNode, rect: LayoutRect, radii: Radii): string[] => {
+    const node = findNode(doc, n.id)?.node;
+    if (!node) return [];
+    if (n.type === 'effect' && node.effect) {
+      const css = effectFallbackCss(node.effect);
+      const value = css['background-image'] ?? css.background ?? css['background-color'] ?? '';
+      const id = nextId('grad');
+      const g = linearGradient(value, id, rect);
+      if (g) {
+        defs.push(g);
+        return [shape(rect, radii, ` fill="url(#${id})"`)];
+      }
+      const color = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)/i.exec(value)?.[0];
+      const paint = parsePaint(value) ?? parsePaint(color) ?? { color: '#1e1b4b', opacity: 1 };
+      return [shape(rect, radii, paintAttrs('fill', paint))];
+    }
+    if (n.type === 'video') {
+      const poster = node.video?.poster;
+      if (!poster) return [shape(rect, radii, ' fill="#111111"')];
+      const href = options.resolveImage?.(poster) ?? poster;
+      const id = nextId('clip');
+      defs.push(`<clipPath id="${id}">${shape(rect, radii, '')}</clipPath>`);
+      return [
+        `<image x="${num(rect.x)}" y="${num(rect.y)}" width="${num(rect.width)}" height="${num(rect.height)}" ` +
+          `href="${escXml(href)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>`,
+      ];
+    }
+    if (n.type === 'embed' && node.embed) {
+      const label = EMBED_LABELS[node.embed.provider];
+      return [
+        shape(rect, radii, ' fill="#1f2937"'),
+        `<text x="${num(rect.x + rect.width / 2)}" y="${num(rect.y + rect.height / 2)}" text-anchor="middle" ` +
+          `dominant-baseline="middle" font-family="sans-serif" font-size="14" fill="#9ca3af">${escXml(label)}</text>`,
+      ];
+    }
+    return [];
   };
 
   const nestedSvg = (markup: string, rect: LayoutRect, color: string | undefined): string => {
@@ -574,6 +619,7 @@ function fallbackSvg(doc: Document, options: SvgExportOptions): string {
 
   const markup = renderHtmlTree([root], {
     xhtml: true,
+    mediaMode: 'static',
     depth: 3,
     resolveSrc: (src) => options.resolveImage?.(src),
     styleOf: (node) =>

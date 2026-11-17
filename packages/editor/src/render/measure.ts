@@ -1,5 +1,14 @@
 /** Funções puras da medição da página de render (testáveis sem navegador). */
-import type { Document, LayoutRect, Node } from '@mockup/core';
+import {
+  isGridContainer,
+  layoutTracks,
+  parseTrackList,
+  type Document,
+  type LayoutGrid,
+  type LayoutRect,
+  type LayoutTrack,
+  type Node,
+} from '@mockup/core';
 import { getEntry, getFrameOf } from '../model/tree';
 
 /** Propriedades de `LayoutStyle` lidas do `getComputedStyle`. */
@@ -109,5 +118,48 @@ export function fitLineBox(
     y: center - lh / 2,
     height: lh,
     baseline: (lh - content) / 2 + metrics.ascent,
+  };
+}
+
+/** Valores do `getComputedStyle` de um contêiner grid, como strings (já resolvidos pelo navegador). */
+export interface GridComputed {
+  display: string;
+  gridTemplateColumns: string;
+  gridTemplateRows: string;
+  columnGap: string;
+  rowGap: string;
+  borderLeftWidth: string;
+  borderTopWidth: string;
+  paddingLeft: string;
+  paddingTop: string;
+}
+
+const px = (v: string | undefined): number => {
+  const n = v ? parseFloat(v) : NaN;
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** Tamanhos resolvidos (`"200px 200px"`, com nomes de linha opcionais) → início/tamanho a partir de `origin`. */
+function tracksFrom(template: string, origin: number, gap: number): LayoutTrack[] {
+  const sizes = parseTrackList(template).map((t) => (t.kind === 'px' ? (t.amount ?? 0) : 0));
+  return layoutTracks(sizes, gap, origin);
+}
+
+/**
+ * Trilhas medidas de um contêiner `display: grid`/`inline-grid`, relativas ao frame: lê as trilhas
+ * resolvidas em px (`grid-template-columns`/`rows` do computed style) e posiciona-as na caixa de conteúdo
+ * (retângulo do nó menos borda e padding). `undefined` se o nó não é grid.
+ */
+export function measureGridTracks(cs: GridComputed, rect: LayoutRect): LayoutGrid | undefined {
+  if (!isGridContainer({ display: cs.display })) return undefined;
+  const columnGap = px(cs.columnGap);
+  const rowGap = px(cs.rowGap);
+  const x = rect.x + px(cs.borderLeftWidth) + px(cs.paddingLeft);
+  const y = rect.y + px(cs.borderTopWidth) + px(cs.paddingTop);
+  return {
+    columns: tracksFrom(cs.gridTemplateColumns, x, columnGap),
+    rows: tracksFrom(cs.gridTemplateRows, y, rowGap),
+    columnGap,
+    rowGap,
   };
 }

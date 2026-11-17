@@ -305,15 +305,16 @@ describe('exportReact', () => {
         createNode({ tag: 'svg', name: 'Ícone', svg, style: { width: '24px', height: '24px' } }),
       ]);
       const { code } = exportReact(doc, { nodeId: 'fr_test0001', styles: 'inline' });
+      const id = doc.pages[0].frames[0].children[0].id;
       expect(code).toContain('strokeWidth="2"');
       expect(code).toContain('strokeLinecap="round"');
       expect(code).toContain('fillRule="evenodd"');
       expect(code).toContain('stopColor="#fff"');
-      expect(code).toContain('xlinkHref="#g"');
+      expect(code).toContain(`xlinkHref="#${id}-g"`);
       expect(code).toContain('xmlnsXlink=');
       expect(code).toContain('className="p"');
-      expect(code).toContain("style={{ fill: 'url(#g)', strokeWidth: '1' }}");
-      expect(code).toContain('<linearGradient id="g">');
+      expect(code).toContain(`style={{ fill: 'url(#${id}-g)', strokeWidth: '1' }}`);
+      expect(code).toContain(`<linearGradient id="${id}-g">`);
       expect(code).toContain("Olá &amp; {'{'}tchau{'}'}");
       // class/style do <svg> raiz vêm do nó, não do markup
       expect(code).not.toContain('className="ic"');

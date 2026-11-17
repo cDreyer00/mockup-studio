@@ -11,10 +11,13 @@ import {
 } from '../components/componentActions';
 import { isRealInstance } from '../components/model';
 import { REMIX_LABELS, remixTarget, runAiRemix, runRemix } from '../remix/remixActions';
-import { getNode, topLevel } from '../model/tree';
+import { convertToRepeater } from '../client/features';
+import { getNode, getParent, topLevel } from '../model/tree';
+import { canSimplify, simplifyImport } from '../snapshot/simplify';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import type { MenuItem } from '../ui/overlays';
+import { booleanOp, flatten, textToOutlines } from '../vector/vectorActions';
 
 export function buildNodeMenu(): MenuItem[] {
   const doc = useDoc.getState().doc;
@@ -22,10 +25,52 @@ export function buildNodeMenu(): MenuItem[] {
   const nodes = doc ? sel.map((id) => getNode(doc, id)!).filter(Boolean) : [];
   const none = nodes.length === 0;
   const allHidden = nodes.length > 0 && nodes.every((n) => n.hidden);
+  const convertible =
+    !!doc &&
+    nodes.length === 1 &&
+    nodes[0]!.type === 'element' &&
+    nodes[0]!.children.length > 0 &&
+    getParent(doc, nodes[0]!.id) !== null;
   const allLocked = nodes.length > 0 && nodes.every((n) => n.locked);
   const one = doc && sel.length === 1 ? sel[0]! : null;
   const remixable = remixTarget(useUi.getState().selection) !== null;
   const instance = one && nodes[0]?.componentId !== undefined ? one : null;
+  const svgCount = nodes.filter((n) => n.type === 'svg').length;
+  const allSvg = nodes.length > 0 && svgCount === nodes.length;
+  const anyText = nodes.some((n) => n.type === 'text');
+  const vectorItems: MenuItem[] = [
+    ...(allSvg && nodes.length >= 2
+      ? ([
+          ['union', 'União'],
+          ['subtract', 'Subtração'],
+          ['intersect', 'Interseção'],
+          ['exclude', 'Exclusão'],
+        ] as const).map(([op, label], i) => ({
+          label,
+          separator: i === 0,
+          onSelect: () => void booleanOp(op),
+        }))
+      : []),
+    ...(allSvg
+      ? [
+          {
+            label: 'Achatar',
+            separator: nodes.length < 2,
+            onSelect: () => void flatten(),
+          },
+        ]
+      : []),
+    ...(anyText
+      ? [
+          {
+            label: 'Texto em contornos',
+            shortcut: 'Ctrl+Shift+O',
+            separator: true,
+            onSelect: () => void textToOutlines(),
+          },
+        ]
+      : []),
+  ];
   return [
     {
       label: 'Criar componente',
@@ -64,6 +109,11 @@ export function buildNodeMenu(): MenuItem[] {
       onSelect: () => void actions.ungroup(),
     },
     {
+      label: 'Converter em repetidor',
+      disabled: !convertible,
+      onSelect: () => void convertToRepeater(sel[0]!),
+    },
+    {
       label: 'Trazer para frente',
       shortcut: 'Ctrl+Shift+]',
       separator: true,
@@ -100,6 +150,13 @@ export function buildNodeMenu(): MenuItem[] {
       shortcut: 'Ctrl+Shift+L',
       disabled: none,
       onSelect: () => void actions.setLocked(sel, !allLocked),
+    },
+    ...vectorItems,
+    {
+      label: 'Simplificar importação',
+      separator: true,
+      disabled: sel.length !== 1 || !canSimplify(sel[0]),
+      onSelect: () => void simplifyImport(sel[0]!),
     },
     {
       label: REMIX_LABELS['color-scale'],

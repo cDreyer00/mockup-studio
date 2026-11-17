@@ -13,15 +13,15 @@ import {
 } from '../../icons.js';
 import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
 
-const MAX_DATA_URL_BYTES = 2 * 1024 * 1024;
+export const MAX_DATA_URL_BYTES = 2 * 1024 * 1024;
 
-interface Loaded {
+export interface Loaded {
   bytes: Buffer;
   /** Nome base sugerido para o arquivo (sem extensão confiável). */
   hint: string;
 }
 
-async function loadSource(source: string): Promise<Loaded> {
+export async function loadSource(source: string): Promise<Loaded> {
   const src = source.trim();
   if (src.startsWith('data:')) {
     const d = parseDataUrl(src);

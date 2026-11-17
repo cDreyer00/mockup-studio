@@ -6,6 +6,7 @@ import { isLockedDeep, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import { measureWorldRect } from './dom';
+import { CropOverlay } from './CropOverlay';
 import { useFx } from './fx';
 import { HANDLES, distanceGuides, rectToScreen, unionRects } from './geometry';
 import type { HandleName, Rect } from './geometry';
@@ -135,7 +136,8 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
   const screen = (r: Rect): Rect => rectToScreen(vp, r);
   const box = unionRects(m.sel.map((s) => s.rect));
   const boxS = box ? screen(box) : null;
-  const interactive = tool === 'select' && !editing;
+  const cropping = useUi((s) => s.cropNodeId !== null);
+  const interactive = tool === 'select' && !editing && !cropping;
   const sc = m.selComponent ? ' cv-component' : '';
 
   let guides: ReturnType<typeof distanceGuides> = [];
@@ -149,6 +151,7 @@ export function Overlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | null>
 
   return (
     <div className="cv-overlay" data-testid="canvas-overlay">
+      {cropping && <CropOverlay rootRef={rootRef} />}
       {m.hover && interactive && (
         <div
           className={`cv-hover${m.hoverComponent ? ' cv-component' : ''}`}

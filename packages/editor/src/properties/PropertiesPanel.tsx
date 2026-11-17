@@ -11,12 +11,17 @@ import { AppearanceSection } from './AppearanceSection';
 import { AttrsSection } from './AttrsSection';
 import { ClassesSection } from './ClassesSection';
 import { CssSection } from './CssSection';
+import { ConvertToRepeater, DataSection } from './DataSection';
 import { DocumentInfo } from './DocumentInfo';
+import { EffectSection } from './EffectSection';
 import { EffectsSection } from './EffectsSection';
+import { GridCellSection } from './GridEditor';
 import { HeaderSection } from './HeaderSection';
+import { ImageSection } from './ImageSection';
 import { LayoutSection } from './LayoutSection';
 import { SizeSection } from './SizeSection';
 import { TypographySection } from './TypographySection';
+import { VectorSection } from './VectorSection';
 import { LockedContext, useSelectionCtx } from './shared';
 import './properties.css';
 
@@ -43,6 +48,7 @@ export function PropertiesPanel() {
   const nodes = ctxs.map((c) => c.node);
   const locked = ctxs.some((c) => c.locked);
   const container = nodes.every(canHaveChildren);
+  const single = nodes.length === 1 ? ctxs[0]! : null;
 
   return (
     <LockedContext.Provider value={locked}>
@@ -58,9 +64,18 @@ export function PropertiesPanel() {
           <InstanceSection node={nodes[0]!} />
         )}
         <SizeSection ctxs={ctxs} />
+        {nodes.every((n) => n.type === 'image') && <ImageSection nodes={nodes} />}
+        {single?.node.type === 'repeater' && <DataSection node={single.node} />}
+        {single &&
+          !single.isRoot &&
+          single.node.type === 'element' &&
+          single.node.children.length > 0 && <ConvertToRepeater node={single.node} />}
         {container && <LayoutSection ctxs={ctxs} />}
+        <GridCellSection ctxs={ctxs} />
         <TypographySection nodes={nodes} />
+        {nodes.every((n) => n.type === 'svg') && <VectorSection nodes={nodes} />}
         <AppearanceSection nodes={nodes} />
+        <EffectSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
         <ClassesSection ctxs={ctxs} />
         <AttrsSection ctxs={ctxs} />

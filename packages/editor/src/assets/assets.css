@@ -1,0 +1,226 @@
+/* ---------------- assets ---------------- */
+.assets-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.assets-toolbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.assets-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  height: var(--row-h);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.assets-search {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+.assets-library .assets-search {
+  width: 100%;
+  height: var(--row-h);
+  padding: 0 6px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.assets-buttons,
+.assets-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.assets-buttons .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.assets-buttons .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.assets-filters {
+  justify-content: space-between;
+  color: var(--text-dim);
+}
+.assets-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.assets-link {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+}
+.assets-link:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.assets-dropzone {
+  flex: 1;
+  min-height: 120px;
+  padding: 8px;
+  border: 1px dashed transparent;
+  border-radius: var(--radius);
+  margin: 4px;
+}
+.assets-dropzone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.assets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.assets-empty,
+.assets-error {
+  padding: 12px 6px;
+  color: var(--muted);
+  text-align: center;
+}
+.assets-error {
+  color: var(--danger);
+}
+.asset-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.asset-item:hover {
+  border-color: var(--border-strong);
+}
+.asset-item.unused .asset-thumb {
+  opacity: 0.8;
+}
+.asset-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: repeating-conic-gradient(var(--surface-3) 0% 25%, var(--surface) 0% 50%) 50% / 12px
+    12px;
+}
+.asset-thumb-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.asset-thumb-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.asset-uses {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(14, 15, 18, 0.8);
+  color: var(--accent);
+  font-size: 10px;
+  cursor: pointer;
+}
+.asset-uses.none {
+  color: var(--warning);
+  cursor: default;
+}
+.asset-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.asset-meta {
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-actions {
+  display: flex;
+  gap: 2px;
+}
+.asset-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.asset-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.asset-btn.danger:hover {
+  color: var(--danger);
+}
+.assets-confirm-list {
+  max-height: 180px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* biblioteca */
+.assets-library {
+  flex: none;
+  border-top: 1px solid var(--border);
+}
+.assets-library-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.assets-library-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 8px;
+}

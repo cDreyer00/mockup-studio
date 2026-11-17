@@ -15,7 +15,8 @@
     "baseUrl": ".",
     "paths": {
       "@mockup/core": ["../core/src/index.ts"],
-      "@mockup/core/tailwind": ["../core/src/tailwind/index.ts"]
+      "@mockup/core/tailwind": ["../core/src/tailwind/index.ts"],
+      "@mockup/snapshot-core": ["../snapshot-core/src/index.ts"]
     }
   },
   "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts", "../core/src/vendor.d.ts"]

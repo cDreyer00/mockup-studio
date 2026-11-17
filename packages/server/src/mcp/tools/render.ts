@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PREVIEW_STATES, type LayoutNode } from '@mockup/core';
+import { PREVIEW_STATES, formatGridTracks, type LayoutNode } from '@mockup/core';
 import { renderTargetFor, type RenderTarget } from '../../component-view.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
@@ -25,6 +25,7 @@ export function formatLayout(root: LayoutNode, depth: number): string {
     lines.push(
       `${pad}${n.id} "${n.name}" ${n.tag} ${Math.round(n.x)},${Math.round(n.y)} ${Math.round(n.width)}x${Math.round(n.height)}${text}`,
     );
+    if (n.grid) lines.push(`${pad}  ${formatGridTracks(n.grid)}`);
     if (level >= depth) {
       if (n.children.length)
         lines.push(`${pad}  … ${n.children.length} filho(s) além da profundidade`);
@@ -94,11 +95,18 @@ export function registerRenderTools(ctx: ToolContext): void {
           .describe(
             `Estado de prévia (veja get_guide("tailwind")): ${PREVIEW_STATES.join(', ')}. Mostra o nó com os states (hover:, dark:...) aplicados, ex.: "hover".`,
           ),
+        time: z
+          .number()
+          .min(0)
+          .optional()
+          .describe(
+            'Instante (s) das animações no quadro: efeitos, partículas, Lottie, Rive, Three.js e vídeo. Ex.: 1.5. Vídeo com poster mostra o poster quando time não é informado.',
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
-    async ({ nodeId, scale, format, maxWidth, transparent, state, docId }) => {
+    async ({ nodeId, scale, format, maxWidth, transparent, state, time, docId }) => {
       const render = needRender();
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
@@ -117,6 +125,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           maxWidth,
           transparent,
           ...(state ? { state } : {}),
+          ...(time !== undefined ? { time } : {}),
         });
       } catch (e) {
         throw new ToolError(
@@ -136,7 +145,7 @@ export function registerRenderTools(ctx: ToolContext): void {
     {
       title: 'Medidas reais do layout',
       description:
-        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas. Para checar alinhamento e overflow. Exige render.',
+        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas e, em grids, as trilhas (grid cols x+w,... rows ... gap). Exige render.',
       example: { nodeId: 'fr_ab12cd34', depth: 3 },
       inputSchema: {
         nodeId: z.string().describe('Id do nó raiz da medição, ex.: "fr_ab12cd34".'),

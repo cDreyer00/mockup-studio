@@ -1,8 +1,16 @@
 import { deepClone } from './clone.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
-import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag } from './tags.js';
-import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
+import { effectKinds, getEffect } from './effects/catalog.js';
+import {
+  LEAF_TYPES,
+  TOKEN_NAME_RE,
+  VOID_TAGS,
+  attrNameProblem,
+  nodeTagProblem,
+  normalizeTag,
+} from './tags.js';
+import type { ApplyResult, DuplicateNodesOp, Op, SetMediaOp, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
 import {
@@ -14,7 +22,16 @@ import {
 } from './tokens.js';
 import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
 import { normalizeStateKey } from './states.js';
-import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
+import type {
+  DataSource,
+  Document,
+  Node,
+  NodePath,
+  Page,
+  Theme,
+  TokenMeta,
+  Vector,
+} from './types.js';
 import { componentNodeIds } from './components/expand.js';
 import {
   assertComponentInsertion,
@@ -27,6 +44,8 @@ import {
 } from './components/ops.js';
 import { routeComponentOp } from './components/route.js';
 import { renameTokenInComponents } from './components/tokens.js';
+import { GENERATED_SVG_ATTRS } from './vector/schema.js';
+import { vectorToSvg } from './vector/svg.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -65,12 +84,7 @@ function containerArray(path: NodePath): Node[] {
 }
 
 function assertCanHaveChildren(parent: Node): void {
-  if (
-    parent.type === 'text' ||
-    parent.type === 'image' ||
-    parent.type === 'svg' ||
-    VOID_TAGS.has(parent.tag)
-  ) {
+  if (LEAF_TYPES.has(parent.type) || VOID_TAGS.has(parent.tag)) {
     fail(`O nó "${parent.id}" (${parent.tag}, tipo ${parent.type}) não pode ter filhos`);
   }
 }
@@ -300,7 +314,33 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
       if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
     }
-    if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
+    if (node.type === 'svg' && node.vector) {
+      // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
+      const v = node.vector;
+      if (unset.includes('viewBox')) {
+        fail('Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)');
+      }
+      if (set.viewBox !== undefined) {
+        const n = set.viewBox.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)?.map(Number) ?? [];
+        const ok =
+          n.length === 4 &&
+          n.every(Number.isFinite) &&
+          n[2]! > 0 &&
+          n[3]! > 0 &&
+          /^[\s,+\-.\deE]+$/.test(set.viewBox);
+        if (!ok) fail(`viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`);
+        v.viewBox = { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
+      }
+      if (v.raw !== undefined) v.raw = setSvgRootAttrs(v.raw, set, unset);
+      const attrs = { ...(v.attrs ?? {}) };
+      for (const k of unset) delete attrs[k];
+      for (const [k, val] of Object.entries(set)) {
+        if (!GENERATED_SVG_ATTRS.includes(k)) attrs[k] = val;
+      }
+      if (Object.keys(attrs).length > 0) v.attrs = attrs;
+      else delete v.attrs;
+      node.svg = vectorToSvg(v);
+    } else if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
     else {
       for (const k of unset) delete node.attrs[k];
       Object.assign(node.attrs, set);
@@ -794,7 +834,88 @@ function doSetCssBase(d: Document, op: Extract<Op, { type: 'setCssBase' }>): App
   return { inverse: [{ type: 'setCssBase', base: prev }] };
 }
 
+function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Applied {
+  const prev: { nodeId: string; vector: Vector | null; svg?: string }[] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    const node = p.node;
+    if (node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um svg`);
+    // `svg: ''` no inverso = o nó não tinha markup (aplicar remove `node.svg`).
+    const before: { nodeId: string; vector: Vector | null; svg?: string } = {
+      nodeId: c.nodeId,
+      vector: node.vector ? deepClone(node.vector) : null,
+      svg: node.svg ?? '',
+    };
+    prev.push(before);
+    if (c.vector) {
+      node.vector = deepClone(c.vector);
+      if (c.svg === '') delete node.svg;
+      else {
+        const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
+        if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
+        node.svg = markup;
+      }
+    } else {
+      delete node.vector;
+      if (c.svg === '') delete node.svg;
+      else if (c.svg !== undefined) node.svg = sanitizeSvg(c.svg);
+    }
+  }
+  return { inverse: [{ type: 'setVector', changes: prev.reverse() }] };
+}
+
+function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied {
+  const prev: SetMediaOp['changes'] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    const n = p.node;
+    const given = (['effect', 'video', 'embed'] as const).filter((k) => c[k] !== undefined);
+    if (given.length !== 1)
+      fail(`setMedia em "${c.nodeId}": informe exatamente um de effect, video ou embed`);
+    const field = given[0]!;
+    if (n.type !== field) fail(`O nó "${c.nodeId}" é ${n.type}; ${field} só vale em nós ${field}`);
+    if (field === 'effect' && c.effect && !getEffect(c.effect.kind)) {
+      const kinds = effectKinds();
+      fail(
+        `Efeito desconhecido "${c.effect.kind}" em "${c.nodeId}". Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? `… (${kinds.length} no total; veja list_effects)` : ''}`,
+      );
+    }
+    prev.push({ nodeId: c.nodeId, [field]: deepClone(n[field]) });
+    (n as unknown as Record<string, unknown>)[field] = deepClone(c[field]);
+  }
+  return { inverse: [{ type: 'setMedia', changes: prev.reverse() }] };
+}
+
 /* ---------------- API pública ---------------- */
+
+/* ---------------- setData ---------------- */
+
+function doSetData(d: Document, op: Extract<Op, { type: 'setData' }>): Applied {
+  const prev: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[] = [];
+  for (const ch of op.changes) {
+    const node = requireNode(d, ch.nodeId).node;
+    if (node.type !== 'repeater') {
+      fail(`O nó "${ch.nodeId}" não é um repetidor (tipo ${node.type}); só nós repeater têm dados`);
+    }
+    const before: { nodeId: string; data?: unknown[] | null; source?: DataSource | null } = {
+      nodeId: ch.nodeId,
+    };
+    if (ch.data !== undefined) {
+      before.data = node.data ?? null;
+      if (ch.data === null) delete node.data;
+      else node.data = ch.data;
+    }
+    if (ch.source !== undefined) {
+      before.source = node.dataSource ?? null;
+      if (ch.source === null) delete node.dataSource;
+      else node.dataSource = ch.source;
+    }
+    prev.push(before);
+  }
+  return { inverse: [{ type: 'setData', changes: prev.reverse() }] };
+}
 
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
 export function applyOp(doc: Document, rawOp: Op): ApplyResult {
@@ -897,6 +1018,15 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setInstanceOverrides':
       applied = doSetInstanceOverrides(d, op);
+      break;
+    case 'setData':
+      applied = doSetData(d, op);
+      break;
+    case 'setVector':
+      applied = doSetVector(d, op);
+      break;
+    case 'setMedia':
+      applied = doSetMedia(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

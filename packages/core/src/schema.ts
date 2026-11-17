@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
+import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
 import { sanitizeSvg } from './svg.js';
 import { normalizeStateKey } from './states.js';
 import {
@@ -14,6 +15,7 @@ import {
 import type {
   ComponentDef,
   ComponentVariant,
+  DataSource,
   Document,
   FontRef,
   Node,
@@ -23,6 +25,8 @@ import type {
   Theme,
   TokenMeta,
 } from './types.js';
+import { orderVector, parseVectorLoose } from './vector/schema.js';
+import { vectorToSvg } from './vector/svg.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -331,11 +335,51 @@ const FileVariantsSchema = z
   .default([])
   .transform((list) => list.filter(hasVariantCondition));
 
+/** Limites dos dados de um repetidor (itens e tamanho serializado). */
+export const MAX_DATA_ITEMS = 1000;
+export const MAX_DATA_BYTES = 2 * 1024 * 1024;
+
+export const DataSourceSchema: z.ZodType<DataSource, unknown> = z.object({
+  kind: z.enum(['inline', 'json', 'csv', 'url']),
+  path: z.string().max(2000).optional(),
+  url: z
+    .string()
+    .max(4000)
+    .refine((u) => /^https?:\/\//i.test(u), { error: 'a URL deve ser http(s)' })
+    .optional(),
+  select: z.string().max(500).optional(),
+  mapping: z.record(z.string(), z.string()).optional(),
+  limit: z.number().int().min(1).max(MAX_DATA_ITEMS).optional(),
+  fetchedAt: z.string().optional(),
+});
+
+export const DataSchema = z
+  .array(z.unknown())
+  .max(MAX_DATA_ITEMS, { error: `no máximo ${MAX_DATA_ITEMS} itens` })
+  .refine((list) => JSON.stringify(list).length <= MAX_DATA_BYTES, {
+    error: `os dados passam de ${MAX_DATA_BYTES / 1024 / 1024} MB`,
+  });
+
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
-      id: z.string().min(1),
-      type: z.enum(['frame', 'element', 'text', 'image', 'svg', 'instance']),
+      // `~` separa o índice nos clones dos repetidores (`REPEAT_ID_SEP` em data.ts).
+      id: z
+        .string()
+        .min(1)
+        .refine((v) => !v.includes('~'), { error: 'o id não pode conter "~"' }),
+      type: z.enum([
+        'frame',
+        'element',
+        'text',
+        'image',
+        'svg',
+        'instance',
+        'repeater',
+        'effect',
+        'video',
+        'embed',
+      ]),
       name: z.string(),
       tag: TagSchema,
       attrs: AttrsSchema,
@@ -343,6 +387,11 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       text: z.string().optional(),
       src: z.string().optional(),
       svg: z.string().transform(sanitizeSvg).optional(),
+      // Vetor inválido é descartado (o markup `svg` continua valendo).
+      vector: z.unknown().optional().transform(parseVectorLoose),
+      effect: EffectSpecSchema.optional(),
+      video: VideoSpecSchema.optional(),
+      embed: EmbedSpecSchema.optional(),
       children: z.array(NodeSchema).default([]),
       locked: z.boolean().default(false),
       hidden: z.boolean().default(false),
@@ -352,6 +401,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       componentId: z.string().min(1).optional(),
       props: PropsMapSchema,
       overrides: NodeOverridesMapSchema,
+      data: DataSchema.optional(),
+      dataSource: DataSourceSchema.optional(),
     })
     .transform((n) => {
       // Campos opcionais que a normalização esvaziou não aparecem como `undefined` no objeto.
@@ -367,6 +418,30 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
     })
     .refine((n) => n.type !== 'instance' || !!n.componentId, {
       error: 'instância sem "componentId"',
+    })
+    .refine((n) => n.type !== 'effect' || n.effect !== undefined, {
+      error: 'nó effect sem o campo effect',
+    })
+    .refine((n) => n.type !== 'video' || n.video !== undefined, {
+      error: 'nó video sem o campo video',
+    })
+    .refine((n) => n.type !== 'embed' || n.embed !== undefined, {
+      error: 'nó embed sem o campo embed',
+    })
+    .refine(
+      (n) =>
+        !(n.type === 'effect' || n.type === 'video' || n.type === 'embed') ||
+        n.children.length === 0,
+      { error: 'nós effect, video e embed não têm filhos' },
+    )
+    .transform((n) => {
+      // Só nós svg têm modelo vetorial; com ele, o markup é sempre o gerado (`vectorToSvg`).
+      if (n.vector === undefined || n.type !== 'svg') {
+        delete n.vector;
+        return n;
+      }
+      n.svg = vectorToSvg(n.vector);
+      return n;
     }),
 );
 
@@ -567,6 +642,10 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.text !== undefined) out.text = n.text;
   if (n.src !== undefined) out.src = n.src;
   if (n.svg !== undefined) out.svg = n.svg;
+  if (n.vector !== undefined) out.vector = orderVector(n.vector);
+  if (n.effect !== undefined) out.effect = n.effect;
+  if (n.video !== undefined) out.video = n.video;
+  if (n.embed !== undefined) out.embed = n.embed;
   if (n.classes !== undefined) out.classes = n.classes;
   if (n.states !== undefined && Object.keys(n.states).length > 0) out.states = n.states;
   if (n.props !== undefined && Object.keys(n.props).length > 0) out.props = n.props;
@@ -575,6 +654,8 @@ function orderNode(n: Node): Record<string, unknown> {
   }
   out.locked = n.locked;
   out.hidden = n.hidden;
+  if (n.dataSource !== undefined) out.dataSource = n.dataSource;
+  if (n.data !== undefined) out.data = n.data;
   out.children = n.children.map(orderNode);
   return out;
 }

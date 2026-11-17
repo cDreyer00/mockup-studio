@@ -11,6 +11,10 @@ export const ID_PREFIX: Record<NodeType, string> = {
   image: 'im_',
   svg: 'sv_',
   instance: 'in_',
+  repeater: 'rp_',
+  effect: 'fx_',
+  video: 'vd_',
+  embed: 'eb_',
 };
 
 /** Gera id curto e estável: `<prefixo>` + 8 chars [0-9a-z]. */

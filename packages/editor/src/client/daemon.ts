@@ -248,6 +248,20 @@ export class DaemonClient {
     return body.src;
   }
 
+  /** Pede ao daemon que baixe um Lottie/Rive e o guarde em assets/lottie|rive/; devolve o src relativo. */
+  async fetchAsset(url: string, kind: 'lottie' | 'rive', docId?: string): Promise<string> {
+    const id = docId ?? useDoc.getState().activeDocId;
+    if (!id) throw new Error('Nenhum documento aberto');
+    const res = await fetch(`/api/assets/${encodeURIComponent(id)}/fetch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, kind }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { src?: string; error?: string };
+    if (!res.ok || !body.src) throw new Error(body.error ?? `Falha ao copiar (${res.status})`);
+    return body.src;
+  }
+
   /** Caminhos recentes (mais recente primeiro). */
   async recent(): Promise<string[]> {
     const res = await fetch('/api/recent');
@@ -544,6 +558,7 @@ export class DaemonClient {
     if (sel.length !== u.selection.length) ui.select(sel);
     if (u.hoverId && !getEntry(doc, u.hoverId)) ui.hover(null);
     if (u.editingTextId && !getEntry(doc, u.editingTextId)) ui.editText(null);
+    if (u.editingVectorId && !getEntry(doc, u.editingVectorId)) ui.editVector(null);
   }
 }
 

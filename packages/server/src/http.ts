@@ -3,14 +3,23 @@ import path from 'node:path';
 import { PREVIEW_STATES, exportSvg, type PreviewState } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
-import { assetDataUrl } from './assets.js';
+import { assetDataUrl, writeAsset } from './assets.js';
 import { renderTargetFor } from './component-view.js';
 import { KitError, listKits, loadKit } from './kits.js';
+import { detectAsset, getLibrary } from './library.js';
+import { detectVideo, fetchAnimation, validateAnimation } from './mediaBytes.js';
+import { OutlineError, buildTextOutlineOps } from './outlines.js';
 import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
+import { registerFeatureRoutes } from './routes/index.js';
 import { isAllowedOrigin } from './ws.js';
+import {
+  allowsExtensionOrigin,
+  isExtensionOrigin,
+  registerSnapshotRoutes,
+} from './snapshot/http.js';
 
 export const SERVER_NAME = 'mockup-studio';
 export const SERVER_VERSION = '0.1.0';
@@ -67,6 +76,20 @@ export function isAllowedHost(hostHeader: string | undefined, extra: string[] = 
 
 export const MAX_ASSET_BYTES = 20 * 1024 * 1024;
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
+/** Vídeos aceitos no upload (até 500 MB). */
+export const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
+/** Animações Lottie/Rive aceitas no upload (até 50 MB). */
+export const ANIMATION_EXTS = new Set(['.json', '.lottie', '.riv']);
+export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+export const MAX_ANIMATION_BYTES = 50 * 1024 * 1024;
+const UPLOAD_EXTS = [...IMAGE_EXTS, ...VIDEO_EXTS, ...ANIMATION_EXTS];
+
+/** Limite de tamanho do upload pela extensão (imagem 20 MB, animação 50 MB, vídeo 500 MB). */
+export function maxBytesFor(ext: string): number {
+  if (VIDEO_EXTS.has(ext)) return MAX_VIDEO_BYTES;
+  if (ANIMATION_EXTS.has(ext)) return MAX_ANIMATION_BYTES;
+  return MAX_ASSET_BYTES;
+}
 
 /** Nomes de dispositivo do Windows: `CON.png` ou `nul.tar.gz` abrem o dispositivo, não um arquivo. */
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
@@ -78,8 +101,8 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
 export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   const last = raw.split(/[\\/]/).pop() ?? '';
   const ext = path.extname(last).toLowerCase();
-  if (!IMAGE_EXTS.has(ext)) {
-    throw new HttpError(400, `Extensão não permitida; use: ${[...IMAGE_EXTS].join(', ')}`);
+  if (!UPLOAD_EXTS.includes(ext)) {
+    throw new HttpError(400, `Extensão não permitida; use: ${UPLOAD_EXTS.join(', ')}`);
   }
   let base = last
     .slice(0, last.length - ext.length)
@@ -136,12 +159,16 @@ export function createApp(
       route === '/mcp' ||
       route.startsWith('/mcp/') ||
       (route.startsWith('/api/') && !SAFE_METHODS.has(req.method));
-    if (guarded && !isAllowedOrigin(req.headers.origin)) {
+    const extension =
+      isExtensionOrigin(req.headers.origin) && allowsExtensionOrigin(req.method, route);
+    if (guarded && !extension && !isAllowedOrigin(req.headers.origin)) {
       res.status(403).json({ error: 'Origem não permitida' });
       return;
     }
     next();
   });
+  // Importação de snapshots (extensão, editor, MCP): antes do CORS global e do json de 20 MB.
+  registerSnapshotRoutes(app, store, { render: ctx.render });
   app.use(
     cors({
       origin: (origin, cb) => cb(null, !origin || LOCAL_ORIGIN.test(origin)),
@@ -163,8 +190,37 @@ export function createApp(
     return v;
   };
 
-  // Upload de imagem: corpo binário cru, montado antes do express.json para qualquer Content-Type.
-  const maxAsset = ctx.maxAssetBytes ?? MAX_ASSET_BYTES;
+  // Upload de mídia: corpo binário cru, montado antes do express.json para qualquer Content-Type.
+  // O limite vale por extensão e é aplicado ANTES de bufferizar (um parser raw por limite).
+  const limitFor = (ext: string): number =>
+    ctx.maxAssetBytes !== undefined ? ctx.maxAssetBytes : maxBytesFor(ext);
+  const rawParsers = new Map<number, express.RequestHandler>();
+  const rawFor = (limit: number): express.RequestHandler => {
+    let h = rawParsers.get(limit);
+    if (!h) rawParsers.set(limit, (h = express.raw({ type: () => true, limit })));
+    return h;
+  };
+  const extOf = (req: Request): string =>
+    path.extname(typeof req.query.name === 'string' ? req.query.name : '').toLowerCase();
+  /** Pasta (sob assets/) e extensão final de um arquivo, conferindo os bytes. */
+  const classifyUpload = (ext: string, body: Buffer): { sub: string; ext: string } => {
+    if (VIDEO_EXTS.has(ext)) {
+      const kind = detectVideo(body.subarray(0, 16));
+      if (!kind)
+        throw new HttpError(
+          415,
+          'O arquivo não é um vídeo reconhecido (mp4, m4v, mov, webm ou ogv). Confira o arquivo.',
+        );
+      return { sub: 'videos', ext: kind.ext };
+    }
+    if (ext === '.riv' || ext === '.json' || ext === '.lottie') {
+      const provider = ext === '.riv' ? 'rive' : 'lottie';
+      const v = validateAnimation(body, provider);
+      if (!v.startsWith('.')) throw new HttpError(415, v);
+      return { sub: provider, ext: v };
+    }
+    return { sub: '', ext };
+  };
   app.post(
     '/api/assets/:docId',
     (req, _res, next) => {
@@ -175,12 +231,16 @@ export function createApp(
           throw new HttpError(404, `Documento não encontrado: ${docId}`);
         if (!store.assetsDir(docId))
           throw new HttpError(409, 'Salve o documento antes de enviar imagens');
-        next();
+        // recusa cedo, sem ler o corpo, o que passa do limite da extensão
+        const limit = limitFor(extOf(req));
+        if (Number(req.headers['content-length'] ?? 0) > limit)
+          throw new HttpError(413, 'Arquivo grande demais para esta extensão');
+        // o parser raw só aceita o limite da extensão (vale também para corpo chunked)
+        rawFor(limit)(req, _res, next);
       } catch (e) {
         next(e);
       }
     },
-    express.raw({ type: () => true, limit: maxAsset }),
     wrap(async (req, res) => {
       const docId = String(req.params.docId);
       const dir = store.assetsDir(docId)!;
@@ -188,19 +248,44 @@ export function createApp(
       const { base, ext } = sanitizeAssetName(name);
       const body: unknown = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0)
-        throw new HttpError(400, 'Corpo vazio: envie os bytes da imagem');
-      await fs.promises.mkdir(dir, { recursive: true });
-      for (let i = 0; i < 1000; i++) {
-        const finalName = i === 0 ? `${base}${ext}` : `${base}-${i}${ext}`;
-        try {
-          await fs.promises.writeFile(path.join(dir, finalName), body, { flag: 'wx' });
-          res.json({ src: finalName });
-          return;
-        } catch (e) {
-          if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-        }
+        throw new HttpError(400, 'Corpo vazio: envie os bytes do arquivo');
+      if (body.length > limitFor(ext))
+        throw new HttpError(
+          413,
+          `Arquivo passa do limite de ${Math.round(limitFor(ext) / 1024 / 1024)} MB para ${ext}`,
+        );
+      const cls = classifyUpload(ext, body);
+      const file = await writeAsset(path.join(dir, cls.sub), `${base}${cls.ext}`, body);
+      // registra no CDN local (link direto na listagem de assets)
+      const info = detectAsset(body);
+      if (info) getLibrary(ctx.dataDir).add(body, { name: file, info });
+      res.json({ src: cls.sub ? `${cls.sub}/${file}` : file });
+    }),
+  );
+  // Copia um Lottie/Rive de uma URL http(s) para assets/lottie|rive/ (offline-first).
+  app.post(
+    '/api/assets/:docId/fetch',
+    express.json({ limit: '64kb' }),
+    wrap(async (req, res) => {
+      const docId = String(req.params.docId);
+      if (!store.list().some((d) => d.docId === docId))
+        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+      const dir = store.assetsDir(docId);
+      if (!dir) throw new HttpError(409, 'Salve o documento antes de copiar arquivos');
+      const { url, kind } = (req.body ?? {}) as { url?: unknown; kind?: unknown };
+      if (typeof url !== 'string' || !/^https?:\/\//i.test(url))
+        throw new HttpError(400, 'Campo url deve ser uma URL http(s)');
+      if (kind !== 'lottie' && kind !== 'rive')
+        throw new HttpError(400, 'Campo kind deve ser "lottie" ou "rive"');
+      let got;
+      try {
+        got = await fetchAnimation(url, kind);
+      } catch (e) {
+        throw new HttpError(502, e instanceof Error ? e.message : String(e));
       }
-      throw new HttpError(409, 'Não foi possível gerar um nome único para o arquivo');
+      const safe = sanitizeAssetName(`${got.hint.replace(/\.[^.]*$/, '') || kind}${got.ext}`);
+      const file = await writeAsset(path.join(dir, kind), `${safe.base}${safe.ext}`, got.bytes);
+      res.json({ src: `${kind}/${file}` });
     }),
   );
   app.use(express.json({ limit: '20mb' }));
@@ -323,6 +408,33 @@ export function createApp(
     }),
   );
 
+  // Texto em contornos (o editor chama): converte nós de texto em svg, uma entrada de undo.
+  app.post(
+    '/api/docs/:docId/text-to-outlines',
+    wrap(async (req, res) => {
+      const docId = String(req.params.docId);
+      if (!store.list().some((d) => d.docId === docId))
+        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+      const nodeIds: unknown = req.body?.nodeIds;
+      if (!Array.isArray(nodeIds) || nodeIds.length === 0 || nodeIds.some((n) => typeof n !== 'string'))
+        throw new HttpError(400, 'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]');
+      try {
+        const out = await buildTextOutlineOps({
+          doc: store.get(docId),
+          docId,
+          nodeIds: nodeIds as string[],
+          assetsDir: store.assetsDir(docId),
+          render: ctx.render,
+        });
+        store.applyOps(docId, out.ops, { source: 'editor', label: 'text_to_outlines' });
+        res.json({ nodeIds: out.nodeIds, notes: out.notes });
+      } catch (e) {
+        if (e instanceof OutlineError) throw new HttpError(e.status, e.message);
+        throw e;
+      }
+    }),
+  );
+
   app.get(
     '/assets/:docId/*splat',
     wrap((req, res) => {
@@ -435,6 +547,15 @@ export function createApp(
     }),
   );
 
+  // Assets/CDN (/cdn, /api/assets, /api/library), dados de repetidores e organização de arquivos.
+  registerFeatureRoutes(app, {
+    store,
+    dataDir: ctx.dataDir,
+    render: ctx.render,
+    getPort: ctx.getPort,
+    maxAssetBytes: ctx.maxAssetBytes ?? MAX_ASSET_BYTES,
+  });
+
   app.all('/mcp', (req, res) => {
     if (!['POST', 'GET', 'DELETE'].includes(req.method)) {
       res.status(405).json({ error: 'Método não permitido' });
@@ -448,7 +569,7 @@ export function createApp(
     const editorDir = path.resolve(ctx.editorDir);
     app.use(express.static(editorDir, { index: 'index.html', fallthrough: true }));
     // Fallback de SPA: GET sem extensão fora das rotas do daemon devolve o index.html.
-    const reserved = /^\/(api|assets|mcp|ws|render)(\/|$)/i;
+    const reserved = /^\/(api|assets|cdn|mcp|ws|render)(\/|$)/i;
     app.use((req, res, next) => {
       if (req.method !== 'GET' || reserved.test(req.path) || path.extname(req.path)) return next();
       res.sendFile(path.join(editorDir, 'index.html'));

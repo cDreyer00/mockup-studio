@@ -117,3 +117,33 @@ export function setSvgRootAttrs(svg: string, set: Record<string, string>, unset:
   Object.assign(root.attribs, set);
   return sanitizeSvg(DomUtils.getOuterHTML(root, { xmlMode: true }));
 }
+
+const escRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Prefixa todo `id="x"` do markup com `${prefix}-` e reescreve as referências internas
+ * (`url(#x)`, com ou sem aspas, `href="#x"` e `xlink:href="#x"`). Usado na exportação inline,
+ * onde vários svgs dividem o mesmo documento e ids iguais (ex. `g-p1-fill`) colidiriam.
+ * Referências a ids que não existem no markup ficam intactas.
+ */
+export function scopeSvgIds(markup: string, prefix: string): string {
+  const ids = new Set<string>();
+  for (const m of markup.matchAll(/\sid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) ids.add(m[1] ?? m[2] ?? '');
+  ids.delete('');
+  if (ids.size === 0) return markup;
+  const pre = prefix.replace(/[^A-Za-z0-9_-]/g, '_');
+  const alt = [...ids].sort((a, b) => b.length - a.length).map(escRe).join('|');
+  let out = markup.replace(
+    /(\sid\s*=\s*)(?:"([^"]*)"|'([^']*)')/gi,
+    (_m, head: string, a?: string, b?: string) => `${head}"${pre}-${a ?? b ?? ''}"`,
+  );
+  out = out.replace(
+    new RegExp(String.raw`url\(\s*(?:&quot;|&apos;|"|')?#(${alt})(?:&quot;|&apos;|"|')?\s*\)`, 'g'),
+    (_m, id: string) => `url(#${pre}-${id})`,
+  );
+  out = out.replace(
+    new RegExp(String.raw`(\shref\s*=\s*|:href\s*=\s*)(?:"#(${alt})"|'#(${alt})')`, 'gi'),
+    (_m, head: string, a?: string, b?: string) => `${head}"#${pre}-${a ?? b}"`,
+  );
+  return out;
+}

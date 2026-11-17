@@ -188,6 +188,16 @@ Pendências: overrides não removem atributos/estados do principal (sem `unsetAt
 - Otimização e importação em lote.
 - SVG inline editável.
 
+Entregue na branch `feature/assets-dados` (assets com link direto, imagem, dados reais e organização; ver [ASSETS.md](ASSETS.md) e [DADOS.md](DADOS.md)):
+
+- **Assets**: CDN local endereçado por conteúdo (`/cdn/<hash>.<ext>`, estável entre documentos e reinícios), biblioteca global, listagem com usos, remover não usados, otimização com sharp (opcional), aba Assets no editor. MCP: `list_assets`, `upload_asset`, `get_asset_url`, `optimize_assets`, `remove_unused_assets`.
+- **Imagens**: seção Imagem (fit, posição, filtros, máscara `clip-path`), recorte visual com alças (`object-view-box`) e placeholders SVG determinísticos. MCP: `set_image`, `generate_placeholder`.
+- **Dados reais**: nó `repeater` com `data` e bindings `{{campo}}`, op `setData`, expansão no canvas, render, screenshot e export; JSON/CSV/URL com origem guardada e atualização manual; seção Dados com tabela editável. MCP: `bind_data`, `refresh_data`, `get_data`.
+- **Organização**: `files.json` com pastas virtuais, tags e favoritos, tela inicial com miniaturas e busca por nome/tag/conteúdo, busca de nós. MCP: `list_files`, `search_nodes`, `tag_file`, `manage_folders`, `move_files`.
+- Guias `assets` e `data`.
+
+Pendências: no app empacotado o sharp vem em `resources/native` só para a plataforma em que o pacote foi gerado (Windows x64); recorte com `object-view-box` só aparece no Chromium (o código exportado mostra a imagem inteira em Firefox/Safari); miniaturas de documentos fechados sem as fontes embutidas; estilos não aceitam bindings; importação em lote e SVG inline editável seguem abertos; a validação dos dados serializa a lista inteira (`JSON.stringify` no `DataSchema`) a cada `setData`; `fetchBytes` (imagens e dados por URL) não filtra endereços de rede privada.
+
 ### Fase 7 — Vetores e grid
 
 - Desenho vetorial básico: pen, formas, operações booleanas.

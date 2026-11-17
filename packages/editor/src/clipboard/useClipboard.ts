@@ -11,6 +11,7 @@ import { copyableNode } from '../components/model';
 import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
+import { pasteSnapshot } from '../snapshot/pasteSnapshot';
 import { isEditableTarget, isInteractionBlocked } from '../shortcuts/guards';
 import {
   classifyPaste,
@@ -19,6 +20,7 @@ import {
   prepareNodesForPaste,
   resolvePasteTarget,
   serializeNodes,
+  withVectors,
 } from './paste';
 
 interface InternalClipboard {
@@ -113,6 +115,9 @@ async function handlePaste(data: DataTransfer): Promise<void> {
       case 'internal':
         if (internal) await pasteNodes(internal.nodes, internal.pastes++);
         return;
+      case 'snapshot':
+        await pasteSnapshot(text);
+        return;
       case 'images':
         for (const file of images) await insertImageFile(file);
         return;
@@ -120,7 +125,7 @@ async function handlePaste(data: DataTransfer): Promise<void> {
         const { doc } = useDoc.getState();
         if (!doc) return;
         const pasted = await htmlToPasteNodes(looksLikeHtml(html) ? html : text, doc);
-        if ((await pasteNodes(pasted.nodes, 0, pasted.ops)) && pasted.notes.length) {
+        if ((await pasteNodes(withVectors(pasted.nodes), 0, pasted.ops)) && pasted.notes.length) {
           ui.toast(pasted.notes.join(' '));
         }
         return;

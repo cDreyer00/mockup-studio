@@ -14,11 +14,14 @@ import { ThemeStyles } from './ThemeStyles';
 import { fitRect, rectInside, rectToScreen, unionRects, zoomAtPoint } from './geometry';
 import type { Rect, Viewport } from './geometry';
 import { measureWorldRect } from './dom';
+import { GridOverlay } from './GridOverlay';
 import { attachInteractions } from './interactions';
 import { DocIdContext } from './NodeView';
 import { breakpointsOf } from '@mockup/core';
 import { BASE_STATE_CTX, StateCtxContext } from './stateContext';
 import { Overlay } from './Overlay';
+import { PenOverlay } from './PenOverlay';
+import { VectorEditOverlay } from './VectorEditOverlay';
 import './canvas.css';
 
 const FIT_PADDING = 60;
@@ -239,8 +242,11 @@ export function Canvas() {
       <DocumentBase cssBase={cssBase} />
       <ThemeStyles tokens={tokens ?? {}} themes={themes} />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
+      <GridOverlay rootRef={rootRef} />
       <Overlay rootRef={rootRef} />
       <ComponentEditBar />
+      <PenOverlay />
+      <VectorEditOverlay rootRef={rootRef} />
     </div>
   );
 }

@@ -2,9 +2,10 @@
  * Lógica pura do clipboard: serialização com marcador, detecção de HTML, alvo da colagem e
  * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
  */
-import { cloneNodeWithNewIds, htmlToNodes, nodesToHtml } from '@mockup/core';
+import { cloneNodeWithNewIds, htmlToNodes, nodesToHtml, svgToVector, vectorToSvg } from '@mockup/core';
 import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
+import { looksLikeSnapshot } from '@mockup/snapshot-core';
 import { canInsertInto } from '../components/model';
 import { loadTailwindEngine } from '../tailwind/loader';
 import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
@@ -136,7 +137,30 @@ export async function htmlToPasteNodes(html: string, doc: Document): Promise<Htm
   return { nodes, ops, tailwind: true, notes };
 }
 
-export type PasteKind = 'internal' | 'images' | 'html' | 'text' | 'none';
+export type PasteKind = 'internal' | 'snapshot' | 'images' | 'html' | 'text' | 'none';
+
+/**
+ * Nós svg colados como markup ganham o modelo vetorial (`svgToVector`, com `raw` preservado) e o
+ * tamanho do viewBox, se o estilo não tiver largura/altura. Markup que não vira vetor fica como está.
+ */
+export function withVectors(nodes: Node[]): Node[] {
+  return nodes.map((n) => {
+    let next = n;
+    if (n.type === 'svg' && !n.vector && n.svg) {
+      try {
+        const vector = svgToVector(n.svg);
+        const style = { ...n.style };
+        if (!style.width) style.width = `${vector.viewBox.width}px`;
+        if (!style.height) style.height = `${vector.viewBox.height}px`;
+        next = { ...n, vector, style, svg: vectorToSvg(vector) };
+      } catch {
+        next = n;
+      }
+    }
+    return next.children.length ? { ...next, children: withVectors(next.children) } : next;
+  });
+}
+
 
 /** Decide como interpretar o conteúdo colado. */
 export function classifyPaste(
@@ -145,6 +169,7 @@ export function classifyPaste(
 ): PasteKind {
   const token = extractMarker(data.html) ?? extractMarker(data.text);
   if (token && internalToken && token === internalToken) return 'internal';
+  if (looksLikeSnapshot(data.text)) return 'snapshot';
   if (data.imageCount > 0) return 'images';
   if (looksLikeHtml(data.html) || looksLikeHtml(data.text)) return 'html';
   if (data.text.length > 0) return 'text';

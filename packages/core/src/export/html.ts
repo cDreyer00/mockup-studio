@@ -5,6 +5,7 @@ import { fontFaceCss } from '../fonts.js';
 import { breakpointsOf } from '../states.js';
 import { themeRulesCss } from '../tokens.js';
 import type { Document } from '../types.js';
+import { mediaScripts, newMediaCollector } from './media.js';
 import {
   ClassNamer,
   cssBody,
@@ -26,6 +27,11 @@ export interface HtmlExportOptions {
   mode?: 'inline' | 'classes';
   /** `true`: só `<style>` + markup, sem `<!doctype>`/`<head>`. Padrão `false`. */
   fragment?: boolean;
+  /**
+   * Lê um arquivo de `assets/` (caminho relativo). Com ele, animações Lottie `.json` de até 512 KB
+   * vão embutidas no HTML e abrem por `file://`; sem ele (ou acima disso) o HTML busca o arquivo.
+   */
+  readAsset?: (ref: string) => string | Uint8Array | undefined;
 }
 
 /**
@@ -37,6 +43,12 @@ export interface HtmlExportOptions {
  * breakpoints e `.slug:where([data-theme="dark"], ...)` para `dark`. No modo `inline` o estilo base
  * continua em `style=""`; os nós com estados ganham uma classe só para as regras dos estados, que
  * saem com `!important` (o `style` inline ganharia da cascata).
+ *
+ * Nós de mídia: efeitos viram `<canvas data-mockup-effect='{json}'>` com o fundo de fallback do
+ * catálogo (visível sem JS) e UM `<script>` no fim do corpo com o runtime e a auto-montagem;
+ * vídeo vira `<video>`, YouTube/iframe viram `<iframe>`, Lottie/Rive/Three.js carregam a
+ * biblioteca de CDN. Os scripts só existem se houver nós de mídia e vão também com
+ * `fragment: true` (logo após o markup).
  */
 export function exportHtml(source: Document, options: HtmlExportOptions = {}): string {
   // instâncias de componentes viram a árvore concreta (igual ao canvas); aceita ids virtuais
@@ -47,7 +59,10 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
   const namer = new ClassNamer();
   const breakpoints = breakpointsOf(doc);
   const rules: string[] = [];
+  const media = newMediaCollector();
   const markup = renderHtmlTree(roots, {
+    media,
+    readAsset: options.readAsset,
     styleOf: (node) => {
       const hasStyle = Object.keys(node.style).length > 0;
       const hasStates = node.states !== undefined && Object.keys(node.states).length > 0;
@@ -78,8 +93,11 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
   if (faces) css.push(indentLines(faces, 1));
   if (rules.length > 0) css.push(indentLines(rules.join('\n'), 1));
   const style = escapeCssText(css.join('\n'));
+  const scripts = mediaScripts(media);
 
-  if (options.fragment) return `<style>\n${style}\n</style>\n${markup}\n`;
+  if (options.fragment) {
+    return `<style>\n${style}\n</style>\n${markup}\n${scripts ? scripts + '\n' : ''}`;
+  }
 
   return [
     '<!doctype html>',
@@ -94,6 +112,7 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
     '</head>',
     '<body>',
     indentLines(markup, 1),
+    ...(scripts ? [scripts] : []),
     '</body>',
     '</html>',
     '',

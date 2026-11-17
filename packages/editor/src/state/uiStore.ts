@@ -4,10 +4,10 @@
  * não re-renderizem a árvore inteira.
  */
 import { create } from 'zustand';
-import type { Position, PreviewState } from '@mockup/core';
+import type { ImageCrop, Position, PreviewState } from '@mockup/core';
 import { COMPONENT_FRAME_ID } from '../components/model';
 
-export type LeftTab = 'layers' | 'tokens' | 'components';
+export type LeftTab = 'layers' | 'assets' | 'components' | 'tokens';
 export type RightTab = 'design' | 'assistant' | 'scripts';
 
 /** Contexto do modo de edição isolado do principal (para montar a visão e para voltar). */
@@ -20,7 +20,17 @@ export interface ComponentEdit {
   width: number | null;
 }
 
-export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image';
+export type Tool =
+  | 'select'
+  | 'hand'
+  | 'frame'
+  | 'rect'
+  | 'text'
+  | 'image'
+  | 'pen'
+  | 'ellipse'
+  | 'line'
+  | 'polygon';
 
 export interface Viewport {
   /** Translação do mundo em px de tela. */
@@ -56,8 +66,14 @@ export interface UiState {
   viewport: Viewport;
   /** Nó de texto em edição inline. */
   editingTextId: string | null;
+  /** Nó svg em edição de pontos (modo de edição de vetor). */
+  editingVectorId: string | null;
   preview: Record<string, NodePreview>;
   focusRequest: FocusRequest | null;
+  /** Imagem em modo de recorte visual (null = fora do modo). */
+  cropNodeId: string | null;
+  /** Recorte em edição (% de cada lado) enquanto `cropNodeId` está ativo. */
+  cropDraft: ImageCrop | null;
   /** Espaço pressionado (pan temporário). */
   spaceDown: boolean;
   /** Alt pressionado (régua de distância / redimensionar pelo centro). */
@@ -76,6 +92,8 @@ export interface UiState {
   editingComponentId: string | null;
   /** Contexto do modo de edição (presente junto com `editingComponentId`). */
   componentEdit: ComponentEdit | null;
+  /** Tela inicial (arquivos) exibida no lugar do canvas. */
+  homeOpen: boolean;
 }
 
 export const useUi = create<UiState>(() => ({
@@ -85,7 +103,10 @@ export const useUi = create<UiState>(() => ({
   pageId: null,
   viewport: { x: 0, y: 0, z: 1 },
   editingTextId: null,
+  editingVectorId: null,
   preview: {},
+  cropNodeId: null,
+  cropDraft: null,
   focusRequest: null,
   spaceDown: false,
   altDown: false,
@@ -96,6 +117,7 @@ export const useUi = create<UiState>(() => ({
   toast: null,
   editingComponentId: null,
   componentEdit: null,
+  homeOpen: false,
 }));
 
 /** O quadro sintético do modo de edição nunca entra na seleção. */
@@ -132,6 +154,7 @@ export const ui = {
       hoverId: null,
       editingTextId: null,
       ...(leaving ? { editingComponentId: null, componentEdit: null } : {}),
+      editingVectorId: null,
     });
   },
   setViewport(v: Viewport | ((v: Viewport) => Viewport)): void {
@@ -171,8 +194,26 @@ export const ui = {
   setShowAsTailwind(showAsTailwind: boolean): void {
     useUi.setState({ showAsTailwind });
   },
+  /** Entra no modo de recorte da imagem `id` com o recorte inicial `initial`. */
+  startCrop(id: string, initial: ImageCrop): void {
+    useUi.setState({ cropNodeId: id, cropDraft: initial, editingTextId: null });
+  },
+  setCropDraft(crop: ImageCrop): void {
+    useUi.setState({ cropDraft: crop });
+  },
+  /** Sai do modo de recorte (a prévia é limpa por quem chama `endCrop`). */
+  endCrop(): void {
+    useUi.setState({ cropNodeId: null, cropDraft: null });
+  },
   editText(id: string | null): void {
     useUi.setState({ editingTextId: id });
+  },
+  setHome(open: boolean): void {
+    if (useUi.getState().homeOpen !== open) useUi.setState({ homeOpen: open });
+  },
+  /** Entra (id) ou sai (null) da edição de pontos de um nó svg. */
+  editVector(id: string | null): void {
+    if (useUi.getState().editingVectorId !== id) useUi.setState({ editingVectorId: id });
   },
   toast(text: string, kind: 'info' | 'error' = 'info'): void {
     useUi.setState({ toast: { text, kind, at: Date.now() } });

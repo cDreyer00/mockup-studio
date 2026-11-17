@@ -3,6 +3,8 @@ import type { Op } from './ops.js';
 import {
   ComponentDefSchema,
   ComponentVariantSchema,
+  DataSchema,
+  DataSourceSchema,
   FontRefSchema,
   NodeSchema,
   PropDefsSchema,
@@ -12,6 +14,8 @@ import {
   TokenMetaMapSchema,
   TokensSchema,
 } from './schema.js';
+import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
+import { VectorSchema } from './vector/schema.js';
 
 const strMap = z.record(z.string(), z.string());
 const id = z.string().min(1);
@@ -189,6 +193,33 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
       z.object({ nodeId: id, overrides: z.record(z.string(), RawOverrideSchema).nullable() }),
     ),
   }),
+  z.object({
+    type: z.literal('setData'),
+    changes: z.array(
+      z.object({
+        nodeId: id,
+        data: DataSchema.nullable().optional(),
+        source: DataSourceSchema.nullable().optional(),
+      }),
+    ),
+  }),
+  z.object({
+    type: z.literal('setVector'),
+    changes: z.array(
+      z.object({ nodeId: id, vector: VectorSchema.nullable(), svg: z.string().optional() }),
+    ),
+  }),
+  z.object({
+    type: z.literal('setMedia'),
+    changes: z.array(
+      z.object({
+        nodeId: id,
+        effect: EffectSpecSchema.optional(),
+        video: VideoSpecSchema.optional(),
+        embed: EmbedSpecSchema.optional(),
+      }),
+    ),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -225,6 +256,9 @@ const OP_TYPES = [
   'replaceNode',
   'setInstanceProps',
   'setInstanceOverrides',
+  'setData',
+  'setVector',
+  'setMedia',
 ];
 
 /**

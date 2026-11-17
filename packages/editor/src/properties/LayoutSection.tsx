@@ -1,9 +1,11 @@
+import { isGridContainer } from '@mockup/core';
 import { ArrowDown, ArrowLeftRight, ArrowRight, Expand, Square } from 'lucide-react';
 import { useContext } from 'react';
 import { IconButton, Row, Section } from '../ui/controls';
 import type { SelectOption } from '../ui/controls';
 import { MARGIN, PADDING } from './boxes';
 import { BoxField } from './BoxField';
+import { GridEditor, gridModeStyles } from './GridEditor';
 import {
   Body,
   LockedContext,
@@ -11,6 +13,7 @@ import {
   StyleNum,
   StyleSelect,
   commitStyle,
+  commitStyles,
   common,
 } from './shared';
 import type { NodeCtx } from './shared';
@@ -53,16 +56,45 @@ export function LayoutSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
   const locked = useContext(LockedContext);
   const nodes = ctxs.map((c) => c.node);
   const flex = nodes.every((n) => n.style.display === 'flex' || n.style.display === 'inline-flex');
-  const grid = nodes.every((n) => n.style.display === 'grid');
+  const grid = nodes.every((n) => isGridContainer(n.style));
   const dir = common(nodes, (n) => n.style['flex-direction']) ?? 'row';
   const isColumn = typeof dir === 'string' && dir.startsWith('column');
   const isReverse = typeof dir === 'string' && dir.endsWith('reverse');
   const axisDir = (column: boolean, reverse: boolean) =>
     `${column ? 'column' : 'row'}${reverse ? '-reverse' : ''}`;
 
+  const mode = grid ? 'grid' : flex ? 'flex' : nodes.every((n) => !n.style.display || n.style.display === 'block') ? 'flow' : null;
+  const setMode = (m: 'flow' | 'flex' | 'grid') =>
+    void commitStyles(nodes, (n) => ({
+      set: m === 'grid' ? gridModeStyles(n.style) : { display: m === 'flex' ? 'flex' : 'block' },
+    }));
+
   return (
     <Section id="props-layout" title="Layout">
       <Body>
+        <Row label="Modo">
+          <div className="prop-seg" data-testid="layout-mode">
+            {(
+              [
+                ['flow', 'Fluxo'],
+                ['flex', 'Flex'],
+                ['grid', 'Grid'],
+              ] as const
+            ).map(([m, label]) => (
+              <IconButton
+                key={m}
+                title={label}
+                active={mode === m}
+                className="prop-mode-btn"
+                data-testid={`layout-mode-${m}`}
+                disabled={locked}
+                onClick={() => setMode(m)}
+              >
+                {label}
+              </IconButton>
+            ))}
+          </div>
+        </Row>
         <Row label="Display">
           <StyleSelect nodes={nodes} prop="display" options={DISPLAY} title="display" />
         </Row>
@@ -117,7 +149,8 @@ export function LayoutSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
             </Row>
           </>
         )}
-        {(flex || grid) && (
+        {grid && nodes.length === 1 && <GridEditor node={nodes[0]!} />}
+        {(flex || (grid && nodes.length > 1)) && (
           <Row label="Gap">
             <StyleNum nodes={nodes} prop="gap" label="G" title="Espaçamento (gap)" min={0} />
           </Row>
