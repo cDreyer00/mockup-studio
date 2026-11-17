@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mockup Studio — Capturar seção</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Capturar seção</h1>
+    <button id="start" type="button">Selecionar seção</button>
+    <fieldset>
+      <legend>Destino</legend>
+      <label><input type="radio" name="mode" value="send" checked /> Enviar ao Mockup Studio</label>
+      <label><input type="radio" name="mode" value="copy" /> Copiar para colar (Ctrl+V)</label>
+    </fieldset>
+    <label class="port">
+      Porta do app
+      <input id="port" type="number" min="1" max="65535" value="4747" />
+    </label>
+    <p id="status" class="status" data-state="checking">Verificando o app…</p>
+    <p class="hint">Passe o mouse sobre a página, clique para capturar. Esc cancela; ↑ e ↓ trocam entre pai e filho.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>
