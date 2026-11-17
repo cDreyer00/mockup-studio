@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
+import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
 import { sanitizeSvg } from './svg.js';
 import { BLOCKED_TAGS, TAG_RE, TOKEN_NAME_RE, VOID_TAGS, attrNameProblem } from './tags.js';
 import type { Document, FontRef, Node, Page } from './types.js';
@@ -76,7 +77,7 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
       id: z.string().min(1),
-      type: z.enum(['frame', 'element', 'text', 'image', 'svg']),
+      type: z.enum(['frame', 'element', 'text', 'image', 'svg', 'effect', 'video', 'embed']),
       name: z.string(),
       tag: TagSchema,
       attrs: AttrsSchema,
@@ -84,6 +85,9 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       text: z.string().optional(),
       src: z.string().optional(),
       svg: z.string().transform(sanitizeSvg).optional(),
+      effect: EffectSpecSchema.optional(),
+      video: VideoSpecSchema.optional(),
+      embed: EmbedSpecSchema.optional(),
       children: z.array(NodeSchema).default([]),
       locked: z.boolean().default(false),
       hidden: z.boolean().default(false),
@@ -91,7 +95,22 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
       error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
-    }),
+    })
+    .refine((n) => n.type !== 'effect' || n.effect !== undefined, {
+      error: 'nó effect sem o campo effect',
+    })
+    .refine((n) => n.type !== 'video' || n.video !== undefined, {
+      error: 'nó video sem o campo video',
+    })
+    .refine((n) => n.type !== 'embed' || n.embed !== undefined, {
+      error: 'nó embed sem o campo embed',
+    })
+    .refine(
+      (n) =>
+        !(n.type === 'effect' || n.type === 'video' || n.type === 'embed') ||
+        n.children.length === 0,
+      { error: 'nós effect, video e embed não têm filhos' },
+    ),
 );
 
 export const PageSchema: z.ZodType<Page, unknown> = z.object({
@@ -213,6 +232,9 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.text !== undefined) out.text = n.text;
   if (n.src !== undefined) out.src = n.src;
   if (n.svg !== undefined) out.svg = n.svg;
+  if (n.effect !== undefined) out.effect = n.effect;
+  if (n.video !== undefined) out.video = n.video;
+  if (n.embed !== undefined) out.embed = n.embed;
   out.locked = n.locked;
   out.hidden = n.hidden;
   out.children = n.children.map(orderNode);

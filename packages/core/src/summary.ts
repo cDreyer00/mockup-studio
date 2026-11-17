@@ -82,6 +82,21 @@ export function summarizeNode(node: Node): string {
     return parts.join(' ');
   }
 
+  if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
+    if (node.effect) parts.push(`effect:${node.effect.kind}`);
+    if (node.video) parts.push(`video:${shortSrc(node.video.src)}`);
+    if (node.embed) {
+      const e = node.embed;
+      const where = e.url ?? e.src;
+      parts.push(`embed:${e.provider}${where ? ` ${shortSrc(where)}` : ''}`);
+    }
+    const size = sizeToken(s);
+    if (size) parts.push(size);
+    if (s.position === 'absolute') parts.push('abs');
+    parts.push(...flags(node));
+    return parts.join(' ');
+  }
+
   if (node.type === 'image') {
     if (node.src) parts.push(`src:${shortSrc(node.src)}`);
     const size = sizeToken(s);

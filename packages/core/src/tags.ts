@@ -33,6 +33,23 @@ export const BLOCKED_TAGS = new Set([
 export const TYPED_TAGS: ReadonlyMap<string, string> = new Map([
   ['img', 'image'],
   ['svg', 'svg'],
+  ['video', 'video'],
+]);
+
+/** Tipos de nó com tag fixa que não é exclusiva deles (efeitos e embeds são sempre `div`). */
+export const FIXED_TAG_TYPES: ReadonlyMap<string, string> = new Map([
+  ['effect', 'div'],
+  ['embed', 'div'],
+]);
+
+/** Tipos de nó folha (não aceitam filhos). */
+export const LEAF_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'image',
+  'svg',
+  'effect',
+  'video',
+  'embed',
 ]);
 
 /** Tags void do HTML: não têm filhos nem fechamento. */
@@ -90,6 +107,10 @@ export function nodeTagProblem(
     if (tag === typedTag && node.type !== type) {
       return `A tag "${tag}" é exclusiva de nós do tipo ${type}; o nó "${node.id}" é ${node.type}`;
     }
+  }
+  const fixed = FIXED_TAG_TYPES.get(node.type);
+  if (fixed && tag !== fixed) {
+    return `O nó "${node.id}" (${node.type}) só aceita a tag "${fixed}"`;
   }
   if (VOID_TAGS.has(tag) && node.type === 'text') {
     return `A tag "${tag}" não tem conteúdo e não serve para o nó de texto "${node.id}"`;

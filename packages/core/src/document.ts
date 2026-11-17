@@ -65,6 +65,9 @@ export function createNode(init: Partial<Node> & { tag: string }): Node {
   if (text !== undefined) node.text = text;
   if (init.src !== undefined) node.src = init.src;
   if (init.svg !== undefined) node.svg = init.svg;
+  if (init.effect !== undefined) node.effect = init.effect;
+  if (init.video !== undefined) node.video = init.video;
+  if (init.embed !== undefined) node.embed = init.embed;
   if (init.position !== undefined) node.position = init.position;
   return node;
 }
@@ -193,6 +196,10 @@ export function cloneNodeWithNewIds(
       children: n.children.map(clone),
     };
     if (n.position) copy.position = { ...n.position };
+    if (n.effect) copy.effect = { ...n.effect, params: { ...n.effect.params } };
+    if (n.video) copy.video = { ...n.video };
+    if (n.embed)
+      copy.embed = { ...n.embed, ...(n.embed.params && { params: { ...n.embed.params } }) };
     return copy;
   };
   return { node: clone(node), idMap };
