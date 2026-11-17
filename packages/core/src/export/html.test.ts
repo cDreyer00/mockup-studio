@@ -82,11 +82,7 @@ describe('exportHtml', () => {
 
   it('filho direto com height:100% vira min-height da altura do frame (não colapsa fora do canvas)', () => {
     const doc = docWith([
-      createNode({
-        tag: 'div',
-        name: 'Wrapper',
-        style: { display: 'flex', width: '100%', height: '100%' },
-      }),
+      createNode({ tag: 'div', name: 'Wrapper', style: { display: 'flex', width: '100%', height: '100%' } }),
     ]);
     const html = exportHtml(doc);
     expect(html).toMatch(/\.wrapper \{[^}]*min-height: 300px;/);
@@ -94,9 +90,10 @@ describe('exportHtml', () => {
   });
 
   it('height:100% do filho é mantido quando o frame tem padding (altura útil diferente)', () => {
-    const doc = docWith([createNode({ tag: 'div', name: 'Wrapper', style: { height: '100%' } })], {
-      padding: '16px',
-    });
+    const doc = docWith(
+      [createNode({ tag: 'div', name: 'Wrapper', style: { height: '100%' } })],
+      { padding: '16px' },
+    );
     const html = exportHtml(doc);
     expect(html).toMatch(/\.wrapper \{[^}]*height: 100%;/);
   });
