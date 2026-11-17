@@ -6,6 +6,8 @@
 import { BrowserWindow, nativeImage } from 'electron';
 import type { CaptureRequest, CaptureResult, RenderProvider, RenderTarget } from '@mockup/server';
 import { getFrameOf, type LayoutNode, type RenderBox } from '@mockup/core';
+import type { PageSnapshotRequest, PageSnapshotResult } from '@mockup/snapshot-core';
+import { SnapshotService } from './snapshot.js';
 import {
   CACHE_MAX_BYTES,
   LruCache,
@@ -39,8 +41,10 @@ export class RenderService implements RenderProvider {
   private cache: LruCache<CaptureResult>;
   private timeoutMs: number;
   private closed = false;
+  private snapshots: SnapshotService;
 
   constructor(private opts: RenderServiceOptions) {
+    this.snapshots = new SnapshotService({ baseUrl: opts.baseUrl });
     this.cache = new LruCache(opts.cacheBytes ?? CACHE_MAX_BYTES, (r) => r.data.length);
     this.timeoutMs = opts.timeoutMs ?? 30000;
   }
@@ -278,8 +282,14 @@ export class RenderService implements RenderProvider {
     );
   }
 
+  /** Importação de página (import_url/import_html): fila e janela próprias, ver `SnapshotService`. */
+  snapshot(req: PageSnapshotRequest): Promise<PageSnapshotResult> {
+    return this.snapshots.snapshot(req);
+  }
+
   async close(): Promise<void> {
     this.closed = true;
+    await this.snapshots.close();
     this.cache.clear();
     this.destroyWindow();
   }
