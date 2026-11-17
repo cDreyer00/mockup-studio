@@ -33,10 +33,11 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos são os 8 esperados, sem tokens', () => {
+  it('os tópicos são os 9 esperados', () => {
     expect([...GUIDE_TOPICS]).toEqual([
       'getting-started',
       'design-system',
+      'tokens',
       'layout',
       'responsive',
       'screenshot-loop',
@@ -85,7 +86,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     expect(d).toContain('4.5:1');
   });
 
-  it('resources guide://<topic> para os 8 guias', async () => {
+  it('resources guide://<topic> para os 9 guias', async () => {
     const { resources } = await client.listResources();
     const uris = resources.map((x) => x.uri);
     for (const topic of GUIDE_TOPICS) {
@@ -95,11 +96,10 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
       expect(c.mimeType).toBe('text/markdown');
       expect(c.text).toBe(textOf(await call('get_guide', { topic })));
     }
-    expect(uris).not.toContain('guide://tokens');
   });
 
   it('get_guide com tópico inválido lista os válidos e traz exemplo', async () => {
-    const r = await call('get_guide', { topic: 'tokens' });
+    const r = await call('get_guide', { topic: 'inexistente' });
     expect(r.isError).toBe(true);
     const t = textOf(r);
     expect(t).toContain('topic');

@@ -32,6 +32,7 @@ import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
 import { registerRenderTools } from './tools/render.js';
+import { registerTokenTools } from './tools/tokens.js';
 
 export type { McpServerOptions } from './context.js';
 
@@ -49,7 +50,7 @@ const stylesField = z
 export const SERVER_INSTRUCTIONS = [
   'Mockup Studio é um editor de design em canvas: documentos com páginas, frames (artboards) e nós HTML/CSS reais.',
   "Comece com get_guide('getting-started') (fluxo em 6 passos) e get_basic_info.",
-  'Defina o design system com set_tokens antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.',
+  "Defina o design system (set_tokens, create_theme; get_guide('tokens')) antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.",
   'Sempre confira o resultado com get_screenshot e corrija (update_styles, set_text, undo) antes de seguir.',
   'docId é opcional (vale o documento ativo), exceto em close_document.',
   'Ao terminar um conjunto de edições, chame finish_working.',
@@ -498,17 +499,28 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Estilos efetivos',
       description:
-        'Estilos efetivos (herdados, com var() resolvido) de um ou mais nós, no formato "prop: valor".',
+        'Estilos efetivos (herdados, com var() resolvido e calc()/color-mix() avaliados) de um ou mais nós, no formato "prop: valor". Com theme, como se o nó estivesse nesse tema.',
       example: { nodeIds: ['el_ab12cd34'] },
-      inputSchema: { nodeIds: nodeIdsField, docId: docIdField },
+      inputSchema: {
+        nodeIds: nodeIdsField,
+        theme: z
+          .string()
+          .optional()
+          .describe('Nome de um tema (veja get_tokens) para resolver os tokens, ex.: "dark".'),
+        docId: docIdField,
+      },
       annotations: READ,
     },
-    ({ nodeIds, docId }) => {
+    ({ nodeIds, theme, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       requireNodes(doc, nodeIds);
+      if (theme && !doc.themes?.some((t) => t.name === theme))
+        throw new ToolError(
+          `Tema "${theme}" não existe. Crie com create_theme ou veja get_tokens.`,
+        );
       return nodeIds
         .map((id) => {
-          const styles = getComputedLike(doc, id);
+          const styles = getComputedLike(doc, id, { theme });
           const body = Object.entries(styles)
             .map(([k, v]) => `  ${k}: ${v}`)
             .join('\n');
@@ -542,24 +554,6 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       return out.css && (mode ?? 'inline') === 'classes'
         ? `${out.html}\n<style>\n${out.css}\n</style>`
         : out.html;
-    },
-  );
-
-  tool(
-    'get_tokens',
-    {
-      title: 'Tokens do documento',
-      description: 'Lista os tokens (variáveis CSS) do documento, um "--nome: valor" por linha.',
-      example: {},
-      inputSchema: { docId: docIdField },
-      annotations: READ,
-    },
-    ({ docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
-      const entries = Object.entries(doc.tokens);
-      return entries.length
-        ? entries.map(([k, v]) => `${k}: ${v}`).join('\n')
-        : 'Nenhum token definido.';
     },
   );
 
@@ -1181,35 +1175,6 @@ ${summaryOf(r.doc, nodeIds)}`;
     },
   );
 
-  tool(
-    'set_tokens',
-    {
-      title: 'Definir tokens',
-      description:
-        'Define/atualiza e/ou remove tokens (variáveis CSS do documento); nomes sem "--" ganham o prefixo. Devolve todos os tokens. Use depois como var(--nome).',
-      example: { tokens: { '--color-primary': '#2563eb', '--space-4': '16px' } },
-      inputSchema: {
-        tokens: z
-          .record(z.string(), z.string())
-          .describe(
-            'Tokens a definir; o prefixo "--" é acrescentado se faltar ("primary" vira "--primary").',
-          ),
-        unset: z.array(z.string()).optional().describe('Tokens a remover, ex.: ["--old-color"].'),
-        docId: docIdField,
-      },
-      annotations: WRITE,
-    },
-    ({ tokens, unset, docId }) => {
-      const id = store.resolveDocId(docId);
-      const prefix = (k: string): string => (k.startsWith('--') ? k : `--${k}`);
-      const norm = Object.fromEntries(Object.entries(tokens).map(([k, v]) => [prefix(k), v]));
-      const normUnset = unset?.map(prefix);
-      const r = apply(id, [{ type: 'setTokens', set: norm, unset: normUnset }], 'set_tokens');
-      const entries = Object.entries(r.doc.tokens);
-      return `Tokens atualizados (${entries.length} no total).\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}`;
-    },
-  );
-
   for (const kind of ['undo', 'redo'] as const) {
     tool(
       kind,
@@ -1273,6 +1238,7 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerExportTools(ctx);
   registerImageTools(ctx);
   registerFontTools(ctx);
+  registerTokenTools(ctx);
 
   /* ---------- resources ---------- */
 

@@ -1,6 +1,7 @@
 export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
+  'tokens',
   'layout',
   'responsive',
   'screenshot-loop',
@@ -19,6 +20,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
   'design-system': {
     title: 'Guia: design system e tokens',
     description: 'Tokens como variáveis CSS, escalas de espaço e tipografia, cores com contraste.',
+  },
+  tokens: {
+    title: 'Guia: tokens e temas',
+    description:
+      'Montar o design system antes dos frames: grupos, aliases, temas claro/escuro, calc/color-mix, import e export.',
   },
   layout: {
     title: 'Guia: layout',
@@ -59,7 +65,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 ## Fluxo em 6 passos
 
 1. \`create_document(path, name)\` ou \`open_document(path)\`, depois \`get_basic_info\` — veja páginas, frames, documentos abertos e seleção.
-2. \`set_tokens({...})\` — defina o design system primeiro: cores, espaçamentos, raios, fontes (veja \`get_guide('design-system')\`).
+2. \`set_tokens({...})\` — defina o design system primeiro: cores, espaçamentos, raios, fontes (veja \`get_guide('design-system')\` e \`get_guide('tokens')\`).
 3. \`create_frame(name, width, height)\` — crie o artboard raiz (ex.: "Desktop", 1440x900).
 4. \`write_html(html, css?, parentId?)\` — escreva HTML + CSS de uma vez, seção por seção (header, hero, features, rodapé), usando \`var(--...)\` dos tokens.
 5. \`get_screenshot(nodeId)\` — VEJA o resultado e corrija com \`update_styles\`, \`set_text\` ou \`undo\`; repita até ficar bom (veja \`get_guide('screenshot-loop')\`).
@@ -76,7 +82,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
 ## Guias
 
-\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -87,6 +93,7 @@ Defina os tokens ANTES de desenhar. Tokens são variáveis CSS do documento; mud
 - Defina: \`set_tokens({ tokens: { "--color-primary": "#2563eb", "--space-4": "16px" } })\` (o prefixo \`--\` é acrescentado se faltar).
 - Remova: \`set_tokens({ tokens: {}, unset: ["--old"] })\`.
 - Consulte: \`get_tokens\`. \`get_styles\` devolve os valores já resolvidos.
+- Temas (claro/escuro), aliases semânticos, grupos, \`calc()\`/\`color-mix()\`, renomear, importar e exportar: \`get_guide('tokens')\`.
 - Aplique no CSS: \`var(--color-primary)\`, tanto em \`write_html\` quanto em \`update_styles\`.
 
 ## Nomes
@@ -136,6 +143,75 @@ set_tokens({
   }
 })
 \`\`\`
+`,
+  tokens: `# Tokens e temas
+
+Monte o design system ANTES dos frames. Tokens são variáveis CSS do documento; temas sobrescrevem alguns deles em frames inteiros.
+
+## Fluxo recomendado
+
+1. \`set_tokens\` com grupos: cores primitivas, cores semânticas como alias das primitivas, tipografia, espaçamento, raio e sombra.
+2. \`create_theme("dark", overrides)\` sobrescrevendo primitivas ou semânticas.
+3. Use \`var(--...)\` em \`write_html\` e \`update_styles\`, ou ligue uma propriedade existente com \`apply_token\`.
+4. \`set_frame_theme\` em frames duplicados para ter claro e escuro lado a lado.
+5. \`get_screenshot\` de cada frame para conferir.
+6. \`get_tokens\` para achar tokens não usados e referências quebradas; \`rename_token\` para renomear sem quebrar nada; \`import_tokens\`/\`export_tokens\` para trocar com CSS, W3C Design Tokens (JSON) e Tailwind.
+
+## 1. Tokens base, com grupos
+
+\`\`\`js
+set_tokens({
+  tokens: {
+    "--blue-600": "#2563eb", "--blue-700": "#1d4ed8",
+    "--slate-50": "#f8fafc", "--slate-900": "#0f172a", "--slate-600": "#475569",
+    "--color-primary": "var(--blue-600)",
+    "--color-primary-hover": "color-mix(in oklch, var(--color-primary), black 15%)",
+    "--color-surface": "var(--slate-50)",
+    "--color-text": "var(--slate-900)",
+    "--color-text-muted": "var(--slate-600)",
+    "--space-2": "8px", "--space-4": "16px", "--space-8": "32px",
+    "--space-card": "calc(var(--space-4) * 1.5)",
+    "--radius-md": "8px",
+    "--font-sans": "Inter, system-ui, sans-serif",
+    "--shadow-md": "0 4px 12px rgba(15,23,42,0.12)"
+  },
+  descriptions: { "--color-primary": "Ação principal" }
+})
+\`\`\`
+
+- O grupo (Cores, Tipografia, Espaçamento, Raio, Sombra, Outros) é deduzido do prefixo do nome (\`--color-*\`, \`--space-*\`, \`--radius-*\`, \`--font-*\`, \`--shadow-*\`) e, sem prefixo conhecido, do valor. Force com \`groups: { "--blue-600": "color" }\`.
+- Valor inválido (parênteses, aspas) recusa a chamada; tipo suspeito (ex.: cor num token de espaçamento) entra como aviso.
+
+## 2. Temas
+
+\`\`\`js
+create_theme({ name: "dark", overrides: {
+  "--color-surface": "var(--slate-900)",
+  "--color-text": "var(--slate-50)",
+  "--color-text-muted": "#94a3b8"
+}})
+\`\`\`
+
+Um tema só lista o que muda. Para ajustar depois: \`set_tokens({ theme: "dark", tokens: {...} })\`. \`create_theme\` aceita \`copyFrom\` para partir de outro tema. \`delete_theme\` e \`rename_theme\` atualizam os frames que o usam.
+
+## 3. Aliases acompanham o tema
+
+Um alias (\`--color-primary: var(--blue-600)\`) é resolvido no escopo do frame: se o tema sobrescreve \`--blue-600\`, \`--color-primary\` e tudo que depende dele mudam junto, sem redeclarar. Sobrescrever o alias no tema também vale. Ciclos e referências inexistentes aparecem como problema em \`get_tokens\`.
+
+## 4. Frames claro/escuro
+
+Duplique o frame e aplique o tema: \`set_frame_theme({ nodeIds: ["fr_..."], theme: "dark" })\`. Com \`theme: null\` o frame volta aos tokens base. O tema vale para o frame e todos os descendentes. \`get_styles({ nodeIds, theme: "dark" })\` mostra os valores efetivos como se o nó estivesse nesse tema.
+
+## calc() e color-mix()
+
+Valem como CSS normal (\`calc(var(--space-4) * 2)\`, \`color-mix(in oklch, var(--color-primary), black 15%)\`). \`get_tokens\` e \`get_styles\` mostram o resultado avaliado quando possível; no HTML/CSS exportado o texto é mantido.
+
+## Manutenção
+
+- \`get_tokens\` (\`format: "json"\` para o relatório completo): usos, não usados, referências quebradas, temas e frames que os usam.
+- \`rename_token({ from: "--color-brand", to: "--color-primary" })\` atualiza estilos de todos os nós, outros tokens e temas.
+- \`import_tokens({ content, format?, mode: "merge" | "replace" })\` lê CSS (\`:root\`, \`[data-theme]\`, \`@theme\` do Tailwind v4) ou JSON W3C Design Tokens. \`export_tokens({ format: "css" | "json" | "tailwind" })\` devolve o texto.
+- Tudo é desfeito com \`undo\`, uma chamada por entrada.
 `,
   layout: `# Layout
 
