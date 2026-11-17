@@ -1,6 +1,7 @@
 /** `mockup doctor`: diagnóstico do ambiente (somente leitura; nunca sobe daemon nem registra nada). */
 import fs from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { checkHealth, getDataDir, listSystemFonts, resolvePort } from '@mockup/server';
 import { findDaemon, isMockupHealth, type DaemonLocation } from './discover.js';
@@ -18,6 +19,16 @@ import {
   type LaunchCommand,
   type LaunchKind,
 } from './launch.js';
+import {
+  codexHome,
+  defaultReadFile,
+  describeServer,
+  readClaudeRegistrations,
+  readCodexRegistration,
+  sameServer,
+  wantedServer,
+  type RegisteredServer,
+} from './registry.js';
 import { cliRuntime, type CliRuntime } from './runtime.js';
 import { findOnPath, runTool, type ToolResult } from './tools.js';
 
@@ -47,6 +58,11 @@ export interface DoctorDeps {
   findOnPath: (name: string) => string | null;
   runTool: (name: string, args: string[]) => ToolResult;
   launch: (force?: LaunchKind) => LaunchCommand;
+  /** Conteúdo do arquivo, ou `null` se não existe. */
+  readFile: (p: string) => string | null;
+  home: string;
+  env: NodeJS.ProcessEnv;
+  cwd: string;
   /** Tempo máximo de cada checagem assíncrona. */
   timeoutMs: number;
 }
@@ -106,6 +122,10 @@ export function defaultDoctorDeps(): DoctorDeps {
     findOnPath: (n) => findOnPath(n),
     runTool: (n, a) => runTool(n, a, { timeoutMs: 5000 }),
     launch: (force) => resolveLaunchCommand(defaultLaunchDeps(force)),
+    readFile: defaultReadFile,
+    home: os.homedir(),
+    env: process.env,
+    cwd: process.cwd(),
     timeoutMs: 5000,
   };
 }
@@ -260,15 +280,69 @@ export async function runDoctor(
     }
     const v = deps.runTool(tool, ['--version']);
     const version = v.status === 0 ? v.stdout.trim().split(/\r?\n/)[0] : 'versão desconhecida';
-    const reg = deps.runTool(tool, ['mcp', 'get', SERVER_NAME]).status === 0;
-    add(
-      tool,
-      reg ? 'ok' : 'warn',
-      `${tool} ${version}`,
-      reg
-        ? `${SERVER_NAME} registrado (${exe})`
-        : `${SERVER_NAME} não registrado: rode \`mockup setup ${tool}\` (${exe})`,
-    );
+    const fsd = { readFile: deps.readFile, home: deps.home, env: deps.env, cwd: deps.cwd };
+    const notReg = `${SERVER_NAME} não registrado: rode \`mockup setup ${tool}\` (${exe})`;
+    let server: RegisteredServer | undefined;
+    if (tool === 'claude') {
+      const regs = readClaudeRegistrations(fsd);
+      const main = regs.find((r) => r.scope === 'user') ?? regs[0];
+      server = main?.server;
+      add(
+        tool,
+        main ? 'ok' : 'warn',
+        `${tool} ${version}`,
+        main
+          ? `${SERVER_NAME} registrado no escopo ${main.scope}: ${describeServer(main.server)} (${exe})`
+          : notReg,
+      );
+    } else {
+      const reg = readCodexRegistration(fsd);
+      server = reg?.server;
+      add(
+        tool,
+        reg ? 'ok' : 'warn',
+        `${tool} ${version}`,
+        reg
+          ? `${SERVER_NAME} registrado em ${reg.path}: ${describeServer(reg.server)} (${exe})`
+          : notReg,
+      );
+      if (reg) {
+        if (reg.approve === 'approve')
+          add(
+            'codexApprove',
+            'ok',
+            'Codex: aprovação das ferramentas',
+            'default_tools_approval_mode = "approve"',
+          );
+        else
+          add(
+            'codexApprove',
+            'warn',
+            'Codex: ferramentas que gravam pedem aprovação',
+            'no `codex exec` elas são bloqueadas; rode `mockup setup codex --approve`',
+          );
+        const agentsFile = path.join(codexHome(fsd), 'AGENTS.md');
+        if ((deps.readFile(agentsFile) ?? '').includes('<!-- mockup-studio:start -->'))
+          add('codexAgents', 'ok', 'Codex: AGENTS.md com o trecho do Mockup Studio', agentsFile);
+        else
+          add(
+            'codexAgents',
+            'warn',
+            'Codex: AGENTS.md sem o trecho do Mockup Studio',
+            `o Codex pode escrever HTML à mão em vez de usar o MCP; rode \`mockup setup codex --agents\` (${agentsFile})`,
+          );
+      }
+    }
+    if (server && server.transport === 'stdio') {
+      const l = deps.launch(opts.command);
+      if (!sameServer(server, wantedServer(l, null)))
+        add(
+          `${tool}Launch`,
+          'warn',
+          `${tool}: comando registrado difere do comando de lançamento atual`,
+          `registrado: ${describeServer(server)}; atual: ${describeServer(wantedServer(l, null))}; rode \`mockup setup ${tool}\``,
+        );
+    }
   }
 
   const launch = deps.launch(opts.command);

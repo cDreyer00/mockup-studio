@@ -23,10 +23,15 @@ Uso:
                                    salvando os documentos; o app desktop com janela recusa
   mockup doctor [--json] [--command K]
                                    Diagnóstico do ambiente e comandos de registro prontos
-  mockup setup claude|codex|all [--http] [--skill] [--print] [--command K]
-                                   Registra o servidor MCP no Claude Code/Codex (--print só mostra
-                                   os comandos; --skill instala a skill no Claude Code;
-                                   K = path|shim|absolute: como o cliente lança o mockup)
+  mockup setup claude|codex|all [--http] [--skill] [--print] [--command K] [--force]
+                                [--approve] [--agents]
+                                   Registra o servidor MCP no Claude Code/Codex. Se já está registrado
+                                   com o mesmo comando, não faz nada; se difere, atualiza preservando
+                                   a config do Codex (--force recria do zero). --print só mostra os
+                                   comandos; --skill instala a skill no Claude Code; --approve (Codex)
+                                   grava default_tools_approval_mode = "approve"; --agents (Codex)
+                                   acrescenta o trecho ao ~/.codex/AGENTS.md;
+                                   K = path|shim|absolute: como o cliente lança o mockup
   mockup install-cli [--bin-dir D] [--quiet]
                                    Instala o comando mockup (shim + PATH do usuário)
   mockup uninstall-cli [--bin-dir D] [--quiet]
@@ -44,7 +49,17 @@ interface Parsed {
 }
 
 /** Flags sem valor (não consomem o próximo argumento). */
-const BOOLEAN_FLAGS = new Set(['render', 'http', 'skill', 'print', 'json', 'quiet']);
+const BOOLEAN_FLAGS = new Set([
+  'render',
+  'http',
+  'skill',
+  'print',
+  'json',
+  'quiet',
+  'force',
+  'approve',
+  'agents',
+]);
 
 function parseArgs(argv: string[]): Parsed {
   const [command, ...rest] = argv;
@@ -95,12 +110,15 @@ async function main(): Promise<void> {
       const target = positional[0];
       if (target !== 'claude' && target !== 'codex' && target !== 'all')
         throw new Error(
-          'Uso: mockup setup claude|codex|all [--http] [--skill] [--print] [--command K]',
+          'Uso: mockup setup claude|codex|all [--http] [--skill] [--print] [--command K] [--force] [--approve] [--agents]',
         );
       const r = runSetup(target as SetupTarget, {
         http: flags.http === true,
         skill: flags.skill === true,
         print: flags.print === true,
+        force: flags.force === true,
+        approve: flags.approve === true,
+        agents: flags.agents === true,
         command: parseLaunchKind(flags.command),
         port,
       });

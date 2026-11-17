@@ -64,7 +64,7 @@ export interface FormatOptions {
   port?: number;
 }
 
-const httpUrl = (o: FormatOptions) => `http://127.0.0.1:${o.port ?? resolvePort()}/mcp`;
+export const httpUrl = (o: FormatOptions) => `http://127.0.0.1:${o.port ?? resolvePort()}/mcp`;
 
 function envPairs(l: LaunchCommand, flag: string): string[] {
   return Object.entries(l.env ?? {}).flatMap(([k, v]) => [flag, `${k}=${v}`]);

@@ -9,15 +9,26 @@ const ok: ToolResult = { status: 0, stdout: '', stderr: '' };
 const bad: ToolResult = { status: 1, stdout: '', stderr: 'erro do cliente' };
 
 let home: string;
+let cwd: string;
 beforeEach(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-setup-'));
+  cwd = path.join(home, 'proj');
+  fs.mkdirSync(cwd);
 });
 afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
 
+const claudeJson = () => path.join(home, '.claude.json');
+const codexCfg = () => path.join(home, '.codex', 'config.toml');
+const agentsMd = () => path.join(home, '.codex', 'AGENTS.md');
+const write = (p: string, s: string) => {
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, s);
+};
+
 function make(opts: {
   installed?: string[];
-  registered?: string[];
   failAdd?: boolean;
+  removeResult?: ToolResult;
   integrations?: string | null;
 }) {
   const ran: string[] = [];
@@ -25,17 +36,45 @@ function make(opts: {
     findOnPath: (n) => (opts.installed?.includes(n) ? `C:\\bin\\${n}.exe` : null),
     runTool: (n, a) => {
       ran.push(`${n} ${a.join(' ')}`);
-      if (a[1] === 'get') return opts.registered?.includes(n) ? ok : bad;
       if (a[1] === 'add' && opts.failAdd) return bad;
+      if (a[1] === 'remove' && opts.removeResult) return opts.removeResult;
       return ok;
     },
     launch: () => ({ command: 'mockup', args: ['mcp'], kind: 'path' }),
     integrationsDir: () => opts.integrations ?? null,
+    readFile: (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null),
+    writeFile: (p, c) => write(p, c),
     home,
+    env: {},
+    cwd,
     platform: 'win32',
   };
   return { deps, ran };
 }
+
+const claudeUser = (command = 'mockup', args = ['mcp']) =>
+  JSON.stringify({
+    mcpServers: { 'mockup-studio': { type: 'stdio', command, args, env: {} } },
+  });
+
+const CODEX_CUSTOM = [
+  '# meu config',
+  'model = "x"',
+  '',
+  '[mcp_servers.outro]',
+  'command = "outro"',
+  '',
+  '[mcp_servers.mockup-studio]',
+  '# comentário da seção',
+  'command = "antigo"',
+  'args = ["a", "b"]',
+  'default_tools_approval_mode = "prompt"',
+  'startup_timeout_sec = 30',
+  '',
+  '[mcp_servers.mockup-studio.env]',
+  'MOCKUP_PORT = "4747"',
+  '',
+].join('\n');
 
 describe('runSetup', () => {
   it('não instalado: imprime instruções (e TOML no Codex)', () => {
@@ -49,32 +88,147 @@ describe('runSetup', () => {
     expect(t).toContain('[mcp_servers.mockup-studio]');
   });
 
-  it('instalado e não registrado: só adiciona', () => {
+  it('instalado e não registrado: só adiciona, sem mcp get', () => {
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', {}, deps);
     expect(r.code).toBe(0);
-    expect(ran).toEqual([
-      'claude mcp get mockup-studio',
-      'claude mcp add --scope user mockup-studio -- mockup mcp',
-    ]);
+    expect(ran).toEqual(['claude mcp add --scope user mockup-studio -- mockup mcp']);
     expect(r.lines.join('\n')).toContain('registrado');
   });
 
-  it('registrado: remove e adiciona de novo', () => {
-    const { deps, ran } = make({ installed: ['codex'], registered: ['codex'] });
-    const r = runSetup('codex', {}, deps);
+  it('claude já registrado igual: nada executado', () => {
+    write(claudeJson(), claudeUser());
+    const { deps, ran } = make({ installed: ['claude'] });
+    const r = runSetup('claude', {}, deps);
+    expect(ran).toEqual([]);
+    expect(r.lines.join('\n')).toContain('nada a fazer');
+  });
+
+  it('claude registrado diferente: avisa, remove -s user e adiciona', () => {
+    write(claudeJson(), claudeUser('C:\\x\\node.exe', ['bin.js', 'mcp']));
+    const { deps, ran } = make({ installed: ['claude'] });
+    const r = runSetup('claude', {}, deps);
     expect(ran).toEqual([
-      'codex mcp get mockup-studio',
+      'claude mcp remove mockup-studio -s user',
+      'claude mcp add --scope user mockup-studio -- mockup mcp',
+    ]);
+    expect(r.lines.join('\n')).toContain('descarta campos extras');
+  });
+
+  it('claude respeita CLAUDE_CONFIG_DIR', () => {
+    const dir = path.join(home, 'cc');
+    write(path.join(dir, '.claude.json'), claudeUser());
+    const { deps, ran } = make({ installed: ['claude'] });
+    deps.env = { CLAUDE_CONFIG_DIR: dir };
+    runSetup('claude', {}, deps);
+    expect(ran).toEqual([]);
+  });
+
+  it('claude só em escopo local: informa e adiciona no user sem remove', () => {
+    write(
+      claudeJson(),
+      JSON.stringify({
+        projects: {
+          [cwd.replace(/\\/g, '/')]: { mcpServers: { 'mockup-studio': { command: 'm' } } },
+        },
+      }),
+    );
+    const { deps, ran } = make({ installed: ['claude'] });
+    const r = runSetup('claude', {}, deps);
+    expect(ran).toEqual(['claude mcp add --scope user mockup-studio -- mockup mcp']);
+    expect(r.lines.join('\n')).toContain('escopo local');
+  });
+
+  it('remove com "not found" segue para o add', () => {
+    write(claudeJson(), claudeUser('outro', []));
+    const { deps, ran } = make({
+      installed: ['claude'],
+      removeResult: { status: 1, stdout: '', stderr: 'No MCP server found with name' },
+    });
+    const r = runSetup('claude', {}, deps);
+    expect(r.code).toBe(0);
+    expect(ran).toHaveLength(2);
+  });
+
+  it('--force recria mesmo igual (claude)', () => {
+    write(claudeJson(), claudeUser());
+    const { deps, ran } = make({ installed: ['claude'] });
+    const r = runSetup('claude', { force: true }, deps);
+    expect(ran.map((x) => x.split(' ')[2])).toEqual(['remove', 'add']);
+    expect(r.lines.join('\n')).toContain('descarta campos extras');
+  });
+
+  it('codex igual: nada a fazer', () => {
+    write(codexCfg(), '[mcp_servers.mockup-studio]\ncommand = "mockup"\nargs = ["mcp"]\n');
+    const { deps, ran } = make({ installed: ['codex'] });
+    const r = runSetup('codex', {}, deps);
+    expect(ran).toEqual([]);
+    expect(r.lines.join('\n')).toContain('nada a fazer');
+  });
+
+  it('codex diferente: edita só command/args, sem remove', () => {
+    write(codexCfg(), CODEX_CUSTOM);
+    const { deps, ran } = make({ installed: ['codex'] });
+    const r = runSetup('codex', {}, deps);
+    expect(r.code).toBe(0);
+    expect(ran).toEqual([]);
+    const out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out).toBe(
+      CODEX_CUSTOM.replace('command = "antigo"', 'command = "mockup"').replace(
+        'args = ["a", "b"]',
+        'args = ["mcp"]',
+      ),
+    );
+    expect(out).toContain('default_tools_approval_mode = "prompt"');
+    expect(out).toContain('[mcp_servers.mockup-studio.env]');
+  });
+
+  it('codex diferente: preserva CRLF e aceita cabeçalho com aspas', () => {
+    write(
+      codexCfg(),
+      '[mcp_servers."mockup-studio"]\r\ncommand = \'C:\\x\\node.exe\'\r\nargs = [\r\n  "a",\r\n]\r\nfoo = 1\r\n',
+    );
+    const { deps } = make({ installed: ['codex'] });
+    runSetup('codex', {}, deps);
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(
+      '[mcp_servers."mockup-studio"]\r\ncommand = "mockup"\r\nargs = ["mcp"]\r\nfoo = 1\r\n',
+    );
+  });
+
+  it('codex stdio para http troca as chaves', () => {
+    write(codexCfg(), CODEX_CUSTOM);
+    const { deps } = make({ installed: ['codex'] });
+    runSetup('codex', { http: true, port: 4747 }, deps);
+    const out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out).toContain('url = "http://127.0.0.1:4747/mcp"');
+    expect(out).not.toContain('command = "antigo"');
+    expect(out).not.toContain('args = ["a"');
+    expect(out).toContain('startup_timeout_sec = 30');
+  });
+
+  it('codex sem seção: usa codex mcp add', () => {
+    const { deps, ran } = make({ installed: ['codex'] });
+    runSetup('codex', {}, deps);
+    expect(ran).toEqual(['codex mcp add mockup-studio -- mockup mcp']);
+  });
+
+  it('--force recria no codex', () => {
+    write(codexCfg(), CODEX_CUSTOM);
+    const { deps, ran } = make({ installed: ['codex'] });
+    runSetup('codex', { force: true }, deps);
+    expect(ran).toEqual([
       'codex mcp remove mockup-studio',
       'codex mcp add mockup-studio -- mockup mcp',
     ]);
-    expect(r.lines.join('\n')).toContain('atualizado');
   });
 
-  it('claude remove usa -s user', () => {
-    const { deps, ran } = make({ installed: ['claude'], registered: ['claude'] });
-    runSetup('claude', {}, deps);
-    expect(ran[1]).toBe('claude mcp remove mockup-studio -s user');
+  it('CODEX_HOME é respeitado', () => {
+    const dir = path.join(home, 'ch');
+    write(path.join(dir, 'config.toml'), CODEX_CUSTOM);
+    const { deps } = make({ installed: ['codex'] });
+    deps.env = { CODEX_HOME: dir };
+    runSetup('codex', {}, deps);
+    expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain('command = "mockup"');
   });
 
   it('falha: código 1, stderr e comando manual', () => {
@@ -86,10 +240,15 @@ describe('runSetup', () => {
     expect(t).toContain('rode manualmente: claude mcp add');
   });
 
-  it('--print não executa nada', () => {
-    const { deps, ran } = make({ installed: ['claude', 'codex'] });
-    expect(runSetup('all', { print: true }, deps).code).toBe(0);
+  it('--print não executa nem grava nada', () => {
+    write(codexCfg(), CODEX_CUSTOM);
+    const integ = path.join(home, 'integ');
+    write(path.join(integ, 'codex', 'AGENTS.snippet.md'), 'x');
+    const { deps, ran } = make({ installed: ['claude', 'codex'], integrations: integ });
+    expect(runSetup('all', { print: true, approve: true, agents: true }, deps).code).toBe(0);
     expect(ran).toEqual([]);
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(CODEX_CUSTOM);
+    expect(fs.existsSync(agentsMd())).toBe(false);
   });
 
   it('--http usa a URL do daemon', () => {
@@ -100,11 +259,7 @@ describe('runSetup', () => {
 
   it('--skill copia e sobrescreve informando', () => {
     const integ = path.join(home, 'integ');
-    fs.mkdirSync(path.join(integ, 'claude-code'), { recursive: true });
-    fs.writeFileSync(
-      path.join(integ, 'claude-code', 'SKILL.md'),
-      '---\nname: mockup-studio\n---\n',
-    );
+    write(path.join(integ, 'claude-code', 'SKILL.md'), '---\nname: mockup-studio\n---\n');
     const { deps } = make({ installed: ['claude'], integrations: integ });
     const dest = path.join(home, '.claude', 'skills', 'mockup-studio', 'SKILL.md');
     expect(runSetup('claude', { skill: true }, deps).lines.join('\n')).toContain('instalada');
@@ -115,6 +270,83 @@ describe('runSetup', () => {
   it('--skill sem a pasta integrations: código 1', () => {
     const { deps } = make({ installed: ['claude'] });
     expect(runSetup('claude', { skill: true }, deps).code).toBe(1);
+  });
+});
+
+describe('--approve e --agents', () => {
+  it('--approve é idempotente e troca outro valor', () => {
+    write(codexCfg(), CODEX_CUSTOM);
+    const { deps } = make({ installed: ['codex'] });
+    const r1 = runSetup('codex', { approve: true }, deps);
+    expect(r1.lines.join('\n')).toContain('trocado de "prompt" para "approve"');
+    runSetup('codex', { approve: true }, deps);
+    const out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out.match(/default_tools_approval_mode/g)).toHaveLength(1);
+    expect(out).toContain('default_tools_approval_mode = "approve"');
+    expect(out).toContain('startup_timeout_sec = 30');
+  });
+
+  it('--approve sem a seção: registra e depois grava', () => {
+    const { deps, ran } = make({ installed: ['codex'] });
+    // o codex falso não escreve o arquivo: simula o que o `codex mcp add` faria
+    const real = deps.runTool;
+    deps.runTool = (n, a) => {
+      if (a[1] === 'add')
+        write(codexCfg(), '[mcp_servers.mockup-studio]\ncommand = "mockup"\nargs = ["mcp"]\n');
+      return real(n, a);
+    };
+    runSetup('codex', { approve: true }, deps);
+    expect(ran).toEqual(['codex mcp add mockup-studio -- mockup mcp']);
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toContain(
+      'default_tools_approval_mode = "approve"',
+    );
+  });
+
+  it('--approve e --agents com alvo claude são ignorados com aviso', () => {
+    write(claudeJson(), claudeUser());
+    const { deps } = make({ installed: ['claude'] });
+    const t = runSetup('claude', { approve: true, agents: true }, deps).lines.join('\n');
+    expect(t).toContain('só valem para o Codex');
+  });
+
+  it('--agents é idempotente e preserva o conteúdo fora dos marcadores', () => {
+    const integ = path.join(home, 'integ');
+    write(
+      path.join(integ, 'codex', 'AGENTS.snippet.md'),
+      '<!-- Cole este bloco -->\n\n## Mockup Studio\n\nUse o MCP.\n',
+    );
+    write(agentsMd(), '# Minhas regras\n\nSeja breve.\n');
+    const { deps } = make({ installed: ['codex'], integrations: integ });
+    const first = runSetup('codex', { agents: true }, deps);
+    expect(first.code).toBe(0);
+    const after1 = fs.readFileSync(agentsMd(), 'utf8');
+    expect(after1).toBe(
+      '# Minhas regras\n\nSeja breve.\n\n<!-- mockup-studio:start -->\n## Mockup Studio\n\nUse o MCP.\n<!-- mockup-studio:end -->\n',
+    );
+    const second = runSetup('codex', { agents: true }, deps);
+    expect(second.lines.join('\n')).toContain('já atualizado');
+    expect(fs.readFileSync(agentsMd(), 'utf8')).toBe(after1);
+
+    // snippet mudou: substitui entre os marcadores e mantém o resto
+    write(path.join(integ, 'codex', 'AGENTS.snippet.md'), '## Novo\n');
+    fs.appendFileSync(agentsMd(), '\nDepois.\n');
+    runSetup('codex', { agents: true }, deps);
+    const out = fs.readFileSync(agentsMd(), 'utf8');
+    expect(out.match(/mockup-studio:start/g)).toHaveLength(1);
+    expect(out).toContain('## Novo');
+    expect(out).not.toContain('Use o MCP');
+    expect(out).toContain('Seja breve.');
+    expect(out).toContain('Depois.');
+  });
+
+  it('--agents cria o arquivo; sem snippet: código 1', () => {
+    const integ = path.join(home, 'integ');
+    write(path.join(integ, 'codex', 'AGENTS.snippet.md'), '## X\n');
+    const { deps } = make({ installed: ['codex'], integrations: integ });
+    runSetup('codex', { agents: true }, deps);
+    expect(fs.readFileSync(agentsMd(), 'utf8')).toContain('## X');
+    const none = make({ installed: ['codex'] });
+    expect(runSetup('codex', { agents: true }, none.deps).code).toBe(1);
   });
 });
 
