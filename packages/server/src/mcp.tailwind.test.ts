@@ -403,4 +403,75 @@ describe('MCP Tailwind', () => {
     }
     expect(client.getInstructions()).toContain("get_guide('tailwind')");
   });
+
+  const htmlWith = (cls: string) => `<div class="${cls}">x</div>`;
+  const mk = async (cls = 'p-1', parentId = ws.frameId) =>
+    created(await ok('write_html', { parentId, tailwind: 'on', html: htmlWith(cls) }))[0]!;
+
+  it('QA: cascata de classes conflitantes (a última vence) via set_classes', async () => {
+    const id = await mk();
+    await ok('set_classes', { nodeIds: [id], classes: 'px-2 p-4' });
+    expect(await info(id)).toContain('padding: 1rem');
+    await ok('set_classes', { nodeIds: [id], classes: 'p-4 px-2' });
+    expect(await info(id)).toMatch(/padding[^\n]*0\.5rem/);
+    await ok('set_classes', { nodeIds: [id], classes: 'rounded-t-none rounded-lg' });
+    expect(await info(id)).toContain('0.5rem');
+    expect(await ok('get_code', { nodeId: id, format: 'tailwind' })).toContain('rounded-lg');
+  });
+
+  it('QA: entradas hostis não saem sem escape nos exports', async () => {
+    const id = await mk();
+    const evil = 'p-2 [background:url(javascript:alert(1))] a"b<script>alert(1)</script> {x;y}';
+    await call('set_classes', { nodeIds: [id], classes: evil });
+    for (const format of ['html', 'react', 'tailwind']) {
+      const t = textOf(await call('get_code', { nodeId: id, format }));
+      expect(t, format).not.toContain('<script>');
+      expect(t, format).not.toMatch(/url\(javascript:/);
+    }
+    await call('update_styles', { nodeIds: [id], state: 'hover', styles: { 'color; x': 'red}' } });
+    for (const format of ['html', 'react']) {
+      expect(textOf(await call('get_code', { nodeId: id, format }))).not.toContain('red}');
+    }
+  });
+
+  it('QA: breakpoint customizado (--breakpoint-md: 900px)', async () => {
+    await ok('set_tokens', { tokens: { '--breakpoint-md': '900px' } });
+    expect(await ok('get_tailwind_config')).toContain('md: 900px');
+    const id = await mk('p-2 md:p-8');
+    expect(await ok('get_styles', { nodeIds: [id] })).toContain('padding: 2rem');
+    const frame = /Frame criado: (\S+)/.exec(
+      await ok('create_frame', { name: 'Mid', width: 800, height: 800 }),
+    )![1]!;
+    const copy = await mk('p-2 md:p-8', frame);
+    expect(await ok('get_styles', { nodeIds: [copy] })).toContain('padding: 0.5rem');
+  });
+
+  it('QA: rename_token atualiza as classes do nó', async () => {
+    await ok('set_tokens', { tokens: { '--color-brand': '#ff0066' } });
+    const id = await mk('bg-brand');
+    await ok('rename_token', { from: '--color-brand', to: '--color-marca' });
+    const n = await info(id);
+    expect(n).toContain('bg-marca');
+    expect(n).not.toContain('bg-brand');
+    await ok('undo');
+    expect(await info(id)).toContain('bg-brand');
+  });
+
+  it('QA: undo/redo de estados e set_css_base', async () => {
+    const id = await mk();
+    await ok('update_styles', { nodeIds: [id], state: 'hover', styles: { color: 'red' } });
+    expect(await info(id)).toContain('hover {');
+    await ok('undo');
+    expect(await info(id)).not.toContain('hover {');
+    await ok('redo');
+    expect(await info(id)).toContain('hover {');
+
+    const before = await ok('get_tailwind_config');
+    await ok('set_css_base', { base: before.includes('cssBase: default') ? 'tailwind' : 'default' });
+    expect(await ok('get_tailwind_config')).not.toBe(before);
+    await ok('undo');
+    expect(await ok('get_tailwind_config')).toBe(before);
+    await ok('redo');
+    expect(await ok('get_tailwind_config')).not.toBe(before);
+  });
 });
