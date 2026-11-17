@@ -70,11 +70,15 @@ export function copySelection(e: ClipboardEvent, editableOnly = false): boolean 
 }
 
 /** Cola `nodes` (já com ids originais) no alvo derivado da seleção; seleciona os colados. */
-async function pasteNodes(nodes: Node[], pasteCount: number, extraOps: Op[] = []): Promise<void> {
+async function pasteNodes(
+  nodes: Node[],
+  pasteCount: number,
+  extraOps: Op[] = [],
+): Promise<boolean> {
   const { doc } = useDoc.getState();
-  if (!doc || !nodes.length) return;
+  if (!doc || !nodes.length) return false;
   const target = resolvePasteTarget(doc, useUi.getState().selection, currentPageId());
-  if (!target) return;
+  if (!target) return false;
   const prepared = prepareNodesForPaste(nodes, target, {
     center: canvasApi.viewportCenter(),
     pasteCount,
@@ -91,7 +95,9 @@ async function pasteNodes(nodes: Node[], pasteCount: number, extraOps: Op[] = []
       : { parentId: null, pageId: target.pageId }),
     ...(target.index !== undefined ? { index: target.index + i } : {}),
   }));
-  if (await daemon.applySafe([...extraOps, ...ops])) ui.select(prepared.map((n) => n.id));
+  if (!(await daemon.applySafe([...extraOps, ...ops]))) return false;
+  ui.select(prepared.map((n) => n.id));
+  return true;
 }
 
 async function handlePaste(data: DataTransfer): Promise<void> {
@@ -111,7 +117,9 @@ async function handlePaste(data: DataTransfer): Promise<void> {
         const { doc } = useDoc.getState();
         if (!doc) return;
         const pasted = await htmlToPasteNodes(looksLikeHtml(html) ? html : text, doc);
-        await pasteNodes(pasted.nodes, 0, pasted.ops);
+        if ((await pasteNodes(pasted.nodes, 0, pasted.ops)) && pasted.notes.length) {
+          ui.toast(pasted.notes.join(' '));
+        }
         return;
       }
       case 'text':

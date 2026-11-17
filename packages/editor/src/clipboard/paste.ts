@@ -57,6 +57,22 @@ export interface HtmlPaste {
   /** Ops extras aplicadas junto com a criação (ex.: setCssBase para Tailwind). */
   ops: Op[];
   tailwind: boolean;
+  /** Avisos para o usuário (ex.: tokens shadcn criados junto com a colagem). */
+  notes: string[];
+}
+
+/** Nome da cor shadcn que a classe usa (`hover:bg-primary/90` → `primary`), como no MCP. */
+function shadcnColorOf(cls: string, names: string[]): string | null {
+  const utility = cls
+    .slice(cls.lastIndexOf(':') + 1)
+    .replace(/^[!-]/, '')
+    .replace(/\/\S+$/, '')
+    .replace(/!$/, '');
+  let best: string | null = null;
+  for (const n of names) {
+    if (utility.endsWith(`-${n}`) && (!best || n.length > best.length)) best = n;
+  }
+  return best;
 }
 
 /**
@@ -65,7 +81,12 @@ export interface HtmlPaste {
  * documento ainda não o usa. Sem Tailwind (ou se o motor falhar), é o htmlToNodes de sempre.
  */
 export async function htmlToPasteNodes(html: string, doc: Document): Promise<HtmlPaste> {
-  const plain = (): HtmlPaste => ({ nodes: htmlToNodes(html), ops: [], tailwind: false });
+  const plain = (): HtmlPaste => ({
+    nodes: htmlToNodes(html),
+    ops: [],
+    tailwind: false,
+    notes: [],
+  });
   if (!HAS_CLASS_RE.test(html)) return plain();
   let loaded: Awaited<ReturnType<typeof loadTailwindEngine>>;
   try {
@@ -76,9 +97,41 @@ export async function htmlToPasteNodes(html: string, doc: Document): Promise<Htm
   const { mod, engine } = loaded;
   if (!mod.detectTailwind(html, engine).tailwind) return plain();
   const nodes = htmlToNodes(html, { keepClasses: true });
-  mod.applyTailwindToNodes(nodes, engine);
   const ops: Op[] = doc.cssBase === 'tailwind' ? [] : [{ type: 'setCssBase', base: 'tailwind' }];
-  return { nodes, ops, tailwind: true };
+  const notes: string[] = [];
+
+  // Como `import_component` (tokens "auto"): se o HTML usa cores do preset shadcn que o documento
+  // não tem, cria os tokens na mesma colagem (um undo só) e recompila o motor com eles.
+  let tokens = doc.tokens;
+  let themes = doc.themes;
+  const used = new Set<string>();
+  for (const n of mod.nodesWithClasses(nodes)) {
+    for (const c of n.classes!.split(/\s+/)) {
+      if (!c || !mod.usesShadcnColor(c)) continue;
+      const name = shadcnColorOf(c, mod.SHADCN_COLOR_NAMES);
+      if (name) used.add(name);
+    }
+  }
+  if ([...used].some((n) => !(`--color-${n}` in doc.tokens))) {
+    const plan = mod.planShadcnTokens(doc);
+    if (plan.created.length) {
+      ops.push(...plan.ops);
+      tokens = { ...doc.tokens };
+      for (const op of plan.ops) {
+        if (op.type === 'setTokens') Object.assign(tokens, op.set);
+        if (op.type === 'setThemes') themes = op.themes;
+      }
+      notes.push(`Tokens do preset shadcn criados (${plan.created.length}, mais o tema "dark").`);
+    }
+  }
+  const finalEngine =
+    tokens === doc.tokens ? engine : await mod.getTailwindEngine({ tokens, themes });
+  // Mesma regra do MCP: com os tokens shadcn, borda sem cor usa var(--color-border).
+  const shadcn = '--color-border' in tokens && '--color-primary' in tokens;
+  mod.applyTailwindToNodes(nodes, finalEngine, {
+    ...(shadcn ? { defaultBorderColor: 'var(--color-border)' } : {}),
+  });
+  return { nodes, ops, tailwind: true, notes };
 }
 
 export type PasteKind = 'internal' | 'images' | 'html' | 'text' | 'none';
