@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Extras de teste</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #111827;
+        color: #f9fafb;
+      }
+      .box {
+        position: relative;
+        width: 600px;
+        margin: 0 auto;
+        padding: 24px;
+        background: #1f2937;
+        border: 2px solid #374151;
+      }
+      .tag::before {
+        content: '\201C';
+        color: #fbbf24;
+      }
+      .tag::after {
+        content: ' (' attr(data-n) ')';
+        color: #9ca3af;
+      }
+      .abs {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        width: 80px;
+        height: 30px;
+        background: #dc2626;
+      }
+      .sticky {
+        position: sticky;
+        top: 0;
+        background: #2563eb;
+        padding: 6px;
+      }
+      .fixed {
+        position: fixed;
+        left: 20px;
+        top: 300px;
+        width: 100px;
+        height: 40px;
+        background: #16a34a;
+      }
+      .rot {
+        transform: rotate(6deg);
+        width: 120px;
+        height: 40px;
+        background: #7c3aed;
+      }
+      .gradient-text {
+        background: linear-gradient(90deg, #f472b6, #60a5fa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 28px;
+        font-weight: 800;
+      }
+      .plain {
+        padding: 0;
+      }
+      .pre {
+        white-space: pre;
+      }
+      .star { color: #f59e0b; fill: currentColor; }
+      .field { width: 200px; }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="ico" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-6.5L2 9h7z" /></symbol>
+    </svg>
+    <div class="box" id="extras" style="color: #e5e7eb">
+      <div class="sticky">Sticky</div>
+      <div class="abs">Abs</div>
+      <div class="fixed">Fixed</div>
+      <p class="tag" data-n="7">Citação</p>
+      <div class="plain"><span>sem</span> <b>estilo</b> autoral</div>
+      <div class="rot">Girado</div>
+      <div class="gradient-text">Gradiente</div>
+      <pre class="pre">  linha 1
+  linha 2</pre>
+      <svg class="star" width="24" height="24"><use href="#ico" /></svg>
+      <input class="field" type="text" value="Olá" placeholder="Nome" />
+      <div id="box-many"></div>
+    </div>
+  </body>
+</html>
