@@ -45,6 +45,9 @@ Implementa `RenderProvider` (`capture` e `measure`) do `@mockup/server`.
 - A viewport (`frame × scale`) é validada contra 16384 px por lado antes de redimensionar a janela. A janela de render nega `will-navigate` e `window.open`.
 - **Janela "visível" fora da tela:** com a janela realmente oculta (`show: false` sem nunca exibir) o renderer do Chromium cai em `Page.captureScreenshot` no Windows. Por isso a janela de render é criada sem moldura, transparente, sem foco, fora da barra de tarefas e posicionada fora da tela, e recebe `showInactive()`.
 - `MOCKUP_RENDER_DEBUG=1` loga os comandos CDP; `MOCKUP_DISABLE_GPU=1` desliga a aceleração por GPU no headless.
+- `captureFrames` captura N quadros (`start + i/fps`, até 1800) chamando `__mockupRender.setTime(t)` e `Page.captureScreenshot` a cada quadro, sem cache; é a base do `export` mp4/webm/gif.
+- WebGL (efeitos): o main liga `enable-unsafe-swiftshader`, então sem GPU o Chromium cai no SwiftShader (software). `MOCKUP_RENDER_GL=swiftshader` força o software (`use-angle=swiftshader`, `use-gl=angle`), útil em VM/CI.
+- ffmpeg: em dev o daemon usa `ffmpeg-static` de `node_modules`; empacotado, o binário vai em `resources/ffmpeg/` (`extraResources`) e o main define `MOCKUP_FFMPEG` apontando para ele.
 
 ## Empacotamento (`electron-builder.yml`)
 

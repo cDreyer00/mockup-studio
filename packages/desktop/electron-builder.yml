@@ -27,6 +27,9 @@ extraResources:
   # skill/snippets para integrar com Claude Code e Codex (pasta na raiz do repositório)
   - from: ../../integrations
     to: integrations
+  # ffmpeg para exportar mp4/webm/gif (o main define MOCKUP_FFMPEG apontando para cá)
+  - from: ../../node_modules/ffmpeg-static/ffmpeg.exe
+    to: ffmpeg/ffmpeg.exe
 win:
   icon: build/icon.ico
   target:

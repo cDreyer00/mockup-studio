@@ -46,6 +46,8 @@ await build({
   target: 'node22',
   minify: false,
   legalComments: 'none',
+  // ffmpeg-static é resolvido em runtime (binário); o daemon Node não exporta vídeo
+  external: ['ffmpeg-static'],
   banner: { js: banner },
   logLevel: 'info',
 });

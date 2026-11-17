@@ -13,7 +13,8 @@ export default defineConfig({
       minify: false,
       rollupOptions: {
         input: { index: 'src/main/index.ts' },
-        external: ['electron'],
+        // ffmpeg-static é um binário resolvido em runtime (extraResources no app empacotado)
+        external: ['electron', 'ffmpeg-static'],
         output: { format: 'es', entryFileNames: '[name].js' },
       },
     },

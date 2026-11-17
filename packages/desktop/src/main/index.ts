@@ -71,6 +71,22 @@ if (userDataDir) {
   app.setPath('userData', path.join(userDataDir, 'electron'));
 }
 if (args.headless && process.env.MOCKUP_DISABLE_GPU === '1') app.disableHardwareAcceleration();
+// WebGL no render offscreen (efeitos): sem GPU o Chromium cai no SwiftShader (software) em vez de
+// ficar sem WebGL. `MOCKUP_RENDER_GL=swiftshader` força o software (VM/CI).
+app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+if (process.env.MOCKUP_RENDER_GL === 'swiftshader') {
+  app.commandLine.appendSwitch('use-angle', 'swiftshader');
+  app.commandLine.appendSwitch('use-gl', 'angle');
+}
+// ffmpeg empacotado (extraResources) para exportar mp4/webm/gif; o server respeita MOCKUP_FFMPEG
+if (app.isPackaged) {
+  const bundled = path.join(
+    process.resourcesPath,
+    'ffmpeg',
+    process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg',
+  );
+  if (fs.existsSync(bundled)) process.env.MOCKUP_FFMPEG ??= bundled;
+}
 app.setAppUserModelId('app.mockupstudio.desktop');
 
 // ---------------------------------------------------------------- recursos

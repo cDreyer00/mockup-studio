@@ -19,6 +19,11 @@ import {
   withTimeout,
 } from './render-utils.js';
 
+// o índice do server ainda não reexporta esses tipos: derivados do contrato do provider
+type CaptureFrames = NonNullable<RenderProvider['captureFrames']>;
+type FramesRequest = Parameters<CaptureFrames>[0];
+type FramesInfo = Awaited<ReturnType<CaptureFrames>>;
+
 export interface RenderServiceOptions {
   /** Origem do daemon (ex.: `http://127.0.0.1:4747`); avaliada sob demanda (a porta só é conhecida após o listen). */
   baseUrl: () => string;
@@ -29,6 +34,9 @@ export interface RenderServiceOptions {
 }
 
 const log = (...a: unknown[]): void => console.error('[mockup-render]', ...a);
+
+/** Limite de quadros por captura animada. */
+const MAX_FRAMES = 1800;
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 
@@ -139,6 +147,7 @@ export class RenderService implements RenderProvider {
     t: RenderTarget,
     scale: number,
     transparent: boolean,
+    time = 0,
   ): Promise<RenderBox> {
     const declared = declaredSize(getFrameOf(t.doc, t.nodeId));
     let vw = Math.ceil(declared.width ?? DEFAULT_VIEWPORT.width);
@@ -148,6 +157,7 @@ export class RenderService implements RenderProvider {
       docId: t.docId,
       nodeId: t.nodeId,
       transparent,
+      time,
     })})`;
     let box!: RenderBox;
     for (let i = 0; i < 3; i++) {
@@ -189,6 +199,7 @@ export class RenderService implements RenderProvider {
       quality: req.quality,
       maxWidth: req.maxWidth,
       transparent,
+      time: req.time ?? 0,
       assets: assetFingerprints(req.assetsDir, referencedAssets(req.doc, req.nodeId)),
     });
     const hit = this.cache.get(key);
@@ -198,7 +209,7 @@ export class RenderService implements RenderProvider {
       const again = this.cache.get(key);
       if (again) return again;
       const result = await withTimeout(
-        this.doCapture(req, scale, format, transparent),
+        this.doCapture(req, scale, format, transparent, req.time ?? 0),
         this.timeoutMs,
         'captura',
         () => this.destroyWindow(),
@@ -213,29 +224,12 @@ export class RenderService implements RenderProvider {
     scale: number,
     format: 'png' | 'jpg',
     transparent: boolean,
+    time: number,
   ): Promise<CaptureResult> {
     const win = await this.ensureWindow();
-    const box = await this.prepare(win, req, scale, transparent);
+    const box = await this.prepare(win, req, scale, transparent, time);
     assertSize(box.width, box.height, scale);
-    let png: Buffer;
-    try {
-      const shot = await this.cdp(win, 'Page.captureScreenshot', {
-        format: 'png',
-        clip: { x: box.x, y: box.y, width: box.width, height: box.height, scale: 1 },
-        captureBeyondViewport: false,
-      });
-      png = Buffer.from(shot.data as string, 'base64');
-    } catch (e) {
-      // fallback: capturePage (ignora clip fora da viewport, mas cobre falhas do CDP)
-      log('CDP falhou, usando capturePage:', e instanceof Error ? e.message : e);
-      const img = await win.webContents.capturePage({
-        x: Math.round(box.x),
-        y: Math.round(box.y),
-        width: Math.round(box.width),
-        height: Math.round(box.height),
-      });
-      png = img.toPNG();
-    }
+    let png = await this.shoot(win, box);
     let { width: pw, height: ph } = pngSize(png);
     let data = png;
     let mime: CaptureResult['mime'] = 'image/png';
@@ -259,6 +253,75 @@ export class RenderService implements RenderProvider {
       pixelWidth: pw,
       pixelHeight: ph,
     };
+  }
+
+  /** Captura o retângulo do nó (CDP; fallback `capturePage`). */
+  private async shoot(win: BrowserWindow, box: RenderBox): Promise<Buffer> {
+    try {
+      const shot = await this.cdp(win, 'Page.captureScreenshot', {
+        format: 'png',
+        clip: { x: box.x, y: box.y, width: box.width, height: box.height, scale: 1 },
+        captureBeyondViewport: false,
+      });
+      return Buffer.from(shot.data as string, 'base64');
+    } catch (e) {
+      // fallback: capturePage (ignora clip fora da viewport, mas cobre falhas do CDP)
+      log('CDP falhou, usando capturePage:', e instanceof Error ? e.message : e);
+      const img = await win.webContents.capturePage({
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      });
+      return img.toPNG();
+    }
+  }
+
+  /** Captura N quadros (`start + i/fps`) do nó animado, sem cache; cada PNG vai para `onFrame`. */
+  captureFrames(
+    req: FramesRequest,
+    onFrame: (png: Buffer, index: number) => Promise<void> | void,
+  ): Promise<FramesInfo> {
+    const scale = req.scale ?? 1;
+    const total = Math.min(MAX_FRAMES, Math.max(1, Math.round(req.duration * req.fps)));
+    const start = req.start ?? 0;
+    return this.enqueue(() =>
+      withTimeout(
+        (async () => {
+          const win = await this.ensureWindow();
+          const box = await this.prepare(win, req, scale, false, start);
+          assertSize(box.width, box.height, scale);
+          let size: { width: number; height: number } | null = null;
+          for (let i = 0; i < total; i++) {
+            if (i > 0)
+              await win.webContents.executeJavaScript(
+                `window.__mockupRender.setTime(${JSON.stringify(start + i / req.fps)})`,
+              );
+            let png = await this.shoot(win, box);
+            let s = pngSize(png);
+            if (req.maxWidth && req.maxWidth > 0 && s.width > req.maxWidth) {
+              const resized = nativeImage
+                .createFromBuffer(png)
+                .resize({ width: Math.round(req.maxWidth), quality: 'best' });
+              png = resized.toPNG();
+              s = resized.getSize();
+            }
+            if (!size) size = s;
+            else if (s.width !== size.width || s.height !== size.height) {
+              png = nativeImage
+                .createFromBuffer(png)
+                .resize({ width: size.width, height: size.height, quality: 'best' })
+                .toPNG();
+            }
+            await onFrame(png, i);
+          }
+          return { frames: total, pixelWidth: size!.width, pixelHeight: size!.height };
+        })(),
+        30000 + 2000 * total,
+        'captura de quadros',
+        () => this.destroyWindow(),
+      ),
+    );
   }
 
   measure(t: RenderTarget): Promise<LayoutNode> {
