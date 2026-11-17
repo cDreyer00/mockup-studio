@@ -65,6 +65,20 @@ export function isAllowedHost(hostHeader: string | undefined, extra: string[] = 
 
 export const MAX_ASSET_BYTES = 20 * 1024 * 1024;
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
+/** Vídeos aceitos no upload (até 500 MB). */
+export const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
+/** Animações Lottie/Rive aceitas no upload (até 50 MB). */
+export const ANIMATION_EXTS = new Set(['.json', '.lottie', '.riv']);
+export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+export const MAX_ANIMATION_BYTES = 50 * 1024 * 1024;
+const UPLOAD_EXTS = [...IMAGE_EXTS, ...VIDEO_EXTS, ...ANIMATION_EXTS];
+
+/** Limite de tamanho do upload pela extensão (imagem 20 MB, animação 50 MB, vídeo 500 MB). */
+export function maxBytesFor(ext: string): number {
+  if (VIDEO_EXTS.has(ext)) return MAX_VIDEO_BYTES;
+  if (ANIMATION_EXTS.has(ext)) return MAX_ANIMATION_BYTES;
+  return MAX_ASSET_BYTES;
+}
 
 /** Nomes de dispositivo do Windows: `CON.png` ou `nul.tar.gz` abrem o dispositivo, não um arquivo. */
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
@@ -76,8 +90,8 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i;
 export function sanitizeAssetName(raw: string): { base: string; ext: string } {
   const last = raw.split(/[\\/]/).pop() ?? '';
   const ext = path.extname(last).toLowerCase();
-  if (!IMAGE_EXTS.has(ext)) {
-    throw new HttpError(400, `Extensão não permitida; use: ${[...IMAGE_EXTS].join(', ')}`);
+  if (!UPLOAD_EXTS.includes(ext)) {
+    throw new HttpError(400, `Extensão não permitida; use: ${UPLOAD_EXTS.join(', ')}`);
   }
   let base = last
     .slice(0, last.length - ext.length)
@@ -162,7 +176,9 @@ export function createApp(
   };
 
   // Upload de imagem: corpo binário cru, montado antes do express.json para qualquer Content-Type.
-  const maxAsset = ctx.maxAssetBytes ?? MAX_ASSET_BYTES;
+  const maxAsset = ctx.maxAssetBytes ?? MAX_VIDEO_BYTES;
+  const limitFor = (ext: string): number =>
+    ctx.maxAssetBytes !== undefined ? ctx.maxAssetBytes : maxBytesFor(ext);
   app.post(
     '/api/assets/:docId',
     (req, _res, next) => {
@@ -173,6 +189,12 @@ export function createApp(
           throw new HttpError(404, `Documento não encontrado: ${docId}`);
         if (!store.assetsDir(docId))
           throw new HttpError(409, 'Salve o documento antes de enviar imagens');
+        // recusa cedo, sem ler o corpo, o que passa do limite da extensão
+        const ext = path
+          .extname(typeof req.query.name === 'string' ? req.query.name : '')
+          .toLowerCase();
+        if (Number(req.headers['content-length'] ?? 0) > limitFor(ext))
+          throw new HttpError(413, 'Arquivo grande demais para esta extensão');
         next();
       } catch (e) {
         next(e);
@@ -187,6 +209,11 @@ export function createApp(
       const body: unknown = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0)
         throw new HttpError(400, 'Corpo vazio: envie os bytes da imagem');
+      if (body.length > limitFor(ext))
+        throw new HttpError(
+          413,
+          `Arquivo passa do limite de ${Math.round(limitFor(ext) / 1024 / 1024)} MB para ${ext}`,
+        );
       await fs.promises.mkdir(dir, { recursive: true });
       for (let i = 0; i < 1000; i++) {
         const finalName = i === 0 ? `${base}${ext}` : `${base}-${i}${ext}`;

@@ -74,11 +74,18 @@ export function registerRenderTools(ctx: ToolContext): void {
           .boolean()
           .optional()
           .describe('true deixa o fundo transparente fora do conteúdo (só png). Padrão false.'),
+        time: z
+          .number()
+          .min(0)
+          .optional()
+          .describe(
+            'Instante (s) das animações no quadro: efeitos, partículas, Lottie, Rive, Three.js e vídeo. Ex.: 1.5. Vídeo com poster mostra o poster quando time não é informado.',
+          ),
         docId: docIdField,
       },
       annotations: READ,
     },
-    async ({ nodeId, scale, format, maxWidth, transparent, docId }) => {
+    async ({ nodeId, scale, format, maxWidth, transparent, time, docId }) => {
       const render = needRender();
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
@@ -96,6 +103,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           format: fmt,
           maxWidth,
           transparent,
+          ...(time !== undefined ? { time } : {}),
         });
       } catch (e) {
         throw new ToolError(

@@ -1,3 +1,4 @@
+import { EFFECTS_GUIDE } from './guides-effects.js';
 export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
@@ -5,6 +6,7 @@ export const GUIDE_TOPICS = [
   'responsive',
   'screenshot-loop',
   'export',
+  'effects',
   'troubleshooting',
   'setup',
 ] as const;
@@ -39,6 +41,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description:
       'get_code x export, formatos (png, svg, html, tailwind, react), pasta de saída e assets.',
   },
+  effects: {
+    title: 'Guia: efeitos, vídeo, embeds e export animado',
+    description:
+      'add_effect como fundo, presets, screenshot com time, vídeo, Lottie/Rive/YouTube, Three.js e export mp4/webm/gif.',
+  },
   troubleshooting: {
     title: 'Guia: solução de problemas',
     description:
@@ -71,12 +78,13 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - Sem \`parentId\`, o conteúdo vai para o nó selecionado ou para o primeiro frame; passe \`parentId\` para ter certeza.
 - \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
+- Efeitos, vídeo e embeds: \`add_effect\`, \`insert_video\`, \`insert_embed\`, \`insert_three\` (veja \`get_guide('effects')\`).
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`), \`add_font\` (\`list_fonts\`).
 - \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
 
 ## Guias
 
-\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`effects\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -258,6 +266,7 @@ as ferramentas avisam como habilitar (veja \`get_guide('troubleshooting')\`); en
 - Dê nomes claros às camadas (\`rename_nodes\`): viram nomes de arquivo e de componente.
 - Exporte um nó por componente; use \`get_screenshot\` antes para conferir o visual.
 `,
+  effects: EFFECTS_GUIDE,
   troubleshooting: `# Solução de problemas
 
 ## "Render indisponível" / get_screenshot falha

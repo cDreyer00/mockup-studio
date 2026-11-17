@@ -6,16 +6,27 @@ import {
   exportReact,
   exportSvg,
   exportTailwind,
+  mediaAssetRefs,
   tailwindThemeCss,
   type Document,
   type LayoutNode,
   type Node,
 } from '@mockup/core';
 import { assetDataUrl, safeJoin } from '../../assets.js';
+import { encodeFrames, locateFfmpeg, type AnimatedFormat } from '../../encode.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
+
+/** `exportReact` pode devolver arquivos extras (`files`) e aceitar `effectImages` (core novo). */
+type ExtraFiles = { files?: { name: string; code: string }[] };
+
+function effectNodes(node: Node, out: Node[] = []): Node[] {
+  if (node.type === 'effect') out.push(node);
+  for (const c of node.children) effectNodes(c, out);
+  return out;
+}
 
 /** Nome de arquivo a partir do nome do nó: `Desktop 1440` → `desktop-1440`. */
 export function slugOf(name: string, fallback: string): string {
@@ -41,6 +52,7 @@ export function pascalOf(slug: string): string {
 function collect(node: Node, out: Set<string>): void {
   if (node.src && !node.src.startsWith('data:') && !/^[a-z]+:\/\//i.test(node.src))
     out.add(node.src);
+  for (const r of mediaAssetRefs(node)) out.add(r);
   for (const v of Object.values(node.style)) {
     for (const m of v.matchAll(/url\(\s*["']?assets\/([^"')]+)["']?\s*\)/g)) out.add(m[1]!);
   }
@@ -88,20 +100,52 @@ export function registerExportTools(ctx: ToolContext): void {
     {
       title: 'Exportar nós para arquivos',
       description:
-        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg (exigem render), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
-      example: { nodeIds: ['fr_ab12cd34'], format: 'png', scale: 2 },
+        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg (exigem render), mp4, webm, gif (animados: exigem render com captura de quadros e ffmpeg; use fps, duration, start), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
+      example: { nodeIds: ['fr_ab12cd34'], format: 'mp4', fps: 30, duration: 3 },
       inputSchema: {
         nodeIds: z
           .array(z.string())
           .min(1)
           .describe('Ids dos nós a exportar, ex.: ["fr_ab12cd34"].'),
         format: z
-          .enum(['png', 'jpg', 'svg', 'html', 'tailwind', 'react'])
-          .describe('Formato de saída: "png", "jpg", "svg", "html", "tailwind" ou "react".'),
+          .enum(['png', 'jpg', 'mp4', 'webm', 'gif', 'svg', 'html', 'tailwind', 'react'])
+          .describe(
+            'Formato de saída: "png", "jpg", "mp4", "webm", "gif" (animados), "svg", "html", "tailwind" ou "react".',
+          ),
         scale: z
           .union([z.literal(1), z.literal(2), z.literal(3)])
           .optional()
-          .describe('Escala para png/jpg: 1 (padrão), 2 ou 3, ex.: 2.'),
+          .describe('Escala para png/jpg/mp4/webm/gif: 1 (padrão), 2 ou 3, ex.: 2.'),
+        fps: z
+          .number()
+          .int()
+          .min(1)
+          .max(60)
+          .optional()
+          .describe('Só mp4/webm/gif: quadros por segundo, 1 a 60 (padrão 30; gif 15, máximo 30).'),
+        duration: z
+          .number()
+          .positive()
+          .max(30)
+          .optional()
+          .describe('Só mp4/webm/gif: duração em segundos, maior que 0 e até 30 (padrão 3).'),
+        start: z
+          .number()
+          .min(0)
+          .optional()
+          .describe('Só mp4/webm/gif: tempo inicial das animações em segundos (padrão 0).'),
+        maxWidth: z
+          .number()
+          .int()
+          .min(16)
+          .optional()
+          .describe('Só mp4/webm/gif: largura máxima em px; reduz mantendo a proporção. Ex.: 720.'),
+        effects: z
+          .enum(['live', 'static'])
+          .optional()
+          .describe(
+            'Só react: "live" (padrão) recria os efeitos animados no código; "static" grava um PNG de cada efeito em assets/effects/ (exige render).',
+          ),
         outputDir: z
           .string()
           .optional()
@@ -122,7 +166,20 @@ export function registerExportTools(ctx: ToolContext): void {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ nodeIds, format, scale, outputDir, styles, assetsBase, docId }) => {
+    async ({
+      nodeIds,
+      format,
+      scale,
+      outputDir,
+      styles,
+      assetsBase,
+      fps,
+      duration,
+      start,
+      maxWidth,
+      effects,
+      docId,
+    }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const info = store.getInfo(id);
@@ -139,8 +196,16 @@ export function registerExportTools(ctx: ToolContext): void {
       }
       const paths = nodeIds.map((n) => requireNode(doc, n));
       const isImage = format === 'png' || format === 'jpg';
-      if (isImage && !opts.render)
+      const isAnimated = format === 'mp4' || format === 'webm' || format === 'gif';
+      if ((isImage || isAnimated) && !opts.render)
         throw new ToolError(renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }));
+      if (isAnimated && !opts.render!.captureFrames)
+        throw new ToolError(
+          'O motor de render deste daemon não captura quadros animados, necessário para mp4, webm e gif. Use o app desktop do Mockup Studio atualizado.',
+        );
+      const animFps = format === 'gif' ? Math.min(fps ?? 15, 30) : (fps ?? 30);
+      const animDuration = duration ?? 3;
+      const extraNotes: string[] = [];
       await fs.promises.mkdir(dir, { recursive: true });
 
       const used = new Set<string>();
@@ -169,7 +234,47 @@ export function registerExportTools(ctx: ToolContext): void {
       for (const p of paths) {
         const node = p.node;
         const slug = slugOf(node.name, node.id);
-        if (isImage) {
+        if (isAnimated) {
+          const file = path.join(dir, uniq(slug, `.${format}`));
+          const replaced = fs.existsSync(file);
+          let frames = 0;
+          try {
+            await encodeFrames({
+              ffmpeg: locateFfmpeg(),
+              format: format as AnimatedFormat,
+              fps: animFps,
+              out: file,
+              produce: (put) =>
+                opts.render!.captureFrames!(
+                  {
+                    doc,
+                    docId: id,
+                    nodeId: node.id,
+                    assetsDir: store.assetsDir(id),
+                    scale: scale ?? 1,
+                    maxWidth,
+                    fps: animFps,
+                    duration: animDuration,
+                    start: start ?? 0,
+                  },
+                  async (png) => {
+                    frames++;
+                    await put(png);
+                  },
+                ),
+            });
+          } catch (e) {
+            await fs.promises.rm(file, { force: true }).catch(() => undefined);
+            throw new ToolError(
+              `Falha ao exportar ${format} de ${node.id}: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+          const size = (await fs.promises.stat(file)).size;
+          written.push({ file, replaced });
+          extraNotes.push(
+            `${path.basename(file)}: ${frames} quadro(s) a ${animFps} fps, ${animDuration} s, ${Math.max(1, Math.round(size / 1024))} KB`,
+          );
+        } else if (isImage) {
           const r = await opts.render!.capture({
             doc,
             docId: id,
@@ -213,13 +318,41 @@ export function registerExportTools(ctx: ToolContext): void {
           );
         } else {
           const name = pascalOf(slug);
+          const effectImages: Record<string, string> = {};
+          if (effects === 'static') {
+            if (!opts.render)
+              throw new ToolError(
+                renderUnavailableMessage({ pid: process.pid, port: opts.getPort?.() }),
+              );
+            for (const ef of effectNodes(node)) {
+              const cap = await opts.render.capture({
+                doc,
+                docId: id,
+                nodeId: ef.id,
+                assetsDir: store.assetsDir(id),
+                scale: 1,
+                format: 'png',
+                time: 0,
+              });
+              const rel = `effects/${ef.id}.png`;
+              await fs.promises.mkdir(path.join(dir, 'assets', 'effects'), { recursive: true });
+              await fs.promises.writeFile(path.join(dir, 'assets', rel), cap.data);
+              effectImages[ef.id] = rel;
+            }
+            if (Object.keys(effectImages).length)
+              extraNotes.push(
+                `Efeitos estáticos: ${Object.keys(effectImages).length} PNG(s) em ${path.join(dir, 'assets', 'effects')}`,
+              );
+          }
           const r = exportReact(doc, {
             nodeId: node.id,
             styles: styles ?? 'tailwind',
             componentName: name,
             ...(assetsBase ? { assetsBase } : {}),
-          });
+            ...(Object.keys(effectImages).length ? { effectImages } : {}),
+          } as Parameters<typeof exportReact>[1]) as ReturnType<typeof exportReact> & ExtraFiles;
           await write(uniq(r.componentName, '.tsx'), r.code, true);
+          for (const f of r.files ?? []) await write(f.name, f.code, true);
           if (r.css) {
             if ((styles ?? 'tailwind') === 'tailwind') {
               themeCss ??= r.css;
@@ -235,7 +368,7 @@ export function registerExportTools(ctx: ToolContext): void {
       }
 
       let assetsNote = '';
-      if (!isImage && format !== 'svg') {
+      if (!isImage && !isAnimated && format !== 'svg') {
         const copied = await copyAssets(
           store.assetsDir(id),
           dir,
@@ -251,6 +384,7 @@ export function registerExportTools(ctx: ToolContext): void {
       const lines = [`Exportado(s) ${written.length} arquivo(s) (${format}):`];
       for (const w of written) lines.push(`- ${w.file}${w.replaced ? ' (substituído)' : ''}`);
       if (assetsNote) lines.push(assetsNote.trim());
+      for (const n of extraNotes) lines.push(n);
       // O código só vai na resposta enquanto o total couber no orçamento: exportar vários frames
       // não pode despejar centenas de KB no contexto do agente (use get_code por nó ou leia os arquivos).
       let budget = MAX_INLINE_BYTES;
@@ -320,10 +454,13 @@ export function registerExportTools(ctx: ToolContext): void {
         styles: styles ?? 'tailwind',
         componentName: pascalOf(slugOf(node.name, node.id)),
         ...(assetsBase ? { assetsBase } : {}),
-      });
-      return r.css
-        ? `// ${r.componentName}.tsx\n${r.code}\n\n/* ${(styles ?? 'tailwind') === 'tailwind' ? 'theme.css' : `${r.componentName}.css`} */\n${r.css}`
-        : `// ${r.componentName}.tsx\n${r.code}`;
+      }) as ReturnType<typeof exportReact> & ExtraFiles;
+      const extra = (r.files ?? []).map((f) => `\n\n// ${f.name}\n${f.code}`).join('');
+      return (
+        (r.css
+          ? `// ${r.componentName}.tsx\n${r.code}\n\n/* ${(styles ?? 'tailwind') === 'tailwind' ? 'theme.css' : `${r.componentName}.css`} */\n${r.css}`
+          : `// ${r.componentName}.tsx\n${r.code}`) + extra
+      );
     },
   );
 }
