@@ -51,7 +51,7 @@ export const SERVER_INSTRUCTIONS = [
   "Comece com get_guide('getting-started') (fluxo em 6 passos) e get_basic_info.",
   'Defina o design system com set_tokens antes de desenhar e prefira write_html (HTML + CSS de uma vez) a muitas chamadas create_node.',
   'Sempre confira o resultado com get_screenshot e corrija (update_styles, set_text, undo) antes de seguir.',
-  'docId é opcional em todas as ferramentas (vale o documento ativo).',
+  'docId é opcional (vale o documento ativo), exceto em close_document.',
   'Ao terminar um conjunto de edições, chame finish_working.',
   "Problemas (render indisponível, porta ocupada...): get_guide('troubleshooting').",
 ].join('\n');

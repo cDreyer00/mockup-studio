@@ -72,7 +72,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - \`get_tree_summary\` mostra a estrutura; \`get_html\` e \`get_styles\` mostram o código e os estilos efetivos.
 - O salvamento em disco é automático; \`save_document\` força a gravação.
 - Imagens, ícones e fontes: \`insert_image\`, \`insert_icon\` (\`search_icons\`), \`add_font\` (\`list_fonts\`).
-- \`docId\` é opcional em todas as ferramentas (vale o documento ativo).
+- \`docId\` é opcional (vale o documento ativo), exceto em \`close_document\`.
 
 ## Guias
 
