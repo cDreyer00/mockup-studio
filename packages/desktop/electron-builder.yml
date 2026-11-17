@@ -27,9 +27,16 @@ extraResources:
   # skill/snippets para integrar com Claude Code e Codex (pasta na raiz do repositório)
   - from: ../../integrations
     to: integrations
-  # ffmpeg para exportar mp4/webm/gif (o main define MOCKUP_FFMPEG apontando para cá)
-  - from: ../../node_modules/ffmpeg-static/ffmpeg.exe
-    to: ffmpeg/ffmpeg.exe
+  # ffmpeg para exportar mp4/webm/gif (o main define MOCKUP_FFMPEG apontando para cá). O
+  # ffmpeg-static baixa no install o binário da plataforma (ffmpeg.exe no Windows, ffmpeg no
+  # macOS/Linux); a licença (GPL) e o README do binário vão junto.
+  - from: ../../node_modules/ffmpeg-static
+    to: ffmpeg
+    filter:
+      - ffmpeg
+      - ffmpeg.exe
+      - '*.LICENSE'
+      - '*.README'
 win:
   icon: build/icon.ico
   target:
