@@ -100,3 +100,37 @@ describe('canonicalização leve (sem mask-*, scroll-*, scrollbar-*)', { timeout
     expect(engine.canonicalize(['p-[16px]'])).toEqual(['p-4']);
   });
 });
+
+describe('API __unstable__ do tailwindcss (o motor depende de sua forma)', () => {
+  const hint = 'A API interna do tailwindcss mudou: revise createTailwindEngine em engine.ts. ';
+
+  it('ds.utilities.keys é função e devolve iterável com "functional"', () => {
+    expect(typeof full.utilities.keys, hint + 'utilities.keys deixou de ser função').toBe(
+      'function',
+    );
+    const keys = [...full.utilities.keys('functional')];
+    expect(keys.length, hint + 'utilities.keys("functional") vazio').toBeGreaterThan(0);
+    expect(keys, hint).toContain('p');
+  });
+
+  it('ds.getClassList devolve array de [nome, ...]', () => {
+    const list = full.getClassList();
+    expect(Array.isArray(list), hint + 'getClassList não devolve array').toBe(true);
+    expect(Array.isArray(list[0]), hint + 'itens de getClassList não são arrays').toBe(true);
+    expect(typeof list[0][0], hint + 'primeiro item não é o nome').toBe('string');
+  });
+
+  it('canonicalizeCandidates existe', () => {
+    expect(typeof full.canonicalizeCandidates, hint + 'canonicalizeCandidates sumiu').toBe(
+      'function',
+    );
+  });
+
+  it.each([[['p-[16px]', 'm-4']], [['px-[8px]', 'py-[8px]']]])(
+    'canonicalização leve = completa para %j',
+    (input) => {
+      const ref = full.canonicalizeCandidates(input, { rem: 16, collapse: true });
+      expect(engine.canonicalize(input), hint + 'leve e completa divergem').toEqual(ref);
+    },
+  );
+});
