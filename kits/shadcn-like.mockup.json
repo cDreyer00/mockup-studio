@@ -128,7 +128,7 @@
     {
       "id": "cp_sbutton1",
       "name": "Button",
-      "description": "Botão com variantes (default, secondary, outline, ghost, destructive) e tamanhos (sm, default, lg).",
+      "description": "Button with variants (default, secondary, outline, ghost, destructive) and sizes (sm, default, lg).",
       "kit": "shadcn-like",
       "props": [
         {
@@ -142,7 +142,7 @@
             "ghost",
             "destructive"
           ],
-          "description": "Estilo visual do botão."
+          "description": "Visual style of the button."
         },
         {
           "name": "size",
@@ -153,13 +153,13 @@
             "default",
             "lg"
           ],
-          "description": "Tamanho do botão."
+          "description": "Size of the button."
         },
         {
           "name": "label",
           "type": "string",
-          "default": "Botão",
-          "description": "Texto do botão."
+          "default": "Button",
+          "description": "Button text."
         }
       ],
       "root": {
@@ -197,7 +197,7 @@
           {
             "id": "tx_sbtnlabl",
             "type": "text",
-            "name": "Rótulo",
+            "name": "Label",
             "tag": "span",
             "attrs": {},
             "style": {
@@ -337,26 +337,26 @@
     {
       "id": "cp_sinput01",
       "name": "Input",
-      "description": "Campo de texto de uma linha.",
+      "description": "Single-line text field.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "placeholder",
           "type": "string",
-          "default": "Digite aqui...",
-          "description": "Texto de ajuda do campo vazio."
+          "default": "Type here...",
+          "description": "Help text shown when the field is empty."
         },
         {
           "name": "value",
           "type": "string",
           "default": "",
-          "description": "Valor atual."
+          "description": "Current value."
         },
         {
           "name": "type",
           "type": "string",
           "default": "text",
-          "description": "Tipo do input (text, email, password...)."
+          "description": "Input type (text, email, password...)."
         }
       ],
       "root": {
@@ -404,30 +404,30 @@
     {
       "id": "cp_scard001",
       "name": "Card",
-      "description": "Cartão com título, descrição, conteúdo e rodapé.",
+      "description": "Card with title, description, content and footer.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "title",
           "type": "string",
-          "default": "Título do cartão",
-          "description": "Título."
+          "default": "Card title",
+          "description": "Title."
         },
         {
           "name": "description",
           "type": "string",
-          "default": "Descrição curta do cartão.",
-          "description": "Texto de apoio abaixo do título."
+          "default": "Short card description.",
+          "description": "Supporting text below the title."
         },
         {
           "name": "content",
           "type": "slot",
-          "description": "Conteúdo principal."
+          "description": "Main content."
         },
         {
           "name": "footer",
           "type": "slot",
-          "description": "Rodapé (ações)."
+          "description": "Footer (actions)."
         }
       ],
       "root": {
@@ -456,7 +456,7 @@
           {
             "id": "el_scardhdr",
             "type": "element",
-            "name": "Cabeçalho",
+            "name": "Header",
             "tag": "div",
             "attrs": {},
             "style": {
@@ -471,7 +471,7 @@
               {
                 "id": "tx_scardttl",
                 "type": "text",
-                "name": "Título",
+                "name": "Title",
                 "tag": "h3",
                 "attrs": {},
                 "style": {
@@ -491,7 +491,7 @@
               {
                 "id": "tx_scardesc",
                 "type": "text",
-                "name": "Descrição",
+                "name": "Description",
                 "tag": "p",
                 "attrs": {},
                 "style": {
@@ -530,7 +530,7 @@
               {
                 "id": "tx_scardtxt",
                 "type": "text",
-                "name": "Texto",
+                "name": "Text",
                 "tag": "p",
                 "attrs": {},
                 "style": {
@@ -541,7 +541,7 @@
                   "font-family": "inherit",
                   "margin": "0"
                 },
-                "text": "Conteúdo do cartão. Arraste elementos para este espaço.",
+                "text": "Card content. Drag elements into this space.",
                 "children": [],
                 "locked": false,
                 "hidden": false
@@ -579,7 +579,7 @@
                 "hidden": false,
                 "componentId": "cp_sbutton1",
                 "props": {
-                  "label": "Ação",
+                  "label": "Action",
                   "size": "sm"
                 }
               }
@@ -596,24 +596,24 @@
     {
       "id": "cp_snavbar1",
       "name": "Navbar",
-      "description": "Barra de navegação com marca, links e ações.",
+      "description": "Navigation bar with brand, links and actions.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "brand",
           "type": "string",
-          "default": "Marca",
-          "description": "Nome ou logotipo."
+          "default": "Brand",
+          "description": "Name or logo."
         },
         {
           "name": "links",
           "type": "slot",
-          "description": "Links de navegação."
+          "description": "Navigation links."
         },
         {
           "name": "actions",
           "type": "slot",
-          "description": "Botões de ação à direita."
+          "description": "Action buttons on the right."
         }
       ],
       "root": {
@@ -646,7 +646,7 @@
           {
             "id": "tx_snavbran",
             "type": "text",
-            "name": "Marca",
+            "name": "Brand",
             "tag": "span",
             "attrs": {},
             "style": {
@@ -682,7 +682,7 @@
               {
                 "id": "tx_snavlnk1",
                 "type": "text",
-                "name": "Produtos",
+                "name": "Products",
                 "tag": "a",
                 "attrs": {
                   "href": "#"
@@ -697,7 +697,7 @@
                   "font-family": "inherit",
                   "text-decoration": "none"
                 },
-                "text": "Produtos",
+                "text": "Products",
                 "children": [],
                 "locked": false,
                 "hidden": false,
@@ -710,7 +710,7 @@
               {
                 "id": "tx_snavlnk2",
                 "type": "text",
-                "name": "Preços",
+                "name": "Pricing",
                 "tag": "a",
                 "attrs": {
                   "href": "#"
@@ -725,7 +725,7 @@
                   "font-family": "inherit",
                   "text-decoration": "none"
                 },
-                "text": "Preços",
+                "text": "Pricing",
                 "children": [],
                 "locked": false,
                 "hidden": false,
@@ -738,7 +738,7 @@
               {
                 "id": "tx_snavlnk3",
                 "type": "text",
-                "name": "Sobre",
+                "name": "About",
                 "tag": "a",
                 "attrs": {
                   "href": "#"
@@ -753,7 +753,7 @@
                   "font-family": "inherit",
                   "text-decoration": "none"
                 },
-                "text": "Sobre",
+                "text": "About",
                 "children": [],
                 "locked": false,
                 "hidden": false,
@@ -786,7 +786,7 @@
               {
                 "id": "in_snavbtn1",
                 "type": "instance",
-                "name": "Entrar",
+                "name": "Sign in",
                 "tag": "button",
                 "attrs": {},
                 "style": {},
@@ -797,13 +797,13 @@
                 "props": {
                   "variant": "ghost",
                   "size": "sm",
-                  "label": "Entrar"
+                  "label": "Sign in"
                 }
               },
               {
                 "id": "in_snavbtn2",
                 "type": "instance",
-                "name": "Começar",
+                "name": "Get started",
                 "tag": "button",
                 "attrs": {},
                 "style": {},
@@ -813,7 +813,7 @@
                 "componentId": "cp_sbutton1",
                 "props": {
                   "size": "sm",
-                  "label": "Começar"
+                  "label": "Get started"
                 }
               }
             ],
@@ -829,26 +829,26 @@
     {
       "id": "cp_stabs001",
       "name": "Tabs",
-      "description": "Abas com três rótulos e conteúdo; a prop active escolhe a aba ativa.",
+      "description": "Tabs with three labels and content; the active prop selects the active tab.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "tab1",
           "type": "string",
-          "default": "Conta",
-          "description": "Rótulo da aba 1."
+          "default": "Account",
+          "description": "Label of tab 1."
         },
         {
           "name": "tab2",
           "type": "string",
-          "default": "Senha",
-          "description": "Rótulo da aba 2."
+          "default": "Password",
+          "description": "Label of tab 2."
         },
         {
           "name": "tab3",
           "type": "string",
-          "default": "Equipe",
-          "description": "Rótulo da aba 3."
+          "default": "Team",
+          "description": "Label of tab 3."
         },
         {
           "name": "active",
@@ -859,12 +859,12 @@
             "2",
             "3"
           ],
-          "description": "Aba ativa."
+          "description": "Active tab."
         },
         {
           "name": "content",
           "type": "slot",
-          "description": "Conteúdo da aba."
+          "description": "Tab content."
         }
       ],
       "root": {
@@ -885,7 +885,7 @@
           {
             "id": "el_stablist",
             "type": "element",
-            "name": "Lista de abas",
+            "name": "Tab list",
             "tag": "div",
             "attrs": {
               "role": "tablist"
@@ -907,7 +907,7 @@
               {
                 "id": "tx_stabtab1",
                 "type": "text",
-                "name": "Aba 1",
+                "name": "Tab 1",
                 "tag": "button",
                 "attrs": {
                   "type": "button",
@@ -942,7 +942,7 @@
               {
                 "id": "tx_stabtab2",
                 "type": "text",
-                "name": "Aba 2",
+                "name": "Tab 2",
                 "tag": "button",
                 "attrs": {
                   "type": "button",
@@ -977,7 +977,7 @@
               {
                 "id": "tx_stabtab3",
                 "type": "text",
-                "name": "Aba 3",
+                "name": "Tab 3",
                 "tag": "button",
                 "attrs": {
                   "type": "button",
@@ -1032,7 +1032,7 @@
               {
                 "id": "tx_stabtext",
                 "type": "text",
-                "name": "Texto",
+                "name": "Text",
                 "tag": "p",
                 "attrs": {},
                 "style": {
@@ -1043,7 +1043,7 @@
                   "font-family": "inherit",
                   "margin": "0"
                 },
-                "text": "Conteúdo da aba selecionada.",
+                "text": "Content of the selected tab.",
                 "children": [],
                 "locked": false,
                 "hidden": false
@@ -1101,30 +1101,30 @@
     {
       "id": "cp_sdialog1",
       "name": "Dialog",
-      "description": "Janela de diálogo com título, descrição, conteúdo e rodapé de ações.",
+      "description": "Dialog window with title, description, content and action footer.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "title",
           "type": "string",
-          "default": "Confirmar ação",
-          "description": "Título."
+          "default": "Confirm action",
+          "description": "Title."
         },
         {
           "name": "description",
           "type": "string",
-          "default": "Esta ação pode ser desfeita depois.",
-          "description": "Texto de apoio."
+          "default": "This action can be undone later.",
+          "description": "Supporting text."
         },
         {
           "name": "content",
           "type": "slot",
-          "description": "Corpo do diálogo."
+          "description": "Dialog body."
         },
         {
           "name": "footer",
           "type": "slot",
-          "description": "Ações (botões)."
+          "description": "Actions (buttons)."
         }
       ],
       "root": {
@@ -1156,7 +1156,7 @@
           {
             "id": "el_sdlghead",
             "type": "element",
-            "name": "Cabeçalho",
+            "name": "Header",
             "tag": "div",
             "attrs": {},
             "style": {
@@ -1171,7 +1171,7 @@
               {
                 "id": "el_sdlgtext",
                 "type": "element",
-                "name": "Textos",
+                "name": "Texts",
                 "tag": "div",
                 "attrs": {},
                 "style": {
@@ -1185,7 +1185,7 @@
                   {
                     "id": "tx_sdlgtitl",
                     "type": "text",
-                    "name": "Título",
+                    "name": "Title",
                     "tag": "h2",
                     "attrs": {},
                     "style": {
@@ -1205,7 +1205,7 @@
                   {
                     "id": "tx_sdlgdesc",
                     "type": "text",
-                    "name": "Descrição",
+                    "name": "Description",
                     "tag": "p",
                     "attrs": {},
                     "style": {
@@ -1228,11 +1228,11 @@
               {
                 "id": "el_sdlgclos",
                 "type": "element",
-                "name": "Fechar",
+                "name": "Close",
                 "tag": "button",
                 "attrs": {
                   "type": "button",
-                  "aria-label": "Fechar"
+                  "aria-label": "Close"
                 },
                 "style": {
                   "display": "flex",
@@ -1251,7 +1251,7 @@
                   {
                     "id": "sv_sdlgicon",
                     "type": "svg",
-                    "name": "Ícone X",
+                    "name": "X icon",
                     "tag": "svg",
                     "attrs": {},
                     "style": {
@@ -1293,7 +1293,7 @@
               {
                 "id": "tx_sdlgbody",
                 "type": "text",
-                "name": "Texto",
+                "name": "Text",
                 "tag": "p",
                 "attrs": {},
                 "style": {
@@ -1304,7 +1304,7 @@
                   "font-family": "inherit",
                   "margin": "0"
                 },
-                "text": "Conteúdo do diálogo.",
+                "text": "Dialog content.",
                 "children": [],
                 "locked": false,
                 "hidden": false
@@ -1333,7 +1333,7 @@
               {
                 "id": "in_sdlgbtn1",
                 "type": "instance",
-                "name": "Cancelar",
+                "name": "Cancel",
                 "tag": "button",
                 "attrs": {},
                 "style": {},
@@ -1343,13 +1343,13 @@
                 "componentId": "cp_sbutton1",
                 "props": {
                   "variant": "outline",
-                  "label": "Cancelar"
+                  "label": "Cancel"
                 }
               },
               {
                 "id": "in_sdlgbtn2",
                 "type": "instance",
-                "name": "Confirmar",
+                "name": "Confirm",
                 "tag": "button",
                 "attrs": {},
                 "style": {},
@@ -1358,7 +1358,7 @@
                 "hidden": false,
                 "componentId": "cp_sbutton1",
                 "props": {
-                  "label": "Confirmar"
+                  "label": "Confirm"
                 }
               }
             ],
@@ -1374,19 +1374,19 @@
     {
       "id": "cp_stable01",
       "name": "Table",
-      "description": "Tabela com cabeçalho fixo e linhas num slot (display: table).",
+      "description": "Table with a fixed header and rows in a slot (display: table).",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "caption",
           "type": "string",
-          "default": "Lista de faturas recentes.",
-          "description": "Legenda abaixo da tabela."
+          "default": "A list of recent invoices.",
+          "description": "Caption below the table."
         },
         {
           "name": "rows",
           "type": "slot",
-          "description": "Linhas (div com display: table-row e células display: table-cell)."
+          "description": "Rows (div with display: table-row and cells with display: table-cell)."
         }
       ],
       "root": {
@@ -1409,7 +1409,7 @@
           {
             "id": "el_stblhead",
             "type": "element",
-            "name": "Cabeçalho",
+            "name": "Header",
             "tag": "div",
             "attrs": {},
             "style": {
@@ -1422,7 +1422,7 @@
               {
                 "id": "el_stblhrow",
                 "type": "element",
-                "name": "Linha de cabeçalho",
+                "name": "Header row",
                 "tag": "div",
                 "attrs": {},
                 "style": {
@@ -1438,7 +1438,7 @@
                   {
                     "id": "tx_stblh001",
                     "type": "text",
-                    "name": "Cabeçalho Fatura",
+                    "name": "Header Invoice",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1455,7 +1455,7 @@
                       "text-align": "left",
                       "white-space": "nowrap"
                     },
-                    "text": "Fatura",
+                    "text": "Invoice",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1463,7 +1463,7 @@
                   {
                     "id": "tx_stblh002",
                     "type": "text",
-                    "name": "Cabeçalho Status",
+                    "name": "Header Status",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1488,7 +1488,7 @@
                   {
                     "id": "tx_stblh003",
                     "type": "text",
-                    "name": "Cabeçalho Valor",
+                    "name": "Header Amount",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1505,7 +1505,7 @@
                       "text-align": "right",
                       "white-space": "nowrap"
                     },
-                    "text": "Valor",
+                    "text": "Amount",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1537,7 +1537,7 @@
               {
                 "id": "el_strow100",
                 "type": "element",
-                "name": "Linha 1",
+                "name": "Row 1",
                 "tag": "div",
                 "attrs": {},
                 "style": {
@@ -1553,7 +1553,7 @@
                   {
                     "id": "tx_strow1c1",
                     "type": "text",
-                    "name": "Célula INV001",
+                    "name": "Cell INV001",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1575,7 +1575,7 @@
                   {
                     "id": "tx_strow1c2",
                     "type": "text",
-                    "name": "Célula Pago",
+                    "name": "Cell Paid",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1589,7 +1589,7 @@
                       "text-align": "left",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "Pago",
+                    "text": "Paid",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1597,7 +1597,7 @@
                   {
                     "id": "tx_strow1c3",
                     "type": "text",
-                    "name": "Célula R$ 250,00",
+                    "name": "Cell $250.00",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1611,7 +1611,7 @@
                       "text-align": "right",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "R$ 250,00",
+                    "text": "$250.00",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1623,7 +1623,7 @@
               {
                 "id": "el_strow200",
                 "type": "element",
-                "name": "Linha 2",
+                "name": "Row 2",
                 "tag": "div",
                 "attrs": {},
                 "style": {
@@ -1639,7 +1639,7 @@
                   {
                     "id": "tx_strow2c1",
                     "type": "text",
-                    "name": "Célula INV002",
+                    "name": "Cell INV002",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1661,7 +1661,7 @@
                   {
                     "id": "tx_strow2c2",
                     "type": "text",
-                    "name": "Célula Pendente",
+                    "name": "Cell Pending",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1675,7 +1675,7 @@
                       "text-align": "left",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "Pendente",
+                    "text": "Pending",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1683,7 +1683,7 @@
                   {
                     "id": "tx_strow2c3",
                     "type": "text",
-                    "name": "Célula R$ 150,00",
+                    "name": "Cell $150.00",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1697,7 +1697,7 @@
                       "text-align": "right",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "R$ 150,00",
+                    "text": "$150.00",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1709,7 +1709,7 @@
               {
                 "id": "el_strow300",
                 "type": "element",
-                "name": "Linha 3",
+                "name": "Row 3",
                 "tag": "div",
                 "attrs": {},
                 "style": {
@@ -1725,7 +1725,7 @@
                   {
                     "id": "tx_strow3c1",
                     "type": "text",
-                    "name": "Célula INV003",
+                    "name": "Cell INV003",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1747,7 +1747,7 @@
                   {
                     "id": "tx_strow3c2",
                     "type": "text",
-                    "name": "Célula Atrasado",
+                    "name": "Cell Overdue",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1761,7 +1761,7 @@
                       "text-align": "left",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "Atrasado",
+                    "text": "Overdue",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1769,7 +1769,7 @@
                   {
                     "id": "tx_strow3c3",
                     "type": "text",
-                    "name": "Célula R$ 350,00",
+                    "name": "Cell $350.00",
                     "tag": "div",
                     "attrs": {},
                     "style": {
@@ -1783,7 +1783,7 @@
                       "text-align": "right",
                       "color": "var(--color-foreground)"
                     },
-                    "text": "R$ 350,00",
+                    "text": "$350.00",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1799,7 +1799,7 @@
           {
             "id": "tx_stblcapt",
             "type": "text",
-            "name": "Legenda",
+            "name": "Caption",
             "tag": "div",
             "attrs": {},
             "style": {
@@ -1828,13 +1828,13 @@
     {
       "id": "cp_slist001",
       "name": "List",
-      "description": "Lista vertical de itens dentro de um contêiner com borda.",
+      "description": "Vertical list of items inside a bordered container.",
       "kit": "shadcn-like",
       "props": [
         {
           "name": "items",
           "type": "slot",
-          "description": "Itens da lista."
+          "description": "List items."
         }
       ],
       "root": {
@@ -1897,7 +1897,7 @@
                   {
                     "id": "sv_slst1ic0",
                     "type": "svg",
-                    "name": "Ícone",
+                    "name": "Icon",
                     "tag": "svg",
                     "attrs": {},
                     "style": {
@@ -1916,7 +1916,7 @@
                   {
                     "id": "tx_slst1tx0",
                     "type": "text",
-                    "name": "Texto",
+                    "name": "Text",
                     "tag": "span",
                     "attrs": {},
                     "style": {
@@ -1926,7 +1926,7 @@
                       "box-sizing": "border-box",
                       "font-family": "inherit"
                     },
-                    "text": "Primeiro item",
+                    "text": "First item",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -1959,7 +1959,7 @@
                   {
                     "id": "sv_slst2ic0",
                     "type": "svg",
-                    "name": "Ícone",
+                    "name": "Icon",
                     "tag": "svg",
                     "attrs": {},
                     "style": {
@@ -1978,7 +1978,7 @@
                   {
                     "id": "tx_slst2tx0",
                     "type": "text",
-                    "name": "Texto",
+                    "name": "Text",
                     "tag": "span",
                     "attrs": {},
                     "style": {
@@ -1988,7 +1988,7 @@
                       "box-sizing": "border-box",
                       "font-family": "inherit"
                     },
-                    "text": "Segundo item",
+                    "text": "Second item",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -2021,7 +2021,7 @@
                   {
                     "id": "sv_slst3ic0",
                     "type": "svg",
-                    "name": "Ícone",
+                    "name": "Icon",
                     "tag": "svg",
                     "attrs": {},
                     "style": {
@@ -2040,7 +2040,7 @@
                   {
                     "id": "tx_slst3tx0",
                     "type": "text",
-                    "name": "Texto",
+                    "name": "Text",
                     "tag": "span",
                     "attrs": {},
                     "style": {
@@ -2050,7 +2050,7 @@
                       "box-sizing": "border-box",
                       "font-family": "inherit"
                     },
-                    "text": "Terceiro item",
+                    "text": "Third item",
                     "children": [],
                     "locked": false,
                     "hidden": false
@@ -2077,13 +2077,13 @@
   "pages": [
     {
       "id": "pg_vitrine1",
-      "name": "Vitrine",
+      "name": "Showcase",
       "background": "#f4f4f5",
       "frames": [
         {
           "id": "fr_vitrine1",
           "type": "frame",
-          "name": "Vitrine shadcn-like",
+          "name": "shadcn-like showcase",
           "tag": "div",
           "attrs": {},
           "style": {
@@ -2103,7 +2103,7 @@
             {
               "id": "tx_vit00046",
               "type": "text",
-              "name": "Título",
+              "name": "Title",
               "tag": "h1",
               "attrs": {},
               "style": {
@@ -2123,7 +2123,7 @@
             {
               "id": "el_vit00010",
               "type": "element",
-              "name": "Seção Button",
+              "name": "Section Button",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2137,7 +2137,7 @@
                 {
                   "id": "tx_vit00009",
                   "type": "text",
-                  "name": "Rótulo Button",
+                  "name": "Label Button",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2157,7 +2157,7 @@
                 {
                   "id": "el_vit00008",
                   "type": "element",
-                  "name": "Linha Button",
+                  "name": "Row Button",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -2173,7 +2173,7 @@
                     {
                       "id": "in_vit00001",
                       "type": "instance",
-                      "name": "Padrão",
+                      "name": "Default",
                       "tag": "button",
                       "attrs": {},
                       "style": {},
@@ -2182,7 +2182,7 @@
                       "hidden": false,
                       "componentId": "cp_sbutton1",
                       "props": {
-                        "label": "Botão"
+                        "label": "Button"
                       }
                     },
                     {
@@ -2198,7 +2198,7 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "variant": "secondary",
-                        "label": "Secundário"
+                        "label": "Secondary"
                       }
                     },
                     {
@@ -2214,7 +2214,7 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "variant": "outline",
-                        "label": "Salvar"
+                        "label": "Save"
                       }
                     },
                     {
@@ -2230,7 +2230,7 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "variant": "ghost",
-                        "label": "Cancelar"
+                        "label": "Cancel"
                       }
                     },
                     {
@@ -2246,13 +2246,13 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "variant": "destructive",
-                        "label": "Excluir"
+                        "label": "Delete"
                       }
                     },
                     {
                       "id": "in_vit00006",
                       "type": "instance",
-                      "name": "Pequeno",
+                      "name": "Small",
                       "tag": "button",
                       "attrs": {},
                       "style": {},
@@ -2262,13 +2262,13 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "size": "sm",
-                        "label": "Pequeno"
+                        "label": "Small"
                       }
                     },
                     {
                       "id": "in_vit00007",
                       "type": "instance",
-                      "name": "Grande",
+                      "name": "Large",
                       "tag": "button",
                       "attrs": {},
                       "style": {},
@@ -2278,7 +2278,7 @@
                       "componentId": "cp_sbutton1",
                       "props": {
                         "size": "lg",
-                        "label": "Grande"
+                        "label": "Large"
                       }
                     }
                   ],
@@ -2292,7 +2292,7 @@
             {
               "id": "el_vit00015",
               "type": "element",
-              "name": "Seção Input",
+              "name": "Section Input",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2306,7 +2306,7 @@
                 {
                   "id": "tx_vit00014",
                   "type": "text",
-                  "name": "Rótulo Input",
+                  "name": "Label Input",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2326,7 +2326,7 @@
                 {
                   "id": "el_vit00013",
                   "type": "element",
-                  "name": "Linha Input",
+                  "name": "Row Input",
                   "tag": "div",
                   "attrs": {},
                   "style": {
@@ -2353,14 +2353,14 @@
                       "hidden": false,
                       "componentId": "cp_sinput01",
                       "props": {
-                        "placeholder": "seu@email.com",
+                        "placeholder": "you@example.com",
                         "type": "email"
                       }
                     },
                     {
                       "id": "in_vit00012",
                       "type": "instance",
-                      "name": "Input preenchido",
+                      "name": "Filled input",
                       "tag": "input",
                       "attrs": {},
                       "style": {
@@ -2385,7 +2385,7 @@
             {
               "id": "el_vit00023",
               "type": "element",
-              "name": "Seção Card",
+              "name": "Section Card",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2399,7 +2399,7 @@
                 {
                   "id": "tx_vit00022",
                   "type": "text",
-                  "name": "Rótulo Card",
+                  "name": "Label Card",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2451,7 +2451,7 @@
                           "hidden": false,
                           "componentId": "cp_sinput01",
                           "props": {
-                            "placeholder": "Nome do projeto"
+                            "placeholder": "Project name"
                           }
                         }
                       ],
@@ -2474,7 +2474,7 @@
                         {
                           "id": "in_vit00018",
                           "type": "instance",
-                          "name": "Cancelar",
+                          "name": "Cancel",
                           "tag": "button",
                           "attrs": {},
                           "style": {},
@@ -2484,13 +2484,13 @@
                           "componentId": "cp_sbutton1",
                           "props": {
                             "variant": "outline",
-                            "label": "Cancelar"
+                            "label": "Cancel"
                           }
                         },
                         {
                           "id": "in_vit00019",
                           "type": "instance",
-                          "name": "Criar",
+                          "name": "Create",
                           "tag": "button",
                           "attrs": {},
                           "style": {},
@@ -2499,7 +2499,7 @@
                           "hidden": false,
                           "componentId": "cp_sbutton1",
                           "props": {
-                            "label": "Criar"
+                            "label": "Create"
                           }
                         }
                       ],
@@ -2511,8 +2511,8 @@
                   "hidden": false,
                   "componentId": "cp_scard001",
                   "props": {
-                    "title": "Criar projeto",
-                    "description": "Implante seu novo projeto com um clique."
+                    "title": "Create project",
+                    "description": "Deploy your new project in one click."
                   }
                 }
               ],
@@ -2522,7 +2522,7 @@
             {
               "id": "el_vit00026",
               "type": "element",
-              "name": "Seção Navbar",
+              "name": "Section Navbar",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2536,7 +2536,7 @@
                 {
                   "id": "tx_vit00025",
                   "type": "text",
-                  "name": "Rótulo Navbar",
+                  "name": "Label Navbar",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2575,7 +2575,7 @@
             {
               "id": "el_vit00031",
               "type": "element",
-              "name": "Seção Tabs",
+              "name": "Section Tabs",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2589,7 +2589,7 @@
                 {
                   "id": "tx_vit00030",
                   "type": "text",
-                  "name": "Rótulo Tabs",
+                  "name": "Label Tabs",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2632,7 +2632,7 @@
                         {
                           "id": "tx_vit00027",
                           "type": "text",
-                          "name": "Texto",
+                          "name": "Text",
                           "tag": "p",
                           "attrs": {},
                           "style": {
@@ -2643,7 +2643,7 @@
                             "font-family": "inherit",
                             "margin": "0"
                           },
-                          "text": "Altere sua senha aqui.",
+                          "text": "Change your password here.",
                           "children": [],
                           "locked": false,
                           "hidden": false
@@ -2667,7 +2667,7 @@
             {
               "id": "el_vit00039",
               "type": "element",
-              "name": "Seção Dialog",
+              "name": "Section Dialog",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2681,7 +2681,7 @@
                 {
                   "id": "tx_vit00038",
                   "type": "text",
-                  "name": "Rótulo Dialog",
+                  "name": "Label Dialog",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2722,7 +2722,7 @@
                         {
                           "id": "tx_vit00032",
                           "type": "text",
-                          "name": "Texto",
+                          "name": "Text",
                           "tag": "p",
                           "attrs": {},
                           "style": {
@@ -2733,7 +2733,7 @@
                             "font-family": "inherit",
                             "margin": "0"
                           },
-                          "text": "Todos os arquivos do projeto serão removidos permanentemente.",
+                          "text": "All project files will be permanently removed.",
                           "children": [],
                           "locked": false,
                           "hidden": false
@@ -2758,7 +2758,7 @@
                         {
                           "id": "in_vit00034",
                           "type": "instance",
-                          "name": "Cancelar",
+                          "name": "Cancel",
                           "tag": "button",
                           "attrs": {},
                           "style": {},
@@ -2768,13 +2768,13 @@
                           "componentId": "cp_sbutton1",
                           "props": {
                             "variant": "outline",
-                            "label": "Cancelar"
+                            "label": "Cancel"
                           }
                         },
                         {
                           "id": "in_vit00035",
                           "type": "instance",
-                          "name": "Excluir",
+                          "name": "Delete",
                           "tag": "button",
                           "attrs": {},
                           "style": {},
@@ -2784,7 +2784,7 @@
                           "componentId": "cp_sbutton1",
                           "props": {
                             "variant": "destructive",
-                            "label": "Excluir"
+                            "label": "Delete"
                           }
                         }
                       ],
@@ -2796,8 +2796,8 @@
                   "hidden": false,
                   "componentId": "cp_sdialog1",
                   "props": {
-                    "title": "Excluir projeto",
-                    "description": "Essa ação não pode ser desfeita."
+                    "title": "Delete project",
+                    "description": "This action cannot be undone."
                   }
                 }
               ],
@@ -2807,7 +2807,7 @@
             {
               "id": "el_vit00042",
               "type": "element",
-              "name": "Seção Table",
+              "name": "Section Table",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2821,7 +2821,7 @@
                 {
                   "id": "tx_vit00041",
                   "type": "text",
-                  "name": "Rótulo Table",
+                  "name": "Label Table",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
@@ -2859,7 +2859,7 @@
             {
               "id": "el_vit00045",
               "type": "element",
-              "name": "Seção List",
+              "name": "Section List",
               "tag": "div",
               "attrs": {},
               "style": {
@@ -2873,7 +2873,7 @@
                 {
                   "id": "tx_vit00044",
                   "type": "text",
-                  "name": "Rótulo List",
+                  "name": "Label List",
                   "tag": "h2",
                   "attrs": {},
                   "style": {
