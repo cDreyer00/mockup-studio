@@ -4,11 +4,11 @@ import type { Document } from '@mockup/core';
 import { Mcp, createDoc, getDoc } from './helpers';
 
 /**
- * Render do frame (a mesma página `/render.html` que o app desktop usa para screenshots):
- * trocar o `data-theme` do frame precisa mudar o que é pintado.
+ * Frame render (the same `/render.html` page the desktop app uses for screenshots):
+ * switching the frame's `data-theme` must change what is painted.
  */
 
-/** Renderiza o frame na página de render, como o processo principal do Electron faz. */
+/** Renders the frame in the render page, as the Electron main process does. */
 async function renderFrame(page: Page, doc: Document, docId: string, nodeId: string) {
   await page.waitForFunction(() => window.__mockupRenderReady === true);
   await page.evaluate((p) => window.__mockupRender!.render(p), { doc, docId, nodeId });
@@ -18,10 +18,10 @@ async function renderFrame(page: Page, doc: Document, docId: string, nodeId: str
   return { bg, png };
 }
 
-test('render do frame muda ao trocar o tema (data-theme)', async ({ page }) => {
+test('frame render changes when the theme (data-theme) is switched', async ({ page }) => {
   const info = await createDoc('theme-render');
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 300, height: 200, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 300, height: 200, x: 0, y: 0 });
   await mcp.call('set_tokens', { tokens: { '--bg': '#ffffff' } });
   await mcp.call('create_theme', { name: 'dark', overrides: { '--bg': '#000000' } });
   const frameId = (await getDoc(info.docId)).pages[0]!.frames[0]!.id;
@@ -40,7 +40,7 @@ test('render do frame muda ao trocar o tema (data-theme)', async ({ page }) => {
   expect(dark.bg).toBe('rgb(0, 0, 0)');
   expect(dark.png.equals(light.png)).toBe(false);
 
-  // voltar ao tema base restaura o render original
+  // going back to the base theme restores the original render
   await mcp.call('set_frame_theme', { nodeIds: [frameId], theme: null });
   const back = await renderFrame(page, await getDoc(info.docId), info.docId, frameId);
   expect(back.bg).toBe('rgb(255, 255, 255)');

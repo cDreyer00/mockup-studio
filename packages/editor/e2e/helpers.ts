@@ -1,4 +1,4 @@
-/** Helpers dos testes e2e: HTTP do daemon, cliente MCP mínimo (JSON-RPC) e abertura do editor. */
+/** e2e test helpers: daemon HTTP, minimal MCP client (JSON-RPC) and editor opening. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect } from '@playwright/test';
@@ -10,7 +10,7 @@ export const DAEMON = process.env.MOCKUP_E2E_DAEMON!;
 
 let counter = 0;
 
-/** Caminho único de documento na pasta temporária do e2e. */
+/** Unique document path in the e2e temporary folder. */
 export function docPath(name: string): string {
   return path.join(E2E_DIR, `${name}-${Date.now()}-${++counter}.mockup.json`);
 }
@@ -26,12 +26,12 @@ export async function api<T>(route: string, body?: unknown): Promise<T> {
   return json;
 }
 
-/** Cria um documento novo no daemon (fica ativo). */
+/** Creates a new document in the daemon (becomes active). */
 export async function createDoc(name: string): Promise<OpenDocumentInfo> {
   return api<OpenDocumentInfo>('/api/new', { path: docPath(name), name });
 }
 
-/** Abre um arquivo no daemon (fica ativo). */
+/** Opens a file in the daemon (becomes active). */
 export async function openDoc(file: string): Promise<OpenDocumentInfo> {
   const info = await api<OpenDocumentInfo>('/api/open', { path: file });
   await api('/api/active', { docId: info.docId });
@@ -42,7 +42,7 @@ export async function getDoc(docId: string): Promise<Document> {
   return (await api<{ doc: Document }>(`/api/docs/${docId}`)).doc;
 }
 
-/** Procura um nó pelo nome em todo o documento. */
+/** Looks up a node by name across the whole document. */
 export function findByName(doc: Document, name: string): Node | undefined {
   let found: Node | undefined;
   const visit = (n: Node) => {
@@ -53,14 +53,14 @@ export function findByName(doc: Document, name: string): Node | undefined {
   return found;
 }
 
-/** Copia um arquivo de exemplo para a pasta do e2e (para não alterar o original). */
+/** Copies an example file to the e2e folder (so the original is not changed). */
 export function copyExample(file: string): string {
   const dest = docPath(path.basename(file, '.mockup.json'));
   fs.copyFileSync(file, dest);
   return dest;
 }
 
-/** Cliente MCP mínimo sobre Streamable HTTP (fetch + JSON-RPC; respostas JSON ou SSE). */
+/** Minimal MCP client over Streamable HTTP (fetch + JSON-RPC; JSON or SSE responses). */
 export class Mcp {
   private sessionId: string | null = null;
   private id = 0;
@@ -104,7 +104,7 @@ export class Mcp {
     return this;
   }
 
-  /** Chama uma ferramenta e devolve o texto da resposta (lança se `isError`). */
+  /** Calls a tool and returns the response text (throws if `isError`). */
   async call(name: string, args: Record<string, unknown>): Promise<string> {
     const r = (await this.rpc('tools/call', { name, arguments: args })) as {
       content?: { type: string; text?: string }[];
@@ -116,8 +116,7 @@ export class Mcp {
   }
 }
 
-/** Abre o editor e espera conectar ao daemon e exibir o documento ativo. */
-/** Espera a caixa do elemento parar de mudar entre duas leituras (fim de rAF/medição). */
+/** Waits for the element box to stop changing between two reads (end of rAF/measurement). */
 export async function waitForStableBox(locator: Locator): Promise<void> {
   let last = '';
   await expect
@@ -130,19 +129,20 @@ export async function waitForStableBox(locator: Locator): Promise<void> {
     .toBe(true);
 }
 
+/** Opens the editor and waits for it to connect to the daemon and show the active document. */
 export async function gotoEditor(page: Page): Promise<void> {
   await page.goto('/');
   await expect(page.getByTestId('canvas')).toBeVisible();
 }
 
-/** Centro de um elemento em coordenadas da página. */
+/** Center of an element in page coordinates. */
 export async function centerOf(page: Page, testId: string): Promise<{ x: number; y: number }> {
   const box = await page.getByTestId(testId).boundingBox();
-  if (!box) throw new Error(`Elemento ${testId} sem caixa`);
+  if (!box) throw new Error(`Element ${testId} has no box`);
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Arrasta com o mouse em passos (dispara pointermove intermediários). */
+/** Drags with the mouse in steps (fires intermediate pointermove events). */
 export async function drag(
   page: Page,
   from: { x: number; y: number },

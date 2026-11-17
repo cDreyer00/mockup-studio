@@ -6,19 +6,19 @@ import { copyExample, findByName, getDoc, gotoEditor, openDoc, waitForStableBox 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 /**
- * Gera `docs/img/editor.png` (screenshot do README) com o documento de exemplo.
- * Roda só no projeto `screenshot` (`npm run screenshot` na raiz), para que o `test:e2e`
- * comum não altere arquivos do repositório.
+ * Generates `docs/img/editor.png` (README screenshot) with the example document.
+ * Runs only in the `screenshot` project (`npm run screenshot` at the root), so that the regular
+ * `test:e2e` does not change repository files.
  */
 
-test('screenshot do editor com o exemplo landing', async ({ page }) => {
+test('editor screenshot with the landing example', async ({ page }) => {
   const file = copyExample(path.join(root, 'examples/landing.mockup.json'));
   const info = await openDoc(file);
   await gotoEditor(page);
   const doc = await getDoc(info.docId);
   const frame = doc.pages[0]!.frames[0]!;
   await expect(page.getByTestId(`frame-label-${frame.id}`)).toBeVisible();
-  // Seleciona um nó do conteúdo para mostrar contorno, alças e painel de propriedades.
+  // Select a content node to show the outline, handles and properties panel.
   const hero = findByName(doc, 'Hero') ?? frame.children[0] ?? frame;
   await page.getByTestId(`layer-row-${hero.id}`).click();
   await expect(page.getByTestId('selection-box')).toBeVisible();

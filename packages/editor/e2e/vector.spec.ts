@@ -13,7 +13,7 @@ function findSvgs(nodes: Node[]): Node[] {
 
 async function frameWithBox(docId: string, page: Page) {
   const mcp = await new Mcp().init();
-  await mcp.call('create_frame', { name: 'Tela', width: 800, height: 600, x: 0, y: 0 });
+  await mcp.call('create_frame', { name: 'Screen', width: 800, height: 600, x: 0, y: 0 });
   const frame = (await getDoc(docId)).pages[0]!.frames[0]!;
   await gotoEditor(page);
   const frameEl = page.getByTestId('canvas-world').locator(`[data-node-id="${frame.id}"]`);
@@ -22,8 +22,8 @@ async function frameWithBox(docId: string, page: Page) {
   return { frame, box };
 }
 
-test('Caneta: caminho fechado de 4 pontos vira nó svg com vetor', async ({ page }) => {
-  const info = await createDoc('caneta');
+test('Pen: a closed 4-point path becomes an svg node with a vector', async ({ page }) => {
+  const info = await createDoc('pen');
   const { box } = await frameWithBox(info.docId, page);
 
   await page.getByTestId('tool-pen').click();
@@ -35,7 +35,7 @@ test('Caneta: caminho fechado de 4 pontos vira nó svg com vetor', async ({ page
   ];
   for (const p of pts) await page.mouse.click(p.x, p.y);
   await expect(page.getByTestId('pen-overlay')).toBeVisible();
-  // Clicar no primeiro ponto fecha o caminho.
+  // Clicking the first point closes the path.
   await page.mouse.click(pts[0]!.x, pts[0]!.y);
 
   await expect
@@ -53,13 +53,13 @@ test('Caneta: caminho fechado de 4 pontos vira nó svg com vetor', async ({ page
   await expect(page.getByTestId('tool-select')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('Caneta: Enter conclui um caminho aberto e arrastar cria alças', async ({ page }) => {
-  const info = await createDoc('caneta-aberta');
+test('Pen: Enter finishes an open path and dragging creates handles', async ({ page }) => {
+  const info = await createDoc('pen-open');
   const { box } = await frameWithBox(info.docId, page);
 
   await page.keyboard.press('p');
   await page.mouse.click(box.x + 120, box.y + 120);
-  // Segunda âncora com arrasto: alças de Bézier.
+  // Second anchor with a drag: Bézier handles.
   await page.mouse.move(box.x + 260, box.y + 200);
   await page.mouse.down();
   await page.mouse.move(box.x + 320, box.y + 200, { steps: 8 });
@@ -76,7 +76,7 @@ test('Caneta: Enter conclui um caminho aberto e arrastar cria alças', async ({ 
   expect(d.trim().toUpperCase().endsWith('Z')).toBe(false);
 });
 
-test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ page }) => {
+test('pasted Lucide SVG: changes the stroke color and regenerates the vector', async ({ page }) => {
   const info = await createDoc('lucide');
   const { frame } = await frameWithBox(info.docId, page);
 
@@ -97,7 +97,7 @@ test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ 
   expect(before.vector?.raw).toBeTruthy();
   expect(before.vector?.paths[0]!.stroke).toBe('currentColor');
 
-  // O nó colado fica selecionado: o painel mostra a seção de vetor.
+  // The pasted node stays selected: the panel shows the vector section.
   const color = page.getByTestId('vector-stroke-color').locator('input:not([type="color"])');
   await expect(color).toBeVisible();
   await color.fill('#ff0000');
@@ -114,7 +114,7 @@ test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ 
   expect(after.svg).toContain('#ff0000');
   expect(after.svg).not.toContain('currentColor');
 
-  // Largura do traço pelo painel.
+  // Stroke width through the panel.
   const width = page.getByTestId('vector-stroke-width').locator('input');
   await width.fill('4');
   await width.press('Enter');
@@ -126,8 +126,8 @@ test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ 
     .toBe(4);
 });
 
-test('Edição de pontos: Enter entra, arrastar âncora persiste e Esc sai', async ({ page }) => {
-  const info = await createDoc('edicao-pontos');
+test('Point editing: Enter enters, dragging an anchor persists and Esc exits', async ({ page }) => {
+  const info = await createDoc('point-editing');
   const { box } = await frameWithBox(info.docId, page);
 
   await page.keyboard.press('p');
@@ -144,7 +144,7 @@ test('Edição de pontos: Enter entra, arrastar âncora persiste e Esc sai', asy
     .toBe(1);
   const before = findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!;
 
-  // Enter com o svg selecionado entra na edição de pontos.
+  // Enter with the svg selected enters point editing.
   await page.getByTestId('canvas').focus();
   await page.keyboard.press('Enter');
   const anchor = page.getByTestId('vector-anchor-0-2');
@@ -174,8 +174,8 @@ test('Edição de pontos: Enter entra, arrastar âncora persiste e Esc sai', asy
   await expect(page.getByTestId('vector-edit-overlay')).toHaveCount(0);
 });
 
-test('Booleana: união de duas formas vira um único svg pelo painel', async ({ page }) => {
-  const info = await createDoc('booleana');
+test('Boolean: union of two shapes becomes a single svg through the panel', async ({ page }) => {
+  const info = await createDoc('boolean');
   const { box } = await frameWithBox(info.docId, page);
 
   for (const [x, y] of [

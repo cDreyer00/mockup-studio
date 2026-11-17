@@ -1,30 +1,30 @@
 /**
- * E2E da extensão de navegador "Capturar seção" (packages/extension), em dois blocos.
+ * E2E of the "Capture section" browser extension (packages/extension), in two blocks.
  *
- * 1) "extensão com activeTab simulado": o `activeTab` só é concedido quando o usuário aciona a
- *    extensão (clique no ícone ou atalho). Este bloco usa uma CÓPIA de `packages/extension/dist`
- *    numa pasta temporária cujo manifest recebe `host_permissions: ["<all_urls>"]` (só na cópia) e
- *    chama o início do seletor direto no service worker (`globalThis.__mockupStartPicker`). O resto
- *    (injeção do content script, hover, clique, captura, screenshot de referência, POST ao daemon)
- *    é o caminho real. Testes:
- *    - enviar: captura a .hero, o frame chega ao daemon, fica editável e fiel (dimensões e pixels
- *      conferidos com tolerância e controle) no canvas, com a referência oculta e texto editável;
- *    - copiar: o clipboard recebe o snapshot da .site-header e o editor cola (Ctrl+V);
- *    - seção maior que a viewport: a referência sai recortada e o payload leva o aviso;
- *    - app fora do ar: a captura é copiada para o clipboard; erro HTTP do daemon (413): nada é
- *      copiado (o toast de erro mostra o status; o shadow root é fechado e não dá para lê-lo).
+ * 1) "extension with simulated activeTab": `activeTab` is only granted when the user triggers the
+ *    extension (icon click or shortcut). This block uses a COPY of `packages/extension/dist`
+ *    in a temporary folder whose manifest gets `host_permissions: ["<all_urls>"]` (copy only) and
+ *    calls the picker start directly on the service worker (`globalThis.__mockupStartPicker`). The rest
+ *    (content script injection, hover, click, capture, reference screenshot, POST to the daemon)
+ *    is the real path. Tests:
+ *    - send: captures the .hero, the frame reaches the daemon, stays editable and faithful (dimensions and pixels
+ *      checked with tolerance and a control) on the canvas, with the reference hidden and editable text;
+ *    - copy: the clipboard receives the .site-header snapshot and the editor pastes it (Ctrl+V);
+ *    - section larger than the viewport: the reference comes out cropped and the payload carries the warning;
+ *    - app down: the capture is copied to the clipboard; daemon HTTP error (413): nothing is
+ *      copied (the error toast shows the status; the shadow root is closed and cannot be read).
  *
- * 2) "manifesto real": carrega `dist/` SEM alteração (sem host_permissions, com `key`, id fixo) e
- *    cobre o caminho real do usuário: o id fixo, o popup (status "no ar" pelo ping), o POST do
- *    service worker (Origin do id fixo + CORS sem host_permissions), a recusa da injeção sem o
- *    gesto do usuário e o fluxo completo pelo popup. Para simular o clique no ícone usa o CDP
- *    `Extensions.triggerAction` (Chromium 159 do Playwright; a conexão é um WebSocket direto ao
- *    `--remote-debugging-port`, porque o Playwright não expõe sessão de browser num contexto
- *    persistente): ele abre o popup de verdade e concede o `activeTab` à aba, como o clique.
- *    O popup não aparece em `context.pages()`; ele é dirigido por `Runtime.evaluate` via CDP.
- *    O que ainda não é coberto: o clique físico no ícone da barra (UI do navegador).
+ * 2) "real manifest": loads `dist/` UNCHANGED (no host_permissions, with `key`, fixed id) and
+ *    covers the user's real path: the fixed id, the popup ("running" status via ping), the service
+ *    worker POST (fixed id Origin + CORS without host_permissions), the injection refusal without the
+ *    user gesture and the full flow through the popup. To simulate the icon click it uses the CDP
+ *    `Extensions.triggerAction` (Playwright's Chromium 159; the connection is a WebSocket straight to
+ *    `--remote-debugging-port`, because Playwright does not expose a browser session in a persistent
+ *    context): it opens the real popup and grants `activeTab` to the tab, like the click.
+ *    The popup does not show up in `context.pages()`; it is driven by `Runtime.evaluate` via CDP.
+ *    What is still not covered: the physical click on the toolbar icon (browser UI).
  *
- * Pré-requisito: `npm run build -w @mockup/extension`; sem `dist/manifest.json` o spec é pulado.
+ * Prerequisite: `npm run build -w @mockup/extension`; without `dist/manifest.json` the spec is skipped.
  */
 import fs from 'node:fs';
 import http from 'node:http';
@@ -49,10 +49,10 @@ const daemonPort = Number(new URL(DAEMON).port);
 
 test.skip(
   !fs.existsSync(path.join(extensionDist, 'manifest.json')),
-  'Extensão não compilada: rode `npm run build -w @mockup/extension` (packages/extension/dist/manifest.json não existe).',
+  'Extension not built: run `npm run build -w @mockup/extension` (packages/extension/dist/manifest.json does not exist).',
 );
 
-/** Contexto do bloco em execução (cada bloco abre o seu e fecha no afterAll). */
+/** Context of the running block (each block opens its own and closes it in afterAll). */
 let context: BrowserContext;
 let server: http.Server;
 let fixtureUrl: string;
@@ -90,7 +90,7 @@ test.afterAll(async () => {
   if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-/** Porta TCP livre (ninguém ouvindo nela depois de devolvida). */
+/** Free TCP port (nobody listening on it after it is returned). */
 async function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const s = net.createServer();
@@ -102,7 +102,7 @@ async function freePort(): Promise<number> {
   });
 }
 
-/** Abre o Chromium do Playwright com a extensão descompactada em `extDir`. */
+/** Opens Playwright's Chromium with the unpacked extension in `extDir`. */
 async function launch(
   profile: string,
   extDir: string,
@@ -121,14 +121,14 @@ async function serviceWorker(): Promise<Worker> {
   return context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
 }
 
-/** Abre a fixture e inicia o seletor da extensão na aba (como o popup faria). */
+/** Opens the fixture and starts the extension picker on the tab (as the popup would). */
 async function startPicker(mode: 'send' | 'copy', port = daemonPort): Promise<Page> {
   const page = await context.newPage();
   await page.goto(fixtureUrl);
   await page.bringToFront();
   const sw = await serviceWorker();
   const tabId = await sw.evaluate(async (url) => {
-    // `chrome` só existe no service worker; o tipo é declarado aqui para o tsc do editor.
+    // `chrome` only exists in the service worker; the type is declared here for the editor's tsc.
     type Tab = { id?: number; url?: string };
     const api = (
       globalThis as unknown as { chrome: { tabs: { query(q: object): Promise<Tab[]> } } }
@@ -136,7 +136,7 @@ async function startPicker(mode: 'send' | 'copy', port = daemonPort): Promise<Pa
     const tabs = await api.tabs.query({});
     return tabs.find((t) => t.url === url)?.id;
   }, fixtureUrl);
-  expect(tabId, 'aba da fixture encontrada pelo service worker').toBeDefined();
+  expect(tabId, 'fixture tab found by the service worker').toBeDefined();
   await sw.evaluate(
     async ([id, opts]) => {
       const start = (
@@ -167,9 +167,9 @@ function walk(node: Node, visit: (n: Node) => void): void {
 }
 
 /**
- * Diferença entre duas imagens PNG dentro de uma página: razão de pixels com algum canal diferindo
- * mais que `THRESHOLD`. Com `b` ausente, compara `a` com uma imagem lisa da cor do canto de `a`
- * (controle: mede quanto conteúdo a imagem tem, para provar que a comparação enxerga diferenças).
+ * Difference between two PNG images inside a page: ratio of pixels with some channel differing
+ * by more than `THRESHOLD`. With `b` absent, compares `a` with a flat image of `a`'s corner color
+ * (control: measures how much content the image has, to prove the comparison sees differences).
  */
 const THRESHOLD = 16;
 async function pixelDiffRatio(page: Page, a: Buffer, b: Buffer | null) {
@@ -237,9 +237,9 @@ async function pixelDiffRatio(page: Page, a: Buffer, b: Buffer | null) {
   );
 }
 
-test.describe('extensão com activeTab simulado (cópia com host_permissions)', () => {
+test.describe('extension with simulated activeTab (copy with host_permissions)', () => {
   test.beforeAll(async () => {
-    // A cópia mantém a `key` do manifest: o id continua o fixo.
+    // The copy keeps the manifest `key`: the id stays the fixed one.
     const extDir = path.join(tmpDir, 'extension');
     fs.cpSync(extensionDist, extDir, { recursive: true });
     const manifestFile = path.join(extDir, 'manifest.json');
@@ -253,18 +253,18 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     await context?.close().catch(() => {});
   });
 
-  test('o id da extensão é o fixo (key do manifest)', async () => {
+  test('the extension id is the fixed one (manifest key)', async () => {
     const sw = await serviceWorker();
     expect(sw.url().startsWith(`chrome-extension://${MOCKUP_EXTENSION_ID}/`)).toBe(true);
   });
 
-  test('captura a .hero, envia ao daemon e o frame fica editável e fiel no canvas', async () => {
-    const info = await createDoc('extensao-envio');
+  test('captures the .hero, sends it to the daemon and the frame is editable and faithful on the canvas', async () => {
+    const info = await createDoc('extension-send');
     const page = await startPicker('send');
     const heroShot = await page.locator('.hero').first().screenshot();
     await hoverAndClick(page, '.hero');
 
-    // Toast na página (no shadow root fechado não dá para consultar: confia no daemon).
+    // Toast on the page (it cannot be queried inside the closed shadow root: trust the daemon).
     await expect
       .poll(async () => (await getDoc(info.docId)).pages[0]!.frames.length, { timeout: 30_000 })
       .toBeGreaterThan(0);
@@ -272,12 +272,12 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     const doc = await getDoc(info.docId);
     const frames = doc.pages[0]!.frames;
     const root = frames.find((f) => !f.hidden && f.children.length > 0)!;
-    expect(root, 'frame importado com filhos').toBeDefined();
+    expect(root, 'imported frame with children').toBeDefined();
     const all: Node[] = [];
     walk(root, (n) => all.push(n));
     const h1 = all.find((n) => n.tag === 'h1');
-    expect(h1, 'h1 importado').toBeDefined();
-    // O h1 da fixture tem conteúdo misto (`<em>`): o texto é a soma dos textos da subárvore.
+    expect(h1, 'imported h1').toBeDefined();
+    // The fixture h1 has mixed content (`<em>`): the text is the sum of the subtree texts.
     const h1Texts: string[] = [];
     walk(h1!, (n) => {
       if (n.text) h1Texts.push(n.text);
@@ -285,12 +285,12 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     const fixtureH1 = (await page.locator('.hero h1').first().innerText()).trim();
     expect(h1Texts.join('').replace(/\s+/g, ' ').trim()).toBe(fixtureH1);
     expect(all.some((n) => n.type === 'image' && n.tag === 'img')).toBe(true);
-    // Frame oculto de referência.
+    // Hidden reference frame.
     let hiddenRef = false;
     frames.forEach((f) => walk(f, (n) => (hiddenRef ||= n.hidden === true)));
-    expect(hiddenRef, 'imagem de referência oculta').toBe(true);
+    expect(hiddenRef, 'hidden reference image').toBe(true);
 
-    // Editor: mesmo contexto do navegador? Usa uma página com viewport grande.
+    // Editor: same browser context? Uses a page with a large viewport.
     const editor = await context.newPage();
     await editor.setViewportSize({ width: 2400, height: 1400 });
     await editor.goto(test.info().project.use.baseURL!);
@@ -300,37 +300,39 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
       .first();
     await expect(frameEl).toBeVisible();
 
-    // Editável: o texto do h1 aparece como camada.
+    // Editable: the h1 text shows up as a layer.
     await expect(editor.getByTestId(`layer-row-${h1!.id}`)).toBeAttached();
 
-    // Fidelidade: zoom 100% e screenshot do frame no canvas.
+    // Fidelity: 100% zoom and a screenshot of the frame on the canvas.
     await editor.getByTestId('canvas').focus();
     await editor.keyboard.press('Shift+0');
     await editor.waitForTimeout(500);
     const frameShot = await frameEl.screenshot();
     const diff = await pixelDiffRatio(editor, heroShot, frameShot);
-    // Dimensões das duas imagens batem (±2 px); sem isso a razão compararia só o canto em comum.
+    // The dimensions of both images match (±2 px); without this the ratio would only compare the shared corner.
     expect(
       Math.abs(diff.a[0]! - diff.b[0]!),
-      `largura: original ${diff.a[0]} x canvas ${diff.b[0]}`,
+      `width: original ${diff.a[0]} x canvas ${diff.b[0]}`,
     ).toBeLessThanOrEqual(2);
     expect(
       Math.abs(diff.a[1]! - diff.b[1]!),
-      `altura: original ${diff.a[1]} x canvas ${diff.b[1]}`,
+      `height: original ${diff.a[1]} x canvas ${diff.b[1]}`,
     ).toBeLessThanOrEqual(2);
     console.log(
-      `[snapshot-extension] razão de pixels diferentes: ${diff.ratio.toFixed(4)}`,
+      `[snapshot-extension] ratio of differing pixels: ${diff.ratio.toFixed(4)}`,
       JSON.stringify(diff),
     );
     expect(diff.ratio).toBeLessThan(0.05);
-    // Controle: o frame contra uma imagem lisa da cor de fundo precisa diferir bem mais que a tolerância.
+    // Control: the frame against a flat image of the background color must differ well beyond the tolerance.
     const control = await pixelDiffRatio(editor, frameShot, null);
-    console.log(`[snapshot-extension] controle (frame x fundo liso): ${control.ratio.toFixed(4)}`);
-    expect(control.ratio, 'a comparação enxerga o conteúdo').toBeGreaterThan(0.15);
+    console.log(
+      `[snapshot-extension] control (frame x flat background): ${control.ratio.toFixed(4)}`,
+    );
+    expect(control.ratio, 'the comparison sees the content').toBeGreaterThan(0.15);
 
-    // Editável de verdade: duplo clique no parágrafo (descendo a hierarquia) entra na edição inline.
+    // Truly editable: double-clicking the paragraph (going down the hierarchy) enters inline editing.
     const para = all.find((n) => n.tag === 'p' && n.text)!;
-    expect(para, 'parágrafo importado como texto').toBeDefined();
+    expect(para, 'paragraph imported as text').toBeDefined();
     const paraEl = editor.locator(`[data-node-id="${para.id}"]`).first();
     const textEditor = editor.getByTestId('text-editor');
     for (let i = 0; i < 4 && !(await textEditor.isVisible()); i++) {
@@ -339,7 +341,7 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     }
     await expect(textEditor).toBeVisible();
     await editor.keyboard.press('Control+a');
-    await editor.keyboard.type('Texto editado no canvas');
+    await editor.keyboard.type('Text edited on the canvas');
     await editor.keyboard.press('Enter');
     await expect
       .poll(async () => {
@@ -352,14 +354,14 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
         );
         return found;
       })
-      .toBe('Texto editado no canvas');
-    // Fecha as páginas: o clipboard do próximo teste depende do foco da aba da fixture.
+      .toBe('Text edited on the canvas');
+    // Close the pages: the next test's clipboard depends on the focus of the fixture tab.
     await editor.close();
     await page.close();
   });
 
-  test('modo copiar: o clipboard recebe o snapshot da .site-header e o editor cola', async () => {
-    const info = await createDoc('extensao-copia');
+  test('copy mode: the clipboard receives the .site-header snapshot and the editor pastes it', async () => {
+    const info = await createDoc('extension-copy');
     const page = await startPicker('copy');
     await hoverAndClick(page, '.site-header');
     await page.bringToFront();
@@ -383,13 +385,13 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     await expect(
       editor.getByTestId('canvas-world').locator(`[data-node-id="${frame.id}"]`).first(),
     ).toBeVisible();
-    // Fecha as abas: `startPicker` acha a aba da fixture pela URL e uma sobra pegaria a errada.
+    // Close the tabs: `startPicker` finds the fixture tab by URL and a leftover would pick the wrong one.
     await editor.close();
     await page.close();
   });
 
-  test('seção maior que a viewport: a referência sai recortada e o payload leva o aviso', async () => {
-    await createDoc('extensao-recorte');
+  test('section larger than the viewport: the reference comes out cropped and the payload carries the warning', async () => {
+    await createDoc('extension-crop');
     const posts: { payload: SnapshotLike }[] = [];
     await context.route('**/api/snapshot', async (route) => {
       posts.push(route.request().postDataJSON() as { payload: SnapshotLike });
@@ -401,11 +403,11 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
       await hoverAndClick(page, '.hero');
       await expect.poll(() => posts.length, { timeout: 30_000 }).toBe(1);
       const { payload } = posts[0]!;
-      expect(payload.height, 'a .hero é maior que a viewport de 320 px').toBeGreaterThan(320);
-      expect(payload.reference, 'referência presente').toBeDefined();
+      expect(payload.height, 'the .hero is larger than the 320 px viewport').toBeGreaterThan(320);
+      expect(payload.reference, 'reference present').toBeDefined();
       expect(payload.reference!.height).toBeLessThanOrEqual(320);
       expect(
-        payload.stats.warnings.some((w) => /parte visível da seção/.test(w)),
+        payload.stats.warnings.some((w) => /visible part of the section/.test(w)),
         JSON.stringify(payload.stats.warnings),
       ).toBe(true);
       await page.close();
@@ -414,7 +416,7 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     }
   });
 
-  test('app fora do ar: a captura é copiada para o clipboard', async () => {
+  test('app down: the capture is copied to the clipboard', async () => {
     const page = await startPicker('send', await freePort());
     await hoverAndClick(page, '.site-header');
     await page.bringToFront();
@@ -426,7 +428,7 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
     await page.close();
   });
 
-  test('erro HTTP do daemon: nada é copiado (o app respondeu, só recusou)', async () => {
+  test('daemon HTTP error: nothing is copied (the app answered, it just refused)', async () => {
     let hits = 0;
     await context.route('**/api/snapshot', async (route) => {
       hits++;
@@ -434,18 +436,18 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
         status: 413,
         contentType: 'application/json',
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'payload grande demais' }),
+        body: JSON.stringify({ error: 'payload too large' }),
       });
     });
     try {
       const page = await startPicker('send');
       await page.bringToFront();
-      await page.evaluate(() => navigator.clipboard.writeText('marcador'));
+      await page.evaluate(() => navigator.clipboard.writeText('marker'));
       await hoverAndClick(page, '.site-header');
       await expect.poll(() => hits, { timeout: 30_000 }).toBeGreaterThan(0);
       await page.waitForTimeout(1500);
       await page.bringToFront();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('marcador');
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('marker');
       await page.close();
     } finally {
       await context.unroute('**/api/snapshot');
@@ -453,14 +455,14 @@ test.describe('extensão com activeTab simulado (cópia com host_permissions)', 
   });
 });
 
-/** Parte do payload do snapshot usada pelas conferências deste spec. */
+/** Part of the snapshot payload used by this spec's checks. */
 interface SnapshotLike {
   height: number;
   reference?: { width: number; height: number };
   stats: { warnings: string[] };
 }
 
-/** Conexão CDP direta ao browser (o Playwright não expõe sessão de browser em contexto persistente). */
+/** Direct CDP connection to the browser (Playwright does not expose a browser session in a persistent context). */
 interface Cdp {
   send<T = Record<string, unknown>>(
     method: string,
@@ -476,7 +478,7 @@ async function connectCdp(port: number): Promise<Cdp> {
   const ws = new WebSocket(webSocketDebuggerUrl);
   await new Promise<void>((resolve, reject) => {
     ws.onopen = () => resolve();
-    ws.onerror = () => reject(new Error('Falha ao abrir o WebSocket do CDP.'));
+    ws.onerror = () => reject(new Error('Failed to open the CDP WebSocket.'));
   });
   let seq = 0;
   const pending = new Map<number, { resolve: (v: never) => void; reject: (e: Error) => void }>();
@@ -509,7 +511,7 @@ interface TargetInfo {
   url: string;
 }
 
-test.describe('manifesto real (dist sem alteração: sem host_permissions, com key)', () => {
+test.describe('real manifest (unchanged dist: no host_permissions, with key)', () => {
   let cdp: Cdp;
 
   test.beforeAll(async () => {
@@ -533,7 +535,7 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
     return targetInfos;
   }
 
-  /** Id da aba ativa da janela (o service worker só vê o `id`, sem `url`, sem permissão). */
+  /** Id of the window's active tab (the service worker only sees the `id`, no `url`, without permission). */
   async function activeTabId(): Promise<number> {
     const sw = await serviceWorker();
     const id = await sw.evaluate(async () => {
@@ -544,11 +546,11 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
       ).chrome;
       return (await api.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id;
     });
-    expect(id, 'aba ativa').toBeDefined();
+    expect(id, 'active tab').toBeDefined();
     return id!;
   }
 
-  test('o manifest carregado não tem host_permissions, tem a key, e o id é o fixo', async () => {
+  test('the loaded manifest has no host_permissions, has the key, and the id is the fixed one', async () => {
     const onDisk = JSON.parse(
       fs.readFileSync(path.join(extensionDist, 'manifest.json'), 'utf8'),
     ) as { host_permissions?: unknown; key?: string };
@@ -571,7 +573,7 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
     );
   });
 
-  test('popup: o ping mostra o app no ar; o POST do service worker passa na Origin e no CORS', async () => {
+  test('popup: the ping shows the app running; the service worker POST passes Origin and CORS', async () => {
     const popup = await context.newPage();
     await popup.goto(popupUrl);
     const port = popup.locator('#port');
@@ -579,15 +581,15 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
 
     await port.fill(String(daemonPort));
     await port.dispatchEvent('change');
-    await expect(status).toHaveText('Mockup Studio no ar');
+    await expect(status).toHaveText('Mockup Studio is running');
 
     await port.fill(String(await freePort()));
     await port.dispatchEvent('change');
-    await expect(status).toContainText('não encontrado');
+    await expect(status).toContainText('not found');
 
-    // POST real do contexto da extensão (sem host_permissions): se a Origin do id fixo ou o CORS
-    // fossem recusados, o fetch rejeitaria; o 400 legível mostra que o daemon aceitou a origem e
-    // só rejeitou o corpo vazio.
+    // Real POST from the extension context (no host_permissions): if the fixed id Origin or CORS
+    // were refused, the fetch would reject; the readable 400 shows that the daemon accepted the origin and
+    // only rejected the empty body.
     const sw = await serviceWorker();
     const result = await sw.evaluate(async (url) => {
       const res = await fetch(`${url}/api/snapshot`, {
@@ -602,7 +604,7 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
     await popup.close();
   });
 
-  test('sem o gesto do usuário a injeção é recusada (e o popup avisa)', async () => {
+  test('without the user gesture the injection is refused (and the popup warns)', async () => {
     const popup = await context.newPage();
     await popup.goto(popupUrl);
     const page = await context.newPage();
@@ -622,24 +624,24 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
       [tabId, daemonPort] as const,
     );
     expect(res.ok).toBe(false);
-    expect(res.error, 'erro de permissão do Chrome').toMatch(/cannot access|permission|activeTab/i);
+    expect(res.error, 'Chrome permission error').toMatch(/cannot access|permission|activeTab/i);
 
-    // O popup (aqui numa aba, com a fixture ativa na janela) mostra a mensagem.
+    // The popup (here in a tab, with the fixture active in the window) shows the message.
     await popup.evaluate(() => document.getElementById('start')!.click());
-    await expect(popup.locator('#status')).toHaveText('Não foi possível iniciar nesta página.');
+    await expect(popup.locator('#status')).toHaveText('Could not start on this page.');
     await popup.close();
     await page.close();
   });
 
-  test('fluxo completo: ícone (CDP) abre o popup, concede activeTab, seleciona e envia ao daemon', async () => {
-    const info = await createDoc('extensao-real');
+  test('full flow: icon (CDP) opens the popup, grants activeTab, selects and sends to the daemon', async () => {
+    const info = await createDoc('extension-real');
     const page = await context.newPage();
     await page.goto(fixtureUrl);
     await page.bringToFront();
 
-    // Equivale ao clique no ícone: abre o popup de verdade e concede o activeTab à aba.
+    // Equivalent to the icon click: opens the real popup and grants activeTab to the tab.
     const tab = (await targets('tab')).find((t) => t.url === fixtureUrl);
-    expect(tab, 'aba da fixture como alvo do CDP').toBeDefined();
+    expect(tab, 'fixture tab as the CDP target').toBeDefined();
     await cdp.send('Extensions.triggerAction', {
       id: MOCKUP_EXTENSION_ID,
       targetId: tab!.targetId,
@@ -664,22 +666,22 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
       return out.result.value;
     };
 
-    // O alvo aparece antes de o popup.js rodar: espera o ping inicial (porta salva no localStorage,
-    // que um teste anterior deixou numa porta sem ninguém), senão o script sobrescreve a porta.
+    // The target shows up before popup.js runs: wait for the initial ping (port saved in localStorage,
+    // which a previous test left on a port with nobody listening), otherwise the script overwrites the port.
     await expect
       .poll(() => run(`document.getElementById('status')?.dataset.state ?? ''`))
       .toMatch(/^(up|down)$/);
-    // Aponta o popup para o daemon de teste e espera o ping.
+    // Point the popup at the test daemon and wait for the ping.
     await run(
       `(() => { const i = document.getElementById('port'); i.value = '${daemonPort}';` +
         ` i.dispatchEvent(new Event('change')); })()`,
     );
     await expect
       .poll(() => run(`document.getElementById('status').textContent`))
-      .toBe('Mockup Studio no ar');
+      .toBe('Mockup Studio is running');
     await run(`document.querySelector('input[name="mode"][value="send"]').click()`);
     await run(`document.getElementById('start').click()`);
-    // O popup fecha sozinho depois de iniciar.
+    // The popup closes by itself after starting.
     await expect
       .poll(async () => (await targets()).some((t) => t.type === 'page' && t.url === popupUrl))
       .toBe(false);
@@ -692,7 +694,7 @@ test.describe('manifesto real (dist sem alteração: sem host_permissions, com k
     expect(frames.some((f) => !f.hidden && f.children.length > 0)).toBe(true);
     expect(
       frames.some((f) => f.hidden),
-      'frame oculto de referência',
+      'hidden reference frame',
     ).toBe(true);
     await page.close();
   });
