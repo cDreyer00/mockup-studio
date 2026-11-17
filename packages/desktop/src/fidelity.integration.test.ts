@@ -141,7 +141,7 @@ function makeDocument() {
           'image',
           'img',
           { width: '160px', height: '100px', 'border-radius': '12px', 'object-fit': 'cover' },
-          { src: 'images/gradiente.png', attrs: { alt: 'gradiente' } },
+          { src: 'images/gradient.png', attrs: { alt: 'gradient' } },
         ),
         node(
           'el_fid_btn',
@@ -171,7 +171,7 @@ function makeDocument() {
     id: DOC_ID,
     name: 'Fidelity',
     tokens: {},
-    fonts: [{ family: FAMILY, source: 'file', files: ['fonts/fidelidade.ttf'], weights: [400] }],
+    fonts: [{ family: FAMILY, source: 'file', files: ['fonts/fidelity.ttf'], weights: [400] }],
     meta: { createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
     pages: [{ id: 'pg_fidelity1', name: 'Page', background: '#1e1e1e', frames: [frame] }],
   };
@@ -195,7 +195,9 @@ interface Box {
   height: number;
 }
 
-describe.skipIf(!built || !editorReady || !fontSource)(
+// Skipped on CI: hosted runners have a small virtual screen, so the editor window cannot fit the
+// 600x400 frame at 100% and the pixel comparison is meaningless there.
+describe.skipIf(!built || !editorReady || !fontSource || !!process.env.CI)(
   'canvas × screenshot fidelity (integration)',
   () => {
     let tmp: string;
@@ -210,9 +212,9 @@ describe.skipIf(!built || !editorReady || !fontSource)(
       fs.mkdirSync(path.join(tmp, 'assets', 'fonts'), { recursive: true });
       fs.mkdirSync(path.join(tmp, 'assets', 'images'));
       fs.mkdirSync(dataDir);
-      fs.copyFileSync(fontSource!, path.join(tmp, 'assets', 'fonts', 'fidelidade.ttf'));
-      fs.writeFileSync(path.join(tmp, 'assets', 'images', 'gradiente.png'), makePng(64, 40));
-      const file = path.join(tmp, 'fidelidade.mockup.json');
+      fs.copyFileSync(fontSource!, path.join(tmp, 'assets', 'fonts', 'fidelity.ttf'));
+      fs.writeFileSync(path.join(tmp, 'assets', 'images', 'gradient.png'), makePng(64, 40));
+      const file = path.join(tmp, 'fidelity.mockup.json');
       fs.writeFileSync(file, JSON.stringify(makeDocument(), null, 2));
 
       port = await freePort();
