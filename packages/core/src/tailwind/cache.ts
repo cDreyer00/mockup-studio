@@ -16,9 +16,36 @@ function remember(key: string, engine: TailwindEngine): void {
   while (ready.size > MAX) ready.delete(ready.keys().next().value!);
 }
 
-/** Motor do documento (criado na primeira chamada; depois vem do cache). */
+const warmed = new WeakSet<TailwindEngine>();
+
+/**
+ * Aquece o motor em ocioso (uma vez por motor), sem bloquear quem pediu: `requestIdleCallback` no
+ * navegador, `setTimeout(0)` no Node (depois de a resposta sair). Assim o primeiro `get_code` ou
+ * "Mostrar como Tailwind" não paga a montagem dos índices da canonicalização.
+ */
+function scheduleWarmup(engine: TailwindEngine): void {
+  if (warmed.has(engine)) return;
+  warmed.add(engine);
+  const run = (): void => {
+    try {
+      engine.warmup();
+    } catch {
+      /* o aquecimento é só otimização */
+    }
+  };
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void) => unknown })
+    .requestIdleCallback;
+  if (typeof ric === 'function') ric.call(globalThis, run);
+  else setTimeout(run, 0);
+}
+
+/**
+ * Motor do documento (criado na primeira chamada; depois vem do cache). `warmup: false` não agenda
+ * o aquecimento em ocioso do motor recém-criado.
+ */
 export function getTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
+  options: { warmup?: boolean } = {},
 ): Promise<TailwindEngine> {
   const key = tailwindEngineKey(doc);
   const hit = ready.get(key);
@@ -31,6 +58,7 @@ export function getTailwindEngine(
     p = createTailwindEngine(doc)
       .then((engine) => {
         remember(key, engine);
+        if (options.warmup !== false) scheduleWarmup(engine);
         return engine;
       })
       .finally(() => pending.delete(key));
