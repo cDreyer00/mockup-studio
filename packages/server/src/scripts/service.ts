@@ -303,6 +303,8 @@ export class ScriptService implements ScriptServiceApi {
     ].join('\n');
     const text = await assistant.generateText(`${prompt.trim()}\n\n${context}`, {
       system: SCRIPT_SYSTEM_PROMPT,
+      // Uma geração por documento; cancelável pelo cancelar do assistente desse documento.
+      docId: id,
     });
     const code = extractScriptCode(text);
     if (!code)
