@@ -2,7 +2,7 @@
  * Lógica pura do clipboard: serialização com marcador, detecção de HTML, alvo da colagem e
  * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
  */
-import { cloneNodeWithNewIds, nodesToHtml } from '@mockup/core';
+import { cloneNodeWithNewIds, nodesToHtml, svgToVector, vectorToSvg } from '@mockup/core';
 import type { Document, Node } from '@mockup/core';
 import { looksLikeSnapshot } from '@mockup/snapshot-core';
 import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
@@ -50,6 +50,29 @@ export function looksLikeHtml(text: string | null | undefined): boolean {
 }
 
 export type PasteKind = 'internal' | 'snapshot' | 'images' | 'html' | 'text' | 'none';
+
+/**
+ * Nós svg colados como markup ganham o modelo vetorial (`svgToVector`, com `raw` preservado) e o
+ * tamanho do viewBox, se o estilo não tiver largura/altura. Markup que não vira vetor fica como está.
+ */
+export function withVectors(nodes: Node[]): Node[] {
+  return nodes.map((n) => {
+    let next = n;
+    if (n.type === 'svg' && !n.vector && n.svg) {
+      try {
+        const vector = svgToVector(n.svg);
+        const style = { ...n.style };
+        if (!style.width) style.width = `${vector.viewBox.width}px`;
+        if (!style.height) style.height = `${vector.viewBox.height}px`;
+        next = { ...n, vector, style, svg: vectorToSvg(vector) };
+      } catch {
+        next = n;
+      }
+    }
+    return next.children.length ? { ...next, children: withVectors(next.children) } : next;
+  });
+}
+
 
 /** Decide como interpretar o conteúdo colado. */
 export function classifyPaste(

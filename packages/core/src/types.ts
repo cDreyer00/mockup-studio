@@ -32,6 +32,11 @@ export interface Node {
   src?: string;
   /** Markup SVG inline (type 'svg'). */
   svg?: string;
+  /**
+   * Modelo vetorial editável (type 'svg'). Quando presente, `svg` é o markup gerado a partir dele
+   * (`vectorToSvg`): `raw` intacto enquanto não houver edição, senão regenerado dos `paths`.
+   */
+  vector?: Vector;
   children: Node[];
   locked: boolean;
   hidden: boolean;
@@ -111,4 +116,69 @@ export interface NodePath {
   index: number;
   /** Cadeia de ancestrais, do frame raiz até o pai imediato (vazia para frames raiz). */
   ancestors: Node[];
+}
+
+/* -------------------------------------------------------------------------------- vetores */
+
+/** Retângulo do viewBox de um vetor (unidades do SVG). */
+export interface VectorViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface VectorGradientStop {
+  /** 0 a 1. */
+  offset: number;
+  /** Cor CSS. */
+  color: string;
+  /** 0 a 1 (padrão 1). */
+  opacity?: number;
+}
+
+/** Gradiente de preenchimento/traço. Coordenadas em fração da caixa do path (objectBoundingBox). */
+export interface VectorGradient {
+  type: 'linear' | 'radial';
+  stops: VectorGradientStop[];
+  /** Linear: início e fim (padrão 0,0 → 1,0). */
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  /** Radial: centro e raio (padrão 0.5, 0.5, 0.5). */
+  cx?: number;
+  cy?: number;
+  r?: number;
+}
+
+/** Tinta: cor CSS (`#111`, `none`, `currentColor`, `var(--x)`) ou gradiente. */
+export type VectorPaint = string | VectorGradient;
+
+/** Um `<path>` editável, com estilos já resolvidos (sem herança de `<g>`/`<svg>`). */
+export interface VectorPath {
+  /** Id estável dentro do vetor (ex.: `p1`). */
+  id: string;
+  /** Path data SVG (`M 0 0 L 10 0 Z`). */
+  d: string;
+  fill?: VectorPaint;
+  stroke?: VectorPaint;
+  strokeWidth?: number;
+  /** 0 a 1. */
+  opacity?: number;
+  strokeLinecap?: 'butt' | 'round' | 'square';
+  strokeLinejoin?: 'miter' | 'round' | 'bevel';
+  /** Ex.: `4 2`. */
+  strokeDasharray?: string;
+  fillRule?: 'nonzero' | 'evenodd';
+}
+
+export interface Vector {
+  viewBox: VectorViewBox;
+  /** Paths editáveis. Vazio quando o SVG importado não é simples (só `raw` vale). */
+  paths: VectorPath[];
+  /** Markup original (sanitizado), preservado intacto até a primeira edição dos paths. */
+  raw?: string;
+  /** Atributos extras do `<svg>` raiz mantidos na regeneração (ex.: `preserveAspectRatio`). */
+  attrs?: Record<string, string>;
 }

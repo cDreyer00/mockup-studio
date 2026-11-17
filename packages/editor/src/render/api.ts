@@ -8,14 +8,22 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import type {
   Document,
+  LayoutGrid,
   LayoutNode,
+  LayoutRect,
   LayoutStyle,
   LayoutTextLine,
   Node,
   RenderBox,
 } from '@mockup/core';
 import { RenderApp, renderFrameOf } from './RenderApp';
-import { LAYOUT_STYLE_PROPS, fitLineBox, groupLines, pickFrame } from './measure';
+import {
+  LAYOUT_STYLE_PROPS,
+  fitLineBox,
+  groupLines,
+  measureGridTracks,
+  pickFrame,
+} from './measure';
 import type { CharBox } from './measure';
 
 export interface RenderPayload {
@@ -129,6 +137,25 @@ function readStyle(el: Element): LayoutStyle {
   return out;
 }
 
+/** Trilhas do nó quando ele é um contêiner grid (valores resolvidos do navegador, em px). */
+function gridOf(el: Element, rect: LayoutRect): LayoutGrid | undefined {
+  const cs = getComputedStyle(el);
+  return measureGridTracks(
+    {
+      display: cs.display,
+      gridTemplateColumns: cs.gridTemplateColumns,
+      gridTemplateRows: cs.gridTemplateRows,
+      columnGap: cs.columnGap,
+      rowGap: cs.rowGap,
+      borderLeftWidth: cs.borderLeftWidth,
+      borderTopWidth: cs.borderTopWidth,
+      paddingLeft: cs.paddingLeft,
+      paddingTop: cs.paddingTop,
+    },
+    rect,
+  );
+}
+
 function findNode(n: Node, id: string): Node | null {
   if (n.id === id) return n;
   for (const c of n.children ?? []) {
@@ -236,6 +263,8 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
           children: [],
         };
         if (n.type === 'text') out.lines = textLines(el, origin);
+        const grid = gridOf(el, out);
+        if (grid) out.grid = grid;
         if (n.type === 'image' && n.src) out.src = n.src;
         for (const c of n.children ?? []) {
           if (c.hidden) continue;

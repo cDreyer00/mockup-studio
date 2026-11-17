@@ -3,12 +3,16 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronDown,
+  Circle,
   Frame,
   Hand,
   Home,
+  Hexagon,
   Image as ImageIcon,
   MousePointer2,
+  PenTool,
   Redo2,
+  Slash,
   Square,
   Type,
   Undo2,
@@ -40,6 +44,10 @@ const TOOLS: { tool: Tool; title: string; key: string; icon: ReactNode }[] = [
   { tool: 'rect', title: 'Container', key: 'R', icon: <Square size={ICON} /> },
   { tool: 'text', title: 'Texto', key: 'T', icon: <Type size={ICON} /> },
   { tool: 'image', title: 'Imagem', key: 'Ctrl+Shift+K', icon: <ImageIcon size={ICON} /> },
+  { tool: 'pen', title: 'Caneta', key: 'P', icon: <PenTool size={ICON} /> },
+  { tool: 'ellipse', title: 'Elipse', key: 'O', icon: <Circle size={ICON} /> },
+  { tool: 'line', title: 'Linha', key: 'L', icon: <Slash size={ICON} /> },
+  { tool: 'polygon', title: 'Polígono', key: '', icon: <Hexagon size={ICON} /> },
 ];
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
@@ -311,7 +319,7 @@ export function Toolbar() {
         {TOOLS.map((t) => (
           <IconButton
             key={t.tool}
-            title={`${t.title} (${t.key})`}
+            title={t.key ? `${t.title} (${t.key})` : t.title}
             active={tool === t.tool}
             data-testid={`tool-${t.tool}`}
             onClick={() => ui.setTool(t.tool)}

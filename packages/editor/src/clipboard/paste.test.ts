@@ -189,3 +189,19 @@ describe('prepareNodesForPaste', () => {
     expect(out[0]!.id).not.toBe(t.id);
   });
 });
+
+describe('withVectors', () => {
+  it('cola SVG como nó svg com vetor e tamanho do viewBox', async () => {
+    const { htmlToNodes } = await import('@mockup/core');
+    const { withVectors } = await import('./paste');
+    const [n] = withVectors(
+      htmlToNodes(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>',
+      ),
+    );
+    expect(n!.type).toBe('svg');
+    expect(n!.vector?.paths).toHaveLength(1);
+    expect(n!.vector?.paths[0]!.stroke).toBe('currentColor');
+    expect(n!.style.width).toBe('24px');
+  });
+});

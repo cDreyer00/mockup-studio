@@ -177,14 +177,19 @@ test('Shift mantém a proporção e Alt redimensiona a partir do centro', async 
   };
   /** Ajusta o zoom para caber tudo (a alça fica visível) e devolve a alça sudeste e a escala. */
   const prepare = async () => {
-    await page.keyboard.press('Shift+1');
     // O overlay remede por rAF: espera a alça sudeste chegar ao canto do frame já enquadrado.
+    // O Shift+1 enquadra pelo tamanho do modelo: se o resize anterior ainda não chegou ao editor,
+    // enquadra o tamanho antigo e a alça fica fora do canvas (sob o painel). Repete até caber.
     const handle = page.getByTestId('handle-se');
+    const canvas = page.getByTestId('canvas');
     await expect
       .poll(async () => {
+        await page.keyboard.press('Shift+1');
         const f = await nodeEl(page, frame.id).boundingBox();
         const h = await handle.boundingBox();
-        if (!f || !h) return Infinity;
+        const c = await canvas.boundingBox();
+        if (!f || !h || !c) return Infinity;
+        if (h.x + h.width > c.x + c.width || h.y + h.height > c.y + c.height) return Infinity;
         const dx = h.x + h.width / 2 - (f.x + f.width);
         const dy = h.y + h.height / 2 - (f.y + f.height);
         return Math.hypot(dx, dy);

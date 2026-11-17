@@ -25,3 +25,5 @@ export * from './search.js';
 export * from './image.js';
 export * from './placeholders.js';
 export * from './assetRefs.js';
+export * from './vector/index.js';
+export * from './grid.js';

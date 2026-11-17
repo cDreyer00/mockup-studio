@@ -5,8 +5,10 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
-import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
-import type { DataSource, Document, Node, NodePath, Page } from './types.js';
+import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
+import { GENERATED_SVG_ATTRS } from './vector/schema.js';
+import { vectorToSvg } from './vector/svg.js';
+import type { DataSource, Document, Node, NodePath, Page, Vector } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -270,7 +272,33 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
       if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
     }
-    if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
+    if (node.type === 'svg' && node.vector) {
+      // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
+      const v = node.vector;
+      if (unset.includes('viewBox')) {
+        fail('Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)');
+      }
+      if (set.viewBox !== undefined) {
+        const n = set.viewBox.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)?.map(Number) ?? [];
+        const ok =
+          n.length === 4 &&
+          n.every(Number.isFinite) &&
+          n[2]! > 0 &&
+          n[3]! > 0 &&
+          /^[\s,+\-.\deE]+$/.test(set.viewBox);
+        if (!ok) fail(`viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`);
+        v.viewBox = { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
+      }
+      if (v.raw !== undefined) v.raw = setSvgRootAttrs(v.raw, set, unset);
+      const attrs = { ...(v.attrs ?? {}) };
+      for (const k of unset) delete attrs[k];
+      for (const [k, val] of Object.entries(set)) {
+        if (!GENERATED_SVG_ATTRS.includes(k)) attrs[k] = val;
+      }
+      if (Object.keys(attrs).length > 0) v.attrs = attrs;
+      else delete v.attrs;
+      node.svg = vectorToSvg(v);
+    } else if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
     else {
       for (const k of unset) delete node.attrs[k];
       Object.assign(node.attrs, set);
@@ -466,6 +494,37 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
   return { inverse: [{ type: 'setSrc', changes: prev.reverse() }] };
 }
 
+function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Applied {
+  const prev: { nodeId: string; vector: Vector | null; svg?: string }[] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
+    const node = p.node;
+    if (node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um svg`);
+    // `svg: ''` no inverso = o nó não tinha markup (aplicar remove `node.svg`).
+    const before: { nodeId: string; vector: Vector | null; svg?: string } = {
+      nodeId: c.nodeId,
+      vector: node.vector ? deepClone(node.vector) : null,
+      svg: node.svg ?? '',
+    };
+    prev.push(before);
+    if (c.vector) {
+      node.vector = deepClone(c.vector);
+      if (c.svg === '') delete node.svg;
+      else {
+        const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
+        if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
+        node.svg = markup;
+      }
+    } else {
+      delete node.vector;
+      if (c.svg === '') delete node.svg;
+      else if (c.svg !== undefined) node.svg = sanitizeSvg(c.svg);
+    }
+  }
+  return { inverse: [{ type: 'setVector', changes: prev.reverse() }] };
+}
+
 /* ---------------- API pública ---------------- */
 
 /* ---------------- setData ---------------- */
@@ -554,6 +613,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setData':
       applied = doSetData(d, op);
+      break;
+    case 'setVector':
+      applied = doSetVector(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

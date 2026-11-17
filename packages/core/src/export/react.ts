@@ -3,7 +3,7 @@ import type { AnyNode, Element } from 'domhandler';
 import { fontFaceCss } from '../fonts.js';
 import { isUnsafeUrl, slugify } from '../html.js';
 import { toCamelCase } from '../styles.js';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import { VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
 import {
@@ -513,7 +513,7 @@ function signature(node: Node): string {
     varying,
     node.text !== undefined && node.text !== '',
     node.src !== undefined,
-    node.type === 'svg' ? (node.svg ?? '') : null,
+    node.type === 'svg' ? [node.svg ?? '', /\sid\s*=/i.test(node.svg ?? '') ? node.id : ''] : null,
     node.children.map(signature),
   ]);
 }
@@ -670,7 +670,7 @@ function renderNode(
   const props: string[] = [...extraProps, ...styleProps(node, ctx, isRoot)];
 
   if (node.type === 'svg') {
-    return svgToJsx(node.svg ?? '', depth, props, ctx.usage);
+    return svgToJsx(scopeSvgIds(sanitizeSvg(node.svg ?? ''), node.id), depth, props, ctx.usage);
   }
 
   const isImg = node.type === 'image' || node.tag === 'img';

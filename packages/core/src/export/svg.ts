@@ -3,7 +3,7 @@ import { resolveVars } from '../computed.js';
 import { findNode } from '../document.js';
 import { fontFaceCss } from '../fonts.js';
 import type { LayoutNode, LayoutRect } from '../layout.js';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import type { Document, FontRef } from '../types.js';
 import {
   BASE_CSS,
@@ -482,7 +482,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
 
     if (n.type === 'svg') {
       const markup = sanitizeSvg(findNode(doc, n.id)?.node.svg ?? '');
-      if (markup) out.push(nestedSvg(markup, rect, st.color));
+      if (markup) out.push(nestedSvg(scopeSvgIds(markup, n.id), rect, st.color));
     }
 
     for (const line of n.lines ?? []) {

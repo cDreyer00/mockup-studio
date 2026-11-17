@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LayoutNode } from '@mockup/core';
+import { formatGridTracks, type LayoutNode } from '@mockup/core';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
@@ -24,6 +24,7 @@ export function formatLayout(root: LayoutNode, depth: number): string {
     lines.push(
       `${pad}${n.id} "${n.name}" ${n.tag} ${Math.round(n.x)},${Math.round(n.y)} ${Math.round(n.width)}x${Math.round(n.height)}${text}`,
     );
+    if (n.grid) lines.push(`${pad}  ${formatGridTracks(n.grid)}`);
     if (level >= depth) {
       if (n.children.length)
         lines.push(`${pad}  … ${n.children.length} filho(s) além da profundidade`);
@@ -115,7 +116,7 @@ export function registerRenderTools(ctx: ToolContext): void {
     {
       title: 'Medidas reais do layout',
       description:
-        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas. Para checar alinhamento e overflow. Exige render.',
+        'Posição e tamanho reais (renderizados) de um nó e descendentes, uma linha por nó: id "nome" tag x,y wxh, mais o texto das linhas e, em grids, as trilhas (grid cols x+w,... rows ... gap). Exige render.',
       example: { nodeId: 'fr_ab12cd34', depth: 3 },
       inputSchema: {
         nodeId: z.string().describe('Id do nó raiz da medição, ex.: "fr_ab12cd34".'),

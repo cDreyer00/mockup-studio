@@ -4,7 +4,7 @@ import { expandRepeaters } from '../data.js';
 import { findNode, findPage } from '../document.js';
 import { isUnsafeUrl, slugify } from '../html.js';
 import { cssValueProblem, dropUnsafeStyles, isValidCssPropertyName } from '../styles.js';
-import { sanitizeSvg } from '../svg.js';
+import { sanitizeSvg, scopeSvgIds } from '../svg.js';
 import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
 import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss } from '../base.js';
@@ -239,7 +239,7 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
     const sa = opts.styleOf(node, isRoot);
 
     if (node.type === 'svg') {
-      const markup = sanitizeSvg(node.svg ?? '') || '<svg></svg>';
+      const markup = scopeSvgIds(sanitizeSvg(node.svg ?? '') || '<svg></svg>', node.id);
       lines.push(pad(depth) + injectIntoSvg(markup, sa, xhtml));
       return;
     }

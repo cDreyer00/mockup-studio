@@ -31,6 +31,8 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "lucide-static": "^1.73.0",
+    "opentype.js": "^2.0.0",
+    "woff2-encoder": "^2.0.0",
     "ws": "^8.18.0",
     "zod": "^4.0.0"
   },

@@ -3,6 +3,7 @@
  * imperativo: os handlers leem `useUi/useDoc.getState()` e nunca causam re-render da árvore.
  * Toda mutação do documento vira `Op`s numa única chamada `daemon.applySafe` por gesto.
  */
+import { isGridContainer } from '@mockup/core';
 import type { Node, Op } from '@mockup/core';
 import { buildPositionOps, isFreelyPositioned, nodeXY } from '../actions';
 import { daemon } from '../client/daemon';
@@ -24,6 +25,7 @@ import type { NodePreview } from '../state/uiStore';
 import { openContextMenu } from '../ui/overlays';
 import { commitCrop, startCrop } from './cropActions';
 import { clientToWorld, findNodeEl, measureWorldRect } from './dom';
+import { planGridMove } from './gridDrag';
 import { clearFx, useFx } from './fx';
 import {
   isNoopReorder,
@@ -40,6 +42,9 @@ import {
 import type { HandleName, Point, Rect } from './geometry';
 import { insertImageFile, pickImageFile } from './imageTool';
 import { buildCreateOps, flowAxis, planPlacement, siblingWorldRects } from './placement';
+import { penDoubleClick, penPointerDown, penPointerMove } from './penTool';
+import { createShape, isShapeTool, shapeDragRect } from './shapeTool';
+import type { ShapeTool } from './shapeTool';
 
 /** Deslocamento mínimo (px de tela) para um clique virar arrasto. */
 const DRAG_THRESHOLD = 3;
@@ -260,6 +265,8 @@ export function attachInteractions(root: HTMLElement): () => void {
       return null;
     const parent = getParent(doc, nodes[0]!.id);
     if (!parent) return null;
+    // Pai grid: o arrasto escolhe a célula (grid-column/grid-row) em vez de reordenar.
+    if (isGridContainer(parent.style)) return planGridMove(root, parent, nodes);
     const axis = flowAxis(parent);
     const siblings = siblingWorldRects(root, parent);
     const movingReal = nodes.map((n) => getEntry(doc, n.id)!.index);
@@ -406,7 +413,10 @@ export function attachInteractions(root: HTMLElement): () => void {
   }
 
   /** Ferramentas de criação: frame, rect, text, image. */
-  function startCreate(e: PointerEvent, tool: 'frame' | 'rect' | 'text' | 'image'): void {
+  function startCreate(
+    e: PointerEvent,
+    tool: 'frame' | 'rect' | 'text' | 'image' | ShapeTool,
+  ): void {
     const startX = e.clientX;
     const startY = e.clientY;
     const startW = toWorld(e);
@@ -416,12 +426,18 @@ export function attachInteractions(root: HTMLElement): () => void {
         if (!dragged && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD)
           return;
         dragged = true;
-        if (tool !== 'text') useFx.setState({ draw: normalizeRect(startW, toWorld(ev)) });
+        if (tool !== 'text')
+          useFx.setState({ draw: shapeDragRect(tool, startW, toWorld(ev), ev.shiftKey) });
       },
       up(ev, cancelled) {
         clearFx();
         if (cancelled || !ev) return;
-        const rect = dragged && tool !== 'text' ? normalizeRect(startW, toWorld(ev)) : null;
+        const rect =
+          dragged && tool !== 'text' ? shapeDragRect(tool, startW, toWorld(ev), ev.shiftKey) : null;
+        if (isShapeTool(tool)) {
+          void createShape(tool, startW, { x: startX, y: startY }, rect, { star: ev.altKey });
+          return;
+        }
         void finishCreate(tool, startW, { x: startX, y: startY }, rect);
       },
     });
@@ -500,6 +516,13 @@ export function attachInteractions(root: HTMLElement): () => void {
       void commitCrop();
       return;
     }
+    // Alças de span do grid têm gesto próprio (canvas/gridDrag.ts).
+    if (target.closest('[data-grid-span]')) return;
+    // Edição de pontos: o overlay trata o que é dele; clicar fora sai do modo e segue normalmente.
+    if (st().editingVectorId) {
+      if (target.closest('[data-vector-overlay]')) return;
+      ui.editVector(null);
+    }
     // O que estava focado (inputs de propriedades, texto em edição) perde o foco ao clicar no canvas.
     if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
       document.activeElement.blur();
@@ -517,9 +540,14 @@ export function attachInteractions(root: HTMLElement): () => void {
       return;
     }
     const tool = st().tool;
-    if (tool === 'frame' || tool === 'rect' || tool === 'text' || tool === 'image') {
+    if (tool === 'frame' || tool === 'rect' || tool === 'text' || tool === 'image' || isShapeTool(tool)) {
       e.preventDefault();
       startCreate(e, tool);
+      return;
+    }
+    if (tool === 'pen') {
+      e.preventDefault();
+      penPointerDown(e, root);
       return;
     }
     const doc = currentDoc();
@@ -552,6 +580,7 @@ export function attachInteractions(root: HTMLElement): () => void {
   }
 
   function onPointerMove(e: PointerEvent): void {
+    if (st().tool === 'pen') return penPointerMove(e, root);
     if (active || st().tool !== 'select') {
       if (!active && st().hoverId) ui.hover(null);
       return;
@@ -573,6 +602,7 @@ export function attachInteractions(root: HTMLElement): () => void {
   function onDoubleClick(e: MouseEvent): void {
     const target = e.target;
     const doc = currentDoc();
+    if (st().tool === 'pen') return penDoubleClick();
     if (!(target instanceof Element) || !doc || st().tool !== 'select') return;
     if (target.closest('[data-testid="text-editor"]')) return;
     const { id, label } = nodeIdOf(target);
@@ -592,6 +622,10 @@ export function attachInteractions(root: HTMLElement): () => void {
     ) {
       startCrop(id);
     }
+    // Duplo clique num svg já selecionado entra na edição de pontos.
+    const only = st().selection;
+    if (!r.select && !r.edit && only.length === 1 && only[0] === id && getNode(doc, id)?.type === 'svg')
+      ui.editVector(id);
   }
 
   function onContextMenu(e: MouseEvent): void {

@@ -4,6 +4,7 @@ import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
 import { insertImageFile, pickImageFile } from '../canvas/imageTool';
 import { saveDocumentAs } from '../desktop/fileFlows';
+import { textToOutlines } from '../vector/vectorActions';
 import { useClipboard } from '../clipboard/useClipboard';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
@@ -34,6 +35,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return ui.setTool(cmd.tool);
     case 'pickImage':
       return void pickAndInsertImage();
+    case 'textToOutlines':
+      return void textToOutlines();
     case 'save':
       return void actions.save();
     case 'saveAs':
@@ -60,6 +63,9 @@ export function runShortcut(cmd: ShortcutCommand): void {
     case 'selectChildren': {
       const { doc } = useDoc.getState();
       if (!doc) return;
+      // Enter com um nó svg selecionado entra na edição de pontos.
+      const only = useUi.getState().selection;
+      if (only.length === 1 && getNode(doc, only[0]!)?.type === 'svg') return ui.editVector(only[0]!);
       const kids = useUi
         .getState()
         .selection.flatMap((id) => getNode(doc, id)?.children.map((c) => c.id) ?? []);

@@ -4,6 +4,8 @@ export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
   'layout',
+  'grid',
+  'vectors',
   'responsive',
   'screenshot-loop',
   'export',
@@ -28,6 +30,16 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
   layout: {
     title: 'Guia: layout',
     description: 'Flexbox, tamanhos, posição absoluta e boas práticas de espaçamento.',
+  },
+  grid: {
+    title: 'Guia: CSS Grid',
+    description:
+      'Grid com write_html ou set_grid, posicionar filhos com place_in_grid, áreas nomeadas e get_layout.',
+  },
+  vectors: {
+    title: 'Guia: vetores e formas',
+    description:
+      'create_shape, insert_svg, set_path, set_vector_paint, boolean_op, flatten e text_to_outlines.',
   },
   responsive: {
     title: 'Guia: responsivo',
@@ -92,7 +104,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
 ## Guias
 
-\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
+\`design-system\`, \`layout\`, \`grid\`, \`vectors\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -181,6 +193,68 @@ Os nós usam CSS real. Use flexbox para quase tudo.
 - Frames raiz têm largura/altura fixas (ex.: 1440x900); o conteúdo interno deve fluir (\`width:100%\`, \`max-width\`).
 - Monte por seções: um \`write_html\` por bloco, cada um com um container flex próprio.
 - \`get_styles(nodeIds)\` mostra os estilos efetivos; \`get_layout(nodeId)\` mostra posição e tamanho reais (precisa de render).
+- Grades em duas dimensões: \`get_guide('grid')\` (\`set_grid\`, \`place_in_grid\`). Formas e SVG: \`get_guide('vectors')\`.
+`,
+  grid: `# CSS Grid
+
+Use grid para layouts em duas dimensões (cards, dashboards, galerias, formulários); flex continua melhor para uma linha ou coluna só.
+
+## Com write_html
+
+\`\`\`html
+<section class="cards">
+  <article class="card">A</article>
+  <article class="card wide">B</article>
+  <article class="card">C</article>
+</section>
+\`\`\`
+
+css: \`.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.wide{grid-column:span 2}\`
+
+## Com ferramentas
+
+- \`set_grid(nodeId, columns, rows?, gap?, columnGap?, rowGap?, areas?, placeItems?, justifyItems?, alignItems?)\` — \`columns\` aceita número (\`3\` = três colunas 1fr), texto CSS (\`"1fr 200px minmax(100px, 1fr)"\`, \`"repeat(auto-fill, minmax(200px, 1fr))"\`) ou lista (\`["200px", "1fr"]\`).
+- \`place_in_grid(nodeIds, column, row, span?)\` — célula (começa em 1); \`span\` é número (colunas) ou \`{ columns: 2, rows: 1 }\`; \`area: "header"\` usa uma área nomeada. O pai precisa ser grid.
+
+Exemplo de dashboard:
+
+\`\`\`
+set_grid({ nodeId: "el_main", columns: "240px 1fr", rows: "64px 1fr", gap: 16, areas: ["side top", "side content"] })
+place_in_grid({ nodeIds: ["el_sidebar"], area: "side" })
+place_in_grid({ nodeIds: ["el_topbar"], area: "top" })
+\`\`\`
+
+## Dicas
+
+- Prefira \`fr\` e \`minmax()\` a larguras fixas; \`repeat(auto-fill, minmax(220px, 1fr))\` cria grades responsivas sem breakpoint.
+- Cada nome em \`areas\` precisa formar um retângulo; use \`.\` para célula vazia.
+- \`get_layout(nodeId)\` mostra as trilhas medidas (tamanhos e linhas de coluna/linha) quando há render; use para conferir se os filhos caíram nas células certas.
+- Filho com \`position:absolute\` sai do grid. Itens fora das trilhas declaradas criam trilhas implícitas (\`grid-auto-rows\` controla a altura).
+- O código exportado (html, tailwind, react) mantém \`display:grid\`, as trilhas e o posicionamento.
+`,
+  vectors: `# Vetores e formas
+
+Formas e ícones são nós \`svg\`. Os criados por estas ferramentas têm um modelo vetorial editável (paths, viewBox, tinta); \`get_svg(nodeId)\` mostra o markup e os paths.
+
+## Criar
+
+- \`create_shape({ parentId, shape: "rect"|"ellipse"|"line"|"polygon"|"star", x?, y?, width?, height?, sides?, points?, styles? })\` — estilos de tinta (\`fill\`, \`stroke\`, \`stroke-width\`...) vão para o vetor. Com x/y fica absoluto (o pai precisa ser frame ou position:relative).
+- \`insert_svg({ parentId, svg, width?, height? })\` — importa markup SVG; o original é preservado até a primeira edição. Se o SVG usa filtros, máscaras, texto ou opacidade parcial, ele aparece mas não é editável (a resposta avisa).
+- \`insert_icon\` (Lucide) também gera nós svg; \`set_vector_paint\` e \`get_svg\` funcionam neles.
+
+## Editar
+
+- \`set_path({ nodeId, d, pathId?, fit? })\` — troca o \`d\` (ex.: \`"M 0 0 L 100 0 L 50 80 Z"\`); \`fit: true\` ajusta o viewBox e a caixa do nó.
+- \`set_vector_paint({ nodeId, pathIds?, fill?, stroke?, strokeWidth?, linecap?, linejoin?, dasharray?, opacity? })\` — \`fill\`/\`stroke\` aceitam cor ou gradiente: \`{ type: "linear", stops: [{ offset: 0, color: "#f00" }, { offset: 1, color: "#00f" }], x1: 0, y1: 0, x2: 1, y2: 0 }\`.
+- \`boolean_op({ nodeIds, op: "union"|"subtract"|"intersect"|"exclude" })\` — entre 2+ svgs irmãos; o de baixo é o "primeiro" do subtract; curvas são achatadas.
+- \`flatten({ nodeIds })\` — junta os paths num só nó/path.
+- \`text_to_outlines({ nodeIds })\` — texto vira contornos com a fonte do documento ou do sistema; deixa de ser editável como texto.
+
+## Dicas
+
+- Em ícones simples a cor sai do \`stroke\`/\`fill\` dos paths (\`currentColor\` acompanha a cor de texto do pai).
+- Confira com \`get_screenshot\`; tudo se desfaz com \`undo\`.
+- Um svg vindo de \`write_html\` é legado: \`get_svg\` infere os paths e a primeira edição cria o vetor.
 `,
   responsive: `# Responsivo com frames
 

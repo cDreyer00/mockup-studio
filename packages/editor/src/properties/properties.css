@@ -470,4 +470,81 @@
 .data-error {
   color: #f87171;
   font-size: 12px;
+
+/* ---------------- vetor ---------------- */
+
+.vec-tid {
+  display: contents;
+}
+.vec-bools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.vec-btn {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.vec-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.prop-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Editor de grid */
+.prop-grid-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prop-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.prop-tracks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.prop-track {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 68px 22px;
+  align-items: center;
+  gap: 4px;
+}
+.prop-track-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  min-width: 0;
+}
+.prop-track-index {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+.prop-track-auto {
+  padding: 0 6px;
+  color: var(--muted);
+}
+.prop-cell-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prop-mode-btn {
+  flex: 1;
+  width: auto;
+  padding: 0 8px;
 }

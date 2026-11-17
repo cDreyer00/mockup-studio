@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fitLineBox, groupLines, pickFrame } from './measure';
+import { fitLineBox, groupLines, measureGridTracks, pickFrame } from './measure';
+import type { GridComputed } from './measure';
 import { makeDoc } from '../test/fixtures';
 
 const ch = (c: string, x: number, y: number, w = 6, h = 16) => ({
@@ -66,5 +67,74 @@ describe('pickFrame', () => {
     expect(pickFrame(doc, a.id)).toMatchObject({ frame: { id: frame.id }, background: '#123456' });
     expect(pickFrame(doc, frame.id)?.frame.id).toBe(frame.id);
     expect(pickFrame(doc, 'nao_existe')).toBeNull();
+  });
+});
+
+describe('measureGridTracks', () => {
+  const cs = (over: Partial<GridComputed> = {}): GridComputed => ({
+    display: 'grid',
+    gridTemplateColumns: '200px 200px 200px',
+    gridTemplateRows: '100px 100px',
+    columnGap: '16px',
+    rowGap: '8px',
+    borderLeftWidth: '0px',
+    borderTopWidth: '0px',
+    paddingLeft: '0px',
+    paddingTop: '0px',
+    ...over,
+  });
+  const rect = { x: 10, y: 20, width: 632, height: 208 };
+
+  it('posiciona as trilhas resolvidas na caixa de conteúdo, relativas ao frame', () => {
+    const g = measureGridTracks(cs(), rect)!;
+    expect(g.columns).toEqual([
+      { start: 10, size: 200 },
+      { start: 226, size: 200 },
+      { start: 442, size: 200 },
+    ]);
+    expect(g.rows).toEqual([
+      { start: 20, size: 100 },
+      { start: 128, size: 100 },
+    ]);
+    expect(g.columnGap).toBe(16);
+    expect(g.rowGap).toBe(8);
+  });
+
+  it('desconta borda e padding do início', () => {
+    const g = measureGridTracks(
+      cs({
+        borderLeftWidth: '2px',
+        paddingLeft: '24px',
+        borderTopWidth: '1px',
+        paddingTop: '16px',
+      }),
+      rect,
+    )!;
+    expect(g.columns[0]).toEqual({ start: 36, size: 200 });
+    expect(g.rows[0]).toEqual({ start: 37, size: 100 });
+  });
+
+  it('aceita inline-grid, nomes de linha, fracionários e gap normal', () => {
+    const g = measureGridTracks(
+      cs({
+        display: 'inline-grid',
+        gridTemplateColumns: '[a] 33.5px [b] 66.25px',
+        gridTemplateRows: 'none',
+        columnGap: 'normal',
+        rowGap: 'normal',
+      }),
+      rect,
+    )!;
+    expect(g.columns).toEqual([
+      { start: 10, size: 33.5 },
+      { start: 43.5, size: 66.25 },
+    ]);
+    expect(g.rows).toEqual([]);
+    expect(g.columnGap).toBe(0);
+  });
+
+  it('nó que não é grid devolve undefined', () => {
+    expect(measureGridTracks(cs({ display: 'flex' }), rect)).toBeUndefined();
+    expect(measureGridTracks(cs({ display: 'block' }), rect)).toBeUndefined();
   });
 });

@@ -369,6 +369,14 @@ const KEYWORDS: Record<string, Record<string, string>> = {
     stretch: 'justify-stretch',
   },
   'justify-items': same('justify-items-', ['start', 'end', 'center', 'stretch']),
+  'place-items': same('place-items-', ['start', 'end', 'center', 'stretch', 'baseline']),
+  'place-content': {
+    ...same('place-content-', ['start', 'end', 'center', 'stretch', 'baseline']),
+    'space-between': 'place-content-between',
+    'space-around': 'place-content-around',
+    'space-evenly': 'place-content-evenly',
+  },
+  'place-self': same('place-self-', ['auto', 'start', 'end', 'center', 'stretch']),
   'justify-self': same('justify-self-', ['auto', 'start', 'end', 'center', 'stretch']),
   'text-align': same('text-', ['left', 'center', 'right', 'justify', 'start', 'end']),
   'text-transform': {
@@ -792,22 +800,58 @@ function opacityClass(value: string): string[] | null {
 function gridTemplate(kind: 'cols' | 'rows', value: string): string[] | null {
   const v = value.trim();
   if (v === 'none') return [`grid-${kind}-none`];
-  const m = /^repeat\(\s*(\d+)\s*,\s*(?:1fr|minmax\(\s*0(?:px)?\s*,\s*1fr\s*\))\s*\)$/.exec(v);
+  if (v === 'subgrid') return [`grid-${kind}-subgrid`];
+  // `grid-cols-N` do Tailwind é `repeat(N, minmax(0, 1fr))`; `repeat(N, 1fr)` (mínimo auto) é outra coisa
+  const m = /^repeat\(\s*(\d+)\s*,\s*minmax\(\s*0(?:px)?\s*,\s*1fr\s*\)\s*\)$/.exec(v);
   if (m) return [`grid-${kind}-${m[1]}`];
   const a = arb(v);
   return a === null ? null : [`grid-${kind}-[${a}]`];
 }
 
+/** `grid-column`/`grid-row`: `span N` → `col-span-N`, `N` → `col-N`, o resto vira `col-[2/span_3]`. */
 function gridSpan(kind: 'col' | 'row', value: string): string[] | null {
   const v = value.trim();
-  let m = /^span\s+(\d+)(?:\s*\/\s*span\s+\d+)?$/.exec(v);
+  let m = /^span\s+(\d+)$/.exec(v);
   if (m) return [`${kind}-span-${m[1]}`];
   if (/^1\s*\/\s*-1$/.test(v)) return [`${kind}-span-full`];
+  if (v === 'auto') return [`${kind}-auto`];
   m = /^(\d+)$/.exec(v);
   if (m) return [`${kind}-${m[1]}`];
-  const a = arb(v);
+  const a = arb(v.replace(/\s*\/\s*/g, '/'));
   return a === null ? null : [`${kind}-[${a}]`];
 }
+
+/** `grid-column-start`/`end` (e de linha): `col-start-2`, `col-end-auto`, `row-start-[span_2]`. */
+function gridLine(prefix: string, value: string): string[] | null {
+  const v = value.trim();
+  if (v === 'auto' || /^-?\d+$/.test(v)) return [withPrefix(prefix, v)];
+  const a = arb(v);
+  return a === null ? null : [`${prefix}-[${a}]`];
+}
+
+const AUTO_TRACK_KEYWORDS: Record<string, string> = {
+  auto: 'auto',
+  'min-content': 'min',
+  'max-content': 'max',
+};
+
+/** `grid-auto-rows`/`grid-auto-columns` → `auto-rows-*`/`auto-cols-*`. */
+function gridAuto(kind: 'rows' | 'cols', value: string): string[] | null {
+  const v = value.trim();
+  const kw = own(AUTO_TRACK_KEYWORDS, v);
+  if (kw) return [`auto-${kind}-${kw}`];
+  if (/^minmax\(\s*0(?:px)?\s*,\s*1fr\s*\)$/.test(v)) return [`auto-${kind}-fr`];
+  const a = arb(v);
+  return a === null ? null : [`auto-${kind}-[${a}]`];
+}
+
+const GRID_FLOW: Record<string, string> = {
+  row: 'grid-flow-row',
+  column: 'grid-flow-col',
+  dense: 'grid-flow-dense',
+  'row dense': 'grid-flow-row-dense',
+  'column dense': 'grid-flow-col-dense',
+};
 
 function flexShorthand(value: string): string[] | null {
   const v = value.trim().replace(/\s+/g, ' ');
@@ -924,6 +968,18 @@ const HANDLERS: Record<string, Handler> = {
   'grid-template-rows': (v) => gridTemplate('rows', v),
   'grid-column': (v) => gridSpan('col', v),
   'grid-row': (v) => gridSpan('row', v),
+  'grid-column-start': (v) => gridLine('col-start', v),
+  'grid-column-end': (v) => gridLine('col-end', v),
+  'grid-row-start': (v) => gridLine('row-start', v),
+  'grid-row-end': (v) => gridLine('row-end', v),
+  'grid-auto-rows': (v) => gridAuto('rows', v),
+  'grid-auto-columns': (v) => gridAuto('cols', v),
+  'grid-auto-flow': (v) => {
+    const k = own(GRID_FLOW, v.trim().toLowerCase().replace(/\s+/g, ' '));
+    if (k) return [k];
+    const a = arb(v);
+    return a === null ? null : [`[grid-auto-flow:${a}]`];
+  },
   'aspect-ratio': (v) => aspectRatio(v),
   'font-size': fontSizeClass,
   'font-weight': fontWeightClass,

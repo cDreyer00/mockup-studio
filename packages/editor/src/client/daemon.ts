@@ -407,6 +407,7 @@ export class DaemonClient {
     if (sel.length !== u.selection.length) ui.select(sel);
     if (u.hoverId && !getEntry(doc, u.hoverId)) ui.hover(null);
     if (u.editingTextId && !getEntry(doc, u.editingTextId)) ui.editText(null);
+    if (u.editingVectorId && !getEntry(doc, u.editingVectorId)) ui.editVector(null);
   }
 }
 

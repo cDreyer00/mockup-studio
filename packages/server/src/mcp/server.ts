@@ -31,12 +31,14 @@ import { GUIDES, GUIDE_INFO, GUIDE_TOPICS } from './guides.js';
 import { lostRepeaters, markRepeaters, restoreRepeaters } from './repeaterHtml.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
+import { registerGridTools } from './tools/grid.js';
 import { registerImageTools } from './tools/images.js';
 import { registerRenderTools } from './tools/render.js';
 import { registerSnapshotTools } from './tools/snapshot.js';
 import { registerAssetsTools } from './tools/assets.js';
 import { registerDataTools } from './tools/data.js';
 import { registerFilesTools } from './tools/files.js';
+import { registerVectorTools } from './tools/vector.js';
 
 export type { McpServerOptions } from './context.js';
 
@@ -1288,6 +1290,8 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerAssetsTools(ctx);
   registerDataTools(ctx);
   registerFilesTools(ctx);
+  registerVectorTools(ctx);
+  registerGridTools(ctx);
 
   /* ---------- resources ---------- */
 

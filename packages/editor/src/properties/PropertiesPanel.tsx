@@ -7,11 +7,13 @@ import { CssSection } from './CssSection';
 import { ConvertToRepeater, DataSection } from './DataSection';
 import { DocumentInfo } from './DocumentInfo';
 import { EffectsSection } from './EffectsSection';
+import { GridCellSection } from './GridEditor';
 import { HeaderSection } from './HeaderSection';
 import { ImageSection } from './ImageSection';
 import { LayoutSection } from './LayoutSection';
 import { SizeSection } from './SizeSection';
 import { TypographySection } from './TypographySection';
+import { VectorSection } from './VectorSection';
 import { LockedContext, useSelectionCtx } from './shared';
 import './properties.css';
 
@@ -48,7 +50,9 @@ export function PropertiesPanel() {
           single.node.type === 'element' &&
           single.node.children.length > 0 && <ConvertToRepeater node={single.node} />}
         {container && <LayoutSection ctxs={ctxs} />}
+        <GridCellSection ctxs={ctxs} />
         <TypographySection nodes={nodes} />
+        {nodes.every((n) => n.type === 'svg') && <VectorSection nodes={nodes} />}
         <AppearanceSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
         <AttrsSection ctxs={ctxs} />

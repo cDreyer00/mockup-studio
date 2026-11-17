@@ -6,7 +6,17 @@
 import { create } from 'zustand';
 import type { ImageCrop, Position } from '@mockup/core';
 
-export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image';
+export type Tool =
+  | 'select'
+  | 'hand'
+  | 'frame'
+  | 'rect'
+  | 'text'
+  | 'image'
+  | 'pen'
+  | 'ellipse'
+  | 'line'
+  | 'polygon';
 
 export interface Viewport {
   /** Translação do mundo em px de tela. */
@@ -42,6 +52,8 @@ export interface UiState {
   viewport: Viewport;
   /** Nó de texto em edição inline. */
   editingTextId: string | null;
+  /** Nó svg em edição de pontos (modo de edição de vetor). */
+  editingVectorId: string | null;
   preview: Record<string, NodePreview>;
   focusRequest: FocusRequest | null;
   /** Imagem em modo de recorte visual (null = fora do modo). */
@@ -65,6 +77,7 @@ export const useUi = create<UiState>(() => ({
   pageId: null,
   viewport: { x: 0, y: 0, z: 1 },
   editingTextId: null,
+  editingVectorId: null,
   preview: {},
   cropNodeId: null,
   cropDraft: null,
@@ -95,7 +108,13 @@ export const ui = {
     useUi.setState({ tool });
   },
   setPage(pageId: string | null): void {
-    useUi.setState({ pageId, selection: [], hoverId: null, editingTextId: null });
+    useUi.setState({
+      pageId,
+      selection: [],
+      hoverId: null,
+      editingTextId: null,
+      editingVectorId: null,
+    });
   },
   setViewport(v: Viewport | ((v: Viewport) => Viewport)): void {
     const next = typeof v === 'function' ? v(useUi.getState().viewport) : v;
@@ -138,6 +157,10 @@ export const ui = {
   },
   setHome(open: boolean): void {
     if (useUi.getState().homeOpen !== open) useUi.setState({ homeOpen: open });
+  },
+  /** Entra (id) ou sai (null) da edição de pontos de um nó svg. */
+  editVector(id: string | null): void {
+    if (useUi.getState().editingVectorId !== id) useUi.setState({ editingVectorId: id });
   },
   toast(text: string, kind: 'info' | 'error' = 'info'): void {
     useUi.setState({ toast: { text, kind, at: Date.now() } });
