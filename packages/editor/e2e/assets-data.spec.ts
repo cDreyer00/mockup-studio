@@ -170,7 +170,21 @@ test('dados: bind de JSON com 20 itens aparece no canvas e no render', async ({ 
   await nodeEls(page, card.id).nth(9).click();
   await mcp.call('set_selection', { nodeIds: [rp.id] });
   await expect(page.getByTestId('data-section')).toBeVisible();
-  await expect(page.getByTestId('data-table')).toContainText('Pessoa 07');
+  await expect(page.getByTestId('data-table')).toBeVisible();
+  await expect(page.getByTestId('data-cell-6-nome')).toHaveValue('Pessoa 07');
+  // Editar uma célula vira setData e o canvas atualiza.
+  await page.getByTestId('data-cell-0-nome').fill('Ana Lima');
+  await page.getByTestId('data-cell-0-nome').blur();
+  await expect(page.getByTestId('canvas-world')).toContainText('Ana Lima');
+  await expect
+    .poll(
+      async () =>
+        (
+          (await getDoc(info.docId)).pages[0]!.frames[0]!.children[0]!.data as { nome: string }[]
+        )[0]!.nome,
+    )
+    .toBe('Ana Lima');
+  // O render abaixo usa o documento antes da edição (20 pessoas originais).
 
   // Render: a mesma página que o motor de screenshot do app usa.
   const shot = await renderFrame(page, doc, info.docId, frame.id);
