@@ -305,10 +305,31 @@ export const PropDefsSchema = z.array(PropDefSchema).superRefine((list, ctx) => 
   });
 });
 
-export const ComponentVariantSchema: z.ZodType<ComponentVariant, unknown> = z.object({
+/** Mensagem para variante com `when` vazio (valeria sempre: o lugar desses estilos é o principal). */
+export const EMPTY_VARIANT_MESSAGE = 'variante sem condição: mova os estilos para o principal';
+
+const VariantShapeSchema = z.object({
   when: z.record(z.string(), PropValueSchema).default({}),
   overrides: NodeOverridesMapSchema.transform((m) => m ?? {}),
 });
+
+/** `true` se a variante tem ao menos uma condição em `when`. */
+export function hasVariantCondition(v: { when?: Record<string, unknown> }): boolean {
+  return !!v.when && Object.keys(v.when).length > 0;
+}
+
+/** Variante (estrita: `when` vazio é recusado). Usada nas ops (`addComponent`, `updateComponent`). */
+export const ComponentVariantSchema: z.ZodType<ComponentVariant, unknown> =
+  VariantShapeSchema.refine(hasVariantCondition, { error: EMPTY_VARIANT_MESSAGE, path: ['when'] });
+
+/**
+ * Variantes na leitura de arquivo: as com `when` vazio são descartadas (como as declarações de
+ * estilo inseguras), em vez de recusar o documento inteiro.
+ */
+const FileVariantsSchema = z
+  .array(VariantShapeSchema)
+  .default([])
+  .transform((list) => list.filter(hasVariantCondition));
 
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
@@ -349,27 +370,40 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
     }),
 );
 
-export const ComponentDefSchema: z.ZodType<ComponentDef, unknown> = z
-  .object({
-    id: z.string().min(1),
-    name: z.string().trim().min(1, { error: 'componente sem nome' }),
-    description: z.string().optional(),
-    kit: z.string().min(1).optional(),
-    props: PropDefsSchema.default([]),
-    root: NodeSchema,
-    variants: z.array(ComponentVariantSchema).default([]),
-  })
-  .transform((c) => {
-    if (c.description === undefined) delete c.description;
-    if (c.kit === undefined) delete c.kit;
-    // A raiz do principal não tem posição (a posição é da instância).
-    delete c.root.position;
-    return c;
-  })
-  .refine((c) => c.root.type !== 'frame' && c.root.type !== 'instance', {
-    error: 'a raiz do componente não pode ser frame nem instância',
-    path: ['root'],
-  });
+function componentDefSchema(
+  variants: z.ZodType<ComponentVariant[], unknown>,
+): z.ZodType<ComponentDef, unknown> {
+  return z
+    .object({
+      id: z.string().min(1),
+      name: z.string().trim().min(1, { error: 'componente sem nome' }),
+      description: z.string().optional(),
+      kit: z.string().min(1).optional(),
+      props: PropDefsSchema.default([]),
+      root: NodeSchema,
+      variants,
+    })
+    .transform((c) => {
+      if (c.description === undefined) delete c.description;
+      if (c.kit === undefined) delete c.kit;
+      // A raiz do principal não tem posição (a posição é da instância).
+      delete c.root.position;
+      return c;
+    })
+    .refine((c) => c.root.type !== 'frame' && c.root.type !== 'instance', {
+      error: 'a raiz do componente não pode ser frame nem instância',
+      path: ['root'],
+    });
+}
+
+/** Componente nas ops (`addComponent`): estrito (variante com `when` vazio é recusada). */
+export const ComponentDefSchema: z.ZodType<ComponentDef, unknown> = componentDefSchema(
+  z.array(ComponentVariantSchema).default([]),
+);
+
+/** Componente na leitura de arquivo: variantes com `when` vazio são descartadas. */
+const FileComponentDefSchema: z.ZodType<ComponentDef, unknown> =
+  componentDefSchema(FileVariantsSchema);
 
 export const PageSchema: z.ZodType<Page, unknown> = z.object({
   id: z.string().min(1),
@@ -419,7 +453,7 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   cssBase: z.enum(['tailwind']).optional().catch(undefined),
   // Biblioteca de componentes: ausente quando vazia (documentos antigos continuam iguais).
   components: z
-    .array(ComponentDefSchema)
+    .array(FileComponentDefSchema)
     .optional()
     .transform((list) => (list && list.length > 0 ? list : undefined)),
   // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo

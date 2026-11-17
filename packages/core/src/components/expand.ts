@@ -378,8 +378,10 @@ export function mergeOverride(a: NodeOverride, b: NodeOverride): NodeOverride {
   return out;
 }
 
+/** Variante sem condição (`when` vazio, recusada pelo schema e pelas ops) nunca se aplica. */
 function variantMatches(v: ComponentVariant, props: Record<string, PropValue>): boolean {
-  return Object.entries(v.when).every(([k, val]) => String(props[k]) === String(val));
+  const when = Object.entries(v.when);
+  return when.length > 0 && when.every(([k, val]) => String(props[k]) === String(val));
 }
 
 /* ---------------- expansão ---------------- */

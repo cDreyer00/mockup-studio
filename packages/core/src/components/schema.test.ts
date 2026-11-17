@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { applyOp } from '../apply.js';
+import { parseOp } from '../ops.schema.js';
 import { parseDocument, serializeDocument, validateDocument } from '../schema.js';
-import type { Node } from '../types.js';
-import { expandDocument, expandNodeTree } from './expand.js';
+import type { ComponentDef, Node } from '../types.js';
+import { expandDocument, expandInstance, expandNodeTree } from './expand.js';
 
 const read = (rel: string): string => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -163,7 +165,64 @@ describe('schema com componentes', () => {
   });
 });
 
+describe('variante sem condição (when vazio)', () => {
+  const empty = { when: {}, overrides: { '': { style: { color: 'blue' } } } };
+
+  it('na leitura de arquivo é descartada (o documento continua válido)', () => {
+    const doc = parseDocument(
+      raw({
+        components: [{ ...button, variants: [empty, ...button.variants, { overrides: {} }] }],
+      }),
+    );
+    expect(doc.components![0]!.variants).toEqual(button.variants);
+  });
+
+  it('nas ops é recusada com mensagem clara (schema e handler)', () => {
+    const msg = /variante sem condição: mova os estilos para o principal/;
+    expect(() =>
+      parseOp({ type: 'addComponent', component: { ...button, variants: [empty] } }),
+    ).toThrow(msg);
+    expect(() =>
+      parseOp({ type: 'updateComponent', componentId: 'cp_btn', variants: [empty] }),
+    ).toThrow(msg);
+    const doc = parseDocument(raw({ components: [button] }));
+    // Sem passar pelo schema (planejadores, editor): o handler também recusa.
+    expect(() =>
+      applyOp(doc, { type: 'updateComponent', componentId: 'cp_btn', variants: [empty] }),
+    ).toThrow(msg);
+    const other = {
+      ...button,
+      id: 'cp_b2',
+      name: 'B2',
+      root: n('el_b2', 'element', 'div'),
+      variants: [empty],
+    } as unknown as ComponentDef;
+    expect(() => applyOp(doc, { type: 'addComponent', component: other })).toThrow(msg);
+  });
+
+  it('a expansão ignora uma variante vazia que escape da validação', () => {
+    const doc = parseDocument(
+      raw({
+        components: [button],
+        nodes: [n('in_1', 'instance', 'button', { componentId: 'cp_btn' })],
+      }),
+    );
+    doc.components![0]!.variants = [empty];
+    const out = expandInstance(doc, doc.pages[0]!.frames[0]!.children[0]!, { warnings: [] });
+    expect(out.style.color).toBeUndefined();
+  });
+});
+
 describe('kit shadcn-like', () => {
+  it('nenhuma variante do kit tem when vazio', () => {
+    const json = JSON.parse(read('../../../../kits/shadcn-like.mockup.json')) as {
+      components: { variants?: { when?: Record<string, unknown> }[] }[];
+    };
+    const variants = json.components.flatMap((c) => c.variants ?? []);
+    expect(variants.length).toBeGreaterThan(0);
+    expect(variants.every((v) => Object.keys(v.when ?? {}).length > 0)).toBe(true);
+  });
+
   const text = read('../../../../kits/shadcn-like.mockup.json');
 
   it('carrega e expande a vitrine sem avisos nem placeholders sobrando', () => {

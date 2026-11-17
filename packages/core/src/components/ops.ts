@@ -17,6 +17,7 @@ import type {
   SetInstancePropsOp,
   UpdateComponentOp,
 } from '../ops.js';
+import { EMPTY_VARIANT_MESSAGE, hasVariantCondition } from '../schema.js';
 import { normalizeStateKey } from '../states.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from '../styles.js';
 import { sanitizeSvg } from '../svg.js';
@@ -149,6 +150,15 @@ function normalizeTree(node: Node): Node {
 function assertRootShape(root: Node): void {
   if (root.type === 'frame') fail('A raiz do componente não pode ser um frame');
   if (root.type === 'instance') fail('A raiz do componente não pode ser uma instância');
+}
+
+/** Recusa variante sem condição (`when` vazio valeria sempre e o export React a descarta). */
+function assertVariants(c: ComponentDef): void {
+  c.variants.forEach((v, i) => {
+    if (!hasVariantCondition(v)) {
+      fail(`Componente "${c.name}", variante ${i + 1}: ${EMPTY_VARIANT_MESSAGE}`);
+    }
+  });
 }
 
 function assertUniqueName(list: ComponentDef[], name: string, selfId?: string): void {
@@ -310,6 +320,7 @@ export function doAddComponent(d: Document, op: AddComponentOp): ComponentApplie
   normalizeTree(c.root);
   delete c.root.position;
   assertRootShape(c.root);
+  assertVariants(c);
   const list = d.components ?? [];
   if (list.some((x) => x.id === c.id)) fail(`Já existe um componente com id "${c.id}"`);
   assertUniqueName(list, c.name);
@@ -372,6 +383,7 @@ export function doUpdateComponent(d: Document, op: UpdateComponentOp): Component
   if (op.variants !== undefined) {
     inv.variants = prev.variants;
     c.variants = deepClone(op.variants);
+    assertVariants(c);
   }
   if (op.root !== undefined) {
     const root = normalizeTree(deepClone(op.root));

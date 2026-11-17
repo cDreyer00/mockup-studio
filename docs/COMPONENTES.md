@@ -47,6 +47,8 @@ interface ComponentVariant {
 
 As variantes que batem são aplicadas na ordem da lista (a última ganha). Ex.: o Button do kit tem `variant` (enum `default | secondary | outline | ghost | destructive`) e uma variante por opção que troca `background`, `color`, `border` e o `hover`.
 
+`when` precisa de ao menos uma condição: uma variante com `when: {}` valeria sempre (o lugar desses estilos é o principal) e o export React não teria como representá-la. As ops (`addComponent`, `updateComponent`, no schema e no handler) recusam com "variante sem condição: mova os estilos para o principal". Na leitura de arquivo a variante vazia é **descartada** (como as declarações de estilo inseguras), sem recusar o documento; a expansão também a ignora.
+
 ### Instância
 
 Um nó `type: 'instance'`:
