@@ -10,6 +10,7 @@ directories:
 # O bundle do processo principal já embute todas as dependências (só `electron` é externo).
 files:
   - out/**
+  - '!out/cli/**' # o CLI vai em resources/cli (extraResources), fora do asar
   - package.json
 asar: true
 npmRebuild: false
@@ -20,6 +21,12 @@ extraResources:
     to: docs
   - from: build/icon.png
     to: icon.png
+  # CLI embutido (gerado por scripts/build-cli.mjs): fora do asar, roda com ELECTRON_RUN_AS_NODE=1
+  - from: out/cli
+    to: cli
+  # skill/snippets para integrar com Claude Code e Codex (pasta na raiz do repositório)
+  - from: ../../integrations
+    to: integrations
 win:
   icon: build/icon.ico
   target:

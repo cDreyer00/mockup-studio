@@ -7,7 +7,7 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "build": "electron-vite build",
+    "build": "electron-vite build && node scripts/build-cli.mjs",
     "dev": "electron-vite dev",
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -24,6 +24,7 @@
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
+    "esbuild": "^0.28.2",
     "vite": "^7.3.8"
   }
 }
