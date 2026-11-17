@@ -33,7 +33,7 @@ const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(
 function formatFetched(iso: string | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-US');
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(undefined);
 }
 
 /** Editable cell: commits on blur/Enter, Esc discards. */

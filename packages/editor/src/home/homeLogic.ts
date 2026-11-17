@@ -31,7 +31,7 @@ export function buildFolderTree(folders: readonly string[]): FolderNode[] {
     if (path) ensure(path);
   }
   const sort = (list: FolderNode[]): void => {
-    list.sort((a, b) => a.name.localeCompare(b.name, 'en-US', { numeric: true }));
+    list.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     for (const n of list) sort(n.children);
   };
   sort(roots);
@@ -69,7 +69,7 @@ export function arrangeFiles(
   if (filter.kind === 'recent' && !search.trim()) {
     return files.filter((f) => f.recent !== undefined).sort((a, b) => a.recent! - b.recent!);
   }
-  return [...files].sort((a, b) => a.name.localeCompare(b.name, 'en-US', { numeric: true }));
+  return [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
 
 export function sameFilter(a: HomeFilter, b: HomeFilter): boolean {

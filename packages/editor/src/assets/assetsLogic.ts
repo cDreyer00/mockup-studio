@@ -15,7 +15,7 @@ export function filterAssets(assets: readonly AssetInfo[], f: AssetFilter): Asse
   const q = fold(f.query.trim());
   return assets
     .filter((a) => (!f.unusedOnly || a.uses === 0) && (!q || fold(a.path).includes(q)))
-    .sort((a, b) => a.path.localeCompare(b.path, 'en-US', { numeric: true }));
+    .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
 }
 
 /** "1.2 MB", "340 KB", "12 B". */
