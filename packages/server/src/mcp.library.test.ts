@@ -368,6 +368,34 @@ describe('assets, CDN e biblioteca (HTTP + MCP)', () => {
       expect((await call('get_asset_url', { id: '../fora.png' })).isError).toBe(true);
     });
 
+    it('export de código copia as imagens com link /cdn do daemon para assets/cdn/', async () => {
+      const png = fakePng(20, 10, 3);
+      const hash = sha32(png);
+      const up = await call('upload_asset', {
+        source: `data:image/png;base64,${png.toString('base64')}`,
+        library: true,
+      });
+      expect(up.isError, textOf(up)).toBeFalsy();
+      const link = `${base}/cdn/${hash}.png`;
+      const w = await call('write_html', {
+        parentId: ws.frameId,
+        html: `<section><img src="${link}" alt="capa"><div style="width:20px;height:10px;background-image:url('${link}')"></div></section>`,
+      });
+      expect(w.isError, textOf(w)).toBeFalsy();
+      const out = path.join(ws.dir, 'saida');
+      const r = await call('export', { nodeIds: [ws.frameId], format: 'html', outputDir: out });
+      expect(r.isError, textOf(r)).toBeFalsy();
+      expect(textOf(r)).toContain(`cdn/${hash}.png`);
+      const copied = path.join(out, 'assets', 'cdn', `${hash}.png`);
+      expect(fs.readFileSync(copied).equals(png)).toBe(true);
+      const html = fs.readFileSync(path.join(out, 'desktop.html'), 'utf8');
+      expect(html).toContain(`src="assets/cdn/${hash}.png"`);
+      expect(html).toContain(`assets/cdn/${hash}.png`);
+      expect(html).not.toContain(`${base}/cdn/`);
+      // o documento continua com o link direto
+      expect(frame().children[0]!.children[0]!.src).toBe(link);
+    });
+
     it('optimize_assets converte PNG grande em WebP menor, reescreve o src e o undo restaura', async () => {
       const sharp = (await import('sharp')).default;
       const noise = await sharp(crypto.randomBytes(800 * 400 * 3), {

@@ -394,6 +394,7 @@ Também troca a imagem (\`source\`: caminho, URL, data URL ou um arquivo já em 
 ## Dicas
 
 - Prefira imagens reais do usuário quando existirem; placeholders são para preencher.
+- Em \`src\`, prefira o caminho relativo de \`assets/\` ao link \`/cdn\`: o link só funciona com o daemon rodando (o \`export\` de código copia os links \`/cdn\` do daemon para \`assets/cdn/\`).
 - Confira o resultado com \`get_screenshot\`.
 `,
   data: `# Dados reais e repetidores

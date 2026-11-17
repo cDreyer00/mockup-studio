@@ -11,6 +11,8 @@ Imagens e fontes de um documento ficam em `assets/`, ao lado do `.mockup.json`. 
 
 `hash` são os 32 primeiros caracteres hexadecimais do SHA-256 dos bytes. O mesmo conteúdo dá sempre o mesmo link, em qualquer documento, com o documento fechado e depois de reiniciar o daemon. Sem pasta de dados (testes), o CDN usa uma pasta temporária do processo.
 
+Link `/cdn` usado direto como `src` (ou em `url(...)` e nos dados de repetidores) funciona no canvas e no screenshot enquanto o daemon roda. No `export` de código (html, tailwind, react), os links do próprio daemon (`127.0.0.1`/`localhost`, ou `/cdn/...` relativo) que a biblioteca conhece viram `assets/cdn/<hash>.<ext>` e o arquivo é copiado para `<saída>/assets/cdn/`; o documento não muda. Para o mockup não depender da biblioteca, prefira `src` relativo a `assets/` (`upload_asset` sem `library`).
+
 ## Referências e uso
 
 `collectAssetRefs(doc)` (core, `assetRefs.ts`) encontra onde cada arquivo é usado:
