@@ -6,6 +6,7 @@ import { ColorInput, IconButton } from '../ui/controls';
 import { NumberInput } from '../ui/NumberInput';
 import { parseShadows, serializeShadows, splitTopLevel } from './css';
 import type { Shadow } from './css';
+import { TokenBound } from './TokenBinding';
 import { DraftInput, LockedContext, commitStyle, common, styleOf } from './shared';
 
 const NEW_SHADOW: Shadow = {
@@ -85,7 +86,15 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
             />
           </div>
           <div className="prop-row-shadow">
-            <ColorInput value={s.color} onCommit={(v) => update(i, { color: v })} />
+            <TokenBound
+              nodes={nodes}
+              prop="box-shadow-color"
+              kind="color"
+              value={s.color}
+              write={(v) => update(i, { color: v })}
+            >
+              <ColorInput value={s.color} onCommit={(v) => update(i, { color: v })} />
+            </TokenBound>
             <IconButton
               title="Sombra interna"
               active={s.inset}

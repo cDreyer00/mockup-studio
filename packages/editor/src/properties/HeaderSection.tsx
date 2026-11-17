@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Node, NodeType } from '@mockup/core';
 import { Section } from '../ui/controls';
 import { runOps, Body, DraftInput, common } from './shared';
+import { ThemeRow } from './ThemeRow';
 
 const ICONS: Record<NodeType, ReactNode> = {
   frame: <Frame size={14} />,
@@ -56,6 +57,7 @@ export function HeaderSection({ nodes, locked }: { nodes: readonly Node[]; locke
             {nodes.length > 1 && sameType && sameTag ? `${subtitle} · ${first.tag}` : subtitle}
           </span>
         </div>
+        <ThemeRow nodes={nodes} />
       </Body>
     </Section>
   );

@@ -9,7 +9,9 @@ import { BoxField } from './BoxField';
 import { RADIUS } from './boxes';
 import { parseBorder, serializeBorder } from './css';
 import type { Border } from './css';
+import { varRefName } from '../tokens/tokensLogic';
 import { ShadowList } from './ShadowList';
+import { TokenBound } from './TokenBinding';
 import {
   Body,
   DraftInput,
@@ -65,27 +67,30 @@ function Background({ nodes }: { nodes: readonly Node[] }) {
       write(hex ?? '#ffffff');
     } else write(DEFAULT_GRADIENT);
   };
+  const isVar = varRefName(typeof value === 'string' ? value : null) !== null;
   return (
     <div className="prop-bg">
-      {complex || value === null ? (
-        <DraftInput
-          value={value}
-          mono
-          placeholder="gradiente, url(...) ou var(...)"
-          onCommit={write}
-        />
-      ) : (
-        <ColorInput
-          value={value}
-          title="Cor de fundo"
-          onPreview={(v) => previewStyles(nodes, () => ({ background: v }))}
-          onCommit={write}
-        />
-      )}
+      <TokenBound nodes={nodes} prop="background" kind="color" value={value} write={write}>
+        {complex || value === null ? (
+          <DraftInput
+            value={value}
+            mono
+            placeholder="gradiente, url(...) ou var(...)"
+            onCommit={write}
+          />
+        ) : (
+          <ColorInput
+            value={value}
+            title="Cor de fundo"
+            onPreview={(v) => previewStyles(nodes, () => ({ background: v }))}
+            onCommit={write}
+          />
+        )}
+      </TokenBound>
       <IconButton
         title={complex ? 'Usar cor sólida' : 'Usar gradiente'}
-        active={complex}
-        disabled={locked}
+        active={complex && !isVar}
+        disabled={locked || isVar}
         onClick={toggle}
       >
         {complex ? <Palette size={13} /> : <PaintBucket size={13} />}
@@ -111,11 +116,18 @@ function BorderFields({ nodes }: { nodes: readonly Node[] }) {
     });
   return (
     <>
-      <ColorInput
+      <TokenBound
+        nodes={nodes}
+        prop="border-color"
         value={b === null ? null : b.color || undefined}
-        title="Cor da borda"
-        onCommit={(v) => edit({ color: v })}
-      />
+        write={(v) => edit({ color: v })}
+      >
+        <ColorInput
+          value={b === null ? null : b.color || undefined}
+          title="Cor da borda"
+          onCommit={(v) => edit({ color: v })}
+        />
+      </TokenBound>
       <div className="prop-row-2">
         <NumberInput
           label="W"
@@ -189,6 +201,15 @@ export function AppearanceSection({ nodes }: { nodes: readonly Node[] }) {
             prop="mix-blend-mode"
             options={BLEND}
             title="mix-blend-mode"
+            placeholder="normal"
+          />
+        </Row>
+        <Row label="Mist. fundo">
+          <StyleSelect
+            nodes={nodes}
+            prop="background-blend-mode"
+            options={BLEND}
+            title="background-blend-mode"
             placeholder="normal"
           />
         </Row>

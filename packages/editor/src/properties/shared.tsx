@@ -11,6 +11,7 @@ import { ui } from '../state/uiStore';
 import { ColorInput, IconButton, Row, SelectInput } from '../ui/controls';
 import type { SelectOption } from '../ui/controls';
 import { NumberInput } from '../ui/NumberInput';
+import { TokenBound } from './TokenBinding';
 
 /** Nó selecionado com o contexto necessário às seções. */
 export interface NodeCtx {
@@ -142,19 +143,21 @@ export function StyleNum({
   const value = common(nodes, styleOf(prop));
   return (
     <div className="prop-field" data-testid={testId}>
-      <NumberInput
-        value={value}
-        label={label}
-        title={title}
-        unit={unit}
-        min={min}
-        max={max}
-        step={step}
-        placeholder={placeholder}
-        disabled={locked}
-        onPreview={preview ? (v) => previewStyles(nodes, () => ({ [prop]: v })) : undefined}
-        onCommit={(v) => void commitStyle(nodes, prop, v)}
-      />
+      <TokenBound nodes={nodes} prop={prop} value={value}>
+        <NumberInput
+          value={value}
+          label={label}
+          title={title}
+          unit={unit}
+          min={min}
+          max={max}
+          step={step}
+          placeholder={placeholder}
+          disabled={locked}
+          onPreview={preview ? (v) => previewStyles(nodes, () => ({ [prop]: v })) : undefined}
+          onCommit={(v) => void commitStyle(nodes, prop, v)}
+        />
+      </TokenBound>
     </div>
   );
 }
@@ -172,14 +175,17 @@ export function StyleSelect({
   title?: string;
   placeholder?: string;
 }) {
+  const value = common(nodes, styleOf(prop));
   return (
-    <SelectInput
-      value={common(nodes, styleOf(prop))}
-      options={options}
-      title={title}
-      placeholder={placeholder}
-      onChange={(v) => void commitStyle(nodes, prop, v)}
-    />
+    <TokenBound nodes={nodes} prop={prop} value={value}>
+      <SelectInput
+        value={value}
+        options={options}
+        title={title}
+        placeholder={placeholder}
+        onChange={(v) => void commitStyle(nodes, prop, v)}
+      />
+    </TokenBound>
   );
 }
 
@@ -192,13 +198,16 @@ export function StyleColor({
   prop: string;
   title?: string;
 }) {
+  const value = common(nodes, styleOf(prop));
   return (
-    <ColorInput
-      value={common(nodes, styleOf(prop))}
-      title={title}
-      onPreview={(v) => previewStyles(nodes, () => ({ [prop]: v }))}
-      onCommit={(v) => void commitStyle(nodes, prop, v)}
-    />
+    <TokenBound nodes={nodes} prop={prop} value={value}>
+      <ColorInput
+        value={value}
+        title={title}
+        onPreview={(v) => previewStyles(nodes, () => ({ [prop]: v }))}
+        onCommit={(v) => void commitStyle(nodes, prop, v)}
+      />
+    </TokenBound>
   );
 }
 

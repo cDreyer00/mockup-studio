@@ -6,6 +6,8 @@
 import { create } from 'zustand';
 import type { Position } from '@mockup/core';
 
+export type LeftTab = 'layers' | 'tokens';
+
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image';
 
 export interface Viewport {
@@ -48,6 +50,8 @@ export interface UiState {
   spaceDown: boolean;
   /** Alt pressionado (régua de distância / redimensionar pelo centro). */
   altDown: boolean;
+  /** Aba ativa do painel esquerdo. */
+  leftTab: LeftTab;
   /** Mensagem transitória para o usuário (erros de op, avisos). */
   toast: { text: string; kind: 'info' | 'error'; at: number } | null;
 }
@@ -63,6 +67,7 @@ export const useUi = create<UiState>(() => ({
   focusRequest: null,
   spaceDown: false,
   altDown: false,
+  leftTab: 'layers',
   toast: null,
 }));
 
@@ -112,6 +117,9 @@ export const ui = {
     const next = { ...cur };
     for (const id of owned) delete next[id];
     useUi.setState({ preview: next });
+  },
+  setLeftTab(leftTab: LeftTab): void {
+    if (useUi.getState().leftTab !== leftTab) useUi.setState({ leftTab });
   },
   editText(id: string | null): void {
     useUi.setState({ editingTextId: id });

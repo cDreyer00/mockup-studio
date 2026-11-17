@@ -1,30 +1,49 @@
+import { useMemo } from 'react';
+import { getTokenReport } from '@mockup/core';
 import { useDoc } from '../state/docStore';
 import { useActivePage } from '../state/hooks';
-import { toHexColor } from '../ui/controls';
+import { ui } from '../state/uiStore';
+import { summarizeTokens } from '../tokens/tokensLogic';
 
-/** Sem seleção: nome do documento, página ativa e tokens (somente leitura). */
+/** Sem seleção: nome do documento, página ativa e resumo dos tokens (edição na aba Tokens). */
 export function DocumentInfo() {
   const name = useDoc((s) => s.doc?.name);
-  const tokens = useDoc((s) => s.doc?.tokens);
+  const doc = useDoc((s) => s.doc);
   const page = useActivePage();
-  const entries = Object.entries(tokens ?? {});
+  const summary = useMemo(() => (doc ? summarizeTokens(getTokenReport(doc)) : null), [doc]);
   return (
     <div className="prop-doc" data-testid="prop-document">
       <div className="prop-doc-title">Documento</div>
       <div className="prop-doc-name">{name ?? '—'}</div>
       <div className="prop-subtitle">Página: {page?.name ?? '—'}</div>
-      <div className="prop-subhead">Tokens</div>
-      {entries.length === 0 && <div className="prop-subtitle">Nenhum token definido.</div>}
-      {entries.map(([k, v]) => (
-        <div className="prop-token" key={k} title={`${k}: ${v}`}>
-          <span
-            className="prop-token-swatch"
-            style={{ background: toHexColor(v) || /^(#|rgb|hsl)/i.test(v) ? v : 'transparent' }}
-          />
-          <span className="prop-token-key mono">{k}</span>
-          <span className="prop-token-val mono">{v}</span>
+      <div className="prop-subhead">Tokens e temas</div>
+      {summary && (
+        <div className="prop-doc-summary" data-testid="tokens-summary">
+          <div>
+            {summary.tokens} {summary.tokens === 1 ? 'token' : 'tokens'} · {summary.themes}{' '}
+            {summary.themes === 1 ? 'tema' : 'temas'}
+          </div>
+          {summary.unused > 0 && (
+            <div className="prop-doc-warn" data-testid="tokens-summary-unused">
+              {summary.unused} não {summary.unused === 1 ? 'usado' : 'usados'}
+            </div>
+          )}
+          {summary.broken > 0 && (
+            <div className="prop-doc-error" data-testid="tokens-summary-broken">
+              {summary.broken} com problema
+            </div>
+          )}
+          {summary.tokens === 0 && <div className="prop-subtitle">Nenhum token definido.</div>}
         </div>
-      ))}
+      )}
+      <button
+        type="button"
+        className="btn"
+        data-testid="open-tokens"
+        onClick={() => ui.setLeftTab('tokens')}
+      >
+        Abrir painel de tokens
+      </button>
     </div>
   );
 }

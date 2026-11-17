@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { Canvas } from './canvas/Canvas';
-import { LayersPanel } from './layers/LayersPanel';
 import { PropertiesPanel } from './properties/PropertiesPanel';
 import { useDesktop } from './desktop/useDesktop';
 import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
+import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
 
@@ -30,7 +30,7 @@ export function App() {
     <div className="app">
       <Toolbar />
       <div className="main">
-        <LayersPanel />
+        <LeftDock />
         {hasDoc ? (
           <Canvas />
         ) : (

@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { Document, Node } from '@mockup/core';
 import { DocIdContext, NodeView } from '../canvas/NodeView';
 import { DocumentBase, FontFaces } from '../canvas/FontFaces';
+import { ThemeStyles } from '../canvas/ThemeStyles';
 import '../canvas/canvas.css';
 
 export interface RenderAppProps {
@@ -33,6 +34,7 @@ export function RenderApp({ doc, docId, frame }: RenderAppProps) {
       style={doc.tokens as CSSProperties | undefined}
     >
       <DocumentBase />
+      <ThemeStyles tokens={doc.tokens} themes={doc.themes} />
       <FontFaces fonts={doc.fonts} docId={docId} />
       <DocIdContext.Provider value={docId}>
         <NodeView node={frame} root />

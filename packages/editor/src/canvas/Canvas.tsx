@@ -8,6 +8,7 @@ import { canvasApi, registerCanvasApi } from './canvasApi';
 import type { CanvasApi } from './canvasApi';
 import { DocumentBase, FontFaces } from './FontFaces';
 import { FrameView } from './FrameView';
+import { ThemeStyles } from './ThemeStyles';
 import { fitRect, rectInside, rectToScreen, unionRects, zoomAtPoint } from './geometry';
 import type { Rect, Viewport } from './geometry';
 import { measureWorldRect } from './dom';
@@ -41,6 +42,7 @@ export function Canvas() {
   const worldRef = useRef<HTMLDivElement>(null);
   const docId = useDoc((s) => s.doc?.id ?? null);
   const tokens = useDoc((s) => s.doc?.tokens);
+  const themes = useDoc((s) => s.doc?.themes);
   const fonts = useDoc((s) => s.doc?.fonts);
   const page = useActivePage();
   const focusRequest = useUi((s) => s.focusRequest);
@@ -212,6 +214,7 @@ export function Canvas() {
         </DocIdContext.Provider>
       </div>
       <DocumentBase />
+      <ThemeStyles tokens={tokens ?? {}} themes={themes} />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
       <Overlay rootRef={rootRef} />
     </div>
