@@ -21,7 +21,7 @@ MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electro
 
 ## Instalação
 
-**Instalador (Windows).** `npm run dist` gera `dist/MockupStudio-Setup-<versão>-x64.exe`. A instalação é por usuário e registra o CLI `mockup` no PATH (abra um terminal novo depois). Também sai uma versão portátil.
+**Instalador (Windows).** `npm run dist` gera `dist/MockupStudio-Setup-<versão>-x64.exe`. A instalação é por usuário e registra o CLI `mockup` no PATH (abra um terminal novo depois). Também sai uma versão portátil, que não registra o CLI `mockup` (ela roda de uma pasta temporária).
 
 **A partir do código.** Requisitos: Node 24 e npm 11.
 

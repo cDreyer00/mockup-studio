@@ -21,7 +21,7 @@ Isso cria `mockup`, `mockup.cmd` e `mockup.ps1` na pasta global do npm, que já 
 - Instala por usuário e registra o CLI: `mockup.cmd` em `%LOCALAPPDATA%\MockupStudio\bin`, e essa pasta entra no PATH do usuário. Abra um terminal novo depois.
 - O `mockup.cmd` roda o próprio executável do app como Node (`ELECTRON_RUN_AS_NODE=1`), então não precisa de Node instalado.
 - A desinstalação remove o shim e a entrada do PATH.
-- Comandos manuais: `mockup install-cli` e `mockup uninstall-cli` (ambos aceitam `--bin-dir <pasta>`), ou `"Mockup Studio.exe" --install-cli` / `--uninstall-cli` (útil na versão portátil).
+- Comandos manuais: `mockup install-cli` e `mockup uninstall-cli` (ambos aceitam `--bin-dir <pasta>`), ou `"Mockup Studio.exe" --install-cli` / `--uninstall-cli` (reparo da instalação; o portátil recusa, porque roda de uma pasta temporária).
 
 **Verificar:**
 
