@@ -214,10 +214,7 @@ export function ExportDialog({ doc, onClose }: { doc: Document; onClose: () => v
           data-testid="tokens-export-copy"
           onClick={() =>
             void copyText(out).then((ok) =>
-              ui.toast(
-                ok ? 'Copied to the clipboard' : 'Could not copy',
-                ok ? 'info' : 'error',
-              ),
+              ui.toast(ok ? 'Copied to the clipboard' : 'Could not copy', ok ? 'info' : 'error'),
             )
           }
         >

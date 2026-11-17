@@ -166,7 +166,9 @@ describe('ClassesSection', () => {
     const field = await screen.findByTestId('prop-classes', {}, WAIT);
     fireEvent.focus(field);
     fireEvent.change(field, { target: { value: 'p-4 does-not-exist-xyz' } });
-    expect((await screen.findByTestId('classes-unknown')).textContent).toContain('does-not-exist-xyz');
+    expect((await screen.findByTestId('classes-unknown')).textContent).toContain(
+      'does-not-exist-xyz',
+    );
   });
 
   it('"Show as Tailwind" lists the classes of the current style (node without classes) and persists in the uiStore', async () => {
