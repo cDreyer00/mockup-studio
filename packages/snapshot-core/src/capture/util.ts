@@ -1,4 +1,4 @@
-/** Utilitários de texto e CSS da captura (sem estado). */
+/** Text and CSS utilities for the capture (stateless). */
 
 export const NAME_TEXT_MAX = 32;
 
@@ -6,8 +6,8 @@ export const capitalize = (s: string): string => (s ? s.charAt(0).toUpperCase() 
 export const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n) + '…' : s);
 
 /**
- * Mesma regra de espaços do `htmlToNodes` do core: só whitespace → descartado; sequências viram um
- * espaço, e o whitespace inicial/final é removido se contiver quebra de linha.
+ * Same whitespace rule as the core's `htmlToNodes`: whitespace only → discarded; sequences become a
+ * single space, and leading/trailing whitespace is removed if it contains a line break.
  */
 export function cleanText(raw: string): string {
   const m = /^([ \t\r\n\f]*)([\s\S]*?)([ \t\r\n\f]*)$/.exec(raw);
@@ -17,7 +17,7 @@ export function cleanText(raw: string): string {
   return lead + m[2].replace(/[ \t\r\n\f]+/g, ' ') + trail;
 }
 
-/** Decodifica escapes CSS (`\201C`, `\"`, `\A`) de uma string já sem as aspas externas. */
+/** Decodes CSS escapes (`\201C`, `\"`, `\A`) of a string already without the outer quotes. */
 export function decodeCssString(s: string): string {
   return s.replace(
     /\\(?:([0-9a-fA-F]{1,6})[ \t\n\r\f]?|([\s\S]))/g,
@@ -32,20 +32,20 @@ export function decodeCssString(s: string): string {
 }
 
 export interface ParsedContent {
-  /** Texto resultante (strings, attr(), aspas). */
+  /** Resulting text (strings, attr(), quotes). */
   text: string;
-  /** Primeira `url(...)` do content. */
+  /** First `url(...)` of the content. */
   url?: string;
-  /** `content: ""` puro: caixa decorativa. */
+  /** Plain `content: ""`: decorative box. */
   box: boolean;
-  /** Havia counter()/counters() (não avaliados). */
+  /** There was counter()/counters() (not evaluated). */
   skippedCounter: boolean;
 }
 
 const CONTENT_TOKEN_RE =
   /\s*(?:"((?:[^"\\]|\\[\s\S])*)"|'((?:[^'\\]|\\[\s\S])*)'|url\(\s*(["']?)(.*?)\3\s*\)|attr\(\s*([\w-]+)[^)]*\)|(open-quote|close-quote|no-open-quote|no-close-quote)|(counters?\([^)]*\))|\/[\s\S]*$|(\S+))/gy;
 
-/** Interpreta o valor computado de `content` de um pseudo-elemento. */
+/** Interprets the computed `content` value of a pseudo-element. */
 export function parseContent(raw: string, el: Element): ParsedContent | null {
   const value = raw.trim();
   if (!value || value === 'none' || value === 'normal') return null;
@@ -92,7 +92,7 @@ export function isTransparent(color: string): boolean {
   return parts.length >= 4 && parseFloat(parts[3]!) === 0;
 }
 
-/** Divide uma lista CSS por vírgulas de nível zero. */
+/** Splits a CSS list by top-level commas. */
 export function splitTop(value: string, sep = ','): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -115,7 +115,7 @@ export function splitTop(value: string, sep = ','): string[] {
   return parts;
 }
 
-/** Nomes de família de um valor `font-family` (sem aspas, minúsculos). */
+/** Family names of a `font-family` value (no quotes, lowercase). */
 export function fontFamilies(value: string): string[] {
   return splitTop(value).map((f) =>
     f

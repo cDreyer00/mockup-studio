@@ -10,11 +10,11 @@ const manifestFile = path.resolve(
   '../../extension/manifest.json',
 );
 
-describe('id fixo da extensão', () => {
-  it('MOCKUP_EXTENSION_ID é o id derivado da key do manifest.json', () => {
+describe('fixed extension id', () => {
+  it('MOCKUP_EXTENSION_ID is the id derived from the key in manifest.json', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as { key?: string };
-    expect(manifest.key, 'manifest.json com key').toBeTypeOf('string');
-    // id do Chrome: sha256 da chave pública (DER), 32 primeiros dígitos hex mapeados 0-f → a-p
+    expect(manifest.key, 'manifest.json with a key').toBeTypeOf('string');
+    // Chrome id: sha256 of the public key (DER), first 32 hex digits mapped 0-f → a-p
     const hex = createHash('sha256').update(Buffer.from(manifest.key!, 'base64')).digest('hex');
     const id = [...hex.slice(0, 32)].map((h) => String.fromCharCode(97 + parseInt(h, 16))).join('');
     expect(id).toBe(MOCKUP_EXTENSION_ID);

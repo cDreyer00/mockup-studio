@@ -1,6 +1,6 @@
 /**
- * Entrada do bundle IIFE injetável (`dist/snapshot.iife.js`): expõe `globalThis.MockupSnapshot`.
- * Usado pela extensão (content script) e pelo Electron headless (`executeJavaScript`).
+ * Entry of the injectable IIFE bundle (`dist/snapshot.iife.js`): exposes `globalThis.MockupSnapshot`.
+ * Used by the extension (content script) and by headless Electron (`executeJavaScript`).
  */
 import { captureElement, captureSelector } from './browser.js';
 import { SNAPSHOT_VERSION } from './format.js';

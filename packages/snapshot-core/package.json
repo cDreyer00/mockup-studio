@@ -2,7 +2,7 @@
   "name": "@mockup/snapshot-core",
   "version": "0.1.0",
   "private": true,
-  "description": "Captura de seções de sites em nós editáveis do Mockup Studio (navegador) e formato de troca do snapshot.",
+  "description": "Captures website sections into editable Mockup Studio nodes (in the browser) and defines the snapshot exchange format.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

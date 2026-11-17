@@ -1,6 +1,6 @@
 import { ASSET_REF_PREFIX, type SnapshotAsset } from '../format.js';
 
-/** Registro de assets (imagens e fontes) por URL, com ids `a1`, `a2`... */
+/** Registry of assets (images and fonts) by URL, with ids `a1`, `a2`... */
 export class AssetRegistry {
   readonly list: SnapshotAsset[] = [];
   private byKey = new Map<string, SnapshotAsset>();
@@ -21,12 +21,12 @@ export class AssetRegistry {
     return asset;
   }
 
-  /** `asset:<id>` de uma URL de imagem. */
+  /** `asset:<id>` of an image URL. */
   imageRef(url: string): string {
     return ASSET_REF_PREFIX + this.add(url, 'image').id;
   }
 
-  /** Troca cada `url(...)` de um valor de `background-image` por `url("asset:<id>")`. */
+  /** Replaces each `url(...)` in a `background-image` value with `url("asset:<id>")`. */
   rewriteUrls(value: string, baseUrl: string): string {
     return value.replace(/url\(\s*(["']?)(.*?)\1\s*\)/g, (whole, _q: string, raw: string) => {
       if (!raw || raw.startsWith('#')) return whole;
@@ -48,7 +48,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler o arquivo.'));
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read the file.'));
     reader.readAsDataURL(blob);
   });
 }
@@ -59,15 +59,15 @@ export interface InlineOptions {
   warn: (message: string) => void;
 }
 
-/** Tamanho (caracteres) da data URL base64 de um blob: `data:<mime>;base64,` + 4 * ceil(bytes / 3). */
+/** Size (characters) of the base64 data URL of a blob: `data:<mime>;base64,` + 4 * ceil(bytes / 3). */
 export function estimateDataUrlLength(mime: string, byteSize: number): number {
   return `data:${mime};base64,`.length + 4 * Math.ceil(byteSize / 3);
 }
 
 /**
- * Tenta embutir os bytes dos assets como data URL (fetch na página, até 6 em paralelo).
- * O limite total (`maxTotalBytes`) conta o tamanho das data URLs (caracteres do texto), que é o
- * que pesa no payload; uma unidade só, para assets já embutidos e para os baixados.
+ * Tries to embed the bytes of the assets as data URLs (fetch in the page, up to 6 in parallel).
+ * The total limit (`maxTotalBytes`) counts the size of the data URLs (text characters), which is
+ * what weighs on the payload; a single unit, for already embedded assets and for downloaded ones.
  */
 export async function inlineAssets(assets: SnapshotAsset[], opts: InlineOptions): Promise<void> {
   let total = 0;
@@ -81,12 +81,12 @@ export async function inlineAssets(assets: SnapshotAsset[], opts: InlineOptions)
       const res = await fetch(asset.url, { credentials: 'same-origin', signal: ctrl.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const declared = Number(res.headers.get('content-length') ?? '');
-      if (declared > opts.maxAssetBytes) throw new Error('maior que o limite por arquivo');
+      if (declared > opts.maxAssetBytes) throw new Error('larger than the per-file limit');
       const blob = await res.blob();
-      if (blob.size > opts.maxAssetBytes) throw new Error('maior que o limite por arquivo');
-      // Reserva a estimativa antes de converter (os 6 em paralelo não estouram juntos).
+      if (blob.size > opts.maxAssetBytes) throw new Error('larger than the per-file limit');
+      // Reserves the estimate before converting (the 6 in parallel do not overflow together).
       const estimate = estimateDataUrlLength(blob.type || 'application/octet-stream', blob.size);
-      if (total + estimate > opts.maxTotalBytes) throw new Error('limite total de bytes atingido');
+      if (total + estimate > opts.maxTotalBytes) throw new Error('total byte limit reached');
       total += estimate;
       let dataUrl: string;
       try {
@@ -95,19 +95,19 @@ export async function inlineAssets(assets: SnapshotAsset[], opts: InlineOptions)
         total -= estimate;
         throw err;
       }
-      // Confere com o tamanho real e ajusta a diferença.
+      // Checks against the real size and adjusts the difference.
       total += dataUrl.length - estimate;
       asset.dataUrl = dataUrl;
       const mime = (blob.type || res.headers.get('content-type') || '').split(';')[0]!.trim();
       if (mime) asset.mime = mime.toLowerCase();
     } catch (err) {
       const reason = ctrl.signal.aborted
-        ? 'tempo esgotado'
+        ? 'timed out'
         : err instanceof Error
           ? err.message
           : String(err);
       opts.warn(
-        `Não foi possível embutir ${asset.kind === 'font' ? 'a fonte' : 'a imagem'} "${asset.url.slice(0, 200)}": ${reason}`,
+        `Could not embed the ${asset.kind === 'font' ? 'font' : 'image'} "${asset.url.slice(0, 200)}": ${reason}`,
       );
     } finally {
       clearTimeout(timer);

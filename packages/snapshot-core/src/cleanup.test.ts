@@ -28,7 +28,7 @@ function frame(style: Record<string, string>, children: Node[]): Node {
   return createNodeFromTag('div', { isRoot: true, styles: style, children });
 }
 
-/** Aplica o plano e devolve o documento resultante. */
+/** Applies the plan and returns the resulting document. */
 function run(doc: Document, id: string, opts = {}) {
   const plan = planCleanup(doc, id, opts);
   const next = plan.ops.length ? applyOps(doc, plan.ops).doc : doc;
@@ -36,7 +36,7 @@ function run(doc: Document, id: string, opts = {}) {
 }
 
 describe('planCleanup: removeEmpty', () => {
-  it('remove divs vazios, em cascata, e preserva os com presença visual', () => {
+  it('removes empty divs, in cascade, and keeps those with visual presence', () => {
     const inner = el('div');
     const emptyParent = el('div', {}, [inner]);
     const spacer = el('div', { height: '16px' });
@@ -46,7 +46,7 @@ describe('planCleanup: removeEmpty', () => {
     const bg = el('div', { 'background-color': '#fff' });
     const img = createNodeFromTag('img', { src: '' });
     const br = createNodeFromTag('br');
-    const keepText = el('div', {}, [txt('olá')]);
+    const keepText = el('div', {}, [txt('hello')]);
     const root = frame({ width: '1000px', height: '800px' }, [
       emptyParent,
       spacer,
@@ -66,7 +66,7 @@ describe('planCleanup: removeEmpty', () => {
     expect(ids).toEqual([spacer.id, flexSpacer.id, bordered.id, bg.id, img.id, br.id, keepText.id]);
   });
 
-  it('nunca remove o próprio nó, mesmo vazio', () => {
+  it('never removes the node itself, even when empty', () => {
     const root = el('div');
     const doc = docWith(root);
     const plan = planCleanup(doc, root.id);
@@ -74,18 +74,18 @@ describe('planCleanup: removeEmpty', () => {
     expect(plan.removed).toBe(0);
   });
 
-  it('nó inexistente lança erro', () => {
-    expect(() => planCleanup(createDocument('x'), 'el_nao')).toThrow(/não encontrado/);
+  it('a non-existent node throws an error', () => {
+    expect(() => planCleanup(createDocument('x'), 'el_missing')).toThrow(/Node not found/);
   });
 });
 
 describe('planCleanup: unwrap', () => {
-  it('desembrulha wrappers neutros em cadeia, preservando a ordem entre irmãos', () => {
-    const leaf = txt('fim');
+  it('unwraps neutral wrappers in a chain, preserving the order among siblings', () => {
+    const leaf = txt('end');
     const w2 = el('div', { display: 'block', margin: '0px' }, [leaf]);
     const w1 = el('div', {}, [w2]);
-    const before = txt('antes');
-    const after = txt('depois');
+    const before = txt('before');
+    const after = txt('after');
     const root = frame({ width: '500px', height: '400px' }, [before, w1, after]);
     const { plan, next } = run(docWith(root), root.id, { removeEmpty: false, fluid: false });
     expect(plan.unwrapped).toBe(2);
@@ -96,7 +96,7 @@ describe('planCleanup: unwrap', () => {
     ]);
   });
 
-  it('não desembrulha wrapper com estilo visual, texto, tipografia ou flex', () => {
+  it('does not unwrap a wrapper with visual style, text, typography or flex', () => {
     const mk = (style: Record<string, string>) => el('div', style, [txt('x')]);
     const kept = [
       mk({ padding: '8px' }),
@@ -107,14 +107,14 @@ describe('planCleanup: unwrap', () => {
       mk({ overflow: 'hidden' }),
       mk({ opacity: '0.5' }),
       mk({ margin: '0 auto' }),
-      mk({ width: '300px' }), // diferente da largura do filho (ausente)
+      mk({ width: '300px' }), // different from the child's width (absent)
     ];
     const root = frame({ width: '500px', height: '400px' }, kept);
     const { plan } = run(docWith(root), root.id, { removeEmpty: false, fluid: false });
     expect(plan.unwrapped).toBe(0);
   });
 
-  it('wrapper com width igual à do filho é desembrulhado; com 2 filhos não', () => {
+  it('a wrapper with the same width as its child is unwrapped; with 2 children it is not', () => {
     const child = el('div', { width: '200px' }, [txt('a')]);
     const w = el('div', { width: '200px' }, [child]);
     const two = el('div', {}, [txt('a'), txt('b')]);
@@ -127,23 +127,23 @@ describe('planCleanup: unwrap', () => {
 });
 
 describe('planCleanup: fluid', () => {
-  it('remove width igual ao conteúdo do pai (bloco, com padding e border); height com filhos vira min-height', () => {
+  it('removes a width equal to the parent content (block, with padding and border); height with children becomes min-height', () => {
     const child = el('div', { width: '900px', height: '120px' }, [txt('x')]);
     const wrong = el('div', { width: '901px' }, [txt('y')]);
     const root = frame({ width: '1000px', height: '800px', padding: '0 50px' }, [child, wrong]);
     const { plan, next } = run(docWith(root), root.id, { removeEmpty: false, unwrap: false });
-    expect(plan.fluid).toBe(2); // width + height do child
+    expect(plan.fluid).toBe(2); // width + height of the child
     const c = findNode(next, child.id)!.node;
     expect(c.style.width).toBeUndefined();
     expect(c.style.height).toBeUndefined();
     expect(c.style['min-height']).toBe('120px');
     expect(findNode(next, wrong.id)!.node.style.width).toBe('901px');
-    // a raiz não muda
+    // the root does not change
     expect(next.pages[0]!.frames[0]!.style.width).toBe('1000px');
     expect(next.pages[0]!.frames[0]!.style.height).toBe('800px');
   });
 
-  it('flex coluna com align-items diferente vira align-self: stretch; row não muda', () => {
+  it('a flex column with a different align-items becomes align-self: stretch; row does not change', () => {
     const a = el('div', { width: '400px' }, [txt('a')]);
     const colCenter = el(
       'div',
@@ -165,11 +165,11 @@ describe('planCleanup: fluid', () => {
     const C = findNode(next, c.id)!.node;
     expect(C.style.width).toBeUndefined();
     expect(C.style['align-self']).toBeUndefined();
-    // colCenter, row e colStretch (400 = conteúdo da raiz) + a + c
+    // colCenter, row and colStretch (400 = root content) + a + c
     expect(plan.fluid).toBe(5);
   });
 
-  it('não converte imagens, posição absoluta, overflow oculto nem height sem filhos', () => {
+  it('does not convert images, absolute position, hidden overflow or height without children', () => {
     const img = createNodeFromTag('img', { src: '', styles: { width: '500px', height: '200px' } });
     const abs = el('div', { width: '500px', position: 'absolute' }, [txt('a')]);
     const clip = el('div', { height: '100px', overflow: 'hidden' }, [txt('a')]);
@@ -181,9 +181,9 @@ describe('planCleanup: fluid', () => {
   });
 });
 
-describe('planCleanup: combinado', () => {
-  it('as ops saem em sequência válida e não alteram o documento original', () => {
-    const leaf = txt('conteúdo');
+describe('planCleanup: combined', () => {
+  it('the ops come out in a valid sequence and do not change the original document', () => {
+    const leaf = txt('content');
     const wrapper = el('div', {}, [el('div', { width: '600px', height: '50px' }, [leaf])]);
     const root = frame({ width: '600px', height: '500px' }, [el('div'), wrapper]);
     const doc = docWith(root);
@@ -195,13 +195,13 @@ describe('planCleanup: combinado', () => {
     expect(plan.fluid).toBe(2);
     const top = next.pages[0]!.frames[0]!;
     expect(top.children).toHaveLength(1);
-    // a largura redundante sai e a altura vira min-height: o div interno (com o texto) fica
+    // the redundant width goes away and the height becomes min-height: the inner div (with the text) stays
     const inner = top.children[0]!;
     expect(inner.style).toEqual({ 'min-height': '50px' });
     expect(inner.children[0]!.id).toBe(leaf.id);
   });
 
-  it('com tudo desligado devolve plano vazio', () => {
+  it('with everything turned off returns an empty plan', () => {
     const root = frame({ width: '10px', height: '10px' }, [el('div')]);
     const plan = planCleanup(docWith(root), root.id, {
       removeEmpty: false,

@@ -1,28 +1,28 @@
 /**
- * Formato de troca dos snapshots de sites (versão 1). Puro: sem DOM e sem Node, usado pela
- * captura no navegador (extensão e Electron headless), pelo daemon e pelo editor (colar).
+ * Exchange format of website snapshots (version 1). Pure: no DOM and no Node, used by the
+ * in-browser capture (extension and headless Electron), by the daemon and by the editor (paste).
  *
- * Imagens e fontes não vão dentro dos nós: os nós referenciam `asset:<id>` (no `src` de imagens e
- * em `url("asset:<id>")` nos estilos) e a lista `assets` traz a URL original e, quando a captura
- * conseguiu ler os bytes, a data URL. O daemon resolve as referências ao importar.
+ * Images and fonts do not go inside the nodes: nodes reference `asset:<id>` (in the `src` of images and
+ * in `url("asset:<id>")` in styles) and the `assets` list carries the original URL and, when the capture
+ * managed to read the bytes, the data URL. The daemon resolves the references on import.
  */
 import type { Node } from '@mockup/core';
 
 export const SNAPSHOT_FORMAT = 'mockup-snapshot' as const;
 export const SNAPSHOT_VERSION = 1 as const;
 
-/** Prefixo das referências a assets dentro dos nós (`asset:a1`). */
+/** Prefix of asset references inside nodes (`asset:a1`). */
 export const ASSET_REF_PREFIX = 'asset:';
 
-/** Limites padrão da captura. */
+/** Default capture limits. */
 export const SNAPSHOT_LIMITS = {
-  /** Máximo de nós na subárvore capturada (o resto é cortado e `stats.truncated` fica true). */
+  /** Maximum nodes in the captured subtree (the rest is cut and `stats.truncated` becomes true). */
   maxNodes: 3000,
-  /** Profundidade máxima a partir do elemento capturado. */
+  /** Maximum depth from the captured element. */
   maxDepth: 40,
-  /** Maior asset embutido como data URL na captura (bytes); acima disso só a URL vai. */
+  /** Largest asset embedded as a data URL in the capture (bytes); above that only the URL is kept. */
   maxInlineAssetBytes: 4 * 1024 * 1024,
-  /** Soma máxima do tamanho das data URLs embutidas (caracteres do texto, ~4/3 dos bytes). */
+  /** Maximum sum of the size of embedded data URLs (text characters, ~4/3 of the bytes). */
   maxInlineTotalBytes: 40 * 1024 * 1024,
 } as const;
 
@@ -32,53 +32,53 @@ export interface SnapshotViewport {
 }
 
 export interface SnapshotSource {
-  /** URL da página capturada (`about:blank` ou a base informada no import_html). */
+  /** URL of the captured page (`about:blank` or the base given in import_html). */
   url: string;
   title: string;
   /** ISO 8601. */
   capturedAt: string;
   viewport: SnapshotViewport;
   devicePixelRatio: number;
-  /** Seletor CSS do elemento capturado (quando conhecido). */
+  /** CSS selector of the captured element (when known). */
   selector?: string;
 }
 
 export interface SnapshotAsset {
-  /** Id local (`a1`, `a2`...), referenciado nos nós como `asset:<id>`. */
+  /** Local id (`a1`, `a2`...), referenced in nodes as `asset:<id>`. */
   id: string;
   kind: 'image' | 'font';
-  /** URL absoluta original (http, https ou data:). */
+  /** Original absolute URL (http, https or data:). */
   url: string;
-  /** Bytes em data URL, quando a captura conseguiu ler (mesma origem, CORS ou já era data:). */
+  /** Bytes as a data URL, when the capture managed to read them (same origin, CORS or already data:). */
   dataUrl?: string;
-  /** Tipo MIME, se conhecido. */
+  /** MIME type, if known. */
   mime?: string;
 }
 
 export interface SnapshotFont {
-  /** Família como declarada no `@font-face` (sem aspas). */
+  /** Family as declared in `@font-face` (no quotes). */
   family: string;
   /** `font-weight` do `@font-face` (ex.: `400`, `700`, `100 900`). */
   weight: string;
-  /** `normal` ou `italic`. */
+  /** `normal` or `italic`. */
   style: string;
-  /** Arquivos do `src`, em ordem de preferência (ids de `assets`, kind `font`). */
+  /** Files from `src`, in order of preference (ids from `assets`, kind `font`). */
   assetIds: string[];
   unicodeRange?: string;
 }
 
-/** Captura de tela de referência do elemento (o daemon a anexa como imagem oculta "Referência"). */
+/** Reference screenshot of the element (the daemon attaches it as a hidden "Reference" image). */
 export interface SnapshotReference {
-  /** PNG ou JPEG em data URL. */
+  /** PNG or JPEG as a data URL. */
   dataUrl: string;
-  /** Tamanho em px CSS (a imagem pode ter mais pixels por causa do devicePixelRatio). */
+  /** Size in CSS px (the image may have more pixels because of devicePixelRatio). */
   width: number;
   height: number;
 }
 
 export interface SnapshotStats {
   nodes: number;
-  /** A captura atingiu `maxNodes` ou `maxDepth`. */
+  /** The capture reached `maxNodes` or `maxDepth`. */
   truncated: boolean;
   warnings: string[];
 }
@@ -88,12 +88,12 @@ export interface SnapshotPayload {
   version: typeof SNAPSHOT_VERSION;
   source: SnapshotSource;
   /**
-   * Elemento capturado como nó do core (`type: 'element'`; o daemon o converte em frame). Estilos
-   * já reduzidos (diff contra o padrão do user agent + CSS base do documento), com a tipografia
-   * herdada explícita na raiz e `width`/`height` em px na raiz.
+   * Captured element as a core node (`type: 'element'`; the daemon converts it into a frame). Styles
+   * already reduced (diff against the user agent default + the document's base CSS), with the
+   * inherited typography explicit on the root and `width`/`height` in px on the root.
    */
   root: Node;
-  /** Tamanho do elemento capturado em px CSS. */
+  /** Size of the captured element in CSS px. */
   width: number;
   height: number;
   assets: SnapshotAsset[];
@@ -102,14 +102,14 @@ export interface SnapshotPayload {
   stats: SnapshotStats;
 }
 
-/** Referência `asset:<id>` → id (ou null). */
+/** `asset:<id>` reference → id (or null). */
 export function assetRefId(value: string | undefined | null): string | null {
   if (!value || !value.startsWith(ASSET_REF_PREFIX)) return null;
   const id = value.slice(ASSET_REF_PREFIX.length);
   return /^[\w-]{1,32}$/.test(id) ? id : null;
 }
 
-/** Objeto com cara de snapshot (formato e versão); a validação completa fica no daemon. */
+/** Object that looks like a snapshot (format and version); full validation is left to the daemon. */
 export function isSnapshotPayload(value: unknown): value is SnapshotPayload {
   if (!value || typeof value !== 'object') return false;
   const v = value as Partial<SnapshotPayload>;
@@ -123,8 +123,8 @@ export function isSnapshotPayload(value: unknown): value is SnapshotPayload {
 }
 
 /**
- * Texto do clipboard: o JSON do payload (começa com `{"format":"mockup-snapshot"`). Texto puro
- * para funcionar em qualquer navegador; o editor reconhece pelo prefixo e importa pelo daemon.
+ * Clipboard text: the payload JSON (starts with `{"format":"mockup-snapshot"`). Plain text so it
+ * works in any browser; the editor recognizes it by the prefix and imports it through the daemon.
  */
 export function encodeClipboard(payload: SnapshotPayload): string {
   const { format, version, ...rest } = payload;
@@ -133,12 +133,12 @@ export function encodeClipboard(payload: SnapshotPayload): string {
 
 const CLIPBOARD_PREFIX_RE = /^\s*\{\s*"format"\s*:\s*"mockup-snapshot"/;
 
-/** O texto colado é um snapshot? (teste barato, sem parse). */
+/** Is the pasted text a snapshot? (cheap test, no parsing). */
 export function looksLikeSnapshot(text: string | null | undefined): boolean {
   return !!text && CLIPBOARD_PREFIX_RE.test(text);
 }
 
-/** Decodifica o texto do clipboard; `null` se não for um snapshot válido. */
+/** Decodes the clipboard text; `null` if it is not a valid snapshot. */
 export function decodeClipboard(text: string | null | undefined): SnapshotPayload | null {
   if (!looksLikeSnapshot(text)) return null;
   try {

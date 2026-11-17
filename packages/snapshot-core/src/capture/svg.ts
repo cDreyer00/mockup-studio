@@ -1,6 +1,6 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Propriedades de pintura de SVG que a CSS da página pode ter definido e que o `<img>` perderia. */
+/** SVG paint properties that the page's CSS may have set and that the `<img>` would lose. */
 const PAINT_PROPS: Record<string, string> = {
   fill: 'rgb(0, 0, 0)',
   stroke: 'none',
@@ -25,7 +25,7 @@ function hrefOf(use: Element): string {
   return use.getAttribute('href') ?? use.getAttribute('xlink:href') ?? '';
 }
 
-/** Copia para dentro do clone os elementos referenciados por `<use href="#id">` fora do svg. */
+/** Copies into the clone the elements referenced by `<use href="#id">` outside the svg. */
 function resolveUses(clone: SVGSVGElement, original: SVGSVGElement, depth = 0): void {
   if (depth > 3) return;
   const doc = original.ownerDocument;
@@ -46,11 +46,11 @@ function resolveUses(clone: SVGSVGElement, original: SVGSVGElement, depth = 0): 
   const defs = doc.createElementNS(SVG_NS, 'defs');
   for (const a of added) defs.appendChild(a);
   clone.insertBefore(defs, clone.firstChild);
-  // Símbolos podem referenciar outros símbolos.
+  // Symbols can reference other symbols.
   resolveUses(clone, original, depth + 1);
 }
 
-/** Estampa como atributos a pintura computada (CSS da página) nos elementos do clone. */
+/** Stamps the computed paint (the page's CSS) as attributes on the clone's elements. */
 function stampPaint(orig: Element, clone: Element, parentCs: CSSStyleDeclaration | null): void {
   if (clone.localName === 'defs' || clone.localName === 'symbol') return;
   const cs = getComputedStyle(orig);
@@ -68,8 +68,8 @@ function stampPaint(orig: Element, clone: Element, parentCs: CSSStyleDeclaration
 }
 
 /**
- * Markup do `<svg>` inline para o nó `svg`: sem `style`/`class`, com `width`/`height` do
- * retângulo, `currentColor` trocado pela cor computada e `<use>` resolvido.
+ * Markup of the inline `<svg>` for the `svg` node: without `style`/`class`, with the rectangle's
+ * `width`/`height`, `currentColor` replaced by the computed color and `<use>` resolved.
  */
 export function serializeSvg(
   svg: SVGSVGElement,
@@ -84,14 +84,14 @@ export function serializeSvg(
     clone.setAttribute('viewBox', `0 0 ${origW} ${origH}`);
   }
   resolveUses(clone, svg);
-  // Pintura dos filhos (o raiz herda da página, que o canvas não tem: compara com o inicial).
+  // Paint of the children (the root inherits from the page, which the canvas does not have: compare with the initial value).
   const rootCs = getComputedStyle(svg);
   for (const [prop, initial] of Object.entries(PAINT_PROPS)) {
     const v = rootCs.getPropertyValue(prop);
     if (v && !v.includes('url(') && v !== initial) clone.setAttribute(prop, v);
   }
   const oc = Array.from(svg.children);
-  // `defs` inserido por resolveUses fica no começo do clone: alinha pelas posições originais.
+  // The `defs` inserted by resolveUses sits at the start of the clone: align by the original positions.
   const offset = clone.children.length - oc.length;
   for (let i = 0; i < oc.length; i++) {
     const c = clone.children[i + offset];

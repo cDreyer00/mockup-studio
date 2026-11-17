@@ -8,7 +8,7 @@ interface FaceDecl {
   style: string;
   src: string;
   unicodeRange?: string;
-  /** URL base para resolver os `url()` do `src`. */
+  /** Base URL to resolve the `url()`s in `src`. */
   base: string;
 }
 
@@ -18,7 +18,7 @@ const unquote = (s: string): string =>
     .replace(/^["']|["']$/g, '')
     .trim();
 
-/** Rank de preferência de formato (menor = melhor): woff2 > woff > ttf > otf > resto. */
+/** Format preference rank (lower = better): woff2 > woff > ttf > otf > rest. */
 function formatRank(url: string, format: string): number {
   const f = (format || /\.(\w+)(?:[?#]|$)/.exec(url)?.[1] || '').toLowerCase();
   if (f.includes('woff2')) return 0;
@@ -40,11 +40,11 @@ function parseSrc(src: string, base: string): string[] {
       const url = new URL(raw, base).href;
       found.push({ url, rank: formatRank(url, m[4] ?? ''), order: order++ });
     } catch {
-      /* URL inválida: ignora */
+      /* Invalid URL: ignore */
     }
   }
   found.sort((a, b) => a.rank - b.rank || a.order - b.order);
-  // Com woff2 disponível, os formatos legados só aumentariam o snapshot.
+  // With woff2 available, the legacy formats would only make the snapshot bigger.
   const urls = found.map((f) => f.url);
   return found[0]?.rank === 0 ? urls.slice(0, 1) : urls;
 }
@@ -87,7 +87,7 @@ async function fetchSheetFaces(href: string, warn: (m: string) => void): Promise
     return faces;
   } catch (err) {
     warn(
-      `Não foi possível ler a folha de estilo "${href}" para coletar fontes: ${err instanceof Error ? err.message : String(err)}`,
+      `Could not read the stylesheet "${href}" to collect fonts: ${err instanceof Error ? err.message : String(err)}`,
     );
     return [];
   }
@@ -138,7 +138,7 @@ async function walkSheet(
   try {
     rules = sheet.cssRules;
   } catch {
-    // Folha de outra origem sem CORS: tenta ler o texto e extrair os @font-face por regex.
+    // Cross-origin stylesheet without CORS: try to read the text and extract the @font-face rules by regex.
     if (sheet.href) faces.push(...(await fetchSheetFaces(sheet.href, warn)));
     return;
   }
@@ -146,8 +146,8 @@ async function walkSheet(
 }
 
 /**
- * Fontes `@font-face` cujas famílias são usadas pelos nós capturados (`used`: famílias em minúsculas,
- * sem aspas). Os arquivos viram assets `kind: 'font'`.
+ * `@font-face` fonts whose families are used by the captured nodes (`used`: lowercase families,
+ * no quotes). The files become `kind: 'font'` assets.
  */
 export async function collectFonts(
   used: Set<string>,

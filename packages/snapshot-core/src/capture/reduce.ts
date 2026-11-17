@@ -5,25 +5,25 @@ import { CORNER_LIST, DIFF_PROPS, INHERITED_PROPS, SIDE_LIST } from './props.js'
 import { splitTop } from './util.js';
 
 export interface ReduceInput {
-  /** Computado do elemento. */
+  /** Computed style of the element. */
   cur: StyleRec;
-  /** Padrão da tag (iframe de padrões). */
+  /** Tag default (defaults iframe). */
   def: StyleRec;
-  /** Computado do pai (`null` na raiz). */
+  /** Computed style of the parent (`null` at the root). */
   parent: StyleRec | null;
-  /** Computado do body do iframe de padrões (herança na raiz). */
+  /** Computed style of the defaults iframe body (inheritance at the root). */
   body: StyleRec;
   isRoot: boolean;
   assets: AssetRegistry;
-  /** Base para resolver `url()` relativas. */
+  /** Base to resolve relative `url()`s. */
   baseUrl: string;
-  /** Margens laterais declaradas como `auto` (o computado traz o px usado). */
+  /** Side margins declared as `auto` (the computed value carries the used px). */
   autoMargin?: { left: boolean; right: boolean };
-  /** Tamanho da caixa (para decidir sobre `transform-origin`). */
+  /** Box size (to decide about `transform-origin`). */
   box?: { w: number; h: number };
 }
 
-/** Valor CSS de 4 lados na forma mais curta (`a`, `a b`, `a b c`, `a b c d`). */
+/** 4-side CSS value in the shortest form (`a`, `a b`, `a b c`, `a b c d`). */
 function collapse4(v: string[]): string {
   const [t, r, b, l] = v as [string, string, string, string];
   if (t === r && r === b && b === l) return t;
@@ -32,7 +32,7 @@ function collapse4(v: string[]): string {
   return `${t} ${r} ${b} ${l}`;
 }
 
-/** Todas as camadas da lista valem o padrão (`auto, auto` vs `auto`). */
+/** Every layer in the list is the default (`auto, auto` vs `auto`). */
 const allDefault = (value: string, def: string): boolean =>
   value === def || splitTop(value).every((p) => p === def);
 
@@ -48,10 +48,10 @@ const num = (v: string | undefined): number => {
 };
 
 /**
- * Reduz o estilo computado às declarações que o canvas não reproduziria sozinho: não herdadas só
- * quando diferem do padrão da tag; herdadas, na raiz, quando diferem do body de padrões e, nos
- * descendentes, quando diferem do que o canvas já herdaria (override da tag ou valor do pai).
- * Largura, altura e posição ficam com quem chama (dependem de medições no DOM).
+ * Reduces the computed style to the declarations the canvas would not reproduce on its own: non-inherited
+ * ones only when they differ from the tag default; inherited ones, at the root, when they differ from the
+ * defaults body and, on descendants, when they differ from what the canvas would already inherit (tag
+ * override or parent value). Width, height and position are left to the caller (they depend on DOM measurements).
  */
 export function reduceStyles(input: ReduceInput): Record<string, string> {
   const { cur, def, parent, body, isRoot } = input;
@@ -61,13 +61,13 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     if (cur[p] !== def[p] && cur[p]) out[p] = cur[p]!;
   }
 
-  // Herdadas.
+  // Inherited.
   for (const p of INHERITED_PROPS) {
     const expected = isRoot || !parent ? body[p] : def[p] !== body[p] ? def[p] : parent[p];
     if (cur[p] !== expected && cur[p]) out[p] = cur[p]!;
   }
 
-  // Margens e paddings.
+  // Margins and paddings.
   const margins = SIDE_LIST.map((s) => cur[`margin-${s}`]!);
   if (input.autoMargin?.left) margins[3] = 'auto';
   if (input.autoMargin?.right) margins[1] = 'auto';
@@ -84,7 +84,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     SIDE_LIST.map((s) => def[`padding-${s}`]!),
   );
 
-  // Bordas.
+  // Borders.
   const sides = SIDE_LIST.map((s) => ({ s, v: sideBorder(cur, s), d: sideBorder(def, s) }));
   const changed = sides.filter((x) => x.v !== x.d);
   if (changed.length === 4 && changed.every((x) => x.v === changed[0]!.v)) {
@@ -93,7 +93,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     for (const x of changed) out[`border-${x.s}`] = x.v;
   }
 
-  // Raio.
+  // Radius.
   const radii = CORNER_LIST.map((c) => ({
     c,
     v: cur[`border-${c}-radius`]!,
@@ -110,7 +110,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     }
   }
 
-  // Overflow e gap.
+  // Overflow and gap.
   pair(
     out,
     'overflow',
@@ -132,7 +132,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     'column-gap',
   );
 
-  // min/max: valores em px de caixas content-box passam para border-box (o canvas usa border-box).
+  // min/max: px values of content-box boxes are converted to border-box (the canvas uses border-box).
   const contentBox = cur['box-sizing'] === 'content-box';
   for (const p of ['min-width', 'min-height', 'max-width', 'max-height']) {
     let v = cur[p];
@@ -153,7 +153,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     out[p] = v;
   }
 
-  // Fundo.
+  // Background.
   if (cur['background-color'] !== def['background-color'])
     out['background-color'] = cur['background-color']!;
   const bgImage = cur['background-image']!;
@@ -176,7 +176,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     out['-webkit-background-clip'] = 'text';
   }
 
-  // Cor do texto "preenchido" (texto com gradiente: fill transparente).
+  // Color of "filled" text (gradient text: transparent fill).
   const fillProp = '-webkit-text-fill-color';
   const fill = cur[fillProp]!;
   const parentExplicit = !!parent && parent[fillProp] !== parent['color'];
@@ -186,7 +186,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     out[fillProp] = 'currentcolor';
   }
 
-  // Decoração de texto.
+  // Text decoration.
   const deco = cur['text-decoration-line']!;
   if (deco !== def['text-decoration-line']) out['text-decoration-line'] = deco;
   if (deco && deco !== 'none') {
@@ -198,7 +198,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     if (th && th !== 'auto' && th !== 'from-font') out['text-decoration-thickness'] = th;
   }
 
-  // Contorno.
+  // Outline.
   const oStyle = cur['outline-style'];
   if (oStyle && oStyle !== 'none' && oStyle !== 'hidden' && num(cur['outline-width']) > 0) {
     const o = `${cur['outline-width']} ${oStyle} ${cur['outline-color']}`;
@@ -225,7 +225,7 @@ export function reduceStyles(input: ReduceInput): Record<string, string> {
     }
   }
 
-  // Descarta valores que o core recusaria (e vazios).
+  // Drops values the core would reject (and empty ones).
   for (const k of Object.keys(out)) {
     const v = out[k];
     if (!v || cssValueProblem(v) !== null) delete out[k];

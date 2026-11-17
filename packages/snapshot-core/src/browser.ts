@@ -1,6 +1,6 @@
 /**
- * Captura no navegador: serializa a subárvore de um elemento DOM em nós do core com os estilos
- * computados reduzidos. Roda na página (extensão, Electron headless via executeJavaScript, testes).
+ * In-browser capture: serializes the subtree of a DOM element into core nodes with reduced
+ * computed styles. Runs in the page (extension, headless Electron via executeJavaScript, tests).
  */
 import { createNodeFromTag, type Node } from '@mockup/core';
 import { AssetRegistry, inlineAssets } from './capture/assets.js';
@@ -17,24 +17,24 @@ import {
 } from './format.js';
 
 export interface CaptureOptions {
-  /** Padrão `SNAPSHOT_LIMITS.maxNodes`. */
+  /** Default `SNAPSHOT_LIMITS.maxNodes`. */
   maxNodes?: number;
-  /** Padrão `SNAPSHOT_LIMITS.maxDepth`. */
+  /** Default `SNAPSHOT_LIMITS.maxDepth`. */
   maxDepth?: number;
-  /** Tenta ler os bytes das imagens/fontes (fetch na página) para embutir como data URL. Padrão true. */
+  /** Tries to read the bytes of images/fonts (fetch in the page) to embed them as data URLs. Default true. */
   inlineAssets?: boolean;
-  /** Limite por asset embutido (bytes). */
+  /** Limit per embedded asset (bytes). */
   maxInlineAssetBytes?: number;
-  /** Soma máxima das data URLs embutidas (caracteres). Padrão `SNAPSHOT_LIMITS.maxInlineTotalBytes`. */
+  /** Maximum sum of the embedded data URLs (characters). Default `SNAPSHOT_LIMITS.maxInlineTotalBytes`. */
   maxInlineTotalBytes?: number;
-  /** Seletor informado (vai em `source.selector`). */
+  /** Given selector (goes into `source.selector`). */
   selector?: string;
 }
 
-/** Acima disso o teste de `height` automático é pulado (caminho barato). */
+/** Above this the automatic `height` test is skipped (cheap path). */
 const CHEAP_NODE_THRESHOLD = 1500;
 
-/** Primeira cor de fundo não transparente do elemento para cima (ou `#ffffff`). */
+/** First non-transparent background color from the element upwards (or `#ffffff`). */
 function backgroundBehind(el: Element): string {
   for (let e: Element | null = el; e; e = e.parentElement) {
     const c = getComputedStyle(e).backgroundColor;
@@ -43,7 +43,7 @@ function backgroundBehind(el: Element): string {
   return '#ffffff';
 }
 
-/** Captura o elemento e a subárvore. */
+/** Captures the element and its subtree. */
 export async function captureElement(
   el: Element,
   opts: CaptureOptions = {},
@@ -73,7 +73,7 @@ export async function captureElement(
     width = he.offsetWidth ?? el.getBoundingClientRect().width;
     height = he.offsetHeight ?? el.getBoundingClientRect().height;
     if (getComputedStyle(el).display === 'none') {
-      throw new Error('O elemento está oculto (display: none); não há o que capturar.');
+      throw new Error('The element is hidden (display: none); there is nothing to capture.');
     }
 
     const tag = el.localName.toLowerCase();
@@ -81,18 +81,18 @@ export async function captureElement(
       REPLACED_TAGS.has(tag) || tag in PLACEHOLDER_NAMES || tag === 'br' || tag === 'picture';
     let built: Node | null;
     if (needsWrap) {
-      // Raiz é um elemento sem filhos (img, svg, input...): um div relativo do mesmo tamanho a envolve.
+      // The root is an element without children (img, svg, input...): a relative div of the same size wraps it.
       ctx.count++;
       const child = visit(el, defaults.body, 1, el, ctx, false);
       built = createNodeFromTag('div', {
-        name: 'Captura',
+        name: 'Snapshot',
         styles: { position: 'relative', width: px(width), height: px(height) },
         children: child ? [child] : [],
       });
     } else {
       built = visit(el, null, 0, el, ctx, true, true);
     }
-    if (!built) throw new Error('O elemento não gerou nenhum nó (tag bloqueada ou oculta).');
+    if (!built) throw new Error('The element produced no nodes (blocked or hidden tag).');
     root = built;
     root.type = 'element';
     root.style['background-color'] = backgroundBehind(el);
@@ -130,12 +130,12 @@ export async function captureElement(
   };
 }
 
-/** Captura o primeiro elemento que casa com o seletor (erro claro se nenhum casar). */
+/** Captures the first element matching the selector (clear error if none matches). */
 export async function captureSelector(
   selector: string,
   opts: CaptureOptions = {},
 ): Promise<SnapshotPayload> {
   const el = document.querySelector(selector);
-  if (!el) throw new Error(`Nenhum elemento corresponde ao seletor "${selector}".`);
+  if (!el) throw new Error(`No element matches the selector "${selector}".`);
   return captureElement(el, { ...opts, selector });
 }
