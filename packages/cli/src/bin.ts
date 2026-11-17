@@ -68,7 +68,9 @@ function parseArgs(argv: string[]): Parsed {
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a.startsWith('--')) {
-      const [k, inline] = a.slice(2).split('=', 2);
+      const eq = a.indexOf('=');
+      const k = eq === -1 ? a.slice(2) : a.slice(2, eq);
+      const inline = eq === -1 ? undefined : a.slice(eq + 1);
       if (inline !== undefined) flags[k] = inline;
       else if (BOOLEAN_FLAGS.has(k)) flags[k] = true;
       else if (rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) flags[k] = rest[++i];
@@ -139,10 +141,12 @@ async function main(): Promise<void> {
     case '-v':
       console.log(VERSION);
       return;
-    case undefined:
     case 'help':
     case '--help':
     case '-h':
+      console.log(HELP);
+      return;
+    case undefined:
       console.error(HELP);
       return;
     default:
