@@ -177,7 +177,7 @@ export function registerImageTools(ctx: ToolContext): void {
           .positive()
           .max(6)
           .optional()
-          .describe('Espessura do traço, de 0 a 6, ex.: 1.5 (padrão 2).'),
+          .describe('Espessura do traço, maior que 0 e até 6, ex.: 1.5 (padrão 2).'),
         index: z
           .number()
           .int()
