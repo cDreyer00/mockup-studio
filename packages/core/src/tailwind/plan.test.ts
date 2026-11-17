@@ -132,6 +132,16 @@ describe('planSetClasses', () => {
     expect(node.style.top).toBe('20px');
   });
 
+  it('replace mantém o CSS sem classe equivalente', () => {
+    const doc = fixture();
+    const card = findNode(doc, 'el_plan0001')!.node;
+    card.style = { ...card.style, 'grid-template-areas': '"a;b"' };
+    expect(engine.nodeClasses(card).rest['grid-template-areas']).toBe('"a;b"');
+    const { node } = plan(doc, 'p-2', 'replace');
+    expect(node.style['grid-template-areas']).toBe('"a;b"');
+    expect(node.style['background-color']).toBeUndefined();
+  });
+
   describe('classes dos filhos ao sair', () => {
     function parentDoc(classes: string) {
       const doc = fixture();

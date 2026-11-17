@@ -223,6 +223,11 @@ export function planSetClasses(
           if (style[k] === undefined && node.style[k] !== undefined) style[k] = node.style[k];
         }
       }
+      // CSS sem classe equivalente (fica em `style=""` no export) não pode ser escrito em classes:
+      // trocar as classes não o apaga (remova com `update_styles`/`unset`).
+      for (const [k, v] of Object.entries(engine.nodeClasses(node).rest)) {
+        if (style[k] === undefined) style[k] = v;
+      }
     } else if (mode === 'add') {
       const newProps = producedProps(add);
       const infos = engine.inspect(old.join(' '));
