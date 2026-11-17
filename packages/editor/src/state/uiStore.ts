@@ -21,16 +21,7 @@ export interface ComponentEdit {
 }
 
 export type Tool =
-  | 'select'
-  | 'hand'
-  | 'frame'
-  | 'rect'
-  | 'text'
-  | 'image'
-  | 'pen'
-  | 'ellipse'
-  | 'line'
-  | 'polygon';
+  'select' | 'hand' | 'frame' | 'rect' | 'text' | 'image' | 'pen' | 'ellipse' | 'line' | 'polygon';
 
 export interface Viewport {
   /** Translação do mundo em px de tela. */

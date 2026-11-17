@@ -1027,7 +1027,13 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     extractRepeats: options.extractRepeats ?? true,
     usage,
     arrays: [],
-    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode', 'safeUrl', ...REACT_MEDIA_NAMES]),
+    usedNames: new Set([
+      componentName,
+      'CSSProperties',
+      'ReactNode',
+      'safeUrl',
+      ...REACT_MEDIA_NAMES,
+    ]),
     media: {
       effectImages: options.effectImages ?? {},
       slug: componentName.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
@@ -1045,7 +1051,10 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   const code = mediaPreamble(ctx.media, usage.reactNode ? ['ReactNode'] : []);
   const { files } = ctx.media;
   if (code.length === 0) {
-    const imports = [usage.cssProperties ? 'CSSProperties' : '', usage.reactNode ? 'ReactNode' : ''];
+    const imports = [
+      usage.cssProperties ? 'CSSProperties' : '',
+      usage.reactNode ? 'ReactNode' : '',
+    ];
     if (imports.some(Boolean)) {
       code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
     }

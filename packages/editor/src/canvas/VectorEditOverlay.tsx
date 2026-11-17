@@ -86,7 +86,10 @@ function Editor({ node, rootRef }: { node: Node; rootRef: RefObject<HTMLDivEleme
   useEffect(
     () =>
       useUi.subscribe((s, p) => {
-        if (s.selection !== p.selection && !(s.selection.length === 1 && s.selection[0] === node.id))
+        if (
+          s.selection !== p.selection &&
+          !(s.selection.length === 1 && s.selection[0] === node.id)
+        )
           ui.editVector(null);
       }),
     [node.id],

@@ -57,7 +57,9 @@ const PATH_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const ATTR_KEY_RE = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
 
 const PathSchema = z.object({
-  id: z.string().regex(PATH_ID_RE, { error: 'id de path inválido (use letras, dígitos, "-" e "_")' }),
+  id: z
+    .string()
+    .regex(PATH_ID_RE, { error: 'id de path inválido (use letras, dígitos, "-" e "_")' }),
   d: z
     .string()
     .regex(PATH_DATA_RE, { error: 'path data com caracteres inválidos' })
@@ -65,7 +67,10 @@ const PathSchema = z.object({
       try {
         parsePathData(d);
       } catch (err) {
-        const why = (err instanceof Error ? err.message : String(err)).replace(/^Path inválido:\s*/, '');
+        const why = (err instanceof Error ? err.message : String(err)).replace(
+          /^Path inválido:\s*/,
+          '',
+        );
         ctx.addIssue({ code: 'custom', message: `Path data inválido em "d": ${why}` });
       }
     }),
@@ -107,7 +112,11 @@ export const VectorSchema: z.ZodType<Vector, unknown> = z
     const seen = new Set<string>();
     v.paths.forEach((p, i) => {
       if (seen.has(p.id)) {
-        ctx.addIssue({ code: 'custom', message: `id de path duplicado: "${p.id}"`, path: ['paths', i, 'id'] });
+        ctx.addIssue({
+          code: 'custom',
+          message: `id de path duplicado: "${p.id}"`,
+          path: ['paths', i, 'id'],
+        });
       }
       seen.add(p.id);
     });
@@ -158,7 +167,9 @@ export function orderVector(v: Vector): Record<string, unknown> {
   };
   if (v.raw !== undefined) out.raw = v.raw;
   if (v.attrs !== undefined) {
-    out.attrs = Object.fromEntries(Object.entries(v.attrs).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+    out.attrs = Object.fromEntries(
+      Object.entries(v.attrs).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    );
   }
   return out;
 }

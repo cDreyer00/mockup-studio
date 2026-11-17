@@ -40,12 +40,14 @@ export function buildNodeMenu(): MenuItem[] {
   const anyText = nodes.some((n) => n.type === 'text');
   const vectorItems: MenuItem[] = [
     ...(allSvg && nodes.length >= 2
-      ? ([
-          ['union', 'União'],
-          ['subtract', 'Subtração'],
-          ['intersect', 'Interseção'],
-          ['exclude', 'Exclusão'],
-        ] as const).map(([op, label], i) => ({
+      ? (
+          [
+            ['union', 'União'],
+            ['subtract', 'Subtração'],
+            ['intersect', 'Interseção'],
+            ['exclude', 'Exclusão'],
+          ] as const
+        ).map(([op, label], i) => ({
           label,
           separator: i === 0,
           onSelect: () => void booleanOp(op),

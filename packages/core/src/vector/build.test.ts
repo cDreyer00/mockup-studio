@@ -25,7 +25,14 @@ function fixture(): { doc: Document; frame: Node } {
   const a = createVectorNode(createShapeVector({ kind: 'rect', width: 10, height: 10 }), {
     id: 'sv_aaaaaaa1',
     name: 'A',
-    style: { position: 'absolute', left: px(0), top: px(0), width: px(10), height: px(10), opacity: '0.5' },
+    style: {
+      position: 'absolute',
+      left: px(0),
+      top: px(0),
+      width: px(10),
+      height: px(10),
+      opacity: '0.5',
+    },
   });
   const mid = createNodeFromTag('div', {});
   mid.id = 'el_mmmmmmm1';
@@ -130,7 +137,9 @@ describe('buildBooleanOps', () => {
   it('resultado vazio lança erro', () => {
     const { doc } = fixture();
     findNode(doc, 'sv_bbbbbbb2')!.node.style.left = '50px';
-    expect(() => buildBooleanOps(doc, ['sv_aaaaaaa1', 'sv_bbbbbbb2'], 'intersect')).toThrow(/vazio/);
+    expect(() => buildBooleanOps(doc, ['sv_aaaaaaa1', 'sv_bbbbbbb2'], 'intersect')).toThrow(
+      /vazio/,
+    );
   });
 });
 
@@ -186,7 +195,14 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
         },
         {
           id,
-          style: { position: 'absolute', left: px(left), top: '0px', width: '48px', height: '48px', ...extra },
+          style: {
+            position: 'absolute',
+            left: px(left),
+            top: '0px',
+            width: '48px',
+            height: '48px',
+            ...extra,
+          },
         },
       );
     frame.children = [mk('sv_icon0001', 0), mk('sv_icon0002', 20)];
@@ -243,7 +259,12 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
     const out = findNode(r.doc, frame.id)!.node;
     expect(out.style['position']).toBe('relative');
     const res = out.children[0]!;
-    expect(res.style).toMatchObject({ position: 'absolute', left: '6px', top: '6px', width: '116px' });
+    expect(res.style).toMatchObject({
+      position: 'absolute',
+      left: '6px',
+      top: '6px',
+      width: '116px',
+    });
     expect(strip(applyOps(r.doc, r.inverse).doc)).toStrictEqual(strip(doc));
   });
 
@@ -267,7 +288,10 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
   });
 
   it('none estica; meet/slice usam escala uniforme e o alinhamento', () => {
-    const run = (par: string | null, raw?: string): { x: number; y: number; width: number; height: number } => {
+    const run = (
+      par: string | null,
+      raw?: string,
+    ): { x: number; y: number; width: number; height: number } => {
       const doc = createDocument('Teste', { id: 'doc_test0004' });
       const frame = createNodeFromTag('div', { isRoot: true, position: { x: 0, y: 0 } });
       frame.id = 'fr_cccccccc';
@@ -281,7 +305,13 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
           },
           {
             id,
-            style: { position: 'absolute', left: px(left), top: '0px', width: '40px', height: '20px' },
+            style: {
+              position: 'absolute',
+              left: px(left),
+              top: '0px',
+              width: '40px',
+              height: '20px',
+            },
           },
         );
       frame.children = [mk('sv_par00001', 0), mk('sv_par00002', 0)];
@@ -304,12 +334,14 @@ describe('posição, escala do traço e preserveAspectRatio', () => {
     // slice: escala 4, desenho 40x40, centralizado em y (sobra de 10 para cima)
     expect(run('xMidYMid slice')).toEqual({ x: 0, y: -10, width: 40, height: 40 });
     // importado (raw) sem preserveAspectRatio: padrão do navegador, xMidYMid meet
-    expect(run(null, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>')).toEqual({
-      x: 10,
-      y: 0,
-      width: 20,
-      height: 20,
-    });
+    expect(run(null, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>')).toEqual(
+      {
+        x: 10,
+        y: 0,
+        width: 20,
+        height: 20,
+      },
+    );
   });
 });
 
@@ -331,7 +363,12 @@ describe('fitVectorToContent', () => {
       paths: [{ id: 'p1', d: 'M 2 2 L 8 8', stroke: '#000', strokeWidth: 4 }],
     };
     const box = { x: 0, y: 0, width: 10, height: 10 };
-    expect(fitVectorToContent(v, box).vector.viewBox).toEqual({ x: 0, y: 0, width: 10, height: 10 });
+    expect(fitVectorToContent(v, box).vector.viewBox).toEqual({
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
     expect(fitVectorToContent(v, box, { padding: 0 }).vector.viewBox).toEqual({
       x: 2,
       y: 2,

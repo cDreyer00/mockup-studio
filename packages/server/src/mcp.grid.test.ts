@@ -71,7 +71,12 @@ describe('MCP grid', () => {
 
   it('set_grid aceita texto CSS, lista e rejeita entradas ruins', async () => {
     const { box } = await container(1);
-    const css = await call('set_grid', { nodeId: box.id, columns: '1fr 200px minmax(100px, 1fr)', columnGap: 8, rowGap: '12px' });
+    const css = await call('set_grid', {
+      nodeId: box.id,
+      columns: '1fr 200px minmax(100px, 1fr)',
+      columnGap: 8,
+      rowGap: '12px',
+    });
     expect(css.isError, textOf(css)).toBeFalsy();
     const s = frame().children[0]!.style;
     expect(s['grid-template-columns']).toBe('1fr 200px minmax(100px, 1fr)');
@@ -91,7 +96,11 @@ describe('MCP grid', () => {
     const badAreas = await call('set_grid', { nodeId: box.id, columns: 2, areas: ['a b', 'a'] });
     expect(badAreas.isError).toBe(true);
     expect(textOf(badAreas)).toContain('mesmo número de células');
-    const lshape = await call('set_grid', { nodeId: box.id, columns: 2, areas: ['a a', 'a b', 'b a'] });
+    const lshape = await call('set_grid', {
+      nodeId: box.id,
+      columns: 2,
+      areas: ['a a', 'a b', 'b a'],
+    });
     expect(lshape.isError).toBe(true);
     expect(textOf(lshape)).toContain('retângulo');
   });
@@ -147,7 +156,13 @@ describe('MCP grid', () => {
     const st = frame().children[0]!.children[0]!.style;
     expect(st['grid-column']).toBe('3');
     expect(st['grid-row']).toBe('2');
-    for (const k of ['grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end', 'grid-area']) {
+    for (const k of [
+      'grid-column-start',
+      'grid-column-end',
+      'grid-row-start',
+      'grid-row-end',
+      'grid-area',
+    ]) {
       expect(st[k], k).toBeUndefined();
     }
   });
@@ -182,9 +197,18 @@ describe('MCP grid', () => {
   it('get_guide grid e vectors', async () => {
     const g = textOf(await call('get_guide', { topic: 'grid' }));
     expect(g.startsWith('# CSS Grid')).toBe(true);
-    for (const n of ['set_grid', 'place_in_grid', 'grid-template-columns', 'get_layout']) expect(g).toContain(n);
+    for (const n of ['set_grid', 'place_in_grid', 'grid-template-columns', 'get_layout'])
+      expect(g).toContain(n);
     const v = textOf(await call('get_guide', { topic: 'vectors' }));
-    for (const n of ['create_shape', 'insert_svg', 'set_path', 'set_vector_paint', 'boolean_op', 'flatten', 'text_to_outlines'])
+    for (const n of [
+      'create_shape',
+      'insert_svg',
+      'set_path',
+      'set_vector_paint',
+      'boolean_op',
+      'flatten',
+      'text_to_outlines',
+    ])
       expect(v).toContain(n);
   });
 

@@ -53,7 +53,13 @@ describe('MCP vetores', () => {
 
   it('create_shape cria cada forma com vetor editável', async () => {
     for (const kind of ['rect', 'ellipse', 'line', 'polygon', 'star'] as const) {
-      const id = await shape({ shape: kind, x: 10, y: 20, width: 80, height: kind === 'line' ? 0 : 60 });
+      const id = await shape({
+        shape: kind,
+        x: 10,
+        y: 20,
+        width: 80,
+        height: kind === 'line' ? 0 : 60,
+      });
       const n = nodeOf(id);
       expect(n.type).toBe('svg');
       expect(n.vector?.paths).toHaveLength(1);
@@ -70,10 +76,21 @@ describe('MCP vetores', () => {
       width: 120,
       height: 40,
       cornerRadius: 8,
-      styles: { fill: '#ff0000', stroke: '#000000', 'stroke-width': '3', 'border-radius': '4px', opacity: '0.5' },
+      styles: {
+        fill: '#ff0000',
+        stroke: '#000000',
+        'stroke-width': '3',
+        'border-radius': '4px',
+        opacity: '0.5',
+      },
     });
     const n = nodeOf(id);
-    expect(n.vector!.paths[0]).toMatchObject({ fill: '#ff0000', stroke: '#000000', strokeWidth: 3, opacity: 0.5 });
+    expect(n.vector!.paths[0]).toMatchObject({
+      fill: '#ff0000',
+      stroke: '#000000',
+      strokeWidth: 3,
+      opacity: 0.5,
+    });
     expect(n.style['border-radius']).toBe('4px');
     expect(n.style['fill']).toBeUndefined();
     expect(n.style['position']).toBeUndefined();
@@ -87,13 +104,23 @@ describe('MCP vetores', () => {
     const bad = await call('create_shape', { parentId: 'nada', shape: 'rect' });
     expect(bad.isError).toBe(true);
     expect(textOf(bad)).toContain('Nó não encontrado');
-    const zero = await call('create_shape', { parentId: ws.frameId, shape: 'rect', width: 0, height: 10 });
+    const zero = await call('create_shape', {
+      parentId: ws.frameId,
+      shape: 'rect',
+      width: 0,
+      height: 10,
+    });
     expect(zero.isError).toBe(true);
     expect(textOf(zero)).toContain('maiores que 0');
   });
 
   it('insert_svg com ícone Lucide preserva o raw e get_svg informa', async () => {
-    const r = await call('insert_svg', { parentId: ws.frameId, svg: LUCIDE_CHECK, name: 'Check', width: 32 });
+    const r = await call('insert_svg', {
+      parentId: ws.frameId,
+      svg: LUCIDE_CHECK,
+      name: 'Check',
+      width: 32,
+    });
     expect(r.isError, textOf(r)).toBeFalsy();
     expect(textOf(r)).toContain('editáveis');
     const id = idIn(/(sv_[0-9a-z]+)/, textOf(r));
@@ -250,7 +277,11 @@ describe('MCP vetores', () => {
     const docId = daemon.store.resolveDocId();
     const url = `${daemon.url}/api/docs/${docId}/text-to-outlines`;
     const post = (body: unknown) =>
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
     const miss = await post({ nodeIds: ['tx_naoexiste'] });
     expect(miss.status).toBe(404);
     expect(((await miss.json()) as { error: string }).error).toBeTruthy();
@@ -322,12 +353,21 @@ describe('MCP vetores: nós em fluxo medidos pelo render', () => {
     };
     const a = await make();
     const b = await make();
-    const f = await client.callTool({ name: 'flatten', arguments: { nodeIds: [a, b], name: 'Junto' } });
+    const f = await client.callTool({
+      name: 'flatten',
+      arguments: { nodeIds: [a, b], name: 'Junto' },
+    });
     expect(f.isError, textOf(f)).toBeFalsy();
     const frame = daemon.store.get(daemon.store.resolveDocId()).pages[0]!.frames[0]!;
     const res = frame.children.find((n) => n.name === 'Junto')!;
     // a em (12-10-2, 12-10-2) = (0, 0); b em (40, 5), ambos 20x20
-    expect(res.style).toMatchObject({ position: 'absolute', left: '0px', top: '0px', width: '60px', height: '25px' });
+    expect(res.style).toMatchObject({
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: '60px',
+      height: '25px',
+    });
     expect(frame.children.some((n) => n.id === a || n.id === b)).toBe(false);
   });
 });

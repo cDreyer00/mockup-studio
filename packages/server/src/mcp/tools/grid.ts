@@ -62,7 +62,9 @@ export function registerGridTools(ctx: ToolContext): void {
         ),
         rows: trackField
           .optional()
-          .describe('Linhas, no mesmo formato de columns, ex.: 2 ou "auto 1fr" (padrão: implícitas).'),
+          .describe(
+            'Linhas, no mesmo formato de columns, ex.: 2 ou "auto 1fr" (padrão: implícitas).',
+          ),
         gap: gapField
           .optional()
           .describe('Espaço entre trilhas: número (px) ou texto CSS, ex.: 16 ou "16px 24px".'),
@@ -141,7 +143,9 @@ export function registerGridTools(ctx: ToolContext): void {
       const nCols = trackCount(styles, 'columns');
       if (areas) {
         const w = areas[0]!.trim().split(/\s+/).length;
-        const isAuto = parseTrackList(styles['grid-template-columns']).some((t) => t.kind === 'other');
+        const isAuto = parseTrackList(styles['grid-template-columns']).some(
+          (t) => t.kind === 'other',
+        );
         if (!isAuto && w !== nCols) {
           notes.push(
             `Atenção: areas tem ${w} coluna(s) e columns define ${nCols}; o grid cria trilhas implícitas. Ajuste para o mesmo número.`,
@@ -149,28 +153,46 @@ export function registerGridTools(ctx: ToolContext): void {
         }
         if (rows !== undefined) {
           const nRows = trackCount(styles, 'rows');
-          if (nRows !== areas.length && !parseTrackList(styles['grid-template-rows']).some((t) => t.kind === 'other')) {
+          if (
+            nRows !== areas.length &&
+            !parseTrackList(styles['grid-template-rows']).some((t) => t.kind === 'other')
+          ) {
             notes.push(`Atenção: areas tem ${areas.length} linha(s) e rows define ${nRows}.`);
           }
         }
       }
       if ((node.style['display'] ?? '').includes('flex')) {
-        notes.push('O display antes era flex; agora é grid (flex-direction e justify-content deixam de valer).');
+        notes.push(
+          'O display antes era flex; agora é grid (flex-direction e justify-content deixam de valer).',
+        );
       }
       const unset: string[] = [];
       // gap geral e gaps por eixo se sobrepõem: remove os que não vieram
       if (styles['gap'] !== undefined) unset.push('column-gap', 'row-gap');
-      else if (styles['column-gap'] !== undefined || styles['row-gap'] !== undefined) unset.push('gap');
-      const unsetFinal = unset.filter((k) => node.style[k] !== undefined && styles[k] === undefined);
+      else if (styles['column-gap'] !== undefined || styles['row-gap'] !== undefined)
+        unset.push('gap');
+      const unsetFinal = unset.filter(
+        (k) => node.style[k] !== undefined && styles[k] === undefined,
+      );
       const r = apply(
         id,
-        [{ type: 'updateStyles', nodeIds: [nodeId], styles, unset: unsetFinal.length ? unsetFinal : undefined }],
+        [
+          {
+            type: 'updateStyles',
+            nodeIds: [nodeId],
+            styles,
+            unset: unsetFinal.length ? unsetFinal : undefined,
+          },
+        ],
         'set_grid',
       );
       const summary = [
         `colunas ${styles['grid-template-columns']}`,
         rows !== undefined ? `linhas ${styles['grid-template-rows']}` : null,
-        styles['gap'] ?? (styles['column-gap'] || styles['row-gap'] ? `gap ${styles['column-gap'] ?? '-'} / ${styles['row-gap'] ?? '-'}` : null),
+        styles['gap'] ??
+          (styles['column-gap'] || styles['row-gap']
+            ? `gap ${styles['column-gap'] ?? '-'} / ${styles['row-gap'] ?? '-'}`
+            : null),
         styles['grid-template-areas'] ? `áreas ${styles['grid-template-areas']}` : null,
       ]
         .filter(Boolean)
@@ -191,7 +213,12 @@ export function registerGridTools(ctx: ToolContext): void {
           .array(z.string())
           .min(1)
           .describe('Ids dos filhos do grid, ex.: ["el_ab12cd34"].'),
-        column: z.number().int().min(1).optional().describe('Coluna inicial (a primeira é 1), ex.: 2.'),
+        column: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('Coluna inicial (a primeira é 1), ex.: 2.'),
         row: z.number().int().min(1).optional().describe('Linha inicial (a primeira é 1), ex.: 1.'),
         span: z
           .union([
@@ -203,7 +230,12 @@ export function registerGridTools(ctx: ToolContext): void {
           ])
           .optional()
           .describe('Extensão: número = colunas ocupadas (2), ou { "columns": 2, "rows": 1 }.'),
-        columnSpan: z.number().int().min(1).optional().describe('Colunas ocupadas, ex.: 2 (alternativa a span).'),
+        columnSpan: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('Colunas ocupadas, ex.: 2 (alternativa a span).'),
         rowSpan: z.number().int().min(1).optional().describe('Linhas ocupadas, ex.: 2.'),
         area: z
           .string()
@@ -219,7 +251,13 @@ export function registerGridTools(ctx: ToolContext): void {
       const found = nodeIds.map((n) => requireNode(doc, n));
       const cs = columnSpan ?? (typeof span === 'number' ? span : span?.columns);
       const rs = rowSpan ?? (typeof span === 'object' ? span.rows : undefined);
-      if (area === undefined && column === undefined && row === undefined && cs === undefined && rs === undefined) {
+      if (
+        area === undefined &&
+        column === undefined &&
+        row === undefined &&
+        cs === undefined &&
+        rs === undefined
+      ) {
         throw new ToolError(
           'Informe column/row (e span) ou area. Ex.: column 2, row 1, span 2; ou area "header".',
         );
@@ -271,10 +309,19 @@ export function registerGridTools(ctx: ToolContext): void {
       // (grid-area redefine as quatro longhands; grid-column/grid-row redefinem as do seu eixo).
       const conflicting =
         area !== undefined
-          ? ['grid-column', 'grid-row', 'grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end']
+          ? [
+              'grid-column',
+              'grid-row',
+              'grid-column-start',
+              'grid-column-end',
+              'grid-row-start',
+              'grid-row-end',
+            ]
           : [
               'grid-area',
-              ...(placement['grid-column'] !== undefined ? ['grid-column-start', 'grid-column-end'] : []),
+              ...(placement['grid-column'] !== undefined
+                ? ['grid-column-start', 'grid-column-end']
+                : []),
               ...(placement['grid-row'] !== undefined ? ['grid-row-start', 'grid-row-end'] : []),
             ];
       const unset = conflicting.filter(

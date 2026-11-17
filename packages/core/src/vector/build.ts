@@ -157,7 +157,9 @@ function collectSources(
       box = nodeBoxInParent(p.node, isRoot);
     }
     if (!box) {
-      throw new Error(`Não foi possível determinar a caixa do nó ${label(p.node)} (width/height em px)`);
+      throw new Error(
+        `Não foi possível determinar a caixa do nó ${label(p.node)} (width/height em px)`,
+      );
     }
     return { node: p.node, vector, box, matrix: viewBoxMatrix(vector, box) };
   });
@@ -303,7 +305,11 @@ export function buildBooleanOps(
   const d = booleanPathData(op, items);
   if (!d) throw new Error('O resultado da operação booleana é vazio');
   const first = ctx.sources[0]!;
-  const path: VectorPath = { id: 'p1', d, ...scalePaint(paintOf(first.vector.paths[0]!), first.matrix) };
+  const path: VectorPath = {
+    id: 'p1',
+    d,
+    ...scalePaint(paintOf(first.vector.paths[0]!), first.matrix),
+  };
   return buildResult(ctx, [path], opts.name ?? 'Booleana', opts.id);
 }
 

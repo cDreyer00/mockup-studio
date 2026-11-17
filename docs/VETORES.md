@@ -53,13 +53,13 @@ boolean_op({ nodeIds: ["sv_aaaa1111", "sv_bbbb2222"], op: "subtract" })
 
 ## Atalhos do editor
 
-| Atalho                  | Ação                                                                         |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `P`                     | Caneta: clique para pontos retos, arraste para curvas; Enter/duplo clique conclui |
-| `O`                     | Elipse (Shift: círculo)                                                      |
-| `L`                     | Linha (Shift: múltiplos de 45°)                                              |
-| Polígono (barra de ferramentas) | Polígono; Alt ao soltar cria estrela                                 |
-| Duplo clique / `Enter`  | Edita os pontos do vetor selecionado (Esc sai)                               |
-| `Ctrl+Shift+O`          | Texto em contornos                                                           |
+| Atalho                          | Ação                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| `P`                             | Caneta: clique para pontos retos, arraste para curvas; Enter/duplo clique conclui |
+| `O`                             | Elipse (Shift: círculo)                                                           |
+| `L`                             | Linha (Shift: múltiplos de 45°)                                                   |
+| Polígono (barra de ferramentas) | Polígono; Alt ao soltar cria estrela                                              |
+| Duplo clique / `Enter`          | Edita os pontos do vetor selecionado (Esc sai)                                    |
+| `Ctrl+Shift+O`                  | Texto em contornos                                                                |
 
 Booleanas, achatar e texto em contornos também estão no menu do painel de vetor.

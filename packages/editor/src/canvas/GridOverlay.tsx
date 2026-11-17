@@ -8,7 +8,13 @@ import { useUi } from '../state/uiStore';
 import { measureWorldRect } from './dom';
 import { rectToScreen } from './geometry';
 import type { Rect } from './geometry';
-import { currentPlacement, measureGridWorld, placementRect, startSpanDrag, useGridFx } from './gridDrag';
+import {
+  currentPlacement,
+  measureGridWorld,
+  placementRect,
+  startSpanDrag,
+  useGridFx,
+} from './gridDrag';
 import type { GridWorld, SpanEdge } from './gridDrag';
 
 interface Shown {
@@ -22,7 +28,9 @@ const sameRect = (a: Rect, b: Rect): boolean =>
   a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
 function sameTracks(a: GridWorld['grid']['columns'], b: GridWorld['grid']['columns']): boolean {
-  return a.length === b.length && a.every((t, i) => t.start === b[i]!.start && t.size === b[i]!.size);
+  return (
+    a.length === b.length && a.every((t, i) => t.start === b[i]!.start && t.size === b[i]!.size)
+  );
 }
 
 function sameShown(a: Shown | null, b: Shown | null): boolean {
@@ -59,7 +67,10 @@ function measure(root: HTMLElement): Shown | null {
   if (!parent || !isGridContainer(parent.style)) return null;
   const gw = measureGridWorld(root, parent.id);
   if (!gw) return null;
-  const cell = placementRect(gw.grid, currentPlacement(gw.grid, measureWorldRect(root, id), node.style));
+  const cell = placementRect(
+    gw.grid,
+    currentPlacement(gw.grid, measureWorldRect(root, id), node.style),
+  );
   return cell ? { gw, child: { id, cell, locked: isLockedDeep(doc, id) } } : null;
 }
 
@@ -170,11 +181,7 @@ export function GridOverlay({ rootRef }: { rootRef: RefObject<HTMLDivElement | n
         </div>
       ))}
       {dropCell && (
-        <div
-          className="cv-grid-drop"
-          data-testid="grid-drop-cell"
-          style={px(screen(dropCell))}
-        />
+        <div className="cv-grid-drop" data-testid="grid-drop-cell" style={px(screen(dropCell))} />
       )}
       {interactive && (
         <>

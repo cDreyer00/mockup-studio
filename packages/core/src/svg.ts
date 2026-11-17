@@ -128,11 +128,15 @@ const escRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 export function scopeSvgIds(markup: string, prefix: string): string {
   const ids = new Set<string>();
-  for (const m of markup.matchAll(/\sid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) ids.add(m[1] ?? m[2] ?? '');
+  for (const m of markup.matchAll(/\sid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi))
+    ids.add(m[1] ?? m[2] ?? '');
   ids.delete('');
   if (ids.size === 0) return markup;
   const pre = prefix.replace(/[^A-Za-z0-9_-]/g, '_');
-  const alt = [...ids].sort((a, b) => b.length - a.length).map(escRe).join('|');
+  const alt = [...ids]
+    .sort((a, b) => b.length - a.length)
+    .map(escRe)
+    .join('|');
   let out = markup.replace(
     /(\sid\s*=\s*)(?:"([^"]*)"|'([^']*)')/gi,
     (_m, head: string, a?: string, b?: string) => `${head}"${pre}-${a ?? b ?? ''}"`,

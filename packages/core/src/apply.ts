@@ -318,17 +318,23 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
       // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
       const v = node.vector;
       if (unset.includes('viewBox')) {
-        fail('Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)');
+        fail(
+          'Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)',
+        );
       }
       if (set.viewBox !== undefined) {
-        const n = set.viewBox.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)?.map(Number) ?? [];
+        const n =
+          set.viewBox.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)?.map(Number) ?? [];
         const ok =
           n.length === 4 &&
           n.every(Number.isFinite) &&
           n[2]! > 0 &&
           n[3]! > 0 &&
           /^[\s,+\-.\deE]+$/.test(set.viewBox);
-        if (!ok) fail(`viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`);
+        if (!ok)
+          fail(
+            `viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`,
+          );
         v.viewBox = { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
       }
       if (v.raw !== undefined) v.raw = setSvgRootAttrs(v.raw, set, unset);

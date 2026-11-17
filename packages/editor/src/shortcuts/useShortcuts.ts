@@ -72,7 +72,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       if (!doc) return;
       // Enter com um nó svg selecionado entra na edição de pontos.
       const only = useUi.getState().selection;
-      if (only.length === 1 && getNode(doc, only[0]!)?.type === 'svg') return ui.editVector(only[0]!);
+      if (only.length === 1 && getNode(doc, only[0]!)?.type === 'svg')
+        return ui.editVector(only[0]!);
       const kids = useUi
         .getState()
         .selection.flatMap((id) => getNode(doc, id)?.children.map((c) => c.id) ?? []);

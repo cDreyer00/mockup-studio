@@ -423,10 +423,11 @@ export function parseTransform(value: string): Matrix {
         if (args.length === 3) {
           const px = args[1]!;
           const py = args[2]!;
-          t = multiplyMatrix(
-            multiplyMatrix({ ...IDENTITY, e: px, f: py }, t),
-            { ...IDENTITY, e: -px, f: -py },
-          );
+          t = multiplyMatrix(multiplyMatrix({ ...IDENTITY, e: px, f: py }, t), {
+            ...IDENTITY,
+            e: -px,
+            f: -py,
+          });
         }
         break;
       }
@@ -697,7 +698,13 @@ export function rectPathData(
 const KAPPA = 0.5522847498307936;
 
 /** Path de uma elipse com 4 cúbicas, começando à direita e seguindo no sentido horário da tela. */
-export function ellipsePathData(cx: number, cy: number, rx: number, ry: number, precision = 3): string {
+export function ellipsePathData(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  precision = 3,
+): string {
   const kx = rx * KAPPA;
   const ky = ry * KAPPA;
   return serializePathData(

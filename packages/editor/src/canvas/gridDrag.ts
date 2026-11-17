@@ -3,7 +3,13 @@
  * (alças de span) e o destaque da célula. As contas (`dropPlacement`, `resizeSpan`, `placementDelta`...)
  * são puras; o que toca no DOM/daemon fica em `measureGridWorld`, `planGridMove` e `startSpanDrag`.
  */
-import { cellAt, cellRect, gridPlacementStyles, parseGridPlacement, spanFromRect } from '@mockup/core';
+import {
+  cellAt,
+  cellRect,
+  gridPlacementStyles,
+  parseGridPlacement,
+  spanFromRect,
+} from '@mockup/core';
 import type { GridPlacement, LayoutGrid, Node, Op } from '@mockup/core';
 import { create } from 'zustand';
 import { daemon } from '../client/daemon';
@@ -238,10 +244,7 @@ export function planGridMove(
       target = { items: placed };
       setCell(placementRect(gw.grid, lead));
       shown = Object.fromEntries(
-        placed.map((p) => [
-          p.node.id,
-          { style: { opacity: '0.6', ...placementStyles(p.place) } },
-        ]),
+        placed.map((p) => [p.node.id, { style: { opacity: '0.6', ...placementStyles(p.place) } }]),
       );
       ui.setPreview(shown);
     },
@@ -299,7 +302,11 @@ export function startSpanDrag(root: HTMLElement, childId: string, edge: SpanEdge
     stop();
     const live = useDoc.getState().doc;
     const node = live ? getNode(live, childId) : undefined;
-    if (!cancelled && node && (cur.columnSpan !== start.columnSpan || cur.rowSpan !== start.rowSpan)) {
+    if (
+      !cancelled &&
+      node &&
+      (cur.columnSpan !== start.columnSpan || cur.rowSpan !== start.rowSpan)
+    ) {
       const d = placementDelta(node.style, cur);
       if (deltaChangesStyle(node.style, d)) {
         await daemon.applySafe([

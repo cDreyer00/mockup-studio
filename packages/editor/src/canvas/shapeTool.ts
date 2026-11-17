@@ -100,7 +100,9 @@ export function buildShapeNode(
       const sx = f.x ? w : 0;
       const sy = f.y ? h : 0;
       const d = `M ${sx} ${sy} L ${w - sx} ${h - sy}`;
-      vector = editVector(vector, { paths: vector.paths.map((p, i) => (i === 0 ? { ...p, d } : p)) });
+      vector = editVector(vector, {
+        paths: vector.paths.map((p, i) => (i === 0 ? { ...p, d } : p)),
+      });
     }
   }
   const vb = vector.viewBox;

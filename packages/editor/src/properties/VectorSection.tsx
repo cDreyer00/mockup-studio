@@ -283,7 +283,8 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
                   onCommit={(v) => {
                     const n = Number(v);
                     if (v === '') void applyPaint(nodes, { strokeWidth: null });
-                    else if (Number.isFinite(n) && n >= 0) void applyPaint(nodes, { strokeWidth: n });
+                    else if (Number.isFinite(n) && n >= 0)
+                      void applyPaint(nodes, { strokeWidth: n });
                   }}
                 />
               </div>
@@ -331,7 +332,9 @@ export function VectorSection({ nodes }: { nodes: readonly Node[] }) {
                       ui.toast('Tracejado inválido: use números, ex.: 4 2', 'error');
                       return;
                     }
-                    void applyPaint(nodes, { strokeDasharray: t === '' || t === 'none' ? null : t });
+                    void applyPaint(nodes, {
+                      strokeDasharray: t === '' || t === 'none' ? null : t,
+                    });
                   }}
                 />
               </div>

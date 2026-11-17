@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { flattenPath, normalizePathData, pathBounds, parsePathData, serializePathData } from './path.js';
+import {
+  flattenPath,
+  normalizePathData,
+  pathBounds,
+  parsePathData,
+  serializePathData,
+} from './path.js';
 import {
   editVector,
   generateVectorSvg,
@@ -53,14 +59,17 @@ describe('svgToVector', () => {
     expect(vectorToSvg(v)).toBe(v.raw);
   });
 
-  it.each(['filter', 'mask', 'clipPath'])('SVG com %s não é simples: paths vazios e raw preservado', (tag) => {
-    const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><${tag} id="x"><rect width="5" height="5"/></${tag}></defs><path d="M0 0 L10 10" ${tag === 'filter' ? 'filter' : tag === 'mask' ? 'mask' : 'clip-path'}="url(#x)"/></svg>`;
-    const v = svgToVector(markup);
-    expect(v.paths).toEqual([]);
-    expect(v.raw).toBeTruthy();
-    expect(isVectorEditable(v)).toBe(false);
-    expect(vectorToSvg(v)).toBe(v.raw);
-  });
+  it.each(['filter', 'mask', 'clipPath'])(
+    'SVG com %s não é simples: paths vazios e raw preservado',
+    (tag) => {
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><${tag} id="x"><rect width="5" height="5"/></${tag}></defs><path d="M0 0 L10 10" ${tag === 'filter' ? 'filter' : tag === 'mask' ? 'mask' : 'clip-path'}="url(#x)"/></svg>`;
+      const v = svgToVector(markup);
+      expect(v.paths).toEqual([]);
+      expect(v.raw).toBeTruthy();
+      expect(isVectorEditable(v)).toBe(false);
+      expect(vectorToSvg(v)).toBe(v.raw);
+    },
+  );
 });
 
 describe('path data', () => {
@@ -95,7 +104,10 @@ describe('path data', () => {
 });
 
 describe('preserveAspectRatio', () => {
-  const base = { viewBox: { x: 0, y: 0, width: 10, height: 10 }, paths: [{ id: 'p1', d: 'M0 0L1 1' }] };
+  const base = {
+    viewBox: { x: 0, y: 0, width: 10, height: 10 },
+    paths: [{ id: 'p1', d: 'M0 0L1 1' }],
+  };
 
   it('markup gerado usa "none" por padrão e respeita attrs', () => {
     expect(generateVectorSvg(base)).toContain('preserveAspectRatio="none"');
@@ -106,7 +118,9 @@ describe('preserveAspectRatio', () => {
 
   it('importação grava xMidYMid meet quando ausente e preserva o existente', () => {
     expect(svgToVector(LUCIDE).attrs?.preserveAspectRatio).toBe('xMidYMid meet');
-    const v = svgToVector('<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>');
+    const v = svgToVector(
+      '<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>',
+    );
     expect(v.attrs?.preserveAspectRatio).toBe('none');
   });
 
@@ -117,13 +131,20 @@ describe('preserveAspectRatio', () => {
 
   it('vectorPreserveAspectRatio', () => {
     expect(vectorPreserveAspectRatio(base)).toBe('none');
-    expect(vectorPreserveAspectRatio({ ...base, attrs: { preserveAspectRatio: 'xMinYMax slice' } })).toEqual({
+    expect(
+      vectorPreserveAspectRatio({ ...base, attrs: { preserveAspectRatio: 'xMinYMax slice' } }),
+    ).toEqual({
       align: 'xMinYMax',
       slice: true,
     });
-    expect(vectorPreserveAspectRatio(svgToVector(LUCIDE))).toEqual({ align: 'xMidYMid', slice: false });
+    expect(vectorPreserveAspectRatio(svgToVector(LUCIDE))).toEqual({
+      align: 'xMidYMid',
+      slice: false,
+    });
     expect(
-      vectorPreserveAspectRatio(svgToVector('<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>')),
+      vectorPreserveAspectRatio(
+        svgToVector('<svg viewBox="0 0 4 4" preserveAspectRatio="none"><path d="M0 0L1 1"/></svg>'),
+      ),
     ).toBe('none');
     // raw tem prioridade sobre attrs
     expect(

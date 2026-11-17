@@ -37,12 +37,15 @@ async function selectDeep(page: Page, id: string) {
 async function waitStable(page: Page, id: string) {
   let last = '';
   await expect
-    .poll(async () => {
-      const cur = JSON.stringify(await nodeEl(page, id).boundingBox());
-      const same = cur === last;
-      last = cur;
-      return same;
-    }, { intervals: [150] })
+    .poll(
+      async () => {
+        const cur = JSON.stringify(await nodeEl(page, id).boundingBox());
+        const same = cur === last;
+        last = cur;
+        return same;
+      },
+      { intervals: [150] },
+    )
     .toBe(true);
 }
 

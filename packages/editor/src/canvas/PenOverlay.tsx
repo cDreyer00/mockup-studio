@@ -9,7 +9,10 @@ import type { PenState } from './pen';
 import { attachPenKeys, penFinish, usePen } from './penTool';
 import './vector.css';
 
-const toScreen = (vp: Viewport, p: Point): Point => ({ x: p.x * vp.z + vp.x, y: p.y * vp.z + vp.y });
+const toScreen = (vp: Viewport, p: Point): Point => ({
+  x: p.x * vp.z + vp.x,
+  y: p.y * vp.z + vp.y,
+});
 
 function anchorToScreen(vp: Viewport, a: PathAnchor): PathAnchor {
   return {
@@ -43,8 +46,7 @@ export function PenOverlay() {
   const anchors = state.anchors.map((a) => anchorToScreen(vp, a));
   const cursor = pen.cursor ? toScreen(vp, pen.cursor) : null;
   const screenState: PenState = { anchors, closed: state.closed };
-  const closing =
-    !!cursor && isNearFirst(screenState, cursor, PEN_CLOSE_RADIUS) && !state.closed;
+  const closing = !!cursor && isNearFirst(screenState, cursor, PEN_CLOSE_RADIUS) && !state.closed;
   const d = anchors.length > 1 ? subpathsToPath([{ anchors, closed: state.closed }]) : '';
   const preview = cursor ? previewSegmentD(screenState, cursor, closing) : '';
   const last = anchors[anchors.length - 1]!;
@@ -57,14 +59,7 @@ export function PenOverlay() {
         {[last.in, last.out].map(
           (h, i) =>
             h && (
-              <line
-                key={i}
-                className="cv-handle-line"
-                x1={last.x}
-                y1={last.y}
-                x2={h.x}
-                y2={h.y}
-              />
+              <line key={i} className="cv-handle-line" x1={last.x} y1={last.y} x2={h.x} y2={h.y} />
             ),
         )}
         {[last.in, last.out].map(

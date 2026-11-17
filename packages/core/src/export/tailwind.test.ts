@@ -2,12 +2,7 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '../schema.js';
 import { createNodeFromTag } from '../document.js';
-import {
-  cssToTailwind,
-  exportTailwind,
-  tailwindNodeParts,
-  tailwindThemeCss,
-} from './tailwind.js';
+import { cssToTailwind, exportTailwind, tailwindNodeParts, tailwindThemeCss } from './tailwind.js';
 
 const landing = parseDocument(
   fs.readFileSync(new URL('../../../../examples/landing.mockup.json', import.meta.url), 'utf8'),

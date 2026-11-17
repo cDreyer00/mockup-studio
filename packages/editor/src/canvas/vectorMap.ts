@@ -19,7 +19,9 @@ export interface ViewMap {
 const ALIGN: Record<string, number> = { Min: 0, Mid: 0.5, Max: 1 };
 
 /** `preserveAspectRatio` → alinhamento por eixo (0, 0.5, 1) e meet/slice; `none` = sem proporção. */
-export function parseAspect(value?: string): { none: true } | { none: false; ax: number; ay: number; slice: boolean } {
+export function parseAspect(
+  value?: string,
+): { none: true } | { none: false; ax: number; ay: number; slice: boolean } {
   const parts = (value ?? '').trim().split(/\s+/).filter(Boolean);
   if (parts[0] === 'defer') parts.shift();
   const align = parts[0] ?? 'xMidYMid';

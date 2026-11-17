@@ -416,8 +416,15 @@ export function createApp(
       if (!store.list().some((d) => d.docId === docId))
         throw new HttpError(404, `Documento não encontrado: ${docId}`);
       const nodeIds: unknown = req.body?.nodeIds;
-      if (!Array.isArray(nodeIds) || nodeIds.length === 0 || nodeIds.some((n) => typeof n !== 'string'))
-        throw new HttpError(400, 'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]');
+      if (
+        !Array.isArray(nodeIds) ||
+        nodeIds.length === 0 ||
+        nodeIds.some((n) => typeof n !== 'string')
+      )
+        throw new HttpError(
+          400,
+          'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]',
+        );
       try {
         const out = await buildTextOutlineOps({
           doc: docWithNodes(store.get(docId), nodeIds as string[]),

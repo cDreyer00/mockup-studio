@@ -58,7 +58,12 @@ function mapSubpath(m: EditModel, s: number, fn: (sp: Subpath) => Subpath | null
 const shift = (p: Point, dx: number, dy: number): Point => ({ x: p.x + dx, y: p.y + dy });
 
 /** Move as âncoras (e as alças delas) por (dx, dy), em unidades do viewBox. */
-export function moveAnchors(m: EditModel, refs: readonly AnchorRef[], dx: number, dy: number): EditModel {
+export function moveAnchors(
+  m: EditModel,
+  refs: readonly AnchorRef[],
+  dx: number,
+  dy: number,
+): EditModel {
   const keys = new Set(refs.map(refKey));
   let k = 0;
   return {
@@ -216,7 +221,10 @@ export function hitSegment(m: EditModel, p: Point, tol: number): SegmentHit | nu
         const vx = cur.x - prev.x;
         const vy = cur.y - prev.y;
         const len2 = vx * vx + vy * vy;
-        const u = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - prev.x) * vx + (p.y - prev.y) * vy) / len2));
+        const u =
+          len2 === 0
+            ? 0
+            : Math.max(0, Math.min(1, ((p.x - prev.x) * vx + (p.y - prev.y) * vy) / len2));
         const d = dist(p, { x: prev.x + vx * u, y: prev.y + vy * u });
         if (d <= tol && (!best || d < best.dist)) {
           best = { s, seg, t: (k - 1 + u) / STEPS, dist: d };

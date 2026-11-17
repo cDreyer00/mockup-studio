@@ -230,7 +230,8 @@ function shapeToD(el: Element, name: string): string | null {
         const count = Math.floor(nums.length / 2);
         if (count < 2) return null;
         let d = '';
-        for (let i = 0; i < count; i++) d += `${i === 0 ? 'M' : 'L'} ${nums[2 * i]} ${nums[2 * i + 1]} `;
+        for (let i = 0; i < count; i++)
+          d += `${i === 0 ? 'M' : 'L'} ${nums[2 * i]} ${nums[2 * i + 1]} `;
         return name === 'polygon' ? `${d}Z` : d.trim();
       }
     }
@@ -281,7 +282,8 @@ function importShape(
   path.fill = paint(w.inh.fill ?? '#000');
   if (w.inh.stroke !== undefined) path.stroke = paint(w.inh.stroke);
   const hasStroke = path.stroke !== undefined && path.stroke !== 'none';
-  if (hasStroke && Math.abs(scale - scaleY) > 1e-6 * Math.max(1, scale)) bail('traço em escala anisotrópica');
+  if (hasStroke && Math.abs(scale - scaleY) > 1e-6 * Math.max(1, scale))
+    bail('traço em escala anisotrópica');
   const scaled = Math.abs(scale - 1) > 1e-9;
 
   if (w.inh['stroke-width'] !== undefined || (hasStroke && scaled)) {
@@ -302,7 +304,9 @@ function importShape(
   const dash = w.inh['stroke-dasharray'];
   if (dash !== undefined && dash !== 'none') {
     if (!DASH_NUMBERS_RE.test(dash)) bail('stroke-dasharray');
-    const nums = dash.match(NUMBERS_RE)!.map((n) => formatNumber(parseFloat(n) * scale, IMPORT_PRECISION));
+    const nums = dash
+      .match(NUMBERS_RE)!
+      .map((n) => formatNumber(parseFloat(n) * scale, IMPORT_PRECISION));
     path.strokeDasharray = nums.join(' ');
   }
   const rule = w.inh['fill-rule'];
@@ -335,7 +339,9 @@ function walkElement(
     }
     return;
   }
-  const isShape = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'].includes(name);
+  const isShape = ['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon'].includes(
+    name,
+  );
   if (!isShape && name !== 'g' && !(isRoot && name === 'svg')) bail(`elemento <${name}>`);
 
   const own = elementProps(el);
@@ -541,7 +547,10 @@ export function generateVectorSvg(v: Vector): string {
 
 /** Interpreta um valor de `preserveAspectRatio` (`defer` ignorado). */
 function parsePreserveAspectRatio(value: string): { align: string; slice: boolean } | 'none' {
-  const parts = value.trim().split(/\s+/).filter((t) => t && t !== 'defer');
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t && t !== 'defer');
   const align = parts[0] ?? 'xMidYMid';
   if (align === 'none') return 'none';
   return { align, slice: parts[1] === 'slice' };
@@ -658,12 +667,14 @@ export function splitPaintStyles(styles: Record<string, string>): {
       }
       case 'stroke-linecap':
         if (value === '') paint.strokeLinecap = null;
-        else if (value === 'butt' || value === 'round' || value === 'square') paint.strokeLinecap = value;
+        else if (value === 'butt' || value === 'round' || value === 'square')
+          paint.strokeLinecap = value;
         else rest[key] = raw;
         break;
       case 'stroke-linejoin':
         if (value === '') paint.strokeLinejoin = null;
-        else if (value === 'miter' || value === 'round' || value === 'bevel') paint.strokeLinejoin = value;
+        else if (value === 'miter' || value === 'round' || value === 'bevel')
+          paint.strokeLinejoin = value;
         else rest[key] = raw;
         break;
       case 'stroke-dasharray':

@@ -103,7 +103,10 @@ test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ 
   await color.press('Enter');
 
   await expect
-    .poll(async () => findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!.vector?.paths[0]!.stroke)
+    .poll(
+      async () =>
+        findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!.vector?.paths[0]!.stroke,
+    )
     .toBe('#ff0000');
   const after = findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!;
   expect(after.vector!.raw).toBeUndefined();
@@ -115,7 +118,10 @@ test('SVG do Lucide colado: troca a cor do traço e regenera o vetor', async ({ 
   await width.fill('4');
   await width.press('Enter');
   await expect
-    .poll(async () => findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!.vector?.paths[0]!.strokeWidth)
+    .poll(
+      async () =>
+        findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!.vector?.paths[0]!.strokeWidth,
+    )
     .toBe(4);
 });
 

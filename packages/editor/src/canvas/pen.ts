@@ -43,7 +43,11 @@ export function constrainAngle(from: Point, to: Point): Point {
  * Acrescenta uma âncora reta. Ignora o ponto se o caminho já está fechado ou se ele cai a menos de
  * `minGap` (mundo) da última âncora. Com `shift` o ponto é restrito a múltiplos de 45° da última.
  */
-export function addAnchor(s: PenState, p: Point, opts: { minGap?: number; shift?: boolean } = {}): PenState {
+export function addAnchor(
+  s: PenState,
+  p: Point,
+  opts: { minGap?: number; shift?: boolean } = {},
+): PenState {
   if (s.closed) return s;
   const last = s.anchors[s.anchors.length - 1];
   let at = p;

@@ -163,9 +163,7 @@ function GapField({
         title={`Gap (${axis === 'both' ? 'colunas e linhas' : axis === 'col' ? 'colunas' : 'linhas'})`}
         min={0}
         disabled={locked}
-        onCommit={(v) =>
-          void commitStyles([node], (n) => gapDelta(n.style, axis, v))
-        }
+        onCommit={(v) => void commitStyles([node], (n) => gapDelta(n.style, axis, v))}
       />
     </div>
   );
@@ -214,7 +212,12 @@ export function GridEditor({ node }: { node: Node }) {
 type CellKey = 'column' | 'row' | 'columnSpan' | 'rowSpan';
 
 const CELL_FIELDS: { key: CellKey; label: string; testId: string; title: string }[] = [
-  { key: 'column', label: 'Coluna', testId: 'grid-cell-column', title: 'Coluna inicial (grid-column)' },
+  {
+    key: 'column',
+    label: 'Coluna',
+    testId: 'grid-cell-column',
+    title: 'Coluna inicial (grid-column)',
+  },
   { key: 'row', label: 'Linha', testId: 'grid-cell-row', title: 'Linha inicial (grid-row)' },
   { key: 'columnSpan', label: 'Span col.', testId: 'grid-cell-colspan', title: 'Colunas ocupadas' },
   { key: 'rowSpan', label: 'Span lin.', testId: 'grid-cell-rowspan', title: 'Linhas ocupadas' },

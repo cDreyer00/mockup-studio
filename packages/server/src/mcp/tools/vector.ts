@@ -75,7 +75,9 @@ const gradientField = z
         }),
       )
       .min(1)
-      .describe('Cores do gradiente, ex.: [{ "offset": 0, "color": "#f00" }, { "offset": 1, "color": "#00f" }].'),
+      .describe(
+        'Cores do gradiente, ex.: [{ "offset": 0, "color": "#f00" }, { "offset": 1, "color": "#00f" }].',
+      ),
     x1: z.number().optional().describe('Linear: início x (fração da caixa do path, padrão 0).'),
     y1: z.number().optional().describe('Linear: início y (padrão 0).'),
     x2: z.number().optional().describe('Linear: fim x (padrão 1).'),
@@ -331,7 +333,11 @@ export function registerVectorTools(ctx: ToolContext): void {
           st['left'] = px(fitted.box.x);
           st['top'] = px(fitted.box.y);
         }
-        ops.push(...buildSetVectorOps(nodeId, vector), { type: 'updateStyles', nodeIds: [nodeId], styles: st });
+        ops.push(...buildSetVectorOps(nodeId, vector), {
+          type: 'updateStyles',
+          nodeIds: [nodeId],
+          styles: st,
+        });
         notes.push(
           `viewBox ajustado ao conteúdo; caixa do nó: ${st['width']} x ${st['height']}${st['left'] ? ` em (${st['left']}, ${st['top']})` : ''}.`,
         );
@@ -361,7 +367,9 @@ export function registerVectorTools(ctx: ToolContext): void {
         svg: z
           .string()
           .min(1)
-          .describe('Markup SVG completo, começando em <svg ...>, ex.: "<svg viewBox=\\"0 0 24 24\\">...</svg>".'),
+          .describe(
+            'Markup SVG completo, começando em <svg ...>, ex.: "<svg viewBox=\\"0 0 24 24\\">...</svg>".',
+          ),
         name: z.string().optional().describe('Nome da camada, ex.: "Logo".'),
         x: z.number().optional().describe('Posição x (px); torna o nó absoluto, ex.: 40.'),
         y: z.number().optional().describe('Posição y (px); torna o nó absoluto, ex.: 40.'),
@@ -499,18 +507,32 @@ export function registerVectorTools(ctx: ToolContext): void {
           .describe('Ids dos paths a alterar, ex.: ["p1"] (padrão: todos; veja get_svg).'),
         fill: paintField
           .optional()
-          .describe('Preenchimento: cor ("#6c5ce7", "none", "currentColor"), gradiente ou "" para remover.'),
+          .describe(
+            'Preenchimento: cor ("#6c5ce7", "none", "currentColor"), gradiente ou "" para remover.',
+          ),
         stroke: paintField
           .optional()
           .describe('Traço: cor, gradiente ou "" para remover, ex.: "#111111".'),
-        strokeWidth: z.number().min(0).optional().describe('Espessura do traço em unidades do viewBox, ex.: 2.'),
-        linecap: z.enum(['butt', 'round', 'square']).optional().describe('Pontas do traço, ex.: "round".'),
-        linejoin: z.enum(['miter', 'round', 'bevel']).optional().describe('Junções do traço, ex.: "round".'),
-        dasharray: z
-          .string()
+        strokeWidth: z
+          .number()
+          .min(0)
           .optional()
-          .describe('Tracejado, ex.: "4 2"; "none" ou "" remove.'),
-        opacity: z.number().min(0).max(1).optional().describe('Opacidade do path, de 0 a 1, ex.: 0.8.'),
+          .describe('Espessura do traço em unidades do viewBox, ex.: 2.'),
+        linecap: z
+          .enum(['butt', 'round', 'square'])
+          .optional()
+          .describe('Pontas do traço, ex.: "round".'),
+        linejoin: z
+          .enum(['miter', 'round', 'bevel'])
+          .optional()
+          .describe('Junções do traço, ex.: "round".'),
+        dasharray: z.string().optional().describe('Tracejado, ex.: "4 2"; "none" ou "" remove.'),
+        opacity: z
+          .number()
+          .min(0)
+          .max(1)
+          .optional()
+          .describe('Opacidade do path, de 0 a 1, ex.: 0.8.'),
         fillRule: z
           .enum(['nonzero', 'evenodd'])
           .optional()
@@ -519,7 +541,19 @@ export function registerVectorTools(ctx: ToolContext): void {
       },
       annotations: WRITE,
     },
-    ({ nodeId, pathIds, fill, stroke, strokeWidth, linecap, linejoin, dasharray, opacity, fillRule, docId }) => {
+    ({
+      nodeId,
+      pathIds,
+      fill,
+      stroke,
+      strokeWidth,
+      linecap,
+      linejoin,
+      dasharray,
+      opacity,
+      fillRule,
+      docId,
+    }) => {
       const id = store.resolveDocId(docId);
       const { node } = requireNode(store.get(id), nodeId);
       if (node.type !== 'svg') {
@@ -545,7 +579,8 @@ export function registerVectorTools(ctx: ToolContext): void {
       if (linecap !== undefined) patch.strokeLinecap = linecap;
       if (linejoin !== undefined) patch.strokeLinejoin = linejoin;
       if (dasharray !== undefined)
-        patch.strokeDasharray = dasharray.trim() === '' || dasharray.trim() === 'none' ? null : dasharray.trim();
+        patch.strokeDasharray =
+          dasharray.trim() === '' || dasharray.trim() === 'none' ? null : dasharray.trim();
       if (opacity !== undefined) patch.opacity = opacity;
       if (fillRule !== undefined) patch.fillRule = fillRule;
       if (Object.keys(patch).length === 0) {
@@ -594,7 +629,8 @@ export function registerVectorTools(ctx: ToolContext): void {
       const ox = layout.x + px0(layout.style['border-left-width']);
       const oy = layout.y + px0(layout.style['border-top-width']);
       for (const c of layout.children) {
-        if (ids.includes(c.id)) boxes[c.id] = { x: c.x - ox, y: c.y - oy, width: c.width, height: c.height };
+        if (ids.includes(c.id))
+          boxes[c.id] = { x: c.x - ox, y: c.y - oy, width: c.width, height: c.height };
       }
     }
     return boxes;
@@ -611,7 +647,9 @@ export function registerVectorTools(ctx: ToolContext): void {
         nodeIds: z
           .array(z.string())
           .min(2)
-          .describe('Ids de 2 ou mais nós svg irmãos (mesmo pai), ex.: ["sv_aaaa1111", "sv_bbbb2222"].'),
+          .describe(
+            'Ids de 2 ou mais nós svg irmãos (mesmo pai), ex.: ["sv_aaaa1111", "sv_bbbb2222"].',
+          ),
         op: z
           .enum(BOOLEAN_OPS as unknown as [string, ...string[]])
           .describe('Operação: "union", "subtract", "intersect" ou "exclude".'),
@@ -703,9 +741,10 @@ export function registerVectorTools(ctx: ToolContext): void {
         throw e;
       }
       const r = apply(id, res.ops, 'text_to_outlines');
-      const notes = res.notes.length ? `\nNotas:\n${res.notes.map((n) => `- ${n}`).join('\n')}` : '';
+      const notes = res.notes.length
+        ? `\nNotas:\n${res.notes.map((n) => `- ${n}`).join('\n')}`
+        : '';
       return `${res.nodeIds.length} texto(s) convertido(s) em contornos: ${res.nodeIds.join(', ')}.${notes}\n${summaryOf(r.doc, res.nodeIds)}`;
     },
   );
 }
-

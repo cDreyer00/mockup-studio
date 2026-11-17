@@ -41,9 +41,7 @@ describe('trilhas', () => {
     expect(draftToCss({ unit: 'minmax', value: '', min: '120', max: '1fr' })).toBe(
       'minmax(120px, 1fr)',
     );
-    expect(draftToCss({ unit: 'css', value: 'min-content', min: '', max: '' })).toBe(
-      'min-content',
-    );
+    expect(draftToCss({ unit: 'css', value: 'min-content', min: '', max: '' })).toBe('min-content');
   });
   it('normaliza números puros como px', () => {
     expect(normalizeTrackValue('120')).toBe('120px');

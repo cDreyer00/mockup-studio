@@ -360,12 +360,12 @@ Navbar com um layout medido à mão (fundo com sombra, logo e botão com raio):
 
 Documentos com componentes principais (`doc.components`, ver `COMPONENTES.md`) exportam assim:
 
-| Formato  | Instâncias                                                                                          |
-| -------- | --------------------------------------------------------------------------------------------------- |
+| Formato  | Instâncias                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------- |
 | html     | Expandidas (`expandDocument`): o resultado é igual ao do canvas. `data-slot` dos slots é mantido. |
-| tailwind | Expandidas, como no html.                                                                           |
-| svg      | Expandidas; o layout (com `layout`) e o fallback `<foreignObject>` usam a árvore concreta.         |
-| react    | Um componente por principal usado; instâncias viram JSX.                                            |
+| tailwind | Expandidas, como no html.                                                                         |
+| svg      | Expandidas; o layout (com `layout`) e o fallback `<foreignObject>` usam a árvore concreta.        |
+| react    | Um componente por principal usado; instâncias viram JSX.                                          |
 
 Em html, tailwind e svg, `nodeIds`/`nodeId` aceitam também ids **virtuais** (`in_x/tx_label01`, nós de
 dentro de uma instância); o React também aceita, e exporta o nó já expandido.
@@ -386,15 +386,27 @@ export interface ButtonProps {
   style?: CSSProperties;
 }
 
-export function Button({ variant = 'default', size = 'default', label = 'Botão', className, style }: ButtonProps) {
+export function Button({
+  variant = 'default',
+  size = 'default',
+  label = 'Botão',
+  className,
+  style,
+}: ButtonProps) {
   return (
     <button
       className={[
         'inline-flex ... rounded-md',
         variant === 'outline' ? 'border' : 'border-0', // variantes: uma cadeia por propriedade
-        variant === 'secondary' ? 'bg-secondary' : variant === 'outline' ? 'bg-background' : 'bg-primary',
+        variant === 'secondary'
+          ? 'bg-secondary'
+          : variant === 'outline'
+            ? 'bg-background'
+            : 'bg-primary',
         className,
-      ].filter(Boolean).join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
     >
       <span>{label}</span>

@@ -72,7 +72,10 @@ export function booleanPathData(op: BooleanOp, items: BooleanItem[], tolerance =
       break;
     case 'subtract':
       if (geoms[0]!.length > 0) {
-        result = polygonClipping.difference(geoms[0]!, ...geoms.slice(1).filter((g) => g.length > 0));
+        result = polygonClipping.difference(
+          geoms[0]!,
+          ...geoms.slice(1).filter((g) => g.length > 0),
+        );
       }
       break;
     default:

@@ -136,7 +136,7 @@ Arquivo `*.mockup.json`: JSON com 2 espaços e chaves em ordem estável. Imagens
 | Campo      | Tipo                                                 | Descrição                                                                                                 |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `id`       | string                                               | Id com prefixo por tipo.                                                                                  |
-| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Tipo do nó; também `'repeater'` (ver [DADOS.md](DADOS.md)). |
+| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Tipo do nó; também `'repeater'` (ver [DADOS.md](DADOS.md)).                                               |
 | `name`     | string                                               | Nome legível (camada).                                                                                    |
 | `tag`      | string                                               | Tag HTML: `div`, `section`, `button`, `img`, `h1`, `p`, `span`...                                         |
 | `attrs`    | `Record<string,string>`                              | Atributos HTML, sem `style` e sem `class`.                                                                |
@@ -215,7 +215,7 @@ Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `
 | `setClasses`     | `changes[{ nodeId, classes }]` (`null`/`''` remove; não mexe no estilo)               | `setClasses` com as classes anteriores                                                                              |
 | `setStates`      | `changes[{ nodeId, states }]` (substitui `node.states`; chaves validadas e canônicas) | `setStates` com os estados anteriores                                                                               |
 | `setCssBase`     | `base` (`default` ou `tailwind`)                                                      | `setCssBase` com a base anterior                                                                                    |
-| `setData`        | `changes[{ nodeId, data?, source? }]` (só nós `repeater`) | `setData` com os dados e a origem anteriores (`source: null` remove a origem) |
+| `setData`        | `changes[{ nodeId, data?, source? }]` (só nós `repeater`)                             | `setData` com os dados e a origem anteriores (`source: null` remove a origem)                                       |
 
 `renameToken` também atualiza as `var()` dentro de `states` (inverso com `setStates`).
 

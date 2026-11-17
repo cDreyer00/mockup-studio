@@ -139,14 +139,18 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
           return v;
         };
         const seed = b['seed'];
-        const r = await buildPlaceholder(docWithNodes(store.get(docId), [nodeId]), store.assetsDir(docId), {
-          nodeId,
-          kind: kind as PlaceholderKind,
-          ...(typeof seed === 'string' || typeof seed === 'number' ? { seed } : {}),
-          ...(num(b['width'], 'width') ? { width: num(b['width'], 'width')! } : {}),
-          ...(num(b['height'], 'height') ? { height: num(b['height'], 'height')! } : {}),
-          ...(str(b['label']) ? { label: str(b['label'])! } : {}),
-        });
+        const r = await buildPlaceholder(
+          docWithNodes(store.get(docId), [nodeId]),
+          store.assetsDir(docId),
+          {
+            nodeId,
+            kind: kind as PlaceholderKind,
+            ...(typeof seed === 'string' || typeof seed === 'number' ? { seed } : {}),
+            ...(num(b['width'], 'width') ? { width: num(b['width'], 'width')! } : {}),
+            ...(num(b['height'], 'height') ? { height: num(b['height'], 'height')! } : {}),
+            ...(str(b['label']) ? { label: str(b['label'])! } : {}),
+          },
+        );
         store.applyOps(docId, r.ops, { source: 'editor', label: 'generate_placeholder' });
         res.json({ src: r.src, nodeId: r.nodeId });
       }),

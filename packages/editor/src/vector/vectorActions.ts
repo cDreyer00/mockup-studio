@@ -83,7 +83,11 @@ export function measureFlowBoxes(doc: Document, ids: readonly string[]): Record<
 }
 
 async function applyBuilt(
-  build: (doc: Document, ids: string[], boxes: Record<string, Box>) => { ops: Op[]; nodeId: string },
+  build: (
+    doc: Document,
+    ids: string[],
+    boxes: Record<string, Box>,
+  ) => { ops: Op[]; nodeId: string },
   minNodes: number,
   hint: string,
 ): Promise<void> {
@@ -114,5 +118,9 @@ export function booleanOp(op: BooleanOp): Promise<void> {
 
 /** Achatar: junta os paths do svg selecionado, ou dos vários svg selecionados, num só nó. */
 export function flatten(): Promise<void> {
-  return applyBuilt((doc, ids, boxes) => buildFlattenOps(doc, ids, { boxes }), 1, 'Selecione um vetor para achatar');
+  return applyBuilt(
+    (doc, ids, boxes) => buildFlattenOps(doc, ids, { boxes }),
+    1,
+    'Selecione um vetor para achatar',
+  );
 }

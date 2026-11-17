@@ -83,7 +83,8 @@ const toArrayBuffer = (b: Uint8Array): ArrayBuffer =>
 /** Lê e interpreta um arquivo de fonte (ttf, otf, woff e woff2), com cache por caminho, tamanho e data. */
 async function loadFontFile(file: string): Promise<OTFont> {
   const st = await fs.promises.stat(file);
-  if (!st.isFile() || st.size > MAX_FONT_BYTES) throw new Error(`Arquivo de fonte inválido: ${file}`);
+  if (!st.isFile() || st.size > MAX_FONT_BYTES)
+    throw new Error(`Arquivo de fonte inválido: ${file}`);
   const key = `${file}|${st.size}|${st.mtimeMs}`;
   const hit = fontCache.get(key);
   if (hit) return hit;
@@ -172,9 +173,7 @@ function describeFile(font: OTFont): { weight: number; italic: boolean } {
 }
 
 /** Lê todos os arquivos da família (ttc e formatos ignorados são pulados) e descreve cada um. */
-async function systemCandidates(
-  sys: SystemFont,
-): Promise<{ cand: Candidate; font: OTFont }[]> {
+async function systemCandidates(sys: SystemFont): Promise<{ cand: Candidate; font: OTFont }[]> {
   const files = sys.files
     .map(systemFilePath)
     .filter((f) => FONT_FILE_EXTS.has(path.extname(f).toLowerCase()))
@@ -185,7 +184,10 @@ async function systemCandidates(
       try {
         const font = await loadFontFile(file);
         const d = describeFile(font);
-        out.push({ cand: { file, weightMin: d.weight, weightMax: d.weight, italic: d.italic }, font });
+        out.push({
+          cand: { file, weightMin: d.weight, weightMax: d.weight, italic: d.italic },
+          font,
+        });
       } catch {
         // formato ilegível: tenta os outros arquivos da família
       }
@@ -196,7 +198,8 @@ async function systemCandidates(
 
 function withCoords(font: OTFont, weight: number, label: string): LoadedFont {
   const axes = (
-    font.tables['fvar'] as { axes?: { tag: string; minValue: number; maxValue: number }[] } | undefined
+    font.tables['fvar'] as
+      { axes?: { tag: string; minValue: number; maxValue: number }[] } | undefined
   )?.axes;
   const wght = font.variation ? axes?.find((a) => a.tag === 'wght') : undefined;
   return wght
@@ -209,7 +212,15 @@ function withCoords(font: OTFont, weight: number, label: string): LoadedFont {
 }
 
 const GENERIC_FALLBACKS: Record<string, string[]> = {
-  'sans-serif': ['Segoe UI', 'Arial', 'Helvetica', 'Roboto', 'DejaVu Sans', 'Liberation Sans', 'Noto Sans'],
+  'sans-serif': [
+    'Segoe UI',
+    'Arial',
+    'Helvetica',
+    'Roboto',
+    'DejaVu Sans',
+    'Liberation Sans',
+    'Noto Sans',
+  ],
   serif: ['Times New Roman', 'Georgia', 'Liberation Serif', 'DejaVu Serif', 'Noto Serif'],
   monospace: ['Consolas', 'Courier New', 'DejaVu Sans Mono', 'Liberation Mono', 'Menlo'],
 };
@@ -383,7 +394,9 @@ function textStyleOf(node: Node, computed: Record<string, string | undefined>): 
     transform: (computed['text-transform'] ?? 'none').trim().toLowerCase(),
     // `currentcolor`, `inherit` e `var()` sem valor não servem como preenchimento do path
     color:
-      color && !/currentcolor|inherit|initial|unset|var\(/i.test(color) && /^[^<>"';{}\\]+$/.test(color)
+      color &&
+      !/currentcolor|inherit|initial|unset|var\(/i.test(color) &&
+      /^[^<>"';{}\\]+$/.test(color)
         ? color
         : '#000000',
     whiteSpace: (computed['white-space'] ?? 'normal').trim().toLowerCase(),
@@ -393,7 +406,8 @@ function textStyleOf(node: Node, computed: Record<string, string | undefined>): 
 function applyTransform(text: string, transform: string): string {
   if (transform === 'uppercase') return text.toUpperCase();
   if (transform === 'lowercase') return text.toLowerCase();
-  if (transform === 'capitalize') return text.replace(/(^|\s)(\S)/g, (_m, a, b) => a + b.toUpperCase());
+  if (transform === 'capitalize')
+    return text.replace(/(^|\s)(\S)/g, (_m, a, b) => a + b.toUpperCase());
   return text;
 }
 
@@ -413,7 +427,11 @@ interface Layout {
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-function glyphOptions(lf: LoadedFont, size: number, letterSpacing: number): Record<string, unknown> {
+function glyphOptions(
+  lf: LoadedFont,
+  size: number,
+  letterSpacing: number,
+): Record<string, unknown> {
   return {
     kerning: true,
     variation: lf.coords,
@@ -442,7 +460,11 @@ function linePathData(lf: LoadedFont, text: string, x: number, y: number, st: Te
 }
 
 /** Quebra por largura (greedy por palavras); uma palavra maior que a largura fica sozinha na linha. */
-function wrapParagraph(words: string[], maxWidth: number | undefined, width: (s: string) => number): string[] {
+function wrapParagraph(
+  words: string[],
+  maxWidth: number | undefined,
+  width: (s: string) => number,
+): string[] {
   if (maxWidth === undefined) return [words.join(' ')];
   const lines: string[] = [];
   let cur = '';
@@ -464,7 +486,11 @@ const px = (v: string | undefined): number | undefined => {
 
 /** Padding em px (só valores em px; o resto conta como 0). */
 function paddingOf(style: Record<string, string>): { t: number; r: number; b: number; l: number } {
-  const parts = (style['padding'] ?? '').trim().split(/\s+/).filter(Boolean).map((p) => px(p) ?? 0);
+  const parts = (style['padding'] ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((p) => px(p) ?? 0);
   const [a = 0, b = a, c = a, d = b] = parts;
   return {
     t: px(style['padding-top']) ?? a,
@@ -496,7 +522,8 @@ function layoutWithoutRender(node: Node, lf: LoadedFont, st: TextStyle, text: st
   const upm = lf.font.unitsPerEm || 1000;
   const asc = (lf.font.ascender / upm) * st.size;
   const desc = (-lf.font.descender / upm) * st.size;
-  const gap = (((lf.font.tables['hhea'] as { lineGap?: number } | undefined)?.lineGap ?? 0) / upm) * st.size;
+  const gap =
+    (((lf.font.tables['hhea'] as { lineGap?: number } | undefined)?.lineGap ?? 0) / upm) * st.size;
   const lh = st.lineHeight ?? asc + desc + gap;
 
   const widths = lines.map(measure);
@@ -573,7 +600,9 @@ async function outlineOne(
       `"${nodeId}" é ${node.type}, não um nó de texto: text_to_outlines só converte texto (veja get_tree_summary).`,
     );
   if (!found.parent)
-    throw new OutlineError(`"${nodeId}" não tem pai: só nós dentro de um frame podem ser convertidos.`);
+    throw new OutlineError(
+      `"${nodeId}" não tem pai: só nós dentro de um frame podem ser convertidos.`,
+    );
   if (!node.text.trim()) throw new OutlineError(`"${nodeId}" não tem texto para converter.`);
 
   let measured: LayoutNode | undefined;
@@ -603,13 +632,15 @@ async function outlineOne(
     notes.push('Layout: linhas medidas no render.');
   } else {
     layout = layoutWithoutRender(node, lf, st, text);
-    if (!measured) notes.push('Layout: calculado pela fonte (sem motor de render); confira com get_screenshot.');
+    if (!measured)
+      notes.push('Layout: calculado pela fonte (sem motor de render); confira com get_screenshot.');
   }
 
   const missing = new Set<string>();
   const paths = layout.lines
     .map((l) => {
-      for (const ch of l.text) if (!/\s/.test(ch) && lf.font.charToGlyphIndex(ch) === 0) missing.add(ch);
+      for (const ch of l.text)
+        if (!/\s/.test(ch) && lf.font.charToGlyphIndex(ch) === 0) missing.add(ch);
       return linePathData(lf, l.text, l.x, l.baseline, st);
     })
     .filter(Boolean);

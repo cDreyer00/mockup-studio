@@ -2,7 +2,13 @@
  * Lógica pura do clipboard: serialização com marcador, detecção de HTML, alvo da colagem e
  * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
  */
-import { cloneNodeWithNewIds, htmlToNodes, nodesToHtml, svgToVector, vectorToSvg } from '@mockup/core';
+import {
+  cloneNodeWithNewIds,
+  htmlToNodes,
+  nodesToHtml,
+  svgToVector,
+  vectorToSvg,
+} from '@mockup/core';
 import { COMPONENT_EDIT_PAGE_ID } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
 import { looksLikeSnapshot } from '@mockup/snapshot-core';
@@ -160,7 +166,6 @@ export function withVectors(nodes: Node[]): Node[] {
     return next.children.length ? { ...next, children: withVectors(next.children) } : next;
   });
 }
-
 
 /** Decide como interpretar o conteúdo colado. */
 export function classifyPaste(

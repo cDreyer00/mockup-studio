@@ -63,7 +63,13 @@ export function LayoutSection({ ctxs }: { ctxs: readonly NodeCtx[] }) {
   const axisDir = (column: boolean, reverse: boolean) =>
     `${column ? 'column' : 'row'}${reverse ? '-reverse' : ''}`;
 
-  const mode = grid ? 'grid' : flex ? 'flex' : nodes.every((n) => !n.style.display || n.style.display === 'block') ? 'flow' : null;
+  const mode = grid
+    ? 'grid'
+    : flex
+      ? 'flex'
+      : nodes.every((n) => !n.style.display || n.style.display === 'block')
+        ? 'flow'
+        : null;
   const setMode = (m: 'flow' | 'flex' | 'grid') =>
     void commitStyles(nodes, (n) => ({
       set: m === 'grid' ? gridModeStyles(n.style) : { display: m === 'flex' ? 'flex' : 'block' },

@@ -56,7 +56,9 @@ describe('booleanPathData', () => {
   });
 
   it('achata curvas (círculo) com área próxima da real', () => {
-    const circle = { d: 'M 10 0 C 15.5 0 20 4.5 20 10 C 20 15.5 15.5 20 10 20 C 4.5 20 0 15.5 0 10 C 0 4.5 4.5 0 10 0 Z' };
+    const circle = {
+      d: 'M 10 0 C 15.5 0 20 4.5 20 10 C 20 15.5 15.5 20 10 20 C 4.5 20 0 15.5 0 10 C 0 4.5 4.5 0 10 0 Z',
+    };
     const d = booleanPathData('union', [circle, circle]);
     expect(area(d)).toBeGreaterThan(300);
     expect(area(d)).toBeLessThanOrEqual(Math.PI * 100);

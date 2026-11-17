@@ -558,7 +558,13 @@ export function attachInteractions(root: HTMLElement): () => void {
       return;
     }
     const tool = st().tool;
-    if (tool === 'frame' || tool === 'rect' || tool === 'text' || tool === 'image' || isShapeTool(tool)) {
+    if (
+      tool === 'frame' ||
+      tool === 'rect' ||
+      tool === 'text' ||
+      tool === 'image' ||
+      isShapeTool(tool)
+    ) {
       e.preventDefault();
       startCreate(e, tool);
       return;
@@ -644,7 +650,13 @@ export function attachInteractions(root: HTMLElement): () => void {
     }
     // Duplo clique num svg já selecionado entra na edição de pontos.
     const only = st().selection;
-    if (!r.select && !r.edit && only.length === 1 && only[0] === id && getNode(doc, id)?.type === 'svg')
+    if (
+      !r.select &&
+      !r.edit &&
+      only.length === 1 &&
+      only[0] === id &&
+      getNode(doc, id)?.type === 'svg'
+    )
       ui.editVector(id);
   }
 

@@ -169,7 +169,10 @@ export function gapDelta(
   const set: Record<string, string> = {};
   if (col) set['column-gap'] = col;
   if (row) set['row-gap'] = row;
-  return { set, unset: present(style, ['gap', ...(col ? [] : ['column-gap']), ...(row ? [] : ['row-gap'])]) };
+  return {
+    set,
+    unset: present(style, ['gap', ...(col ? [] : ['column-gap']), ...(row ? [] : ['row-gap'])]),
+  };
 }
 
 /* ------------------------------ place-items ------------------------------ */
