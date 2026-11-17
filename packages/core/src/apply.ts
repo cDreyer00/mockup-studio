@@ -275,6 +275,20 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
     if (node.type === 'svg' && node.vector) {
       // Com modelo vetorial, os atributos vão para o vetor (raw e attrs) e o markup é regenerado.
       const v = node.vector;
+      if (unset.includes('viewBox')) {
+        fail('Não é possível remover "viewBox" de um svg com modelo vetorial (ele define o sistema de coordenadas)');
+      }
+      if (set.viewBox !== undefined) {
+        const n = set.viewBox.match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)?.map(Number) ?? [];
+        const ok =
+          n.length === 4 &&
+          n.every(Number.isFinite) &&
+          n[2]! > 0 &&
+          n[3]! > 0 &&
+          /^[\s,+\-.\deE]+$/.test(set.viewBox);
+        if (!ok) fail(`viewBox inválido: "${set.viewBox}" (esperado "x y largura altura", largura e altura > 0)`);
+        v.viewBox = { x: n[0]!, y: n[1]!, width: n[2]!, height: n[3]! };
+      }
       if (v.raw !== undefined) v.raw = setSvgRootAttrs(v.raw, set, unset);
       const attrs = { ...(v.attrs ?? {}) };
       for (const k of unset) delete attrs[k];
@@ -487,20 +501,25 @@ function doSetVector(d: Document, op: Extract<Op, { type: 'setVector' }>): Appli
     if (!p) fail(`Nó não encontrado: "${c.nodeId}"`);
     const node = p.node;
     if (node.type !== 'svg') fail(`O nó "${c.nodeId}" não é um svg`);
+    // `svg: ''` no inverso = o nó não tinha markup (aplicar remove `node.svg`).
     const before: { nodeId: string; vector: Vector | null; svg?: string } = {
       nodeId: c.nodeId,
       vector: node.vector ? deepClone(node.vector) : null,
+      svg: node.svg ?? '',
     };
-    if (node.svg !== undefined) before.svg = node.svg;
     prev.push(before);
     if (c.vector) {
       node.vector = deepClone(c.vector);
-      const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
-      if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
-      node.svg = markup;
+      if (c.svg === '') delete node.svg;
+      else {
+        const markup = c.svg !== undefined ? sanitizeSvg(c.svg) : vectorToSvg(node.vector);
+        if (!markup) fail(`SVG inválido para o nó "${c.nodeId}"`);
+        node.svg = markup;
+      }
     } else {
       delete node.vector;
-      if (c.svg !== undefined) node.svg = sanitizeSvg(c.svg);
+      if (c.svg === '') delete node.svg;
+      else if (c.svg !== undefined) node.svg = sanitizeSvg(c.svg);
     }
   }
   return { inverse: [{ type: 'setVector', changes: prev.reverse() }] };
