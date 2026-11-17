@@ -1,115 +1,115 @@
-# Vídeo, embeds e Three.js
+# Video, embeds and Three.js
 
-Três tipos de nó de mídia além dos efeitos ([EFEITOS.md](EFEITOS.md)): `video` (arquivo ou URL de vídeo), `embed` (Lottie, Rive, YouTube, iframe e Three.js) e `effect`. Os esquemas estão em `packages/core/src/media.ts`.
+Three kinds of media node besides effects ([EFFECTS.md](EFFECTS.md)): `video` (video file or URL), `embed` (Lottie, Rive, YouTube, iframe and Three.js) and `effect`. The schemas are in `packages/core/src/media.ts`.
 
-## Nó `video`
+## `video` node
 
 `node.video`:
 
-| Campo      | Tipo     | Descrição                                                                                             |
-| ---------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `src`      | string   | Caminho relativo a `assets/` (ex.: `videos/demo.mp4`) ou URL http(s). Obrigatório.                    |
-| `poster`   | string   | Imagem de capa: caminho em `assets/`, URL http(s) ou data URL de imagem (PNG, JPEG, GIF, WebP, AVIF). |
-| `autoplay` | booleano | Toca sozinho.                                                                                         |
-| `loop`     | booleano | Repete.                                                                                               |
-| `muted`    | booleano | Sem som.                                                                                              |
-| `controls` | booleano | Mostra os controles do player.                                                                        |
-| `time`     | número   | Instante inicial em segundos (a partir de 0), usado na captura quando nenhum `time` é pedido.         |
+| Field      | Type    | Description                                                                                 |
+| ---------- | ------- | ------------------------------------------------------------------------------------------- |
+| `src`      | string  | Path relative to `assets/` (e.g. `videos/demo.mp4`) or http(s) URL. Required.               |
+| `poster`   | string  | Cover image: path in `assets/`, http(s) URL or image data URL (PNG, JPEG, GIF, WebP, AVIF). |
+| `autoplay` | boolean | Plays on its own.                                                                           |
+| `loop`     | boolean | Repeats.                                                                                    |
+| `muted`    | boolean | No sound.                                                                                   |
+| `controls` | boolean | Shows the player controls.                                                                  |
+| `time`     | number  | Start instant in seconds (from 0), used in the capture when no `time` is requested.         |
 
-Padrões ao inserir (MCP): `muted`, `loop` e `autoplay` ligados, `controls` desligado, `640px` x `360px` com `object-fit: cover`. Navegadores só tocam sozinho se estiver mudo. No export, o nó vira `<video>` com `playsinline`.
+Defaults on insert (MCP): `muted`, `loop` and `autoplay` on, `controls` off, `640px` x `360px` with `object-fit: cover`. Browsers only autoplay when muted. In the export, the node becomes `<video>` with `playsinline`.
 
-### Inserir
+### Insert
 
 - **MCP**: `insert_video(parentId, source, poster?, autoplay?, loop?, muted?, controls?, styles?, name?, index?)`.
-  - `source` local: caminho **absoluto** de mp4, m4v, mov, webm ou ogg. O tipo é validado pelos primeiros bytes (não pela extensão) e o arquivo é **copiado** para `assets/videos/` com nome seguro, sem sobrescrever (`-1`, `-2`...). Ogg é gravado como `.ogv`. Limite de **500 MB**.
-  - `source` em URL http(s): referenciada direto, sem baixar; só toca com rede.
-  - Documento sem caminho em disco não tem `assets/`: só aceita URL (salve o documento antes).
-  - `poster`: caminho, URL ou data URL; vai para `assets/`. Sem pasta de assets, só cabe como data URL de até 2 MB.
-- **Editor**: menu Mídia (ícone de claquete) > "Inserir vídeo...". O seletor aceita `.mp4`, `.webm`, `.mov` e `.m4v`; o arquivo é enviado ao daemon (`assets/videos/`) e o nó nasce `640x360` no centro da tela, dentro do contêiner sob ele (ou num frame novo, se não houver). Uma URL de vídeo colada em "Embed por URL..." também cria um nó `video`.
-- Para mudar opções depois: `update_media(nodeId, autoplay?, loop?, muted?, controls?, poster?, time?)`. `poster: ""` remove. Não troca o arquivo: insira outro vídeo.
+  - Local `source`: **absolute** path of an mp4, m4v, mov, webm or ogg. The type is validated by the first bytes (not by the extension) and the file is **copied** to `assets/videos/` with a safe name, without overwriting (`-1`, `-2`...). Ogg is written as `.ogv`. Limit of **500 MB**.
+  - http(s) URL `source`: referenced directly, not downloaded; it only plays with a network.
+  - A document with no path on disk has no `assets/`: it only accepts a URL (save the document first).
+  - `poster`: path, URL or data URL; goes to `assets/`. Without an assets folder, it only fits as a data URL of up to 2 MB.
+- **Editor**: Media menu (clapperboard icon) > "Insert video...". The picker accepts `.mp4`, `.webm`, `.mov` and `.m4v`; the file is sent to the daemon (`assets/videos/`) and the node is created at `640x360` at the center of the screen, inside the container under it (or in a new frame, if there is none). A video URL pasted into "Embed from URL..." also creates a `video` node.
+- To change options later: `update_media(nodeId, autoplay?, loop?, muted?, controls?, poster?, time?)`. `poster: ""` removes it. It does not swap the file: insert another video.
 
-### Poster e screenshot
+### Poster and screenshot
 
-A página de render tem uma regra para o poster:
+The render page has a rule for the poster:
 
-- `get_screenshot` **sem** `time` e vídeo **com** `poster`: mostra o poster e não baixa o vídeo.
-- `get_screenshot` **com** `time` (inclusive `0`): descarta o poster, posiciona o vídeo naquele instante (com `loop`, em `t` módulo a duração; sem `loop`, limitado ao fim) e espera o quadro ficar pronto.
-- Vídeo sem poster: sem `time`, usa `video.time` (ou 0).
+- `get_screenshot` **without** `time` and a video **with** `poster`: shows the poster and does not download the video.
+- `get_screenshot` **with** `time` (including `0`): discards the poster, seeks the video to that instant (with `loop`, at `t` modulo the duration; without `loop`, clamped to the end) and waits for the frame to be ready.
+- Video without a poster: without `time`, uses `video.time` (or 0).
 
-O export animado (mp4/webm/gif) sempre passa `time`, então mostra os quadros do vídeo, não o poster.
+The animated export (mp4/webm/gif) always passes `time`, so it shows the video's frames, not the poster.
 
-## Nó `embed`
+## `embed` node
 
-`node.embed`: `provider` (`lottie`, `rive`, `youtube`, `three` ou `iframe`) mais:
+`node.embed`: `provider` (`lottie`, `rive`, `youtube`, `three` or `iframe`) plus:
 
-| Provedor  | Campos exigidos | Observação                                                                                                                                                                     |
+| Provider  | Required fields | Note                                                                                                                                                                           |
 | --------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `lottie`  | `src`           | Arquivo em `assets/lottie/` ou URL http(s).                                                                                                                                    |
-| `rive`    | `src`           | Arquivo em `assets/rive/` ou URL http(s).                                                                                                                                      |
-| `youtube` | `url`           | URL de vídeo do YouTube (`watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`, `/live/`, `/v/`, de `youtube.com`, `m.`, `music.` ou `youtube-nocookie.com`). O id tem 11 caracteres. |
-| `iframe`  | `url`           | Qualquer URL http(s).                                                                                                                                                          |
-| `three`   | `code`          | Corpo de função (até 200.000 caracteres). Veja a seção Three.js.                                                                                                               |
+| `lottie`  | `src`           | File in `assets/lottie/` or http(s) URL.                                                                                                                                       |
+| `rive`    | `src`           | File in `assets/rive/` or http(s) URL.                                                                                                                                         |
+| `youtube` | `url`           | YouTube video URL (`watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`, `/live/`, `/v/`, on `youtube.com`, `m.`, `music.` or `youtube-nocookie.com`). The id is 11 characters long. |
+| `iframe`  | `url`           | Any http(s) URL.                                                                                                                                                               |
+| `three`   | `code`          | Function body (up to 200,000 characters). See the Three.js island section.                                                                                                     |
 
-`params` (opcional): até 64 pares; nome `[a-zA-Z][a-zA-Z0-9_]{0,39}`; valor número, booleano ou texto de até 300 caracteres sem `< > { } ; " \`` nem `\`. Os que têm efeito:
+`params` (optional): up to 64 pairs; name `[a-zA-Z][a-zA-Z0-9_]{0,39}`; value a number, boolean or text of up to 300 characters without `< > { } ; " \`` or `\`. The ones that take effect:
 
-| Provedor  | `params`                                                                                                     |
-| --------- | ------------------------------------------------------------------------------------------------------------ |
-| `youtube` | `start` (s; o `?t=` da URL vence), `autoplay`, `loop`, `muted` (padrão `false`), `controls` (padrão `true`). |
-| `lottie`  | `autoplay`, `loop` (padrão `true`).                                                                          |
-| `rive`    | `autoplay` (padrão `true`), `artboard` e `stateMachine` (texto).                                             |
-| `three`   | Qualquer um; chegam ao código em `params`.                                                                   |
+| Provider  | `params`                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------- |
+| `youtube` | `start` (s; the URL's `?t=` wins), `autoplay`, `loop`, `muted` (default `false`), `controls` (default `true`). |
+| `lottie`  | `autoplay`, `loop` (default `true`).                                                                           |
+| `rive`    | `autoplay` (default `true`), `artboard` and `stateMachine` (text).                                             |
+| `three`   | Any; they reach the code in `params`.                                                                          |
 
-### Detecção por URL
+### Detection by URL
 
-`detectEmbedProvider` (usada pelo MCP e pelo diálogo do editor) decide pela URL ou caminho:
+`detectEmbedProvider` (used by the MCP and the editor dialog) decides from the URL or path:
 
-1. URL http(s) de YouTube com id válido: `youtube`.
-2. Termina em `.json` ou `.lottie` (ignorando `?` e `#`), ou contém `lottiefiles.com`: `lottie`.
-3. Termina em `.riv`: `rive`.
-4. Termina em `.mp4`, `.webm`, `.mov`, `.m4v` ou `.ogv`: vídeo (use `insert_video`; o editor cria um nó `video`).
-5. Qualquer outra URL http(s): `iframe`.
-6. Caso contrário: não reconhecida. No MCP, `provider` força o provedor.
+1. http(s) YouTube URL with a valid id: `youtube`.
+2. Ends in `.json` or `.lottie` (ignoring `?` and `#`), or contains `lottiefiles.com`: `lottie`.
+3. Ends in `.riv`: `rive`.
+4. Ends in `.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`: video (use `insert_video`; the editor creates a `video` node).
+5. Any other http(s) URL: `iframe`.
+6. Otherwise: not recognized. In the MCP, `provider` forces the provider.
 
-O YouTube usa `?t=` ou `?start=` (`90`, `1m30s`, `1h2m3s`) como início.
+YouTube uses `?t=` or `?start=` (`90`, `1m30s`, `1h2m3s`) as the start.
 
-### Inserir
+### Insert
 
-- **MCP**: `insert_embed(parentId, url?, provider?, src?, params?, styles?, name?, index?)`. `url` pode ser URL ou caminho absoluto de `.json`/`.lottie`/`.riv`; `src` é a alternativa para Lottie/Rive. Tamanhos padrão: `480x320` (YouTube: `560x315`).
-  - **Lottie e Rive** são validados e **copiados** (de caminho ou baixados de URL, timeout de 20 s) para `assets/lottie/` ou `assets/rive/`. JSON Lottie precisa de `v`, `fr` e `layers`; `.lottie` é um zip; arquivo Rive começa com `RIVE`. Limite de **50 MB**. Uma referência já relativa (`lottie/loader.json`) é aceita se o arquivo existir em `assets/`.
-  - **YouTube e iframe** guardam só a URL.
-  - Para Three.js use `insert_three`; `insert_embed` com `provider: 'three'` é recusado.
-- **Editor** (menu Mídia): "Inserir Lottie/Rive de arquivo..." (`.json`, `.lottie`, `.riv`; vai para `assets/` pelo upload do daemon; `400x400`); "Embed por URL..." (mostra o provedor detectado ao digitar; YouTube e iframe nascem `640x360`); "Ilha Three.js" (`480x320`, já abre o editor de código). Uma URL de Lottie/Rive colada no diálogo é **referenciada**, não copiada: precisa de rede.
-- `update_media(nodeId, url?, src?, code?, params?)`: `params` são mesclados nos atuais; `src` (só Lottie/Rive) é importado do mesmo jeito que na inserção.
+- **MCP**: `insert_embed(parentId, url?, provider?, src?, params?, styles?, name?, index?)`. `url` can be a URL or an absolute path of a `.json`/`.lottie`/`.riv`; `src` is the alternative for Lottie/Rive. Default sizes: `480x320` (YouTube: `560x315`).
+  - **Lottie and Rive** are validated and **copied** (from a path or downloaded from a URL, 20 s timeout) to `assets/lottie/` or `assets/rive/`. Lottie JSON needs `v`, `fr` and `layers`; `.lottie` is a zip; a Rive file starts with `RIVE`. Limit of **50 MB**. An already-relative reference (`lottie/loader.json`) is accepted if the file exists in `assets/`.
+  - **YouTube and iframe** store only the URL.
+  - For Three.js use `insert_three`; `insert_embed` with `provider: 'three'` is rejected.
+- **Editor** (Media menu): "Insert Lottie/Rive from file..." (`.json`, `.lottie`, `.riv`; goes to `assets/` through the daemon upload; `400x400`); "Embed from URL..." (shows the detected provider as you type; YouTube and iframe are created at `640x360`); "Three.js island" (`480x320`, opens the code editor right away). A Lottie/Rive URL pasted into the dialog is **referenced**, not copied: it needs a network.
+- `update_media(nodeId, url?, src?, code?, params?)`: `params` are merged into the current ones; `src` (Lottie/Rive only) is imported the same way as on insert.
 
-### Onde ficam os arquivos
+### Where the files live
 
-Dentro de `assets/`, ao lado do `*.mockup.json`:
+Inside `assets/`, next to the `*.mockup.json`:
 
-| Pasta            | Conteúdo                              | Limite |
-| ---------------- | ------------------------------------- | ------ |
-| `assets/videos/` | Vídeos (mp4, m4v, mov, webm, ogv)     | 500 MB |
-| `assets/lottie/` | Animações Lottie (`.json`, `.lottie`) | 50 MB  |
-| `assets/rive/`   | Animações Rive (`.riv`)               | 50 MB  |
-| `assets/`        | Posters e outras imagens              | 20 MB  |
+| Folder           | Contents                               | Limit  |
+| ---------------- | -------------------------------------- | ------ |
+| `assets/videos/` | Videos (mp4, m4v, mov, webm, ogv)      | 500 MB |
+| `assets/lottie/` | Lottie animations (`.json`, `.lottie`) | 50 MB  |
+| `assets/rive/`   | Rive animations (`.riv`)               | 50 MB  |
+| `assets/`        | Posters and other images               | 20 MB  |
 
-Os limites valem também para o upload do editor ao daemon (por extensão). O `export` html/tailwind/react copia para a pasta de saída os arquivos de `assets/` que o nó usa, incluindo vídeo, poster, Lottie e Rive.
+The limits also apply to the editor's upload to the daemon (by extension). The `export` for html/tailwind/react copies the `assets/` files the node uses to the output folder, including video, poster, Lottie and Rive.
 
-## Ilha Three.js
+## Three.js island
 
-Uma ilha é um embed `three` cujo `code` é o **corpo de uma função**. O host cria o `WebGLRenderer` (com `alpha: true` e `antialias: true`, então o fundo é transparente) e chama o código com estas variáveis:
+An island is a `three` embed whose `code` is a **function body**. The host creates the `WebGLRenderer` (with `alpha: true` and `antialias: true`, so the background is transparent) and calls the code with these variables:
 
-| Variável   | O que é                                       |
-| ---------- | --------------------------------------------- |
-| `THREE`    | A biblioteca Three.js.                        |
-| `renderer` | O `WebGLRenderer` já criado.                  |
-| `canvas`   | O `<canvas>` do nó.                           |
-| `width`    | Largura do nó em px.                          |
-| `height`   | Altura do nó em px.                           |
-| `params`   | Os `params` do nó (objeto; pode estar vazio). |
+| Variable   | What it is                                  |
+| ---------- | ------------------------------------------- |
+| `THREE`    | The Three.js library.                       |
+| `renderer` | The already-created `WebGLRenderer`.        |
+| `canvas`   | The node's `<canvas>`.                      |
+| `width`    | Node width in px.                           |
+| `height`   | Node height in px.                          |
+| `params`   | The node's `params` (object; may be empty). |
 
-O código **devolve** `{ scene, camera, update(t) }`: `scene` e `camera` são obrigatórios para desenhar; `update` é opcional e recebe `t` em **segundos**. A cada quadro o host chama `update(t)` e depois `renderer.render(scene, camera)`; não chame `render` nem crie o renderer. Câmeras em perspectiva têm `aspect` atualizado quando o nó é redimensionado.
+The code **returns** `{ scene, camera, update(t) }`: `scene` and `camera` are required to draw; `update` is optional and receives `t` in **seconds**. On each frame the host calls `update(t)` and then `renderer.render(scene, camera)`; do not call `render` or create the renderer. Perspective cameras get their `aspect` updated when the node is resized.
 
-Código padrão (`insert_three` sem `code`, ou o menu do editor): um nó de toro (`TorusKnotGeometry`) metálico girando, com luz ambiente e direcional e a cor vinda de `params.color` (padrão `#7c5cff`):
+Default code (`insert_three` without `code`, or the editor menu): a spinning metallic torus knot (`TorusKnotGeometry`), with ambient and directional lights and the color taken from `params.color` (default `#7c5cff`):
 
 ```js
 const scene = new THREE.Scene();
@@ -138,48 +138,48 @@ return {
 };
 ```
 
-Escreva `update` como função **pura do tempo** (posição = f(t), sem acumular estado entre quadros): o screenshot com `time` e o export mp4/webm/gif chamam `update(t)` em instantes escolhidos, não em sequência contínua.
+Write `update` as a **pure function of time** (position = f(t), without accumulating state between frames): the screenshot with `time` and the mp4/webm/gif export call `update(t)` at chosen instants, not in continuous sequence.
 
-MCP: `insert_three(parentId, code?, params?, styles?, name?, index?)` (código até 200.000 caracteres). Mudar depois: `update_media(nodeId, code?, params?)`.
+MCP: `insert_three(parentId, code?, params?, styles?, name?, index?)` (code up to 200,000 characters). To change it later: `update_media(nodeId, code?, params?)`.
 
-### Sandbox no editor
+### Sandbox in the editor
 
-No editor e na página de render o código roda dentro de um `<iframe sandbox="allow-scripts" srcdoc>` **sem** `allow-same-origin`: a origem do iframe é opaca, então o código não toca no documento do editor, em cookies, no `localStorage` nem no daemon, e só se comunica com a página por `postMessage` (`init`, `time`, `play`, `resize` do pai; `ready`, `error`, `drawn` do filho; cada lado confere `event.source`). A biblioteca vem do próprio daemon (`/vendor/three.iife.js`), sem CDN, então funciona offline. Erros do código ou do WebGL aparecem numa faixa vermelha sobre o nó.
+In the editor and on the render page the code runs inside an `<iframe sandbox="allow-scripts" srcdoc>` **without** `allow-same-origin`: the iframe's origin is opaque, so the code cannot touch the editor's document, cookies, `localStorage` or the daemon, and only communicates with the page through `postMessage` (`init`, `time`, `play`, `resize` from the parent; `ready`, `error`, `drawn` from the child; each side checks `event.source`). The library comes from the daemon itself (`/vendor/three.iife.js`), with no CDN, so it works offline. Errors from the code or from WebGL appear in a red banner over the node.
 
-O sandbox isola a origem; ele **não** instala uma política de conteúdo que bloqueie a rede, então não confie nele para impedir que um código de terceiros tente enviar dados. Revise o código antes de usar um que você não escreveu.
+The sandbox isolates the origin; it does **not** install a content policy that blocks the network, so do not rely on it to stop third-party code from trying to send data. Review the code before using code you did not write.
 
-### Editor de código
+### Code editor
 
-O menu Mídia > "Ilha Three.js" insere a ilha e abre o diálogo "Ilha Three.js". Hoje o diálogo só abre nesse momento; para editar o código de uma ilha existente use `update_media(nodeId, code)` pelo MCP. Ele tem o código no **CodeMirror** (JavaScript, tema escuro, numeração e demais recursos do `basicSetup`) à esquerda e uma **prévia ao vivo** à direita, que se atualiza 600 ms depois da última tecla. **Ctrl+Enter** (ou Aplicar) grava o código no nó (um passo de desfazer, e nada acontece se o código não mudou); **Esc** (ou Fechar) descarta. Se o nó some (desfazer, exclusão remota), o diálogo fecha.
+The Media menu > "Three.js island" inserts the island and opens the "Three.js island" dialog. Today the dialog only opens at that moment; to edit the code of an existing island use `update_media(nodeId, code)` through the MCP. It has the code in **CodeMirror** (JavaScript, dark theme, line numbers and the other `basicSetup` features) on the left and a **live preview** on the right, which updates 600 ms after the last keystroke. **Ctrl+Enter** (or Apply) writes the code to the node (one undo step, and nothing happens if the code did not change); **Esc** (or Close) discards it. If the node disappears (undo, remote deletion), the dialog closes.
 
 ## Offline
 
-| Tipo                          | Editor e render                                                                                                                                          | Código exportado                                                                    |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Efeitos                       | Funciona offline.                                                                                                                                        | Funciona offline (runtime embutido no arquivo).                                     |
-| Vídeo local                   | Funciona offline.                                                                                                                                        | Funciona offline (arquivo copiado para `assets/`).                                  |
-| Lottie e Rive locais          | Funcionam offline (`lottie-web` e o wasm do Rive saem do pacote, nunca de CDN).                                                                          | Carregam a biblioteca de **CDN** (tabela abaixo); o arquivo `.json`/`.riv` é local. |
-| Three.js                      | Funciona offline (biblioteca servida pelo daemon).                                                                                                       | Carrega o Three.js de **CDN** no HTML; no React, importa o pacote `three`.          |
-| YouTube                       | O editor mostra o player e **precisa de rede**; o render mostra a miniatura (`i.ytimg.com`) com botão de play e, sem rede, um quadro "YouTube" após 5 s. | Precisa de rede.                                                                    |
-| iframe                        | **Precisa de rede** (o render espera o carregamento por até 5 s).                                                                                        | Precisa de rede.                                                                    |
-| Vídeo, Lottie ou Rive por URL | Precisam de rede.                                                                                                                                        | Precisam de rede.                                                                   |
+| Type                         | Editor and render                                                                                                                                                           | Exported code                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Effects                      | Works offline.                                                                                                                                                              | Works offline (runtime embedded in the file).                                     |
+| Local video                  | Works offline.                                                                                                                                                              | Works offline (file copied to `assets/`).                                         |
+| Local Lottie and Rive        | Work offline (`lottie-web` and the Rive wasm come from the package, never from a CDN).                                                                                      | Load the library from a **CDN** (table below); the `.json`/`.riv` file is local.  |
+| Three.js                     | Works offline (library served by the daemon).                                                                                                                               | Loads Three.js from a **CDN** in the HTML; in React, imports the `three` package. |
+| YouTube                      | The editor shows the player and **needs a network**; the render shows the thumbnail (`i.ytimg.com`) with a play button and, without a network, a "YouTube" frame after 5 s. | Needs a network.                                                                  |
+| iframe                       | **Needs a network** (the render waits for loading for up to 5 s).                                                                                                           | Needs a network.                                                                  |
+| Video, Lottie or Rive by URL | Need a network.                                                                                                                                                             | Need a network.                                                                   |
 
-Bibliotecas de CDN no HTML e no Tailwind exportados (constantes em `packages/core/src/export/media.ts`):
+CDN libraries in the exported HTML and Tailwind (constants in `packages/core/src/export/media.ts`):
 
-| Uso      | URL                                                                          |
+| Use      | URL                                                                          |
 | -------- | ---------------------------------------------------------------------------- |
 | Lottie   | `https://cdn.jsdelivr.net/npm/lottie-web@5/build/player/lottie_light.min.js` |
 | Rive     | `https://unpkg.com/@rive-app/canvas@2`                                       |
-| Three.js | `https://cdn.jsdelivr.net/npm/three@0.187/build/three.module.js` (módulo ES) |
+| Three.js | `https://cdn.jsdelivr.net/npm/three@0.187/build/three.module.js` (ES module) |
 
-Só entram os scripts dos recursos que o documento usa. O Lottie é montado com o renderer SVG. Quando o `export` (MCP) consegue ler o arquivo de `assets/` e ele é um `.json` de até **512 KB**, o JSON vai **embutido** no HTML (`<script type="application/json">` com `<`, U+2028 e U+2029 escapados) e o HTML abre direto por `file://`. Nos demais casos (JSON acima de 512 KB, `.lottie`, qualquer Rive `.riv`, ou HTML gerado sem acesso a `assets/`, como `get_html`) o runtime lê o arquivo por `data-src`, e navegadores bloqueiam essa leitura a partir de `file://` (CORS): sirva a pasta de saída por um servidor HTTP, por exemplo `npx serve`. No HTML exportado, o código do Three.js roda direto na página, **sem** o sandbox do editor, e anima com o relógio real (`performance.now`).
+Only the scripts for the features the document uses are included. Lottie is mounted with the SVG renderer. When the `export` (MCP) can read the file from `assets/` and it is a `.json` of up to **512 KB**, the JSON is **embedded** in the HTML (`<script type="application/json">` with `<`, U+2028 and U+2029 escaped) and the HTML opens directly from `file://`. In the other cases (JSON above 512 KB, `.lottie`, any Rive `.riv`, or HTML generated without access to `assets/`, such as `get_html`) the runtime reads the file through `data-src`, and browsers block that read from `file://` (CORS): serve the output folder over an HTTP server, for example `npx serve`. In the exported HTML, the Three.js code runs directly on the page, **without** the editor's sandbox, and animates with the real clock (`performance.now`).
 
-## Exportação
+## Export
 
-- **html e tailwind**: vídeo vira `<video>` (com `poster`, se houver, e `playsinline`); YouTube vira `<iframe>` em `youtube-nocookie.com/embed/<id>` com `allow="autoplay; encrypted-media; picture-in-picture"`, `allowfullscreen` e `loading="lazy"`; iframe vira `<iframe sandbox="allow-scripts allow-same-origin allow-popups" loading="lazy">`; Lottie, Rive e Three.js viram `div`/`canvas` com `data-mockup-embed` e os scripts de CDN acima. Valores com caracteres perigosos são descartados ou escapados (`</script>` dentro do código Three.js vira `<\/script>`).
-- **`get_html` / `write_html` (ida e volta)**: o HTML de leitura não é o do export. Todos os embeds (Lottie, Rive, Three.js, YouTube e iframe) saem como `<div data-mockup-embed="<provedor>">` inerte, com `data-src`, `data-url`, `data-code` e `data-params` (JSON), sem `<iframe>` nem scripts; o `write_html` converte esse `div` de volta no nó `embed` (validado pelo esquema: URL de loopback vira `div` comum). Vídeo continua como `<video>` e efeito como `data-mockup-effect`.
-- **svg**: embeds viram placeholders (vídeo mostra o poster ou um retângulo escuro; embed mostra o nome do provedor), sem scripts.
-- **react**: vídeo vira `<video ... autoPlay loop muted playsInline />`; YouTube e iframe viram `<iframe>` com as mesmas props do HTML (`allowFullScreen`, `sandbox`). Lottie vira `<MockupLottie src=... />` (usa o pacote `lottie-web`), Rive vira `<MockupRive src=... artboard=... stateMachine=... />` (usa `@rive-app/canvas`). Esses componentes ficam embutidos no `.tsx`. Cada ilha Three.js gera `<slug>-three-<n>.js` + `.d.ts` ao lado do `.tsx` (com `import * as THREE from 'three'`) e vira `<ThreeIsland setup={setupThreeN} params={...} />`. O projeto precisa instalar `lottie-web`, `@rive-app/canvas` e `three` conforme o que usar. Os caminhos `assets/...` são relativos à página: num projeto Vite, ponha a pasta em `public/` ou use `assetsBase: '/assets/'`.
-- **Animado (mp4, webm, gif)**: renderiza o nó com o relógio manual, então vídeo, Lottie, Rive e Three.js entram quadro a quadro. YouTube e iframe aparecem como no render (miniatura ou conteúdo carregado no momento). Detalhes em [EFEITOS.md](EFEITOS.md#export-animado-mp4-webm-e-gif).
+- **html and tailwind**: video becomes `<video>` (with `poster`, if any, and `playsinline`); YouTube becomes an `<iframe>` at `youtube-nocookie.com/embed/<id>` with `allow="autoplay; encrypted-media; picture-in-picture"`, `allowfullscreen` and `loading="lazy"`; iframe becomes `<iframe sandbox="allow-scripts allow-same-origin allow-popups" loading="lazy">`; Lottie, Rive and Three.js become `div`/`canvas` with `data-mockup-embed` and the CDN scripts above. Values with dangerous characters are dropped or escaped (`</script>` inside Three.js code becomes `<\/script>`).
+- **`get_html` / `write_html` (round trip)**: the read HTML is not the export HTML. All embeds (Lottie, Rive, Three.js, YouTube and iframe) come out as an inert `<div data-mockup-embed="<provider>">`, with `data-src`, `data-url`, `data-code` and `data-params` (JSON), with no `<iframe>` or scripts; `write_html` converts that `div` back into the `embed` node (validated by the schema: a loopback URL becomes a plain `div`). Video stays as `<video>` and effects as `data-mockup-effect`.
+- **svg**: embeds become placeholders (video shows the poster or a dark rectangle; an embed shows the provider name), with no scripts.
+- **react**: video becomes `<video ... autoPlay loop muted playsInline />`; YouTube and iframe become `<iframe>` with the same props as the HTML (`allowFullScreen`, `sandbox`). Lottie becomes `<MockupLottie src=... />` (uses the `lottie-web` package), Rive becomes `<MockupRive src=... artboard=... stateMachine=... />` (uses `@rive-app/canvas`). These components are embedded in the `.tsx`. Each Three.js island generates `<slug>-three-<n>.js` + `.d.ts` next to the `.tsx` (with `import * as THREE from 'three'`) and becomes `<ThreeIsland setup={setupThreeN} params={...} />`. The project must install `lottie-web`, `@rive-app/canvas` and `three` depending on what it uses. `assets/...` paths are relative to the page: in a Vite project, put the folder in `public/` or use `assetsBase: '/assets/'`.
+- **Animated (mp4, webm, gif)**: renders the node with the manual clock, so video, Lottie, Rive and Three.js are included frame by frame. YouTube and iframe appear as in the render (thumbnail or content loaded at that moment). Details in [EFFECTS.md](EFFECTS.md#animated-export-mp4-webm-and-gif).
 
-Formatos de código em [EXPORT.md](EXPORT.md); ferramentas em [MCP.md](MCP.md).
+Code formats in [EXPORT.md](EXPORT.md); tools in [MCP.md](MCP.md).

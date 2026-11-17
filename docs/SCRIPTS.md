@@ -1,137 +1,137 @@
 # Scripts
 
-Scripts em JavaScript para automatizar edições do documento: renomear 10 nós, trocar a cor de todos os botões, reorganizar espaçamentos, tirar screenshots. O script roda numa **sandbox** (worker + `node:vm`) que só enxerga a API `doc`; tudo o que ele muda entra num **único undo**.
+JavaScript scripts to automate document edits: rename 10 nodes, change the color of every button, rearrange spacing, take screenshots. The script runs in a **sandbox** (worker + `node:vm`) that only sees the `doc` API; everything it changes goes into a **single undo**.
 
-Código em `packages/server/src/scripts/`:
+Code in `packages/server/src/scripts/`:
 
-| Arquivo            | Papel                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `sandbox.ts`       | Cria o worker, o RPC síncrono, o timeout e os limites; `runInSandbox(code, handler, opts)`.    |
-| `worker-source.ts` | Textos do worker e do bootstrap (JavaScript em string, ver Segurança).                         |
-| `host.ts`          | Lado do daemon da API (`ScriptHost`): valida os argumentos e aplica as ops no `DocumentStore`. |
-| `selector.ts`      | Mini-seletor de nós (`doc.select("...")`).                                                     |
-| `service.ts`       | `ScriptService`: execução, biblioteca `scripts/*.js` e geração com IA.                         |
-| `prompt.ts`        | Prompt de sistema e extração do código na geração com IA.                                      |
+| File               | Role                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `sandbox.ts`       | Creates the worker, the synchronous RPC, the timeout and the limits; `runInSandbox(code, handler, opts)`.  |
+| `worker-source.ts` | Worker and bootstrap texts (JavaScript in a string, see Security).                                         |
+| `host.ts`          | Daemon side of the API (`ScriptHost`): validates the arguments and applies the ops to the `DocumentStore`. |
+| `selector.ts`      | Mini node selector (`doc.select("...")`).                                                                  |
+| `service.ts`       | `ScriptService`: execution, the `scripts/*.js` library and AI generation.                                  |
+| `prompt.ts`        | System prompt and code extraction for AI generation.                                                       |
 
-Ferramentas MCP em `mcp/tools/scripts.ts` (`run_script`, `list_scripts`); guia `get_guide('scripts')` em `mcp/guide-scripts.ts`.
+MCP tools in `mcp/tools/scripts.ts` (`run_script`, `list_scripts`); guide `get_guide('scripts')` in `mcp/guide-scripts.ts`.
 
-## Como um script roda
+## How a script runs
 
-O código é o **corpo de uma `async function`** em strict mode: `await` e `return` funcionam e o valor devolvido (serializado em JSON) volta em `result`.
+The code is the **body of an `async function`** in strict mode: `await` and `return` work and the returned value (serialized as JSON) comes back in `result`.
 
 ```js
-const botoes = doc.select('button');
-botoes.forEach((b) => {
+const buttons = doc.select('button');
+buttons.forEach((b) => {
   b.style.background = '#2563eb';
 });
-console.log(botoes.length, 'botões atualizados');
-return botoes.map((b) => b.id);
+console.log(buttons.length, 'buttons updated');
+return buttons.map((b) => b.id);
 ```
 
-Não existem `require`, `import`, `process`, `fetch` nem `setTimeout`, e `eval`/`new Function` não geram código (o construtor `Function` existe, mas recusa strings: "Code generation from strings disallowed"). Só a API abaixo e o JavaScript padrão (Array, Map, JSON, Math, RegExp, Promise, Intl...). Também não há `ArrayBuffer`, arrays tipados nem `WebAssembly` (veja Segurança).
+There is no `require`, `import`, `process`, `fetch` or `setTimeout`, and `eval`/`new Function` do not generate code (the `Function` constructor exists but rejects strings: "Code generation from strings disallowed"). Only the API below and standard JavaScript (Array, Map, JSON, Math, RegExp, Promise, Intl...). There is also no `ArrayBuffer`, typed arrays or `WebAssembly` (see Security).
 
 ## API
 
 ### `doc`
 
-| Membro                                                                         | Descrição                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `doc.id`, `doc.name`                                                           | Id e nome do documento.                                                                                                                                                                                                                                                                                             |
-| `doc.pages()`                                                                  | `[{ id, name, frameIds }]`.                                                                                                                                                                                                                                                                                         |
-| `doc.frames(pageId?)`                                                          | Nós dos frames raiz (todas as páginas, ou só a indicada).                                                                                                                                                                                                                                                           |
-| `doc.get(id)`                                                                  | Nó (`NodeHandle`) ou `null`. Aceita também um nó.                                                                                                                                                                                                                                                                   |
-| `doc.select(consulta)`                                                         | Todos os nós que casam, em ordem de documento.                                                                                                                                                                                                                                                                      |
-| `doc.selectOne(consulta)`                                                      | O primeiro ou `null`.                                                                                                                                                                                                                                                                                               |
-| `doc.selection()`                                                              | Nós selecionados no editor (ou a `selection` passada na execução); ids que não existem mais são ignorados.                                                                                                                                                                                                          |
-| `doc.apply(op \| op[])`                                                        | Aplica ops do editor na hora (ver `packages/core/src/ops.ts`). Devolve um resultado por op (ex.: `{ idMap }` em `duplicateNodes`). Op inválida lança `Error`. Um array é atômico.                                                                                                                                   |
-| `doc.create(pai \| null, { tag, name, text, style, attrs, children, index? })` | Cria um nó (e os filhos) e devolve o handle. `pai` é um id ou nó; `null` cria um frame na primeira página. Extra do painel, atalho para `createNode`.                                                                                                                                                               |
-| `doc.screenshot(nodeId?, { scale?, format? })`                                 | Renderiza o nó (padrão: o primeiro selecionado ou o primeiro frame). Devolve `{ nodeId, width, height, mime }` (tamanho do nó em px CSS); a imagem vai em `result.images`. `scale` 1, 2 ou 3; `format` `png` ou `jpg`. Sem motor de render lança `Error` com a mensagem de render indisponível. Até 8 por execução. |
-| `doc.tokens()`                                                                 | `{ "--nome": "valor" }` (tokens base).                                                                                                                                                                                                                                                                              |
-| `doc.setTokens(obj)`                                                           | Define tokens (o prefixo `--` é opcional; `null` remove). Devolve os tokens atuais.                                                                                                                                                                                                                                 |
-| `console.log/info/warn/error`                                                  | Uma linha de log por chamada (objetos viram JSON; `warn` e `error` ganham prefixo `[warn]`/`[error]`).                                                                                                                                                                                                              |
+| Member                                                                            | Description                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `doc.id`, `doc.name`                                                              | Document id and name.                                                                                                                                                                                                                                                                                                        |
+| `doc.pages()`                                                                     | `[{ id, name, frameIds }]`.                                                                                                                                                                                                                                                                                                  |
+| `doc.frames(pageId?)`                                                             | Root frame nodes (all pages, or only the given one).                                                                                                                                                                                                                                                                         |
+| `doc.get(id)`                                                                     | Node (`NodeHandle`) or `null`. Also accepts a node.                                                                                                                                                                                                                                                                          |
+| `doc.select(query)`                                                               | All matching nodes, in document order.                                                                                                                                                                                                                                                                                       |
+| `doc.selectOne(query)`                                                            | The first one or `null`.                                                                                                                                                                                                                                                                                                     |
+| `doc.selection()`                                                                 | Nodes selected in the editor (or the `selection` passed at execution); ids that no longer exist are ignored.                                                                                                                                                                                                                 |
+| `doc.apply(op \| op[])`                                                           | Applies editor ops immediately (see `packages/core/src/ops.ts`). Returns one result per op (e.g. `{ idMap }` for `duplicateNodes`). An invalid op throws `Error`. An array is atomic.                                                                                                                                        |
+| `doc.create(parent \| null, { tag, name, text, style, attrs, children, index? })` | Creates a node (and its children) and returns the handle. `parent` is an id or node; `null` creates a frame on the first page. Panel extra, shortcut for `createNode`.                                                                                                                                                       |
+| `doc.screenshot(nodeId?, { scale?, format? })`                                    | Renders the node (default: the first selected one or the first frame). Returns `{ nodeId, width, height, mime }` (node size in CSS px); the image goes in `result.images`. `scale` 1, 2 or 3; `format` `png` or `jpg`. Without a render engine it throws `Error` with the render-unavailable message. Up to 8 per execution. |
+| `doc.tokens()`                                                                    | `{ "--name": "value" }` (base tokens).                                                                                                                                                                                                                                                                                       |
+| `doc.setTokens(obj)`                                                              | Sets tokens (the `--` prefix is optional; `null` removes). Returns the current tokens.                                                                                                                                                                                                                                       |
+| `console.log/info/warn/error`                                                     | One log line per call (objects become JSON; `warn` and `error` get a `[warn]`/`[error]` prefix).                                                                                                                                                                                                                             |
 
-### Consultas
+### Queries
 
-`doc.select`, `doc.selectOne` e `node.select` (esta só olha os descendentes do nó) aceitam três formas.
+`doc.select`, `doc.selectOne` and `node.select` (the latter only looks at the node's descendants) accept three forms.
 
-**1. String (mini-seletor CSS)**, avaliada no daemon sobre o documento real (instâncias de componente **não** são expandidas):
+**1. String (CSS mini-selector)**, evaluated in the daemon over the real document (component instances are **not** expanded):
 
-| Sintaxe                                                 | Casa com                                                                                                                                     |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `*`                                                     | Qualquer nó.                                                                                                                                 |
-| `frame`, `element`, `text`, `image`, `svg`, `instance`  | O tipo do nó.                                                                                                                                |
-| `button`, `h1`, `a`...                                  | A tag (sem diferenciar maiúsculas).                                                                                                          |
-| `#id`                                                   | O id do nó.                                                                                                                                  |
-| `.classe`                                               | Classe Tailwind escrita no nó (`node.classes`).                                                                                              |
-| `[name="x"]`, `[name=x]`                                | Nome igual a `x`.                                                                                                                            |
-| `[name^=x]`, `[name*=x]`, `[name$=x]`                   | Começa com, contém, termina com.                                                                                                             |
-| `[text*=x]`, `[tag=x]`, `[type=x]`, `[src]`, `[hidden]` | Outros campos: `id`, `name`, `tag`, `type`, `text`, `src`, `classes`, `component`, `hidden`, `locked`. `[campo]` sem valor testa a presença. |
-| `[style.color]`, `[style.color="red"]`                  | Propriedade de estilo (kebab-case ou camelCase).                                                                                             |
-| `[attrs.href^=http]`                                    | Atributo HTML.                                                                                                                               |
-| `A B`, `A > B`                                          | `B` descendente / filho direto de `A`.                                                                                                       |
-| `A, B`                                                  | União.                                                                                                                                       |
+| Syntax                                                  | Matches                                                                                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `*`                                                     | Any node.                                                                                                                                       |
+| `frame`, `element`, `text`, `image`, `svg`, `instance`  | The node type.                                                                                                                                  |
+| `button`, `h1`, `a`...                                  | The tag (case-insensitive).                                                                                                                     |
+| `#id`                                                   | The node id.                                                                                                                                    |
+| `.class`                                                | Tailwind class written on the node (`node.classes`).                                                                                            |
+| `[name="x"]`, `[name=x]`                                | Name equal to `x`.                                                                                                                              |
+| `[name^=x]`, `[name*=x]`, `[name$=x]`                   | Starts with, contains, ends with.                                                                                                               |
+| `[text*=x]`, `[tag=x]`, `[type=x]`, `[src]`, `[hidden]` | Other fields: `id`, `name`, `tag`, `type`, `text`, `src`, `classes`, `component`, `hidden`, `locked`. `[field]` without a value tests presence. |
+| `[style.color]`, `[style.color="red"]`                  | Style property (kebab-case or camelCase).                                                                                                       |
+| `[attrs.href^=http]`                                    | HTML attribute.                                                                                                                                 |
+| `A B`, `A > B`                                          | `B` descendant / direct child of `A`.                                                                                                           |
+| `A, B`                                                  | Union.                                                                                                                                          |
 
-Combinam-se no mesmo nó: `section.hero > button[style.background="red"]`. Seletor inválido lança `Error: Seletor inválido "...": motivo (posição N)`.
+They combine on the same node: `section.hero > button[style.background="red"]`. An invalid selector throws `Error: Invalid selector "...": reason (position N)`.
 
-**2. Função** `(node) => boolean`, executada no script sobre o **snapshot JSON** do nó:
+**2. Function** `(node) => boolean`, run in the script over the node's **JSON snapshot**:
 
 ```js
 doc.select((n) => n.tag === 'button' && n.style.background === 'red');
 ```
 
-O snapshot tem `id, type, tag, name, text, attrs, style, classes, position, hidden, locked, src (até 200 caracteres), componentId, props, parentId, childIds, frameId, pageId`. Mudar o snapshot não muda o documento.
+The snapshot has `id, type, tag, name, text, attrs, style, classes, position, hidden, locked, src (up to 200 characters), componentId, props, parentId, childIds, frameId, pageId`. Changing the snapshot does not change the document.
 
-**3. Objeto** `{ type?, tag?, name?, text?, within? }`: `name` e `text` aceitam **string (igualdade exata)** ou **RegExp**; `within` é o id (ou nó) cujos descendentes são pesquisados.
+**3. Object** `{ type?, tag?, name?, text?, within? }`: `name` and `text` accept a **string (exact equality)** or a **RegExp**; `within` is the id (or node) whose descendants are searched.
 
 ```js
-doc.select({ type: 'text', text: /comprar/i, within: header.id });
+doc.select({ type: 'text', text: /buy/i, within: header.id });
 ```
 
-### Nó (`NodeHandle`)
+### Node (`NodeHandle`)
 
-Um objeto que guarda só o id: **cada leitura busca o estado atual** e cada escrita aplica uma op. Compare nós pelo `id` (`a.id === b.id`).
+An object that holds only the id: **each read fetches the current state** and each write applies an op. Compare nodes by `id` (`a.id === b.id`).
 
-| Membro              | Leitura                          | Escrita                                                                |
-| ------------------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `id`, `type`, `tag` | sim                              | não                                                                    |
-| `name`              | nome da camada                   | `node.name = "x"` (`renameNodes`)                                      |
-| `text`              | texto (ou `undefined`)           | `node.text = "x"` (`setText`; `null` remove)                           |
-| `style`             | objeto-proxy: `node.style.color` | `node.style.color = "red"`, `delete node.style.color` (`updateStyles`) |
-| `attrs`             | objeto-proxy: `node.attrs.href`  | `node.attrs.href = "/"`, `delete node.attrs.title` (`setAttrs`)        |
-| `classes`           | string de classes Tailwind       | não (use `doc.apply({ type: 'setClasses', ... })`)                     |
-| `position`          | `{ x, y }` ou `undefined`        | `node.position = { x, y }` (`setPosition`)                             |
-| `parent`            | nó ou `null` (frame raiz)        | não                                                                    |
-| `children`          | nós filhos                       | não                                                                    |
-| `frame`             | frame raiz que contém o nó       | não                                                                    |
+| Member              | Read                              | Write                                                                  |
+| ------------------- | --------------------------------- | ---------------------------------------------------------------------- |
+| `id`, `type`, `tag` | yes                               | no                                                                     |
+| `name`              | layer name                        | `node.name = "x"` (`renameNodes`)                                      |
+| `text`              | text (or `undefined`)             | `node.text = "x"` (`setText`; `null` removes)                          |
+| `style`             | proxy object: `node.style.color`  | `node.style.color = "red"`, `delete node.style.color` (`updateStyles`) |
+| `attrs`             | proxy object: `node.attrs.href`   | `node.attrs.href = "/"`, `delete node.attrs.title` (`setAttrs`)        |
+| `classes`           | Tailwind class string             | no (use `doc.apply({ type: 'setClasses', ... })`)                      |
+| `position`          | `{ x, y }` or `undefined`         | `node.position = { x, y }` (`setPosition`)                             |
+| `parent`            | node or `null` (root frame)       | no                                                                     |
+| `children`          | child nodes                       | no                                                                     |
+| `frame`             | root frame that contains the node | no                                                                     |
 
-Métodos: `setStyle(obj)` (vários estilos numa op; `null` ou `""` remove), `remove()`, `duplicate()` (devolve o clone), `select(consulta)`, `toJSON()` (o snapshot; `JSON.stringify(node)` e `return node` o usam).
+Methods: `setStyle(obj)` (several styles in one op; `null` or `""` removes), `remove()`, `duplicate()` (returns the clone), `select(query)`, `toJSON()` (the snapshot; `JSON.stringify(node)` and `return node` use it).
 
-`style` e `attrs` se comportam como objetos: `Object.keys(node.style)`, `"color" in node.style` e `JSON.stringify(node.style)` funcionam. Em `style`, chaves camelCase viram kebab-case (`borderRadius` = `border-radius`); `--custom` fica como está. Atribuir `null`, `undefined` ou `""` a um estilo o remove. Atribuir o objeto inteiro (`node.style = {...}`) lança um erro que aponta `setStyle`.
+`style` and `attrs` behave like objects: `Object.keys(node.style)`, `"color" in node.style` and `JSON.stringify(node.style)` work. In `style`, camelCase keys become kebab-case (`borderRadius` = `border-radius`); `--custom` stays as is. Assigning `null`, `undefined` or `""` to a style removes it. Assigning the whole object (`node.style = {...}`) throws an error that points to `setStyle`.
 
-Ler um nó que foi removido lança `Error: O nó "..." não existe mais`.
+Reading a node that was removed throws `Error: Node "..." no longer exists`.
 
-### Exemplos
+### Examples
 
-Renomear 10 nós:
+Rename 10 nodes:
 
 ```js
-const itens = doc.select('section.lista > div').slice(0, 10);
-itens.forEach((n, i) => {
+const items = doc.select('section.list > div').slice(0, 10);
+items.forEach((n, i) => {
   n.name = `Item ${i + 1}`;
 });
-return itens.length;
+return items.length;
 ```
 
-Trocar a cor de todos os botões:
+Change the color of every button:
 
 ```js
-const botoes = doc.select('button');
-if (!botoes.length) throw new Error('Nenhum botão encontrado');
-for (const b of botoes) b.setStyle({ background: 'var(--color-primary)', color: '#fff' });
-return botoes.length;
+const buttons = doc.select('button');
+if (!buttons.length) throw new Error('No buttons found');
+for (const b of buttons) b.setStyle({ background: 'var(--color-primary)', color: '#fff' });
+return buttons.length;
 ```
 
-Criar um card com filhos e tirar um screenshot:
+Create a card with children and take a screenshot:
 
 ```js
 const card = doc.create(doc.frames()[0], {
@@ -139,14 +139,14 @@ const card = doc.create(doc.frames()[0], {
   name: 'Card',
   style: { padding: '16px', background: '#fff', 'border-radius': '12px' },
   children: [
-    { tag: 'h2', text: 'Título' },
-    { tag: 'p', text: 'Descrição curta.' },
+    { tag: 'h2', text: 'Title' },
+    { tag: 'p', text: 'Short description.' },
   ],
 });
 return doc.screenshot(card, { scale: 2 });
 ```
 
-Ops direto (qualquer op do editor):
+Ops directly (any editor op):
 
 ```js
 doc.apply([
@@ -162,76 +162,76 @@ doc.setTokens({ '--color-primary': '#2563eb', '--radius': '8px' });
 return doc.tokens();
 ```
 
-## Undo por execução
+## Undo per execution
 
-Todas as ops de uma execução usam **um único grupo de undo** (`opts.group` ou `script:<uuid>` novo): um `undo` desfaz o script inteiro, seja ele de 1 ou de 1000 ops. Ao fim, o serviço fecha o grupo que criou; um grupo recebido de fora (o de um turno do assistente, por exemplo) continua dele, então `run_script` dentro de um turno entra no undo do turno.
+All ops of an execution use a **single undo group** (`opts.group` or a new `script:<uuid>`): one `undo` reverts the whole script, whether it has 1 or 1000 ops. At the end, the service closes the group it created; a group received from outside (an assistant turn's, for example) remains that caller's, so `run_script` inside a turn joins the turn's undo.
 
-`opsCount` conta as ops aplicadas.
+`opsCount` counts the applied ops.
 
-**Erro no meio:** não há rollback automático. As ops anteriores ao erro (ou ao timeout) **continuam aplicadas, no mesmo grupo**: o resultado vem com `ok: false`, o `error` e o `opsCount`, e um undo as desfaz. Para tudo-ou-nada, junte as mudanças num único `doc.apply([...])` (atômico) ou desfaça com undo. Um `doc.apply` que lança (op inválida) não aplica nenhuma op daquele lote.
+**Error midway:** there is no automatic rollback. The ops before the error (or the timeout) **stay applied, in the same group**: the result comes back with `ok: false`, the `error` and the `opsCount`, and an undo reverts them. For all-or-nothing, put the changes into a single `doc.apply([...])` (atomic) or revert with undo. A `doc.apply` that throws (invalid op) applies none of the ops in that batch.
 
-A origem das ops (`source`) é `editor` quando o painel executa e `mcp` no `run_script`.
+The origin of the ops (`source`) is `editor` when the panel runs and `mcp` for `run_script`.
 
-## Segurança e limites
+## Security and limits
 
-O script é código não confiável (às vezes escrito por uma IA). Camadas:
+The script is untrusted code (sometimes written by an AI). Layers:
 
-1. **Worker thread** (`worker_threads`, `eval: true` a partir de uma string, porque o daemon é empacotado num único arquivo). `env: {}`, sem stdin/stdout, `resourceLimits` (heap 128 MB, geração jovem 16 MB, pilha 4 MB). Estourar a memória encerra só o worker e vira um erro legível.
-2. **Timeout no thread principal**: `worker.terminate()` depois de 10 s (`timeoutMs`, máximo 60 s). Mata `while (true) {}`, laços depois de `await`, regex catastrófica e a espera de uma chamada lenta. Os logs coletados até ali são devolvidos.
-3. **Contexto `node:vm` isolado**: `vm.createContext(vm.constants.DONT_CONTEXTIFY, { codeGeneration: { strings: false, wasm: false } })`. Só existem os builtins do JavaScript: sem `process`, `require`, `Buffer`, timers, `fetch`, `URL`. `eval` e `new Function` recusam strings (`codeGeneration.strings: false`) e `WebAssembly` não existe; `SharedArrayBuffer`, `Atomics`, `WeakRef` e `FinalizationRegistry` foram removidos. `ArrayBuffer`, `DataView` e os arrays tipados também: eles alocam **fora do heap** e o limite de memória não os enxergaria.
-4. **Ponte JSON**: a única coisa que o contexto recebe do host é uma função `(method, argsJson) => string` guardada numa closure do bootstrap (avaliado dentro do contexto). Nenhum objeto, função ou erro do realm do worker chega ao código do usuário (senão `x.constructor.constructor('return process')()` escapa): os dados atravessam como strings JSON, a ponte nunca lança, e qualquer erro capturado do lado de lá é descartado e relançado como `Error` do próprio contexto. A API (`doc`, handles, `console`) é montada com objetos do contexto, congelada e instalada como global não gravável. Chamadas síncronas usam `MessageChannel` + `SharedArrayBuffer`/`Atomics.wait` no worker e `receiveMessageOnPort`.
-5. **Defesas extras**: `Error.prepareStackTrace` travado (não gravável e não configurável; sem callsites com `getThis`/`getFunction`) e o código do usuário começa numa microtask, sem frames do worker na pilha; os argumentos de cada chamada são validados no daemon (`parseOp` em cada op, limites de tamanho e de quantidade); expressões regulares do usuário nunca rodam no thread principal (a busca por objeto/função roda no worker; o mini-seletor não usa regex do usuário).
-6. **`import` recusado**: `import()` num contexto `vm` sem loader rejeita com um erro **do realm do worker**, e dele se chega ao `process`. Como `eval`/`Function` não existem, a única forma de escrever `import(...)` é o token no texto do script: a palavra `import` (`/\bimport\b/`) é recusada em qualquer lugar do código, inclusive em comentários e strings (falso positivo aceito; reescreva o texto).
-7. **Validação do corpo**: o código é embrulhado em `(async function () { "use strict"; <código>
-})`, e um corpo como `}); algo(); (async function(){` fecharia o invólucro e rodaria código fora da função (não estrito, síncrono). Por isso, ANTES de compilar no contexto, o worker confere que o texto é, sozinho, um corpo de função async válido em modo estrito: `new AsyncFunction('"use strict";
-' + código)` com o construtor do próprio worker, só para parsear (nunca é chamado). O parser do V8 analisa o corpo separado do cabeçalho, então qualquer `}`/`)` sobrando vira `SyntaxError` e **nada executa**; `})` dentro de comentário, string, template ou regex continua válido. O script também leva um `"use strict"` no topo, como defesa extra.
-8. **Globais travados**: depois de instalar `doc` e `console`, todo global que sobrou (`Object`, `Function`, `Array`, `Error` e subclasses, `Promise`, `JSON`, `Proxy`, `Reflect`, `Map`, `String`, `Number`...) vira não gravável e não configurável. `globalThis.Error = ...`, `Object.defineProperty(globalThis, 'Error', ...)` e `delete globalThis.Error` falham com `TypeError`. O bootstrap usa só referências capturadas antes do código do usuário (`ErrorCtor`, `Array.from`, `Number`...), nunca relê `globalThis.X`, então os erros da API continuam sendo do `Error` original.
-9. **Cancelamento e turno do assistente**: `ScriptRunOptions` aceita `signal` (`AbortSignal`) e `alive` (`() => boolean`). Abortar o `signal` encerra o worker na hora (`terminate`) e devolve `ok: false` ("cancelada"). `alive` é conferido de duas formas: (a) o host confere antes de CADA chamada e de cada escrita (`apply`, `create`, `setTokens`, setters de nó, `remove`, `duplicate`...) e, se for falso, recusa com "O turno do assistente terminou; o script foi interrompido." sem aplicar nada; (b) um vigia no thread principal (a cada 100 ms) encerra o worker quando `alive()` fica falso, o que cobre laços que nunca chamam a API. No MCP, `run_script` passa `alive: () => { try { ctx.group(); return true } catch { return false } }`: se o turno do assistente que abriu a sessão terminar ou for cancelado com o script rodando, ele para e não grava mais (as ops já aplicadas ficam no grupo do turno). Fora de um turno (`ctx.group()` sem turno) `alive` é sempre verdadeiro.
+1. **Worker thread** (`worker_threads`, `eval: true` from a string, because the daemon is bundled into a single file). `env: {}`, no stdin/stdout, `resourceLimits` (heap 128 MB, young generation 16 MB, stack 4 MB). Running out of memory terminates only the worker and becomes a readable error.
+2. **Timeout on the main thread**: `worker.terminate()` after 10 s (`timeoutMs`, maximum 60 s). Kills `while (true) {}`, loops after `await`, catastrophic regex and waiting on a slow call. Logs collected up to that point are returned.
+3. **Isolated `node:vm` context**: `vm.createContext(vm.constants.DONT_CONTEXTIFY, { codeGeneration: { strings: false, wasm: false } })`. Only the JavaScript builtins exist: no `process`, `require`, `Buffer`, timers, `fetch`, `URL`. `eval` and `new Function` reject strings (`codeGeneration.strings: false`) and `WebAssembly` does not exist; `SharedArrayBuffer`, `Atomics`, `WeakRef` and `FinalizationRegistry` were removed. So were `ArrayBuffer`, `DataView` and the typed arrays: they allocate **outside the heap** and the memory limit would not see them.
+4. **JSON bridge**: the only thing the context receives from the host is a function `(method, argsJson) => string` kept in a closure of the bootstrap (evaluated inside the context). No object, function or error from the worker's realm reaches the user's code (otherwise `x.constructor.constructor('return process')()` escapes): data crosses as JSON strings, the bridge never throws, and any error caught on the other side is discarded and rethrown as the context's own `Error`. The API (`doc`, handles, `console`) is built with context objects, frozen and installed as a non-writable global. Synchronous calls use `MessageChannel` + `SharedArrayBuffer`/`Atomics.wait` in the worker and `receiveMessageOnPort`.
+5. **Extra defenses**: `Error.prepareStackTrace` locked (non-writable and non-configurable; no callsites with `getThis`/`getFunction`) and the user's code starts in a microtask, with no worker frames on the stack; the arguments of each call are validated in the daemon (`parseOp` on each op, size and count limits); user regular expressions never run on the main thread (search by object/function runs in the worker; the mini-selector does not use user regex).
+6. **`import` rejected**: `import()` in a `vm` context with no loader rejects with an error **from the worker's realm**, and from it `process` is reachable. Since `eval`/`Function` do not exist, the only way to write `import(...)` is the token in the script text: the word `import` (`/\bimport\b/`) is rejected anywhere in the code, including in comments and strings (accepted false positive; rewrite the text).
+7. **Body validation**: the code is wrapped in `(async function () { "use strict"; <code>
+})`, and a body like `}); something(); (async function(){` would close the wrapper and run code outside the function (non-strict, synchronous). So, BEFORE compiling in the context, the worker checks that the text is, on its own, a valid async function body in strict mode: `new AsyncFunction('"use strict";
+' + code)` with the worker's own constructor, only to parse (it is never called). V8's parser analyzes the body separately from the header, so any stray `}`/`)` becomes a `SyntaxError` and **nothing runs**; `})` inside a comment, string, template or regex stays valid. The script also gets a `"use strict"` at the top, as an extra defense.
+8. **Locked globals**: after installing `doc` and `console`, every remaining global (`Object`, `Function`, `Array`, `Error` and subclasses, `Promise`, `JSON`, `Proxy`, `Reflect`, `Map`, `String`, `Number`...) becomes non-writable and non-configurable. `globalThis.Error = ...`, `Object.defineProperty(globalThis, 'Error', ...)` and `delete globalThis.Error` fail with `TypeError`. The bootstrap uses only references captured before the user's code (`ErrorCtor`, `Array.from`, `Number`...), never rereads `globalThis.X`, so the API's errors remain instances of the original `Error`.
+9. **Cancellation and assistant turn**: `ScriptRunOptions` accepts `signal` (`AbortSignal`) and `alive` (`() => boolean`). Aborting the `signal` terminates the worker immediately (`terminate`) and returns `ok: false` ("canceled"). `alive` is checked in two ways: (a) the host checks before EVERY call and every write (`apply`, `create`, `setTokens`, node setters, `remove`, `duplicate`...) and, if it is false, rejects with "The assistant turn ended; the script was interrupted." without applying anything; (b) a watchdog on the main thread (every 100 ms) terminates the worker when `alive()` becomes false, which covers loops that never call the API. In the MCP, `run_script` passes `alive: () => { try { ctx.group(); return true } catch { return false } }`: if the assistant turn that opened the session ends or is canceled while the script is running, it stops and writes nothing more (the ops already applied stay in the turn's group). Outside a turn (`ctx.group()` with no turn) `alive` is always true.
 
-Limites (`SANDBOX_LIMITS` em `sandbox.ts`):
+Limits (`SANDBOX_LIMITS` in `sandbox.ts`):
 
-| Limite                      | Valor                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| Timeout                     | 10 s padrão, 50 ms a 60 s                                                      |
-| Heap do worker              | 128 MB (+ 16 MB geração jovem), pilha 4 MB                                     |
-| Código do script            | 500.000 caracteres                                                             |
-| Logs                        | 500 linhas, 2.000 caracteres por linha, 256 KB                                 |
-| Resultado (`return`)        | 1.000.000 caracteres de JSON (acima disso `ok: false`; as ops já feitas ficam) |
-| Argumento de uma chamada    | 4.000.000 caracteres de JSON                                                   |
-| Chamadas à API por execução | 200.000                                                                        |
-| Ops por `doc.apply`         | 20.000                                                                         |
-| Nós por `doc.create`        | 2.000 (profundidade 24)                                                        |
-| Screenshots por execução    | 8                                                                              |
-| Execuções simultâneas       | 4 (as demais esperam)                                                          |
+| Limit                     | Value                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| Timeout                   | 10 s default, 50 ms to 60 s                                                      |
+| Worker heap               | 128 MB (+ 16 MB young generation), stack 4 MB                                    |
+| Script code               | 500,000 characters                                                               |
+| Logs                      | 500 lines, 2,000 characters per line, 256 KB                                     |
+| Result (`return`)         | 1,000,000 characters of JSON (above that `ok: false`; the ops already done stay) |
+| Argument of one call      | 4,000,000 characters of JSON                                                     |
+| API calls per execution   | 200,000                                                                          |
+| Ops per `doc.apply`       | 20,000                                                                           |
+| Nodes per `doc.create`    | 2,000 (depth 24)                                                                 |
+| Screenshots per execution | 8                                                                                |
+| Simultaneous executions   | 4 (the rest wait)                                                                |
 
-Valores não serializáveis no `return` e nos logs viram string (função, símbolo, `BigInt`, erro, RegExp); `Map` vira `{ map: [[k, v]...] }` e `Set` `{ set: [...] }`; referência circular vira `String(valor)`.
+Non-serializable values in `return` and in logs become a string (function, symbol, `BigInt`, error, RegExp); `Map` becomes `{ map: [[k, v]...] }` and `Set` `{ set: [...] }`; a circular reference becomes `String(value)`.
 
-## Biblioteca `scripts/*.js`
+## `scripts/*.js` library
 
-Scripts salvos ficam na pasta `scripts/` **ao lado do arquivo do documento** (`<pasta do .mockup.json>/scripts/`), um arquivo `.js` por script com o corpo da função (como no painel). Documento sem arquivo: `dir: null`, lista vazia e erro claro ao salvar.
+Saved scripts live in the `scripts/` folder **next to the document file** (`<.mockup.json folder>/scripts/`), one `.js` file per script with the function body (as in the panel). A document without a file: `dir: null`, an empty list and a clear error on save.
 
-- Nomes: letras (inclusive acentuadas), números, espaço, `_`, `.` e `-`, até 100 caracteres; `.js` é acrescentado. Barras, `..`, nomes que começam com `.` ou terminam em espaço/ponto e nomes reservados do Windows (`con`, `nul`...) são recusados (path traversal).
-- `list` ordena por nome e ignora o que não é `.js` válido.
-- Mensagens WebSocket (`script:*`, em `packages/core/src/protocol.ts`): `script:run` (`ScriptRunResult`), `script:list` (`{ dir, scripts }`), `script:read` (`{ name, code }`), `script:save` (`{ name }`), `script:delete`, `script:generate` (`{ code }`).
+- Names: letters (including accented ones), digits, space, `_`, `.` and `-`, up to 100 characters; `.js` is appended. Slashes, `..`, names that start with `.` or end in a space/dot, and reserved Windows names (`con`, `nul`...) are rejected (path traversal).
+- `list` sorts by name and ignores anything that is not a valid `.js`.
+- WebSocket messages (`script:*`, in `packages/core/src/protocol.ts`): `script:run` (`ScriptRunResult`), `script:list` (`{ dir, scripts }`), `script:read` (`{ name, code }`), `script:save` (`{ name }`), `script:delete`, `script:generate` (`{ code }`).
 
-## Gerar com IA
+## Generate with AI
 
-`script:generate` (`ScriptService.generate`) pede o código ao assistente (`generateText`, sem ferramentas e sem MCP) com um prompt de sistema que descreve esta API e exige só o código JavaScript, mais o resumo do documento e a seleção. Se a resposta vier em um bloco de código com cerca de três crases (`js`), só o conteúdo dele é usado. A geração **não executa** o código: o painel mostra o script para o usuário revisar e rodar. Sem assistente no daemon: erro claro.
+`script:generate` (`ScriptService.generate`) asks the assistant for the code (`generateText`, with no tools and no MCP) with a system prompt that describes this API and requires only JavaScript code, plus the document summary and the selection. If the response comes in a code block with a triple-backtick fence (`js`), only its content is used. The generation **does not run** the code: the panel shows the script for the user to review and run. Without an assistant in the daemon: clear error.
 
 ## MCP
 
-`run_script({ code? , name?, docId?, timeoutMs? })`: executa `code` ou o script salvo `name` (um dos dois). Usa `ctx.group()` como grupo de undo, então dentro de um turno do assistente o script entra no mesmo undo do turno. Devolve um texto com `Script ok: N op(s)`, os logs, o `Resultado`, as imagens de `doc.screenshot()` (como imagens da resposta, antes do texto) e o resumo da árvore dos nós alterados. Se o script falha, a resposta é um erro (`isError`) com a mensagem (e a linha), os logs e quantas ops já tinham sido aplicadas.
+`run_script({ code? , name?, docId?, timeoutMs? })`: runs `code` or the saved script `name` (one of the two). Uses `ctx.group()` as the undo group, so inside an assistant turn the script joins the turn's undo. Returns text with `Script ok: N op(s)`, the logs, the `Result`, the images from `doc.screenshot()` (as response images, before the text) and the tree summary of the changed nodes. If the script fails, the response is an error (`isError`) with the message (and the line), the logs and how many ops had already been applied.
 
-`list_scripts({ docId? })`: nome, tamanho e data dos scripts da biblioteca, e o caminho da pasta (um agente pode criar `.js` ali com as próprias ferramentas de arquivo).
+`list_scripts({ docId? })`: name, size and date of the library scripts, and the folder path (an agent can create `.js` files there with its own file tools).
 
-O guia está em `get_guide('scripts')`.
+The guide is at `get_guide('scripts')`.
 
-## Limitações conhecidas
+## Known limitations
 
-- **`import` é um token proibido** em qualquer parte do texto (veja Segurança): `// import tudo` também é recusado.
-- **Sem `setTimeout`, `fetch`, arquivos, `ArrayBuffer`** e afins; `await` só espera as chamadas da própria API e promessas locais. Uma promessa que nunca resolve termina a execução com um erro explicativo.
-- **Estritamente síncrona por dentro**: cada leitura de um nó é uma ida e volta ao daemon. Para muitos nós, prefira `doc.select(...)` (uma chamada) e `doc.apply([...])` (uma op atômica) a laços com `node.style.x = ...`; ambos funcionam, mas o segundo gera uma op por atribuição.
-- **Instâncias de componente não são expandidas** na busca: `doc.select('button')` não vê botões dentro de uma instância; use `set_instance_override`/`set_instance_props` (via `doc.apply`) ou edite o principal.
-- **Sem rollback**: um erro no meio deixa as ops anteriores aplicadas (desfaça com um undo).
-- **Heap, não RSS**: o limite de memória é o do heap do worker; a execução também é limitada pelo timeout.
-- A sandbox é **defesa em profundidade, não uma garantia absoluta**: `node:vm` não é um limite de segurança por si só. As camadas acima fecham os vetores conhecidos (cobertos por testes em `sandbox.test.ts`), mas não rode scripts de origem desconhecida num daemon exposto na rede.
+- **`import` is a forbidden token** anywhere in the text (see Security): `// import everything` is also rejected.
+- **No `setTimeout`, `fetch`, files, `ArrayBuffer`** and the like; `await` only waits for the API's own calls and local promises. A promise that never resolves ends the execution with an explanatory error.
+- **Strictly synchronous inside**: each node read is a round trip to the daemon. For many nodes, prefer `doc.select(...)` (one call) and `doc.apply([...])` (one atomic op) over loops with `node.style.x = ...`; both work, but the latter generates one op per assignment.
+- **Component instances are not expanded** in search: `doc.select('button')` does not see buttons inside an instance; use `set_instance_override`/`set_instance_props` (via `doc.apply`) or edit the main component.
+- **No rollback**: an error midway leaves the earlier ops applied (revert with an undo).
+- **Heap, not RSS**: the memory limit is the worker's heap; execution is also bounded by the timeout.
+- The sandbox is **defense in depth, not an absolute guarantee**: `node:vm` is not a security boundary by itself. The layers above close the known vectors (covered by tests in `sandbox.test.ts`), but do not run scripts of unknown origin on a daemon exposed to the network.

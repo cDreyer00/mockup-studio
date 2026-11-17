@@ -1,61 +1,61 @@
 ---
 name: mockup-studio
-description: Use quando o usuário pedir mockup, wireframe, protótipo de tela, landing page ou UI visual; cria e itera designs no Mockup Studio via MCP com screenshot.
+description: Use when the user asks for a mockup, wireframe, screen prototype, landing page or visual UI; creates and iterates on designs in Mockup Studio via MCP with screenshots.
 ---
 
 # Mockup Studio
 
-Cria mockups no Mockup Studio pelo servidor MCP `mockup-studio`, vê o resultado em screenshot e itera até ficar bom.
+Creates mockups in Mockup Studio through the `mockup-studio` MCP server, views the result in a screenshot and iterates until it looks right.
 
-## Pré-requisito
+## Prerequisite
 
-- O servidor MCP `mockup-studio` precisa estar registrado e conectado (`claude mcp list`).
-- Se as ferramentas (`create_frame`, `write_html`, `get_screenshot`...) não aparecerem, rode `mockup setup claude` e reinicie o Claude Code.
-- Se o screenshot falhar, rode `mockup doctor` (veja o fim deste arquivo).
+- The `mockup-studio` MCP server must be registered and connected (`claude mcp list`).
+- If the tools (`create_frame`, `write_html`, `get_screenshot`...) do not show up, run `mockup setup claude` and restart Claude Code.
+- If the screenshot fails, run `mockup doctor` (see the end of this file).
 
-## Fluxo de trabalho
+## Workflow
 
-1. Entenda o pedido: objetivo da tela, público, seções, tom visual. Pergunte só o que bloqueia.
-2. Chame `get_guide('getting-started')` na primeira vez da sessão.
-3. Crie ou abra o documento num caminho sensato do projeto do usuário, por exemplo `design/<nome>.mockup.json`: `create_document(path, name)` ou `open_document(path)`.
-4. Defina os tokens antes do conteúdo com `set_tokens`: cores (`--color-primary`, `--color-bg`, `--color-text`), espaçamento (`--space-4`), raio (`--radius-md`), fonte (`--font-sans`). Para tema escuro: `create_theme` + `set_frame_theme` (veja `get_guide('tokens')`).
-5. Crie um frame por breakpoint com `create_frame`:
+1. Understand the request: purpose of the screen, audience, sections, visual tone. Ask only what blocks you.
+2. Call `get_guide('getting-started')` the first time in the session.
+3. Create or open the document at a sensible path in the user's project, for example `design/<name>.mockup.json`: `create_document(path, name)` or `open_document(path)`.
+4. Define the tokens before the content with `set_tokens`: colors (`--color-primary`, `--color-bg`, `--color-text`), spacing (`--space-4`), radius (`--radius-md`), font (`--font-sans`). For a dark theme: `create_theme` + `set_frame_theme` (see `get_guide('tokens')`).
+5. Create one frame per breakpoint with `create_frame`:
    - `Desktop` 1440x900
    - `Tablet` 768x1024
    - `Mobile` 390x844
-6. Monte o conteúdo por seção com `write_html(html, css, parentId)`: CSS real, `display:flex` e `gap`. Uma seção por chamada (header, hero, recursos, rodapé).
-7. Depois de cada seção, `get_screenshot(nodeId)` e confira:
-   - alinhamento e espaçamento consistentes
-   - nada cortado nem vazando do frame
-   - contraste e textos que quebram em lugares ruins
-   - hierarquia tipográfica e elementos repetidos idênticos
-8. Corrija com `update_styles`, `set_text`, `move_nodes`, `set_tag`. Use `undo` se errar.
-9. Use `get_layout(nodeId)` quando precisar de medidas exatas (posição, tamanho, overflow).
-10. Para os outros breakpoints, `duplicate_nodes([frameId])`, `rename_nodes`, ajuste a largura e adapte o layout (`column`, menos `padding`).
-11. Quando o usuário pedir código, `export(nodeIds, format)` com `html`, `tailwind` ou `react` (`get_code` só lê, não grava arquivos).
-12. Ao terminar, chame `finish_working` e diga ao usuário onde está o arquivo.
+6. Build the content section by section with `write_html(html, css, parentId)`: real CSS, `display:flex` and `gap`. One section per call (header, hero, features, footer).
+7. After each section, `get_screenshot(nodeId)` and check:
+   - consistent alignment and spacing
+   - nothing cut off or overflowing the frame
+   - contrast and text that wraps in bad places
+   - typographic hierarchy and identical repeated elements
+8. Fix with `update_styles`, `set_text`, `move_nodes`, `set_tag`. Use `undo` if you make a mistake.
+9. Use `get_layout(nodeId)` when you need exact measurements (position, size, overflow).
+10. For the other breakpoints, `duplicate_nodes([frameId])`, `rename_nodes`, adjust the width and adapt the layout (`column`, less `padding`).
+11. When the user asks for code, `export(nodeIds, format)` with `html`, `tailwind` or `react` (`get_code` only reads, it does not write files).
+12. When done, call `finish_working` and tell the user where the file is.
 
-## Regras de qualidade
+## Quality rules
 
-- Espaçamento em múltiplos de 4 e 8 px.
-- Hierarquia tipográfica clara: um título dominante, subtítulos, corpo de 16 px ou mais, no máximo 2 famílias.
-- Contraste AA: 4,5:1 para texto normal, 3:1 para texto grande.
-- Conteúdo realista (nomes, preços, frases de produto), nunca lorem ipsum.
-- Imagens com `insert_image`; ícones com `search_icons` e `insert_icon` (Lucide).
-- Nomes de camadas claros com `rename_nodes` ("Hero", "Botão primário", "Card de plano").
-- Use tokens via `var(--color-primary)` em vez de cores soltas repetidas.
-- Prefira `write_html` a muitas chamadas `create_node`.
+- Spacing in multiples of 4 and 8 px.
+- Clear typographic hierarchy: one dominant heading, subheadings, body text of 16 px or more, at most 2 families.
+- AA contrast: 4.5:1 for normal text, 3:1 for large text.
+- Realistic content (names, prices, product copy), never lorem ipsum.
+- Images with `insert_image`; icons with `search_icons` and `insert_icon` (Lucide).
+- Clear layer names with `rename_nodes` ("Hero", "Primary button", "Plan card").
+- Use tokens via `var(--color-primary)` instead of repeated loose colors.
+- Prefer `write_html` over many `create_node` calls.
 
-## Economia de contexto
+## Saving context
 
-- `get_screenshot` com `scale: 1`, `maxWidth: 800` e `format: "jpg"`; `scale: 2` só para detalhes.
-- Capture a seção que mudou, não o frame inteiro.
-- `get_tree_summary(nodeId, depth)` com `depth` pequeno (1 ou 2); `get_html` só do nó necessário.
+- `get_screenshot` with `scale: 1`, `maxWidth: 800` and `format: "jpg"`; `scale: 2` only for details.
+- Capture the section that changed, not the whole frame.
+- `get_tree_summary(nodeId, depth)` with a small `depth` (1 or 2); `get_html` only for the node you need.
 
-## Se o screenshot estiver indisponível
+## If the screenshot is unavailable
 
-- A ferramenta avisa que o motor de render não está ativo (daemon Node sem Electron).
-- Rode `mockup doctor`: ele mostra o modo do daemon, se o Electron foi encontrado e a porta 4747.
-- Abra o app Mockup Studio, ou rode `mockup stop` e deixe o `mockup mcp` subir de novo.
-- Enquanto isso, confira a estrutura com `get_tree_summary` e `get_html` e avise o usuário que não viu o resultado.
-- Mais detalhes: `get_guide('troubleshooting')`.
+- The tool warns that the render engine is not active (Node daemon without Electron).
+- Run `mockup doctor`: it shows the daemon mode, whether Electron was found and port 4747.
+- Open the Mockup Studio app, or run `mockup stop` and let `mockup mcp` start again.
+- Meanwhile, check the structure with `get_tree_summary` and `get_html` and tell the user you did not see the result.
+- More details: `get_guide('troubleshooting')`.

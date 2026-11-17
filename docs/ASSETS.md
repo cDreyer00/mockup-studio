@@ -1,78 +1,78 @@
-# Assets e imagens
+# Assets and images
 
-Imagens e fontes de um documento ficam em `assets/`, ao lado do `.mockup.json`. O daemon serve esses arquivos, dá a cada um um **link direto estável** (CDN local endereçado por conteúdo), mantém uma **biblioteca** global, conta onde cada asset é usado e otimiza imagens. Tudo funciona offline.
+A document's images and fonts live in `assets/`, next to the `.mockup.json`. The daemon serves these files, gives each one a **stable direct link** (a content-addressed local CDN), keeps a global **library**, counts where each asset is used and optimizes images. Everything works offline.
 
-## Onde ficam os arquivos
+## Where files live
 
-| Local                          | Conteúdo                                                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `<pasta do documento>/assets/` | Assets do documento (imagens, `fonts/`, `placeholders/`). Os nós usam caminhos relativos a ela.                     |
-| `<pasta de dados>/cdn/`        | CDN local e biblioteca: `<hash>.<ext>` por conteúdo e `index.json` com nome, tipo, tamanho, dimensões, data e tags. |
+| Location                    | Contents                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `<document folder>/assets/` | Document assets (images, `fonts/`, `placeholders/`). Nodes use paths relative to it.                                |
+| `<data folder>/cdn/`        | Local CDN and library: `<hash>.<ext>` by content and `index.json` with name, type, size, dimensions, date and tags. |
 
-`hash` são os 32 primeiros caracteres hexadecimais do SHA-256 dos bytes. O mesmo conteúdo dá sempre o mesmo link, em qualquer documento, com o documento fechado e depois de reiniciar o daemon. Sem pasta de dados (testes), o CDN usa uma pasta temporária do processo.
+`hash` is the first 32 hexadecimal characters of the SHA-256 of the bytes. The same content always gives the same link, in any document, with the document closed and after restarting the daemon. Without a data folder (tests), the CDN uses a temporary folder of the process.
 
-Link `/cdn` usado direto como `src` (ou em `url(...)` e nos dados de repetidores) funciona no canvas e no screenshot enquanto o daemon roda. No `export` de código (html, tailwind, react), os links do próprio daemon (`127.0.0.1`/`localhost`, ou `/cdn/...` relativo) que a biblioteca conhece viram `assets/cdn/<hash>.<ext>` e o arquivo é copiado para `<saída>/assets/cdn/`; o documento não muda. Para o mockup não depender da biblioteca, prefira `src` relativo a `assets/` (`upload_asset` sem `library`).
+A `/cdn` link used directly as `src` (or in `url(...)` and in repeater data) works on the canvas and in the screenshot while the daemon is running. On a code `export` (html, tailwind, react), the daemon's own links (`127.0.0.1`/`localhost`, or relative `/cdn/...`) that the library knows become `assets/cdn/<hash>.<ext>` and the file is copied to `<output>/assets/cdn/`; the document does not change. For the mockup not to depend on the library, prefer a `src` relative to `assets/` (`upload_asset` without `library`).
 
-## Referências e uso
+## References and usage
 
-`collectAssetRefs(doc)` (core, `assetRefs.ts`) encontra onde cada arquivo é usado:
+`collectAssetRefs(doc)` (core, `assetRefs.ts`) finds where each file is used:
 
-- `src` de nós `img` (`src`);
-- `url(assets/...)` em estilos (`style`), por exemplo `background-image`;
-- arquivos de `doc.fonts` (`font`);
-- `src` vindos dos dados de repetidores (`data`, ver [DADOS.md](DADOS.md)).
+- `src` of `img` nodes (`src`);
+- `url(assets/...)` in styles (`style`), for example `background-image`;
+- files of `doc.fonts` (`font`);
+- `src` coming from repeater data (`data`, see [DATA.md](DATA.md)).
 
-É isso que alimenta o contador de usos, "remover não usados" e a reescrita de referências na otimização (`rewriteAssetRefsOps`: `setSrc`, `updateStyles`, `setData` e `setFonts` numa só entrada de undo). Arquivos citados por `dataSource.path` de repetidores também são mantidos.
+This feeds the usage counter, "remove unused" and the rewriting of references during optimization (`rewriteAssetRefsOps`: `setSrc`, `updateStyles`, `setData` and `setFonts` in a single undo entry). Files cited by repeaters' `dataSource.path` are also kept.
 
 ## HTTP
 
-| Rota                                      | Descrição                                                                                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /cdn/:hash.:ext`                     | Arquivo pelo conteúdo. `Cache-Control: public, max-age=31536000, immutable`, a CSP dos assets (`default-src 'none'`, `sandbox`), `nosniff` e `inline` para SVG (abre na aba sem rodar script). 404 para hash inexistente, extensão diferente da registrada ou nome inválido.                                                                                                                    |
-| `GET /api/assets/:docId`                  | `{ assets }`: cada arquivo de `assets/` (recursivo, sem ocultos e temporários) com `path`, `name`, `ext`, `kind` (`image`/`font`/`other`), `mime`, `size`, dimensões, `mtime`, `hash`, `cdnUrl`, `uses`, `nodeIds` e `refKinds`. Só lê: `cdnUrl` vem vazio para arquivo ainda não registrado no CDN (upload, link, `get_asset_url` e otimização registram). Documento sem caminho: lista vazia. |
-| `POST /api/assets/:docId?name=`           | Upload (corpo binário cru, até 20 MB) → `{ src }`. Já existia.                                                                                                                                                                                                                                                                                                                                  |
-| `DELETE /api/assets/:docId?path=&force=1` | Remove um arquivo. 409 se estiver em uso e sem `force`.                                                                                                                                                                                                                                                                                                                                         |
-| `POST /api/assets/:docId/remove-unused`   | `{ dryRun? }` → `{ removed, kept }`. Só imagens e fontes sem referência.                                                                                                                                                                                                                                                                                                                        |
-| `POST /api/assets/:docId/link`            | `{ path }` → `{ hash, url, cdnPath }`: o link direto ("Copiar link").                                                                                                                                                                                                                                                                                                                           |
-| `POST /api/assets/:docId/optimize`        | `{ paths?, maxWidth?, format?, quality? }` → `{ results: [{ path, newPath, before, after }], skipped: [{ path, reason }] }`.                                                                                                                                                                                                                                                                    |
-| `GET /api/library?query=`                 | `{ assets }` da biblioteca (`hash`, `ext`, `name`, `mime`, `size`, dimensões, `addedAt`, `tags`, `url`). Busca sem acento por nome e tag.                                                                                                                                                                                                                                                       |
-| `POST /api/library?name=`                 | Envia bytes para a biblioteca → o item.                                                                                                                                                                                                                                                                                                                                                         |
-| `POST /api/library/:hash/import`          | `{ docId }` → `{ src }`: copia para `assets/` do documento, sem sobrescrever (fontes em `fonts/`).                                                                                                                                                                                                                                                                                              |
-| `DELETE /api/library/:hash`               | Remove da biblioteca.                                                                                                                                                                                                                                                                                                                                                                           |
+| Route                                     | Description                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /cdn/:hash.:ext`                     | File by content. `Cache-Control: public, max-age=31536000, immutable`, the assets CSP (`default-src 'none'`, `sandbox`), `nosniff` and `inline` for SVG (opens in the tab without running scripts). 404 for a nonexistent hash, an extension different from the registered one or an invalid name.                                                                                                                  |
+| `GET /api/assets/:docId`                  | `{ assets }`: each file in `assets/` (recursive, without hidden and temporary files) with `path`, `name`, `ext`, `kind` (`image`/`font`/`other`), `mime`, `size`, dimensions, `mtime`, `hash`, `cdnUrl`, `uses`, `nodeIds` and `refKinds`. Read-only: `cdnUrl` is empty for a file not yet registered in the CDN (upload, link, `get_asset_url` and optimization register it). Document without a path: empty list. |
+| `POST /api/assets/:docId?name=`           | Upload (raw binary body, up to 20 MB) → `{ src }`. Already existed.                                                                                                                                                                                                                                                                                                                                                 |
+| `DELETE /api/assets/:docId?path=&force=1` | Removes a file. 409 if it is in use and without `force`.                                                                                                                                                                                                                                                                                                                                                            |
+| `POST /api/assets/:docId/remove-unused`   | `{ dryRun? }` → `{ removed, kept }`. Only images and fonts without references.                                                                                                                                                                                                                                                                                                                                      |
+| `POST /api/assets/:docId/link`            | `{ path }` → `{ hash, url, cdnPath }`: the direct link ("Copy link").                                                                                                                                                                                                                                                                                                                                               |
+| `POST /api/assets/:docId/optimize`        | `{ paths?, maxWidth?, format?, quality? }` → `{ results: [{ path, newPath, before, after }], skipped: [{ path, reason }] }`.                                                                                                                                                                                                                                                                                        |
+| `GET /api/library?query=`                 | `{ assets }` from the library (`hash`, `ext`, `name`, `mime`, `size`, dimensions, `addedAt`, `tags`, `url`). Accent-insensitive search by name and tag.                                                                                                                                                                                                                                                             |
+| `POST /api/library?name=`                 | Sends bytes to the library → the item.                                                                                                                                                                                                                                                                                                                                                                              |
+| `POST /api/library/:hash/import`          | `{ docId }` → `{ src }`: copies into the document's `assets/`, without overwriting (fonts into `fonts/`).                                                                                                                                                                                                                                                                                                           |
+| `DELETE /api/library/:hash`               | Removes from the library.                                                                                                                                                                                                                                                                                                                                                                                           |
 
-## Otimização (sharp)
+## Optimization (sharp)
 
-`optimize_assets` e a rota `/optimize` usam [sharp](https://sharp.pixelplumbing.com/), dependência **opcional** do `@mockup/server`, carregada com `import()` dinâmico:
+`optimize_assets` and the `/optimize` route use [sharp](https://sharp.pixelplumbing.com/), an **optional** dependency of `@mockup/server`, loaded with a dynamic `import()`:
 
-- reduz para `maxWidth` sem ampliar; converte para WebP (padrão) ou mantém o formato (`format: 'keep'`), `quality` padrão 82;
-- ignora SVG, GIF e imagens animadas;
-- grava `nome.webp` (ou `nome-otimizado.<ext>`), sem sobrescrever, e só troca as referências se o resultado ficar menor;
-- não apaga os originais: depois use `remove_unused_assets`.
+- shrinks to `maxWidth` without enlarging; converts to WebP (default) or keeps the format (`format: 'keep'`), `quality` defaults to 82;
+- ignores SVG, GIF and animated images;
+- writes `name.webp` (or `name-optimized.<ext>`), without overwriting, and only swaps the references if the result is smaller;
+- does not delete the originals: use `remove_unused_assets` afterwards.
 
-Sem o módulo, a ferramenta responde com erro explicando como instalar (`npm install sharp -w @mockup/server`). O sharp fica fora dos bundles do app desktop e do CLI empacotado (é nativo): em desenvolvimento ele é resolvido pelo `node_modules` do repositório; no app instalado ele vai copiado, com as dependências e o binário da plataforma do build (`@img/sharp-win32-x64`), em `resources/native/node_modules` (`extraResources` do `electron-builder.yml`), onde o server o procura quando o `import()` normal falha (também via `MOCKUP_NATIVE_MODULES`).
+Without the module, the tool responds with an error explaining how to install it (`npm install sharp -w @mockup/server`). sharp is left out of the desktop app and packaged CLI bundles (it is native): in development it is resolved from the repository's `node_modules`; in the installed app it is copied along with its dependencies and the build platform's binary (`@img/sharp-win32-x64`) into `resources/native/node_modules` (`extraResources` in `electron-builder.yml`), where the server looks for it when the normal `import()` fails (also via `MOCKUP_NATIVE_MODULES`).
 
-## Ajustes de imagem
+## Image adjustments
 
-Tudo em CSS real no nó `img` (core, `image.ts`), o mesmo no canvas, no screenshot e no código exportado:
+All in real CSS on the `img` node (core, `image.ts`), the same on the canvas, in the screenshot and in the exported code:
 
-| Ajuste        | Propriedade       | Valores                                                                                                                                                                                                 |
-| ------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Enquadramento | `object-fit`      | `cover`, `contain`, `fill`, `none`, `scale-down`.                                                                                                                                                       |
-| Posição       | `object-position` | Presets `center`, `top`, `bottom`, `left`, `right`, `top-left`... ou CSS (`30% 70%`).                                                                                                                   |
-| Filtros       | `filter`          | `blur` (px), `brightness`, `contrast`, `saturate` (%; 100 = neutro), `hue-rotate` (deg), `sepia`, `grayscale`, `invert` (%), `opacity` (%). Funções desconhecidas (ex.: `drop-shadow`) são preservadas. |
-| Recorte       | `object-view-box` | `inset(t% r% b% l%)` sobre a imagem original. Suportado no Chromium (canvas, render, Electron); outros navegadores ignoram a propriedade e mostram a imagem inteira.                                    |
-| Máscara       | `clip-path`       | Formas prontas: `circle`, `ellipse`, `rounded`, `triangle`, `diamond`, `pentagon`, `hexagon`, `star`, `arrow`, ou qualquer `clip-path` CSS.                                                             |
+| Adjustment | Property          | Values                                                                                                                                                                                             |
+| ---------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fit        | `object-fit`      | `cover`, `contain`, `fill`, `none`, `scale-down`.                                                                                                                                                  |
+| Position   | `object-position` | Presets `center`, `top`, `bottom`, `left`, `right`, `top-left`... or CSS (`30% 70%`).                                                                                                              |
+| Filters    | `filter`          | `blur` (px), `brightness`, `contrast`, `saturate` (%; 100 = neutral), `hue-rotate` (deg), `sepia`, `grayscale`, `invert` (%), `opacity` (%). Unknown functions (e.g. `drop-shadow`) are preserved. |
+| Crop       | `object-view-box` | `inset(t% r% b% l%)` over the original image. Supported in Chromium (canvas, render, Electron); other browsers ignore the property and show the whole image.                                       |
+| Mask       | `clip-path`       | Ready-made shapes: `circle`, `ellipse`, `rounded`, `triangle`, `diamond`, `pentagon`, `hexagon`, `star`, `arrow`, or any CSS `clip-path`.                                                          |
 
 ## Placeholders
 
-`generate_placeholder` (e o botão **Gerar** da seção Imagem) cria SVGs localmente, sem rede, **determinísticos pela semente** (`placeholders.ts`, PRNG mulberry32 sobre FNV-1a): `avatar` (pessoa ou iniciais com `label`), `product` (garrafa, caixa ou sacola), `landscape` (céu, sol e montanhas) e `logo` (marca geométrica + nome). Com documento salvo, o arquivo vai para `assets/placeholders/<tipo>-<semente>-<L>x<A>.svg` (reutilizado se o conteúdo for igual); sem caminho, entra como data URL.
+`generate_placeholder` (and the **Generate** button in the Image section) creates SVGs locally, without a network, **deterministic by seed** (`placeholders.ts`, mulberry32 PRNG over FNV-1a): `avatar` (person or initials with `label`), `product` (bottle, box or bag), `landscape` (sky, sun and mountains) and `logo` (geometric mark + name). With a saved document, the file goes to `assets/placeholders/<type>-<seed>-<W>x<H>.svg` (reused if the content is the same); without a path, it is inlined as a data URL.
 
 ## Editor
 
-- **Aba Assets** (painel esquerdo, ao lado de Camadas): grade com miniaturas, busca, filtro "Não usados", contador de usos (clicar seleciona os nós), envio por arrastar ou pelo botão **Enviar**, **Inserir** (no nó selecionado ou no contêiner no centro da tela) e arrastar para o canvas, **Copiar link** (URL `/cdn`), **Remover**, **Remover não usados** (com a lista antes de confirmar), **Otimizar** (WebP, largura máxima opcional) e a seção **Biblioteca** (buscar, importar, enviar e remover).
-- **Seção Imagem** (propriedades): trocar imagem, enquadramento, posição (grade 3×3 e campo livre), filtros com sliders (prévia ao vivo e uma entrada de undo ao soltar), máscara, recorte e placeholder.
-- **Recorte visual**: botão **Recortar** ou duplo clique na imagem selecionada. A imagem aparece inteira com a área de fora escurecida e um retângulo com 8 alças; arrastar dentro move o recorte. Enter, **Aplicar** ou clicar fora confirmam; Esc cancela. Grava `object-view-box` numa única op. Com `object-fit` diferente de `cover`/`fill`, o cálculo usa `fill` e o painel avisa.
+- **Assets tab** (left panel, next to Layers): thumbnail grid, search, "Unused" filter, usage counter (clicking selects the nodes), upload by dragging or with the **Upload** button, **Insert** (into the selected node or into the container at the center of the screen) and drag onto the canvas, **Copy link** (`/cdn` URL), **Remove**, **Remove unused** (with the list before confirming), **Optimize** (WebP, optional maximum width) and the **Library** section (search, import, upload and remove).
+- **Image section** (properties): replace image, fit, position (3×3 grid and free field), filters with sliders (live preview and one undo entry on release), mask, crop and placeholder.
+- **Visual crop**: **Crop** button or double click on the selected image. The image appears whole with the outside area darkened and a rectangle with 8 handles; dragging inside moves the crop. Enter, **Apply** or clicking outside confirms; Esc cancels. Writes `object-view-box` in a single op. With an `object-fit` other than `cover`/`fill`, the calculation uses `fill` and the panel warns.
 
 ## MCP
 
-Ferramentas em [MCP.md](MCP.md#assets-cdn-e-biblioteca) e [MCP.md](MCP.md#ajustes-de-imagem-e-placeholders); guia `get_guide('assets')`.
+Tools in [MCP.md](MCP.md#assets-cdn-and-library) and [MCP.md](MCP.md#image-adjustments-and-placeholders); guide `get_guide('assets')`.

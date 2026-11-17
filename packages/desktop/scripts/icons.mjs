@@ -1,6 +1,6 @@
 /**
- * Gera build/icon.png (512) e build/icon.ico (multi-tamanho, entradas PNG) a partir de build/icon.svg.
- * Usa o próprio Electron para rasterizar: `npm run icons -w @mockup/desktop`.
+ * Generates build/icon.png (512) and build/icon.ico (multi-size, PNG entries) from build/icon.svg.
+ * Uses Electron itself to rasterize: `npm run icons -w @mockup/desktop`.
  */
 import { app, BrowserWindow, nativeImage } from 'electron';
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const svg = fs.readFileSync(path.join(root, 'build', 'icon.svg'), 'utf8');
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 
-/** Rasteriza o SVG em 512x512 (uma única janela; os demais tamanhos saem de nativeImage.resize). */
+/** Rasterizes the SVG at 512x512 (a single window; the other sizes come from nativeImage.resize). */
 async function rasterize(size) {
   const win = new BrowserWindow({
     show: false,
@@ -30,7 +30,7 @@ async function rasterize(size) {
     win.webContents.on('paint', (_e, _dirty, image) => {
       last = image;
       clearTimeout(win.__t);
-      win.__t = setTimeout(() => resolve(last), 400); // espera a pintura estabilizar
+      win.__t = setTimeout(() => resolve(last), 400); // wait for the paint to settle
     });
   });
   const tmp = path.join(os.tmpdir(), `mockup-icon-${process.pid}.html`);
@@ -46,7 +46,7 @@ async function rasterize(size) {
 
 function buildIco(entries) {
   const header = Buffer.alloc(6);
-  header.writeUInt16LE(1, 2); // tipo: ícone
+  header.writeUInt16LE(1, 2); // type: icon
   header.writeUInt16LE(entries.length, 4);
   const dir = Buffer.alloc(16 * entries.length);
   let offset = 6 + dir.length;
@@ -54,8 +54,8 @@ function buildIco(entries) {
     const o = i * 16;
     dir.writeUInt8(size >= 256 ? 0 : size, o);
     dir.writeUInt8(size >= 256 ? 0 : size, o + 1);
-    dir.writeUInt16LE(1, o + 4); // planos
-    dir.writeUInt16LE(32, o + 6); // bits por pixel
+    dir.writeUInt16LE(1, o + 4); // color planes
+    dir.writeUInt16LE(32, o + 6); // bits per pixel
     dir.writeUInt32LE(png.length, o + 8);
     dir.writeUInt32LE(offset, o + 12);
     offset += png.length;

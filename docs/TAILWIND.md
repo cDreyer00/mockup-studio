@@ -1,267 +1,267 @@
-# Tailwind CSS v4 nativo
+# Native Tailwind CSS v4
 
-O Mockup Studio aceita Tailwind CSS v4 como forma de escrever o design: o agente (ou o usuário,
-colando HTML) escreve markup com classes Tailwind, o canvas renderiza o resultado e a exportação
-devolve Tailwind idiomático. O modelo do documento continua sendo **CSS real por nó**
-(`node.style`); as classes são traduzidas pelo compilador oficial do Tailwind.
+Mockup Studio supports Tailwind CSS v4 as a way to write the design: the agent (or the user,
+pasting HTML) writes markup with Tailwind classes, the canvas renders the result and the export
+returns idiomatic Tailwind. The document model is still **real CSS per node**
+(`node.style`); the classes are translated by Tailwind's official compiler.
 
-## Visão geral
+## Overview
 
 ```
- classes Tailwind (write_html, import_component, set_classes, colar, painel "Classes")
-        |  @mockup/core/tailwind  (compilador oficial `tailwindcss` v4)
+ Tailwind classes (write_html, import_component, set_classes, paste, "Classes" panel)
+        |  @mockup/core/tailwind  (official `tailwindcss` v4 compiler)
         v
- node.style  +  node.states { hover, dark, md, md:hover, ... }  +  node.classes (dica)
-        |  render (canvas, screenshot)          |  exportação
+ node.style  +  node.states { hover, dark, md, md:hover, ... }  +  node.classes (hint)
+        |  render (canvas, screenshot)          |  export
         v                                       v
- resolveStateStyle(node, frame, tema, prévia)   engine.nodeClasses(node) → classes canonicalizadas
+ resolveStateStyle(node, frame, theme, preview)   engine.nodeClasses(node) → canonicalized classes
 ```
 
-## Onde roda o compilador
+## Where the compiler runs
 
-- O pacote `tailwindcss` v4 é JavaScript puro, sem dependências e sem APIs de Node ou DOM (é o
-  mesmo núcleo do `@tailwindcss/browser`). Por isso o motor fica **no core**, no subpacote
-  `@mockup/core/tailwind` (`packages/core/src/tailwind/`), e roda igual no daemon, no editor, no
-  Electron e nos testes. Não usamos `@tailwindcss/node`: ele depende de `fs`/`lightningcss` nativo
-  e só serviria no daemon.
-- O subpacote fica **fora do índice principal** do core: o editor o carrega sob demanda
-  (`import('@mockup/core/tailwind')`), num chunk separado, para não pesar no canvas.
-- A API usada é o design system do compilador (`__unstable__loadDesignSystem`): `candidatesToAst`
-  (classe → regras CSS), `parseCandidate`/`printCandidate` (variantes), `getClassOrder` (ordem da
-  cascata), `canonicalizeCandidates` (`p-[16px]` → `p-4`, `mt-2 mb-2` → `my-2`) e `getClassList`
-  (autocomplete). A API é marcada como instável pelo Tailwind: a versão fica fixada (exata,
-  `4.3.5`) no `package.json` do core, os testes de round-trip pegam mudanças de comportamento e
-  um teste em `canonicalize.test.ts` falha com mensagem clara se mudar a forma de
-  `utilities.keys`/`getClassList`/`canonicalizeCandidates`, que o motor sobrescreve no design
-  system leve. Ao atualizar o `tailwindcss`, rode esse teste primeiro.
-- O tema padrão (`tailwindcss/theme.css`) é embutido em `theme.generated.ts` pelo script
-  `packages/core/scripts/sync-tailwind-theme.mjs` (rode-o ao atualizar o `tailwindcss`; um teste
-  falha se o arquivo gerado estiver desatualizado), porque o core não lê arquivos.
+- The `tailwindcss` v4 package is plain JavaScript, with no dependencies and no Node or DOM APIs (it is
+  the same core as `@tailwindcss/browser`). That is why the engine lives **in the core**, in the
+  `@mockup/core/tailwind` subpackage (`packages/core/src/tailwind/`), and runs the same in the daemon, the editor, in
+  Electron and in tests. We do not use `@tailwindcss/node`: it depends on `fs`/native `lightningcss`
+  and would only work in the daemon.
+- The subpackage stays **outside the core's main index**: the editor loads it on demand
+  (`import('@mockup/core/tailwind')`), in a separate chunk, so it does not weigh down the canvas.
+- The API used is the compiler's design system (`__unstable__loadDesignSystem`): `candidatesToAst`
+  (class → CSS rules), `parseCandidate`/`printCandidate` (variants), `getClassOrder` (cascade
+  order), `canonicalizeCandidates` (`p-[16px]` → `p-4`, `mt-2 mb-2` → `my-2`) and `getClassList`
+  (autocomplete). The API is marked unstable by Tailwind: the version is pinned (exact,
+  `4.3.5`) in the core's `package.json`, the round-trip tests catch behavior changes and
+  a test in `canonicalize.test.ts` fails with a clear message if the shape of
+  `utilities.keys`/`getClassList`/`canonicalizeCandidates` changes, which the engine overrides in the light design
+  system. When updating `tailwindcss`, run that test first.
+- The default theme (`tailwindcss/theme.css`) is embedded in `theme.generated.ts` by the script
+  `packages/core/scripts/sync-tailwind-theme.mjs` (run it when updating `tailwindcss`; a test
+  fails if the generated file is out of date), because the core does not read files.
 
-### Motor por documento e cache
+### Per-document engine and cache
 
-`getTailwindEngine(doc)` cria (assíncrono, ~20 ms) um motor com:
+`getTailwindEngine(doc)` creates (asynchronously, ~20 ms) an engine with:
 
-- o tema padrão do Tailwind como `@theme default inline` — os valores entram no nó já resolvidos
+- Tailwind's default theme as `@theme default inline` — the values go into the node already resolved
   (`p-4` → `padding: 1rem`, `bg-blue-500` → `oklch(62.3% 0.214 259.815)`);
-- os tokens do documento que caem num namespace de tema (`--color-*`, `--font-*`, `--text-*`,
-  `--radius-*`, `--shadow-*`, `--spacing`, `--breakpoint-*`...) como `@theme` comum — o nó fica
-  **ligado ao token** (`bg-primary` → `background-color: var(--color-primary)`), então trocar o
-  token ou o tema muda o render;
-- `@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *))` e as variantes
-  `theme-<nome>` dos temas do documento.
+- the document tokens that fall in a theme namespace (`--color-*`, `--font-*`, `--text-*`,
+  `--radius-*`, `--shadow-*`, `--spacing`, `--breakpoint-*`...) as a regular `@theme` — the node stays
+  **bound to the token** (`bg-primary` → `background-color: var(--color-primary)`), so changing the
+  token or the theme changes the render;
+- `@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *))` and the
+  `theme-<name>` variants of the document's themes.
 
-O cache é chaveado pelos tokens que entram no `@theme` (e pelos nomes de tema): mudar um token
-gera uma chave nova e um motor novo na próxima chamada, sem invalidação manual. Guarda os 8
-últimos motores. Depois de criado, tudo é síncrono e com cache por classe. Ao criar um motor, o
-cache agenda `engine.warmup()` em ocioso (`requestIdleCallback` no editor, `setTimeout(0)` no
-daemon, depois de responder; `getTailwindEngine(doc, { warmup: false })` desliga), para o
-primeiro "Mostrar como Tailwind" e o primeiro `get_code` não travarem. Caminhos sem Tailwind
-(`get_code`/`export` com `styles: 'inline'`) não carregam o motor.
+The cache is keyed by the tokens that go into `@theme` (and by the theme names): changing a token
+produces a new key and a new engine on the next call, with no manual invalidation. It keeps the last 8
+engines. Once created, everything is synchronous and cached per class. When creating an engine, the
+cache schedules `engine.warmup()` when idle (`requestIdleCallback` in the editor, `setTimeout(0)` in the
+daemon, after responding; `getTailwindEngine(doc, { warmup: false })` turns it off), so the
+first "Show as Tailwind" and the first `get_code` do not stall. Paths without Tailwind
+(`get_code`/`export` with `styles: 'inline'`) do not load the engine.
 
-## Classes → estilo
+## Classes → style
 
 `engine.classesToStyles(classes)`:
 
-1. Cada classe é lida pelo próprio Tailwind (`parseCandidate`). As variantes são separadas da
-   utilidade; a utilidade sem variantes é compilada (`candidatesToAst`).
-2. As declarações são aplicadas na **ordem da cascata do Tailwind** (`getClassOrder` da lista
-   inteira de classes, por estado), não na ordem do atributo (`p-4 px-2` e `px-2 p-4` dão o
-   mesmo resultado, como no navegador: `px-2` vem depois de `p-4` no CSS e vence no eixo
-   horizontal; idem `border border-b-0`, `rounded-lg rounded-t-none`, `hover:p-1 hover:px-8`);
-   `!important` vence declarações comuns e é gravado como `valor !important`.
-3. As variáveis internas (`--tw-shadow`, `--tw-ring-color`, `--tw-border-style`,
-   `--tw-gradient-*`...) são **resolvidas no próprio nó**, com os `initial-value` dos `@property`
-   e os fallbacks — o estilo gravado é CSS comum, editável no painel:
+1. Each class is read by Tailwind itself (`parseCandidate`). Variants are separated from the
+   utility; the utility without variants is compiled (`candidatesToAst`).
+2. Declarations are applied in **Tailwind's cascade order** (`getClassOrder` of the whole
+   class list, per state), not in attribute order (`p-4 px-2` and `px-2 p-4` give the
+   same result, as in the browser: `px-2` comes after `p-4` in the CSS and wins on the
+   horizontal axis; likewise `border border-b-0`, `rounded-lg rounded-t-none`, `hover:p-1 hover:px-8`);
+   `!important` beats regular declarations and is stored as `value !important`.
+3. Internal variables (`--tw-shadow`, `--tw-ring-color`, `--tw-border-style`,
+   `--tw-gradient-*`...) are **resolved on the node itself**, with the `@property` `initial-value`s
+   and the fallbacks — the stored style is regular CSS, editable in the panel:
    `shadow-md` → `box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)`;
-   `ring-2 ring-blue-500` → `box-shadow: 0 0 0 2px oklch(...)`. Camadas vazias de sombra
-   (`0 0 #0000`) saem; `calc()` sem `var()` é avaliado (`calc(0.25rem * 4)` → `1rem`).
-4. Variáveis do documento (tokens) ficam como `var(...)`.
+   `ring-2 ring-blue-500` → `box-shadow: 0 0 0 2px oklch(...)`. Empty shadow layers
+   (`0 0 #0000`) are dropped; `calc()` without `var()` is evaluated (`calc(0.25rem * 4)` → `1rem`).
+4. Document variables (tokens) stay as `var(...)`.
 
-Resultado: `{ style, states, children?, applied, unknown, unsupported }`.
+Result: `{ style, states, children?, applied, unknown, unsupported }`.
 
-### Variantes → `node.states`
+### Variants → `node.states`
 
-| Variante do Tailwind                                                          | Onde fica               | Quando vale no canvas/screenshot                                                  |
-| ----------------------------------------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------- |
-| `hover:`, `focus:`, `focus-visible:`, `focus-within:`, `active:`, `disabled:` | `states.hover` etc.     | Na prévia de estado do editor e em `get_screenshot(state)`                        |
-| `dark:`                                                                       | `states.dark`           | Dentro de um frame/nó com tema `dark` (`data-theme="dark"`) ou na prévia `dark`   |
-| `sm:` `md:` `lg:` `xl:` `2xl:`                                                | `states.md` etc.        | Quando a **largura do frame raiz** é ≥ breakpoint (640, 768, 1024, 1280, 1536 px) |
-| Combinações (`md:hover:`, `dark:hover:`, `lg:dark:focus:`)                    | `states["md:hover"]`... | Quando todas as partes valem                                                      |
+| Tailwind variant                                                              | Where it goes           | When it applies on the canvas/screenshot                                                 |
+| ----------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `hover:`, `focus:`, `focus-visible:`, `focus-within:`, `active:`, `disabled:` | `states.hover` etc.     | In the editor's state preview and in `get_screenshot(state)`                             |
+| `dark:`                                                                       | `states.dark`           | Inside a frame/node with the `dark` theme (`data-theme="dark"`) or in the `dark` preview |
+| `sm:` `md:` `lg:` `xl:` `2xl:`                                                | `states.md` etc.        | When the **root frame's width** is ≥ the breakpoint (640, 768, 1024, 1280, 1536 px)      |
+| Combinations (`md:hover:`, `dark:hover:`, `lg:dark:focus:`)                   | `states["md:hover"]`... | When all parts apply                                                                     |
 
-- A chave é canônica (`breakpoint:dark:pseudo`); `hover:md:` vira `md:hover`.
-- Cada estado guarda só o que muda em relação ao estilo base (inclusive propriedades
-  recalculadas por variáveis: `hover:ring-red-500` grava o `box-shadow` inteiro do estado).
-- Ordem de aplicação (como a especificidade do CSS gerado): base, breakpoints em ordem
-  crescente, `dark`, e por último os estados com pseudo-classe.
-- `dark:` corresponde ao tema `dark` do documento (fase de tokens): o mesmo `data-theme` que
-  troca os tokens ativa as classes `dark:`. Na exportação Tailwind sai a mesma `@custom-variant`.
-- Prévia `dark` (editor e `get_screenshot(state: 'dark')`): se o documento tem um tema chamado
-  `dark`, o frame raiz renderizado ganha `data-theme="dark"` (só no DOM; o documento não muda),
-  então os tokens trocam junto com as variantes `dark:`, como em `get_styles(state: 'dark')`.
-  Sem tema `dark`, só as variantes `dark:` são aplicadas.
-- Dark aninhado: `dark:` vale em toda a subárvore de um nó dark, mesmo dentro de um descendente
-  com `data-theme="light"` (os tokens desse descendente voltam ao tema claro, mas as variantes
-  `dark:` continuam ligadas). É o que o CSS exportado faz (`[data-theme=dark] *`), e o canvas
-  segue a mesma regra.
+- The key is canonical (`breakpoint:dark:pseudo`); `hover:md:` becomes `md:hover`.
+- Each state stores only what changes relative to the base style (including properties
+  recomputed by variables: `hover:ring-red-500` stores the state's whole `box-shadow`).
+- Application order (like the specificity of the generated CSS): base, breakpoints in ascending
+  order, `dark`, and last the pseudo-class states.
+- `dark:` corresponds to the document's `dark` theme (tokens phase): the same `data-theme` that
+  switches the tokens activates the `dark:` classes. In the Tailwind export the same `@custom-variant` is emitted.
+- `dark` preview (editor and `get_screenshot(state: 'dark')`): if the document has a theme named
+  `dark`, the rendered root frame gets `data-theme="dark"` (DOM only; the document does not change),
+  so the tokens switch together with the `dark:` variants, as in `get_styles(state: 'dark')`.
+  Without a `dark` theme, only the `dark:` variants are applied.
+- Nested dark: `dark:` applies across the whole subtree of a dark node, even inside a descendant
+  with `data-theme="light"` (that descendant's tokens go back to the light theme, but the
+  `dark:` variants stay on). This is what the exported CSS does (`[data-theme=dark] *`), and the canvas
+  follows the same rule.
 
-### Breakpoints e frames
+### Breakpoints and frames
 
-Os frames são os viewports do design. Um `md:flex-row` vale num frame de 1280 px e não num de
-375 px: o mesmo markup responsivo renderiza "mobile" ou "desktop" conforme o frame onde está. Para
-ver as duas versões, duplique o frame e mude a largura (o guia `responsive` do MCP já recomenda
-frames Mobile/Tablet/Desktop). Na exportação, as classes `md:` voltam como estão e passam a valer
-pelo viewport do navegador, como em qualquer projeto Tailwind.
+Frames are the design's viewports. An `md:flex-row` applies in a 1280 px frame and not in a
+375 px one: the same responsive markup renders "mobile" or "desktop" depending on the frame it is in. To
+see both versions, duplicate the frame and change the width (the MCP's `responsive` guide already recommends
+Mobile/Tablet/Desktop frames). In the export, `md:` classes come back as they are and take effect
+through the browser viewport, as in any Tailwind project.
 
-As larguras vêm dos tokens `--breakpoint-sm` … `--breakpoint-2xl` do documento (px ou rem; os
-ausentes usam o padrão do Tailwind), por um único helper (`breakpointsOf(doc)`): com
-`--breakpoint-md: 900px`, `md:` ativa a partir de 900 px no canvas, no screenshot, no
-`get_styles`, no `@media` do export HTML e no Tailwind compilado. `get_styles(state: 'md')`
-simula a largura mínima do `md` do documento mesmo num frame mais estreito.
+The widths come from the document's `--breakpoint-sm` … `--breakpoint-2xl` tokens (px or rem; missing ones
+use Tailwind's default), through a single helper (`breakpointsOf(doc)`): with
+`--breakpoint-md: 900px`, `md:` activates from 900 px on the canvas, in the screenshot, in
+`get_styles`, in the HTML export's `@media` and in the compiled Tailwind. `get_styles(state: 'md')`
+simulates the document's minimum `md` width even in a narrower frame.
 
-### O que não vira estilo
+### What does not become style
 
-| Caso                                                                                                                   | Tratamento                                                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Classe que o Tailwind não conhece (`group`, `peer`, `minha-classe`)                                                    | `unknown`: fica em `node.classes`, sem efeito, e volta igual na exportação                                                                                                                   |
-| Variante sem equivalente (`group-hover:`, `peer-*:`, `aria-*:`, `data-*:`, `before:`, `[&_svg]:`, `max-md:`, `has-*:`) | `unsupported` (com o motivo): fica em `node.classes` e volta igual na exportação                                                                                                             |
-| Utilidade com `@media` próprio ou seletor de pseudo-elemento (`container`, `placeholder:*`)                            | `unsupported`                                                                                                                                                                                |
-| Classes de filhos (`space-y-2`, `space-x-*`, `divide-y`, `*:p-2`)                                                      | O CSS vai para os filhos (abaixo das classes deles); a classe do pai não é reexportada. Tirar a classe (`remove`/`replace`) desfaz o que ela gravou nos filhos que ainda têm o valor gravado |
-| `animate-*`                                                                                                            | `animation` é gravada, mas os `@keyframes` não existem no canvas (não anima)                                                                                                                 |
+| Case                                                                                                                     | Handling                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Class Tailwind does not know (`group`, `peer`, `my-class`)                                                               | `unknown`: stays in `node.classes`, with no effect, and comes back unchanged in the export                                                                                                                   |
+| Variant with no equivalent (`group-hover:`, `peer-*:`, `aria-*:`, `data-*:`, `before:`, `[&_svg]:`, `max-md:`, `has-*:`) | `unsupported` (with the reason): stays in `node.classes` and comes back unchanged in the export                                                                                                              |
+| Utility with its own `@media` or a pseudo-element selector (`container`, `placeholder:*`)                                | `unsupported`                                                                                                                                                                                                |
+| Classes for children (`space-y-2`, `space-x-*`, `divide-y`, `*:p-2`)                                                     | The CSS goes to the children (below their own classes); the parent's class is not re-exported. Removing the class (`remove`/`replace`) undoes what it wrote on the children that still have the stored value |
+| `animate-*`                                                                                                              | `animation` is stored, but the `@keyframes` do not exist on the canvas (it does not animate)                                                                                                                 |
 
-`write_html`/`import_component` informam as classes `unknown`/`unsupported` na resposta.
+`write_html`/`import_component` report the `unknown`/`unsupported` classes in the response.
 
-## `node.classes`: a dica de round-trip
+## `node.classes`: the round-trip hint
 
-`node.classes` guarda as classes **como foram escritas**. O render nunca usa esse campo (usa
-`style`/`states`); ele serve para a exportação devolver as classes do autor:
+`node.classes` stores the classes **as they were written**. The render never uses this field (it uses
+`style`/`states`); it serves so the export can return the author's classes:
 
-- `engine.nodeClasses(node)` compila `node.classes` e, para cada classe, confere se as
-  propriedades que ela produz (inclusive via variáveis `--tw-*`: `from-red-500` afeta o
-  `background-image` de `bg-linear-to-r`) **ainda batem** com o estilo atual do nó, por estado.
-  As que batem são reaproveitadas na ordem original; as demais propriedades geram classes novas.
-- Editou o padding no painel? `p-4` deixa de bater e sai `p-6` (ou o que corresponder); o resto
-  continua como o autor escreveu. Renomeou um token? `renameToken` reescreve também as classes
-  (`bg-brand`, `hover:bg-brand/90`, `bg-[var(--color-brand)]` → `accent`) quando origem e destino
-  estão no mesmo namespace; o undo devolve as classes antigas.
-- Classes `unknown`/`unsupported` voltam sempre (o modelo não sabe conferir).
-- No load do arquivo, classes com caracteres proibidos (`<`, `{`, `}`, `;`, `"`, crase) são
-  descartadas e as válidas ficam: a mesma regra da op `setClasses` e do import de HTML.
-- Os usos de tokens em `node.states` (ex.: `hover:bg-hov`) contam no relatório de tokens
-  (`get_tokens`): não aparecem como não usados, e referências quebradas num estado saem com
+- `engine.nodeClasses(node)` compiles `node.classes` and, for each class, checks whether the
+  properties it produces (including via `--tw-*` variables: `from-red-500` affects the
+  `background-image` of `bg-linear-to-r`) **still match** the node's current style, per state.
+  The ones that match are reused in the original order; the remaining properties generate new classes.
+- Edited the padding in the panel? `p-4` no longer matches and `p-6` comes out (or whatever fits); the rest
+  stays as the author wrote it. Renamed a token? `renameToken` also rewrites the classes
+  (`bg-brand`, `hover:bg-brand/90`, `bg-[var(--color-brand)]` → `accent`) when source and target
+  are in the same namespace; undo returns the old classes.
+- `unknown`/`unsupported` classes always come back (the model cannot check them).
+- On file load, classes with forbidden characters (`<`, `{`, `}`, `;`, `"`, backtick) are
+  discarded and the valid ones stay: the same rule as the `setClasses` op and the HTML import.
+- Token uses in `node.states` (e.g. `hover:bg-hov`) count in the token report
+  (`get_tokens`): they do not show up as unused, and broken references in a state come out with
   `property: 'state:hover:background-color'`.
 
-**Por que um campo próprio e não `attrs.class`:** `attrs` é documentado como "sem `style` e sem
-`class`" e vários pontos (sanitização do import, exportadores, `setAttrs`, render) removem ou
-recusam `class`; no canvas, um `class="hidden flex"` real colidiria com o CSS da interface do
-editor. Um campo separado deixa claro que é uma dica, não CSS aplicado.
+**Why a dedicated field and not `attrs.class`:** `attrs` is documented as "without `style` and without
+`class`" and several places (import sanitization, exporters, `setAttrs`, render) remove or
+reject `class`; on the canvas, a real `class="hidden flex"` would collide with the editor UI's CSS.
+A separate field makes it clear it is a hint, not applied CSS.
 
-## Estilo → classes (exportação idiomática)
+## Style → classes (idiomatic export)
 
 `engine.stylesToClasses(style)`:
 
-1. Mapeamento estático do MVP (`cssToTailwind`: escala de spacing, cores do tema e tokens do
-   documento, tipografia, bordas, sombras, flex/grid, `[prop:valor]` como último recurso).
-2. **Canonicalização** pelo próprio Tailwind (`canonicalizeCandidates`, com `rem: 16` e
-   `collapse`): `p-[16px]` → `p-4`, `bg-[#6c5ce7]` → `bg-primary` (se o token existe),
+1. MVP static mapping (`cssToTailwind`: spacing scale, theme colors and document tokens,
+   typography, borders, shadows, flex/grid, `[prop:value]` as a last resort).
+2. **Canonicalization** by Tailwind itself (`canonicalizeCandidates`, with `rem: 16` and
+   `collapse`): `p-[16px]` → `p-4`, `bg-[#6c5ce7]` → `bg-primary` (if the token exists),
    `pt-4 pb-4` → `py-4`, `text-sm leading-[1.25]` → `text-sm/tight`.
-3. **Conferência**: as classes resultantes são compiladas de novo e comparadas com o estilo
-   (valores normalizados: rem ↔ px, cores em hex). Classe que não reproduz o valor vira
-   `[prop:valor]`; classes redundantes (ex.: `border-solid` junto de `border`) saem.
+3. **Verification**: the resulting classes are compiled again and compared with the style
+   (normalized values: rem ↔ px, colors in hex). A class that does not reproduce the value becomes
+   `[prop:value]`; redundant classes (e.g. `border-solid` alongside `border`) are dropped.
 
-**Custo da canonicalização:** na primeira chamada de cada motor, `canonicalizeCandidates`
-calcula a assinatura de todas as classes do `getClassList()` (~23 mil) e, para cada valor
-arbitrário novo, testa todas as raízes funcionais. O motor usa um design system "leve", sem as
-classes e raízes `mask-*`, `scroll-*` e `scrollbar-*` (só declaram propriedades
-`mask*`/`scroll*`, logo nunca têm a assinatura de outra classe), e só recorre à lista completa
-quando a entrada toca nessas propriedades: o resultado é idêntico (teste em
-`canonicalize.test.ts`). Resultados ficam em cache por motor; `engine.warmup()` adianta o
-aquecimento. Landing: primeira exportação a frio 2,4 s → 1,2 s; depois de `warmup()` ~0,3 s;
-repetida ~15 ms.
+**Cost of canonicalization:** on the first call of each engine, `canonicalizeCandidates`
+computes the signature of every class in `getClassList()` (~23 thousand) and, for each new
+arbitrary value, tests every functional root. The engine uses a "light" design system, without the
+`mask-*`, `scroll-*` and `scrollbar-*` classes and roots (they only declare
+`mask*`/`scroll*` properties, so they never have another class's signature), and only falls back to the full list
+when the input touches those properties: the result is identical (test in
+`canonicalize.test.ts`). Results are cached per engine; `engine.warmup()` brings the
+warm-up forward. Landing: first cold export 2.4 s → 1.2 s; after `warmup()` ~0.3 s;
+repeated ~15 ms.
 
-A saída é, portanto, sempre fiel ao render, e idiomática sempre que o Tailwind tem um nome para
-o valor. Os estados saem com o prefixo da variante (`hover:`, `md:`, `dark:`, `md:hover:`).
-`style=""` só leva valores que não podem virar classe arbitrária segura (com `{`, `}`, `;`, `<`,
-`>` ou crase); qualquer outra propriedade sai como `[prop:valor]`, então um estilo inline nunca
-anula um `hover:`/`md:` da mesma propriedade.
+The output is therefore always faithful to the render, and idiomatic whenever Tailwind has a name for
+the value. States come out with the variant prefix (`hover:`, `md:`, `dark:`, `md:hover:`).
+`style=""` only carries values that cannot become a safe arbitrary class (with `{`, `}`, `;`, `<`,
+`>` or backtick); any other property comes out as `[prop:value]`, so an inline style never
+overrides a `hover:`/`md:` for the same property.
 
-`text-*` e `line-height`: nós escritos em CSS costumam ter só `font-size` (altura de linha
-herdada). Quando algum nó usa um tamanho nomeado sem o `line-height` padrão do Tailwind, o tema
-exportado neutraliza aquele tamanho (`--text-sm--line-height: inherit`) e a conferência leva isso
-em conta. Nós importados de Tailwind já trazem o par `font-size` + `line-height` e dispensam a
-neutralização.
+`text-*` and `line-height`: nodes written in CSS usually have only `font-size` (inherited line
+height). When a node uses a named size without Tailwind's default `line-height`, the exported
+theme neutralizes that size (`--text-sm--line-height: inherit`) and the verification takes this
+into account. Nodes imported from Tailwind already carry the `font-size` + `line-height` pair and skip
+the neutralization.
 
-## CSS base (`cssBase`)
+## Base CSS (`cssBase`)
 
-Tailwind pressupõe o preflight (reset de margens, bordas `0 solid`, títulos sem tamanho próprio,
-botões sem fundo, listas sem marcador, `img` em bloco). O documento ganha `cssBase: 'tailwind'`:
+Tailwind assumes the preflight (margin reset, `0 solid` borders, headings with no size of their own,
+buttons with no background, lists with no marker, block `img`). The document gets `cssBase: 'tailwind'`:
 
-- o CSS base do documento (`documentBaseCss`, o mesmo no canvas, no render e no código) passa a
-  incluir o preflight do Tailwind v4 (`TAILWIND_PREFLIGHT`, escopado no canvas) e a raiz
-  tipográfica do Tailwind (fonte `--font-sans`, `line-height: 1.5`);
-- `write_html`, `import_component` e colar no editor ligam a base automaticamente no primeiro
-  import Tailwind (na mesma op, um undo), avisando na resposta;
-- `set_css_base('default' | 'tailwind')` no MCP e o seletor "CSS base" no painel do documento
-  ligam/desligam. Trocar a base afeta todos os nós do documento (ex.: `h1` sem tamanho próprio).
+- the document's base CSS (`documentBaseCss`, the same on the canvas, in the render and in the code) now
+  includes Tailwind v4's preflight (`TAILWIND_PREFLIGHT`, scoped on the canvas) and Tailwind's
+  typographic root (font `--font-sans`, `line-height: 1.5`);
+- `write_html`, `import_component` and paste in the editor turn the base on automatically on the first
+  Tailwind import (in the same op, one undo), warning in the response;
+- `set_css_base('default' | 'tailwind')` in the MCP and the "Base CSS" selector in the document panel
+  turn it on/off. Switching the base affects every node in the document (e.g. `h1` with no size of its own).
 
-## shadcn/ui e componentes colados
+## shadcn/ui and pasted components
 
-Componentes do shadcn/ui usam cores semânticas (`bg-primary`, `text-muted-foreground`,
-`border-input`) que só existem com as variáveis do tema do shadcn. `import_component(html)`:
+shadcn/ui components use semantic colors (`bg-primary`, `text-muted-foreground`,
+`border-input`) that only exist with shadcn's theme variables. `import_component(html)`:
 
-- detecta classes que usam essas cores (`usesShadcnColor`) e cria os tokens que faltam do preset
-  "neutral" do shadcn v4 (`--color-background`, `--color-primary`, `--color-card`, `--color-border`,
-  `--radius` e `--radius-sm..xl` relativos, etc.) e o tema `dark` com as sobrescritas
-  (`planShadcnTokens`); tokens já definidos não são tocados;
-- aplica a regra base do shadcn `* { border-color: var(--color-border) }` como `border-color` nos
-  nós com borda e sem cor (em qualquer escrita Tailwind, quando o documento tem os tokens
-  `--color-border` e `--color-primary` do preset);
-- nomeia as camadas pelo `data-slot` (`Card header`, `Card title`...).
+- detects classes that use those colors (`usesShadcnColor`) and creates the missing tokens from shadcn v4's
+  "neutral" preset (`--color-background`, `--color-primary`, `--color-card`, `--color-border`,
+  `--radius` and relative `--radius-sm..xl`, etc.) and the `dark` theme with the overrides
+  (`planShadcnTokens`); tokens already defined are not touched;
+- applies shadcn's base rule `* { border-color: var(--color-border) }` as `border-color` on
+  nodes with a border and no color (in any Tailwind write, when the document has the preset's
+  `--color-border` and `--color-primary` tokens);
+- names the layers by `data-slot` (`Card header`, `Card title`...).
 
-Colar no editor segue a mesma regra do `import_component`: cria os tokens shadcn que faltam (nas
-mesmas ops da colagem, um undo, com um aviso na tela) e aplica a borda padrão
-`var(--color-border)`. `write_html` só cria os tokens com `tokens: 'auto'`.
+Paste in the editor follows the same rule as `import_component`: it creates the missing shadcn tokens (in the
+same ops as the paste, one undo, with an on-screen warning) and applies the default border
+`var(--color-border)`. `write_html` only creates the tokens with `tokens: 'auto'`.
 
-## Ferramentas e interface
+## Tools and interface
 
-| Interface (editor)                               | MCP                                                                                         |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Colar HTML com classes Tailwind                  | `write_html` (detecção automática, `tailwind: 'on'`, `css: 'tailwind'`), `import_component` |
-| Campo "Classes" no painel de propriedades        | `set_classes(nodeIds, classes, mode)`                                                       |
-| Autocomplete do campo de classes                 | `suggest_classes(query)`                                                                    |
-| "Mostrar como Tailwind"                          | `get_classes(nodeIds)`, `get_code(format: 'tailwind')`                                      |
-| Prévia de estado (hover, focus, active, dark...) | `get_screenshot(state)`, `get_styles(state)`                                                |
-| Lista de estados do nó (remover um estado)       | `get_node_info`, `update_styles(state, unset)`, `set_classes(mode: 'remove')`               |
-| Classes `hover:`/`md:`/`dark:` no campo          | `set_classes`, `update_styles(state)` (grava o CSS direto no estado)                        |
-| Seletor "CSS base" do documento                  | `set_css_base`, `get_tailwind_config`                                                       |
-| Exportar Tailwind/React                          | `export`, `get_code`                                                                        |
+| Interface (editor)                            | MCP                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Paste HTML with Tailwind classes              | `write_html` (automatic detection, `tailwind: 'on'`, `css: 'tailwind'`), `import_component` |
+| "Classes" field in the Properties panel       | `set_classes(nodeIds, classes, mode)`                                                       |
+| Autocomplete in the classes field             | `suggest_classes(query)`                                                                    |
+| "Show as Tailwind"                            | `get_classes(nodeIds)`, `get_code(format: 'tailwind')`                                      |
+| State preview (hover, focus, active, dark...) | `get_screenshot(state)`, `get_styles(state)`                                                |
+| The node's state list (remove a state)        | `get_node_info`, `update_styles(state, unset)`, `set_classes(mode: 'remove')`               |
+| `hover:`/`md:`/`dark:` classes in the field   | `set_classes`, `update_styles(state)` (writes the CSS directly into the state)              |
+| Document "Base CSS" selector                  | `set_css_base`, `get_tailwind_config`                                                       |
+| Export Tailwind/React                         | `export`, `get_code`                                                                        |
 
-Guia para agentes: `get_guide('tailwind')`. Detalhes de cada ferramenta em [MCP.md](MCP.md), da
-interface em [EDITOR.md](EDITOR.md) e da exportação em [EXPORT.md](EXPORT.md).
+Guide for agents: `get_guide('tailwind')`. Details of each tool in [MCP.md](MCP.md), of the
+interface in [EDITOR.md](EDITOR.md) and of the export in [EXPORT.md](EXPORT.md).
 
-## Limitações conhecidas
+## Known limitations
 
-- Variantes de grupo/irmão/atributo (`group-hover:`, `peer-*`, `aria-*`, `data-*`, `has-*`),
-  pseudo-elementos (`before:`, `after:`, `placeholder:`), variantes arbitrárias (`[&_svg]:`) e
-  `max-*:` não afetam o render; ficam preservadas na classe.
-- No editor, os estados são editados pelo campo de classes (`hover:bg-...`); os campos de estilo
-  do painel (tamanho, tipografia...) editam sempre o estilo base, mesmo com a prévia ativa. O MCP
-  grava CSS direto num estado com `update_styles(state)`.
-- O campo de classes aplica em modo `replace`: as classes passam a ser o estilo do nó (apagar as
-  classes de um nó limpa o estilo gerado por elas). Num nó sem `node.classes` o campo abre com as
-  classes equivalentes ao estilo atual (`engine.nodeClasses`). O `replace` (campo e
-  `set_classes`) mantém o posicionamento (`position`, `left`, `top`, `right`, `bottom`,
-  `z-index`) e o CSS sem classe equivalente quando as classes novas não definem essas
-  propriedades; para removê-los, use `update_styles(unset)`.
-- A prévia de estado do editor é global (vale para todos os nós e não muda ao trocar de
-  documento).
-- Sem a dica `node.classes`, alguns valores saem como classe arbitrária equivalente em vez da forma
-  idiomática (`shadow-sm`, `ring-*`, `bg-blue-500/50`, gradientes `bg-linear-*`): a saída recompila
-  para o mesmo estilo, só é menos legível.
-- HTML e React inline não levam o CSS das classes que o modelo não representa (`aria-*:`,
-  `has-[...]:`, `[&_svg]:`, `group-hover:`); a exportação Tailwind as devolve como estão.
-- `animate-*` não anima no canvas; transições não são simuladas na prévia.
-- A exportação React com `styles: 'inline'` e o SVG não levam os estados.
-- Breakpoints personalizados (`--breakpoint-*` nos tokens) mudam a largura de `sm` … `2xl`, mas
-  nomes novos (`--breakpoint-3xl`) só entram no compilador: os estados do nó reconhecem apenas
-  `sm`, `md`, `lg`, `xl` e `2xl`.
+- Group/sibling/attribute variants (`group-hover:`, `peer-*`, `aria-*`, `data-*`, `has-*`),
+  pseudo-elements (`before:`, `after:`, `placeholder:`), arbitrary variants (`[&_svg]:`) and
+  `max-*:` do not affect the render; they are preserved in the class.
+- In the editor, states are edited through the classes field (`hover:bg-...`); the panel's style fields
+  (size, typography...) always edit the base style, even with the preview active. The MCP
+  writes CSS directly into a state with `update_styles(state)`.
+- The classes field applies in `replace` mode: the classes become the node's style (deleting
+  a node's classes clears the style they generated). On a node without `node.classes` the field opens with the
+  classes equivalent to the current style (`engine.nodeClasses`). `replace` (field and
+  `set_classes`) keeps the positioning (`position`, `left`, `top`, `right`, `bottom`,
+  `z-index`) and the CSS with no equivalent class when the new classes do not define those
+  properties; to remove them, use `update_styles(unset)`.
+- The editor's state preview is global (it applies to every node and does not change when switching
+  documents).
+- Without the `node.classes` hint, some values come out as an equivalent arbitrary class instead of the
+  idiomatic form (`shadow-sm`, `ring-*`, `bg-blue-500/50`, `bg-linear-*` gradients): the output recompiles
+  to the same style, it is just less readable.
+- Inline HTML and React do not carry the CSS of classes the model does not represent (`aria-*:`,
+  `has-[...]:`, `[&_svg]:`, `group-hover:`); the Tailwind export returns them as they are.
+- `animate-*` does not animate on the canvas; transitions are not simulated in the preview.
+- React export with `styles: 'inline'` and SVG do not carry the states.
+- Custom breakpoints (`--breakpoint-*` in tokens) change the width of `sm` … `2xl`, but
+  new names (`--breakpoint-3xl`) only reach the compiler: the node's states recognize only
+  `sm`, `md`, `lg`, `xl` and `2xl`.

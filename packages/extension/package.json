@@ -2,7 +2,7 @@
   "name": "@mockup/extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser extension (Chrome/Edge, Manifest V3) that captures website sections for Mockup Studio.",
+  "description": "Browser extension (Chrome/Edge, Manifest V3) that captures website sections into Mockup Studio.",
   "license": "MIT",
   "type": "module",
   "scripts": {
