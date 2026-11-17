@@ -126,6 +126,42 @@ describe.skipIf(!built || !editorReady)('Electron headless (integração)', () =
     expect(r.body[1]).toBe(0xd8);
   });
 
+  it('WebSocket: mensagem do cliente com 32 bytes ou mais recebe ack e o daemon segue respondendo', async () => {
+    // Regressão: o bundle trocava o `bufferutil` opcional do `ws` por `{}` e o primeiro frame
+    // mascarado grande travava o processo principal.
+    const ws = new WebSocket(url.replace('http', 'ws') + '/ws');
+    const ack = await new Promise<{ type: string; reqId?: string }>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('sem ack em 10 s')), 10000);
+      ws.addEventListener('error', () => reject(new Error('erro no WebSocket')));
+      ws.addEventListener('open', () =>
+        ws.send(
+          JSON.stringify({
+            type: 'op:apply',
+            reqId: 'r1',
+            docId,
+            ops: [
+              {
+                type: 'renameNodes',
+                changes: [{ nodeId: 'el_dsk00007', name: 'Navbar '.repeat(20) }],
+              },
+            ],
+          }),
+        ),
+      );
+      ws.addEventListener('message', (e) => {
+        const m = JSON.parse(String(e.data)) as { type: string; reqId?: string };
+        if (m.reqId === 'r1') {
+          clearTimeout(timer);
+          resolve(m);
+        }
+      });
+    });
+    ws.close();
+    expect(ack.type, stderr).toBe('ack');
+    const h = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) });
+    expect(h.ok).toBe(true);
+  });
+
   it('chamadas repetidas usam o cache e dão o mesmo resultado', async () => {
     const a = await get(`/render/${docId}/fr_d3sk1440.png?scale=1`);
     const b = await get(`/render/${docId}/fr_d3sk1440.png?scale=1`);
