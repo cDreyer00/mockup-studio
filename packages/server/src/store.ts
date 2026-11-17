@@ -6,6 +6,7 @@ import {
   createDocument,
   parseDocument,
   serializeDocument,
+  walk,
   type Document,
   type Op,
   type OpSource,
@@ -76,6 +77,80 @@ export const AUTOSAVE_MS = 800;
  * Erro causado pelo pedido do usuário (arquivo inexistente, já existe, documento desconhecido).
  * `expose` e `status` permitem que a camada HTTP devolva 4xx com a mensagem em vez de 500.
  */
+async function listFiles(dir: string, rel = ''): Promise<string[]> {
+  const out: string[] = [];
+  for (const e of await fs.promises.readdir(path.join(dir, rel), { withFileTypes: true })) {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) out.push(...(await listFiles(dir, r)));
+    else if (e.isFile()) out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Copia `from` para `to` sem sobrescrever: arquivo idêntico no destino é reaproveitado; de conteúdo
+ * diferente ganha nome novo (-1, -2...). Devolve o mapa origem -> destino só dos renomeados.
+ */
+async function copyAssetsNoClobber(from: string, to: string): Promise<Map<string, string>> {
+  const renamed = new Map<string, string>();
+  for (const rel of await listFiles(from)) {
+    const bytes = await fs.promises.readFile(path.join(from, rel));
+    const ext = path.posix.extname(rel);
+    const base = rel.slice(0, rel.length - ext.length);
+    for (let i = 0; i < 1000; i++) {
+      const target = i === 0 ? rel : `${base}-${i}${ext}`;
+      const file = path.join(to, target);
+      let existing: Buffer | null = null;
+      try {
+        existing = await fs.promises.readFile(file);
+      } catch {
+        existing = null;
+      }
+      if (existing && existing.equals(bytes)) {
+        if (i > 0) renamed.set(rel, target);
+        break;
+      }
+      if (!existing) {
+        await fs.promises.mkdir(path.dirname(file), { recursive: true });
+        await fs.promises.writeFile(file, bytes, { flag: 'wx' });
+        if (i > 0) renamed.set(rel, target);
+        break;
+      }
+    }
+  }
+  return renamed;
+}
+
+/** Ops que apontam nós image, estilos url(assets/...) e fontes para os arquivos renomeados. */
+function renameOps(doc: Document, renamed: Map<string, string>): Op[] {
+  const srcs: { nodeId: string; src: string }[] = [];
+  const styles: { nodeId: string; set: Record<string, string> }[] = [];
+  walk(doc, (n) => {
+    const to = n.src ? renamed.get(n.src) : undefined;
+    if (n.src && to) srcs.push({ nodeId: n.id, src: to });
+    const set: Record<string, string> = {};
+    for (const [k, v] of Object.entries(n.style)) {
+      const nv = v.replace(
+        /url[(] *(["']?)assets[/]([^"')]+)["']? *[)]/g,
+        (m, q: string, rel: string) =>
+          renamed.has(rel) ? `url(${q}assets/${renamed.get(rel)}${q})` : m,
+      );
+      if (nv !== v) set[k] = nv;
+    }
+    if (Object.keys(set).length) styles.push({ nodeId: n.id, set });
+  });
+  const ops: Op[] = [];
+  if (srcs.length) ops.push({ type: 'setSrc', changes: srcs });
+  if (styles.length) ops.push({ type: 'updateStyles', changes: styles });
+  if (doc.fonts.some((f) => f.files?.some((x) => renamed.has(x)))) {
+    ops.push({
+      type: 'setFonts',
+      fonts: doc.fonts.map((f) => ({ ...f, files: f.files?.map((x) => renamed.get(x) ?? x) })),
+    });
+  }
+  return ops;
+}
+
 export class StoreError extends Error {
   readonly expose = true;
   constructor(
@@ -289,14 +364,25 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     const run = async (): Promise<void> => {
       const revision = d.history.revision;
       await this.writeFile(abs, serializeDocument(d.history.doc));
+      let renamed: Map<string, string> | null = null;
       if (oldAssets && !same(oldAssets, newAssets) && fs.existsSync(oldAssets)) {
-        await fs.promises.cp(oldAssets, newAssets, {
-          recursive: true,
-          force: false,
-          errorOnExist: false,
-        });
+        renamed = await copyAssetsNoClobber(oldAssets, newAssets);
       }
       d.path = abs;
+      if (renamed && renamed.size > 0) {
+        // Referências reescritas numa única entrada de histórico, e o arquivo é regravado com elas.
+        const ops = renameOps(d.history.doc, renamed);
+        if (ops.length > 0) {
+          d.history.apply(ops, 'Salvar como: assets renomeados');
+          this.markChanged(d, ops, 'system');
+          if (d.saveTimer) {
+            clearTimeout(d.saveTimer);
+            d.saveTimer = null;
+          }
+          await this.writeFile(abs, serializeDocument(d.history.doc));
+          d.dirty = false;
+        }
+      }
       if (d.history.revision === revision) d.dirty = false;
       this.emit('doc:saved', { type: 'doc:saved', docId: d.id, path: abs });
       addRecent(abs, this.opts.dataDir);

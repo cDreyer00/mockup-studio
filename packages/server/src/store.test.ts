@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseDocument } from '@mockup/core';
+import { createNode, parseDocument } from '@mockup/core';
 import { DocumentStore } from './store.js';
 import { readDaemonInfo, readRecent, removeDaemonInfo, writeDaemonInfo } from './paths.js';
 import { makeWorkspace } from './test-utils.js';
@@ -176,6 +176,68 @@ describe('DocumentStore', () => {
     expect(store.getInfo(docId).path).toBe(dest);
     expect(readRecent(ws.dataDir)[0]).toBe(dest);
     expect(store.assetsDir(docId)).toBe(path.join(destDir, 'assets'));
+  });
+
+  it('saveAs renomeia assets em colisão com conteúdo diferente e reescreve as referências', async () => {
+    const { docId } = await store.open(ws.file);
+    const assets = path.join(ws.dir, 'assets');
+    fs.mkdirSync(path.join(assets, 'fonts'), { recursive: true });
+    fs.writeFileSync(path.join(assets, 'a.png'), 'origem');
+    fs.writeFileSync(path.join(assets, 'igual.png'), 'mesmo');
+    fs.writeFileSync(path.join(assets, 'bg.png'), 'fundo');
+    fs.writeFileSync(path.join(assets, 'fonts', 'f.woff2'), 'fonte');
+    const destDir = path.join(ws.dir, 'outro');
+    fs.mkdirSync(path.join(destDir, 'assets', 'fonts'), { recursive: true });
+    fs.writeFileSync(path.join(destDir, 'assets', 'a.png'), 'diferente');
+    fs.writeFileSync(path.join(destDir, 'assets', 'igual.png'), 'mesmo');
+    fs.writeFileSync(path.join(destDir, 'assets', 'bg.png'), 'outro-fundo');
+    fs.writeFileSync(path.join(destDir, 'assets', 'fonts', 'f.woff2'), 'outra-fonte');
+    const img = createNode({ tag: 'img', type: 'image', id: 'im_aaaaaaaa', name: 'Foto' });
+    img.src = 'a.png';
+    const same = createNode({ tag: 'img', type: 'image', id: 'im_bbbbbbbb', name: 'Igual' });
+    same.src = 'igual.png';
+    store.applyOps(
+      docId,
+      [
+        { type: 'createNode', parentId: ws.frameId, node: img },
+        { type: 'createNode', parentId: ws.frameId, node: same },
+        {
+          type: 'updateStyles',
+          nodeIds: [ws.frameId],
+          styles: { 'background-image': 'url("assets/bg.png")' },
+        },
+        {
+          type: 'setFonts',
+          fonts: [{ family: 'F', source: 'file', files: ['fonts/f.woff2'], weights: [400] }],
+        },
+      ],
+      { source: 'mcp' },
+    );
+    const before = store.getRevision(docId);
+    const changes: string[] = [];
+    store.on('doc:changed', (e) => changes.push(e.source));
+    await store.saveAs(docId, path.join(destDir, 'copia'));
+
+    const out = path.join(destDir, 'assets');
+    expect(fs.readFileSync(path.join(out, 'a.png'), 'utf8')).toBe('diferente');
+    expect(fs.readFileSync(path.join(out, 'a-1.png'), 'utf8')).toBe('origem');
+    expect(fs.existsSync(path.join(out, 'igual-1.png'))).toBe(false);
+    expect(fs.readFileSync(path.join(out, 'fonts', 'f-1.woff2'), 'utf8')).toBe('fonte');
+    const saved = parseDocument(fs.readFileSync(path.join(destDir, 'copia.mockup.json'), 'utf8'));
+    const frame = saved.pages[0]!.frames[0]!;
+    expect(frame.children.map((c) => c.src)).toEqual(['a-1.png', 'igual.png']);
+    expect(frame.style['background-image']).toBe('url("assets/bg-1.png")');
+    expect(saved.fonts[0]!.files).toEqual(['fonts/f-1.woff2']);
+    // uma única entrada de histórico, com origem 'system'
+    expect(changes).toEqual(['system']);
+    expect(store.getRevision(docId)).toBe(before + 1);
+    expect(store.getInfo(docId).dirty).toBe(false);
+    store.undo(docId, 'editor');
+    expect(store.get(docId).fonts[0]!.files).toEqual(['fonts/f.woff2']);
+    expect(store.get(docId).pages[0]!.frames[0]!.children.map((c) => c.src)).toEqual([
+      'a.png',
+      'igual.png',
+    ]);
   });
 
   it('saveAs recusa o caminho de outro documento aberto', async () => {
