@@ -235,7 +235,7 @@ Dois kits empacotados offline: **Lucide** (`lucide-static`) e **Heroicons** (`@i
 
 Parâmetros finais (tabela completa em [MCP.md](MCP.md#componentes)): `insert_component(component, parentId?, props?, slots?, index?, name?, styles?)`, `get_component(component)`, `create_component(nodeId, name?, description?, props?)` (props com `bind: { nodeId, target }`), `update_component(componentId, name?, description?, props?, variants?)` (listas substituem), `set_instance_override(nodeId, path, style?, unset_style?, text?, attrs?, hidden?)`, `import_kit(name, overwrite?)`. Os ids virtuais (`in_x/caminho`) e os nós de um principal valem nas ferramentas de leitura (`get_html`, `get_styles`, `get_tree_summary`, `get_screenshot`, `get_code`...), e `get_screenshot('cp_...')` renderiza o principal numa instância padrão.
 
-Kits: a pasta `kits/` é achada por `MOCKUP_KITS_DIR`, por `resources/kits` (app empacotado) ou subindo da pasta do código até a raiz do repositório (desenvolvimento e bundle do daemon). HTTP: `GET /api/kits` (`{ kits: [{ name, components: [{ id, name, description, props }] }] }`) e `GET /api/kits/:name` (o documento do kit).
+Kits: a pasta `kits/` é achada por `MOCKUP_KITS_DIR`, por `resources/kits` (app empacotado) ou subindo da pasta do código até a raiz do repositório (desenvolvimento e bundle do daemon). HTTP: `GET /api/kits` (`{ kits: [{ name, components: [{ id, name, description, props }] }] }`) e `GET /api/kits/:name` (o documento do kit). Por caminho (`import_kit('/abs/meu.mockup.json')`), a extensão `.mockup.json` é obrigatória; arquivo com JSON malformado dá "JSON inválido" (sem repassar a mensagem do parser, que pode trazer trechos do arquivo) e documento inválido lista os erros do schema.
 
 Guia: `get_guide('components')`.
 

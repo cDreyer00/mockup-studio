@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseDocument, type Document, type PropDef } from '@mockup/core';
+import { validateDocument, type Document, type PropDef } from '@mockup/core';
 
 export const KIT_EXT = '.mockup.json';
 
@@ -94,15 +94,25 @@ function loadFile(file: string, name: string): LoadedKit {
   }
   const hit = cache.get(file);
   if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) return hit.kit;
-  let doc: Document;
+  let text: string;
   try {
-    doc = parseDocument(fs.readFileSync(file, 'utf8'));
-  } catch (e) {
-    throw new KitError(
-      400,
-      `Kit inválido (${file}): ${e instanceof Error ? e.message : String(e)}`,
-    );
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    throw new KitError(400, `Não foi possível ler o arquivo de kit: ${file}`);
   }
+  // A mensagem crua do JSON.parse pode trazer trechos do arquivo: só "JSON inválido".
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new KitError(400, `Kit inválido (${file}): JSON inválido`);
+  }
+  const r = validateDocument(data);
+  if (!r.ok) {
+    const more = r.errors.length > 5 ? ` (+${r.errors.length - 5})` : '';
+    throw new KitError(400, `Kit inválido (${file}): ${r.errors.slice(0, 5).join('; ')}${more}`);
+  }
+  const doc = r.doc;
   const kit: LoadedKit = { name, file, doc };
   cache.set(file, { mtimeMs: st.mtimeMs, size: st.size, kit });
   return kit;
@@ -110,15 +120,22 @@ function loadFile(file: string, name: string): LoadedKit {
 
 /**
  * Carrega um kit pelo nome (`shadcn-like`) ou por um caminho absoluto de `.mockup.json`
- * (o nome do kit vem do arquivo). Cache por mtime.
+ * (a extensão é obrigatória; o nome do kit vem do arquivo). Cache por mtime. Arquivo com JSON
+ * malformado: "JSON inválido" (sem repassar a mensagem do parser); documento inválido: os erros
+ * do schema.
  */
 export function loadKit(nameOrPath: string): LoadedKit {
   const ref = nameOrPath.trim();
   if (!ref) throw new KitError(400, 'Informe o nome do kit (ex.: "shadcn-like").');
   if (path.isAbsolute(ref)) {
     const base = path.basename(ref);
-    const name = base.toLowerCase().endsWith(KIT_EXT) ? base.slice(0, -KIT_EXT.length) : base;
-    return loadFile(ref, name);
+    if (!base.toLowerCase().endsWith(KIT_EXT) || base.length === KIT_EXT.length) {
+      throw new KitError(
+        400,
+        `O arquivo do kit precisa ter a extensão ${KIT_EXT} (recebido "${base}").`,
+      );
+    }
+    return loadFile(ref, base.slice(0, -KIT_EXT.length));
   }
   const names = listKitNames();
   const found = names.find((n) => n.toLowerCase() === ref.toLowerCase());

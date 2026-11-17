@@ -658,6 +658,22 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
         const k = loadKit('meu');
         expect(loadKit('meu')).toBe(k);
         expect(() => loadKit('quebrado')).toThrow(/inválido/);
+        // Caminho: extensão obrigatória; JSON malformado sem a mensagem crua do parser.
+        const broken = path.join(dir, 'quebrado.mockup.json');
+        expect(() => loadKit(broken)).toThrow(`Kit inválido (${broken}): JSON inválido`);
+        const noExt = path.join(dir, 'meu.json');
+        fs.copyFileSync(path.join(dir, 'meu.mockup.json'), noExt);
+        expect(() => loadKit(noExt)).toThrow('precisa ter a extensão .mockup.json');
+        expect(await fail('import_kit', { name: noExt })).toContain(
+          'precisa ter a extensão .mockup.json',
+        );
+        const viaMcp = await fail('import_kit', { name: broken });
+        expect(viaMcp).toContain('JSON inválido');
+        expect(viaMcp).not.toMatch(/nao e json|Unexpected|position/);
+        // Documento inválido: os erros do schema.
+        const bad = path.join(dir, 'ruim.mockup.json');
+        fs.writeFileSync(bad, JSON.stringify({ version: 2, id: 'x', name: 'x', pages: [] }));
+        expect(() => loadKit(bad)).toThrow(/Kit inválido .*versão não suportada/);
         const res = await fetch(`${daemon.url}/api/kits`);
         const body = (await res.json()) as { kits: { name: string }[] };
         expect(body.kits.map((x) => x.name)).toEqual(['meu']); // o quebrado é ignorado
