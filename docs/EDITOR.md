@@ -19,9 +19,9 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 ## Layout
 
 - **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
-- **Painel esquerdo**: páginas (criar, renomear com duplo clique, excluir pelo menu de contexto, trocar) e a árvore de camadas da página ativa.
+- **Painel esquerdo**: duas abas, **Camadas** (páginas e a árvore de camadas da página ativa) e **Tokens** (ver [Tokens e temas](#tokens-e-temas)).
 - **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
-- **Painel direito**: propriedades da seleção (ou dados do documento e tokens quando nada está selecionado).
+- **Painel direito**: propriedades da seleção (ou, sem seleção, o nome do documento e um resumo de tokens e temas).
 
 ## Canvas
 
@@ -47,16 +47,43 @@ Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (
 
 Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
 
-- **Nome** e tipo/tag.
+- **Nome**, tipo/tag e **Tema** (`data-theme` do elemento; ver abaixo).
 - **Posição e tamanho**: X/Y (frames e absolutos), W/H com modo Fixo, Auto, 100% ou Fill (`flex: 1` no eixo principal do pai flex), rotação (`transform: rotate()`), `position`.
 - **Layout**: display, direção, gap, quebra, alinhamento, distribuição, padding (vinculado ou por lado), margin, overflow.
 - **Tipografia**: família, peso, tamanho, altura de linha, espaçamento, alinhamento, cor, decoração, transformação e o conteúdo do texto.
-- **Aparência**: opacidade, fundo (cor, gradiente ou imagem), borda, raio (único ou por canto), sombras múltiplas, mix-blend-mode.
+- **Aparência**: opacidade, fundo (cor, gradiente ou imagem), borda, raio (único ou por canto), sombras múltiplas, `mix-blend-mode` e `background-blend-mode`.
 - **Efeitos**: blur do `filter` e do `backdrop-filter` (preservando outras funções).
 - **Tag e atributos**: tag (op `setTag`), id, href, alt, placeholder, type e atributos livres.
 - **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
 
 Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+
+## Tokens e temas
+
+Tudo vira ops enviadas com `daemon.apply` (um undo por ação, o mesmo caminho do MCP); o editor não guarda estado de tokens fora do documento. O canvas e a página de render injetam `.cv-world [data-theme="x"] { --token: … }` (`themeRulesCss`), então o tema de um frame é o atributo `data-theme` e o CSS é o mesmo do export HTML.
+
+### Aba Tokens
+
+- **Lista** agrupada (Cores, Tipografia, Espaçamento, Raio, Sombra, Outros e, no fim, grupos livres), com seções recolhíveis e **busca** por nome, valor ou descrição. Cada linha mostra a prévia (amostra de cor, barra de espaçamento, raio, sombra, família/peso), o nome, o valor e o valor resolvido (`= #fff`) quando difere do declarado.
+- **Indicadores**: ícone discreto de _não usado_ (nenhum elemento nem token referencia) e triângulo de _problema_ (vermelho para valor/referência quebrada, âmbar para aviso), com a mensagem no `title` e abaixo da linha.
+- **Editar valor**: clique no valor, Enter confirma, Esc cancela. A validação (`validateTokenValue`) bloqueia erros (mensagem sob o campo) e aceita avisos, mostrando-os.
+- **Renomear**: duplo clique no nome (`renameToken`, atualiza todos os `var()`).
+- **Novo token**: botão `+` (nome, valor, grupo; grupo vazio = inferido).
+- **Mais opções** (`⋯` ou botão direito na linha): renomear, editar valor, grupo e descrição (`setTokenMeta`), copiar `var(--x)`, remover sobrescrita do tema, excluir (`planDeleteTokens`; Ctrl+Z desfaz).
+- **Tema em edição**: o seletor no topo escolhe _Base_ ou um tema. Com um tema, editar um valor grava na sobrescrita do tema (`setTokens` com `theme`); a linha mostra a etiqueta do tema e o botão para remover a sobrescrita; valores herdados aparecem esmaecidos. Botões para criar (copia o tema atual, se houver), renomear e excluir tema (o `data-theme` dos nós acompanha).
+- **Importar** (CSS ou JSON W3C, modo mesclar ou substituir, mostra os avisos do parser) e **Exportar** (CSS, JSON ou Tailwind, com botão Copiar).
+
+### Ligar a token nos inputs
+
+Cada input de cor, tamanho, espaçamento, raio, tipografia (tamanho, altura de linha, espaçamento entre letras, família, peso), cor da borda e da sombra tem um ícone de losango ("Ligar a um token") que abre um seletor com busca e a lista de tokens do tipo da propriedade (cor, espaçamento, raio, tipografia; **Todos** mostra o resto) com o valor resolvido. Escolher grava `var(--token)` (`planApplyToken`) em todos os nós selecionados. Quando o valor já é `var(--x)`, o input vira um **chip** com o nome do token e o valor resolvido no escopo do nó (respeitando `data-theme`); clicar no chip troca o token e o botão de desligar grava o valor resolvido literal. Implementado de forma genérica em `properties/TokenBinding.tsx` (`TokenBound`), plugado nos componentes compartilhados.
+
+### Tema por elemento
+
+A linha **Tema** do painel de propriedades (frames e qualquer elemento) define o `data-theme` (`planSetFrameTheme`); "Padrão (base)" remove. Quando o elemento não declara tema, o select mostra o herdado (`Herdado (dark)`).
+
+### Sem seleção
+
+O painel direito mostra o resumo (nº de tokens e temas, não usados, com problema) e o botão "Abrir painel de tokens".
 
 ## Atalhos
 
@@ -142,7 +169,7 @@ Com esses números, a clonagem por JSON no core e o documento completo no `doc:c
 ## Testes
 
 - Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
-- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
+- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página) e as medições de desempenho.
 - `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
 - Portas e pasta do e2e por variável de ambiente: `MOCKUP_E2E_DAEMON_PORT` (padrão 4848), `MOCKUP_E2E_EDITOR_PORT` (padrão 5273) e `MOCKUP_E2E_DIR` (padrão: pasta temporária nova por execução, com os documentos e o `MOCKUP_DATA_DIR` do daemon). `MOCKUP_E2E_DAEMON` é derivada da porta e lida pelos helpers. Mude as portas se o daemon de uso (4747) ou outro processo ocupar as padrão.
 
