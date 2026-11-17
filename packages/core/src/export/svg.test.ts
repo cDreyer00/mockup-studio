@@ -96,6 +96,19 @@ describe('exportSvg (fallback sem layout)', () => {
 });
 
 describe('exportSvg (com layout medido)', () => {
+  it('SVG embutido resolve var() no escopo do nó, seguindo o tema do frame', () => {
+    const doc = docWithSvgNode();
+    doc.tokens = { '--brand': '#111111' };
+    doc.themes = [{ name: 'dark', overrides: { '--brand': '#eeeeee' } }];
+    const frame = doc.pages[0].frames[0]!;
+    frame.children![0]!.svg = '<svg viewBox="0 0 10 10"><circle r="5" style="fill:var(--brand)"/></svg>';
+    const root = box('fr_root0001', 'frame', 0, 0, 20, 20);
+    root.children.push(box('sv_icon0001', 'svg', 0, 0, 10, 10));
+    expect(exportSvg(doc, { nodeId: 'fr_root0001', layout: root })).toContain('fill:#111111');
+    frame.attrs['data-theme'] = 'dark';
+    expect(exportSvg(doc, { nodeId: 'fr_root0001', layout: root })).toContain('fill:#eeeeee');
+  });
+
   it('cabeçalho com width/height/viewBox do nó raiz e coordenadas relativas a ele', () => {
     const root = box('fr_root0001', 'frame', 100, 50, 200, 120, {
       'background-color': 'rgb(15, 17, 21)',

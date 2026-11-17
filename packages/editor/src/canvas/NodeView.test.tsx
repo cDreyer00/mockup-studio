@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNodeFromTag } from '@mockup/core';
+import { createDocument, createNode, createNodeFromTag } from '@mockup/core';
 import type { Node } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import type { ApplyAck } from '../client/daemon';
+import { useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
-import { NodeView } from './NodeView';
+import { NodeView, RenderDocContext } from './NodeView';
 
 afterEach(() => {
   cleanup();
@@ -63,5 +64,54 @@ describe('NodeView: edição de texto inline', () => {
     expect(apply).toHaveBeenCalledTimes(2);
     await act(async () => {});
     expect(useUi.getState().editingTextId).toBeNull();
+  });
+});
+
+describe('NodeView: SVG com var()', () => {
+  const svgNode = createNode({
+    tag: 'svg',
+    id: 'sv_icon0001',
+    name: 'Ícone',
+    svg: '<svg width="4" height="4"><circle r="2" style="fill:var(--brand)"/></svg>',
+  });
+  const docWith = (theme?: string) => {
+    const doc = createDocument('Teste', { id: 'doc_svgvar01' });
+    doc.tokens = { '--brand': '#111111' };
+    doc.themes = [{ name: 'dark', overrides: { '--brand': '#eeeeee' } }];
+    doc.pages[0].frames.push(
+      createNode({
+        tag: 'div',
+        type: 'frame',
+        id: 'fr_root0001',
+        name: 'Raiz',
+        attrs: theme ? { 'data-theme': theme } : {},
+        children: [svgNode],
+      }),
+    );
+    return doc;
+  };
+  const markup = () => {
+    const src = (document.querySelector('[data-node-id="sv_icon0001"]') as HTMLImageElement).src;
+    return decodeURIComponent(src.slice(src.indexOf(',') + 1));
+  };
+
+  afterEach(() => useDoc.setState({ doc: null }));
+
+  it('na página de render usa o documento do contexto e o tema do frame', () => {
+    render(
+      <RenderDocContext.Provider value={docWith('dark')}>
+        <NodeView node={svgNode} />
+      </RenderDocContext.Provider>,
+    );
+    expect(markup()).toContain('fill:#eeeeee');
+    expect(markup()).toContain('xmlns="http://www.w3.org/2000/svg"');
+  });
+
+  it('no canvas lê do store e acompanha a troca de tema sem mudar o nó', () => {
+    useDoc.setState({ doc: docWith() });
+    render(<NodeView node={svgNode} />);
+    expect(markup()).toContain('fill:#111111');
+    act(() => useDoc.setState({ doc: docWith('dark') }));
+    expect(markup()).toContain('fill:#eeeeee');
   });
 });

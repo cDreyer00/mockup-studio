@@ -8,15 +8,23 @@ import {
   useRef,
 } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { VOID_TAGS } from '@mockup/core';
-import type { Node, Op } from '@mockup/core';
+import { VOID_TAGS, inlineSvgVars } from '@mockup/core';
+import type { Document, Node, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
+import { useDoc } from '../state/docStore';
+import { nodeScopeVars } from '../tokens/reportCache';
 import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
 import { convertStyle, resolveSrc, resolveTag, safeAttrs, svgToDataUri } from './render-utils';
 
 /** Id do documento (resolve o caminho de assets). Estável entre edições. */
 export const DocIdContext = createContext('');
+
+/**
+ * Documento da página de render (que não usa o store). No canvas fica `null` e o SVG lê o
+ * documento do store.
+ */
+export const RenderDocContext = createContext<Document | null>(null);
 
 const px = (n: number): string => `${n}px`;
 
@@ -127,6 +135,46 @@ function EditableText({ tag, props, text, nodeId, hasWhiteSpace }: EditableProps
   });
 }
 
+const hasVar = (svg: string): boolean => /var\(/i.test(svg);
+
+/** Markup com as `var()` resolvidas no escopo do nó (sem o nó no documento, fica como está). */
+function svgWithScope(doc: Document, node: Node, svg: string): string {
+  try {
+    return inlineSvgVars(svg, nodeScopeVars(doc, node.id));
+  } catch {
+    return svg;
+  }
+}
+
+/**
+ * Nó SVG. Nunca injeta HTML: o markup é isolado num `<img>` (sem scripts; `currentColor` não
+ * herda). Como as custom properties do documento não chegam dentro da imagem, as `var()` do markup
+ * são trocadas pelos valores do escopo do nó (tokens, tema efetivo e variáveis dos ancestrais).
+ */
+function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
+  const svg = node.svg ?? '';
+  const renderDoc = useContext(RenderDocContext);
+  const withVars = hasVar(svg);
+  // No canvas, o seletor devolve a string final: só re-renderiza quando o resultado muda.
+  const fromStore = useDoc((s) =>
+    withVars && !renderDoc && s.doc ? svgWithScope(s.doc, node, svg) : null,
+  );
+  const markup = useMemo(
+    () =>
+      fromStore ??
+      (withVars && renderDoc ? svgWithScope(renderDoc, node, svg) : svg),
+    [fromStore, withVars, renderDoc, svg, node.id],
+  );
+  const src = useMemo(() => svgToDataUri(markup), [markup]);
+  return createElement('img', {
+    src,
+    alt: '',
+    draggable: false,
+    style,
+    'data-node-id': node.id,
+  });
+}
+
 interface NodeViewProps {
   node: Node;
   /** Frame raiz da página (posicionado no canvas). */
@@ -148,15 +196,8 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   const tag = resolveTag(node.tag);
 
   if (node.type === 'svg') {
-    // Nunca injeta HTML: o SVG é isolado em um <img> (sem scripts; `currentColor` não herda).
     if (!node.svg) return createElement('div', { style, 'data-node-id': node.id });
-    return createElement('img', {
-      src: svgToDataUri(node.svg),
-      alt: '',
-      draggable: false,
-      style,
-      'data-node-id': node.id,
-    });
+    return <SvgView node={node} style={style} />;
   }
 
   const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': node.id };

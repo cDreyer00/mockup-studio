@@ -397,6 +397,41 @@ export function scopeVarsFor(
   return scopeChainFor(doc, nodeId, opts).at(-1)!.vars;
 }
 
+const escapeXml = (v: string): string =>
+  v
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+/**
+ * Troca as `var(--x[, fallback])` do markup SVG pelos valores de `vars` (escapados para XML). Serve
+ * para o SVG que sai do DOM do documento (`<img>` por data URI no render, SVG standalone), onde as
+ * custom properties do documento não chegam. Variáveis declaradas dentro do próprio SVG ficam
+ * intactas (lá dentro vale a declaração interna); sem valor e sem fallback, a `var()` fica como está.
+ */
+export function inlineSvgVars(svg: string, vars: Record<string, string>): string {
+  if (!/var\(/i.test(svg)) return svg;
+  const local = new Set<string>();
+  for (const m of svg.matchAll(/(?<![\w-])(--[\w-]+)\s*:/g)) local.add(m[1]!);
+  const lookup = (n: string): string | undefined =>
+    vars[n] === undefined ? undefined : escapeXml(vars[n]);
+  let out = '';
+  let i = 0;
+  const re = /var\(\s*(--[\w-]+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(svg))) {
+    const end = closeParen(svg, m.index + 3);
+    if (end === -1) break;
+    const whole = svg.slice(m.index, end + 1);
+    out += svg.slice(i, m.index) + (local.has(m[1]!) ? whole : substituteVars(whole, lookup).value);
+    i = end + 1;
+    re.lastIndex = i;
+  }
+  return out + svg.slice(i);
+}
+
 /** Resolve `var()` com as variáveis dadas e avalia `calc()`/`color-mix()` quando possível. */
 export function resolveCssValue(value: string, vars: Record<string, string>): string {
   return evaluateCss(substituteVars(value, (n) => vars[n]).value);

@@ -60,6 +60,7 @@ A semântica é a do CSS: uma variável é resolvida no elemento onde é declara
 - **Aliases acompanham o tema**: `--color-primary: var(--blue-600)` muda sozinho quando o tema sobrescreve `--blue-600`. Para isso o CSS do tema redeclara também os tokens base que dependem (direta ou indiretamente) de um token sobrescrito, com o valor base, de modo que sejam resolvidos dentro do tema. Sobrescrever o próprio alias no tema também funciona.
 - **Ciclos**: todas as variáveis do laço ficam sem valor (como no CSS) e aparecem como problema.
 - **Fallback**: `var(--x, 8px)` usa o fallback se `--x` não existe. Sem fallback, a referência fica no texto e entra em `broken` do relatório.
+- **SVG inline**: o markup de nós SVG pode usar `var(--token)` (em `style`, atributos de apresentação como `fill`, ou `<style>` interno). No canvas e no screenshot o SVG é desenhado num `<img>` por data URI, onde as variáveis do documento não chegam; por isso `inlineSvgVars(svg, scopeVarsFor(doc, nodeId))` troca as `var()` pelos valores do escopo do nó (tokens, tema efetivo e custom properties dos ancestrais) antes de montar a imagem, e o SVG segue o token e o tema. Variáveis declaradas dentro do próprio SVG ficam como estão. O data URI também ganha `xmlns` quando falta (sem ele a imagem não carrega e sai 0x0). Nos exportadores, HTML, React e o SVG sem layout (`foreignObject`) mantêm o SVG no DOM e as `var()` como foram escritas; o SVG com layout medido (standalone, sem CSS de tokens) resolve as `var()` do mesmo modo.
 
 ### calc() e color-mix()
 

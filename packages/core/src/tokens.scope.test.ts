@@ -3,6 +3,7 @@ import { getComputedLike } from './computed.js';
 import { createDocument, createNode } from './document.js';
 import {
   getTokenReport,
+  inlineSvgVars,
   resolvedTokens,
   resolvedTokensDetailed,
   resolveScope,
@@ -133,5 +134,41 @@ describe('relatório com variáveis inválidas', () => {
     const r2 = getTokenReport(doc);
     expect(r2.tokens[0]!.resolved).toBe('blue');
     expect(r2.tokens[0]!.usage.nodeIds).toEqual([]);
+  });
+});
+
+describe('inlineSvgVars', () => {
+  const vars = { '--brand': '#2563eb', '--font': '"Inter", sans-serif' };
+
+  it('troca var() por valores do escopo, com fallback e escape XML', () => {
+    const svg =
+      '<svg><circle style="fill:var(--brand)"/><rect fill="var(--nada, red)"/>' +
+      '<text style="font-family:var(--font)"/></svg>';
+    expect(inlineSvgVars(svg, vars)).toBe(
+      '<svg><circle style="fill:#2563eb"/><rect fill="red"/>' +
+        '<text style="font-family:&quot;Inter&quot;, sans-serif"/></svg>',
+    );
+  });
+
+  it('mantém var() sem valor nem fallback e as declaradas dentro do próprio SVG', () => {
+    const svg = '<svg style="--brand: green"><path fill="var(--brand, blue)" stroke="var(--x)"/></svg>';
+    expect(inlineSvgVars(svg, vars)).toBe(svg);
+  });
+
+  it('segue o tema efetivo do nó via scopeVarsFor', () => {
+    const svgNode: Node = {
+      ...el('el_svg00001'),
+      type: 'svg',
+      svg: '<svg><circle style="fill:var(--fg)"/></svg>',
+    };
+    const doc = docWith(el('fr_main0001', {}, [svgNode], { 'data-theme': 'dark' }), THEMED);
+    expect(inlineSvgVars(svgNode.svg!, scopeVarsFor(doc, 'el_svg00001'))).toBe(
+      '<svg><circle style="fill:#fff"/></svg>',
+    );
+    expect(inlineSvgVars(svgNode.svg!, scopeVarsFor(doc, 'el_svg00001', { theme: 'x' }))).toContain(
+      'fill:#fff',
+    );
+    delete doc.pages[0].frames[0]!.attrs['data-theme'];
+    expect(inlineSvgVars(svgNode.svg!, scopeVarsFor(doc, 'el_svg00001'))).toContain('fill:#000');
   });
 });

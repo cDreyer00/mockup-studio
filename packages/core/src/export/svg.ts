@@ -4,7 +4,7 @@ import { findNode } from '../document.js';
 import { fontFaceCss } from '../fonts.js';
 import type { LayoutNode, LayoutRect } from '../layout.js';
 import { sanitizeSvg } from '../svg.js';
-import { themeRulesCss } from '../tokens.js';
+import { inlineSvgVars, scopeVarsFor, themeRulesCss } from '../tokens.js';
 import type { Document, FontRef } from '../types.js';
 import {
   BASE_CSS,
@@ -482,7 +482,9 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
     }
 
     if (n.type === 'svg') {
-      const markup = sanitizeSvg(findNode(doc, n.id)?.node.svg ?? '');
+      // Fora do DOM do documento as custom properties não chegam: resolve no escopo do nó.
+      const raw = findNode(doc, n.id)?.node.svg ?? '';
+      const markup = sanitizeSvg(raw && inlineSvgVars(raw, scopeVarsFor(doc, n.id)));
       if (markup) out.push(nestedSvg(markup, rect, st.color));
     }
 

@@ -21,9 +21,13 @@ export function resolveSrc(docId: string, src: string): string {
   return `/assets/${docId}/${src.replace(/^\/+/, '')}`;
 }
 
-/** SVG como data URI (renderizado via `<img>`, o que desativa scripts e recursos externos). */
+/**
+ * SVG como data URI (renderizado via `<img>`, o que desativa scripts e recursos externos). Como
+ * imagem o SVG é lido como XML: sem `xmlns` na raiz ele não carrega (sai 0x0), então é acrescentado.
+ */
 export function svgToDataUri(svg: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  const s = svg.replace(/^(\s*<svg)(?![^>]*\sxmlns\s*=)(?=[\s/>])/i, '$1 xmlns="http://www.w3.org/2000/svg"');
+  return `data:image/svg+xml;utf8,${encodeURIComponent(s)}`;
 }
 
 /**
