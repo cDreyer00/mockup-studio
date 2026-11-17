@@ -39,6 +39,8 @@ beforeAll(async () => {
   doc = createDocument('shadcn');
   Object.assign(doc.tokens, shadcnTokens());
   engine = await createTailwindEngine(doc);
+  // aquecimento da canonicalização (~1 s) fora do tempo dos testes
+  engine.warmup();
   const nodes = htmlToNodes(CARD_HTML, { keepClasses: true });
   const report = applyTailwindToNodes(nodes, engine, { defaultBorderColor: 'var(--color-border)' });
   expect(report.unknown).toEqual([]);
@@ -46,7 +48,7 @@ beforeAll(async () => {
   root.type = 'frame';
   root.style.width = '380px';
   doc.pages[0].frames.push(root);
-});
+}, 30000);
 
 describe('shadcn/ui v4: import com o motor', () => {
   it('nomeia pelos data-slot e guarda as classes como dica', () => {

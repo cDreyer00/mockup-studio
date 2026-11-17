@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDocument, createNodeFromTag } from '../document.js';
 import { parseDocument } from '../schema.js';
+import { getTailwindEngine } from '../tailwind/cache.js';
 import { createTailwindEngine, type TailwindEngine } from '../tailwind/engine.js';
 import type { Document, Node } from '../types.js';
 import { exportHtml } from './html.js';
@@ -264,7 +265,11 @@ describe('exportTailwind com o motor', () => {
   let engine: TailwindEngine;
   beforeAll(async () => {
     engine = await createTailwindEngine(landing);
-  });
+    // aquecimento da canonicalização (~1 s) fora do tempo dos testes; os documentos sem tokens
+    // abaixo compartilham o motor do cache
+    engine.warmup();
+    (await getTailwindEngine(withButton())).warmup();
+  }, 30000);
 
   it('exemplo landing: snapshot com o motor', () => {
     const html = exportTailwind(landing, { tailwind: engine });
@@ -273,7 +278,7 @@ describe('exportTailwind com o motor', () => {
 
   it('com o motor as classes são canonicalizadas e as variantes saem do estado', async () => {
     const doc = withButton();
-    const e = await createTailwindEngine(doc);
+    const e = await getTailwindEngine(doc);
     const html = exportTailwind(doc, { tailwind: e, fragment: true });
     expect(html).toContain('hover:bg-[#5b4bd6]');
     expect(html).toContain('md:hover:bg-[#4a3cc0]');
@@ -289,7 +294,7 @@ describe('exportTailwind com o motor', () => {
       textNode('Outro', { 'font-size': '0.875rem', 'line-height': '1.7' }),
       textNode('Sem lh', { 'font-size': '0.875rem' }),
     );
-    const e = await createTailwindEngine(doc);
+    const e = await getTailwindEngine(doc);
     const html = exportTailwind(doc, { tailwind: e });
     expect(html).toContain('--text-sm--line-height: inherit;');
     const body = html.slice(html.indexOf('<body>'));
@@ -305,7 +310,7 @@ describe('exportTailwind com o motor', () => {
 
   it('React com o motor usa as classes do motor', async () => {
     const doc = withButton();
-    const e = await createTailwindEngine(doc);
+    const e = await getTailwindEngine(doc);
     const { code, css } = exportReact(doc, { nodeId: 'fr_estado001', tailwind: e });
     expect(code).toContain('hover:bg-[#5b4bd6]');
     expect(css).toContain('@custom-variant dark');
