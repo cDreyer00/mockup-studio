@@ -308,7 +308,7 @@ O daemon grava em \`<pasta de dados>/daemon.log\` (\`mockup doctor\` mostra o ca
 ## Verificar e registrar
 
 - \`mockup doctor\` — confere instalação, daemon e render.
-- Registro automático: \`mockup setup claude\`, \`mockup setup codex\` ou \`mockup setup all\` (com \`--skill\` instala também a skill do Claude Code).
+- Registro automático: \`mockup setup claude\`, \`mockup setup codex\` ou \`mockup setup all\` (com \`--skill\` instala também a skill do Claude Code). Não recria registro igual e preserva a config do Codex; \`--force\` recria do zero. No Codex, \`--approve\` libera as ferramentas que gravam (necessário no \`codex exec\`) e \`--agents\` instala o trecho no \`~/.codex/AGENTS.md\`.
 
 ## Claude Code
 

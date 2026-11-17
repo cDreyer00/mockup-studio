@@ -53,12 +53,23 @@ Flags:
 - `--http`: registra o transporte HTTP (`http://127.0.0.1:4747/mcp`) em vez de stdio.
 - `--skill`: copia `integrations/claude-code/SKILL.md` para `~/.claude/skills/mockup-studio/SKILL.md`.
 - `--print`: só imprime as instruções, sem executar nada.
+- `--force`: recria o registro do zero (`remove` + `add`), mesmo quando já está igual. Descarta campos extras (env, headers, aprovações).
+- `--approve` (Codex): grava `default_tools_approval_mode = "approve"` na seção `[mcp_servers.mockup-studio]`. Idempotente.
+- `--agents` (Codex): acrescenta o trecho de `integrations/codex/AGENTS.snippet.md` ao `~/.codex/AGENTS.md` (ou `$CODEX_HOME/AGENTS.md`), entre `<!-- mockup-studio:start -->` e `<!-- mockup-studio:end -->`. Roda de novo sem duplicar: atualiza o que está entre os marcadores e preserva o resto.
 - `--command path|shim|absolute`: forma do comando registrado.
   - `path`: `mockup`, resolvido pelo PATH.
   - `shim`: caminho absoluto de `%LOCALAPPDATA%\MockupStudio\bin\mockup.cmd`.
   - `absolute`: caminho absoluto do `node.exe` mais o script do CLI.
 
-O comando executa `claude mcp add` / `codex mcp add` se os executáveis estiverem no PATH. É idempotente: se `mockup-studio` já existe, remove e registra de novo, e informa "atualizado". Sem os executáveis no PATH, imprime as instruções.
+O setup lê o registro atual direto de `~/.claude.json` (ou `$CLAUDE_CONFIG_DIR/.claude.json`) e de `~/.codex/config.toml` (ou `$CODEX_HOME/config.toml`), sem rodar `mcp get` (que sobe o servidor e é lento). É idempotente e não destrói a sua config:
+
+- Já registrado com o mesmo comando: não executa nada ("nada a fazer").
+- Claude com comando diferente: avisa que o re-registro descarta campos extras e faz `remove -s user` + `add --scope user`. Se o servidor só existe no escopo local ou de projeto, informa e adiciona no escopo user.
+- Codex com comando diferente: edita só `command`/`args` (ou `url`) da seção no `config.toml`. Chaves como `default_tools_approval_mode`, `env`, timeouts, comentários e as outras seções ficam como estão.
+- Sem a seção no Codex: `codex mcp add`.
+- Sem os executáveis no PATH, imprime as instruções.
+
+`mockup doctor` mostra o escopo e o comando registrados e avisa (`!`) se o comando difere do atual. No Codex avisa também se falta `default_tools_approval_mode = "approve"` (`mockup setup codex --approve`) ou o trecho no `AGENTS.md` (`--agents`).
 
 ## 3. Claude Code
 
@@ -140,9 +151,9 @@ args = ["mcp"]
 default_tools_approval_mode = "approve"
 ```
 
-Ou só numa execução: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. O `mockup setup codex` não liga isso por conta própria (é uma decisão de permissão do usuário).
+Ou só numa execução: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. O `mockup setup codex` não liga isso por conta própria (é uma decisão de permissão do usuário): use `mockup setup codex --approve` para gravar a chave.
 
-**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. Cole o trecho no `~/.codex/AGENTS.md` ou no `AGENTS.md` do projeto (veja abaixo).
+**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. `mockup setup codex --agents` instala o trecho no `~/.codex/AGENTS.md` (veja abaixo).
 
 **HTTP** (daemon rodando):
 
@@ -164,7 +175,7 @@ codex mcp get mockup-studio
 
 **Windows:** se algum ambiente não achar `mockup`, registre o comando absoluto: `mockup setup codex --command absolute`.
 
-**AGENTS.md.** Cole o conteúdo de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) no `~/.codex/AGENTS.md` (global) ou no `AGENTS.md` do projeto.
+**AGENTS.md.** `mockup setup codex --agents` acrescenta [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) ao `~/.codex/AGENTS.md` entre marcadores (sem duplicar). À mão, cole o conteúdo no `~/.codex/AGENTS.md` (global) ou no `AGENTS.md` do projeto.
 
 ## 5. Outros clientes
 
