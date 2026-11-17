@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { getTokenReport } from '@mockup/core';
 import { useDoc } from '../state/docStore';
 import { useActivePage } from '../state/hooks';
 import { ui } from '../state/uiStore';
+import { tokenReportFor } from '../tokens/reportCache';
 import { summarizeTokens } from '../tokens/tokensLogic';
 
 /** Sem seleção: nome do documento, página ativa e resumo dos tokens (edição na aba Tokens). */
@@ -10,7 +10,7 @@ export function DocumentInfo() {
   const name = useDoc((s) => s.doc?.name);
   const doc = useDoc((s) => s.doc);
   const page = useActivePage();
-  const summary = useMemo(() => (doc ? summarizeTokens(getTokenReport(doc)) : null), [doc]);
+  const summary = useMemo(() => (doc ? summarizeTokens(tokenReportFor(doc)) : null), [doc]);
   return (
     <div className="prop-doc" data-testid="prop-document">
       <div className="prop-doc-title">Documento</div>

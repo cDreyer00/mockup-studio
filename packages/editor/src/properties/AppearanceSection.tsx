@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { Blend, PaintBucket, Palette } from 'lucide-react';
 import type { Node } from '@mockup/core';
-import { ColorInput, IconButton, Row, SelectInput, Section } from '../ui/controls';
+import { IconButton, Row, SelectInput, Section } from '../ui/controls';
 import type { SelectOption } from '../ui/controls';
 import { NumberInput } from '../ui/NumberInput';
 import { parseCssNumber } from '../ui/units';
@@ -11,10 +11,10 @@ import { parseBorder, serializeBorder } from './css';
 import type { Border } from './css';
 import { varRefName } from '../tokens/tokensLogic';
 import { ShadowList } from './ShadowList';
-import { TokenBound } from './TokenBinding';
+import { BoundColorInput } from './TokenBinding';
 import {
   Body,
-  DraftInput,
+  BoundDraftInput,
   LockedContext,
   StyleSelect,
   commitStyles,
@@ -67,26 +67,27 @@ function Background({ nodes }: { nodes: readonly Node[] }) {
       write(hex ?? '#ffffff');
     } else write(DEFAULT_GRADIENT);
   };
+  const bind = { nodes, prop: 'background', kind: 'color', value, write } as const;
   const isVar = varRefName(typeof value === 'string' ? value : null) !== null;
   return (
     <div className="prop-bg">
-      <TokenBound nodes={nodes} prop="background" kind="color" value={value} write={write}>
-        {complex || value === null ? (
-          <DraftInput
-            value={value}
-            mono
-            placeholder="gradiente, url(...) ou var(...)"
-            onCommit={write}
-          />
-        ) : (
-          <ColorInput
-            value={value}
-            title="Cor de fundo"
-            onPreview={(v) => previewStyles(nodes, () => ({ background: v }))}
-            onCommit={write}
-          />
-        )}
-      </TokenBound>
+      {complex || value === null ? (
+        <BoundDraftInput
+          bind={bind}
+          value={value}
+          mono
+          placeholder="gradiente, url(...) ou var(...)"
+          onCommit={write}
+        />
+      ) : (
+        <BoundColorInput
+          bind={bind}
+          value={value}
+          title="Cor de fundo"
+          onPreview={(v) => previewStyles(nodes, () => ({ background: v }))}
+          onCommit={write}
+        />
+      )}
       <IconButton
         title={complex ? 'Usar cor sólida' : 'Usar gradiente'}
         active={complex && !isVar}
@@ -116,18 +117,17 @@ function BorderFields({ nodes }: { nodes: readonly Node[] }) {
     });
   return (
     <>
-      <TokenBound
-        nodes={nodes}
-        prop="border-color"
+      <BoundColorInput
+        bind={{
+          nodes,
+          prop: 'border-color',
+          value: b === null ? null : b.color || undefined,
+          write: (v) => edit({ color: v }),
+        }}
         value={b === null ? null : b.color || undefined}
-        write={(v) => edit({ color: v })}
-      >
-        <ColorInput
-          value={b === null ? null : b.color || undefined}
-          title="Cor da borda"
-          onCommit={(v) => edit({ color: v })}
-        />
-      </TokenBound>
+        title="Cor da borda"
+        onCommit={(v) => edit({ color: v })}
+      />
       <div className="prop-row-2">
         <NumberInput
           label="W"

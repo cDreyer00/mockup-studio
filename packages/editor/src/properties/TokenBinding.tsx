@@ -4,18 +4,15 @@
  * Genérico: os componentes compartilhados (`StyleNum`, `StyleColor`, `BoxField`...) só o envolvem.
  */
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Diamond, Link2Off, Search } from 'lucide-react';
-import {
-  getTokenReport,
-  planApplyToken,
-  resolveCssValue,
-  scopeVarsFor,
-  tokenGroup,
-} from '@mockup/core';
+import { planApplyToken, resolveCssValue, tokenGroup } from '@mockup/core';
 import type { Document, Node, TokenInfo } from '@mockup/core';
 import { useDoc } from '../state/docStore';
+import { nodeScopeVars, tokenListFor } from '../tokens/reportCache';
+import { ColorInput, SelectInput } from '../ui/controls';
+import { NumberInput } from '../ui/NumberInput';
 import { ui } from '../state/uiStore';
 import {
   KIND_LABELS,
@@ -27,12 +24,12 @@ import {
   varRefName,
 } from '../tokens/tokensLogic';
 import type { BindKind } from '../tokens/tokensLogic';
-import { LockedContext, commitStyles, common, runOps, styleOf } from './shared';
+import { LockedContext, commitStyles, common, runOps, styleOf } from './styleOps';
 
 /** Valor resolvido (literal) de `value` no escopo do nó. */
 export function resolveForNode(doc: Document, nodeId: string, value: string): string {
   try {
-    return resolveCssValue(value, scopeVarsFor(doc, nodeId));
+    return resolveCssValue(value, nodeScopeVars(doc, nodeId));
   } catch {
     return value;
   }
@@ -96,10 +93,10 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
   const [query, setQuery] = useState('');
   const [all, setAll] = useState(false);
   const groups = groupsForKind(kind);
-  const report = useMemo(() => (doc ? getTokenReport(doc) : null), [doc]);
+  const report = useMemo(() => (doc ? tokenListFor(doc) : null), [doc]);
   const vars = useMemo(() => {
     try {
-      return doc && nodes[0] ? scopeVarsFor(doc, nodes[0].id) : {};
+      return doc && nodes[0] ? nodeScopeVars(doc, nodes[0].id) : {};
     } catch {
       return {};
     }
@@ -373,3 +370,24 @@ export function StyleTokenBound({
     </TokenBound>
   );
 }
+
+/* ------------------------------ inputs com `bind` ------------------------------ */
+
+/** Opções de `bind` (as de `TokenBoundProps`, sem os filhos). */
+export type TokenBindProps = Omit<TokenBoundProps, 'children'>;
+
+/**
+ * Devolve o input com uma prop opcional `bind`: com ela, o input vem envolvido em `TokenBound`;
+ * sem ela, é o input original. Evita reindentar o JSX das seções só para envolvê-lo.
+ */
+export function withTokenBinding<P extends object>(Input: ComponentType<P>) {
+  return function Bindable(props: P & { bind?: TokenBindProps }) {
+    const { bind, ...rest } = props;
+    const input = <Input {...(rest as unknown as P)} />;
+    return bind ? <TokenBound {...bind}>{input}</TokenBound> : input;
+  };
+}
+
+export const BoundNumberInput = withTokenBinding(NumberInput);
+export const BoundSelectInput = withTokenBinding(SelectInput);
+export const BoundColorInput = withTokenBinding(ColorInput);

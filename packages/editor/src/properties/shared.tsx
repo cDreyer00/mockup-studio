@@ -1,17 +1,30 @@
 /** Infraestrutura comum das seções: contexto de seleção, aplicação de ops e campos ligados a estilos. */
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { Node, Op } from '@mockup/core';
-import { daemon } from '../client/daemon';
+import type { Node } from '@mockup/core';
 import { getParent, isLockedDeep } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useSelectedNodes } from '../state/hooks';
-import { ui } from '../state/uiStore';
-import { ColorInput, IconButton, Row, SelectInput } from '../ui/controls';
+import { IconButton, Row } from '../ui/controls';
 import type { SelectOption } from '../ui/controls';
-import { NumberInput } from '../ui/NumberInput';
-import { TokenBound } from './TokenBinding';
+import {
+  BoundColorInput,
+  BoundNumberInput,
+  BoundSelectInput,
+  withTokenBinding,
+} from './TokenBinding';
+import {
+  LockedContext,
+  commitStyle,
+  commitStyles,
+  common,
+  previewStyles,
+  runOps,
+  styleOf,
+} from './styleOps';
+export { LockedContext, commitStyle, commitStyles, common, previewStyles, runOps, styleOf };
+export type { StyleDelta } from './styleOps';
 
 /** Nó selecionado com o contexto necessário às seções. */
 export interface NodeCtx {
@@ -21,8 +34,6 @@ export interface NodeCtx {
   isRoot: boolean;
   locked: boolean;
 }
-
-export const LockedContext = createContext(false);
 
 /** Seleção atual com pai e estado de trava; assina apenas os nós selecionados e seus pais. */
 export function useSelectionCtx(): NodeCtx[] {
@@ -42,64 +53,6 @@ export function useSelectionCtx(): NodeCtx[] {
       }),
     [nodes, extra],
   );
-}
-
-/* ------------------------------ leitura de valores ------------------------------ */
-
-/**
- * Valor comum: o valor, se todos iguais (`undefined` se todos sem valor); `null` se misto.
- */
-export function common<T>(
-  items: readonly T[],
-  get: (item: T) => string | undefined,
-): string | undefined | null {
-  if (items.length === 0) return undefined;
-  const first = get(items[0]!);
-  for (let i = 1; i < items.length; i++) if (get(items[i]!) !== first) return null;
-  return first;
-}
-
-export const styleOf = (prop: string) => (n: Node) => n.style[prop];
-
-/* ------------------------------ aplicação de ops ------------------------------ */
-
-export type StyleDelta = { set?: Record<string, string>; unset?: string[] };
-
-/** Aplica ops numa única chamada e descarta a prévia depois do ack. */
-export async function runOps(ops: Op[]): Promise<void> {
-  if (ops.length) await daemon.applySafe(ops);
-  ui.clearPreview();
-}
-
-/** Aplica estilos a todos os nós; `fn` pode devolver deltas distintos por nó. */
-export function commitStyles(
-  nodes: readonly Node[],
-  fn: (node: Node) => StyleDelta | null,
-): Promise<void> {
-  const changes: { nodeId: string; set?: Record<string, string>; unset?: string[] }[] = [];
-  for (const node of nodes) {
-    const d = fn(node);
-    if (!d) continue;
-    const set = d.set && Object.keys(d.set).length ? d.set : undefined;
-    const unset = d.unset?.length ? d.unset : undefined;
-    if (!set && !unset) continue;
-    changes.push({ nodeId: node.id, ...(set ? { set } : {}), ...(unset ? { unset } : {}) });
-  }
-  return runOps(changes.length ? [{ type: 'updateStyles', changes }] : []);
-}
-
-/** Define (ou remove, se vazio) uma propriedade em todos os nós. */
-export function commitStyle(nodes: readonly Node[], prop: string, value: string): Promise<void> {
-  const v = value.trim();
-  return commitStyles(nodes, () => (v === '' ? { unset: [prop] } : { set: { [prop]: v } }));
-}
-
-/** Prévia transitória de estilos por nó. */
-export function previewStyles(
-  nodes: readonly Node[],
-  fn: (node: Node) => Record<string, string>,
-): void {
-  ui.setPreview(Object.fromEntries(nodes.map((n) => [n.id, { style: fn(n) }])));
 }
 
 /* ------------------------------ campos ligados a estilos ------------------------------ */
@@ -143,21 +96,20 @@ export function StyleNum({
   const value = common(nodes, styleOf(prop));
   return (
     <div className="prop-field" data-testid={testId}>
-      <TokenBound nodes={nodes} prop={prop} value={value}>
-        <NumberInput
-          value={value}
-          label={label}
-          title={title}
-          unit={unit}
-          min={min}
-          max={max}
-          step={step}
-          placeholder={placeholder}
-          disabled={locked}
-          onPreview={preview ? (v) => previewStyles(nodes, () => ({ [prop]: v })) : undefined}
-          onCommit={(v) => void commitStyle(nodes, prop, v)}
-        />
-      </TokenBound>
+      <BoundNumberInput
+        bind={{ nodes, prop, value }}
+        value={value}
+        label={label}
+        title={title}
+        unit={unit}
+        min={min}
+        max={max}
+        step={step}
+        placeholder={placeholder}
+        disabled={locked}
+        onPreview={preview ? (v) => previewStyles(nodes, () => ({ [prop]: v })) : undefined}
+        onCommit={(v) => void commitStyle(nodes, prop, v)}
+      />
     </div>
   );
 }
@@ -177,15 +129,14 @@ export function StyleSelect({
 }) {
   const value = common(nodes, styleOf(prop));
   return (
-    <TokenBound nodes={nodes} prop={prop} value={value}>
-      <SelectInput
-        value={value}
-        options={options}
-        title={title}
-        placeholder={placeholder}
-        onChange={(v) => void commitStyle(nodes, prop, v)}
-      />
-    </TokenBound>
+    <BoundSelectInput
+      bind={{ nodes, prop, value }}
+      value={value}
+      options={options}
+      title={title}
+      placeholder={placeholder}
+      onChange={(v) => void commitStyle(nodes, prop, v)}
+    />
   );
 }
 
@@ -200,14 +151,13 @@ export function StyleColor({
 }) {
   const value = common(nodes, styleOf(prop));
   return (
-    <TokenBound nodes={nodes} prop={prop} value={value}>
-      <ColorInput
-        value={value}
-        title={title}
-        onPreview={(v) => previewStyles(nodes, () => ({ [prop]: v }))}
-        onCommit={(v) => void commitStyle(nodes, prop, v)}
-      />
-    </TokenBound>
+    <BoundColorInput
+      bind={{ nodes, prop, value }}
+      value={value}
+      title={title}
+      onPreview={(v) => previewStyles(nodes, () => ({ [prop]: v }))}
+      onCommit={(v) => void commitStyle(nodes, prop, v)}
+    />
   );
 }
 
@@ -310,3 +260,6 @@ export function DraftInput({
 }
 
 export { Row };
+
+/** `DraftInput` com a prop opcional `bind` (ligar a token). */
+export const BoundDraftInput = withTokenBinding(DraftInput);

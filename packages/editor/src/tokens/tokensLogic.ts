@@ -9,6 +9,7 @@ import {
   TOKEN_NAME_RE,
   inferTokenGroup,
   normalizeTokenName,
+  renameTokenProblem,
   resolvedTokens,
   tokenGroup,
   tokenGroupLabel,
@@ -239,6 +240,8 @@ export function tokenNameError(doc: Document, raw: string, existing?: string): s
   if (!name || name === '--') return 'informe um nome';
   if (!TOKEN_NAME_RE.test(name)) return 'use letras, dígitos, "-" e "_"';
   if (name !== existing && tokenNames(doc).includes(name)) return `o token ${name} já existe`;
+  // Renomear: recusa destino em tema ou declarado localmente em algum nó (a regra vive no core).
+  if (existing && name !== existing) return renameTokenProblem(doc, existing, name);
   return null;
 }
 

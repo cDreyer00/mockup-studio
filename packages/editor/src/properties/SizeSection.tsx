@@ -22,7 +22,7 @@ import {
   runOps,
 } from './shared';
 import type { NodeCtx } from './shared';
-import { TokenBound } from './TokenBinding';
+import { BoundNumberInput } from './TokenBinding';
 
 const isFree = (c: NodeCtx): boolean =>
   c.isRoot || c.node.style.position === 'absolute' || c.node.style.position === 'fixed';
@@ -146,31 +146,30 @@ function SizeField({ ctxs, axis }: { ctxs: readonly NodeCtx[]; axis: Axis }) {
   return (
     <div className="prop-size">
       <div className="prop-field" data-testid={testId}>
-        <TokenBound nodes={nodes} prop={axis} value={value}>
-          <NumberInput
-            label={isW ? 'W' : 'H'}
-            title={isW ? 'Largura' : 'Altura'}
-            value={value}
-            min={0}
-            disabled={locked || modes.every((m) => m.mode === 'fill')}
-            placeholder={placeholder}
-            onPreview={(v) => previewStyles(nodes, () => ({ [axis]: v }))}
-            onCommit={(v) => {
-              void commitStyles(nodes, (n) =>
-                v === ''
-                  ? { unset: [axis] }
-                  : {
-                      set: { [axis]: v },
-                      unset:
-                        isFillFlex(n.style.flex) &&
-                        isMainAxis(ctxs.find((c) => c.node === n)?.parent, axis)
-                          ? ['flex']
-                          : [],
-                    },
-              );
-            }}
-          />
-        </TokenBound>
+        <BoundNumberInput
+          bind={{ nodes, prop: axis, value }}
+          label={isW ? 'W' : 'H'}
+          title={isW ? 'Largura' : 'Altura'}
+          value={value}
+          min={0}
+          disabled={locked || modes.every((m) => m.mode === 'fill')}
+          placeholder={placeholder}
+          onPreview={(v) => previewStyles(nodes, () => ({ [axis]: v }))}
+          onCommit={(v) => {
+            void commitStyles(nodes, (n) =>
+              v === ''
+                ? { unset: [axis] }
+                : {
+                    set: { [axis]: v },
+                    unset:
+                      isFillFlex(n.style.flex) &&
+                      isMainAxis(ctxs.find((c) => c.node === n)?.parent, axis)
+                        ? ['flex']
+                        : [],
+                  },
+            );
+          }}
+        />
       </div>
       <SelectInput
         className="prop-mode"

@@ -13,7 +13,7 @@ import { Row, Section } from '../ui/controls';
 import type { SelectOption } from '../ui/controls';
 import {
   Body,
-  DraftInput,
+  BoundDraftInput,
   LockedContext,
   StyleColor,
   StyleNum,
@@ -24,7 +24,6 @@ import {
   runOps,
   styleOf,
 } from './shared';
-import { TokenBound } from './TokenBinding';
 
 const TEXT_TAGS = new Set([
   'p',
@@ -138,19 +137,14 @@ export function TypographySection({ nodes }: { nodes: readonly Node[] }) {
       <Body>
         {allText && <TextContent nodes={nodes} />}
         <Row label="Fonte">
-          <TokenBound
-            nodes={nodes}
-            prop="font-family"
+          <BoundDraftInput
+            bind={{ nodes, prop: 'font-family', value: common(nodes, styleOf('font-family')) }}
             value={common(nodes, styleOf('font-family'))}
-          >
-            <DraftInput
-              value={common(nodes, styleOf('font-family'))}
-              list="prop-font-list"
-              placeholder="herdada"
-              title="font-family"
-              onCommit={(v) => void commitStyle(nodes, 'font-family', v)}
-            />
-          </TokenBound>
+            list="prop-font-list"
+            placeholder="herdada"
+            title="font-family"
+            onCommit={(v) => void commitStyle(nodes, 'font-family', v)}
+          />
           <datalist id="prop-font-list">
             {families.map((f) => (
               <option key={f} value={f} />

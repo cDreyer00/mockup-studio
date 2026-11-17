@@ -2,11 +2,11 @@
 import { useContext } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { Node } from '@mockup/core';
-import { ColorInput, IconButton } from '../ui/controls';
+import { IconButton } from '../ui/controls';
 import { NumberInput } from '../ui/NumberInput';
 import { parseShadows, serializeShadows, splitTopLevel } from './css';
 import type { Shadow } from './css';
-import { TokenBound } from './TokenBinding';
+import { BoundColorInput } from './TokenBinding';
 import { DraftInput, LockedContext, commitStyle, common, styleOf } from './shared';
 
 const NEW_SHADOW: Shadow = {
@@ -86,15 +86,17 @@ export function ShadowList({ nodes }: { nodes: readonly Node[] }) {
             />
           </div>
           <div className="prop-row-shadow">
-            <TokenBound
-              nodes={nodes}
-              prop="box-shadow-color"
-              kind="color"
+            <BoundColorInput
+              bind={{
+                nodes,
+                prop: 'box-shadow-color',
+                kind: 'color',
+                value: s.color,
+                write: (v) => update(i, { color: v }),
+              }}
               value={s.color}
-              write={(v) => update(i, { color: v })}
-            >
-              <ColorInput value={s.color} onCommit={(v) => update(i, { color: v })} />
-            </TokenBound>
+              onCommit={(v) => update(i, { color: v })}
+            />
             <IconButton
               title="Sombra interna"
               active={s.inset}

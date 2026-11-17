@@ -91,6 +91,17 @@ describe('TokensPanel', () => {
     ]);
   });
 
+  it('renomear para um nome já existente mostra erro e não emite op', () => {
+    setup();
+    render(<TokensPanel />);
+    const r = within(row('color-primary'));
+    fireEvent.doubleClick(r.getByTestId('token-name-color-primary').parentElement!);
+    const input = r.getByTestId('token-name-input');
+    fireEvent.change(input, { target: { value: 'space-4' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(daemon.applySafe).not.toHaveBeenCalled();
+  });
+
   it('com tema selecionado, editar grava na sobrescrita e permite removê-la', () => {
     setup();
     render(<TokensPanel />);

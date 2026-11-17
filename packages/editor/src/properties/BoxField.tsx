@@ -11,7 +11,7 @@ import type { BoxSpec } from './boxes';
 import { parseBox, serializeBox } from './css';
 import type { Box } from './css';
 import { commitStyles, common, LockedContext, previewStyles } from './shared';
-import { TokenBound } from './TokenBinding';
+import { BoundNumberInput } from './TokenBinding';
 
 const SIDE_LABELS = ['T', 'R', 'B', 'L'];
 const SIDE_KEYS = ['top', 'right', 'bottom', 'left'] as const;
@@ -62,17 +62,16 @@ export function BoxField({
   return (
     <div className="prop-box">
       <div className="prop-row-2">
-        <TokenBound nodes={nodes} prop={spec.prop} value={common(nodes, (n) => n.style[spec.prop])}>
-          <NumberInput
-            label={icon}
-            title={title}
-            value={linked}
-            disabled={locked}
-            min={spec.prop === 'padding' || spec.prop === 'border-radius' ? 0 : undefined}
-            onPreview={(v) => previewStyles(nodes, () => ({ [spec.prop]: v }))}
-            onCommit={onLinked}
-          />
-        </TokenBound>
+        <BoundNumberInput
+          bind={{ nodes, prop: spec.prop, value: common(nodes, (n) => n.style[spec.prop]) }}
+          label={icon}
+          title={title}
+          value={linked}
+          disabled={locked}
+          min={spec.prop === 'padding' || spec.prop === 'border-radius' ? 0 : undefined}
+          onPreview={(v) => previewStyles(nodes, () => ({ [spec.prop]: v }))}
+          onCommit={onLinked}
+        />
         <IconButton
           title={expanded ? 'Lados vinculados' : 'Editar cada lado'}
           active={expanded}

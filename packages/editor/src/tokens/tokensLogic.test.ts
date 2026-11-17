@@ -148,6 +148,18 @@ describe('validação e ops', () => {
     expect(themeNameError(doc, 'a b')).not.toBeNull();
   });
 
+  it('rename recusa destino já existente em tema ou declarado em estilo de nó', () => {
+    const d = sample();
+    d.themes = [{ name: 'dark', overrides: { '--color-bg': '#111111', '--so-tema': '#000' } }];
+    const local = createNodeFromTag('div', { styles: { '--local': '1px' } });
+    d.pages[0]!.frames.push(createNodeFromTag('div', { isRoot: true, children: [local] }));
+    expect(tokenNameError(d, 'so-tema', '--brand')).toMatch(/já existe/);
+    expect(tokenNameError(d, 'local', '--brand')).toMatch(/já está declarada/);
+    expect(() => planRenameToken(d, '--brand', 'local')).toThrow(/já está declarada/);
+    expect(() => planRenameToken(d, '--brand', 'so-tema')).toThrow(/já existe/);
+    expect(planRenameToken(d, '--brand', 'livre')).toHaveLength(1);
+  });
+
   it('validateEdit: erro bloqueia, aviso passa', () => {
     expect(validateEdit(doc, '--color-primary', 'rgb(1,2')?.level).toBe('error');
     expect(validateEdit(doc, '--color-primary', 'banana-verde')?.level).toBe('warning');

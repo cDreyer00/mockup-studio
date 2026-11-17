@@ -2,18 +2,13 @@
 import { useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { ChevronDown, ChevronRight, Download, Pencil, Plus, Trash2, Upload } from 'lucide-react';
-import {
-  TOKEN_GROUPS,
-  getTokenReport,
-  planCreateTheme,
-  planDeleteTheme,
-  planRenameTheme,
-} from '@mockup/core';
+import { TOKEN_GROUPS, planCreateTheme, planDeleteTheme, planRenameTheme } from '@mockup/core';
 import type { Document, Op } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { useDoc } from '../state/docStore';
 import { ui } from '../state/uiStore';
 import { prompt } from '../ui/overlays';
+import { tokenReportFor } from './reportCache';
 import { GroupsDatalist, TokenRow } from './TokenRow';
 import { ExportDialog, ImportDialog } from './TokensDialogs';
 import { groupTokens, planCreateToken, summarizeTokens, themeNameError } from './tokensLogic';
@@ -118,7 +113,7 @@ export function TokensPanel() {
   const [dialog, setDialog] = useState<'import' | 'export' | null>(null);
   const [, bump] = useState(0);
 
-  const report = useMemo(() => (doc ? getTokenReport(doc) : null), [doc]);
+  const report = useMemo(() => (doc ? tokenReportFor(doc) : null), [doc]);
   const groups = useMemo(() => (report ? groupTokens(report.tokens, query) : []), [report, query]);
   const summary = useMemo(() => (report ? summarizeTokens(report) : null), [report]);
 
