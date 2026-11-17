@@ -39,7 +39,12 @@ function ClassesField({
 }) {
   const locked = useContext(LockedContext);
   const nodes = useMemo(() => ctxs.map((c) => c.node), [ctxs]);
-  const mixed = common(nodes, (n) => n.classes);
+  // Nó sem `node.classes`: o campo parte das classes equivalentes ao estilo atual, para que
+  // editar (que substitui o estilo) não apague o que já existe.
+  const mixed = useMemo(
+    () => common(nodes, (n) => n.classes || engine.nodeClasses(n).classes.join(' ')),
+    [nodes, engine],
+  );
   const shown = mixed ?? '';
   const [text, setText] = useState(shown);
   const [focused, setFocused] = useState(false);
@@ -139,7 +144,7 @@ function ClassesField({
         placeholder={
           mixed === null ? 'Misto' : 'flex gap-4 p-6 rounded-lg hover:bg-primary/90 md:p-8'
         }
-        title="Classes Tailwind (substituem todo o estilo do nó). Enter confirma, Shift+Enter quebra a linha."
+        title="Classes Tailwind (substituem o estilo do nó; sem classes, parte das equivalentes ao estilo atual). Enter confirma, Shift+Enter quebra a linha."
         onChange={(e) => {
           setText(e.target.value);
           setCaret(e.target.selectionStart);

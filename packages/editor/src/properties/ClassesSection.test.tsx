@@ -65,6 +65,28 @@ describe('ClassesSection', () => {
     });
   });
 
+  it('nó sem classes: campo pré-preenchido com o estilo atual e editar não apaga o estilo', async () => {
+    const { doc, abs } = makeDoc();
+    useDoc.setState({ doc });
+    render(<ClassesSection ctxs={[ctxOf(abs)]} />);
+    const field = (await screen.findByTestId('prop-classes', {}, WAIT)) as HTMLTextAreaElement;
+    expect(field.value).toContain('absolute');
+    const before = field.value;
+    fireEvent.focus(field);
+    fireEvent.blur(field);
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: `${before} p-4` } });
+    fireEvent.blur(field);
+    const styles = lastOps().find((o) => o.type === 'updateStyles') as
+      { changes: { set?: Record<string, string>; unset?: string[] }[] } | undefined;
+    const change = styles?.changes[0];
+    expect(change?.set).toMatchObject({ padding: '1rem' });
+    expect(change?.unset ?? []).not.toContain('position');
+    expect(change?.unset ?? []).not.toContain('left');
+    expect(change?.unset ?? []).not.toContain('top');
+  });
+
   it('sem mudança não aplica nada; Esc descarta o rascunho', async () => {
     const { doc, a } = makeDoc();
     a.classes = 'p-4';
