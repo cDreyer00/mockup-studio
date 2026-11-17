@@ -18,6 +18,7 @@ import {
   prepareNodesForPaste,
   resolvePasteTarget,
   serializeNodes,
+  withVectors,
 } from './paste';
 
 interface InternalClipboard {
@@ -108,7 +109,7 @@ async function handlePaste(data: DataTransfer): Promise<void> {
         for (const file of images) await insertImageFile(file);
         return;
       case 'html': {
-        await pasteNodes(htmlToNodes(looksLikeHtml(html) ? html : text), 0);
+        await pasteNodes(withVectors(htmlToNodes(looksLikeHtml(html) ? html : text)), 0);
         return;
       }
       case 'text':
