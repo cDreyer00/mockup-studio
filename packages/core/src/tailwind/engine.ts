@@ -259,7 +259,8 @@ export function comparableCss(value: string): string {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
-    .replace(/\s*,\s*/g, ',');
+    .replace(/\s*,\s*/g, ',')
+    .replace(/\s*\/\s*/g, '/');
   v = v.replace(/\s*!important$/, ' !important');
   const color = parseCssColor(v);
   if (color) return formatHexColor(color);
@@ -272,6 +273,189 @@ export function comparableCss(value: string): string {
 }
 
 const round = (n: number): number => Math.round(n * 1000) / 1000;
+
+/* ---------- comparação independente de shorthand ---------- */
+
+/** Divide por espaços fora de parênteses e aspas. */
+function splitTopSpace(value: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let quote = '';
+  let buf = '';
+  for (const ch of value) {
+    if (quote) {
+      if (ch === quote) quote = '';
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && /\s/.test(ch)) {
+      if (buf) out.push(buf);
+      buf = '';
+      continue;
+    }
+    buf += ch;
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+type Four = [string, string, string, string];
+const BORDER_STYLE_WORDS = new Set([
+  'none',
+  'hidden',
+  'solid',
+  'dashed',
+  'dotted',
+  'double',
+  'groove',
+  'ridge',
+  'inset',
+  'outset',
+]);
+const BORDER_WIDTH_WORDS: Record<string, string> = { thin: '1px', medium: '3px', thick: '5px' };
+
+/** 1–4 valores (`padding`, `margin`, `inset`) → [top, right, bottom, left]. */
+function fourValues(value: string): Four | null {
+  const v = splitTopSpace(value);
+  const [a, b, c, d] = v;
+  if (v.length === 1) return [a, a, a, a];
+  if (v.length === 2) return [a, b, a, b];
+  if (v.length === 3) return [a, b, c, b];
+  if (v.length === 4) return [a, b, c, d];
+  return null;
+}
+
+/** Valor de `border`/`border-top`... → largura, estilo e cor por lado. */
+function expandBorder(sides: readonly string[], value: string): Record<string, string> {
+  let width = '3px';
+  let style = 'none';
+  let color = 'currentcolor';
+  for (const tok of splitTopSpace(value)) {
+    const lower = tok.toLowerCase();
+    if (BORDER_STYLE_WORDS.has(lower)) style = lower;
+    else if (Object.hasOwn(BORDER_WIDTH_WORDS, lower)) width = BORDER_WIDTH_WORDS[lower];
+    else if (/^-?[\d.]+(px|rem|em)?$/.test(lower)) width = tok;
+    else color = tok;
+  }
+  // sem estilo a borda não existe: largura e cor não contam (`border-none` só define o estilo)
+  const invisible = style === 'none' || style === 'hidden';
+  const out: Record<string, string> = {};
+  for (const s of sides) {
+    if (!invisible) {
+      out[`border-${s}-width`] = width;
+      out[`border-${s}-color`] = color;
+    }
+    out[`border-${s}-style`] = style;
+  }
+  return out;
+}
+
+/**
+ * Expande os shorthands comuns em longhands físicos, só para comparar o que o Tailwind produz
+ * (`padding-inline`, `border-style` + `border-width`...) com o estilo do nó (`padding: 8px 16px`,
+ * `border: 1px solid red`). `origin` diz de qual propriedade original veio cada longhand.
+ */
+function expandShorthands(style: Record<string, string>): {
+  flat: Record<string, string>;
+  origin: Map<string, string>;
+} {
+  const flat: Record<string, string> = {};
+  const origin = new Map<string, string>();
+  const put = (key: string, longhands: Record<string, string>, imp: string): void => {
+    for (const [k, v] of Object.entries(longhands)) {
+      flat[k] = v + imp;
+      origin.set(k, key);
+    }
+  };
+  const sidesOf = (prefix: string, suffix: string, v: Four): Record<string, string> =>
+    Object.fromEntries(SIDES.map((s, i) => [`${prefix}-${s}${suffix}`, v[i]]));
+  for (const [key, raw] of Object.entries(style)) {
+    const imp = /!important\s*$/i.test(raw) ? ' !important' : '';
+    const value = raw.replace(/\s*!important\s*$/i, '').trim();
+    let done = false;
+    switch (key) {
+      case 'padding':
+      case 'margin': {
+        const v = fourValues(value);
+        if (v) {
+          put(key, sidesOf(key, '', v), imp);
+          done = true;
+        }
+        break;
+      }
+      case 'inset': {
+        const v = fourValues(value);
+        if (v) {
+          put(key, Object.fromEntries(SIDES.map((s, i) => [s, v[i]])), imp);
+          done = true;
+        }
+        break;
+      }
+      case 'padding-inline':
+      case 'padding-block':
+      case 'margin-inline':
+      case 'margin-block':
+      case 'inset-inline':
+      case 'inset-block': {
+        const [base, axis] = key.split('-');
+        const vals = splitTopSpace(value);
+        if (vals.length === 1 || vals.length === 2) {
+          const [a, b = a] = vals;
+          const pair = axis === 'inline' ? ['left', 'right'] : ['top', 'bottom'];
+          const name = (s: string): string => (base === 'inset' ? s : `${base}-${s}`);
+          put(key, { [name(pair[0])]: a, [name(pair[1])]: b }, imp);
+          done = true;
+        }
+        break;
+      }
+      case 'gap': {
+        const vals = splitTopSpace(value);
+        if (vals.length === 1 || vals.length === 2) {
+          put(key, { 'row-gap': vals[0], 'column-gap': vals[1] ?? vals[0] }, imp);
+          done = true;
+        }
+        break;
+      }
+      case 'border':
+      case 'border-top':
+      case 'border-right':
+      case 'border-bottom':
+      case 'border-left': {
+        put(key, expandBorder(key === 'border' ? SIDES : [key.slice(7)], value), imp);
+        done = true;
+        break;
+      }
+      case 'border-width':
+      case 'border-style':
+      case 'border-color': {
+        const v = fourValues(value);
+        if (v) {
+          put(key, sidesOf('border', `-${key.slice(7)}`, v), imp);
+          done = true;
+        }
+        break;
+      }
+      case 'background':
+        if (!/(gradient|url)\(/i.test(value) && splitTopSpace(value).length === 1) {
+          put(key, { 'background-color': value }, imp);
+          done = true;
+        }
+        break;
+      case 'text-decoration':
+        if (/^(none|underline|overline|line-through)$/i.test(value)) {
+          put(key, { 'text-decoration-line': value.toLowerCase() }, imp);
+          done = true;
+        }
+        break;
+    }
+    if (!done) {
+      flat[key] = raw;
+      origin.set(key, key);
+    }
+  }
+  return { flat, origin };
+}
 
 /* ====================================================================== */
 /* Variantes                                                               */
@@ -752,12 +936,19 @@ class Engine implements TailwindEngine {
     target: Record<string, string>,
     opts: StylesToClassesOptions,
   ): Set<string> {
-    const got = this.produced(classes, opts);
+    const got = expandShorthands(this.produced(classes, opts));
+    const want = expandShorthands(target);
     const bad = new Set<string>();
-    for (const p of new Set([...Object.keys(target), ...Object.keys(got)])) {
-      const a = target[p];
-      const b = got[p];
-      if (a === undefined || b === undefined || comparableCss(a) !== comparableCss(b)) bad.add(p);
+    for (const p of new Set([...Object.keys(want.flat), ...Object.keys(got.flat)])) {
+      const a = want.flat[p];
+      const b = got.flat[p];
+      if (a !== undefined && b !== undefined && comparableCss(a) === comparableCss(b)) continue;
+      // marca o longhand e as propriedades originais (do alvo e das classes) de onde ele veio
+      bad.add(p);
+      const fromTarget = want.origin.get(p);
+      const fromClasses = got.origin.get(p);
+      if (fromTarget) bad.add(fromTarget);
+      if (fromClasses) bad.add(fromClasses);
     }
     // Classes que o Tailwind não reconhece não produzem nada: também são problema.
     for (const c of classes) if (this.info(c).status !== 'applied') bad.add(`?${c}`);

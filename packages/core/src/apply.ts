@@ -700,7 +700,7 @@ function doSetClasses(d: Document, op: Extract<Op, { type: 'setClasses' }>): App
     const p = requireNode(d, c.nodeId);
     prev.push({ nodeId: c.nodeId, classes: p.node.classes ?? null });
     const next = (c.classes ?? '').trim().replace(/\s+/g, ' ');
-    if (/[<>{};"'`]/.test(next)) fail(`Classes inválidas no nó "${c.nodeId}": ${next}`);
+    if (/[<{};"`]/.test(next)) fail(`Classes inválidas no nó "${c.nodeId}": ${next}`);
     if (next) p.node.classes = next;
     else delete p.node.classes;
   }

@@ -290,7 +290,9 @@ function convertElement(el: Element, ctx: Ctx): Node {
   const node = convertElementInner(el, ctx);
   if (ctx.keepClasses) {
     const cls = (el.attribs.class ?? '').trim().replace(/\s+/g, ' ');
-    if (cls && !/[<>{};"'`]/.test(cls)) node.classes = cls;
+    // `>` e `'` são comuns em variantes arbitrárias do shadcn (`has-[>svg]:px-3`, `[&_svg:not([class*='size-'])]:size-4`);
+    // o `class` é sempre escapado ao exportar, então só `<`, `{`, `}`, `;`, `"` e crase ficam de fora.
+    if (cls && !/[<{};"`]/.test(cls)) node.classes = cls;
   }
   return node;
 }
