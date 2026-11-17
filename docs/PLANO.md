@@ -155,12 +155,12 @@ Pendências: seletor de token em gradientes, `transform`, `filter` e `flex`; reo
 
 Resultado (ver [TAILWIND.md](TAILWIND.md)):
 
-- Core: motor `@mockup/core/tailwind` com o compilador oficial `tailwindcss` v4 (JS puro, roda no daemon, no editor e nos testes; carregado sob demanda no editor), cache por tokens do `@theme`; `node.classes` (dica de round-trip), `node.states` (`hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` e combinações), `cssBase: 'tailwind'` (preflight no canvas, render e export); ops `setClasses`, `setStates`, `setCssBase`; caminho inverso canonicalizado (`canonicalizeCandidates`) e conferido contra o compilador; preset de tokens do shadcn/ui.
+- Core: motor `@mockup/core/tailwind` com o compilador oficial `tailwindcss` v4 (JS puro, roda no daemon, no editor e nos testes; carregado sob demanda no editor), cache por tokens do `@theme`; `node.classes` (dica de round-trip), `node.states` (`hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` e combinações), `cssBase: 'tailwind'` (preflight no canvas, render e export); ops `setClasses`, `setStates`, `setCssBase`; caminho inverso canonicalizado (`canonicalizeCandidates`, com design system leve sem `mask-*`/`scroll-*` e cache por motor: 1ª exportação da landing 2,4 s → 1,2 s a frio, ~15 ms repetida) e conferido contra o compilador; preset de tokens do shadcn/ui.
 - Exportadores: Tailwind e React com o motor (classes do autor reaproveitadas, variantes, `@custom-variant dark`, neutralização de `line-height` só onde precisa); HTML com regras por estado (`:hover`, `@media`, tema `dark`).
 - Editor: render com estados (breakpoint pela largura do frame, `dark` pelo tema), prévia de estado na barra, seção "Classes" com autocomplete, avisos, "Mostrar como Tailwind" e lista de estados, CSS base no painel do documento, colar HTML Tailwind.
 - MCP: `write_html` com detecção de Tailwind (`tailwind`, `css: 'tailwind'`), `import_component`, `set_classes`, `get_classes`, `suggest_classes`, `get_tailwind_config`, `set_css_base`, `state` em `get_screenshot`/`get_styles`/`update_styles`, `get_code`/`export` com o motor, guia `tailwind`.
 
-Pendências: variantes de grupo/atributo e pseudo-elementos só ficam na classe; os campos de estilo do painel não editam estados (só o campo de classes); `animate-*` não anima no canvas; o `state` do screenshot não foi exercitado no Electron real (só com provider falso).
+Pendências: variantes de grupo/atributo e pseudo-elementos só ficam na classe; os campos de estilo do painel não editam estados (só o campo de classes); `animate-*` não anima no canvas; o `state` do screenshot não foi exercitado no Electron real (só com provider falso); a primeira exportação de cada motor (tokens novos) ainda custa ~1 s de aquecimento da canonicalização do Tailwind.
 
 ### Fase 4 — Componentes
 

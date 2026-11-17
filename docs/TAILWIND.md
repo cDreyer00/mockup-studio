@@ -140,6 +140,16 @@ editor. Um campo separado deixa claro que é uma dica, não CSS aplicado.
    (valores normalizados: rem ↔ px, cores em hex). Classe que não reproduz o valor vira
    `[prop:valor]`; classes redundantes (ex.: `border-solid` junto de `border`) saem.
 
+**Custo da canonicalização:** na primeira chamada de cada motor, `canonicalizeCandidates`
+calcula a assinatura de todas as classes do `getClassList()` (~23 mil) e, para cada valor
+arbitrário novo, testa todas as raízes funcionais. O motor usa um design system "leve", sem as
+classes e raízes `mask-*`, `scroll-*` e `scrollbar-*` (só declaram propriedades
+`mask*`/`scroll*`, logo nunca têm a assinatura de outra classe), e só recorre à lista completa
+quando a entrada toca nessas propriedades: o resultado é idêntico (teste em
+`canonicalize.test.ts`). Resultados ficam em cache por motor; `engine.warmup()` adianta o
+aquecimento. Landing: primeira exportação a frio 2,4 s → 1,2 s; depois de `warmup()` ~0,3 s;
+repetida ~15 ms.
+
 A saída é, portanto, sempre fiel ao render, e idiomática sempre que o Tailwind tem um nome para
 o valor. Os estados saem com o prefixo da variante (`hover:`, `md:`, `dark:`, `md:hover:`).
 
