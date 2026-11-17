@@ -117,7 +117,7 @@ async function startPicker(mode: 'send' | 'copy'): Promise<Page> {
       ).__mockupStartPicker;
       await start(id, opts);
     },
-    [tabId, { mode, port: daemonPort }] as const,
+    [tabId!, { mode, port: daemonPort }] as const,
   );
   return page;
 }
