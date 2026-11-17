@@ -18,7 +18,8 @@ import { ui } from '../state/uiStore';
 import { specFromUrl } from './embedUrl';
 import { mediaDialogs } from './mediaStore';
 
-export const VIDEO_ACCEPT = '.mp4,.webm,.mov,.m4v';
+/** Mesmas extensões de vídeo que o MCP e o upload do daemon aceitam. */
+export const VIDEO_ACCEPT = '.mp4,.m4v,.mov,.webm,.ogv';
 export const LOTTIE_RIVE_ACCEPT = '.json,.lottie,.riv';
 export const IMAGE_ACCEPT = 'image/*';
 
@@ -124,9 +125,18 @@ export async function insertVideoSrc(src: string, name?: string): Promise<string
   }
 }
 
+/** Envia o arquivo ao daemon (confere os bytes e grava em assets/videos|lottie|rive/); devolve o src salvo. */
+async function uploadChecked(file: File): Promise<string> {
+  try {
+    return await daemon.uploadAsset(file, file.name);
+  } catch (e) {
+    throw new Error(`Arquivo recusado: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 export async function insertVideoFile(file: File): Promise<string | null> {
   try {
-    const src = await daemon.uploadAsset(file, file.name);
+    const src = await uploadChecked(file);
     return await insertVideoSrc(src, file.name.replace(/\.[^.]+$/, ''));
   } catch (e) {
     return report(e);
@@ -155,10 +165,30 @@ export async function insertLottieRiveFile(file: File): Promise<string | null> {
     return report(new Error('Use um arquivo .json, .lottie ou .riv'));
   }
   try {
-    const src = await daemon.uploadAsset(file, file.name);
+    const src = await uploadChecked(file);
     return await insertEmbed({ provider, src }, file.name.replace(/\.[^.]+$/, ''));
   } catch (e) {
     return report(e);
+  }
+}
+
+/**
+ * Lottie/Rive por URL: copia para assets/lottie|rive/ (offline-first) e usa o src relativo. Se o
+ * download falhar (rede, documento sem caminho, arquivo inválido), mantém a URL e avisa: o embed
+ * ainda funciona com rede, e o usuário vê o motivo em vez de perder a inserção.
+ */
+export async function localizeAnimation(spec: EmbedSpec): Promise<EmbedSpec> {
+  const src = spec.src;
+  if ((spec.provider !== 'lottie' && spec.provider !== 'rive') || !src || !/^https?:/i.test(src))
+    return spec;
+  try {
+    return { ...spec, src: await daemon.fetchAsset(src, spec.provider) };
+  } catch (e) {
+    ui.toast(
+      `Não consegui copiar o arquivo para assets/ (${e instanceof Error ? e.message : String(e)}). Usando a URL: só funciona com rede.`,
+      'info',
+    );
+    return spec;
   }
 }
 
@@ -166,7 +196,8 @@ export async function insertLottieRiveFile(file: File): Promise<string | null> {
 export async function insertFromUrl(url: string): Promise<string | null> {
   const spec = specFromUrl(url);
   if (!spec) return report(new Error('Informe uma URL http(s) válida.'));
-  return spec.kind === 'video' ? insertVideoSrc(spec.src) : insertEmbed(spec.spec);
+  if (spec.kind === 'video') return insertVideoSrc(spec.src);
+  return insertEmbed(await localizeAnimation(spec.spec));
 }
 
 /** Cria uma ilha Three.js com o código padrão e abre o editor de código. */
