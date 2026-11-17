@@ -215,6 +215,8 @@ const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n)
 
 interface Ctx {
   rules: Rule[];
+  /** Guarda o atributo `class` em `node.classes` (import Tailwind) e não nomeia por classe. */
+  keepClasses?: boolean;
 }
 
 function elementStyle(el: Element, ctx: Ctx): Record<string, string> {
@@ -250,9 +252,16 @@ function elementAttrs(el: Element, omit: string[] = []): Record<string, string> 
   return attrs;
 }
 
-function elementName(el: Element, text?: string): string {
+function elementName(el: Element, text?: string, ctx?: Ctx): string {
   const dataName = el.attribs['data-name']?.trim();
   if (dataName) return dataName;
+  if (ctx?.keepClasses) {
+    // shadcn/ui marca as partes com `data-slot` (card-header, button...).
+    const slot = el.attribs['data-slot']?.trim();
+    if (slot) return capitalize(slot.replace(/-/g, ' '));
+    if (text) return truncate(text, NAME_TEXT_MAX);
+    return capitalize(el.name);
+  }
   const first = classesOf(el)[0];
   if (first) return capitalize(first);
   if (text) return truncate(text, NAME_TEXT_MAX);
@@ -278,12 +287,21 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
 }
 
 function convertElement(el: Element, ctx: Ctx): Node {
+  const node = convertElementInner(el, ctx);
+  if (ctx.keepClasses) {
+    const cls = (el.attribs.class ?? '').trim().replace(/\s+/g, ' ');
+    if (cls && !/[<>{};"'`]/.test(cls)) node.classes = cls;
+  }
+  return node;
+}
+
+function convertElementInner(el: Element, ctx: Ctx): Node {
   const tag = el.name.toLowerCase();
   const styles = elementStyle(el, ctx);
 
   if (tag === 'img') {
     return createNodeFromTag('img', {
-      name: elementName(el),
+      name: elementName(el, undefined, ctx),
       styles,
       src: isUnsafeUrl(el.attribs.src ?? '') ? '' : (el.attribs.src ?? ''),
       attrs: elementAttrs(el, ['src']),
@@ -297,7 +315,7 @@ function convertElement(el: Element, ctx: Ctx): Node {
     const svg = sanitizeSvg(DomUtils.getOuterHTML(el));
     if (saved.style !== undefined) el.attribs.style = saved.style;
     if (saved.class !== undefined) el.attribs.class = saved.class;
-    return createNodeFromTag('svg', { name: elementName(el), styles, svg });
+    return createNodeFromTag('svg', { name: elementName(el, undefined, ctx), styles, svg });
   }
 
   const meaningful = el.children.filter((c) => DomUtils.isTag(c) || DomUtils.isText(c));
@@ -311,28 +329,35 @@ function convertElement(el: Element, ctx: Ctx): Node {
 
   if (!hasTags && textContent) {
     return createNodeFromTag(tag, {
-      name: elementName(el, textContent.trim()),
+      name: elementName(el, textContent.trim(), ctx),
       styles,
       text: textContent,
       attrs: elementAttrs(el),
     });
   }
   return createNodeFromTag(tag, {
-    name: elementName(el),
+    name: elementName(el, undefined, ctx),
     styles,
     attrs: elementAttrs(el),
     children: convertChildren(el.children, ctx),
   });
 }
 
-export function htmlToNodes(html: string, options: { css?: string } = {}): Node[] {
+/**
+ * HTML → nós. `css`: regras extras (além dos `<style>` do HTML). `keepClasses`: guarda o `class`
+ * de cada elemento em `node.classes` (para compilar como Tailwind; ver `@mockup/core/tailwind`).
+ */
+export function htmlToNodes(
+  html: string,
+  options: { css?: string; keepClasses?: boolean } = {},
+): Node[] {
   const dom = parseHtml(html);
   const rules: Rule[] = [];
   for (const styleEl of DomUtils.findAll((e) => e.name === 'style', dom.children)) {
     rules.push(...parseCss(DomUtils.textContent(styleEl)));
   }
   if (options.css) rules.push(...parseCss(options.css));
-  return convertChildren(dom.children, { rules });
+  return convertChildren(dom.children, { rules, keepClasses: options.keepClasses });
 }
 
 /* ====================================================================== */

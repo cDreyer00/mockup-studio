@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./tailwind": {
+      "types": "./dist/tailwind/index.d.ts",
+      "default": "./dist/tailwind/index.js"
     }
   },
   "files": [
@@ -24,6 +28,7 @@
     "css-tree": "^3.2.1",
     "htmlparser2": "^10.0.0",
     "nanoid": "^5.1.0",
+    "tailwindcss": "^4.3.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
