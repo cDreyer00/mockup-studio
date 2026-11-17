@@ -15,6 +15,18 @@ import {
 import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
 import { normalizeStateKey } from './states.js';
 import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
+import { componentNodeIds } from './components/expand.js';
+import {
+  assertComponentInsertion,
+  doAddComponent,
+  doDeleteComponent,
+  doReplaceNode,
+  doSetInstanceOverrides,
+  doSetInstanceProps,
+  doUpdateComponent,
+} from './components/ops.js';
+import { routeComponentOp } from './components/route.js';
+import { renameTokenInComponents } from './components/tokens.js';
 
 type Result = Record<string, unknown> | undefined;
 interface Applied {
@@ -73,9 +85,9 @@ function normalizeTree(node: Node): Node {
   return node;
 }
 
-/** Garante que os ids da subárvore são únicos entre si e em relação ao documento. */
+/** Ids da subárvore únicos entre si e no documento (páginas e raízes dos componentes). */
 function assertFreshIds(doc: Document, nodes: Node[]): void {
-  const existing = new Set(collectIds(doc));
+  const existing = new Set([...collectIds(doc), ...componentNodeIds(doc)]);
   const seen = new Set<string>();
   for (const root of nodes) {
     walk(root, (n) => {
@@ -90,12 +102,15 @@ function resolveContainer(
   d: Document,
   parentId: string | null | undefined,
   pageId: string | undefined,
+  incoming: Node[] = [],
 ): Node[] {
   if (parentId) {
     const parent = requireNode(d, parentId).node;
     assertCanHaveChildren(parent);
+    assertComponentInsertion(d, parent, incoming);
     return parent.children;
   }
+  assertComponentInsertion(d, null, incoming);
   if (!pageId) fail('Frame raiz exige "pageId" (e parentId nulo)');
   return requirePage(d, pageId).frames;
 }
@@ -105,7 +120,7 @@ function resolveContainer(
 function doCreateNode(d: Document, op: Extract<Op, { type: 'createNode' }>): Applied {
   const node = normalizeTree(deepClone(op.node));
   assertFreshIds(d, [node]);
-  const arr = resolveContainer(d, op.parentId, op.pageId);
+  const arr = resolveContainer(d, op.parentId, op.pageId, [node]);
   arr.splice(clampIndex(op.index, arr.length), 0, node);
   return { inverse: [{ type: 'deleteNodes', nodeIds: [node.id] }], result: { nodeIds: [node.id] } };
 }
@@ -146,6 +161,13 @@ function doMoveNodes(d: Document, op: Extract<Op, { type: 'moveNodes' }>): Appli
         fail(`Não é possível mover "${tp.node.id}" para dentro de si mesmo ou de um descendente`);
       }
       assertCanHaveChildren(tp.node);
+      if (tp.node.type === 'instance') {
+        assertComponentInsertion(
+          d,
+          tp.node,
+          paths.map((p) => p.node),
+        );
+      }
       targetArr = tp.node.children;
     } else {
       if (!op.pageId) fail('Mover para a raiz exige "pageId"');
@@ -361,6 +383,9 @@ function doDuplicate(d: Document, op: DuplicateNodesOp): Applied {
   // Só os nós de topo: ancestral e descendente na mesma chamada duplicariam o descendente duas vezes.
   const top = paths.filter((p) => !p.ancestors.some((a) => idSet.has(a.id)));
   for (const path of top) {
+    if (path.parent?.type === 'instance') {
+      fail(`O contêiner de slot "${path.node.id}" não pode ser duplicado (um contêiner por slot)`);
+    }
     const { node: clone } = cloneNodeWithNewIds(path.node, idMap);
     if (!path.parent && clone.position) {
       clone.position = { x: clone.position.x + 40, y: clone.position.y };
@@ -652,6 +677,11 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
       }
     });
   }
+  // Componentes: raízes, variantes e overrides das instâncias (ver components/tokens.ts).
+  const comp = renameTokenInComponents(d, from, to);
+  inverse.push(...comp.inverse);
+  for (const id of comp.nodeIds) touched.add(id);
+  refs += comp.references;
   if (classesInv.length > 0) inverse.push({ type: 'setClasses', changes: classesInv });
   if (styleInv.length > 0) inverse.push({ type: 'updateStyles', changes: styleInv });
   if (statesInv.length > 0) inverse.push({ type: 'setStates', changes: statesInv });
@@ -769,6 +799,9 @@ function doSetCssBase(d: Document, op: Extract<Op, { type: 'setCssBase' }>): App
 /** Aplica uma op de forma imutável e devolve o novo documento + op(s) inversa(s). */
 export function applyOp(doc: Document, rawOp: Op): ApplyResult {
   const op = parseOp(rawOp);
+  // Ids virtuais de instância e nós dos principais (ver components/route.ts).
+  const routed = routeComponentOp(doc, op, applyOp);
+  if (routed) return routed;
   const d = deepClone(doc);
   let applied: Applied;
   switch (op.type) {
@@ -846,6 +879,24 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setSvg':
       applied = doSetSvg(d, op);
+      break;
+    case 'addComponent':
+      applied = doAddComponent(d, op);
+      break;
+    case 'deleteComponent':
+      applied = doDeleteComponent(d, op);
+      break;
+    case 'updateComponent':
+      applied = doUpdateComponent(d, op);
+      break;
+    case 'replaceNode':
+      applied = doReplaceNode(d, op);
+      break;
+    case 'setInstanceProps':
+      applied = doSetInstanceProps(d, op);
+      break;
+    case 'setInstanceOverrides':
+      applied = doSetInstanceOverrides(d, op);
       break;
     default:
       return fail(`Operação desconhecida: "${String((op as { type?: unknown }).type)}"`);

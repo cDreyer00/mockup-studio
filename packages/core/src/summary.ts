@@ -1,3 +1,4 @@
+import { getComponent } from './components/expand.js';
 import { sortStateKeys } from './states.js';
 import type { Document, Node } from './types.js';
 
@@ -79,10 +80,32 @@ function tailwindTokens(node: Node): string[] {
   return out;
 }
 
-/** Linha única de resumo do nó. */
-export function summarizeNode(node: Node): string {
+/**
+ * Instância (ou raiz expandida): `◆Nome` do componente (o id sem `doc`) e as props da instância,
+ * ex. `◆Button variant=outline label="Salvar"` (strings e cores entre aspas).
+ */
+function instanceTokens(node: Node, doc?: Document): string[] {
+  if (!node.componentId) return [];
+  const def = doc ? getComponent(doc, node.componentId) : undefined;
+  const out = [`◆${def?.name ?? node.componentId}`];
+  for (const [k, v] of Object.entries(node.props ?? {})) {
+    const type = def?.props.find((p) => p.name === k)?.type;
+    const quoted = type ? type === 'string' || type === 'color' : typeof v === 'string';
+    out.push(`${k}=${quoted ? JSON.stringify(v) : String(v)}`);
+  }
+  if (node.overrides && Object.keys(node.overrides).length > 0) out.push('overrides');
+  return out;
+}
+
+/** Linha única de resumo do nó (`doc` dá o nome do componente das instâncias). */
+export function summarizeNode(node: Node, doc?: Document): string {
   const s = node.style;
-  const parts: string[] = [node.id, JSON.stringify(node.name), node.tag];
+  const parts: string[] = [
+    node.id,
+    JSON.stringify(node.name),
+    node.tag,
+    ...instanceTokens(node, doc),
+  ];
 
   if (node.type === 'text') {
     const text = node.text ?? '';
@@ -119,26 +142,33 @@ export function summarizeNode(node: Node): string {
   return parts.join(' ');
 }
 
-function lines(node: Node, depth: number, level: number, base: string, out: string[]): void {
+function lines(
+  node: Node,
+  depth: number,
+  level: number,
+  base: string,
+  out: string[],
+  doc?: Document,
+): void {
   const pad = base + '  '.repeat(level);
-  out.push(pad + summarizeNode(node));
+  out.push(pad + summarizeNode(node, doc));
   if (node.children.length === 0) return;
   if (depth <= 0) {
     // depth 0 no topo mostra só o nó; abaixo disso indica os filhos omitidos.
     if (level > 0) out.push(`${pad}  … +${node.children.length} filhos`);
     return;
   }
-  for (const child of node.children) lines(child, depth - 1, level + 1, base, out);
+  for (const child of node.children) lines(child, depth - 1, level + 1, base, out, doc);
 }
 
 export function getTreeSummary(
   node: Node | Node[],
   depth = 2,
-  options: { indent?: string } = {},
+  options: { indent?: string; doc?: Document } = {},
 ): string {
   const out: string[] = [];
   const base = options.indent ?? '';
-  for (const n of Array.isArray(node) ? node : [node]) lines(n, depth, 0, base, out);
+  for (const n of Array.isArray(node) ? node : [node]) lines(n, depth, 0, base, out, options.doc);
   return out.join('\n');
 }
 
@@ -147,7 +177,7 @@ export function getDocumentSummary(doc: Document, depth = 1): string {
   for (const page of doc.pages) {
     const n = page.frames.length;
     out.push(`${page.id} ${JSON.stringify(page.name)} (${n} ${n === 1 ? 'frame' : 'frames'})`);
-    if (n > 0) out.push(getTreeSummary(page.frames, depth, { indent: '  ' }));
+    if (n > 0) out.push(getTreeSummary(page.frames, depth, { indent: '  ', doc }));
   }
   return out.join('\n');
 }

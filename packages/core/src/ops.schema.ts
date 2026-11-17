@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import type { Op } from './ops.js';
 import {
+  ComponentDefSchema,
+  ComponentVariantSchema,
   FontRefSchema,
   NodeSchema,
+  PropDefsSchema,
+  PropValueSchema,
   ThemeNameSchema,
   ThemesSchema,
   TokenMetaMapSchema,
@@ -11,6 +15,20 @@ import {
 
 const strMap = z.record(z.string(), z.string());
 const id = z.string().min(1);
+
+/** Forma de uma sobrescrita (a validação estrita fica no handler, ver components/ops.ts). */
+const RawOverrideSchema = z.object({
+  style: strMap.optional(),
+  unsetStyle: z.array(z.string()).optional(),
+  text: z.string().optional(),
+  attrs: strMap.optional(),
+  hidden: z.boolean().optional(),
+  classes: z.string().optional(),
+  states: z.record(z.string(), strMap).optional(),
+  src: z.string().optional(),
+  svg: z.string().optional(),
+  props: z.record(z.string(), PropValueSchema).optional(),
+});
 
 export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
   z.object({
@@ -134,6 +152,43 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
     changes: z.array(z.object({ nodeId: id, states: z.record(z.string(), strMap).nullable() })),
   }),
   z.object({ type: z.literal('setCssBase'), base: z.enum(['default', 'tailwind']) }),
+  z.object({
+    type: z.literal('addComponent'),
+    component: ComponentDefSchema,
+    index: z.number().optional(),
+  }),
+  z.object({
+    type: z.literal('deleteComponent'),
+    componentId: id,
+    force: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal('updateComponent'),
+    componentId: id,
+    name: z.string().optional(),
+    description: z.string().nullable().optional(),
+    kit: z.string().nullable().optional(),
+    props: PropDefsSchema.optional(),
+    variants: z.array(ComponentVariantSchema).optional(),
+    root: NodeSchema.optional(),
+  }),
+  z.object({ type: z.literal('replaceNode'), nodeId: id, node: NodeSchema }),
+  z.object({
+    type: z.literal('setInstanceProps'),
+    changes: z.array(
+      z.object({
+        nodeId: id,
+        set: z.record(z.string(), PropValueSchema).optional(),
+        unset: z.array(z.string()).optional(),
+      }),
+    ),
+  }),
+  z.object({
+    type: z.literal('setInstanceOverrides'),
+    changes: z.array(
+      z.object({ nodeId: id, overrides: z.record(z.string(), RawOverrideSchema).nullable() }),
+    ),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -164,6 +219,12 @@ const OP_TYPES = [
   'setClasses',
   'setStates',
   'setCssBase',
+  'addComponent',
+  'deleteComponent',
+  'updateComponent',
+  'replaceNode',
+  'setInstanceProps',
+  'setInstanceOverrides',
 ];
 
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */

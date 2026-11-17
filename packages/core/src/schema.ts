@@ -11,7 +11,18 @@ import {
   VOID_TAGS,
   attrNameProblem,
 } from './tags.js';
-import type { Document, FontRef, Node, Page, Theme, TokenMeta } from './types.js';
+import type {
+  ComponentDef,
+  ComponentVariant,
+  Document,
+  FontRef,
+  Node,
+  NodeOverride,
+  Page,
+  PropDef,
+  Theme,
+  TokenMeta,
+} from './types.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
 
@@ -197,11 +208,113 @@ const FileThemesSchema = z
     return out.length > 0 ? out : undefined;
   });
 
+/* ---------------- Componentes (ver docs/COMPONENTES.md) ---------------- */
+
+export const PropValueSchema = z.union([z.string(), z.number(), z.boolean()]);
+
+/** Nome de prop: identificador usável em `{{nome}}`. */
+export const PROP_NAME_RE = /^[A-Za-z_][\w-]*$/;
+
+const PropsMapSchema = z
+  .record(z.string(), PropValueSchema)
+  .transform((p) => (Object.keys(p).length > 0 ? p : undefined))
+  .optional();
+
+/** Remove campos vazios de um objeto (sem lançar). */
+function dropEmpty<T extends object>(o: T): T {
+  const out = { ...o } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(out)) {
+    if (
+      v === undefined ||
+      (Array.isArray(v) && v.length === 0) ||
+      (v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+    ) {
+      delete out[k];
+    }
+  }
+  return out as T;
+}
+
+/**
+ * Sobrescrita de nó (numa instância ou variante). Na leitura, declarações de estilo inseguras são
+ * descartadas (como em `style`), atributos com nome inválido também, o svg é sanitizado; campos
+ * vazios somem.
+ */
+export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
+  .object({
+    style: z.record(z.string(), z.string()).transform(dropUnsafeStyles).optional(),
+    unsetStyle: z.array(z.string()).optional(),
+    text: z.string().optional(),
+    attrs: z
+      .record(z.string(), z.string())
+      .transform((a) =>
+        Object.fromEntries(
+          Object.entries(a).filter(
+            ([k]) => k !== 'style' && k !== 'class' && attrNameProblem(k) === null,
+          ),
+        ),
+      )
+      .optional(),
+    hidden: z.boolean().optional(),
+    classes: ClassesSchema,
+    states: StatesSchema,
+    src: z.string().optional(),
+    svg: z
+      .string()
+      .transform(sanitizeSvg)
+      .transform((s) => (s === '' ? undefined : s))
+      .optional(),
+    props: PropsMapSchema,
+  })
+  .transform((o) => dropEmpty(o) as NodeOverride);
+
+/** Mapa caminho → sobrescrita; sobrescritas vazias somem e o mapa vazio vira ausente. */
+export const NodeOverridesMapSchema = z
+  .record(z.string(), NodeOverrideSchema)
+  .transform((m) => {
+    const out: Record<string, NodeOverride> = {};
+    for (const [k, v] of Object.entries(m)) if (Object.keys(v).length > 0) out[k] = v;
+    return Object.keys(out).length > 0 ? out : undefined;
+  })
+  .optional();
+
+export const PropDefSchema: z.ZodType<PropDef, unknown> = z
+  .object({
+    name: z.string().trim().regex(PROP_NAME_RE, {
+      error: 'nome de prop inválido (letras, dígitos, "_" e "-", começando por letra ou "_")',
+    }),
+    type: z.enum(['string', 'number', 'boolean', 'enum', 'color', 'slot']),
+    default: PropValueSchema.optional(),
+    options: z.array(z.string()).optional(),
+    description: z.string().optional(),
+  })
+  .transform((p) => {
+    if (p.default === undefined) delete p.default;
+    if (p.options === undefined) delete p.options;
+    if (p.description === undefined) delete p.description;
+    return p;
+  });
+
+export const PropDefsSchema = z.array(PropDefSchema).superRefine((list, ctx) => {
+  const seen = new Set<string>();
+  list.forEach((p, i) => {
+    if (seen.has(p.name)) {
+      ctx.addIssue({ code: 'custom', message: `prop duplicada: "${p.name}"`, path: [i, 'name'] });
+    }
+    seen.add(p.name);
+  });
+});
+
+export const ComponentVariantSchema: z.ZodType<ComponentVariant, unknown> = z.object({
+  when: z.record(z.string(), PropValueSchema).default({}),
+  overrides: NodeOverridesMapSchema.transform((m) => m ?? {}),
+});
+
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
       id: z.string().min(1),
-      type: z.enum(['frame', 'element', 'text', 'image', 'svg']),
+      type: z.enum(['frame', 'element', 'text', 'image', 'svg', 'instance']),
       name: z.string(),
       tag: TagSchema,
       attrs: AttrsSchema,
@@ -215,17 +328,48 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       position: PositionSchema.optional(),
       classes: ClassesSchema,
       states: StatesSchema,
+      componentId: z.string().min(1).optional(),
+      props: PropsMapSchema,
+      overrides: NodeOverridesMapSchema,
     })
     .transform((n) => {
       // Campos opcionais que a normalização esvaziou não aparecem como `undefined` no objeto.
       if (n.classes === undefined) delete n.classes;
       if (n.states === undefined) delete n.states;
+      if (n.componentId === undefined) delete n.componentId;
+      if (n.props === undefined) delete n.props;
+      if (n.overrides === undefined) delete n.overrides;
       return n;
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
       error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
+    })
+    .refine((n) => n.type !== 'instance' || !!n.componentId, {
+      error: 'instância sem "componentId"',
     }),
 );
+
+export const ComponentDefSchema: z.ZodType<ComponentDef, unknown> = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().trim().min(1, { error: 'componente sem nome' }),
+    description: z.string().optional(),
+    kit: z.string().min(1).optional(),
+    props: PropDefsSchema.default([]),
+    root: NodeSchema,
+    variants: z.array(ComponentVariantSchema).default([]),
+  })
+  .transform((c) => {
+    if (c.description === undefined) delete c.description;
+    if (c.kit === undefined) delete c.kit;
+    // A raiz do principal não tem posição (a posição é da instância).
+    delete c.root.position;
+    return c;
+  })
+  .refine((c) => c.root.type !== 'frame' && c.root.type !== 'instance', {
+    error: 'a raiz do componente não pode ser frame nem instância',
+    path: ['root'],
+  });
 
 export const PageSchema: z.ZodType<Page, unknown> = z.object({
   id: z.string().min(1),
@@ -273,6 +417,11 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   themes: FileThemesSchema,
   // Valor desconhecido de `cssBase` cai para o padrão em vez de recusar o arquivo.
   cssBase: z.enum(['tailwind']).optional().catch(undefined),
+  // Biblioteca de componentes: ausente quando vazia (documentos antigos continuam iguais).
+  components: z
+    .array(ComponentDefSchema)
+    .optional()
+    .transform((list) => (list && list.length > 0 ? list : undefined)),
   // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo
   // ruins) em vez de recusar o documento inteiro; a op `setFonts` continua estrita.
   fonts: z
@@ -326,6 +475,16 @@ function parseInternal(input: unknown): Parsed {
     check(page.id, 'Página');
     for (const id of collectIds(page)) check(id, 'Nó');
   }
+  // Componentes: ids e nomes únicos; ids dos nós únicos no documento inteiro.
+  const names = new Set<string>();
+  for (const c of doc.components ?? []) {
+    check(c.id, 'Componente');
+    const key = c.name.toLowerCase();
+    if (names.has(key)) errors.push(`Componente com nome duplicado: "${c.name}"`);
+    names.add(key);
+    for (const id of collectIds(c.root)) check(id, 'Nó');
+  }
+  if (doc.components === undefined) delete doc.components;
   return errors.length > 0 ? { ok: false, errors } : { ok: true, doc };
 }
 
@@ -342,8 +501,32 @@ export function parseDocument(input: string | unknown): Document {
   return r.doc;
 }
 
+const OVERRIDE_KEYS = [
+  'style',
+  'unsetStyle',
+  'text',
+  'attrs',
+  'hidden',
+  'classes',
+  'states',
+  'src',
+  'svg',
+  'props',
+] as const;
+
+function orderOverrides(map: Record<string, NodeOverride>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [path, ov] of Object.entries(map)) {
+    const o: Record<string, unknown> = {};
+    for (const k of OVERRIDE_KEYS) if (ov[k] !== undefined) o[k] = ov[k];
+    out[path] = o;
+  }
+  return out;
+}
+
 function orderNode(n: Node): Record<string, unknown> {
   const out: Record<string, unknown> = { id: n.id, type: n.type, name: n.name, tag: n.tag };
+  if (n.componentId !== undefined) out.componentId = n.componentId;
   if (n.position !== undefined) out.position = { x: n.position.x, y: n.position.y };
   out.attrs = n.attrs;
   out.style = n.style;
@@ -352,9 +535,29 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.svg !== undefined) out.svg = n.svg;
   if (n.classes !== undefined) out.classes = n.classes;
   if (n.states !== undefined && Object.keys(n.states).length > 0) out.states = n.states;
+  if (n.props !== undefined && Object.keys(n.props).length > 0) out.props = n.props;
+  if (n.overrides !== undefined && Object.keys(n.overrides).length > 0) {
+    out.overrides = orderOverrides(n.overrides);
+  }
   out.locked = n.locked;
   out.hidden = n.hidden;
   out.children = n.children.map(orderNode);
+  return out;
+}
+
+function orderComponent(c: ComponentDef): Record<string, unknown> {
+  const out: Record<string, unknown> = { id: c.id, name: c.name };
+  if (c.description !== undefined) out.description = c.description;
+  if (c.kit !== undefined) out.kit = c.kit;
+  out.props = c.props.map((p) => {
+    const o: Record<string, unknown> = { name: p.name, type: p.type };
+    if (p.default !== undefined) o.default = p.default;
+    if (p.options !== undefined) o.options = p.options;
+    if (p.description !== undefined) o.description = p.description;
+    return o;
+  });
+  out.variants = c.variants.map((v) => ({ when: v.when, overrides: orderOverrides(v.overrides) }));
+  out.root = orderNode(c.root);
   return out;
 }
 
@@ -378,6 +581,8 @@ export function serializeDocument(doc: Document): string {
       return o;
     }),
     meta: { createdAt, updatedAt, ...restMeta },
+    ...(doc.components &&
+      doc.components.length > 0 && { components: doc.components.map(orderComponent) }),
     pages: doc.pages.map((p) => ({
       id: p.id,
       name: p.name,

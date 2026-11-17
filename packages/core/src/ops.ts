@@ -2,7 +2,19 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { Document, FontRef, Node, Position, Theme, TokenMeta } from './types.js';
+import type {
+  ComponentDef,
+  ComponentVariant,
+  Document,
+  FontRef,
+  Node,
+  NodeOverride,
+  Position,
+  PropDef,
+  PropValue,
+  Theme,
+  TokenMeta,
+} from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -197,6 +209,57 @@ export interface SetCssBaseOp {
   base: 'default' | 'tailwind';
 }
 
+/* ---------------- Componentes (ver docs/COMPONENTES.md e components/ops.ts) ---------------- */
+
+/** Acrescenta um componente principal à biblioteca (`index` omitido = ao final). */
+export interface AddComponentOp {
+  type: 'addComponent';
+  component: ComponentDef;
+  index?: number;
+}
+
+/**
+ * Remove um componente principal. Recusa se houver instâncias (nas páginas ou em outros
+ * principais), a menos que `force` (usado pelo inverso de `addComponent`, que restaura o estado
+ * anterior exato).
+ */
+export interface DeleteComponentOp {
+  type: 'deleteComponent';
+  componentId: string;
+  force?: boolean;
+}
+
+/** Atualiza campos do principal; `null` em `description`/`kit` remove o campo. */
+export interface UpdateComponentOp {
+  type: 'updateComponent';
+  componentId: string;
+  name?: string;
+  description?: string | null;
+  kit?: string | null;
+  props?: PropDef[];
+  variants?: ComponentVariant[];
+  root?: Node;
+}
+
+/** Troca o nó `nodeId` por `node` no mesmo lugar (ids novos validados contra o documento). */
+export interface ReplaceNodeOp {
+  type: 'replaceNode';
+  nodeId: string;
+  node: Node;
+}
+
+/** Define/remove props de instâncias. */
+export interface SetInstancePropsOp {
+  type: 'setInstanceProps';
+  changes: { nodeId: string; set?: Record<string, PropValue>; unset?: string[] }[];
+}
+
+/** Substitui o mapa de overrides de instâncias (`null` remove todos). */
+export interface SetInstanceOverridesOp {
+  type: 'setInstanceOverrides';
+  changes: { nodeId: string; overrides: Record<string, NodeOverride> | null }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -222,7 +285,13 @@ export type Op =
   | SetSvgOp
   | SetClassesOp
   | SetStatesOp
-  | SetCssBaseOp;
+  | SetCssBaseOp
+  | AddComponentOp
+  | DeleteComponentOp
+  | UpdateComponentOp
+  | ReplaceNodeOp
+  | SetInstancePropsOp
+  | SetInstanceOverridesOp;
 
 export type OpType = Op['type'];
 

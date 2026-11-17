@@ -36,6 +36,8 @@ export function normalizeStyles(styles: Record<string, string>): Record<string, 
   return out;
 }
 
+const PLACEHOLDER_IN_CSS_RE = /\{\{\s*[A-Za-z_][\w-]*\s*\}\}/g;
+
 /**
  * Mensagem de erro se o valor CSS puder escapar da declaração ou do `<style>` que o contém
  * (`{`, `}`, `;` fora de aspas/parênteses, `</style`, comentários, aspas ou parênteses
@@ -43,6 +45,10 @@ export function normalizeStyles(styles: Record<string, string>): Record<string, 
  */
 export function cssValueProblem(value: string): string | null {
   if (/<\/style/i.test(value)) return 'não pode conter "</style"';
+  // Placeholders de props de componente (`{{color}}`, ver docs/COMPONENTES.md): o par de chaves
+  // balanceado com um identificador dentro não escapa da declaração; a expansão substitui e
+  // valida de novo o valor final.
+  value = value.replace(PLACEHOLDER_IN_CSS_RE, 'x');
   let quote = '';
   let depth = 0;
   for (let i = 0; i < value.length; i++) {
