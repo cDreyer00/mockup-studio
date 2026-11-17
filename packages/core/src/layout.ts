@@ -69,9 +69,25 @@ export interface LayoutNode extends LayoutRect {
   style: LayoutStyle;
   /** Linhas de texto (nós `text`). */
   lines?: LayoutTextLine[];
+  /** Trilhas medidas quando o nó é um contêiner `display: grid` ou `inline-grid`. */
+  grid?: LayoutGrid;
   /** `src` original do nó image (relativo a `assets/` ou data URL). */
   src?: string;
   children: LayoutNode[];
+}
+
+/** Uma trilha de grid medida: início (relativo ao frame, como os nós) e tamanho, em px. */
+export interface LayoutTrack {
+  start: number;
+  size: number;
+}
+
+/** Trilhas de um contêiner grid (área de conteúdo, sem padding e borda), relativas ao frame. */
+export interface LayoutGrid {
+  columns: LayoutTrack[];
+  rows: LayoutTrack[];
+  columnGap: number;
+  rowGap: number;
 }
 
 /** Resultado de `render(...)` na página de render: retângulo do nó pedido e tamanho do frame. */

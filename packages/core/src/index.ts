@@ -20,3 +20,5 @@ export * from './export/svg.js';
 export * from './layout.js';
 export * from './fonts.js';
 export * from './base.js';
+export * from './vector/index.js';
+export * from './grid.js';

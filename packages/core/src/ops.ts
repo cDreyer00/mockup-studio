@@ -2,7 +2,7 @@
  * Operações (commands) puras e serializáveis sobre o documento.
  * Cada op tem um inverso exato, calculado em `applyOp` (ver `apply.ts`).
  */
-import type { Document, FontRef, Node, Position } from './types.js';
+import type { Document, FontRef, Node, Position, Vector } from './types.js';
 
 export interface CreateNodeOp {
   type: 'createNode';
@@ -129,6 +129,15 @@ export interface SetSrcOp {
   changes: { nodeId: string; src: string }[];
 }
 
+/**
+ * Define (ou remove, com `vector: null`) o modelo vetorial de nós svg. Com vetor, `node.svg` passa
+ * a ser `svg` (se informado) ou `vectorToSvg(vector)`; o inverso restaura vetor e markup.
+ */
+export interface SetVectorOp {
+  type: 'setVector';
+  changes: { nodeId: string; vector: Vector | null; svg?: string }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -146,7 +155,8 @@ export type Op =
   | SetNodeFlagsOp
   | SetTagOp
   | SetFontsOp
-  | SetSrcOp;
+  | SetSrcOp
+  | SetVectorOp;
 
 export type OpType = Op['type'];
 
