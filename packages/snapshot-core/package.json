@@ -1,0 +1,39 @@
+{
+  "name": "@mockup/snapshot-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Captura de seções de sites em nós editáveis do Mockup Studio (navegador) e formato de troca do snapshot.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./inject": {
+      "types": "./dist/inject.d.ts",
+      "default": "./dist/inject.js"
+    },
+    "./iife": "./dist/snapshot.iife.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-bundle.mjs",
+    "test": "vitest run",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@mockup/core": "0.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "esbuild": "^0.28.2"
+  }
+}

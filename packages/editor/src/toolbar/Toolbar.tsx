@@ -26,6 +26,7 @@ import { selectActiveInfo, useDoc } from '../state/docStore';
 import type { ConnectionStatus } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
 import type { Tool } from '../state/uiStore';
+import { ImportUrlButton } from '../snapshot/ImportUrlButton';
 import { IconButton } from '../ui/controls';
 import './toolbar.css';
 
@@ -325,6 +326,7 @@ export function Toolbar() {
       >
         <Redo2 size={ICON} />
       </IconButton>
+      <ImportUrlButton />
       <div className="tb-center">
         <DocumentTitle />
       </div>

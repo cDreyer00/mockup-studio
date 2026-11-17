@@ -4,6 +4,7 @@
  */
 import { cloneNodeWithNewIds, nodesToHtml } from '@mockup/core';
 import type { Document, Node } from '@mockup/core';
+import { looksLikeSnapshot } from '@mockup/snapshot-core';
 import { POSITION_STYLE_KEYS, isLeafNode, makeLeafFrame } from '../model/factory';
 import {
   canHaveChildren,
@@ -48,7 +49,7 @@ export function looksLikeHtml(text: string | null | undefined): boolean {
   return new RegExp(`</[a-z][\\w-]*\\s*>|<(?:${KNOWN_TAGS})(?:[\\s>/])`, 'i').test(t);
 }
 
-export type PasteKind = 'internal' | 'images' | 'html' | 'text' | 'none';
+export type PasteKind = 'internal' | 'snapshot' | 'images' | 'html' | 'text' | 'none';
 
 /** Decide como interpretar o conteúdo colado. */
 export function classifyPaste(
@@ -57,6 +58,7 @@ export function classifyPaste(
 ): PasteKind {
   const token = extractMarker(data.html) ?? extractMarker(data.text);
   if (token && internalToken && token === internalToken) return 'internal';
+  if (looksLikeSnapshot(data.text)) return 'snapshot';
   if (data.imageCount > 0) return 'images';
   if (looksLikeHtml(data.html) || looksLikeHtml(data.text)) return 'html';
   if (data.text.length > 0) return 'text';

@@ -4,6 +4,7 @@
  */
 import { actions } from '../actions';
 import { getNode, topLevel } from '../model/tree';
+import { canSimplify, simplifyImport } from '../snapshot/simplify';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import type { MenuItem } from '../ui/overlays';
@@ -71,6 +72,12 @@ export function buildNodeMenu(): MenuItem[] {
       shortcut: 'Ctrl+Shift+L',
       disabled: none,
       onSelect: () => void actions.setLocked(sel, !allLocked),
+    },
+    {
+      label: 'Simplificar importação',
+      separator: true,
+      disabled: sel.length !== 1 || !canSimplify(sel[0]),
+      onSelect: () => void simplifyImport(sel[0]!),
     },
     {
       label: 'Excluir',

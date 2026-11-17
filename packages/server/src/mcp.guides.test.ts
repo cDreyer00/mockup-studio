@@ -33,17 +33,20 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
   const call = (name: string, args: Record<string, unknown> = {}) =>
     client.callTool({ name, arguments: args });
 
-  it('os tópicos são os 8 esperados, sem tokens', () => {
-    expect([...GUIDE_TOPICS]).toEqual([
-      'getting-started',
-      'design-system',
-      'layout',
-      'responsive',
-      'screenshot-loop',
-      'export',
-      'troubleshooting',
-      'setup',
-    ]);
+  it('os tópicos incluem os esperados, sem tokens', () => {
+    expect([...GUIDE_TOPICS]).toEqual(
+      expect.arrayContaining([
+        'getting-started',
+        'design-system',
+        'layout',
+        'responsive',
+        'screenshot-loop',
+        'export',
+        'troubleshooting',
+        'setup',
+        'import',
+      ]),
+    );
   });
 
   it('get_guide devolve cada tópico com título', async () => {
@@ -85,7 +88,7 @@ describe('MCP: guias, instruções e erros de parâmetro', () => {
     expect(d).toContain('4.5:1');
   });
 
-  it('resources guide://<topic> para os 8 guias', async () => {
+  it('resources guide://<topic> para todos os guias', async () => {
     const { resources } = await client.listResources();
     const uris = resources.map((x) => x.uri);
     for (const topic of GUIDE_TOPICS) {

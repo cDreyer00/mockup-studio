@@ -214,6 +214,27 @@ Use `get_code` para ler ou colar um trecho; use `export` para entregar arquivos 
 | `get_font_info` | `family` (obrig.), `docId`                                                                                     | Instalada no sistema (estilos e arquivos)? Embutida no documento (arquivos e pesos)? Como usar em `font-family`, com fallback.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `add_font`      | `family` (obrig.), `source` (obrig.), `weights`, `docId`                                                       | `source`: `google` (baixa agora da API CSS2 o subconjunto latin; pesos padrão 400 e 700), `local` (fonte instalada; só registra), caminho de arquivo ou pasta (`.woff2`, `.woff`, `.ttf`, `.otf`) ou URL http(s) de um arquivo. Arquivos vão para `assets/fonts/<familia>-<peso>-<estilo>-<hash8>.<ext>` (nome único pelo conteúdo, nunca sobrescreve; a URL muda sozinha quando a fonte muda). Com vários formatos do mesmo peso/estilo fica um só (woff2 > woff > ttf/otf). Re-adicionar a família troca a entrada em `doc.fonts` (undo funciona) e mantém os arquivos antigos. Sem CDN em runtime. |
 
+## Importação de sites
+
+Trazem seções de sites reais como nós editáveis (HTML/CSS com os estilos computados reduzidos), não como imagem. Guia: `get_guide('import')`; detalhes, extensão de navegador e limitações em [SNAPSHOT.md](SNAPSHOT.md).
+
+| Ferramenta         | Parâmetros                                                                                                                                                                                                                           | Descrição                                                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `import_url`       | `url` (http/https, obrig.), `selector` (padrão `body`), `width` (320 a 3840, padrão 1440), `height` (200 a 4000, padrão 900), `timeout_ms` (até 60000, padrão 20000), `name`, `reference` (padrão true), `pageId`, `x`, `y`, `docId` | Abre a página no Electron headless (janela e sessão isoladas, `file://` e o próprio daemon bloqueados), captura o elemento do seletor e cria um frame com os nós, as imagens em `assets/` e as fontes em `doc.fonts`, mais um frame oculto "Referência" com a captura de tela. Uma entrada no histórico. Precisa do motor de render (senão `isError`). |
+| `import_html`      | `html` (obrig.), `css`, `assets_base_url` (base http(s) para URLs relativas), `selector`, `width`, `height`, `timeout_ms`, `name`, `reference`, `pageId`, `x`, `y`, `docId`                                                          | HTML completo (com `<style>`/`<link>`) renderizado da mesma forma que `import_url`. Sem render, converte com o parser do core (sem estilos computados, altura do frame = viewport) e avisa.                                                                                                                                                            |
+| `cleanup_imported` | `nodeId` (obrig.), `remove_empty`, `unwrap`, `fluid` (todos padrão true), `docId`                                                                                                                                                    | Simplifica um frame importado: remove wrappers vazios, desembrulha wrappers neutros com um único filho, troca `width` em px igual ao do pai por auto e `height` em px de blocos com conteúdo por `min-height`. Uma entrada no histórico; "Nada a limpar" quando não há o que mudar.                                                                    |
+
+Resposta de `import_url`/`import_html` (texto):
+
+```
+Importado de http://localhost:5500/: fr_ab12cd34 "Hero" (42 nós, 2 imagens, fontes: Inter). Referência oculta: fr_9f8e7d6c.
+fr_ab12cd34 "Hero" section 1440x640 ...
+  ...
+Próximos passos: confira com get_screenshot(fr_ab12cd34) e simplifique com cleanup_imported(fr_ab12cd34). Para comparar com o original: set_node_flags em fr_9f8e7d6c com hidden:false (ou get_screenshot dele).
+```
+
+Fluxo sugerido: `import_url` → `get_screenshot` do frame (compare com o frame "Referência", que pode ser exibido com `set_node_flags`) → `cleanup_imported` → `get_screenshot` de novo → extrair as cores repetidas em tokens (`set_tokens` + `update_styles` com `var(--...)`). A extensão de navegador e o colar no editor (Ctrl+V) usam o mesmo pipeline pela rota `POST /api/snapshot`.
+
 ## Erros
 
 Falhas de uso voltam como resultado de ferramenta com `isError: true` (não como erro de protocolo). Erros de parâmetro são reformatados em português: um item por campo (obrigatório ausente, tipo esperado x recebido, valor fora das opções, mínimo/máximo) e uma chamada de exemplo.
@@ -241,5 +262,6 @@ Os guias também são publicados como resources (`text/markdown`), um por tópic
 | `guide://export`          | Formatos de exportação, pasta de saída e assets.                         |
 | `guide://troubleshooting` | Render indisponível, nó não encontrado, porta ocupada, overflow e logs.  |
 | `guide://setup`           | Instalar o CLI e registrar o MCP (Claude Code, Codex, Cursor, VS Code).  |
+| `guide://import`          | Importar sites: extensão, `import_url`, `import_html` e limpeza.         |
 
 Veja o plano completo em [PLANO.md](PLANO.md).

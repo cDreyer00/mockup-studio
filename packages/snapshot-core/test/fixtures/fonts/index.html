@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fontes de teste</title>
+    <style>
+      @font-face {
+        font-family: 'Lucide Teste';
+        src: url('/vendor/lucide.woff2') format('woff2');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Nao Usada';
+        src: url('/vendor/nao-usada.woff2') format('woff2');
+      }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .fonts-demo {
+        padding: 24px;
+        width: 600px;
+      }
+      .icon {
+        font-family: 'Lucide Teste';
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="fonts-demo">
+      <span class="icon">&#xe038;</span>
+      <p>Texto com ícone</p>
+    </div>
+  </body>
+</html>

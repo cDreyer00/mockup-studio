@@ -1,3 +1,5 @@
+import { IMPORT_GUIDE, IMPORT_GUIDE_INFO } from '../snapshot/guide.js';
+
 export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
@@ -7,6 +9,7 @@ export const GUIDE_TOPICS = [
   'export',
   'troubleshooting',
   'setup',
+  'import',
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
@@ -48,6 +51,7 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     title: 'Guia: instalação e registro do MCP',
     description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
   },
+  import: IMPORT_GUIDE_INFO,
 };
 
 export const GUIDES: Record<GuideTopic, string> = {
@@ -76,7 +80,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
 ## Guias
 
-\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+\`design-system\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`export\`, \`troubleshooting\`, \`setup\`, \`import\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 
@@ -346,4 +350,5 @@ Se o cliente não achar \`mockup\` (shim \`.cmd\`), use o caminho absoluto impre
 
 Detalhes em \`docs/INTEGRACAO.md\`.
 `,
+  import: IMPORT_GUIDE,
 };

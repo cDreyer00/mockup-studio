@@ -17,7 +17,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     // O editor compila contra o fonte do core.
-    alias: { '@mockup/core': path.resolve(dirname, '../core/src/index.ts') },
+    alias: {
+      '@mockup/core': path.resolve(dirname, '../core/src/index.ts'),
+      '@mockup/snapshot-core': path.resolve(dirname, '../snapshot-core/src/index.ts'),
+    },
   },
   server: { proxy },
   preview: { proxy },

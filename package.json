@@ -9,23 +9,25 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/snapshot-core",
     "packages/server",
     "packages/cli",
     "packages/editor",
+    "packages/extension",
     "packages/desktop"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run build && vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build -w @mockup/core -w @mockup/server && playwright test -c packages/editor/playwright.config.ts --project=chromium",
+    "test:e2e": "npm run build -w @mockup/core -w @mockup/snapshot-core -w @mockup/server -w @mockup/extension && playwright test -c packages/editor/playwright.config.ts --project=chromium",
     "screenshot": "npm run build -w @mockup/core -w @mockup/server && playwright test -c packages/editor/playwright.config.ts --project=screenshot",
     "dist": "npm run build && npm run dist -w @mockup/desktop",
     "dev": "concurrently -k -n daemon,editor -c blue,magenta \"npm run dev -w @mockup/server\" \"npm run dev -w @mockup/editor\"",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "clean": "node -e \"for (const p of ['core','server','cli','editor']) require('fs').rmSync('packages/'+p+'/dist',{recursive:true,force:true})\""
+    "clean": "node -e \"for (const p of ['core','snapshot-core','server','cli','editor','extension']) require('fs').rmSync('packages/'+p+'/dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
