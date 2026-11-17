@@ -7,6 +7,7 @@ import { parseDocument } from '../schema.js';
 import { getTreeSummary } from '../summary.js';
 import type { ComponentDef, Document, Node } from '../types.js';
 import { expandInstance, getComponent } from './expand.js';
+import { routeComponentOp } from './route.js';
 
 type Raw = Partial<Node> & { id: string };
 const n = (id: string, type: Node['type'], tag: string, extra: Partial<Node> = {}): Raw => ({
@@ -413,6 +414,27 @@ describe('ops primitivas de componentes', () => {
 });
 
 describe('roteamento', () => {
+  it('op que o roteador não conhece em nó de instância ou de principal falha com mensagem clara', () => {
+    const doc = fixture();
+    // Op nova (ex. de vetores/grid) já no OpSchema mas esquecida em targetIds: o applyOp chama o
+    // roteador antes do handler, então o teste chama o roteador direto com uma op fictícia.
+    const fake = (nodeId: string): Op =>
+      ({ type: 'setGridFoo', changes: [{ nodeId, value: 1 }] }) as unknown as Op;
+    const route = (op: Op) => routeComponentOp(doc, op, applyOp);
+    expect(() => route(fake('in_b1/tx_lbl'))).toThrow(
+      'Operação "setGridFoo" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)',
+    );
+    expect(() =>
+      route({ type: 'setGridFoo', nodeIds: ['in_c2/in_cbtn'] } as unknown as Op),
+    ).toThrow(/não é suportada em nós de instância/);
+    expect(() => route(fake('tx_lbl'))).toThrow(
+      /Operação "setGridFoo" não é suportada em nós de um principal/,
+    );
+    // Nó de página (ou op sem alvo de nó): caminho normal do applyOp.
+    expect(route(fake('el_plain'))).toBeNull();
+    expect(route({ type: 'setGridFoo', value: 1 } as unknown as Op)).toBeNull();
+  });
+
   it('updateStyles em id virtual vira override da instância dona', () => {
     const doc = fixture();
     const d1 = roundTrip(doc, [

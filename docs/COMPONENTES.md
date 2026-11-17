@@ -122,6 +122,7 @@ Ordem de aplicação, para a instância `I` do componente `C`:
 - **Id virtual de instância** (`in_x/caminho`): `updateStyles`, `setText`, `setAttrs`, `setNodeFlags` (`hidden`), `setClasses`, `setStates`, `setSrc`, `setSvg` e `setInstanceProps` (instância aninhada) viram `setInstanceOverrides` na instância dona. Estrutura (`createNode` fora de slot, `deleteNodes`, `moveNodes`, `duplicateNodes`, `setTag`) é recusada com mensagem pedindo para editar o principal ou destacar.
 - **Nó da árvore de um principal** (id real dentro de `doc.components[].root`): qualquer op de nó é aplicada a um documento temporário com a raiz do principal e vira `updateComponent { root }`. É assim que o editor (modo de edição do principal) e o MCP (`update_styles` com ids do principal) editam o principal.
 - Inverso exato (o da op roteada), então undo/redo funcionam igual.
+- Op que o roteador não conhece (fora de `targetIds`) mirando um id virtual falha com `Operação "X" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)`; mirando um nó de principal, com `Operação "X" não é suportada em nós de um principal; ...` (em vez de "Nó não encontrado"). Os alvos dessas ops são deduzidos dos campos usuais (`nodeId`, `nodeIds`, `parentId`, `changes[].nodeId`).
 
 ## Ops
 
@@ -179,6 +180,34 @@ Componentes com o id de um do kit mas outro `kit` (ou sem `kit`) nunca são toca
 
 - `insert_component('kit/Nome')` (MCP) e inserir pela aba do editor usam `onlyMissing: true` quando o componente falta: adicionam os componentes ausentes do kit (o pedido e as dependências) e os tokens que faltam, sem tocar nos existentes.
 - `import_kit(name)` (padrão `overwrite: false`) também usa `onlyMissing`: adiciona os ausentes e lista os divergentes, com a instrução para atualizar. `import_kit(name, overwrite: true)` substitui os divergentes (só os do mesmo kit) pelos do kit; é uma entrada de histórico (desfazível).
+
+## Estendendo
+
+Checklist para quem acrescenta ops, campos de nó ou tipos de nó (vetores, grid, efeitos, embeds...) sem quebrar componentes. Nomes reais das funções (procure por eles; os números de linha mudam).
+
+**Op nova que mira nós** (além do de sempre: tipo em `Op` em `ops.ts`, `OpSchema` e `OP_TYPES` em `ops.schema.ts`, handler com inverso exato no `switch` de `applyOp` em `apply.ts`):
+
+- [ ] `targetIds` (`components/route.ts`): um `case` devolvendo os ids que a op mira. Sem isso a op é recusada em nós de instância e de principal (ver "Edição pelo id expandido").
+- [ ] Se for de **conteúdo** (muda o visual de um nó, não a estrutura): um `case` em `virtualToOverrides` (`components/route.ts`) convertendo a op em `NodeOverride` (provavelmente com um campo novo, ver abaixo). Sem `case` ela cai no `default`, que recusa como estrutura ("edite o principal ou destaque a instância").
+- [ ] Se for de **estrutura** e tiver alvos que não estão em `changes[]`: um `case` em `routeComponentOp` (como `deleteNodes`/`moveNodes`) recusando ids virtuais com `refuseStructure` e agrupando por dono. Ops com `changes[].nodeId` já são particionadas pelo `default` de `routeComponentOp`.
+- [ ] Nós de um principal: `applyInComponent` aplica qualquer op num documento temporário; se a op não pode tocar a raiz do principal (como apagar/mover), acrescente a recusa no `switch` do início de `applyInComponent`.
+- [ ] Testes em `components/ops.test.ts` (roteamento): id virtual, id de principal, undo/redo.
+
+**Campo novo em `Node` que deva ser sobrescrevível por instância/variante**:
+
+- [ ] `NodeOverride` (`types.ts`).
+- [ ] `RawOverrideSchema` (`ops.schema.ts`): forma aceita em `setInstanceOverrides`.
+- [ ] `NodeOverrideSchema` e `OVERRIDE_KEYS` (`schema.ts`): leitura de arquivo (com a mesma limpeza do campo no `NodeSchema`) e ordem estável na serialização. O campo em si também vai em `NodeSchema` e `orderNode`.
+- [ ] `applyOverride`, `mergeOverride` e `substOverride` (`components/expand.ts`); se o campo aceita `{{prop}}`, também `substNode`. Se for objeto ou lista, copie em `copyNode` (a expansão não pode mutar o principal).
+- [ ] `normalizeOverride` (`components/ops.ts`): validação estrita (lança em valor inseguro) usada por `setInstanceOverrides` e pelo roteador.
+- [ ] Se o MCP deve expor: `nodeOverrideSchema` de `set_instance_override` (`packages/server/src/mcp/tools/components.ts`).
+
+**`NodeType` novo**:
+
+- [ ] `NodeType` (`types.ts`) e o `z.enum` de `type` em `NodeSchema` (`schema.ts`).
+- [ ] `ID_PREFIX` (`ids.ts`): prefixo do id (usado também por `derivedNodeId` no import de kits e no destacar).
+- [ ] `assertRootShape` (`components/ops.ts`): se o tipo não pode ser raiz de um principal (como `frame` e `instance`), recuse ali e no `refine` de `componentDefSchema` (`schema.ts`).
+- [ ] Se o tipo tem campo próprio (como `src` em `image`, `svg` em `svg`), a regra "só vale nesse tipo" em `applyOverride` e no `case` de `virtualToOverrides`.
 
 ## Ícones
 

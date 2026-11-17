@@ -112,7 +112,31 @@ function classify(index: Map<string, string> | undefined, id: string): Owner {
   return cid ? { kind: 'component', id: cid } : { kind: 'page' };
 }
 
-function targetIds(op: Op): string[] {
+/**
+ * Alvos prováveis de uma op que o roteador não conhece, pelos nomes de campo usuais (`nodeId`,
+ * `nodeIds`, `parentId`, `changes[].nodeId`): só para recusar com mensagem clara.
+ */
+function guessTargetIds(op: Op): string[] {
+  const o = op as unknown as Record<string, unknown>;
+  const out: string[] = [];
+  const add = (v: unknown): void => {
+    if (typeof v === 'string' && v) out.push(v);
+  };
+  add(o.nodeId);
+  add(o.parentId);
+  if (Array.isArray(o.nodeIds)) o.nodeIds.forEach(add);
+  if (Array.isArray(o.changes)) {
+    for (const ch of o.changes) add((ch as { nodeId?: unknown } | null)?.nodeId);
+  }
+  return out;
+}
+
+/**
+ * Alvos das ops que o roteador conhece; `null` para as demais. Uma op nova que mire nós precisa
+ * entrar aqui (e, se for de conteúdo, em `virtualToOverrides`); até lá, mirar um nó de instância
+ * ou de principal com ela falha com mensagem clara (ver `docs/COMPONENTES.md`, "Estendendo").
+ */
+function targetIds(op: Op): string[] | null {
   switch (op.type) {
     case 'createNode':
       return op.parentId ? [op.parentId] : [];
@@ -139,7 +163,7 @@ function targetIds(op: Op): string[] {
     case 'setInstanceOverrides':
       return op.changes.map((c) => c.nodeId);
     default:
-      return [];
+      return null;
   }
 }
 
@@ -411,7 +435,7 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
       }
       break;
     default: {
-      const first = targetIds(op).find(isVirtualId) ?? instanceId;
+      const first = targetIds(op)?.find(isVirtualId) ?? instanceId;
       fail(structureMessage(first, { ownerId: instanceId, componentName: ctx.componentName }));
     }
   }
@@ -511,18 +535,32 @@ function withChanges(op: Op, changes: unknown[]): Op {
   return { ...op, changes } as unknown as Op;
 }
 
+/** Op fora de `targetIds` mirando nó de instância ou de principal. */
+function refuseUnrouted(type: string, owners: Owner[]): never {
+  if (owners.some((o) => o.kind === 'virtual')) {
+    fail(
+      `Operação "${type}" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)`,
+    );
+  }
+  fail(
+    `Operação "${type}" não é suportada em nós de um principal; edite o principal com update_component_html ou update_component`,
+  );
+}
+
 /**
  * Roteia a op se algum alvo for id virtual ou nó de um principal; `null` quando todos os alvos
  * são nós das páginas (o caminho normal de `applyOp`). Barato sem componentes: só procura `/`.
  */
 export function routeComponentOp(doc: Document, op: Op, apply: ApplyFn): ApplyResult | null {
-  const ids = targetIds(op);
+  const listed = targetIds(op);
+  const ids = listed ?? guessTargetIds(op);
   if (ids.length === 0) return null;
   const hasComponents = !!doc.components && doc.components.length > 0;
   if (!hasComponents && !ids.some(isVirtualId)) return null;
   const index = hasComponents ? componentNodeIndex(doc) : undefined;
   const ownerOf = (id: string): Owner => classify(index, id);
   if (ids.every((id) => ownerOf(id).kind === 'page')) return null;
+  if (!listed) refuseUnrouted(op.type, ids.map(ownerOf));
 
   switch (op.type) {
     case 'createNode': {
