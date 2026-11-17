@@ -4,6 +4,7 @@ import { exportSvg, findNode } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { assetDataUrl } from './assets.js';
+import { OutlineError, buildTextOutlineOps } from './outlines.js';
 import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
@@ -295,6 +296,33 @@ export function createApp(
     wrap((req, res) => {
       store.setActive(str(req.body?.docId, 'docId'));
       res.json({ ok: true, activeDocId: store.activeDocId });
+    }),
+  );
+
+  // Texto em contornos (o editor chama): converte nós de texto em svg, uma entrada de undo.
+  app.post(
+    '/api/docs/:docId/text-to-outlines',
+    wrap(async (req, res) => {
+      const docId = String(req.params.docId);
+      if (!store.list().some((d) => d.docId === docId))
+        throw new HttpError(404, `Documento não encontrado: ${docId}`);
+      const nodeIds: unknown = req.body?.nodeIds;
+      if (!Array.isArray(nodeIds) || nodeIds.length === 0 || nodeIds.some((n) => typeof n !== 'string'))
+        throw new HttpError(400, 'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]');
+      try {
+        const out = await buildTextOutlineOps({
+          doc: store.get(docId),
+          docId,
+          nodeIds: nodeIds as string[],
+          assetsDir: store.assetsDir(docId),
+          render: ctx.render,
+        });
+        store.applyOps(docId, out.ops, { source: 'editor', label: 'text_to_outlines' });
+        res.json({ nodeIds: out.nodeIds, notes: out.notes });
+      } catch (e) {
+        if (e instanceof OutlineError) throw new HttpError(e.status, e.message);
+        throw e;
+      }
     }),
   );
 
