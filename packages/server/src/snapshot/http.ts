@@ -6,6 +6,7 @@
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import {
+  MOCKUP_EXTENSION_ID,
   SNAPSHOT_ROUTES,
   isSnapshotPayload,
   type ImportHtmlRequest,
@@ -20,11 +21,20 @@ import { SnapshotImportError, parsePlacement } from './validate.js';
 export const SNAPSHOT_BODY_LIMIT = '64mb';
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
+const EXTENSION_ID = /^[a-p]{32}$/;
 
-/** `Origin` de uma extensão MV3 (`chrome-extension://<id de 32 letras a-p>`). */
+/** Ids aceitos: o fixo da extensão (pela `key` do manifest) mais `MOCKUP_EXTENSION_IDS` (lida a cada chamada). */
+function allowedExtensionIds(): string[] {
+  const extra = (process.env.MOCKUP_EXTENSION_IDS ?? '')
+    .split(/[\s,]+/)
+    .filter((id) => EXTENSION_ID.test(id));
+  return [MOCKUP_EXTENSION_ID, ...extra];
+}
+
+/** `Origin` da extensão do Mockup Studio (`chrome-extension://<id>`); outras extensões são recusadas. */
 export function isExtensionOrigin(origin: string | undefined): boolean {
-  return !!origin && EXTENSION_ORIGIN.test(origin);
+  if (!origin) return false;
+  return allowedExtensionIds().some((id) => origin === `chrome-extension://${id}`);
 }
 
 /**
@@ -47,7 +57,7 @@ export function registerSnapshotRoutes(
   // CORS próprio: o global fica depois destas rotas. A extensão só é aceita em /api/snapshot.
   const localCors = cors({ origin: (o, cb) => cb(null, !o || LOCAL_ORIGIN.test(o)) });
   const snapshotCors = cors({
-    origin: (o, cb) => cb(null, !o || LOCAL_ORIGIN.test(o) || EXTENSION_ORIGIN.test(o)),
+    origin: (o, cb) => cb(null, !o || LOCAL_ORIGIN.test(o) || isExtensionOrigin(o)),
     methods: ['POST', 'OPTIONS'],
     allowedHeaders: ['content-type'],
   });

@@ -4,6 +4,7 @@ import zlib from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createNodeFromTag } from '@mockup/core';
 import {
+  MOCKUP_EXTENSION_ID,
   SNAPSHOT_FORMAT,
   SNAPSHOT_VERSION,
   type SnapshotImportResult,
@@ -12,7 +13,9 @@ import {
 import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
-const EXT = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
+const EXT = `chrome-extension://${MOCKUP_EXTENSION_ID}`;
+/** Id válido (32 letras a-p) que não é o da extensão do Mockup Studio. */
+const OTHER_EXT = 'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
 
 function pngBytes(w: number, h: number, extra = 0): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
@@ -179,6 +182,22 @@ describe('rotas de importação', () => {
       expect(other.headers.get('access-control-allow-origin')).toBeNull();
     });
 
+    it('outro id de extensão é recusado, mas passa se estiver em MOCKUP_EXTENSION_IDS', async () => {
+      await start();
+      const denied = await post('/api/snapshot', payload(), { origin: OTHER_EXT });
+      expect(denied.status).toBe(403);
+      const prev = process.env.MOCKUP_EXTENSION_IDS;
+      process.env.MOCKUP_EXTENSION_IDS = `xyz, ${OTHER_EXT.slice('chrome-extension://'.length)}`;
+      try {
+        const ok = await post('/api/snapshot', payload(), { origin: OTHER_EXT });
+        expect(ok.status).toBe(200);
+        expect(ok.headers.get('access-control-allow-origin')).toBe(OTHER_EXT);
+      } finally {
+        if (prev === undefined) delete process.env.MOCKUP_EXTENSION_IDS;
+        else process.env.MOCKUP_EXTENSION_IDS = prev;
+      }
+    });
+
     it('formato de id inválido e sites comuns continuam recusados em /api/snapshot', async () => {
       await start();
       for (const origin of [
@@ -188,6 +207,7 @@ describe('rotas de importação', () => {
         'https://evil.com',
         'null',
         'moz-extension://abcdefghijklmnopabcdefghijklmnop',
+        OTHER_EXT,
       ]) {
         const r = await post('/api/snapshot', payload(), { origin });
         expect(r.status, origin).toBe(403);
