@@ -123,13 +123,18 @@ function TokenPicker({ anchor, nodes, kind, onPick, onClose }: PickerProps) {
   const relevant = report ? pickerTokens(report.tokens, groups, false, query) : [];
   const items = report ? pickerTokens(report.tokens, groups, all, query) : [];
   const left = Math.max(4, Math.min(anchor.right - POP_W, window.innerWidth - POP_W - 4));
-  const below = anchor.bottom + 4;
-  const style: CSSProperties = {
-    left,
-    top: below,
-    width: POP_W,
-    maxHeight: Math.max(160, window.innerHeight - below - 8),
-  };
+  // Abaixo do campo; perto do fim da tela (painel com muitas seções), abre para cima.
+  const spaceBelow = window.innerHeight - anchor.bottom - 12;
+  const spaceAbove = anchor.top - 12;
+  const openBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
+  const style: CSSProperties = openBelow
+    ? { left, top: anchor.bottom + 4, width: POP_W, maxHeight: Math.max(120, spaceBelow) }
+    : {
+        left,
+        bottom: window.innerHeight - anchor.top + 4,
+        width: POP_W,
+        maxHeight: spaceAbove,
+      };
 
   return createPortal(
     <div
