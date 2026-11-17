@@ -32,6 +32,7 @@ import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
 import { registerRenderTools } from './tools/render.js';
+import { registerSnapshotTools } from './tools/snapshot.js';
 
 export type { McpServerOptions } from './context.js';
 
@@ -1273,6 +1274,7 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerExportTools(ctx);
   registerImageTools(ctx);
   registerFontTools(ctx);
+  registerSnapshotTools(ctx);
 
   /* ---------- resources ---------- */
 

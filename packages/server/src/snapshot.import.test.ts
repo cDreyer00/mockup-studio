@@ -1,0 +1,462 @@
+import fs from 'node:fs';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { afterAll, beforeAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
+import {
+  createDocument,
+  createNodeFromTag,
+  findNode,
+  fontFaceCss,
+  walk,
+  type Node,
+} from '@mockup/core';
+import {
+  SNAPSHOT_FORMAT,
+  SNAPSHOT_VERSION,
+  type SnapshotAsset,
+  type SnapshotPayload,
+} from '@mockup/snapshot-core';
+import { importSnapshot } from './snapshot/import.js';
+import { SnapshotImportError } from './snapshot/validate.js';
+import { DocumentStore } from './store.js';
+import { makeWorkspace } from './test-utils.js';
+
+/** PNG válido (IHDR com as dimensões pedidas, pixels transparentes). */
+function fakePng(w: number, h: number, extra = 0): Buffer {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(body) >>> 0);
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  const raw = Buffer.alloc(h * (1 + w * 4));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+    Buffer.alloc(extra),
+  ]);
+}
+
+const pngDataUrl = (w = 4, h = 3): string =>
+  `data:image/png;base64,${fakePng(w, h).toString('base64')}`;
+
+interface TestServer {
+  base: string;
+  hits: string[];
+  close(): Promise<void>;
+}
+
+/** Servidor local com uma imagem, fontes (bytes falsos) e um 404. */
+async function startAssetServer(): Promise<TestServer> {
+  const hits: string[] = [];
+  const server = http.createServer((req, res) => {
+    const url = req.url ?? '';
+    hits.push(url);
+    if (url === '/img/logo.png') {
+      res.setHeader('content-type', 'image/png');
+      res.end(fakePng(20, 10));
+    } else if (url.startsWith('/fonts/')) {
+      res.setHeader('content-type', 'font/woff2');
+      res.end(Buffer.from(`wOF2-fake-${url}`));
+    } else {
+      res.statusCode = 404;
+      res.end('nao');
+    }
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return {
+    base,
+    hits,
+    close: () =>
+      new Promise<void>((r) => {
+        server.closeAllConnections();
+        server.close(() => r());
+      }),
+  };
+}
+
+const el = (tag: string, opts: Parameters<typeof createNodeFromTag>[1] = {}): Node =>
+  createNodeFromTag(tag, opts);
+
+/** Payload artesanal: duas imagens (data URL e http), fundo url(asset:), texto, fontes e referência. */
+function makePayload(base: string, over: Partial<SnapshotPayload> = {}): SnapshotPayload {
+  const root = el('section', {
+    name: 'Hero',
+    styles: { width: '1200px', height: '600px', 'font-family': 'Brand, sans-serif' },
+    children: [
+      el('img', {
+        src: 'asset:a1',
+        attrs: { alt: 'Inline', srcset: 'x 2x' },
+        styles: { width: '40px' },
+      }),
+      el('img', { src: 'asset:a2', attrs: { alt: 'Logo' }, styles: { width: '120px' } }),
+      el('div', {
+        name: 'Banner',
+        styles: { 'background-image': 'url("asset:a1")', height: '80px' },
+      }),
+      el('h1', { text: 'Título', styles: { 'font-weight': '700' } }),
+    ],
+  });
+  const assets: SnapshotAsset[] = [
+    {
+      id: 'a1',
+      kind: 'image',
+      url: 'https://cdn.exemplo.com/img/inline.png',
+      dataUrl: pngDataUrl(),
+      mime: 'image/png',
+    },
+    { id: 'a2', kind: 'image', url: `${base}/img/logo.png` },
+    { id: 'f1', kind: 'font', url: `${base}/fonts/brand-400.eot` },
+    { id: 'f2', kind: 'font', url: `${base}/fonts/brand-400.woff` },
+    { id: 'f3', kind: 'font', url: `${base}/fonts/brand-400.woff2` },
+    { id: 'f4', kind: 'font', url: `${base}/fonts/brand-700.woff2` },
+  ];
+  return {
+    format: SNAPSHOT_FORMAT,
+    version: SNAPSHOT_VERSION,
+    source: {
+      url: 'https://exemplo.com/',
+      title: 'Exemplo — Home',
+      capturedAt: new Date().toISOString(),
+      viewport: { width: 1440, height: 900 },
+      devicePixelRatio: 1,
+    },
+    root,
+    width: 1200,
+    height: 600,
+    assets,
+    fonts: [
+      { family: 'Brand', weight: '400', style: 'normal', assetIds: ['f1', 'f2', 'f3'] },
+      { family: 'Brand', weight: '700', style: 'normal', assetIds: ['f4'] },
+    ],
+    reference: { dataUrl: pngDataUrl(8, 6), width: 1200, height: 600 },
+    stats: { nodes: 5, truncated: false, warnings: [] },
+    ...over,
+  };
+}
+
+const imports = (store: DocumentStore, docId: string, p: SnapshotPayload, placement = {}) =>
+  importSnapshot(store, p, { docId, ...placement }, { source: 'mcp' });
+
+describe('importSnapshot', () => {
+  let srv: TestServer;
+  beforeAll(async () => {
+    srv = await startAssetServer();
+  });
+  afterAll(async () => {
+    await srv.close();
+  });
+
+  describe('documento não salvo', () => {
+    let store: DocumentStore;
+    let docId: string;
+    beforeEach(() => {
+      store = new DocumentStore();
+      const doc = createDocument('Memória');
+      (store as unknown as { register(d: unknown, p: null): unknown }).register(doc, null);
+      docId = doc.id;
+    });
+
+    it('embute imagens como data URL, pula fontes com aviso e cria a referência oculta', async () => {
+      const r = await imports(store, docId, makePayload(srv.base));
+      const doc = store.get(docId);
+      const page = doc.pages[0]!;
+      expect(page.frames).toHaveLength(2);
+      const frame = findNode(doc, r.frameId)!.node;
+      expect(frame.type).toBe('frame');
+      expect(frame.name).toBe('Exemplo — Home');
+      expect(frame.position).toEqual({ x: 0, y: 0 });
+      expect(frame.style).toMatchObject({ position: 'relative', width: '1200px', height: '600px' });
+      expect(frame.id.startsWith('fr_')).toBe(true);
+
+      const imgs = frame.children.filter((c) => c.type === 'image');
+      expect(imgs[0]!.src).toMatch(/^data:image\/png;base64,/);
+      expect(imgs[1]!.src).toMatch(/^data:image\/png;base64,/);
+      expect(imgs[0]!.attrs.srcset).toBeUndefined();
+      expect(frame.children[2]!.style['background-image']).toMatch(
+        /^url\("data:image\/png;base64,/,
+      );
+      expect(srv.hits).toContain('/img/logo.png');
+
+      expect(r.images).toBe(2);
+      expect(r.nodes).toBe(5);
+      expect(r.method).toBe('snapshot');
+      expect(r.fonts).toEqual([]);
+      expect(doc.fonts).toEqual([]);
+      expect(r.warnings.join('\n')).toContain('salve o documento para importar as fontes');
+
+      const ref = findNode(doc, r.referenceId!)!.node;
+      expect(ref.hidden).toBe(true);
+      expect(ref.name).toBe('Referência — Exemplo — Home');
+      expect(ref.position).toEqual({ x: 1200 + 40, y: 0 });
+      expect(ref.children[0]!.src).toMatch(/^data:image\/png/);
+      expect(ref.children[0]!.style).toMatchObject({ width: '1200px', height: '600px' });
+    });
+
+    it('ids novos (nunca os do payload) e uma única entrada no histórico', async () => {
+      const p = makePayload(srv.base);
+      const sourceIds = new Set<string>();
+      walk(p.root, (n) => void sourceIds.add(n.id));
+      const r = await imports(store, docId, p);
+      const doc = store.get(docId);
+      walk(findNode(doc, r.frameId)!.node, (n) => expect(sourceIds.has(n.id)).toBe(false));
+      expect(store.undo(docId, 'editor')).not.toBeNull();
+      expect(store.get(docId).pages[0]!.frames).toHaveLength(0);
+      expect(store.undo(docId, 'editor')).toBeNull();
+    });
+
+    it('posição padrão: à direita do último frame (+80) com o y do primeiro; x/y explícitos; name e reference:false', async () => {
+      const first = await imports(store, docId, makePayload(srv.base), {
+        reference: false,
+        x: 100,
+        y: 50,
+      });
+      expect(first.referenceId).toBeUndefined();
+      expect(findNode(store.get(docId), first.frameId)!.node.position).toEqual({ x: 100, y: 50 });
+      const second = await imports(store, docId, makePayload(srv.base), {
+        reference: false,
+        name: 'Outro',
+      });
+      const f = findNode(store.get(docId), second.frameId)!.node;
+      expect(f.name).toBe('Outro');
+      expect(f.position).toEqual({ x: 100 + 1200 + 80, y: 50 });
+    });
+
+    it('asset que falha vira src vazio / url() trocado por none, com aviso', async () => {
+      const p = makePayload(srv.base);
+      p.assets = [
+        { id: 'a1', kind: 'image', url: `${srv.base}/nao-existe.png` },
+        { id: 'a2', kind: 'image', url: 'ftp://exemplo.com/x.png' },
+      ];
+      p.fonts = [];
+      const r = await imports(store, docId, p);
+      const frame = findNode(store.get(docId), r.frameId)!.node;
+      expect(frame.children[0]!.src).toBe('');
+      expect(frame.children[1]!.src).toBe('');
+      expect(frame.children[2]!.style['background-image']).toBe('none');
+      expect(r.images).toBe(0);
+      expect(r.warnings.some((w) => w.includes('nao-existe.png'))).toBe(true);
+      expect(r.warnings.some((w) => w.includes('ftp://'))).toBe(true);
+    });
+
+    it('imagem que não é imagem é recusada com aviso; fundo grande (>2 MB) usa a URL original', async () => {
+      const p = makePayload(srv.base);
+      p.assets = [
+        {
+          id: 'a1',
+          kind: 'image',
+          url: 'https://cdn.exemplo.com/big.png',
+          dataUrl: `data:image/png;base64,${fakePng(4, 4, 2.5 * 1024 * 1024).toString('base64')}`,
+        },
+        { id: 'a2', kind: 'image', url: 'https://x/y.png', dataUrl: 'data:image/png;base64,AAAA' },
+      ];
+      p.fonts = [];
+      const r = await imports(store, docId, p);
+      const frame = findNode(store.get(docId), r.frameId)!.node;
+      expect(frame.children[2]!.style['background-image']).toBe(
+        'url("https://cdn.exemplo.com/big.png")',
+      );
+      expect(frame.children[1]!.src).toBe('');
+      expect(r.warnings.join('\n')).toContain('grande demais para embutir');
+      expect(r.warnings.join('\n')).toContain('não é uma imagem reconhecida');
+    });
+
+    it('sanitiza atributos on* e tags bloqueadas em vez de falhar', async () => {
+      const p = makePayload(srv.base);
+      p.root.children.push(el('div', { attrs: { onclick: 'x()' } }));
+      (p.root.children as Node[]).push({ ...el('div'), tag: 'script' });
+      const r = await imports(store, docId, p);
+      const frame = findNode(store.get(docId), r.frameId)!.node;
+      expect(frame.children.some((c) => c.tag === 'script')).toBe(false);
+      expect(frame.children.at(-1)!.attrs.onclick).toBeUndefined();
+      expect(r.warnings.join('\n')).toContain('removidos por segurança');
+    });
+  });
+
+  describe('erros de uso', () => {
+    it('payload inválido, versão, nós demais, sem documento e documento/página inexistentes', async () => {
+      const store = new DocumentStore();
+      const p = makePayload(srv.base);
+      await expect(importSnapshot(store, { foo: 1 }, {}, { source: 'mcp' })).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining('Snapshot inválido'),
+      });
+      await expect(
+        importSnapshot(store, { ...p, version: 2 }, {}, { source: 'mcp' }),
+      ).rejects.toThrow(/versão do snapshot não suportada/);
+      const big = {
+        ...p,
+        root: { ...p.root, children: Array.from({ length: 5001 }, () => el('div')) },
+      };
+      await expect(importSnapshot(store, big, {}, { source: 'mcp' })).rejects.toThrow(
+        /mais de 5000 nós/,
+      );
+      await expect(importSnapshot(store, p, {}, { source: 'mcp' })).rejects.toMatchObject({
+        status: 409,
+      });
+      const doc = createDocument('x');
+      (store as unknown as { register(d: unknown, p: null): unknown }).register(doc, null);
+      await expect(
+        importSnapshot(store, p, { docId: 'doc_nao' }, { source: 'mcp' }),
+      ).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(
+        importSnapshot(store, p, { pageId: 'pg_nao' }, { source: 'mcp' }),
+      ).rejects.toBeInstanceOf(SnapshotImportError);
+      await expect(
+        importSnapshot(
+          store,
+          { ...p, root: { ...p.root, children: [{ id: 1 }] } },
+          {},
+          { source: 'mcp' },
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+  });
+
+  describe('documento salvo', () => {
+    let ws: ReturnType<typeof makeWorkspace>;
+    let store: DocumentStore;
+    let docId: string;
+    beforeEach(async () => {
+      ws = makeWorkspace();
+      store = new DocumentStore({ dataDir: ws.dataDir, autosaveMs: 60_000 });
+      docId = (await store.open(ws.file)).docId;
+    });
+    afterEach(async () => {
+      await store.closeAll();
+      ws.cleanup();
+    });
+    const assets = (): string => path.join(ws.dir, 'assets');
+
+    it('grava imagens em assets/ (nome da URL, sem duplicar), fontes em assets/fonts e a referência', async () => {
+      const r = await imports(store, docId, makePayload(srv.base));
+      const doc = store.get(docId);
+      const frame = findNode(doc, r.frameId)!.node;
+      expect(frame.children[0]!.src).toBe('inline.png');
+      expect(frame.children[1]!.src).toBe('logo.png');
+      // o fundo url() é embutido mesmo com assets/ (o canvas não resolve caminhos relativos em estilos)
+      expect(frame.children[2]!.style['background-image']).toMatch(/^url\("data:image\/png/);
+      expect(fs.existsSync(path.join(assets(), 'inline.png'))).toBe(true);
+      expect(fs.readFileSync(path.join(assets(), 'logo.png'))).toEqual(fakePng(20, 10));
+
+      // fontes: o melhor formato (woff2), nome com peso/estilo/hash
+      const fontFiles = fs.readdirSync(path.join(assets(), 'fonts')).sort();
+      expect(fontFiles).toHaveLength(2);
+      expect(fontFiles[0]).toMatch(/^brand-400-normal-[0-9a-f]{8}\.woff2$/);
+      expect(fontFiles[1]).toMatch(/^brand-700-normal-[0-9a-f]{8}\.woff2$/);
+      expect(r.fonts).toEqual(['Brand']);
+      const brand = doc.fonts.find((f) => f.family === 'Brand')!;
+      expect(brand.source).toBe('file');
+      expect(brand.files!.map((f) => f.replace(/-[0-9a-f]{8}/, ''))).toEqual([
+        'fonts/brand-400-normal.woff2',
+        'fonts/brand-700-normal.woff2',
+      ]);
+      expect(brand.weights).toEqual([400, 700]);
+      expect(brand.styles).toEqual(['normal', 'normal']);
+      const css = fontFaceCss(doc, (f) => `/assets/${f}`);
+      expect(css).toContain('font-weight:400;font-style:normal');
+      expect(css).toContain('font-weight:700;font-style:normal');
+
+      const refFile = fs.readdirSync(assets()).find((f) => f.startsWith('referencia-'));
+      expect(refFile).toMatch(/\.png$/);
+      expect(findNode(doc, r.referenceId!)!.node.children[0]!.src).toBe(refFile);
+      expect(srv.hits.filter((h) => h.endsWith('brand-400.eot'))).toHaveLength(0);
+    });
+
+    it('reimportar reaproveita arquivos de mesmo conteúdo e não duplica fontes', async () => {
+      await imports(store, docId, makePayload(srv.base));
+      const before = fs.readdirSync(assets()).sort();
+      const fontsBefore = fs.readdirSync(path.join(assets(), 'fonts')).sort();
+      const r2 = await imports(store, docId, makePayload(srv.base));
+      expect(fs.readdirSync(assets()).sort()).toEqual(before);
+      expect(fs.readdirSync(path.join(assets(), 'fonts')).sort()).toEqual(fontsBefore);
+      const doc = store.get(docId);
+      expect(doc.fonts).toHaveLength(1);
+      expect(doc.fonts[0]!.files).toHaveLength(2);
+      expect(findNode(doc, r2.frameId)!.node.children[0]!.src).toBe('inline.png');
+    });
+
+    it('arquivo de mesmo nome e conteúdo diferente ganha sufixo, sem sobrescrever', async () => {
+      fs.mkdirSync(assets());
+      fs.writeFileSync(path.join(assets(), 'logo.png'), fakePng(2, 2));
+      const r = await imports(store, docId, makePayload(srv.base));
+      expect(findNode(store.get(docId), r.frameId)!.node.children[1]!.src).toBe('logo-1.png');
+      expect(fs.readFileSync(path.join(assets(), 'logo.png'))).toEqual(fakePng(2, 2));
+    });
+
+    it('fonte variável (faixa) usa o mesmo formato do add_font: um arquivo e weights com os extremos', async () => {
+      const p = makePayload(srv.base);
+      p.fonts = [{ family: 'Vari', weight: '100 900', style: 'normal', assetIds: ['f3'] }];
+      await imports(store, docId, p);
+      const v = store.get(docId).fonts[0]!;
+      expect(v.files).toHaveLength(1);
+      expect(v.files![0]).toMatch(/^fonts\/vari-100-900-normal-[0-9a-f]{8}\.woff2$/);
+      expect(v.weights).toEqual([100, 900]);
+      expect(fontFaceCss(store.get(docId), (f) => f)).toContain('font-weight:100 900');
+    });
+
+    it('família já existente: arquivos acrescentados sem duplicar; de outra source não é tocada', async () => {
+      store.applyOps(
+        docId,
+        [
+          {
+            type: 'setFonts',
+            fonts: [
+              {
+                family: 'Brand',
+                source: 'file',
+                files: ['fonts/antiga-400.woff2'],
+                weights: [400],
+                styles: ['normal'],
+              },
+              { family: 'Local One', source: 'local' },
+            ],
+          },
+        ],
+        { source: 'mcp' },
+      );
+      const p = makePayload(srv.base);
+      p.fonts = [
+        { family: 'Brand', weight: '400', style: 'normal', assetIds: ['f3'] },
+        { family: 'Brand', weight: '700', style: 'normal', assetIds: ['f4'] },
+        { family: 'Local One', weight: '400', style: 'normal', assetIds: ['f3'] },
+      ];
+      const r = await imports(store, docId, p);
+      const fonts = store.get(docId).fonts;
+      const brand = fonts.find((f) => f.family === 'Brand')!;
+      // o 400/normal já existia: só o 700 é acrescentado
+      expect(brand.files).toHaveLength(2);
+      expect(brand.files![0]).toBe('fonts/antiga-400.woff2');
+      expect(brand.weights).toEqual([400, 700]);
+      expect(fonts.find((f) => f.family === 'Local One')).toEqual({
+        family: 'Local One',
+        source: 'local',
+      });
+      expect(r.warnings.join('\n')).toContain('Local One');
+      expect(r.fonts).toEqual(['Brand']);
+    });
+
+    it('aceita payloads maiores que 20 MB no pipeline (imagem de 17 MB grava em assets/)', async () => {
+      const p = makePayload(srv.base);
+      p.assets[0]!.dataUrl = `data:image/png;base64,${fakePng(4, 4, 17 * 1024 * 1024).toString('base64')}`;
+      p.fonts = [];
+      const r = await imports(store, docId, p);
+      expect(r.images).toBe(2);
+      expect(fs.statSync(path.join(assets(), 'inline.png')).size).toBeGreaterThan(17 * 1024 * 1024);
+    });
+  });
+});

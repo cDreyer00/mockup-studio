@@ -9,6 +9,11 @@ import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
 import { readRecent } from './paths.js';
 import { isAllowedOrigin } from './ws.js';
+import {
+  allowsExtensionOrigin,
+  isExtensionOrigin,
+  registerSnapshotRoutes,
+} from './snapshot/http.js';
 
 export const SERVER_NAME = 'mockup-studio';
 export const SERVER_VERSION = '0.1.0';
@@ -134,12 +139,16 @@ export function createApp(
       route === '/mcp' ||
       route.startsWith('/mcp/') ||
       (route.startsWith('/api/') && !SAFE_METHODS.has(req.method));
-    if (guarded && !isAllowedOrigin(req.headers.origin)) {
+    const extension =
+      isExtensionOrigin(req.headers.origin) && allowsExtensionOrigin(req.method, route);
+    if (guarded && !extension && !isAllowedOrigin(req.headers.origin)) {
       res.status(403).json({ error: 'Origem não permitida' });
       return;
     }
     next();
   });
+  // Importação de snapshots (extensão, editor, MCP): antes do CORS global e do json de 20 MB.
+  registerSnapshotRoutes(app, store, { render: ctx.render });
   app.use(
     cors({
       origin: (origin, cb) => cb(null, !origin || LOCAL_ORIGIN.test(origin)),
