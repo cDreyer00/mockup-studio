@@ -196,9 +196,7 @@ describe('QA fase 7: vetores e grid pelo MCP', () => {
     expect(s).not.toMatch(/foreignObject/i);
     const raw = nodeOf(id).vector?.raw ?? '';
     expect(raw).not.toMatch(/<script|onload|javascript:/i);
-    console.info(
-      '[observação] href https mantido em <a>:',
-      /href="https:\/\/example\.com"/.test(s),
-    );
+    // observação (comportamento atual, não requisito): href http(s) em <a> é mantido
+    expect(s).toContain('href="https://example.com"');
   });
 });
