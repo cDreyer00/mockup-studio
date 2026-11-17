@@ -371,10 +371,8 @@ describe('extras (posição, pseudo-elementos, texto)', () => {
 describe('captura da página inteira (raiz body/html)', () => {
   beforeAll(() => open('/landing/'));
 
-  // BUG conhecido: `Defaults.init()` põe o iframe de padrões dentro do `body` antes da travessia,
-  // então capturar `body` (o padrão do import_url) ou `html` leva o iframe como um nó "Iframe"
-  // 1280x800 em abs@-10000,0. Quando for corrigido, troque `it.fails` por `it`.
-  it.fails('capturar body não inclui o iframe de medição de padrões', async () => {
+  // O iframe de padrões (`Defaults.init()`) existe durante a travessia: não pode virar nó "Iframe".
+  it('capturar body não inclui o iframe de medição de padrões', async () => {
     for (const selector of ['body', 'html']) {
       const snap = await capture(selector);
       expect(

@@ -356,6 +356,7 @@ export function visit(
   isRoot: boolean,
   forceChildren = false,
 ): Node | null {
+  if (ctx.defaults.isOwn(el)) return null;
   const isSvg = el.namespaceURI === SVG_NS && el.localName === 'svg';
   if (!isSvg && el.namespaceURI !== XHTML_NS) return null;
   const tag = isSvg ? 'svg' : el.localName.toLowerCase();

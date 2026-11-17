@@ -30,7 +30,9 @@ export class Defaults {
     iframe.tabIndex = -1;
     iframe.style.cssText =
       'position:fixed;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden;pointer-events:none';
-    (document.body ?? document.documentElement).appendChild(iframe);
+    // Fora do `body` (não entra na captura de `body` nem mexe no fluxo dele); a travessia ainda
+    // ignora o elemento via `isOwn`, porque capturar `html` o alcançaria.
+    document.documentElement.appendChild(iframe);
     this.iframe = iframe;
     const doc = iframe.contentDocument;
     if (!doc) throw new Error('Não foi possível criar o documento de padrões (iframe).');
@@ -57,6 +59,11 @@ export class Defaults {
     rec = readStyle(doc.defaultView!.getComputedStyle(el));
     this.cache.set(key, rec);
     return rec;
+  }
+
+  /** O elemento de medição é do próprio capturador (a travessia o ignora). */
+  isOwn(el: Element): boolean {
+    return el === this.iframe;
   }
 
   dispose(): void {
