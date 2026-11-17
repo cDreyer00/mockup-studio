@@ -36,7 +36,8 @@ Transforma uma página (ou uma seção) de um site existente num frame editável
 ## Limitações
 
 - Páginas com login/paywall: use a extensão (o import_url abre uma janela sem sessão).
-- \`canvas\`, \`video\`, \`iframe\` e mapas viram placeholders; conteúdo carregado por scripts depois da captura pode faltar (use \`timeout_ms\` maior).
+- \`canvas\`, \`video\`, \`iframe\` e mapas viram placeholders; conteúdo carregado por scripts depois da captura pode faltar. O seletor é esperado até 5 s depois do load (1 s no \`import_html\` sem \`assets_base_url\`, em que o JS fica desligado); se não aparecer, a importação falha com "Seletor ... não encontrado".
+- URL que responde 4xx/5xx é importada assim mesmo (vem a página de erro) com o aviso "A página respondeu HTTP <status>": confira a URL antes de seguir.
 - Fontes de outro domínio sem CORS podem não vir nos bytes da captura; o daemon tenta baixar pela URL e avisa quando falha (a família cai no fallback do sistema).
 - Animações, hover e estados dinâmicos viram o quadro capturado; \`position: sticky\`/\`fixed\` e vídeos de fundo ficam estáticos.
 - Limite de ~5000 nós por importação: use \`selector\` para seções menores.

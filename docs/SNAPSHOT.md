@@ -103,7 +103,8 @@ Respondem `SnapshotImportResult` (`docId`, `pageId`, `frameId`, `referenceId?`, 
 O `RenderProvider.snapshot` do app (`packages/desktop/src/main/snapshot.ts`) abre **uma janela nova por importação**, numa sessão em memória própria (`mockup-snapshot`), e a destrói no fim:
 
 - rede: só `http`, `https`, `ws`, `wss`, `data`, `blob` e `about`; `file://` é cancelado; permissões, downloads, popups e navegações depois da inicial são negados; áudio mudo. O isolamento de rede local está detalhado em [Isolamento da janela de captura](#isolamento-da-janela-de-captura);
-- viewport exato via CDP; espera o seletor, `document.fonts.ready` e as imagens (até 3 s);
+- viewport exato via CDP; depois do load espera o seletor aparecer (até 5 s em `import_url` e `import_html` com `assets_base_url`, em que o JS da página pode montar o DOM; até 1 s em `import_html` sem base, HTML estático com JS desligado), depois `document.fonts.ready` e as imagens (até 3 s). Seletor que não aparece dá o erro `Seletor "..." não encontrado ... (esperou N s após o carregamento)`;
+- status HTTP da navegação principal (`import_url`) 4xx/5xx **não** é erro: a página de erro é importada (pode ser o que se quer, ex.: o design de um 404) e o resultado leva o aviso `A página respondeu HTTP <status>: ...`. Falha de rede (DNS, conexão recusada) continua sendo erro;
 - a captura roda num mundo isolado (o JS da página não interfere); a referência sai do `Page.captureScreenshot` com o retângulo do elemento;
 - prazo total `timeout_ms` (padrão 20 s): estourou, a janela é destruída e a ferramenta responde com erro.
 
