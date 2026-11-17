@@ -4,9 +4,67 @@
  * num shadow root fechado para não herdar CSS da página.
  */
 import { captureElement } from '@mockup/snapshot-core/browser';
-import { encodeClipboard } from '@mockup/snapshot-core';
+import { encodeClipboard, type SnapshotPayload } from '@mockup/snapshot-core';
 
 type Mode = 'send' | 'copy';
+
+const MiB = 1024 * 1024;
+/** Soma das data URLs embutidas na captura (caracteres); abaixo do limite padrão do core. */
+const MAX_INLINE_TOTAL = 32 * MiB;
+/** Limite seguro do JSON enviado ao service worker (o Chrome recusa mensagens acima de ~64 MiB). */
+const MAX_MESSAGE = 48 * MiB;
+
+const TOO_BIG_TEXT =
+  'A seção é grande demais para enviar ao Mockup Studio. Selecione uma seção menor (↑/↓ ajustam o elemento).';
+
+/** Resposta do service worker ao `send` (ver `SendResult` em background.ts). */
+type SendResponse =
+  | { ok: true; nodes: number }
+  | { ok: false; kind: 'offline'; error: string }
+  | { ok: false; kind: 'http'; status: number; error: string };
+
+/**
+ * Payload que cabe em `MAX_MESSAGE` (medido pelo JSON da mensagem, em caracteres): tira a
+ * referência se ela sozinha estoura e, se ainda passar, remove a `dataUrl` dos maiores assets (o
+ * daemon tenta baixar pela URL). Devolve `null` se nem assim couber. O payload original não é
+ * alterado (serve para o fallback de copiar).
+ */
+function fitMessage(payload: SnapshotPayload): SnapshotPayload | null {
+  let size = JSON.stringify({ type: 'send', payload }).length;
+  if (size <= MAX_MESSAGE) return payload;
+  const out: SnapshotPayload = {
+    ...payload,
+    assets: payload.assets.map((a) => ({ ...a })),
+    stats: { ...payload.stats, warnings: [...payload.stats.warnings] },
+  };
+  if (out.reference && out.reference.dataUrl.length > MAX_MESSAGE / 2) {
+    size -= out.reference.dataUrl.length;
+    delete out.reference;
+    out.stats.warnings.push(
+      'A imagem de referência era grande demais para o envio e foi removida.',
+    );
+  }
+  const dropped: string[] = [];
+  const bySize = out.assets
+    .filter((a) => a.dataUrl)
+    .sort((a, b) => b.dataUrl!.length - a.dataUrl!.length);
+  for (const a of bySize) {
+    if (size <= MAX_MESSAGE) break;
+    size -= a.dataUrl!.length;
+    delete a.dataUrl;
+    dropped.push(a.url.slice(0, 120));
+  }
+  if (dropped.length) {
+    out.stats.warnings.push(
+      `${dropped.length} asset(s) maiores foram enviados só pela URL (a captura passou do limite de envio); o app tenta baixá-los: ${dropped.slice(0, 5).join(', ')}`,
+    );
+  }
+  return size <= MAX_MESSAGE ? out : null;
+}
+
+/** O erro de `chrome.runtime.sendMessage` indica mensagem grande demais? */
+const isTooLarge = (err: unknown): boolean =>
+  /length|too large|exceed|size/i.test(err instanceof Error ? err.message : String(err));
 
 const FLAG = '__mockupPickerInstalled';
 const w = window as unknown as Record<string, unknown>;
@@ -22,9 +80,13 @@ function install(): void {
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === 'start') {
       active?.stop();
-      active = startPicker(message.mode === 'copy' ? 'copy' : 'send', Number(message.port) || 4747, () => {
-        active = null;
-      });
+      active = startPicker(
+        message.mode === 'copy' ? 'copy' : 'send',
+        Number(message.port) || 4747,
+        () => {
+          active = null;
+        },
+      );
     }
   });
 }
@@ -39,8 +101,7 @@ const OVERLAY_CSS = `
 
 function makeHost(): { host: HTMLElement; root: ShadowRoot } {
   const host = document.createElement('div');
-  host.style.cssText =
-    'all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
+  host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
   const root = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = OVERLAY_CSS;
@@ -169,7 +230,7 @@ function startPicker(mode: Mode, port: number, onDone: () => void): { stop: () =
       await nextFrame();
       await nextFrame();
       const rect = target.getBoundingClientRect();
-      const payload = await captureElement(target);
+      const payload = await captureElement(target, { maxInlineTotalBytes: MAX_INLINE_TOTAL });
       try {
         const res = await chrome.runtime.sendMessage({
           type: 'screenshot',
@@ -177,6 +238,15 @@ function startPicker(mode: Mode, port: number, onDone: () => void): { stop: () =
           viewport: { width: window.innerWidth, height: window.innerHeight },
         });
         if (res?.reference) payload.reference = res.reference;
+        if (res?.clipped) {
+          const ref = res.reference as { width: number; height: number } | null | undefined;
+          const full = `${Math.round(res.full.width)}x${Math.round(res.full.height)}`;
+          payload.stats.warnings.push(
+            ref
+              ? `A imagem de referência cobre só a parte visível da seção (${Math.round(ref.width)}x${Math.round(ref.height)} de ${full} px); role a página ou use import_url para a captura inteira.`
+              : `A seção (${full} px) está fora da parte visível da página: sem imagem de referência; role a página ou use import_url para a captura inteira.`,
+          );
+        }
       } catch {
         /* a referência é opcional */
       }
@@ -186,9 +256,28 @@ function startPicker(mode: Mode, port: number, onDone: () => void): { stop: () =
         toast('Copiado: cole no editor com Ctrl+V');
         return;
       }
-      const res = await chrome.runtime.sendMessage({ type: 'send', port, payload });
+
+      const toSend = fitMessage(payload);
+      if (!toSend) {
+        toast(TOO_BIG_TEXT, 'error');
+        return;
+      }
+      let res: SendResponse | undefined;
+      try {
+        res = await chrome.runtime.sendMessage({ type: 'send', port, payload: toSend });
+      } catch (err) {
+        if (isTooLarge(err)) {
+          toast(TOO_BIG_TEXT, 'error');
+          return;
+        }
+        res = undefined; // sem resposta do service worker: trata como app fora do ar
+      }
       if (res?.ok) {
-        toast(`Enviado ao Mockup Studio (${res.nodes} nós)`);
+        const trimmed = toSend.stats.warnings.length > payload.stats.warnings.length;
+        toast(`Enviado ao Mockup Studio (${res.nodes} nós)${trimmed ? ': veja os avisos' : ''}`);
+      } else if (res && res.kind === 'http') {
+        const detail = res.error ? `: ${res.error}` : '';
+        toast(`O Mockup Studio recusou o envio (HTTP ${res.status})${detail}`, 'error');
       } else {
         await writeClipboard(encodeClipboard(payload));
         toast('Mockup Studio não respondeu: copiado, cole no editor com Ctrl+V');
@@ -204,7 +293,15 @@ function startPicker(mode: Mode, port: number, onDone: () => void): { stop: () =
     window.removeEventListener('mousemove', onMove, true);
     window.removeEventListener('keydown', onKey, true);
     window.removeEventListener('click', onClick, true);
-    for (const t of ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick', 'dblclick', 'contextmenu'] as const) {
+    for (const t of [
+      'mousedown',
+      'mouseup',
+      'pointerdown',
+      'pointerup',
+      'auxclick',
+      'dblclick',
+      'contextmenu',
+    ] as const) {
       window.removeEventListener(t, block, true);
     }
     window.removeEventListener('scroll', paint, true);
@@ -221,7 +318,15 @@ function startPicker(mode: Mode, port: number, onDone: () => void): { stop: () =
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('click', onClick, true);
   // Evita que a página reaja ao clique de seleção (navegação, menus, drag).
-  for (const t of ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick', 'dblclick', 'contextmenu'] as const) {
+  for (const t of [
+    'mousedown',
+    'mouseup',
+    'pointerdown',
+    'pointerup',
+    'auxclick',
+    'dblclick',
+    'contextmenu',
+  ] as const) {
     window.addEventListener(t, block, true);
   }
   window.addEventListener('scroll', paint, true);
