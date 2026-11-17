@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFxClock } from './clock';
+import { iframeSandbox } from './iframeSandbox';
 import { fxBegin } from './ready';
 import { FX_INNER, fxRootStyle } from './types';
 import type { FxViewProps } from './types';
@@ -28,7 +29,7 @@ export function IframeView({ node, style }: FxViewProps) {
         <iframe
           src={url}
           title="Iframe"
-          sandbox="allow-scripts allow-same-origin allow-popups"
+          sandbox={iframeSandbox(url, window.location.origin)}
           loading="lazy"
           referrerPolicy="no-referrer"
           style={{ ...FX_INNER, background: '#fff' }}
