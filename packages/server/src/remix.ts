@@ -3,6 +3,7 @@
  * `layout`) são planejados pelo core (`planRemix`) e aplicados numa única entrada de undo; o `ai`
  * pede ao assistente que crie as variações num turno (todas as ops do turno viram um grupo).
  */
+import { randomUUID } from 'node:crypto';
 import {
   findNode,
   planRemix,
@@ -141,14 +142,27 @@ export class RemixService implements RemixServiceApi {
       'Não altere nem mova o frame original nem os outros frames. Termine com uma frase curta por variação.',
     ].join('\n');
 
-    const message = await assistant.runTurn(docId, prompt, {
-      selection: [nodeId],
-      instructions,
-      ...(opts.group ? { group: opts.group } : {}),
-    });
+    // Grupo próprio (ou o de quem chamou): as variações são os frames criados pelas ops DESTE
+    // grupo, não qualquer frame novo da página (o usuário pode criar frames durante o turno).
+    const ownGroup = !opts.group;
+    const group = opts.group ?? `remix:${randomUUID()}`;
+    let message;
+    try {
+      message = await assistant.runTurn(docId, prompt, {
+        selection: [nodeId],
+        instructions,
+        group,
+      });
+    } finally {
+      if (ownGroup) {
+        this.store.closeGroup(docId, group);
+        this.store.finishWorking(docId, []);
+      }
+    }
 
+    const createdIds = this.store.groupCreatedIds(docId, group);
     const page = this.store.get(docId).pages.find((p) => p.id === pageId);
-    const created = (page?.frames ?? []).filter((f) => !before.has(f.id));
+    const created = (page?.frames ?? []).filter((f) => !before.has(f.id) && createdIds.has(f.id));
     const frameIds = created.map((f) => f.id);
     if (frameIds.length === 0 && (message.status === 'error' || message.status === 'cancelled'))
       throw new Error(

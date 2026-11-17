@@ -199,6 +199,41 @@ describe('RemixService', () => {
       expect(frames()).toHaveLength(1);
     });
 
+    it('frame criado pelo usuário durante o turno não entra nas variações', async () => {
+      const { api } = fakeAssistant(1);
+      const wrapped = {
+        ...api,
+        async runTurn(id: string, prompt: string, opts?: RunTurnOptions) {
+          // o usuário cria um frame pelo editor no meio do turno (sem grupo)
+          store.applyOps(
+            id,
+            [
+              {
+                type: 'createNode',
+                pageId: store.get(id).pages[0]!.id,
+                node: {
+                  id: 'fr_usuario1',
+                  type: 'frame',
+                  name: 'Do usuário',
+                  tag: 'div',
+                  attrs: {},
+                  style: { width: '100px', height: '100px' },
+                  children: [],
+                },
+              },
+            ],
+            { source: 'editor' },
+          );
+          return api.runTurn(id, prompt, opts);
+        },
+      } as unknown as AssistantServiceApi;
+      const ai = new RemixService(store, { assistant: wrapped });
+      const r = await ai.run(docId, 'tx_title001', 'ai', { prompt: 'x', count: 1 });
+      expect(r.frameIds).toHaveLength(1);
+      expect(r.frameIds).not.toContain('fr_usuario1');
+      expect(r.labels).toEqual(['Desktop — variação 1']);
+    });
+
     it('count padrão 3 nas instruções e erro quando o turno falha sem criar nada', async () => {
       const { api, calls } = fakeAssistant(0, 'error');
       const ai = new RemixService(store, { assistant: api });
