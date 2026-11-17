@@ -99,7 +99,7 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
     changes: z.array(
       z.object({
         nodeId: id,
-        data: DataSchema.optional(),
+        data: DataSchema.nullable().optional(),
         source: DataSourceSchema.nullable().optional(),
       }),
     ),

@@ -471,18 +471,19 @@ function doSetSrc(d: Document, op: Extract<Op, { type: 'setSrc' }>): Applied {
 /* ---------------- setData ---------------- */
 
 function doSetData(d: Document, op: Extract<Op, { type: 'setData' }>): Applied {
-  const prev: { nodeId: string; data?: unknown[]; source?: DataSource | null }[] = [];
+  const prev: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[] = [];
   for (const ch of op.changes) {
     const node = requireNode(d, ch.nodeId).node;
     if (node.type !== 'repeater') {
       fail(`O nó "${ch.nodeId}" não é um repetidor (tipo ${node.type}); só nós repeater têm dados`);
     }
-    const before: { nodeId: string; data?: unknown[]; source?: DataSource | null } = {
+    const before: { nodeId: string; data?: unknown[] | null; source?: DataSource | null } = {
       nodeId: ch.nodeId,
     };
     if (ch.data !== undefined) {
-      before.data = node.data ?? [];
-      node.data = ch.data;
+      before.data = node.data ?? null;
+      if (ch.data === null) delete node.data;
+      else node.data = ch.data;
     }
     if (ch.source !== undefined) {
       before.source = node.dataSource ?? null;

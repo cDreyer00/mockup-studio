@@ -164,6 +164,13 @@ describe('expansão do repetidor', () => {
     expect(html).not.toContain('{{nome}}');
   });
 
+  it('recusa "~" no id de nó (reservado aos clones do repetidor)', () => {
+    const rp = repeater(people.slice(0, 1));
+    const doc = docWith(rp);
+    rp.children[0]!.id = `${rp.children[0]!.id}~1`;
+    expect(() => parseDocument(serializeDocument(doc))).toThrow(/~/);
+  });
+
   it('serializa e relê data e dataSource', () => {
     const rp = repeater(people.slice(0, 2));
     rp.dataSource = { kind: 'json', path: 'C:/dados/p.json', select: 'items' };
@@ -190,6 +197,18 @@ describe('op setData', () => {
     const back = findNode(undone.doc, rp.id)!.node;
     expect(back.data).toHaveLength(2);
     expect(back.dataSource).toBeUndefined();
+  });
+
+  it('desfaz para sem dados quando o repetidor não tinha a lista', () => {
+    const rp = repeater([]);
+    delete rp.data;
+    const doc = docWith(rp);
+    const r = applyOp(doc, { type: 'setData', changes: [{ nodeId: rp.id, data: people }] });
+    expect(findNode(r.doc, rp.id)!.node.data).toHaveLength(20);
+    const undone = applyOp(r.doc, r.inverse[0]!);
+    const back = findNode(undone.doc, rp.id)!.node;
+    expect('data' in back).toBe(false);
+    expect(back).toEqual(findNode(doc, rp.id)!.node);
   });
 
   it('recusa nó que não é repetidor e dados acima do limite', () => {

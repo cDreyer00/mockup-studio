@@ -135,7 +135,8 @@ export interface SetSrcOp {
  */
 export interface SetDataOp {
   type: 'setData';
-  changes: { nodeId: string; data?: unknown[]; source?: DataSource | null }[];
+  /** `data: null` apaga a lista (usado pelo undo quando o nó não tinha dados). */
+  changes: { nodeId: string; data?: unknown[] | null; source?: DataSource | null }[];
 }
 
 export type Op =

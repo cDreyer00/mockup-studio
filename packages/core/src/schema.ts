@@ -100,7 +100,11 @@ export const DataSchema = z
 export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
   z
     .object({
-      id: z.string().min(1),
+      // `~` separa o índice nos clones dos repetidores (`REPEAT_ID_SEP` em data.ts).
+      id: z
+        .string()
+        .min(1)
+        .refine((v) => !v.includes('~'), { error: 'o id não pode conter "~"' }),
       type: z.enum(['frame', 'element', 'text', 'image', 'svg', 'repeater']),
       name: z.string(),
       tag: TagSchema,
