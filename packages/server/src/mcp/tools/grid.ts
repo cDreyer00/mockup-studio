@@ -46,7 +46,7 @@ export function registerGridTools(ctx: ToolContext): void {
     {
       title: 'Definir CSS Grid',
       description:
-        'Transforma um nó em contêiner grid (display:grid) com colunas, linhas, gap, áreas e alinhamento. columns/rows: número (N trilhas iguais 1fr), texto CSS ("1fr 200px minmax(100px, 1fr)", "repeat(3, 1fr)") ou lista (["200px", "1fr"]). Depois posicione filhos com place_in_grid e confira as trilhas com get_layout.',
+        'Faz do nó um contêiner grid: columns/rows (número = N trilhas 1fr, texto CSS "1fr 200px minmax(100px, 1fr)" ou lista), gap, areas e alinhamento. Depois use place_in_grid e confira as trilhas com get_layout.',
       example: {
         nodeId: 'el_ab12cd34',
         columns: 3,
@@ -184,7 +184,7 @@ export function registerGridTools(ctx: ToolContext): void {
     {
       title: 'Posicionar em célula do grid',
       description:
-        'Posiciona filhos de um contêiner grid (grid-column / grid-row, ou grid-area para área nomeada). column e row começam em 1; span é número (colunas) ou { columns, rows }. O pai precisa ser display:grid (use set_grid).',
+        'Posiciona filhos de um grid (grid-column/grid-row ou grid-area). column e row começam em 1; span é número (colunas) ou { columns, rows }. O pai precisa ser display:grid (veja set_grid).',
       example: { nodeIds: ['el_ab12cd34'], column: 2, row: 1, span: { columns: 2, rows: 1 } },
       inputSchema: {
         nodeIds: z

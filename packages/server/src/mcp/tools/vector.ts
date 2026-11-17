@@ -100,7 +100,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Criar forma vetorial',
       description:
-        'Cria uma forma (rect, ellipse, line, polygon, star) como nó svg com paths editáveis. Com x/y vira position:absolute (o pai precisa ser frame ou position:relative); sem x/y entra no fluxo. Estilos de tinta (fill, stroke, stroke-width, stroke-linecap, stroke-linejoin, stroke-dasharray) vão para o vetor; o resto, para o nó. Padrão: fill #d9d9d9 (linha: stroke #111111, 2px), 100x100.',
+        'Cria uma forma (rect, ellipse, line, polygon, star) como nó svg editável. Com x/y fica absoluto (pai frame ou position:relative). Tinta (fill, stroke, stroke-width...) em styles vai para o vetor; o resto, para o nó. Padrão 100x100, fill #d9d9d9.',
       example: {
         parentId: 'fr_ab12cd34',
         shape: 'star',
@@ -233,7 +233,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Definir path de um vetor',
       description:
-        'Substitui o path data (d) de um path de um nó svg com vetor editável (ou cria o vetor, num svg vazio). d aceita M L H V C S Q T A Z (maiúsculas e minúsculas). Com fit:true ajusta o viewBox ao conteúdo e atualiza left/top/width/height mantendo a escala. Veja os ids com get_svg.',
+        'Troca o path data (d) de um path de um nó svg editável (valida M L H V C S Q T A Z). fit:true ajusta o viewBox ao conteúdo e a caixa do nó (left/top/width/height). Veja os ids com get_svg.',
       example: { nodeId: 'sv_ab12cd34', d: 'M 0 0 L 100 0 L 50 80 Z', fit: true },
       inputSchema: {
         nodeId: z.string().describe('Id do nó svg, ex.: "sv_ab12cd34".'),
@@ -343,7 +343,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Inserir SVG',
       description:
-        'Insere um markup SVG como nó svg. O markup é sanitizado e preservado intacto (raw) até a primeira edição de paths; quando o SVG é simples (path, rect, circle, ellipse, line, polyline, polygon, gradientes) os paths ficam editáveis (set_path, set_vector_paint, boolean_op). Sem width/height usa o tamanho do próprio SVG.',
+        'Insere markup SVG como nó svg, sanitizado e preservado (raw) até a primeira edição. SVG simples (path, formas, gradientes) fica com paths editáveis; a resposta avisa. Sem width/height usa o tamanho do SVG.',
       example: {
         parentId: 'fr_ab12cd34',
         svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="#111" stroke-width="2"/></svg>',
@@ -406,7 +406,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Ler SVG de um nó',
       description:
-        'Devolve o markup SVG atual de um nó svg e o resumo dos paths (id, d, fill, stroke, strokeWidth), indicando se o markup é o original preservado (raw) ou regenerado a partir dos paths. Somente leitura.',
+        'Lê um nó svg: markup atual, viewBox e resumo dos paths (id, d, fill, stroke, strokeWidth), dizendo se o markup é o original (raw) ou regenerado. Somente leitura.',
       example: { nodeId: 'sv_ab12cd34' },
       inputSchema: {
         nodeId: z.string().describe('Id do nó svg, ex.: "sv_ab12cd34".'),
@@ -469,7 +469,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Definir preenchimento e traço',
       description:
-        'Muda a tinta dos paths de um nó svg: fill, stroke (cor CSS, "none", "currentColor" ou gradiente linear/radial como objeto), strokeWidth, linecap, linejoin, dasharray, opacity, fillRule. Sem pathIds vale para todos os paths. "" remove a propriedade. Edita o vetor e regenera o markup (descarta o raw original).',
+        'Muda a tinta de paths de um nó svg: fill, stroke (cor, "none" ou gradiente linear/radial), strokeWidth, linecap, linejoin, dasharray, opacity. Sem pathIds vale para todos; "" remove. Regenera o markup.',
       example: {
         nodeId: 'sv_ab12cd34',
         fill: {
@@ -560,7 +560,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Operação booleana entre vetores',
       description:
-        'Combina 2 ou mais nós svg irmãos numa forma só: union (soma), subtract (o de baixo menos os de cima), intersect (interseção) ou exclude (xor). Curvas são achatadas em segmentos. O resultado substitui o primeiro nó; os originais são removidos. Desfaça com undo.',
+        'Combina 2+ nós svg irmãos: union, subtract (o de baixo menos os de cima), intersect ou exclude. Curvas são achatadas. O resultado substitui o primeiro nó e os originais somem. Desfaça com undo.',
       example: { nodeIds: ['sv_aaaa1111', 'sv_bbbb2222'], op: 'subtract', name: 'Furo' },
       inputSchema: {
         nodeIds: z
@@ -592,7 +592,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Achatar vetores',
       description:
-        'Achata vetores. Um nó: junta todos os paths dele num só (tinta do primeiro). Vários nós svg irmãos: viram um nó só com os paths de todos (cada um mantém a tinta), no lugar do mais ao fundo. Desfaça com undo.',
+        'Achata vetores. Um nó: junta os paths num só. Vários svgs irmãos: um nó só com os paths de todos (cada um com sua tinta). Desfaça com undo.',
       example: { nodeIds: ['sv_aaaa1111', 'sv_bbbb2222'] },
       inputSchema: {
         nodeIds: z
@@ -619,7 +619,7 @@ export function registerVectorTools(ctx: ToolContext): void {
     {
       title: 'Texto em contornos',
       description:
-        'Converte nós de texto em nós svg com os contornos dos glifos (paths editáveis), usando a fonte do documento ou do sistema. O texto vira desenho: deixa de ser editável como texto. Informe nodeIds (ou nodeId). Devolve notas sobre fonte, quebra de linha e glifos ausentes. Desfaça com undo.',
+        'Converte nós de texto em svg com os contornos dos glifos (fonte do documento ou do sistema); deixa de ser texto editável. Devolve notas (fonte, quebras, glifos ausentes). Desfaça com undo.',
       example: { nodeIds: ['tx_ab12cd34'] },
       inputSchema: {
         nodeIds: z
