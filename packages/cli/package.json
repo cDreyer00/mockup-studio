@@ -19,6 +19,7 @@
     "@mockup/core": "0.1.0",
     "@mockup/server": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "smol-toml": "^1.9.1",
     "zod": "^4.0.0"
   }
 }

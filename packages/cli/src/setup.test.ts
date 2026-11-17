@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LaunchCommand } from './launch.js';
 import type { ToolResult } from './tools.js';
 import { findIntegrationsDir, integrationsCandidates, runSetup, type SetupDeps } from './setup.js';
+import { tomlError } from './tomlEdit.js';
 
 const ok: ToolResult = { status: 0, stdout: '', stderr: '' };
 const bad: ToolResult = { status: 1, stdout: '', stderr: 'erro do cliente' };
@@ -235,15 +236,119 @@ describe('runSetup', () => {
     );
   });
 
-  it('codex stdio para http troca as chaves', () => {
-    write(codexCfg(), CODEX_CUSTOM);
+  it('codex stdio para http: remove command/args/env (em linha e subtabela) e avisa', () => {
+    write(
+      codexCfg(),
+      CODEX_CUSTOM.replace('startup_timeout_sec = 30', 'startup_timeout_sec = 30\ncwd = "C:/x"'),
+    );
     const { deps } = make({ installed: ['codex'] });
-    runSetup('codex', { http: true, port: 4747 }, deps);
+    const r = runSetup('codex', { http: true, port: 4747 }, deps);
+    expect(r.code).toBe(0);
     const out = fs.readFileSync(codexCfg(), 'utf8');
-    expect(out).toContain('url = "http://127.0.0.1:4747/mcp"');
-    expect(out).not.toContain('command = "antigo"');
-    expect(out).not.toContain('args = ["a"');
-    expect(out).toContain('startup_timeout_sec = 30');
+    expect(tomlError(out)).toBeNull();
+    expect(out).toBe(
+      [
+        '# meu config',
+        'model = "x"',
+        '',
+        '[mcp_servers.outro]',
+        'command = "outro"',
+        '',
+        '[mcp_servers.mockup-studio]',
+        '# comentário da seção',
+        'default_tools_approval_mode = "prompt"',
+        'startup_timeout_sec = 30',
+        'url = "http://127.0.0.1:4747/mcp"',
+        '',
+      ].join('\n'),
+    );
+    expect(r.lines.join('\n')).toContain(
+      'removidas por não valerem para http: command, args, [mcp_servers.mockup-studio.env], cwd.',
+    );
+    const again = runSetup('codex', { http: true, port: 4747 }, deps);
+    expect(again.lines.join('\n')).toContain('nada a fazer');
+  });
+
+  it('codex app empacotado (env em linha) para http e de volta para stdio', () => {
+    const launch: LaunchCommand = {
+      command: 'C:\\App\\Mockup Studio.exe',
+      args: ['C:\\App\\resources\\cli\\mockup.mjs', 'mcp'],
+      env: { ELECTRON_RUN_AS_NODE: '1' },
+      kind: 'absolute',
+    };
+    write(
+      codexCfg(),
+      [
+        '[mcp_servers.mockup-studio]',
+        'command = "antigo"',
+        'args = []',
+        'env = { ELECTRON_RUN_AS_NODE = "0", OUTRA = "x" } # vars',
+        '',
+      ].join('\n'),
+    );
+    const { deps } = make({ installed: ['codex'], launch });
+    expect(runSetup('codex', {}, deps).code).toBe(0);
+    let out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out).toContain('env = { ELECTRON_RUN_AS_NODE = "1", OUTRA = "x" } # vars\n');
+    expect(out).not.toContain('[mcp_servers.mockup-studio.env]');
+    expect(tomlError(out)).toBeNull();
+    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nada a fazer');
+
+    expect(runSetup('codex', { http: true, port: 4747 }, deps).code).toBe(0);
+    out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(out).toBe('[mcp_servers.mockup-studio]\nurl = "http://127.0.0.1:4747/mcp"\n');
+
+    // volta para stdio com chaves de http personalizadas: são removidas
+    write(
+      codexCfg(),
+      [
+        '[mcp_servers.mockup-studio]',
+        'url = "u"',
+        'bearer_token_env_var = "T"',
+        '',
+        '[mcp_servers.mockup-studio.http_headers]',
+        'X = "1"',
+        '',
+      ].join('\n'),
+    );
+    const r = runSetup('codex', {}, deps);
+    expect(r.code).toBe(0);
+    out = fs.readFileSync(codexCfg(), 'utf8');
+    expect(tomlError(out)).toBeNull();
+    expect(out).not.toMatch(/url|bearer|http_headers/);
+    expect(out).toContain('[mcp_servers.mockup-studio.env]\nELECTRON_RUN_AS_NODE = "1"');
+    expect(r.lines.join('\n')).toContain(
+      'removidas por não valerem para stdio: url, bearer_token_env_var, [mcp_servers.mockup-studio.http_headers].',
+    );
+  });
+
+  it('codex com config.toml inválido: não grava e explica', () => {
+    const bad = '[mcp_servers.mockup-studio]\ncommand = "x"\ncommand = "y"\n';
+    write(codexCfg(), bad);
+    const { deps, ran } = make({ installed: ['codex'] });
+    const r = runSetup('codex', {}, deps);
+    expect(r.code).toBe(1);
+    expect(ran).toEqual([]);
+    expect(r.lines.join('\n')).toMatch(/não é TOML válido \(linha 3/);
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(bad);
+  });
+
+  it('codex: edição que não fica com o lançamento esperado não é gravada', () => {
+    // chave pontilhada env.A não é editada pelo editor de linhas: a subtabela nova duplicaria env
+    const cfg = '[mcp_servers.mockup-studio]\ncommand = "x"\nargs = []\nenv.A = "1"\n';
+    write(codexCfg(), cfg);
+    const launch: LaunchCommand = {
+      command: 'm',
+      args: ['mcp'],
+      env: { B: '2' },
+      kind: 'absolute',
+    };
+    const { deps } = make({ installed: ['codex'], launch });
+    const r = runSetup('codex', {}, deps);
+    expect(r.code).toBe(1);
+    expect(r.lines.join('\n')).toContain('nada gravado');
+    expect(r.lines.join('\n')).toContain('--force');
+    expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(cfg);
   });
 
   it('codex sem seção: usa codex mcp add', () => {

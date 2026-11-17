@@ -1,8 +1,10 @@
 /**
  * Editor de linhas mínimo para a seção `[mcp_servers.mockup-studio]` do `~/.codex/config.toml`.
- * Não é um parser TOML: localiza a seção, lê strings e arrays de strings de uma linha (ou várias) e troca
- * só as linhas de uma chave, preservando o resto do arquivo (comentários, outras seções, CRLF).
+ * A leitura usa um parser TOML de verdade (`smol-toml`); a escrita troca só as linhas de uma chave,
+ * preservando o resto do arquivo (comentários, outras seções, CRLF). Quem grava valida o texto
+ * resultante com `tomlError` antes.
  */
+import { parse } from 'smol-toml';
 
 export interface TomlDoc {
   lines: string[];
@@ -15,14 +17,42 @@ export function parseDoc(text: string): TomlDoc {
 
 export const renderDoc = (d: TomlDoc): string => d.lines.join(d.eol);
 
-const HEADER_RE =
-  /^\s*\[\s*mcp_servers\s*\.\s*(?:mockup-studio|"mockup-studio"|'mockup-studio')\s*\]\s*(?:#.*)?$/;
-/** Subtabela `[mcp_servers.mockup-studio.env]`. */
-export const ENV_HEADER_RE =
-  /^\s*\[\s*mcp_servers\s*\.\s*(?:mockup-studio|"mockup-studio"|'mockup-studio')\s*\.\s*env\s*\]\s*(?:#.*)?$/;
-export const ENV_HEADER = '[mcp_servers.mockup-studio.env]';
+/** Erro de sintaxe do TOML (primeira linha da mensagem do parser, com linha:coluna), ou `null`. */
+export function tomlError(text: string): string | null {
+  try {
+    parse(text);
+    return null;
+  } catch (e) {
+    const err = e as { message?: string; line?: number; column?: number };
+    const msg = (err.message ?? String(e)).split('\n')[0].replace(/^Invalid TOML document:\s*/, '');
+    return err.line ? `linha ${err.line}, coluna ${err.column}: ${msg}` : msg;
+  }
+}
+
+/** Tabela `mcp_servers.mockup-studio` do texto, ou `undefined`. Lança se o TOML é inválido. */
+export function readServerTable(text: string, name: string): Record<string, unknown> | undefined {
+  const servers = parse(text).mcp_servers as Record<string, unknown> | undefined;
+  const t = servers && typeof servers === 'object' ? servers[name] : undefined;
+  return t && typeof t === 'object' && !Array.isArray(t)
+    ? (t as Record<string, unknown>)
+    : undefined;
+}
+
+const NAME = String.raw`(?:mockup-studio|"mockup-studio"|'mockup-studio')`;
+const headerRe = (sub?: string) =>
+  new RegExp(
+    String.raw`^\s*\[\s*mcp_servers\s*\.\s*${NAME}${sub ? String.raw`\s*\.\s*(?:${sub}|"${sub}"|'${sub}')` : ''}\s*\]\s*(?:#.*)?$`,
+  );
+const subHeader = (sub: string) => `[mcp_servers.mockup-studio.${sub}]`;
 const ANY_HEADER_RE = /^\s*\[/;
-const KEY_RE = /^\s*(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_-]+))\s*=(.*)$/;
+const BARE_KEY = /^[A-Za-z0-9_-]+$/;
+const PART = String.raw`(?:"(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_-]+)`;
+/** Chave simples ou pontilhada (`env.A`) e o resto da linha. */
+const KEY_RE = new RegExp(String.raw`^\s*(${PART}(?:\s*\.\s*${PART})*)\s*=(.*)$`);
+const PART_RE = new RegExp(PART, 'g');
+/** Nome da chave sem aspas; as partes de uma chave pontilhada são unidas por `.`. */
+const keyName = (text: string) =>
+  (text.match(PART_RE) ?? []).map((p) => (/^["']/.test(p) ? p.slice(1, -1) : p)).join('.');
 
 export interface Entry {
   key: string;
@@ -38,148 +68,88 @@ export interface Section {
   entries: Entry[];
 }
 
-/** Saldo de colchetes de um texto, ignorando strings e comentários. */
-function bracketDepth(s: string): number {
+/**
+ * Varre o valor de uma chave (pode ter várias linhas): `complete` quando colchetes/chaves fecharam e
+ * nenhuma string `"""`/`'''` ficou aberta; `comment` é o comentário depois do valor (com o `#`).
+ */
+export function scanValue(s: string): { complete: boolean; comment?: string } {
   let depth = 0;
-  for (let i = 0; i < s.length; i++) {
+  let comment: string | undefined;
+  let i = 0;
+  while (i < s.length) {
     const c = s[i];
-    if (c === '"') {
-      for (i++; i < s.length && s[i] !== '"'; i++) if (s[i] === '\\') i++;
-    } else if (c === "'") {
-      for (i++; i < s.length && s[i] !== "'"; i++);
-    } else if (c === '#') break;
-    else if (c === '[') depth++;
-    else if (c === ']') depth--;
+    if (s.startsWith('"""', i) || s.startsWith("'''", i)) {
+      const q = s.slice(i, i + 3);
+      i += 3;
+      for (;;) {
+        if (i >= s.length) return { complete: false };
+        if (q === '"""' && s[i] === '\\') i += 2;
+        else if (s.startsWith(q, i)) {
+          i += 3;
+          while (s[i] === q[0]) i++; // até duas aspas extras fazem parte do conteúdo
+          break;
+        } else i++;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      for (i++; i < s.length && s[i] !== c && s[i] !== '\n'; i++)
+        if (c === '"' && s[i] === '\\') i++;
+      i++;
+      continue;
+    }
+    if (c === '#') {
+      const nl = s.indexOf('\n', i);
+      const end = nl < 0 ? s.length : nl;
+      comment = depth === 0 ? s.slice(i, end) : undefined;
+      i = end;
+      continue;
+    }
+    if (c === '[' || c === '{') depth++;
+    else if (c === ']' || c === '}') depth--;
+    else if (depth === 0 && !/\s/.test(c)) comment = undefined;
+    i++;
   }
-  return depth;
+  return { complete: depth <= 0, comment };
 }
 
-/** Seção principal (padrão) ou outra pelo cabeçalho (ex.: `ENV_HEADER_RE`). */
-export function findSection(doc: TomlDoc, header: RegExp = HEADER_RE): Section | null {
+/** Seção principal ou uma subtabela dela (ex.: `env`). */
+export function findSection(doc: TomlDoc, sub?: string): Section | null {
   const { lines } = doc;
+  const header = headerRe(sub);
   const start = lines.findIndex((l) => header.test(l));
   if (start < 0) return null;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++)
-    if (ANY_HEADER_RE.test(lines[i])) {
-      end = i;
-      break;
-    }
   const entries: Entry[] = [];
-  for (let i = start + 1; i < end; i++) {
+  let i = start + 1;
+  while (i < lines.length && !ANY_HEADER_RE.test(lines[i])) {
     const m = KEY_RE.exec(lines[i]);
-    if (!m) continue;
-    let raw = m[4];
+    if (!m) {
+      i++;
+      continue;
+    }
+    let raw = m[2];
     let to = i + 1;
-    while (bracketDepth(raw) > 0 && to < end) raw += `\n${lines[to++]}`;
-    entries.push({ key: m[1] ?? m[2] ?? m[3], from: i, to, raw });
-    i = to - 1;
+    while (!scanValue(raw).complete && to < lines.length) raw += `\n${lines[to++]}`;
+    entries.push({ key: keyName(m[1]), from: i, to, raw });
+    i = to;
   }
-  return { start, end, entries };
+  return { start, end: i, entries };
 }
 
-const ESCAPES: Record<string, string> = {
-  b: '\b',
-  t: '\t',
-  n: '\n',
-  f: '\f',
-  r: '\r',
-  '"': '"',
-  '\\': '\\',
-};
-
-/** Lê string, ou array de strings; `undefined` se não conseguir interpretar. */
-export function parseValue(raw: string): string | string[] | undefined {
-  let pos = 0;
-  const skip = () => {
-    for (;;) {
-      while (pos < raw.length && /\s/.test(raw[pos])) pos++;
-      if (raw[pos] === '#') while (pos < raw.length && raw[pos] !== '\n') pos++;
-      else return;
-    }
-  };
-  const str = (): string | undefined => {
-    const q = raw[pos++];
-    let out = '';
-    while (pos < raw.length) {
-      const c = raw[pos++];
-      if (c === q) return out;
-      if (q === "'" || c !== '\\') {
-        if (c === '\n') return undefined;
-        out += c;
-        continue;
-      }
-      const e = raw[pos++];
-      if (e === 'u' || e === 'U') {
-        const n = e === 'u' ? 4 : 8;
-        const hex = raw.slice(pos, pos + n);
-        if (!new RegExp(`^[0-9a-fA-F]{${n}}$`).test(hex)) return undefined;
-        const cp = parseInt(hex, 16);
-        if (cp > 0x10ffff) return undefined;
-        out += String.fromCodePoint(cp);
-        pos += n;
-      } else if (e !== undefined && e in ESCAPES) out += ESCAPES[e];
-      else return undefined;
-    }
-    return undefined;
-  };
-  skip();
-  let result: string | string[] | undefined;
-  if (raw[pos] === '"' || raw[pos] === "'") {
-    if (raw.startsWith('"""', pos) || raw.startsWith("'''", pos)) return undefined;
-    result = str();
-  } else if (raw[pos] === '[') {
-    pos++;
-    const arr: string[] = [];
-    for (;;) {
-      skip();
-      if (raw[pos] === ']') {
-        pos++;
-        break;
-      }
-      if (raw[pos] === ',') {
-        pos++;
-        continue;
-      }
-      if (raw[pos] !== '"' && raw[pos] !== "'") return undefined;
-      const s = str();
-      if (s === undefined) return undefined;
-      arr.push(s);
-    }
-    result = arr;
-  }
-  if (result === undefined) return undefined;
-  skip();
-  return pos >= raw.length ? result : undefined;
-}
-
-/** Valor atual de uma chave da seção (`undefined` se ausente ou ilegível). */
-export function getValue(
-  doc: TomlDoc,
-  key: string,
-  header: RegExp = HEADER_RE,
-): string | string[] | undefined {
-  const e = findSection(doc, header)?.entries.find((x) => x.key === key);
-  return e ? parseValue(e.raw) : undefined;
-}
-
-/** Troca (ou insere) `key = valor` na seção. `false` se não há seção ou nada mudou. */
-export function setKey(
-  doc: TomlDoc,
-  key: string,
-  valueText: string,
-  header: RegExp = HEADER_RE,
-): boolean {
-  const sec = findSection(doc, header);
+/** Troca (ou insere) `key = valor` na seção, mantendo o comentário do fim da linha. `false` se nada mudou. */
+export function setKey(doc: TomlDoc, key: string, valueText: string, sub?: string): boolean {
+  const sec = findSection(doc, sub);
   if (!sec) return false;
-  const line = `${key} = ${valueText}`;
   const e = sec.entries.find((x) => x.key === key);
+  const keyText = BARE_KEY.test(key) ? key : JSON.stringify(key);
   if (e) {
+    const comment = scanValue(e.raw).comment;
+    const line = `${keyText} = ${valueText}${comment ? ` ${comment}` : ''}`;
     if (e.to - e.from === 1 && doc.lines[e.from].trim() === line) return false;
     doc.lines.splice(e.from, e.to - e.from, line);
   } else {
     const last = sec.entries[sec.entries.length - 1];
-    doc.lines.splice(last ? last.to : sec.start + 1, 0, line);
+    doc.lines.splice(last ? last.to : sec.start + 1, 0, `${keyText} = ${valueText}`);
   }
   return true;
 }
@@ -191,17 +161,34 @@ export function removeKey(doc: TomlDoc, key: string): boolean {
   return true;
 }
 
-/** Pares string da subtabela `env` da seção. */
-export function readEnv(doc: TomlDoc): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const e of findSection(doc, ENV_HEADER_RE)?.entries ?? []) {
-    const v = parseValue(e.raw);
-    if (typeof v === 'string') out[e.key] = v;
-  }
+/** Remove a subtabela `[mcp_servers.mockup-studio.<sub>]` inteira (até o próximo cabeçalho). */
+export function removeSubtable(doc: TomlDoc, sub: string): boolean {
+  const sec = findSection(doc, sub);
+  if (!sec) return false;
+  let from = sec.start;
+  if (from > 0 && doc.lines[from - 1].trim() === '') from--;
+  let to = sec.end;
+  // as linhas em branco do fim ficam (separam a próxima seção / quebra final); a de antes sai
+  while (to > sec.start + 1 && doc.lines[to - 1].trim() === '') to--;
+  doc.lines.splice(from, to - from);
+  return true;
+}
+
+/** Remove a chave em linha e a subtabela; devolve os nomes removidos (`env`, `[...env]`). */
+export function removeKeyOrTable(doc: TomlDoc, key: string): string[] {
+  const out: string[] = [];
+  if (removeKey(doc, key)) out.push(key);
+  for (const e of findSection(doc)?.entries.filter((x) => x.key.startsWith(`${key}.`)) ?? [])
+    if (removeKey(doc, e.key)) out.push(e.key);
+  if (removeSubtable(doc, key)) out.push(subHeader(key));
   return out;
 }
 
-/** Grava os pares na subtabela `env`, criando-a logo depois da seção principal se preciso. */
+/**
+ * Garante os pares na tabela `env`: se a seção tem `env = { ... }` em linha, reescreve a mesma chave
+ * em linha (com os pares antigos e os novos); senão usa a subtabela `[mcp_servers.mockup-studio.env]`,
+ * criando-a logo depois da seção principal. Lança se o `env` em linha não for legível.
+ */
 export function setEnv(
   doc: TomlDoc,
   env: Record<string, string>,
@@ -209,13 +196,34 @@ export function setEnv(
 ): boolean {
   const pairs = Object.entries(env);
   if (!pairs.length) return false;
-  if (!findSection(doc, ENV_HEADER_RE)) {
-    const main = findSection(doc);
-    if (!main) return false;
-    const last = main.entries[main.entries.length - 1];
-    doc.lines.splice(last ? last.to : main.start + 1, 0, '', ENV_HEADER);
+  const main = findSection(doc);
+  if (!main) return false;
+  if (main.entries.some((x) => x.key.startsWith('env.')))
+    throw new Error('env definido com chaves pontilhadas (env.NOME = ...) na seção');
+  const inline = main.entries.find((x) => x.key === 'env');
+  if (inline) {
+    let cur: unknown;
+    try {
+      cur = parse(`env = ${inline.raw}`).env;
+    } catch {
+      cur = undefined;
+    }
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur))
+      throw new Error('o valor de env na seção não é uma tabela legível');
+    const merged = { ...(cur as Record<string, unknown>), ...env };
+    if (pairs.every(([k, v]) => (cur as Record<string, unknown>)[k] === v)) return false;
+    const body = Object.entries(merged)
+      .map(([k, v]) => `${BARE_KEY.test(k) ? k : quote(k)} = ${quote(String(v))}`)
+      .join(', ');
+    return setKey(doc, 'env', `{ ${body} }`);
+  }
+  if (!findSection(doc, 'env')) {
+    // no fim da seção (antes das linhas em branco), para não capturar linhas que o editor não reconhece
+    let at = main.end;
+    while (at > main.start + 1 && doc.lines[at - 1].trim() === '') at--;
+    doc.lines.splice(at, 0, '', subHeader('env'));
   }
   let changed = false;
-  for (const [k, v] of pairs) changed = setKey(doc, k, quote(v), ENV_HEADER_RE) || changed;
+  for (const [k, v] of pairs) changed = setKey(doc, k, quote(v), 'env') || changed;
   return changed;
 }

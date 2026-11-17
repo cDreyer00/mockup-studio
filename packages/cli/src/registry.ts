@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SERVER_NAME, type LaunchCommand } from './launch.js';
-import { findSection, getValue, parseDoc, readEnv, type TomlDoc } from './tomlEdit.js';
+import { findSection, parseDoc, readServerTable, tomlError } from './tomlEdit.js';
 
 export interface RegisteredServer {
   transport: 'stdio' | 'http';
@@ -114,33 +114,43 @@ export interface CodexRegistration {
   server: RegisteredServer;
   /** Valor de `default_tools_approval_mode`, se houver. */
   approve?: string;
+  /** O arquivo não é TOML válido (o Codex também não o carrega); `server` fica vazio. */
+  error?: string;
 }
 
-/** Seção `[mcp_servers.mockup-studio]` do config do Codex, ou `null`. */
+const strOf = (v: unknown) => (typeof v === 'string' ? v : undefined);
+
+/** Servidor descrito por uma tabela `[mcp_servers.<nome>]` já interpretada. */
+export function codexServer(t: Record<string, unknown>): RegisteredServer {
+  const url = strOf(t.url);
+  if (url) return { transport: 'http', url };
+  const env = t.env && typeof t.env === 'object' && !Array.isArray(t.env) ? t.env : {};
+  return {
+    transport: 'stdio',
+    command: strOf(t.command),
+    args: Array.isArray(t.args) && t.args.every((x) => typeof x === 'string') ? t.args : undefined,
+    env: Object.fromEntries(
+      Object.entries(env as Record<string, unknown>).filter(
+        (p): p is [string, string] => typeof p[1] === 'string',
+      ),
+    ),
+  };
+}
+
+/**
+ * Seção `[mcp_servers.mockup-studio]` do config do Codex, ou `null`. Se o arquivo não é TOML válido
+ * mas tem o cabeçalho da seção, devolve o registro com `error`.
+ */
 export function readCodexRegistration(d: FsDeps): CodexRegistration | null {
   const p = codexConfigPath(d);
   const text = d.readFile(p);
   if (text === null) return null;
-  const doc: TomlDoc = parseDoc(text);
-  const sec = findSection(doc);
-  if (!sec) return null;
-  const str = (k: string) => {
-    const v = getValue(doc, k);
-    return typeof v === 'string' ? v : undefined;
-  };
-  const url = str('url');
-  const server: RegisteredServer = url
-    ? { transport: 'http', url }
-    : {
-        transport: 'stdio',
-        command: str('command'),
-        args: (() => {
-          const v = getValue(doc, 'args');
-          return Array.isArray(v) ? v : undefined;
-        })(),
-        env: readEnv(doc),
-      };
-  return { path: p, server, approve: str('default_tools_approval_mode') };
+  const error = tomlError(text);
+  if (error)
+    return findSection(parseDoc(text)) ? { path: p, server: { transport: 'stdio' }, error } : null;
+  const t = readServerTable(text, SERVER_NAME);
+  if (!t) return null;
+  return { path: p, server: codexServer(t), approve: strOf(t.default_tools_approval_mode) };
 }
 
 /** Servidor desejado, no mesmo formato do registrado. */

@@ -297,16 +297,18 @@ export async function runDoctor(
       );
     } else {
       const reg = readCodexRegistration(fsd);
-      server = reg?.server;
+      server = reg?.error ? undefined : reg?.server;
       add(
         tool,
-        reg ? 'ok' : 'warn',
+        reg?.error ? 'error' : reg ? 'ok' : 'warn',
         `${tool} ${version}`,
-        reg
-          ? `${SERVER_NAME} registrado em ${reg.path}: ${describeServer(reg.server)} (${exe})`
-          : notReg,
+        reg?.error
+          ? `${reg.path} não é TOML válido (${reg.error}); o Codex não carrega o arquivo. Corrija-o.`
+          : reg
+            ? `${SERVER_NAME} registrado em ${reg.path}: ${describeServer(reg.server)} (${exe})`
+            : notReg,
       );
-      if (reg) {
+      if (reg && !reg.error) {
         if (reg.approve === 'approve')
           add(
             'codexApprove',

@@ -19,6 +19,7 @@ import {
 import {
   codexConfigPath,
   codexHome,
+  codexServer,
   defaultReadFile,
   describeServer,
   readClaudeRegistrations,
@@ -30,12 +31,13 @@ import {
 } from './registry.js';
 import {
   findSection,
-  getValue,
   parseDoc,
-  removeKey,
+  readServerTable,
+  removeKeyOrTable,
   renderDoc,
   setEnv,
   setKey,
+  tomlError,
   type TomlDoc,
 } from './tomlEdit.js';
 import { findOnPath, runTool, type ToolResult } from './tools.js';
@@ -206,10 +208,49 @@ function registerClaude(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): 
   return { code: 0, lines };
 }
 
-/** Grava o arquivo se mudou; devolve `false` e a mensagem de erro se falhar. */
+/** Chaves do Codex que só valem num transporte (as do outro são removidas na troca). */
+const STDIO_KEYS = ['command', 'args', 'env', 'env_vars', 'cwd'];
+const HTTP_KEYS = ['url', 'bearer_token_env_var', 'http_headers', 'env_http_headers'];
+
+/** Aplica o lançamento desejado na seção; devolve as chaves removidas. Lança se o `env` for ilegível. */
+function editCodexSection(doc: TomlDoc, wanted: RegisteredServer): string[] {
+  const removed: string[] = [];
+  if (wanted.transport === 'http') {
+    setKey(doc, 'url', tomlString(wanted.url ?? ''));
+    for (const k of STDIO_KEYS) removed.push(...removeKeyOrTable(doc, k));
+  } else {
+    setKey(doc, 'command', tomlString(wanted.command ?? ''));
+    setKey(doc, 'args', `[${(wanted.args ?? []).map(tomlString).join(', ')}]`);
+    for (const k of HTTP_KEYS) removed.push(...removeKeyOrTable(doc, k));
+    setEnv(doc, wanted.env ?? {}, tomlString);
+  }
+  return removed;
+}
+
+/** Confere o texto editado com o parser TOML: válido, com o lançamento desejado e sem chaves do outro transporte. */
+function checkCodexText(text: string, wanted: RegisteredServer): string | null {
+  const err = tomlError(text);
+  if (err) return `o resultado não seria TOML válido: ${err}`;
+  const t = readServerTable(text, SERVER_NAME);
+  if (!t) return `a seção [mcp_servers.${SERVER_NAME}] não foi encontrada depois da edição`;
+  const other = (wanted.transport === 'http' ? STDIO_KEYS : HTTP_KEYS).filter((k) => k in t);
+  if (other.length)
+    return `restaram chaves que não valem para ${wanted.transport}: ${other.join(', ')}`;
+  if (!sameServer(codexServer(t), wanted))
+    return `a seção não ficou com o lançamento esperado (${describeServer(codexServer(t))})`;
+  return null;
+}
+
+/** Grava o arquivo, só se o resultado for TOML válido; devolve `false` e a mensagem se não gravar. */
 function writeDoc(deps: SetupDeps, file: string, doc: TomlDoc, lines: string[]): boolean {
+  const text = renderDoc(doc);
+  const err = tomlError(text);
+  if (err) {
+    lines.push(`  nada gravado em ${file}: o resultado não seria TOML válido (${err}).`);
+    return false;
+  }
   try {
-    deps.writeFile(file, renderDoc(doc));
+    deps.writeFile(file, text);
     return true;
   } catch (e) {
     lines.push(`  falhou ao gravar ${file}: ${e instanceof Error ? e.message : e}`);
@@ -236,6 +277,13 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
       ]
     : [];
   const existing = readCodexRegistration(fsDeps(deps));
+  if (existing?.error) {
+    lines.push(
+      `codex: ${file} não é TOML válido (${existing.error}); o Codex também não carrega esse arquivo.`,
+      '  corrija-o e rode o setup de novo.',
+    );
+    return { code: opts.print ? 0 : 1, lines };
+  }
   const sameCmd = existing ? sameServer(existing.server, spec.wanted) : false;
 
   if (opts.print) {
@@ -244,7 +292,10 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
     else if (opts.force)
       lines.push(`codex: recriaria ${SERVER_NAME}: ${q(spec.removeArgs)} e ${q(spec.addArgs)}`);
     else if (sameCmd) lines.push(`codex: ${SERVER_NAME} já registrado com o mesmo comando.`);
-    else lines.push(`codex: editaria command/args da seção em ${file}, preservando o resto.`);
+    else
+      lines.push(
+        `codex: editaria as chaves de lançamento da seção em ${file}, preservando o resto.`,
+      );
     if (opts.approve && existing)
       lines.push(`codex: gravaria ${approveLine} em ${file} (aprovação das ferramentas).`);
     return { code: 0, lines };
@@ -273,25 +324,35 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
     lines.push(`codex: ${SERVER_NAME} já registrado com o mesmo comando; nada a fazer.`);
   } else {
     const doc = parseDoc(deps.readFile(file) ?? '');
-    if (spec.wanted.transport === 'http') {
-      setKey(doc, 'url', tomlString(spec.wanted.url ?? ''));
-      removeKey(doc, 'command');
-      removeKey(doc, 'args');
-    } else {
-      setKey(doc, 'command', tomlString(spec.wanted.command ?? ''));
-      setKey(doc, 'args', `[${(spec.wanted.args ?? []).map(tomlString).join(', ')}]`);
-      removeKey(doc, 'url');
-      setEnv(doc, spec.wanted.env ?? {}, tomlString);
+    let removed: string[];
+    let why: string | null;
+    try {
+      removed = editCodexSection(doc, spec.wanted);
+      why = checkCodexText(renderDoc(doc), spec.wanted);
+    } catch (e) {
+      removed = [];
+      why = e instanceof Error ? e.message : String(e);
+    }
+    if (why) {
+      lines.push(
+        `codex: não deu para editar ${file} com segurança (${why}); nada gravado.`,
+        `  edite a seção [mcp_servers.${SERVER_NAME}] à mão ou recrie o registro com \`mockup setup codex${opts.http ? ' --http' : ''} --force\` (descarta campos extras).`,
+      );
+      return { code: 1, lines };
     }
     if (!writeDoc(deps, file, doc, lines)) return { code: 1, lines };
     lines.push(
-      `codex: ${SERVER_NAME} atualizado em ${file} (só command/args/env do lançamento; o resto da config foi preservado).`,
+      `codex: ${SERVER_NAME} atualizado em ${file} (só as chaves de lançamento; o resto da config foi preservado).`,
     );
+    if (removed.length)
+      lines.push(
+        `  removidas por não valerem para ${spec.wanted.transport}: ${removed.join(', ')}.`,
+      );
   }
 
   if (opts.approve) {
     const doc = parseDoc(deps.readFile(file) ?? '');
-    const cur = getValue(doc, 'default_tools_approval_mode');
+    const cur = readCodexRegistration(fsDeps(deps))?.approve;
     if (cur === 'approve') lines.push('codex: default_tools_approval_mode já é "approve".');
     else if (!findSection(doc))
       lines.push(
