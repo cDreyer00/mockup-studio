@@ -8,7 +8,7 @@ import { findIntegrationsDir, integrationsCandidates, runSetup, type SetupDeps }
 import { tomlError } from './tomlEdit.js';
 
 const ok: ToolResult = { status: 0, stdout: '', stderr: '' };
-const bad: ToolResult = { status: 1, stdout: '', stderr: 'erro do cliente' };
+const bad: ToolResult = { status: 1, stdout: '', stderr: 'client error' };
 
 let home: string;
 let cwd: string;
@@ -61,15 +61,15 @@ const claudeUser = (command = 'mockup', args = ['mcp']) =>
   });
 
 const CODEX_CUSTOM = [
-  '# meu config',
+  '# my config',
   'model = "x"',
   '',
-  '[mcp_servers.outro]',
-  'command = "outro"',
+  '[mcp_servers.other]',
+  'command = "other"',
   '',
   '[mcp_servers.mockup-studio]',
-  '# comentário da seção',
-  'command = "antigo"',
+  '# section comment',
+  'command = "old"',
   'args = ["a", "b"]',
   'default_tools_approval_mode = "prompt"',
   'startup_timeout_sec = 30',
@@ -80,7 +80,7 @@ const CODEX_CUSTOM = [
 ].join('\n');
 
 describe('runSetup', () => {
-  it('não instalado: imprime instruções (e TOML no Codex)', () => {
+  it('not installed: prints instructions (and TOML for Codex)', () => {
     const { deps, ran } = make({});
     const r = runSetup('all', {}, deps);
     expect(r.code).toBe(0);
@@ -91,23 +91,23 @@ describe('runSetup', () => {
     expect(t).toContain('[mcp_servers.mockup-studio]');
   });
 
-  it('instalado e não registrado: só adiciona, sem mcp get', () => {
+  it('installed and not registered: only adds, without mcp get', () => {
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', {}, deps);
     expect(r.code).toBe(0);
     expect(ran).toEqual(['claude mcp add --scope user mockup-studio -- mockup mcp']);
-    expect(r.lines.join('\n')).toContain('registrado');
+    expect(r.lines.join('\n')).toContain('registered');
   });
 
-  it('claude já registrado igual: nada executado', () => {
+  it('claude already registered identically: nothing executed', () => {
     write(claudeJson(), claudeUser());
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', {}, deps);
     expect(ran).toEqual([]);
-    expect(r.lines.join('\n')).toContain('nada a fazer');
+    expect(r.lines.join('\n')).toContain('nothing to do');
   });
 
-  it('claude registrado diferente: avisa, remove -s user e adiciona', () => {
+  it('claude registered differently: warns, removes -s user and adds', () => {
     write(claudeJson(), claudeUser('C:\\x\\node.exe', ['bin.js', 'mcp']));
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', {}, deps);
@@ -115,10 +115,10 @@ describe('runSetup', () => {
       'claude mcp remove mockup-studio -s user',
       'claude mcp add --scope user mockup-studio -- mockup mcp',
     ]);
-    expect(r.lines.join('\n')).toContain('descarta campos extras');
+    expect(r.lines.join('\n')).toContain('discards extra fields');
   });
 
-  it('claude respeita CLAUDE_CONFIG_DIR', () => {
+  it('claude respects CLAUDE_CONFIG_DIR', () => {
     const dir = path.join(home, 'cc');
     write(path.join(dir, '.claude.json'), claudeUser());
     const { deps, ran } = make({ installed: ['claude'] });
@@ -127,7 +127,7 @@ describe('runSetup', () => {
     expect(ran).toEqual([]);
   });
 
-  it('claude só em escopo local: informa e adiciona no user sem remove', () => {
+  it('claude only in local scope: reports it and adds to user without remove', () => {
     write(
       claudeJson(),
       JSON.stringify({
@@ -139,11 +139,11 @@ describe('runSetup', () => {
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', {}, deps);
     expect(ran).toEqual(['claude mcp add --scope user mockup-studio -- mockup mcp']);
-    expect(r.lines.join('\n')).toContain('escopo local');
+    expect(r.lines.join('\n')).toContain('local scope');
   });
 
-  it('remove com "not found" segue para o add', () => {
-    write(claudeJson(), claudeUser('outro', []));
+  it('remove with "not found" proceeds to add', () => {
+    write(claudeJson(), claudeUser('other', []));
     const { deps, ran } = make({
       installed: ['claude'],
       removeResult: { status: 1, stdout: '', stderr: 'No MCP server found with name' },
@@ -153,23 +153,23 @@ describe('runSetup', () => {
     expect(ran).toHaveLength(2);
   });
 
-  it('--force recria mesmo igual (claude)', () => {
+  it('--force recreates even if identical (claude)', () => {
     write(claudeJson(), claudeUser());
     const { deps, ran } = make({ installed: ['claude'] });
     const r = runSetup('claude', { force: true }, deps);
     expect(ran.map((x) => x.split(' ')[2])).toEqual(['remove', 'add']);
-    expect(r.lines.join('\n')).toContain('descarta campos extras');
+    expect(r.lines.join('\n')).toContain('discards extra fields');
   });
 
-  it('codex igual: nada a fazer', () => {
+  it('codex identical: nothing to do', () => {
     write(codexCfg(), '[mcp_servers.mockup-studio]\ncommand = "mockup"\nargs = ["mcp"]\n');
     const { deps, ran } = make({ installed: ['codex'] });
     const r = runSetup('codex', {}, deps);
     expect(ran).toEqual([]);
-    expect(r.lines.join('\n')).toContain('nada a fazer');
+    expect(r.lines.join('\n')).toContain('nothing to do');
   });
 
-  it('codex diferente: edita só command/args, sem remove', () => {
+  it('codex different: edits only command/args, without remove', () => {
     write(codexCfg(), CODEX_CUSTOM);
     const { deps, ran } = make({ installed: ['codex'] });
     const r = runSetup('codex', {}, deps);
@@ -177,7 +177,7 @@ describe('runSetup', () => {
     expect(ran).toEqual([]);
     const out = fs.readFileSync(codexCfg(), 'utf8');
     expect(out).toBe(
-      CODEX_CUSTOM.replace('command = "antigo"', 'command = "mockup"').replace(
+      CODEX_CUSTOM.replace('command = "old"', 'command = "mockup"').replace(
         'args = ["a", "b"]',
         'args = ["mcp"]',
       ),
@@ -186,7 +186,7 @@ describe('runSetup', () => {
     expect(out).toContain('[mcp_servers.mockup-studio.env]');
   });
 
-  it('comando absoluto do app: env ELECTRON_RUN_AS_NODE faz parte da comparação', () => {
+  it('absolute app command: env ELECTRON_RUN_AS_NODE is part of the comparison', () => {
     const launch: LaunchCommand = {
       command: 'C:\\App\\Mockup Studio.exe',
       args: ['C:\\App\\resources\\cli\\mockup.mjs', 'mcp'],
@@ -199,8 +199,8 @@ describe('runSetup', () => {
       `args = [${launch.args.map((a) => JSON.stringify(a)).join(', ')}]`,
       'default_tools_approval_mode = "approve"',
       '',
-      '[mcp_servers.outro]',
-      'command = "outro"',
+      '[mcp_servers.other]',
+      'command = "other"',
       '',
     ].join('\n');
     write(codexCfg(), section);
@@ -211,11 +211,11 @@ describe('runSetup', () => {
     expect(out).toContain(
       'default_tools_approval_mode = "approve"\n\n[mcp_servers.mockup-studio.env]\nELECTRON_RUN_AS_NODE = "1"\n',
     );
-    expect(out).toContain('[mcp_servers.outro]\ncommand = "outro"');
-    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nada a fazer');
+    expect(out).toContain('[mcp_servers.other]\ncommand = "other"');
+    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nothing to do');
     expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(out);
 
-    // Claude com o mesmo comando, mas sem a variável: re-registra
+    // Claude with the same command but without the variable: re-registers
     write(claudeJson(), claudeUser(launch.command, launch.args));
     runSetup('claude', {}, deps);
     expect(ran.map((x) => x.split(' ').slice(0, 3).join(' '))).toEqual([
@@ -224,7 +224,7 @@ describe('runSetup', () => {
     ]);
   });
 
-  it('codex diferente: preserva CRLF e aceita cabeçalho com aspas', () => {
+  it('codex different: preserves CRLF and accepts a quoted header', () => {
     write(
       codexCfg(),
       '[mcp_servers."mockup-studio"]\r\ncommand = \'C:\\x\\node.exe\'\r\nargs = [\r\n  "a",\r\n]\r\nfoo = 1\r\n',
@@ -236,7 +236,7 @@ describe('runSetup', () => {
     );
   });
 
-  it('codex stdio para http: remove command/args/env (em linha e subtabela) e avisa', () => {
+  it('codex stdio to http: removes command/args/env (inline and subtable) and warns', () => {
     write(
       codexCfg(),
       CODEX_CUSTOM.replace('startup_timeout_sec = 30', 'startup_timeout_sec = 30\ncwd = "C:/x"'),
@@ -248,14 +248,14 @@ describe('runSetup', () => {
     expect(tomlError(out)).toBeNull();
     expect(out).toBe(
       [
-        '# meu config',
+        '# my config',
         'model = "x"',
         '',
-        '[mcp_servers.outro]',
-        'command = "outro"',
+        '[mcp_servers.other]',
+        'command = "other"',
         '',
         '[mcp_servers.mockup-studio]',
-        '# comentário da seção',
+        '# section comment',
         'default_tools_approval_mode = "prompt"',
         'startup_timeout_sec = 30',
         'url = "http://127.0.0.1:4747/mcp"',
@@ -263,13 +263,13 @@ describe('runSetup', () => {
       ].join('\n'),
     );
     expect(r.lines.join('\n')).toContain(
-      'removidas por não valerem para http: command, args, [mcp_servers.mockup-studio.env], cwd.',
+      'removed because they do not apply to http: command, args, [mcp_servers.mockup-studio.env], cwd.',
     );
     const again = runSetup('codex', { http: true, port: 4747 }, deps);
-    expect(again.lines.join('\n')).toContain('nada a fazer');
+    expect(again.lines.join('\n')).toContain('nothing to do');
   });
 
-  it('codex app empacotado (env em linha) para http e de volta para stdio', () => {
+  it('codex packaged app (inline env) to http and back to stdio', () => {
     const launch: LaunchCommand = {
       command: 'C:\\App\\Mockup Studio.exe',
       args: ['C:\\App\\resources\\cli\\mockup.mjs', 'mcp'],
@@ -280,25 +280,25 @@ describe('runSetup', () => {
       codexCfg(),
       [
         '[mcp_servers.mockup-studio]',
-        'command = "antigo"',
+        'command = "old"',
         'args = []',
-        'env = { ELECTRON_RUN_AS_NODE = "0", OUTRA = "x" } # vars',
+        'env = { ELECTRON_RUN_AS_NODE = "0", OTHER = "x" } # vars',
         '',
       ].join('\n'),
     );
     const { deps } = make({ installed: ['codex'], launch });
     expect(runSetup('codex', {}, deps).code).toBe(0);
     let out = fs.readFileSync(codexCfg(), 'utf8');
-    expect(out).toContain('env = { ELECTRON_RUN_AS_NODE = "1", OUTRA = "x" } # vars\n');
+    expect(out).toContain('env = { ELECTRON_RUN_AS_NODE = "1", OTHER = "x" } # vars\n');
     expect(out).not.toContain('[mcp_servers.mockup-studio.env]');
     expect(tomlError(out)).toBeNull();
-    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nada a fazer');
+    expect(runSetup('codex', {}, deps).lines.join('\n')).toContain('nothing to do');
 
     expect(runSetup('codex', { http: true, port: 4747 }, deps).code).toBe(0);
     out = fs.readFileSync(codexCfg(), 'utf8');
     expect(out).toBe('[mcp_servers.mockup-studio]\nurl = "http://127.0.0.1:4747/mcp"\n');
 
-    // volta para stdio com chaves de http personalizadas: são removidas
+    // back to stdio with custom http keys: they are removed
     write(
       codexCfg(),
       [
@@ -318,23 +318,23 @@ describe('runSetup', () => {
     expect(out).not.toMatch(/url|bearer|http_headers/);
     expect(out).toContain('[mcp_servers.mockup-studio.env]\nELECTRON_RUN_AS_NODE = "1"');
     expect(r.lines.join('\n')).toContain(
-      'removidas por não valerem para stdio: url, bearer_token_env_var, [mcp_servers.mockup-studio.http_headers].',
+      'removed because they do not apply to stdio: url, bearer_token_env_var, [mcp_servers.mockup-studio.http_headers].',
     );
   });
 
-  it('codex com config.toml inválido: não grava e explica', () => {
+  it('codex with an invalid config.toml: does not write and explains', () => {
     const bad = '[mcp_servers.mockup-studio]\ncommand = "x"\ncommand = "y"\n';
     write(codexCfg(), bad);
     const { deps, ran } = make({ installed: ['codex'] });
     const r = runSetup('codex', {}, deps);
     expect(r.code).toBe(1);
     expect(ran).toEqual([]);
-    expect(r.lines.join('\n')).toMatch(/não é TOML válido \(linha 3/);
+    expect(r.lines.join('\n')).toMatch(/is not valid TOML \(line 3/);
     expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(bad);
   });
 
-  it('codex: edição que não fica com o lançamento esperado não é gravada', () => {
-    // chave pontilhada env.A não é editada pelo editor de linhas: a subtabela nova duplicaria env
+  it('codex: an edit that does not end up with the expected launch is not written', () => {
+    // dotted key env.A is not edited by the line editor: the new subtable would duplicate env
     const cfg = '[mcp_servers.mockup-studio]\ncommand = "x"\nargs = []\nenv.A = "1"\n';
     write(codexCfg(), cfg);
     const launch: LaunchCommand = {
@@ -346,18 +346,18 @@ describe('runSetup', () => {
     const { deps } = make({ installed: ['codex'], launch });
     const r = runSetup('codex', {}, deps);
     expect(r.code).toBe(1);
-    expect(r.lines.join('\n')).toContain('nada gravado');
+    expect(r.lines.join('\n')).toContain('nothing written');
     expect(r.lines.join('\n')).toContain('--force');
     expect(fs.readFileSync(codexCfg(), 'utf8')).toBe(cfg);
   });
 
-  it('codex sem seção: usa codex mcp add', () => {
+  it('codex without a section: uses codex mcp add', () => {
     const { deps, ran } = make({ installed: ['codex'] });
     runSetup('codex', {}, deps);
     expect(ran).toEqual(['codex mcp add mockup-studio -- mockup mcp']);
   });
 
-  it('--force recria no codex', () => {
+  it('--force recreates in codex', () => {
     write(codexCfg(), CODEX_CUSTOM);
     const { deps, ran } = make({ installed: ['codex'] });
     runSetup('codex', { force: true }, deps);
@@ -367,7 +367,7 @@ describe('runSetup', () => {
     ]);
   });
 
-  it('CODEX_HOME é respeitado', () => {
+  it('CODEX_HOME is respected', () => {
     const dir = path.join(home, 'ch');
     write(path.join(dir, 'config.toml'), CODEX_CUSTOM);
     const { deps } = make({ installed: ['codex'] });
@@ -376,16 +376,16 @@ describe('runSetup', () => {
     expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain('command = "mockup"');
   });
 
-  it('falha: código 1, stderr e comando manual', () => {
+  it('failure: code 1, stderr and manual command', () => {
     const { deps } = make({ installed: ['claude'], failAdd: true });
     const r = runSetup('claude', {}, deps);
     expect(r.code).toBe(1);
     const t = r.lines.join('\n');
-    expect(t).toContain('erro do cliente');
-    expect(t).toContain('rode manualmente: claude mcp add');
+    expect(t).toContain('client error');
+    expect(t).toContain('run manually: claude mcp add');
   });
 
-  it('--print não executa nem grava nada', () => {
+  it('--print neither executes nor writes anything', () => {
     write(codexCfg(), CODEX_CUSTOM);
     const integ = path.join(home, 'integ');
     write(path.join(integ, 'codex', 'AGENTS.snippet.md'), 'x');
@@ -396,34 +396,34 @@ describe('runSetup', () => {
     expect(fs.existsSync(agentsMd())).toBe(false);
   });
 
-  it('--http usa a URL do daemon', () => {
+  it('--http uses the daemon URL', () => {
     const { deps } = make({});
     const t = runSetup('claude', { http: true, print: true, port: 4747 }, deps).lines.join('\n');
     expect(t).toContain('--transport http mockup-studio http://127.0.0.1:4747/mcp');
   });
 
-  it('--skill copia e sobrescreve informando', () => {
+  it('--skill copies and overwrites, reporting it', () => {
     const integ = path.join(home, 'integ');
     write(path.join(integ, 'claude-code', 'SKILL.md'), '---\nname: mockup-studio\n---\n');
     const { deps } = make({ installed: ['claude'], integrations: integ });
     const dest = path.join(home, '.claude', 'skills', 'mockup-studio', 'SKILL.md');
-    expect(runSetup('claude', { skill: true }, deps).lines.join('\n')).toContain('instalada');
+    expect(runSetup('claude', { skill: true }, deps).lines.join('\n')).toContain('installed');
     expect(fs.readFileSync(dest, 'utf8')).toContain('mockup-studio');
-    expect(runSetup('claude', { skill: true }, deps).lines.join('\n')).toContain('atualizada');
+    expect(runSetup('claude', { skill: true }, deps).lines.join('\n')).toContain('updated');
   });
 
-  it('--skill sem a pasta integrations: código 1', () => {
+  it('--skill without the integrations folder: code 1', () => {
     const { deps } = make({ installed: ['claude'] });
     expect(runSetup('claude', { skill: true }, deps).code).toBe(1);
   });
 });
 
-describe('--approve e --agents', () => {
-  it('--approve é idempotente e troca outro valor', () => {
+describe('--approve and --agents', () => {
+  it('--approve is idempotent and swaps another value', () => {
     write(codexCfg(), CODEX_CUSTOM);
     const { deps } = make({ installed: ['codex'] });
     const r1 = runSetup('codex', { approve: true }, deps);
-    expect(r1.lines.join('\n')).toContain('trocado de "prompt" para "approve"');
+    expect(r1.lines.join('\n')).toContain('changed from "prompt" to "approve"');
     runSetup('codex', { approve: true }, deps);
     const out = fs.readFileSync(codexCfg(), 'utf8');
     expect(out.match(/default_tools_approval_mode/g)).toHaveLength(1);
@@ -431,9 +431,9 @@ describe('--approve e --agents', () => {
     expect(out).toContain('startup_timeout_sec = 30');
   });
 
-  it('--approve sem a seção: registra e depois grava', () => {
+  it('--approve without the section: registers and then writes', () => {
     const { deps, ran } = make({ installed: ['codex'] });
-    // o codex falso não escreve o arquivo: simula o que o `codex mcp add` faria
+    // the fake codex does not write the file: simulates what `codex mcp add` would do
     const real = deps.runTool;
     deps.runTool = (n, a) => {
       if (a[1] === 'add')
@@ -447,44 +447,44 @@ describe('--approve e --agents', () => {
     );
   });
 
-  it('--approve e --agents com alvo claude são ignorados com aviso', () => {
+  it('--approve and --agents with a claude target are ignored with a warning', () => {
     write(claudeJson(), claudeUser());
     const { deps } = make({ installed: ['claude'] });
     const t = runSetup('claude', { approve: true, agents: true }, deps).lines.join('\n');
-    expect(t).toContain('só valem para o Codex');
+    expect(t).toContain('only apply to Codex');
   });
 
-  it('--agents é idempotente e preserva o conteúdo fora dos marcadores', () => {
+  it('--agents is idempotent and preserves content outside the markers', () => {
     const integ = path.join(home, 'integ');
     write(
       path.join(integ, 'codex', 'AGENTS.snippet.md'),
-      '<!-- Cole este bloco -->\n\n## Mockup Studio\n\nUse o MCP.\n',
+      '<!-- Paste this block -->\n\n## Mockup Studio\n\nUse the MCP.\n',
     );
-    write(agentsMd(), '# Minhas regras\n\nSeja breve.\n');
+    write(agentsMd(), '# My rules\n\nBe brief.\n');
     const { deps } = make({ installed: ['codex'], integrations: integ });
     const first = runSetup('codex', { agents: true }, deps);
     expect(first.code).toBe(0);
     const after1 = fs.readFileSync(agentsMd(), 'utf8');
     expect(after1).toBe(
-      '# Minhas regras\n\nSeja breve.\n\n<!-- mockup-studio:start -->\n## Mockup Studio\n\nUse o MCP.\n<!-- mockup-studio:end -->\n',
+      '# My rules\n\nBe brief.\n\n<!-- mockup-studio:start -->\n## Mockup Studio\n\nUse the MCP.\n<!-- mockup-studio:end -->\n',
     );
     const second = runSetup('codex', { agents: true }, deps);
-    expect(second.lines.join('\n')).toContain('já atualizado');
+    expect(second.lines.join('\n')).toContain('already up to date');
     expect(fs.readFileSync(agentsMd(), 'utf8')).toBe(after1);
 
-    // snippet mudou: substitui entre os marcadores e mantém o resto
-    write(path.join(integ, 'codex', 'AGENTS.snippet.md'), '## Novo\n');
-    fs.appendFileSync(agentsMd(), '\nDepois.\n');
+    // snippet changed: replaces between the markers and keeps the rest
+    write(path.join(integ, 'codex', 'AGENTS.snippet.md'), '## New\n');
+    fs.appendFileSync(agentsMd(), '\nAfter.\n');
     runSetup('codex', { agents: true }, deps);
     const out = fs.readFileSync(agentsMd(), 'utf8');
     expect(out.match(/mockup-studio:start/g)).toHaveLength(1);
-    expect(out).toContain('## Novo');
-    expect(out).not.toContain('Use o MCP');
-    expect(out).toContain('Seja breve.');
-    expect(out).toContain('Depois.');
+    expect(out).toContain('## New');
+    expect(out).not.toContain('Use the MCP');
+    expect(out).toContain('Be brief.');
+    expect(out).toContain('After.');
   });
 
-  it('--agents cria o arquivo; sem snippet: código 1', () => {
+  it('--agents creates the file; without a snippet: code 1', () => {
     const integ = path.join(home, 'integ');
     write(path.join(integ, 'codex', 'AGENTS.snippet.md'), '## X\n');
     const { deps } = make({ installed: ['codex'], integrations: integ });
@@ -496,7 +496,7 @@ describe('--approve e --agents', () => {
 });
 
 describe('integrations', () => {
-  it('candidatos incluem env, bundle e resourcesPath', () => {
+  it('candidates include env, bundle and resourcesPath', () => {
     const c = integrationsCandidates(
       { MOCKUP_INTEGRATIONS_DIR: 'E' },
       path.resolve('/r/cli'),
@@ -506,7 +506,7 @@ describe('integrations', () => {
     expect(c).toContain(path.resolve('/r/integrations'));
     expect(c).toContain(path.join('/res', 'integrations'));
   });
-  it('acha pela variável de ambiente', () => {
+  it('finds it via the environment variable', () => {
     const integ = path.join(home, 'i');
     fs.mkdirSync(path.join(integ, 'claude-code'), { recursive: true });
     fs.writeFileSync(path.join(integ, 'claude-code', 'SKILL.md'), 'x');

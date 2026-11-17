@@ -1,4 +1,4 @@
-/** `mockup doctor`: diagnóstico do ambiente (somente leitura; nunca sobe daemon nem registra nada). */
+/** `mockup doctor`: environment diagnostics (read-only; never starts a daemon or registers anything). */
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -53,17 +53,17 @@ export interface DoctorDeps {
   resolvePort: () => number;
   probePort: (port: number) => Promise<PortState>;
   locateElectron: () => ElectronLaunch | null;
-  /** Quantidade de famílias de fontes instaladas no sistema. */
+  /** Number of font families installed on the system. */
   listFonts: () => Promise<number>;
   findOnPath: (name: string) => string | null;
   runTool: (name: string, args: string[]) => ToolResult;
   launch: (force?: LaunchKind) => LaunchCommand;
-  /** Conteúdo do arquivo, ou `null` se não existe. */
+  /** File content, or `null` if it does not exist. */
   readFile: (p: string) => string | null;
   home: string;
   env: NodeJS.ProcessEnv;
   cwd: string;
-  /** Tempo máximo de cada checagem assíncrona. */
+  /** Maximum time for each asynchronous check. */
   timeoutMs: number;
 }
 
@@ -83,7 +83,7 @@ export interface DoctorReport {
   };
 }
 
-/** Conecta por TCP; `true` se aceitou a conexão. */
+/** Connects over TCP; `true` if the connection was accepted. */
 function tcpConnects(port: number, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const s = net.connect({ port, host: '127.0.0.1' });
@@ -157,83 +157,83 @@ export async function runDoctor(
     checks.push({ id, level, label, ...(detail !== undefined ? { detail } : {}) });
   const rt = deps.runtime;
 
-  // CLI e runtime
+  // CLI and runtime
   add(
     'cli',
     'ok',
     `mockup CLI ${rt.version}`,
     rt.kind === 'electron'
-      ? `Electron ${rt.electronVersion ?? '?'} como Node (${rt.execPath})`
+      ? `Electron ${rt.electronVersion ?? '?'} as Node (${rt.execPath})`
       : `Node (${rt.execPath})`,
   );
   const major = Number(deps.nodeVersion.split('.')[0]);
   if (major >= 24) add('node', 'ok', `Node ${deps.nodeVersion}`);
   else if (rt.kind === 'electron')
-    add('node', 'warn', `Node embutido ${deps.nodeVersion}`, 'o projeto pede Node >= 24');
-  else add('node', 'error', `Node ${deps.nodeVersion}`, 'o Mockup Studio exige Node >= 24');
+    add('node', 'warn', `Embedded Node ${deps.nodeVersion}`, 'the project requires Node >= 24');
+  else add('node', 'error', `Node ${deps.nodeVersion}`, 'Mockup Studio requires Node >= 24');
 
-  // pasta de dados e daemon.json
+  // data folder and daemon.json
   let port = 0;
   try {
     const dir = deps.dataDir();
-    add('dataDir', 'ok', 'Pasta de dados', dir);
+    add('dataDir', 'ok', 'Data folder', dir);
     const info = path.join(dir, 'daemon.json');
     add(
       'daemonJson',
       'ok',
       'daemon.json',
-      deps.fileExists(info) ? info : 'ausente (nenhum daemon registrado)',
+      deps.fileExists(info) ? info : 'missing (no daemon registered)',
     );
   } catch (e) {
-    add('dataDir', 'warn', 'Pasta de dados', msg(e));
+    add('dataDir', 'warn', 'Data folder', msg(e));
   }
 
   try {
     port = opts.port ?? deps.resolvePort();
   } catch (e) {
-    add('port', 'error', 'Porta', msg(e));
+    add('port', 'error', 'Port', msg(e));
   }
 
   // daemon
   let daemonPort: number | undefined;
   try {
     const d = await withTimeout(deps.findDaemon(), deps.timeoutMs);
-    if (d === TIMED_OUT) add('daemon', 'warn', 'Daemon', 'sem resposta a tempo');
-    else if (!d) add('daemon', 'warn', 'Daemon', 'não está rodando (o `mockup mcp` sobe sozinho)');
+    if (d === TIMED_OUT) add('daemon', 'warn', 'Daemon', 'no response in time');
+    else if (!d) add('daemon', 'warn', 'Daemon', 'not running (`mockup mcp` starts it on its own)');
     else {
       daemonPort = d.port;
       const render =
-        d.render === undefined ? 'render desconhecido' : d.render ? 'com render' : 'sem render';
+        d.render === undefined ? 'render unknown' : d.render ? 'with render' : 'no render';
       add(
         'daemon',
         d.render === false ? 'warn' : 'ok',
-        'Daemon rodando',
-        `${d.url} (pid ${d.pid ?? '?'}, modo ${d.mode ?? '?'}, ${render})`,
+        'Daemon running',
+        `${d.url} (pid ${d.pid ?? '?'}, mode ${d.mode ?? '?'}, ${render})`,
       );
       if (d.render === false)
-        add('screenshot', 'warn', 'Screenshot indisponível neste daemon (sem motor de render)');
+        add('screenshot', 'warn', 'Screenshot unavailable in this daemon (no render engine)');
     }
   } catch (e) {
     add('daemon', 'warn', 'Daemon', msg(e));
   }
 
-  // porta
+  // port
   if (port) {
     try {
       const state =
         daemonPort === port ? 'mockup' : await withTimeout(deps.probePort(port), deps.timeoutMs);
-      if (state === 'mockup') add('port', 'ok', `Porta ${port}`, 'em uso pelo Mockup Studio');
-      else if (state === 'free') add('port', 'ok', `Porta ${port}`, 'livre');
+      if (state === 'mockup') add('port', 'ok', `Port ${port}`, 'in use by Mockup Studio');
+      else if (state === 'free') add('port', 'ok', `Port ${port}`, 'free');
       else if (state === 'other')
         add(
           'port',
           'warn',
-          `Porta ${port}`,
-          'ocupada por outro processo (defina MOCKUP_PORT para usar outra)',
+          `Port ${port}`,
+          'in use by another process (set MOCKUP_PORT to use a different one)',
         );
-      else add('port', 'warn', `Porta ${port}`, 'sem resposta a tempo');
+      else add('port', 'warn', `Port ${port}`, 'no response in time');
     } catch (e) {
-      add('port', 'warn', `Porta ${port}`, msg(e));
+      add('port', 'warn', `Port ${port}`, msg(e));
     }
   }
 
@@ -245,43 +245,43 @@ export async function runDoctor(
       add(
         'electron',
         'warn',
-        'Electron não encontrado',
-        'o screenshot ficará indisponível (instale o app desktop ou defina MOCKUP_DESKTOP_EXE)',
+        'Electron not found',
+        'screenshots will be unavailable (install the desktop app or set MOCKUP_DESKTOP_EXE)',
       );
   } catch (e) {
     add('electron', 'warn', 'Electron', msg(e));
   }
 
-  // fontes
+  // fonts
   try {
     const n = await withTimeout(deps.listFonts(), deps.timeoutMs);
-    if (n === TIMED_OUT) add('fonts', 'warn', 'Fontes', 'listagem demorou demais');
-    else if (n === 0) add('fonts', 'warn', 'Fontes', 'nenhuma família de fonte encontrada');
-    else add('fonts', 'ok', 'Fontes', `${n} famílias instaladas`);
+    if (n === TIMED_OUT) add('fonts', 'warn', 'Fonts', 'listing took too long');
+    else if (n === 0) add('fonts', 'warn', 'Fonts', 'no font family found');
+    else add('fonts', 'ok', 'Fonts', `${n} families installed`);
   } catch (e) {
-    add('fonts', 'warn', 'Fontes', msg(e));
+    add('fonts', 'warn', 'Fonts', msg(e));
   }
 
-  // ferramentas no PATH
+  // tools on the PATH
   const mockupPath = deps.findOnPath('mockup');
-  if (mockupPath) add('mockupPath', 'ok', '`mockup` no PATH', mockupPath);
+  if (mockupPath) add('mockupPath', 'ok', '`mockup` on the PATH', mockupPath);
   else
     add(
       'mockupPath',
       'warn',
-      '`mockup` fora do PATH',
-      'rode `mockup install-cli` (ou use --command absolute nos comandos abaixo)',
+      '`mockup` not on the PATH',
+      'run `mockup install-cli` (or use --command absolute in the commands below)',
     );
   for (const tool of ['claude', 'codex'] as const) {
     const exe = deps.findOnPath(tool);
     if (!exe) {
-      add(tool, 'warn', `${tool} não encontrado no PATH`);
+      add(tool, 'warn', `${tool} not found on the PATH`);
       continue;
     }
     const v = deps.runTool(tool, ['--version']);
-    const version = v.status === 0 ? v.stdout.trim().split(/\r?\n/)[0] : 'versão desconhecida';
+    const version = v.status === 0 ? v.stdout.trim().split(/\r?\n/)[0] : 'unknown version';
     const fsd = { readFile: deps.readFile, home: deps.home, env: deps.env, cwd: deps.cwd };
-    const notReg = `${SERVER_NAME} não registrado: rode \`mockup setup ${tool}\` (${exe})`;
+    const notReg = `${SERVER_NAME} not registered: run \`mockup setup ${tool}\` (${exe})`;
     let server: RegisteredServer | undefined;
     if (tool === 'claude') {
       const regs = readClaudeRegistrations(fsd);
@@ -292,7 +292,7 @@ export async function runDoctor(
         main ? 'ok' : 'warn',
         `${tool} ${version}`,
         main
-          ? `${SERVER_NAME} registrado no escopo ${main.scope}: ${describeServer(main.server)} (${exe})`
+          ? `${SERVER_NAME} registered in scope ${main.scope}: ${describeServer(main.server)} (${exe})`
           : notReg,
       );
     } else {
@@ -303,9 +303,9 @@ export async function runDoctor(
         reg?.error ? 'error' : reg ? 'ok' : 'warn',
         `${tool} ${version}`,
         reg?.error
-          ? `${reg.path} não é TOML válido (${reg.error}); o Codex não carrega o arquivo. Corrija-o.`
+          ? `${reg.path} is not valid TOML (${reg.error}); Codex does not load the file. Fix it.`
           : reg
-            ? `${SERVER_NAME} registrado em ${reg.path}: ${describeServer(reg.server)} (${exe})`
+            ? `${SERVER_NAME} registered in ${reg.path}: ${describeServer(reg.server)} (${exe})`
             : notReg,
       );
       if (reg && !reg.error) {
@@ -313,25 +313,25 @@ export async function runDoctor(
           add(
             'codexApprove',
             'ok',
-            'Codex: aprovação das ferramentas',
+            'Codex: tool approval',
             'default_tools_approval_mode = "approve"',
           );
         else
           add(
             'codexApprove',
             'warn',
-            'Codex: ferramentas que gravam pedem aprovação',
-            'no `codex exec` elas são bloqueadas; rode `mockup setup codex --approve`',
+            'Codex: tools that write require approval',
+            'in `codex exec` they are blocked; run `mockup setup codex --approve`',
           );
         const agentsFile = path.join(codexHome(fsd), 'AGENTS.md');
         if ((deps.readFile(agentsFile) ?? '').includes('<!-- mockup-studio:start -->'))
-          add('codexAgents', 'ok', 'Codex: AGENTS.md com o trecho do Mockup Studio', agentsFile);
+          add('codexAgents', 'ok', 'Codex: AGENTS.md with the Mockup Studio snippet', agentsFile);
         else
           add(
             'codexAgents',
             'warn',
-            'Codex: AGENTS.md sem o trecho do Mockup Studio',
-            `o Codex pode escrever HTML à mão em vez de usar o MCP; rode \`mockup setup codex --agents\` (${agentsFile})`,
+            'Codex: AGENTS.md without the Mockup Studio snippet',
+            `Codex may hand-write HTML instead of using the MCP; run \`mockup setup codex --agents\` (${agentsFile})`,
           );
       }
     }
@@ -341,8 +341,8 @@ export async function runDoctor(
         add(
           `${tool}Launch`,
           'warn',
-          `${tool}: comando registrado difere do comando de lançamento atual`,
-          `registrado: ${describeServer(server)}; atual: ${describeServer(wantedServer(l, null))}; rode \`mockup setup ${tool}\``,
+          `${tool}: registered command differs from the current launch command`,
+          `registered: ${describeServer(server)}; current: ${describeServer(wantedServer(l, null))}; run \`mockup setup ${tool}\``,
         );
     }
   }
@@ -369,9 +369,9 @@ export async function runDoctor(
 
 const MARK: Record<Level, string> = { ok: '✔', warn: '!', error: '✘' };
 
-/** Relatório em texto (sem cores ANSI). */
+/** Text report (no ANSI colors). */
 export function formatDoctor(r: DoctorReport): string {
-  const out: string[] = ['Mockup Studio - diagnóstico', ''];
+  const out: string[] = ['Mockup Studio - diagnostics', ''];
   for (const c of r.checks)
     out.push(`${MARK[c.level]} ${c.label}${c.detail ? `: ${c.detail}` : ''}`);
   const indent = (s: string) =>
@@ -381,20 +381,20 @@ export function formatDoctor(r: DoctorReport): string {
       .join('\n');
   out.push(
     '',
-    `Comando de lançamento do MCP (${r.launch.kind}): ${[r.launch.command, ...r.launch.args].join(' ')}`,
+    `MCP launch command (${r.launch.kind}): ${[r.launch.command, ...r.launch.args].join(' ')}`,
     '',
-    'Registrar no Claude Code (stdio):',
+    'Register in Claude Code (stdio):',
     indent(r.commands.claudeStdio),
-    'Registrar no Claude Code (HTTP, exige o daemon rodando):',
+    'Register in Claude Code (HTTP, requires the daemon to be running):',
     indent(r.commands.claudeHttp),
-    'Registrar no Codex:',
+    'Register in Codex:',
     indent(r.commands.codex),
-    'Ou em ~/.codex/config.toml:',
+    'Or in ~/.codex/config.toml:',
     indent(r.commands.codexToml),
-    'Outros clientes (JSON mcpServers):',
+    'Other clients (mcpServers JSON):',
     indent(r.commands.mcpServers),
     '',
-    'Atalho: `mockup setup claude|codex|all` faz o registro (use --print para só ver os comandos).',
+    'Shortcut: `mockup setup claude|codex|all` registers it (use --print to only see the commands).',
   );
   return out.join('\n');
 }

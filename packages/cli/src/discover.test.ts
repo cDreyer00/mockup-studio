@@ -1,6 +1,6 @@
 /**
- * Troca do daemon Node headless (sem render) pelo Electron: o Electron é simulado por um daemon
- * em processo com um motor de render falso; o teste real com Electron fica em electron.test.ts.
+ * Swapping the headless Node daemon (no render) for Electron: Electron is simulated by an in-process
+ * daemon with a fake render engine; the real test with Electron lives in electron.test.ts.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,12 +17,12 @@ import {
 import { ensureDaemon, type EnsureDeps } from './discover.js';
 
 const fakeRender: RenderProvider = {
-  capture: () => Promise.reject(new Error('não usado')),
-  measure: () => Promise.reject(new Error('não usado')),
+  capture: () => Promise.reject(new Error('unused')),
+  measure: () => Promise.reject(new Error('unused')),
 };
 const launch = { exe: 'fake', args: [], source: 'MOCKUP_DESKTOP_EXE' as const };
 
-describe('ensureDaemon com daemon sem render', () => {
+describe('ensureDaemon with a daemon without render', () => {
   let dir: string;
   let file: string;
   let handles: DaemonHandle[];
@@ -86,7 +86,7 @@ describe('ensureDaemon com daemon sem render', () => {
     };
   }
 
-  it('troca o daemon Node headless por um com render e os documentos continuam abertos', async () => {
+  it('swaps the headless Node daemon for one with render and the documents stay open', async () => {
     const node = await startNode('headless');
     const d = deps();
     const loc = await ensureDaemon(d);
@@ -102,7 +102,7 @@ describe('ensureDaemon com daemon sem render', () => {
     expect(docs.documents.map((x) => path.resolve(x.path))).toEqual([path.resolve(file)]);
   });
 
-  it('não derruba um `mockup serve` do usuário', async () => {
+  it('does not stop a user `mockup serve`', async () => {
     const node = await startNode('serve');
     const d = deps();
     const loc = await ensureDaemon(d);
@@ -111,7 +111,7 @@ describe('ensureDaemon com daemon sem render', () => {
     expect((await checkHealth(node.url))?.render).toBe(false);
   });
 
-  it('daemon que recusa o shutdown é mantido', async () => {
+  it('a daemon that refuses shutdown is kept', async () => {
     const node = await startNode('headless', false);
     const d = deps({ takeOver: (url) => takeOverDaemon(url, 500) });
     const loc = await ensureDaemon(d);
@@ -120,7 +120,7 @@ describe('ensureDaemon com daemon sem render', () => {
     expect(await checkHealth(node.url)).not.toBeNull();
   });
 
-  it('sem Electron disponível mantém o daemon Node', async () => {
+  it('without Electron available, keeps the Node daemon', async () => {
     const node = await startNode('headless');
     const d = deps({ locate: () => null });
     const loc = await ensureDaemon(d);
@@ -129,7 +129,7 @@ describe('ensureDaemon com daemon sem render', () => {
     expect(await checkHealth(node.url)).not.toBeNull();
   });
 
-  it('se o Electron falhar ao subir, volta a um daemon Node com os documentos', async () => {
+  it('if Electron fails to start, falls back to a Node daemon with the documents', async () => {
     const node = await startNode('headless');
     const spawnNode = vi.fn(async (port?: number, _t?: number, files: string[] = []) => {
       const h = await startDaemon({
@@ -143,7 +143,7 @@ describe('ensureDaemon com daemon sem render', () => {
       return { url: h.url, mcpUrl: h.mcpUrl, wsUrl: h.wsUrl, port: h.port, spawned: true };
     });
     const d = deps({
-      spawnElectron: (() => Promise.reject(new Error('falhou'))) as EnsureDeps['spawnElectron'],
+      spawnElectron: (() => Promise.reject(new Error('failed'))) as EnsureDeps['spawnElectron'],
       spawnNode: spawnNode as unknown as EnsureDeps['spawnNode'],
     });
     const loc = await ensureDaemon(d);
@@ -156,7 +156,7 @@ describe('resolveDaemonBin / daemonEnv', () => {
   const norm = (s: string) => s.replaceAll(String.fromCharCode(92), '/');
   const present = ['/env/d.mjs', '/b/daemon.mjs', '/s/bin.js'];
   const exists = (p: string) => present.includes(norm(p));
-  it('MOCKUP_DAEMON_BIN, depois daemon.mjs ao lado, depois @mockup/server', async () => {
+  it('MOCKUP_DAEMON_BIN, then daemon.mjs next to it, then @mockup/server', async () => {
     const { resolveDaemonBin } = await import('./discover.js');
     const env = { MOCKUP_DAEMON_BIN: '/env/d.mjs' };
     expect(resolveDaemonBin({ env, exists, bundleDir: '/b' })).toBe('/env/d.mjs');
@@ -169,7 +169,7 @@ describe('resolveDaemonBin / daemonEnv', () => {
     });
     expect(norm(viaServer)).toBe('/s/bin.js');
   });
-  it('erro claro quando nada é encontrado', async () => {
+  it('clear error when nothing is found', async () => {
     const { resolveDaemonBin } = await import('./discover.js');
     expect(() =>
       resolveDaemonBin({
@@ -182,7 +182,7 @@ describe('resolveDaemonBin / daemonEnv', () => {
       }),
     ).toThrow(/MOCKUP_DAEMON_BIN/);
   });
-  it('ELECTRON_RUN_AS_NODE só sob o Electron', async () => {
+  it('ELECTRON_RUN_AS_NODE only under Electron', async () => {
     const { daemonEnv } = await import('./discover.js');
     expect(daemonEnv('/d', {}, true)).toMatchObject({
       ELECTRON_RUN_AS_NODE: '1',

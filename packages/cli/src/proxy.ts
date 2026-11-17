@@ -1,9 +1,9 @@
 /**
  * Proxy MCP stdio <-> Streamable HTTP.
  *
- * Um `Client` do SDK conecta no daemon; um `Server` de baixo nível atende em stdio e repassa
- * `tools/list`, `tools/call`, `resources/list`, `resources/templates/list` e `resources/read`.
- * Assim o agente (Claude Code, Codex) fala stdio e o daemon continua único e compartilhado com o editor.
+ * An SDK `Client` connects to the daemon; a low-level `Server` serves over stdio and forwards
+ * `tools/list`, `tools/call`, `resources/list`, `resources/templates/list` and `resources/read`.
+ * This way the agent (Claude Code, Codex) speaks stdio and the daemon stays single and shared with the editor.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import {
@@ -39,8 +39,8 @@ function networkCode(e: unknown): boolean {
 }
 
 /**
- * Só erros de conexão justificam reconectar e repetir (daemon caiu ou reiniciou).
- * Timeouts e erros de aplicação NÃO: repetir duplicaria efeitos como `write_html`.
+ * Only connection errors justify reconnecting and retrying (daemon went down or restarted).
+ * Timeouts and application errors do NOT: retrying would duplicate effects such as `write_html`.
  */
 export function isConnectionError(err: unknown): boolean {
   if (err === null || typeof err !== 'object') return false;
@@ -66,19 +66,19 @@ export async function runStdioProxy(): Promise<void> {
   let location = await ensureDaemon();
   let current = await connectUpstream(location);
   let upstream = current.client;
-  log(`conectado ao daemon em ${location.mcpUrl}`);
+  log(`connected to the daemon at ${location.mcpUrl}`);
 
-  /** Reconecta e repete uma vez, apenas se o erro for de conexão (daemon caiu ou reiniciou). */
+  /** Reconnects and retries once, only if the error is a connection error (daemon went down or restarted). */
   async function withUpstream<T>(fn: (c: Client) => Promise<T>): Promise<T> {
     try {
       return await fn(upstream);
     } catch (err) {
       if (!isConnectionError(err)) throw err;
-      log('falha ao falar com o daemon; tentando reconectar.', (err as Error).message);
+      log('failed to talk to the daemon; trying to reconnect.', (err as Error).message);
       try {
         await upstream.close();
       } catch {
-        /* ignorado */
+        /* ignored */
       }
       location = await ensureDaemon();
       current = await connectUpstream(location);
@@ -114,16 +114,16 @@ export async function runStdioProxy(): Promise<void> {
 
   const transport = new StdioServerTransport();
   transport.onclose = async () => {
-    log('stdio fechado; encerrando proxy.');
+    log('stdio closed; shutting down the proxy.');
     try {
       await current.transport.terminateSession();
     } catch {
-      /* ignorado */
+      /* ignored */
     }
     try {
       await upstream.close();
     } catch {
-      /* ignorado */
+      /* ignored */
     } finally {
       process.exit(0);
     }

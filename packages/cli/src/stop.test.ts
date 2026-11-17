@@ -34,19 +34,19 @@ describe('mockup stop', () => {
     return handle;
   }
 
-  it('encerra um daemon que permite', async () => {
+  it('stops a daemon that allows it', async () => {
     const h = await start(() => undefined);
     await stop();
     expect(await checkHealth(h.url, 300)).toBeNull();
   });
 
-  it('o app desktop com janela (sem onShutdown) recusa com mensagem clara', async () => {
+  it('the desktop app with a window (without onShutdown) refuses with a clear message', async () => {
     const h = await start();
-    await expect(stop()).rejects.toThrow(/janela/);
+    await expect(stop()).rejects.toThrow(/window/);
     expect(await checkHealth(h.url)).not.toBeNull();
   });
 
-  it('sem daemon não falha', async () => {
+  it('does not fail without a daemon', async () => {
     process.env.MOCKUP_PORT = '1';
     await expect(stop()).resolves.toBeUndefined();
   });

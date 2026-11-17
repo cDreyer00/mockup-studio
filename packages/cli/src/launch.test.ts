@@ -33,37 +33,37 @@ const deps = (over: Partial<LaunchDeps> = {}): LaunchDeps => ({
 });
 
 describe('resolveLaunchCommand', () => {
-  it('mockup no PATH', () => {
+  it('mockup on the PATH', () => {
     expect(resolveLaunchCommand(deps({ which: () => 'x\\mockup.cmd' }))).toEqual({
       command: 'mockup',
       args: ['mcp'],
       kind: 'path',
     });
   });
-  it('shim instalado', () => {
+  it('installed shim', () => {
     const l = resolveLaunchCommand(deps({ exists: () => true }));
     expect(l).toMatchObject({ kind: 'shim', args: ['mcp'] });
     expect(l.command).toMatch(/mockup\.cmd$/);
   });
-  it('absoluto sob Node', () => {
+  it('absolute under Node', () => {
     expect(resolveLaunchCommand(deps())).toEqual({
       command: nodeRt.execPath,
       args: [nodeRt.script, 'mcp'],
       kind: 'absolute',
     });
   });
-  it('absoluto sob Electron leva ELECTRON_RUN_AS_NODE', () => {
+  it('absolute under Electron carries ELECTRON_RUN_AS_NODE', () => {
     expect(resolveLaunchCommand(deps({ runtime: electronRt })).env).toEqual({
       ELECTRON_RUN_AS_NODE: '1',
     });
   });
-  it('--command força o tipo', () => {
+  it('--command forces the kind', () => {
     const base = deps({ which: () => 'x', exists: () => true });
     expect(resolveLaunchCommand({ ...base, force: 'absolute' }).kind).toBe('absolute');
     expect(resolveLaunchCommand({ ...base, force: 'shim' }).kind).toBe('shim');
     expect(resolveLaunchCommand({ ...deps(), force: 'path' }).kind).toBe('path');
   });
-  it('parseLaunchKind valida', () => {
+  it('parseLaunchKind validates', () => {
     expect(parseLaunchKind(undefined)).toBeUndefined();
     expect(parseLaunchKind('shim')).toBe('shim');
     expect(() => parseLaunchKind('x')).toThrow(/--command/);
@@ -77,7 +77,7 @@ const abs: LaunchCommand = {
 };
 const absEl: LaunchCommand = { ...abs, env: { ELECTRON_RUN_AS_NODE: '1' } };
 
-describe('formatação', () => {
+describe('formatting', () => {
   it('claudeAddArgs', () => {
     expect(claudeAddArgs({ command: 'mockup', args: ['mcp'], kind: 'path' })).toEqual([
       'mcp',
@@ -128,7 +128,7 @@ describe('formatação', () => {
       'http://127.0.0.1:1/mcp',
     ]);
   });
-  it('TOML escapa caminhos do Windows', () => {
+  it('TOML escapes Windows paths', () => {
     expect(tomlString(String.raw`C:\a "b"`)).toBe(String.raw`"C:\\a \"b\""`);
     const t = codexToml(absEl);
     expect(t).toContain(String.raw`command = "C:\\Program Files\\nodejs\\node.exe"`);
@@ -136,7 +136,7 @@ describe('formatação', () => {
     expect(t).toContain('[mcp_servers.mockup-studio.env]\nELECTRON_RUN_AS_NODE = "1"');
     expect(codexToml({ command: 'mockup', args: ['mcp'], kind: 'path' })).not.toContain('env');
   });
-  it('JSON mcpServers e VS Code', () => {
+  it('JSON mcpServers and VS Code', () => {
     expect(JSON.parse(mcpServersJson(absEl))).toEqual({
       mcpServers: { 'mockup-studio': { command: abs.command, args: abs.args, env: absEl.env } },
     });

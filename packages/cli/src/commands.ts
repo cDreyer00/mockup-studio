@@ -23,7 +23,7 @@ async function post(url: string, body: unknown): Promise<unknown> {
   return data;
 }
 
-/** Pasta `packages/editor/dist` (monorepo) quando já foi buildada; senão `undefined`. */
+/** The `packages/editor/dist` folder (monorepo) once it has been built; otherwise `undefined`. */
 export function findEditorDir(): string | undefined {
   try {
     const pkg = createRequire(import.meta.url).resolve('@mockup/editor/package.json');
@@ -35,8 +35,8 @@ export function findEditorDir(): string | undefined {
 }
 
 /**
- * `mockup serve [--port N] [--render] [arquivos...]`: daemon em primeiro plano. Com `--render` roda o
- * Electron headless (com screenshot); sem, o daemon Node (que serve o editor em `/` se estiver buildado).
+ * `mockup serve [--port N] [--render] [files...]`: daemon in the foreground. With `--render` it runs the
+ * headless Electron (with screenshots); without it, the Node daemon (which serves the editor at `/` if built).
  */
 export async function serve(opts: {
   port?: number;
@@ -48,11 +48,11 @@ export async function serve(opts: {
     const electron = locateElectron();
     if (!electron) {
       throw new Error(
-        'Electron não encontrado para --render: instale o app desktop, defina MOCKUP_DESKTOP_EXE ' +
-          'ou rode `npm run build` (o pacote @mockup/desktop precisa estar buildado).',
+        'Electron not found for --render: install the desktop app, set MOCKUP_DESKTOP_EXE ' +
+          'or run `npm run build` (the @mockup/desktop package must be built).',
       );
     }
-    log(`Electron headless (${electron.source}) em primeiro plano. Ctrl+C para sair.`);
+    log(`Headless Electron (${electron.source}) in the foreground. Press Ctrl+C to exit.`);
     process.exitCode = await runElectronForeground(electron, resolvePort(opts.port), files);
     return;
   }
@@ -63,17 +63,19 @@ export async function serve(opts: {
     mode: 'serve',
     openFiles: files,
     editorDir,
-    // `mockup stop` (POST /api/shutdown) fecha o daemon salvando os documentos e sai do processo
+    // `mockup stop` (POST /api/shutdown) closes the daemon, saving the documents, and exits the process
     onShutdown: () => process.exit(0),
   });
-  log(`daemon em ${handle.url} (MCP: ${handle.mcpUrl}, WS: ${handle.wsUrl}). Ctrl+C para sair.`);
-  if (editorDir) log(`editor no navegador: ${handle.url}/`);
-  log('sem motor de render (daemon Node): screenshot indisponível; use --render para o Electron.');
-  // Sem handlers de sinal aqui: `startDaemon` (writeInfo) já instala SIGINT/SIGTERM, fecha o
-  // daemon e chama process.exit(0). O servidor HTTP mantém o processo vivo.
+  log(
+    `daemon at ${handle.url} (MCP: ${handle.mcpUrl}, WS: ${handle.wsUrl}). Press Ctrl+C to exit.`,
+  );
+  if (editorDir) log(`editor in the browser: ${handle.url}/`);
+  log('no render engine (Node daemon): screenshot unavailable; use --render for Electron.');
+  // No signal handlers here: `startDaemon` (writeInfo) already installs SIGINT/SIGTERM, closes the
+  // daemon and calls process.exit(0). The HTTP server keeps the process alive.
 }
 
-/** `mockup open <arquivo>`: abre no daemon (subindo um headless se preciso). */
+/** `mockup open <file>`: opens it in the daemon (starting a headless one if needed). */
 export async function open(file: string): Promise<void> {
   const target = path.resolve(file);
   const daemon = await ensureDaemon();
@@ -81,10 +83,10 @@ export async function open(file: string): Promise<void> {
     docId?: string;
     name?: string;
   };
-  log(`aberto: ${target}${info.docId ? ` (${info.docId})` : ''}`);
+  log(`opened: ${target}${info.docId ? ` (${info.docId})` : ''}`);
 }
 
-/** Resolve o caminho do novo documento (sempre `.mockup.json`) e o nome padrão (basename sem extensão). */
+/** Resolves the path of the new document (always `.mockup.json`) and the default name (basename without extension). */
 export function resolveNewDocument(
   file: string,
   name?: string,
@@ -94,48 +96,48 @@ export function resolveNewDocument(
   return { target, docName: name ?? base.slice(0, base.length - DOCUMENT_EXT.length) };
 }
 
-/** Converte `--port`; lança erro em português se não for inteiro entre 0 e 65535. */
+/** Parses `--port`; throws if it is not an integer between 0 and 65535. */
 export function parsePort(value: unknown): number | undefined {
   if (value === undefined) return undefined;
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
   if (!Number.isInteger(n) || n < 0 || n > 65535) {
-    throw new Error('--port exige um número inteiro entre 0 e 65535.');
+    throw new Error('--port requires an integer between 0 and 65535.');
   }
   return n;
 }
 
-/** `mockup new <arquivo> [--name Nome]`: cria um documento vazio e abre. */
+/** `mockup new <file> [--name Name]`: creates an empty document and opens it. */
 export async function create(file: string, name?: string): Promise<void> {
   const { target, docName } = resolveNewDocument(file, name);
   const daemon = await ensureDaemon();
   const info = (await post(`${daemon.url}/api/new`, { path: target, name: docName })) as {
     docId?: string;
   };
-  log(`criado: ${target}${info.docId ? ` (${info.docId})` : ''}`);
+  log(`created: ${target}${info.docId ? ` (${info.docId})` : ''}`);
 }
 
 /**
- * `mockup stop`: pede o encerramento do daemon descoberto (`POST /api/shutdown`). Serve para o
- * daemon Node (headless ou `serve`) e para o Electron headless (que sai com `app.quit()`); o app
- * desktop com janela recusa (409) e deve ser fechado pela própria janela. Os documentos são salvos.
+ * `mockup stop`: asks the discovered daemon to shut down (`POST /api/shutdown`). Works for the
+ * Node daemon (headless or `serve`) and for headless Electron (which exits with `app.quit()`); the
+ * desktop app with a window refuses (409) and must be closed from its own window. Documents are saved.
  */
 export async function stop(): Promise<void> {
   const daemon = await findDaemon();
   if (!daemon) {
-    log('nenhum daemon do Mockup Studio em execução.');
+    log('no Mockup Studio daemon is running.');
     return;
   }
   const r = await requestShutdown(daemon.url);
   if (!r.accepted) {
     throw new Error(
       r.status === 409
-        ? `o daemon em ${daemon.url} (pid ${daemon.pid ?? '?'}) é o app desktop com janela e não é encerrado por HTTP: feche-o pela janela.`
-        : `não foi possível encerrar o daemon em ${daemon.url}: ${r.error ?? 'erro desconhecido'}`,
+        ? `the daemon at ${daemon.url} (pid ${daemon.pid ?? '?'}) is the desktop app with a window and cannot be stopped over HTTP: close it from its window.`
+        : `could not stop the daemon at ${daemon.url}: ${r.error ?? 'unknown error'}`,
     );
   }
   if (!(await waitForShutdown(daemon.url)))
     throw new Error(
-      `o daemon em ${daemon.url} aceitou o pedido mas ainda responde; finalize o pid ${daemon.pid ?? '?'}.`,
+      `the daemon at ${daemon.url} accepted the request but is still responding; kill pid ${daemon.pid ?? '?'}.`,
     );
-  log(`daemon encerrado (pid ${daemon.pid ?? '?'}, porta ${daemon.port}).`);
+  log(`daemon stopped (pid ${daemon.pid ?? '?'}, port ${daemon.port}).`);
 }

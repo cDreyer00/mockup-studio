@@ -18,7 +18,7 @@ function freePort(): Promise<number> {
 }
 
 describe.skipIf(!fs.existsSync(bin))('mockup doctor --json (dist)', () => {
-  it('relata sem daemon, com porta livre', async () => {
+  it('reports without a daemon, with a free port', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-doctor-'));
     const port = await freePort();
     try {
@@ -33,15 +33,15 @@ describe.skipIf(!fs.existsSync(bin))('mockup doctor --json (dist)', () => {
       expect(j.ok).toBe(true);
       expect(by('dataDir').detail).toBe(dir);
       expect(by('daemon').level).toBe('warn');
-      expect(by('port').label).toBe(`Porta ${port}`);
-      expect(by('port').detail).toBe('livre');
+      expect(by('port').label).toBe(`Port ${port}`);
+      expect(by('port').detail).toBe('free');
       expect(j.commands.claudeStdio).toContain('mockup-studio');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('--version e comando desconhecido', () => {
+  it('--version and unknown command', () => {
     expect(spawnSync(process.execPath, [bin, '--version'], { encoding: 'utf8' }).stdout).toMatch(
       /^\d+\.\d+\.\d+/,
     );

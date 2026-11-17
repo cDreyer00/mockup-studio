@@ -1,7 +1,7 @@
 /**
- * E2E do `mockup mcp` por stdio: sem daemon rodando, o CLI deve subir um headless sozinho,
- * fazer proxy das ferramentas e responder. Usa porta e pasta de dados próprias para não
- * interferir com um daemon real.
+ * E2E of `mockup mcp` over stdio: with no daemon running, the CLI must start a headless one on its own,
+ * proxy the tools and respond. Uses its own port and data folder so as not to
+ * interfere with a real daemon.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -41,7 +41,7 @@ describe('mockup mcp (stdio)', () => {
   let transport: StdioClientTransport;
 
   beforeAll(async () => {
-    expect(fs.existsSync(binPath), `build do cli ausente: ${binPath}`).toBe(true);
+    expect(fs.existsSync(binPath), `cli build missing: ${binPath}`).toBe(true);
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-cli-'));
     const port = await freePort();
     transport = new StdioClientTransport({
@@ -56,21 +56,21 @@ describe('mockup mcp (stdio)', () => {
 
   afterAll(async () => {
     await client?.close().catch(() => undefined);
-    // Encerra o daemon headless que o CLI subiu.
+    // Stops the headless daemon that the CLI started.
     const infoPath = path.join(dataDir, 'daemon.json');
     if (fs.existsSync(infoPath)) {
       const { pid } = JSON.parse(fs.readFileSync(infoPath, 'utf8')) as { pid: number };
       try {
         process.kill(pid);
       } catch {
-        /* já encerrado */
+        /* already stopped */
       }
     }
     await new Promise((r) => setTimeout(r, 500));
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
 
-  it('lista ferramentas via proxy', async () => {
+  it('lists tools via proxy', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
     expect(names).toEqual(
@@ -78,13 +78,13 @@ describe('mockup mcp (stdio)', () => {
     );
   });
 
-  it('cria documento, escreve HTML e lê o resumo', async () => {
-    const docPath = path.join(dataDir, 'teste.mockup.json');
+  it('creates a document, writes HTML and reads the summary', async () => {
+    const docPath = path.join(dataDir, 'test.mockup.json');
     const created = await client.callTool({
       name: 'create_document',
-      arguments: { path: docPath, name: 'Teste' },
+      arguments: { path: docPath, name: 'Test' },
     });
-    expect(textOf(created)).toContain('Teste');
+    expect(textOf(created)).toContain('Test');
 
     const frame = await client.callTool({
       name: 'create_frame',
@@ -98,22 +98,22 @@ describe('mockup mcp (stdio)', () => {
       name: 'write_html',
       arguments: {
         parentId: frameId,
-        html: '<section class="hero"><h1>Olá mundo</h1><p>Subtítulo</p></section>',
+        html: '<section class="hero"><h1>Hello world</h1><p>Subtitle</p></section>',
         css: '.hero { display: flex; flex-direction: column; gap: 16px; }',
       },
     });
-    expect(textOf(written)).toContain('Olá mundo');
+    expect(textOf(written)).toContain('Hello world');
 
     const summary = await client.callTool({ name: 'get_tree_summary', arguments: { depth: 3 } });
     const summaryText = textOf(summary);
     expect(summaryText).toContain('Desktop');
-    expect(summaryText).toContain('Olá mundo');
+    expect(summaryText).toContain('Hello world');
 
     const info = await client.callTool({ name: 'get_basic_info', arguments: {} });
     expect(textOf(info)).toContain('Desktop');
 
-    // Ciclo do agente: ver o resultado e entregar o código. Com Electron disponível (pacote desktop
-    // buildado), o CLI sobe o Electron headless e o screenshot é uma imagem PNG de verdade.
+    // Agent cycle: see the result and deliver the code. With Electron available (desktop package
+    // built), the CLI starts headless Electron and the screenshot is a real PNG image.
     const shot = await client.callTool({
       name: 'get_screenshot',
       arguments: { nodeId: frameId, scale: 1, format: 'png' },
@@ -124,7 +124,7 @@ describe('mockup mcp (stdio)', () => {
     if (locateElectron()) {
       expect(shot.isError, textOf(shot)).toBeFalsy();
       expect(image?.mimeType).toBe('image/png');
-      // assinatura PNG (\x89PNG) em base64
+      // PNG signature (\x89PNG) in base64
       expect(image?.data?.startsWith('iVBORw0KGgo')).toBe(true);
     } else {
       expect(shot.isError).toBe(true);
@@ -139,17 +139,17 @@ describe('mockup mcp (stdio)', () => {
     expect(exported.isError, textOf(exported)).toBeFalsy();
     const files = fs.readdirSync(outputDir).filter((f) => f.endsWith('.html'));
     expect(files.length).toBe(1);
-    expect(fs.readFileSync(path.join(outputDir, files[0]), 'utf8')).toContain('Olá mundo');
+    expect(fs.readFileSync(path.join(outputDir, files[0]), 'utf8')).toContain('Hello world');
   });
 
-  it('erro de parâmetro chega pelo proxy com mensagem acionável', async () => {
+  it('parameter error comes through the proxy with an actionable message', async () => {
     const r = await client.callTool({ name: 'create_frame', arguments: { name: 'X' } });
     expect(r.isError).toBe(true);
     expect(textOf(r)).toContain('width');
-    expect(textOf(r)).toContain('Exemplo: create_frame(');
+    expect(textOf(r)).toContain('Example: create_frame(');
   });
 
-  it('expõe os guias como resources', async () => {
+  it('exposes the guides as resources', async () => {
     const { resources } = await client.listResources();
     expect(resources.map((r) => r.uri)).toContain('guide://getting-started');
     const read = await client.readResource({ uri: 'guide://getting-started' });

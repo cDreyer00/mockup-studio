@@ -1,7 +1,7 @@
 /**
- * Descoberta do daemon: lê `daemon.json` na pasta de dados, confere `/api/health`
- * e, se não houver daemon vivo, sobe um headless destacado. Um daemon Node headless sem render é
- * trocado pelo Electron headless quando ele está disponível.
+ * Daemon discovery: reads `daemon.json` in the data folder, checks `/api/health`
+ * and, if there is no live daemon, starts a detached headless one. A headless Node daemon without render is
+ * replaced by headless Electron when it is available.
  */
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -26,16 +26,16 @@ export interface DaemonLocation {
   mcpUrl: string;
   wsUrl: string;
   port: number;
-  /** `true` quando este processo acabou de iniciar o daemon. */
+  /** `true` when this process just started the daemon. */
   spawned: boolean;
   pid?: number;
-  /** Motor de render do daemon (do health); `undefined` quando não se sabe. */
+  /** Daemon render engine (from health); `undefined` when unknown. */
   render?: boolean;
-  /** Quem iniciou o daemon (do health); ausente em daemons antigos. */
+  /** Who started the daemon (from health); absent in old daemons. */
   mode?: DaemonMode;
 }
 
-/** Confere que a resposta de `/api/health` é de um daemon do Mockup Studio (e não de outro serviço). */
+/** Checks that the `/api/health` response comes from a Mockup Studio daemon (and not another service). */
 export function isMockupHealth(h: unknown): h is HealthInfo {
   if (h === null || typeof h !== 'object') return false;
   const o = h as Record<string, unknown>;
@@ -43,7 +43,7 @@ export function isMockupHealth(h: unknown): h is HealthInfo {
 }
 
 export function log(...args: unknown[]): void {
-  // stdout pertence ao protocolo MCP: logs sempre em stderr.
+  // stdout belongs to the MCP protocol: logs always go to stderr.
   console.error('[mockup]', ...args);
 }
 
@@ -66,14 +66,14 @@ function locationFromPort(
   };
 }
 
-/** Procura um daemon vivo: primeiro pelo `daemon.json`, depois pela porta configurada. */
+/** Looks for a live daemon: first via `daemon.json`, then via the configured port. */
 export async function findDaemon(): Promise<DaemonLocation | null> {
   const dataDir = getDataDir();
   const info: DaemonInfo | null = readDaemonInfo(dataDir);
   if (info) {
     const health = await checkHealth(info.url);
     if (isMockupHealth(health)) return locationFromPort(info.port, false, info.pid, health);
-    // Arquivo obsoleto (daemon morreu sem limpar): remove para não confundir.
+    // Stale file (daemon died without cleaning up): remove it to avoid confusion.
     removeDaemonInfo(dataDir);
   }
   const port = resolvePort();
@@ -84,16 +84,16 @@ export async function findDaemon(): Promise<DaemonLocation | null> {
 
 export interface DaemonBinSource {
   env?: NodeJS.ProcessEnv;
-  /** Pasta do arquivo atual (no bundle do app, ao lado do `daemon.mjs`). */
+  /** Folder of the current file (in the app bundle, next to `daemon.mjs`). */
   bundleDir?: string;
   exists?: (p: string) => boolean;
-  /** Resolve `@mockup/server` (monorepo); pode lançar. */
+  /** Resolves `@mockup/server` (monorepo); may throw. */
   resolveServer?: () => string;
 }
 
 /**
- * Caminho do binário do daemon Node: `MOCKUP_DAEMON_BIN`, depois `daemon.mjs` ao lado do bundle
- * do CLI, depois o `bin.js` do pacote `@mockup/server` (monorepo).
+ * Path of the Node daemon binary: `MOCKUP_DAEMON_BIN`, then `daemon.mjs` next to the bundle
+ * of the CLI, then the `bin.js` of the `@mockup/server` package (monorepo).
  */
 export function resolveDaemonBin(src: DaemonBinSource = {}): string {
   const env = src.env ?? process.env;
@@ -110,15 +110,15 @@ export function resolveDaemonBin(src: DaemonBinSource = {}): string {
     const bin = path.join(path.dirname(entry), 'bin.js');
     if (exists(bin)) return bin;
   } catch {
-    /* sem o pacote (bundle) */
+    /* no package (bundle) */
   }
   throw new Error(
-    'binário do daemon não encontrado: defina MOCKUP_DAEMON_BIN, coloque daemon.mjs ao lado do CLI ' +
-      'ou rode `npm run build` (o pacote @mockup/server precisa estar buildado).',
+    'daemon binary not found: set MOCKUP_DAEMON_BIN, put daemon.mjs next to the CLI ' +
+      'or run `npm run build` (the @mockup/server package must be built).',
   );
 }
 
-/** Ambiente do daemon Node destacado; sob o Electron o executável só roda JS com ELECTRON_RUN_AS_NODE=1. */
+/** Environment of the detached Node daemon; under Electron the executable only runs JS with ELECTRON_RUN_AS_NODE=1. */
 export function daemonEnv(
   dataDir: string,
   base: NodeJS.ProcessEnv = process.env,
@@ -129,7 +129,7 @@ export function daemonEnv(
   return env;
 }
 
-/** Sobe um daemon headless destacado (sobrevive ao fim deste processo) e espera o health. */
+/** Starts a detached headless daemon (survives this process) and waits for health. */
 export async function spawnHeadlessDaemon(
   port = resolvePort(),
   timeoutMs = 20000,
@@ -143,10 +143,10 @@ export async function spawnHeadlessDaemon(
     logFd = fs.openSync(path.join(dataDir, 'daemon.log'), 'a');
     fs.writeSync(
       logFd,
-      `[mockup] ${new Date().toISOString()} iniciando daemon headless na porta ${port}\n`,
+      `[mockup] ${new Date().toISOString()} starting headless daemon on port ${port}\n`,
     );
   } catch {
-    logFd = undefined; // sem log: o daemon roda com stdio descartado
+    logFd = undefined; // no log: the daemon runs with stdio discarded
   }
   const child = spawn(process.execPath, [bin, '--headless', '--port', String(port), ...files], {
     detached: true,
@@ -158,11 +158,11 @@ export async function spawnHeadlessDaemon(
     try {
       fs.closeSync(logFd);
     } catch {
-      /* ignorado */
+      /* ignored */
     }
   }
   child.unref();
-  log(`daemon headless iniciado (pid ${child.pid}) na porta ${port}; aguardando...`);
+  log(`headless daemon started (pid ${child.pid}) on port ${port}; waiting...`);
 
   const url = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + timeoutMs;
@@ -171,10 +171,10 @@ export async function spawnHeadlessDaemon(
     if (isMockupHealth(health)) return locationFromPort(port, true, child.pid, health);
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error(`O daemon não respondeu em ${url}/api/health após ${timeoutMs} ms.`);
+  throw new Error(`The daemon did not respond at ${url}/api/health after ${timeoutMs} ms.`);
 }
 
-/** Dependências de `ensureDaemon` (injetáveis nos testes). */
+/** Dependencies of `ensureDaemon` (injectable in tests). */
 export interface EnsureDeps {
   locate: () => ElectronLaunch | null;
   spawnElectron: typeof spawnElectronHeadless;
@@ -190,51 +190,49 @@ const defaultDeps: EnsureDeps = {
 };
 
 /**
- * Daemon vivo sem render e há Electron disponível: se foi o CLI que o iniciou (modo `headless`),
- * troca por um Electron headless reabrindo os documentos que ele tinha; se é um `mockup serve` do
- * usuário, mantém e avisa como resolver. Qualquer falha devolve o daemon original (ou um Node novo).
+ * Live daemon without render and Electron is available: if the CLI started it (`headless` mode),
+ * swaps it for a headless Electron, reopening the documents it had; if it is the user's
+ * `mockup serve`, keeps it and says how to fix it. Any failure returns the original daemon (or a new Node one).
  */
 async function upgradeDaemon(found: DaemonLocation, deps: EnsureDeps): Promise<DaemonLocation> {
   const electron = deps.locate();
   if (!electron) return found;
   if (found.mode !== 'headless') {
     log(
-      `o daemon em ${found.url} (pid ${found.pid ?? '?'}) não tem motor de render e não foi ` +
-        'iniciado pelo CLI: screenshot e layout medido ficam indisponíveis. Encerre-o ' +
-        '(`mockup stop` ou Ctrl+C) e rode de novo para o CLI subir o Electron, ' +
-        'ou reinicie-o com `mockup serve --render`.',
+      `the daemon at ${found.url} (pid ${found.pid ?? '?'}) has no render engine and was not ` +
+        'started by the CLI: screenshots and measured layout are unavailable. Stop it ' +
+        '(`mockup stop` or Ctrl+C) and run again so the CLI starts Electron, ' +
+        'or restart it with `mockup serve --render`.',
     );
     return found;
   }
-  log('daemon Node headless sem render: trocando pelo Electron headless (com screenshot)...');
+  log('headless Node daemon without render: switching to headless Electron (with screenshots)...');
   const r = await deps.takeOver(found.url);
   if (!r.ok) {
-    log(
-      `não foi possível encerrar o daemon atual (${r.reason ?? 'motivo desconhecido'}); mantendo-o.`,
-    );
+    log(`could not stop the current daemon (${r.reason ?? 'unknown reason'}); keeping it.`);
     return (await findDaemon()) ?? found;
   }
   if (r.unsaved > 0)
-    log(`${r.unsaved} documento(s) sem arquivo foram fechados na troca (não estavam salvos).`);
+    log(
+      `${r.unsaved} document(s) without a file were closed during the switch (they were not saved).`,
+    );
   try {
     const { pid } = await deps.spawnElectron(electron, found.port, 30000, r.paths);
-    log(
-      `Electron headless pronto (${electron.source}); ${r.paths.length} documento(s) reaberto(s)`,
-    );
+    log(`Headless Electron ready (${electron.source}); ${r.paths.length} document(s) reopened`);
     return locationFromPort(found.port, true, pid, { render: true, mode: 'desktop' });
   } catch (e) {
     log(
-      `não foi possível subir o Electron headless (${e instanceof Error ? e.message : e}); ` +
-        'voltando ao daemon Node: screenshot e layout medido ficarão indisponíveis.',
+      `could not start headless Electron (${e instanceof Error ? e.message : e}); ` +
+        'falling back to the Node daemon: screenshots and measured layout will be unavailable.',
     );
     return (await findDaemon()) ?? deps.spawnNode(found.port, 20000, r.paths);
   }
 }
 
 /**
- * Garante um daemon disponível: usa o existente ou sobe um headless. Tenta primeiro o Electron
- * headless (com motor de render/screenshot); sem Electron ou se falhar, cai para o daemon Node puro.
- * Um daemon Node headless já vivo (sem render) é trocado pelo Electron quando ele está disponível.
+ * Ensures a daemon is available: uses the existing one or starts a headless one. Tries headless
+ * Electron first (with render engine/screenshots); without Electron or if it fails, falls back to the plain Node daemon.
+ * An already-live headless Node daemon (without render) is replaced by Electron when it is available.
  */
 export async function ensureDaemon(deps: EnsureDeps = defaultDeps): Promise<DaemonLocation> {
   const found = await findDaemon();
@@ -244,21 +242,21 @@ export async function ensureDaemon(deps: EnsureDeps = defaultDeps): Promise<Daem
     const port = resolvePort();
     try {
       const { pid } = await deps.spawnElectron(electron, port);
-      log(`Electron headless pronto (${electron.source}); screenshot disponível`);
+      log(`Headless Electron ready (${electron.source}); screenshots available`);
       return locationFromPort(port, true, pid, { render: true, mode: 'desktop' });
     } catch (e) {
       log(
-        `não foi possível subir o Electron headless (${e instanceof Error ? e.message : e}); ` +
-          'usando o daemon Node: screenshot e layout medido ficarão indisponíveis.',
+        `could not start headless Electron (${e instanceof Error ? e.message : e}); ` +
+          'using the Node daemon: screenshots and measured layout will be unavailable.',
       );
-      // outro daemon pode ter assumido a porta enquanto isso
+      // another daemon may have taken the port in the meantime
       const again = await findDaemon();
       if (again) return again;
     }
   } else if (process.env.MOCKUP_NO_ELECTRON !== '1') {
     log(
-      'Electron não encontrado (defina MOCKUP_DESKTOP_EXE ou instale o app): ' +
-        'usando o daemon Node, sem screenshot.',
+      'Electron not found (set MOCKUP_DESKTOP_EXE or install the app): ' +
+        'using the Node daemon, without screenshots.',
     );
   }
   return deps.spawnNode();

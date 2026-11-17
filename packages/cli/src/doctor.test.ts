@@ -33,7 +33,7 @@ const fake = (over: Partial<DoctorDeps> = {}): DoctorDeps => ({
   ...over,
 });
 
-/** `readFile` com arquivos em memória (caminhos de `path.join`). */
+/** `readFile` with in-memory files (`path.join` paths). */
 const files = (m: Record<string, string>) => (p: string) => m[p] ?? null;
 const J = (...s: string[]) => path.join(...s);
 const CLAUDE_OK = JSON.stringify({
@@ -44,7 +44,7 @@ const level = (r: Awaited<ReturnType<typeof runDoctor>>, id: string) =>
   r.checks.find((c) => c.id === id)?.level;
 
 describe('runDoctor', () => {
-  it('cenário sem nada: avisos, mas ok', async () => {
+  it('empty scenario: warnings, but ok', async () => {
     const r = await runDoctor({}, fake());
     expect(r.ok).toBe(true);
     expect(level(r, 'daemon')).toBe('warn');
@@ -58,12 +58,12 @@ describe('runDoctor', () => {
     expect(JSON.parse(JSON.stringify(r)).checks).toBeInstanceOf(Array);
   });
 
-  it('Node antigo é erro essencial', async () => {
+  it('old Node is an essential error', async () => {
     const r = await runDoctor({}, fake({ nodeVersion: '20.0.0' }));
     expect(r.ok).toBe(false);
   });
 
-  it('daemon rodando e cliente registrado', async () => {
+  it('daemon running and client registered', async () => {
     const r = await runDoctor(
       {},
       fake({
@@ -89,22 +89,22 @@ describe('runDoctor', () => {
     );
     expect(level(r, 'daemon')).toBe('ok');
     expect(level(r, 'claude')).toBe('ok');
-    expect(r.checks.find((c) => c.id === 'claude')?.detail).toContain('escopo user');
+    expect(r.checks.find((c) => c.id === 'claude')?.detail).toContain('scope user');
     expect(level(r, 'codex')).toBe('ok');
     expect(level(r, 'codexApprove')).toBe('ok');
     expect(level(r, 'codexAgents')).toBe('ok');
     expect(level(r, 'claudeLaunch')).toBeUndefined();
-    expect(r.checks.find((c) => c.id === 'daemon')?.detail).toContain('modo desktop');
+    expect(r.checks.find((c) => c.id === 'daemon')?.detail).toContain('mode desktop');
   });
 
-  it('Codex sem approve e sem AGENTS.md; comando diferente do atual', async () => {
+  it('Codex without approve and without AGENTS.md; command differs from the current one', async () => {
     const r = await runDoctor(
       {},
       fake({
         findOnPath: () => '/bin/x',
         readFile: files({
           [J('/h', '.claude.json')]: JSON.stringify({
-            mcpServers: { 'mockup-studio': { command: 'C:\\antigo.cmd', args: ['mcp'] } },
+            mcpServers: { 'mockup-studio': { command: 'C:\\old.cmd', args: ['mcp'] } },
           }),
           [J('/h', '.codex', 'config.toml')]:
             '[mcp_servers.mockup-studio]\ncommand = "mockup"\nargs = ["mcp"]\n',
@@ -117,7 +117,7 @@ describe('runDoctor', () => {
     expect(level(r, 'claudeLaunch')).toBe('warn');
   });
 
-  it('Claude só em escopo local aparece com o escopo; nunca roda mcp get', async () => {
+  it('Claude only in local scope shows up with the scope; never runs mcp get', async () => {
     const ran: string[] = [];
     const r = await runDoctor(
       {},
@@ -135,11 +135,11 @@ describe('runDoctor', () => {
         }),
       }),
     );
-    expect(r.checks.find((c) => c.id === 'claude')?.detail).toContain('escopo local');
+    expect(r.checks.find((c) => c.id === 'claude')?.detail).toContain('scope local');
     expect(ran.some((x) => x.includes(' mcp '))).toBe(false);
   });
 
-  it('porta ocupada, nenhuma fonte e timeout não travam', async () => {
+  it('busy port, no fonts and timeout do not hang', async () => {
     const r = await runDoctor(
       {},
       fake({
@@ -149,12 +149,12 @@ describe('runDoctor', () => {
       }),
     );
     expect(level(r, 'port')).toBe('warn');
-    expect(r.checks.find((c) => c.id === 'fonts')?.detail).toContain('nenhuma família');
-    expect(r.checks.find((c) => c.id === 'daemon')?.detail).toContain('a tempo');
+    expect(r.checks.find((c) => c.id === 'fonts')?.detail).toContain('no font family');
+    expect(r.checks.find((c) => c.id === 'daemon')?.detail).toContain('in time');
     expect(r.ok).toBe(true);
   });
 
-  it('texto sem ANSI', async () => {
+  it('text without ANSI', async () => {
     const t = formatDoctor(await runDoctor({}, fake()));
     expect(t).not.toContain('\u001b[');
     expect(t).toContain('✔ Node 24.1.0');

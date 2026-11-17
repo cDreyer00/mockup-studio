@@ -18,7 +18,7 @@ describe('cliRuntime', () => {
     });
     expect(r).toMatchObject({ kind: 'electron', electronVersion: '40.0.0' });
   });
-  it('VERSION bate com o package.json', () => {
+  it('VERSION matches package.json', () => {
     const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
     expect(JSON.parse(fs.readFileSync(pkg, 'utf8')).version).toBe(VERSION);
   });

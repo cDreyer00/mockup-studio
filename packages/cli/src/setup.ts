@@ -1,4 +1,4 @@
-/** `mockup setup claude|codex|all`: registra o servidor MCP nos clientes (ou imprime como fazer). */
+/** `mockup setup claude|codex|all`: registers the MCP server in the clients (or prints how to). */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -50,11 +50,11 @@ export interface SetupOptions {
   print?: boolean;
   command?: LaunchKind;
   port?: number;
-  /** Recria o registro do zero (remove + add), mesmo igual. */
+  /** Recreates the registration from scratch (remove + add), even if identical. */
   force?: boolean;
-  /** Codex: grava `default_tools_approval_mode = "approve"`. */
+  /** Codex: writes `default_tools_approval_mode = "approve"`. */
   approve?: boolean;
-  /** Codex: acrescenta o trecho de AGENTS.md. */
+  /** Codex: appends the AGENTS.md snippet. */
   agents?: boolean;
 }
 
@@ -62,11 +62,11 @@ export interface SetupDeps {
   findOnPath: (name: string) => string | null;
   runTool: (name: string, args: string[]) => ToolResult;
   launch: (force?: LaunchKind) => LaunchCommand;
-  /** Pasta `integrations` (com `claude-code/SKILL.md`), ou `null`. */
+  /** `integrations` folder (with `claude-code/SKILL.md`), or `null`. */
   integrationsDir: () => string | null;
-  /** Conteúdo do arquivo, ou `null` se não existe. */
+  /** File content, or `null` if it does not exist. */
   readFile: (p: string) => string | null;
-  /** Grava o arquivo, criando as pastas. */
+  /** Writes the file, creating the folders. */
   writeFile: (p: string, content: string) => void;
   home: string;
   env: NodeJS.ProcessEnv;
@@ -79,7 +79,7 @@ export interface SetupResult {
   lines: string[];
 }
 
-/** Candidatos da pasta `integrations`, na ordem de busca. */
+/** Candidates for the `integrations` folder, in search order. */
 export function integrationsCandidates(
   env: NodeJS.ProcessEnv = process.env,
   bundleDir: string = path.dirname(fileURLToPath(import.meta.url)),
@@ -120,8 +120,8 @@ export function defaultSetupDeps(): SetupDeps {
 }
 
 function failLines(r: ToolResult, manual: string): string[] {
-  const detail = (r.stderr || r.stdout || r.error || `código ${r.status}`).trim();
-  return [`  falhou: ${detail}`, `  rode manualmente: ${manual}`];
+  const detail = (r.stderr || r.stdout || r.error || `code ${r.status}`).trim();
+  return [`  failed: ${detail}`, `  run manually: ${manual}`];
 }
 
 interface ClientSpec {
@@ -132,9 +132,9 @@ interface ClientSpec {
 }
 
 const DISCARD_WARN =
-  '  aviso: o re-registro descarta campos extras (env/headers/aprovações personalizados).';
+  '  warning: re-registering discards extra fields (custom env/headers/approvals).';
 
-/** Roda `remove` e `add`; "não encontrado" no remove conta como sucesso. */
+/** Runs `remove` and `add`; "not found" on remove counts as success. */
 function removeAndAdd(spec: ClientSpec, deps: SetupDeps, lines: string[]): boolean {
   const q = (args: string[]) => commandLine(spec.tool, args, deps.platform);
   lines.push(`  > ${q(spec.removeArgs)}`);
@@ -171,8 +171,8 @@ function registerClaude(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): 
   if (opts.print || !exe) {
     lines.push(
       !opts.print && !exe
-        ? 'claude: não encontrado no PATH. Para registrar, rode:'
-        : 'claude: para registrar, rode:',
+        ? 'claude: not found on the PATH. To register, run:'
+        : 'claude: to register, run:',
       `  ${q(spec.addArgs)}`,
     );
     return { code: 0, lines };
@@ -183,36 +183,38 @@ function registerClaude(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): 
   for (const r of regs) {
     if (r.scope === 'local')
       lines.push(
-        `claude: ${SERVER_NAME} registrado também no escopo local de ${r.origin}; o setup só mexe no escopo user.`,
+        `claude: ${SERVER_NAME} is also registered in the local scope of ${r.origin}; setup only touches the user scope.`,
       );
     else if (r.scope === 'project')
       lines.push(
-        `claude: ${SERVER_NAME} registrado também no escopo project (${r.origin}); o setup só mexe no escopo user.`,
+        `claude: ${SERVER_NAME} is also registered in the project scope (${r.origin}); setup only touches the user scope.`,
       );
   }
 
   if (user && !opts.force && sameServer(user.server, spec.wanted)) {
-    lines.push(`claude: ${SERVER_NAME} já registrado com o mesmo comando; nada a fazer.`);
+    lines.push(
+      `claude: ${SERVER_NAME} is already registered with the same command; nothing to do.`,
+    );
     return { code: 0, lines };
   }
   if (user) {
     lines.push(
       opts.force
-        ? `claude: ${SERVER_NAME} será recriado (--force).`
-        : `claude: ${SERVER_NAME} registrado com outro comando (${describeServer(user.server)}); atualizando.`,
+        ? `claude: ${SERVER_NAME} will be recreated (--force).`
+        : `claude: ${SERVER_NAME} is registered with a different command (${describeServer(user.server)}); updating.`,
       DISCARD_WARN,
     );
     if (!removeAndAdd(spec, deps, lines)) return { code: 1, lines };
   } else if (!runAdd(spec, deps, lines, [])) return { code: 1, lines };
-  lines.push(`claude: ${SERVER_NAME} ${user ? 'atualizado' : 'registrado'}.`);
+  lines.push(`claude: ${SERVER_NAME} ${user ? 'updated' : 'registered'}.`);
   return { code: 0, lines };
 }
 
-/** Chaves do Codex que só valem num transporte (as do outro são removidas na troca). */
+/** Codex keys that only apply to one transport (those of the other are removed on switch). */
 const STDIO_KEYS = ['command', 'args', 'env', 'env_vars', 'cwd'];
 const HTTP_KEYS = ['url', 'bearer_token_env_var', 'http_headers', 'env_http_headers'];
 
-/** Aplica o lançamento desejado na seção; devolve as chaves removidas. Lança se o `env` for ilegível. */
+/** Applies the desired launch to the section; returns the removed keys. Throws if `env` is unreadable. */
 function editCodexSection(doc: TomlDoc, wanted: RegisteredServer): string[] {
   const removed: string[] = [];
   if (wanted.transport === 'http') {
@@ -227,33 +229,33 @@ function editCodexSection(doc: TomlDoc, wanted: RegisteredServer): string[] {
   return removed;
 }
 
-/** Confere o texto editado com o parser TOML: válido, com o lançamento desejado e sem chaves do outro transporte. */
+/** Checks the edited text with the TOML parser: valid, with the desired launch and without keys of the other transport. */
 function checkCodexText(text: string, wanted: RegisteredServer): string | null {
   const err = tomlError(text);
-  if (err) return `o resultado não seria TOML válido: ${err}`;
+  if (err) return `the result would not be valid TOML: ${err}`;
   const t = readServerTable(text, SERVER_NAME);
-  if (!t) return `a seção [mcp_servers.${SERVER_NAME}] não foi encontrada depois da edição`;
+  if (!t) return `the [mcp_servers.${SERVER_NAME}] section was not found after editing`;
   const other = (wanted.transport === 'http' ? STDIO_KEYS : HTTP_KEYS).filter((k) => k in t);
   if (other.length)
-    return `restaram chaves que não valem para ${wanted.transport}: ${other.join(', ')}`;
+    return `keys that do not apply to ${wanted.transport} remain: ${other.join(', ')}`;
   if (!sameServer(codexServer(t), wanted))
-    return `a seção não ficou com o lançamento esperado (${describeServer(codexServer(t))})`;
+    return `the section does not have the expected launch (${describeServer(codexServer(t))})`;
   return null;
 }
 
-/** Grava o arquivo, só se o resultado for TOML válido; devolve `false` e a mensagem se não gravar. */
+/** Writes the file only if the result is valid TOML; returns `false` and the message if it does not write. */
 function writeDoc(deps: SetupDeps, file: string, doc: TomlDoc, lines: string[]): boolean {
   const text = renderDoc(doc);
   const err = tomlError(text);
   if (err) {
-    lines.push(`  nada gravado em ${file}: o resultado não seria TOML válido (${err}).`);
+    lines.push(`  nothing written to ${file}: the result would not be valid TOML (${err}).`);
     return false;
   }
   try {
     deps.writeFile(file, text);
     return true;
   } catch (e) {
-    lines.push(`  falhou ao gravar ${file}: ${e instanceof Error ? e.message : e}`);
+    lines.push(`  failed to write ${file}: ${e instanceof Error ? e.message : e}`);
     return false;
   }
 }
@@ -269,7 +271,7 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
   const tomlHelp = toml
     ? [
         '',
-        `Ou, em ${file}:`,
+        `Or, in ${file}:`,
         ...[toml, ...(opts.approve ? [approveLine] : [])]
           .join('\n')
           .split('\n')
@@ -279,8 +281,8 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
   const existing = readCodexRegistration(fsDeps(deps));
   if (existing?.error) {
     lines.push(
-      `codex: ${file} não é TOML válido (${existing.error}); o Codex também não carrega esse arquivo.`,
-      '  corrija-o e rode o setup de novo.',
+      `codex: ${file} is not valid TOML (${existing.error}); Codex does not load this file either.`,
+      '  fix it and run setup again.',
     );
     return { code: opts.print ? 0 : 1, lines };
   }
@@ -288,16 +290,19 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
 
   if (opts.print) {
     if (!existing || !exe)
-      lines.push('codex: para registrar, rode:', `  ${q(spec.addArgs)}`, ...tomlHelp);
+      lines.push('codex: to register, run:', `  ${q(spec.addArgs)}`, ...tomlHelp);
     else if (opts.force)
-      lines.push(`codex: recriaria ${SERVER_NAME}: ${q(spec.removeArgs)} e ${q(spec.addArgs)}`);
-    else if (sameCmd) lines.push(`codex: ${SERVER_NAME} já registrado com o mesmo comando.`);
+      lines.push(
+        `codex: would recreate ${SERVER_NAME}: ${q(spec.removeArgs)} and ${q(spec.addArgs)}`,
+      );
+    else if (sameCmd)
+      lines.push(`codex: ${SERVER_NAME} is already registered with the same command.`);
     else
       lines.push(
-        `codex: editaria as chaves de lançamento da seção em ${file}, preservando o resto.`,
+        `codex: would edit the launch keys of the section in ${file}, preserving the rest.`,
       );
     if (opts.approve && existing)
-      lines.push(`codex: gravaria ${approveLine} em ${file} (aprovação das ferramentas).`);
+      lines.push(`codex: would write ${approveLine} to ${file} (tool approval).`);
     return { code: 0, lines };
   }
 
@@ -305,8 +310,8 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
   if (needsAdd && !exe) {
     lines.push(
       opts.force && existing
-        ? 'codex: --force exige o codex no PATH. Para recriar, rode:'
-        : 'codex: não encontrado no PATH. Para registrar, rode:',
+        ? 'codex: --force requires codex on the PATH. To recreate, run:'
+        : 'codex: not found on the PATH. To register, run:',
       `  ${q(spec.addArgs)}`,
       ...tomlHelp,
     );
@@ -315,13 +320,13 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
 
   if (!existing) {
     if (!runAdd(spec, deps, lines, tomlHelp)) return { code: 1, lines };
-    lines.push(`codex: ${SERVER_NAME} registrado.`);
+    lines.push(`codex: ${SERVER_NAME} registered.`);
   } else if (opts.force) {
-    lines.push(`codex: ${SERVER_NAME} será recriado (--force).`, DISCARD_WARN);
+    lines.push(`codex: ${SERVER_NAME} will be recreated (--force).`, DISCARD_WARN);
     if (!removeAndAdd(spec, deps, lines)) return { code: 1, lines };
-    lines.push(`codex: ${SERVER_NAME} atualizado.`);
+    lines.push(`codex: ${SERVER_NAME} updated.`);
   } else if (sameCmd) {
-    lines.push(`codex: ${SERVER_NAME} já registrado com o mesmo comando; nada a fazer.`);
+    lines.push(`codex: ${SERVER_NAME} is already registered with the same command; nothing to do.`);
   } else {
     const doc = parseDoc(deps.readFile(file) ?? '');
     let removed: string[];
@@ -335,36 +340,36 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
     }
     if (why) {
       lines.push(
-        `codex: não deu para editar ${file} com segurança (${why}); nada gravado.`,
-        `  edite a seção [mcp_servers.${SERVER_NAME}] à mão ou recrie o registro com \`mockup setup codex${opts.http ? ' --http' : ''} --force\` (descarta campos extras).`,
+        `codex: could not safely edit ${file} (${why}); nothing written.`,
+        `  edit the [mcp_servers.${SERVER_NAME}] section by hand or recreate the registration with \`mockup setup codex${opts.http ? ' --http' : ''} --force\` (discards extra fields).`,
       );
       return { code: 1, lines };
     }
     if (!writeDoc(deps, file, doc, lines)) return { code: 1, lines };
     lines.push(
-      `codex: ${SERVER_NAME} atualizado em ${file} (só as chaves de lançamento; o resto da config foi preservado).`,
+      `codex: ${SERVER_NAME} updated in ${file} (only the launch keys; the rest of the config was preserved).`,
     );
     if (removed.length)
       lines.push(
-        `  removidas por não valerem para ${spec.wanted.transport}: ${removed.join(', ')}.`,
+        `  removed because they do not apply to ${spec.wanted.transport}: ${removed.join(', ')}.`,
       );
   }
 
   if (opts.approve) {
     const doc = parseDoc(deps.readFile(file) ?? '');
     const cur = readCodexRegistration(fsDeps(deps))?.approve;
-    if (cur === 'approve') lines.push('codex: default_tools_approval_mode já é "approve".');
+    if (cur === 'approve') lines.push('codex: default_tools_approval_mode is already "approve".');
     else if (!findSection(doc))
       lines.push(
-        `codex: seção [mcp_servers.${SERVER_NAME}] não encontrada em ${file}; nada gravado.`,
+        `codex: section [mcp_servers.${SERVER_NAME}] not found in ${file}; nothing written.`,
       );
     else {
       setKey(doc, 'default_tools_approval_mode', '"approve"');
       if (!writeDoc(deps, file, doc, lines)) return { code: 1, lines };
       lines.push(
         typeof cur === 'string'
-          ? `codex: default_tools_approval_mode trocado de "${cur}" para "approve".`
-          : 'codex: default_tools_approval_mode = "approve" gravado (as ferramentas que gravam passam sem pedir aprovação).',
+          ? `codex: default_tools_approval_mode changed from "${cur}" to "approve".`
+          : 'codex: default_tools_approval_mode = "approve" written (tools that write run without asking for approval).',
       );
     }
   }
@@ -374,7 +379,7 @@ function registerCodex(spec: ClientSpec, opts: SetupOptions, deps: SetupDeps): S
 export const AGENTS_START = '<!-- mockup-studio:start -->';
 export const AGENTS_END = '<!-- mockup-studio:end -->';
 
-/** Acrescenta (ou atualiza) o trecho de AGENTS.md do Codex entre marcadores. */
+/** Appends (or updates) the Codex AGENTS.md snippet between markers. */
 export function installAgents(deps: SetupDeps, print = false): SetupResult {
   const dest = path.join(codexHome(deps), 'AGENTS.md');
   const dir = deps.integrationsDir();
@@ -384,10 +389,10 @@ export function installAgents(deps: SetupDeps, print = false): SetupResult {
     return {
       code: 1,
       lines: [
-        'agents: integrations/codex/AGENTS.snippet.md não encontrado (defina MOCKUP_INTEGRATIONS_DIR).',
+        'agents: integrations/codex/AGENTS.snippet.md not found (set MOCKUP_INTEGRATIONS_DIR).',
       ],
     };
-  if (print) return { code: 0, lines: [`agents: acrescentaria ${src} ao ${dest}`] };
+  if (print) return { code: 0, lines: [`agents: would append ${src} to ${dest}`] };
 
   const snippet = raw
     .replace(/\r\n/g, '\n')
@@ -400,37 +405,37 @@ export function installAgents(deps: SetupDeps, print = false): SetupResult {
   let verb: string;
   if (current === null || current.trim() === '') {
     next = block + eol;
-    verb = current === null ? 'criado' : 'atualizado';
+    verb = current === null ? 'created' : 'updated';
   } else {
     const s = current.indexOf(AGENTS_START);
     const e = current.indexOf(AGENTS_END);
     if (s >= 0 && e > s) {
       next = current.slice(0, s) + block + current.slice(e + AGENTS_END.length);
-      verb = next === current ? 'já atualizado' : 'atualizado';
+      verb = next === current ? 'already up to date' : 'updated';
     } else if (s >= 0 || e >= 0)
       return {
         code: 1,
-        lines: [`agents: marcadores incompletos em ${dest}; corrija ou remova-os e rode de novo.`],
+        lines: [`agents: incomplete markers in ${dest}; fix or remove them and run again.`],
       };
     else {
       const base = /\r?\n$/.test(current) ? current : current + eol;
       next = base + eol + block + eol;
-      verb = 'acrescentado';
+      verb = 'appended';
     }
   }
-  if (next === current) return { code: 0, lines: [`agents: ${dest} já atualizado.`] };
+  if (next === current) return { code: 0, lines: [`agents: ${dest} is already up to date.`] };
   try {
     deps.writeFile(dest, next);
   } catch (e) {
     return {
       code: 1,
-      lines: [`agents: falhou ao gravar ${dest}: ${e instanceof Error ? e.message : e}`],
+      lines: [`agents: failed to write ${dest}: ${e instanceof Error ? e.message : e}`],
     };
   }
-  return { code: 0, lines: [`agents: trecho ${verb} em ${dest}.`] };
+  return { code: 0, lines: [`agents: snippet ${verb} in ${dest}.`] };
 }
 
-/** Copia a skill para `~/.claude/skills/mockup-studio/SKILL.md`. */
+/** Copies the skill to `~/.claude/skills/mockup-studio/SKILL.md`. */
 export function installSkill(deps: SetupDeps, print = false): SetupResult {
   const dest = path.join(deps.home, '.claude', 'skills', SERVER_NAME, 'SKILL.md');
   const dir = deps.integrationsDir();
@@ -438,20 +443,20 @@ export function installSkill(deps: SetupDeps, print = false): SetupResult {
     return {
       code: 1,
       lines: [
-        'skill: pasta integrations/claude-code/SKILL.md não encontrada (defina MOCKUP_INTEGRATIONS_DIR).',
+        'skill: folder integrations/claude-code/SKILL.md not found (set MOCKUP_INTEGRATIONS_DIR).',
       ],
     };
   const src = path.join(dir, 'claude-code', 'SKILL.md');
-  if (print) return { code: 0, lines: [`skill: copiaria ${src} para ${dest}`] };
+  if (print) return { code: 0, lines: [`skill: would copy ${src} to ${dest}`] };
   try {
     const existed = fs.existsSync(dest);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(src, dest);
-    return { code: 0, lines: [`skill: ${existed ? 'atualizada' : 'instalada'} em ${dest}`] };
+    return { code: 0, lines: [`skill: ${existed ? 'updated' : 'installed'} at ${dest}`] };
   } catch (e) {
     return {
       code: 1,
-      lines: [`skill: falhou ao copiar para ${dest}: ${e instanceof Error ? e.message : e}`],
+      lines: [`skill: failed to copy to ${dest}: ${e instanceof Error ? e.message : e}`],
     };
   }
 }
@@ -488,7 +493,7 @@ export function runSetup(
     );
     if (opts.skill) add(installSkill(deps, opts.print));
     if (target === 'claude' && (opts.approve || opts.agents))
-      lines.push('--approve e --agents só valem para o Codex: ignorados para o Claude Code.');
+      lines.push('--approve and --agents only apply to Codex: ignored for Claude Code.');
   }
   if (target === 'codex' || target === 'all') {
     if (lines.length) lines.push('');
@@ -506,7 +511,7 @@ export function runSetup(
     );
     if (opts.agents) add(installAgents(deps, opts.print));
     if (opts.skill && target === 'codex')
-      lines.push('--skill só vale para o Claude Code: ignorado para o Codex.');
+      lines.push('--skill only applies to Claude Code: ignored for Codex.');
   }
   return { code, lines };
 }
