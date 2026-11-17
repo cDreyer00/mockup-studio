@@ -24,7 +24,10 @@ export interface NodeMatch {
 
 /** Minúsculas e sem acentos/diacríticos. */
 export function foldText(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036F]/g, '').toLowerCase();
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036F]/g, '')
+    .toLowerCase();
 }
 
 interface ParsedQuery {
