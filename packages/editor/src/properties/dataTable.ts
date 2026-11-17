@@ -95,6 +95,21 @@ export function setDataOp(
   return { type: 'setData', changes: [{ nodeId, ...change }] };
 }
 
+/**
+ * Origem depois de editar os dados à mão: arquivo/URL viram `inline` (o Atualizar relia a origem
+ * e descartaria a edição), guardando `path`/`url` só como referência de onde vieram. `undefined`
+ * quando a origem já é inline (nada muda).
+ */
+export function editedSource(source: DataSource | undefined): DataSource | undefined {
+  if (!source || source.kind === 'inline') return undefined;
+  const next: DataSource = { kind: 'inline' };
+  if (source.path) next.path = source.path;
+  if (source.url) next.url = source.url;
+  if (source.mapping) next.mapping = source.mapping;
+  if (source.fetchedAt) next.fetchedAt = source.fetchedAt;
+  return next;
+}
+
 /** Origem com o mapeamento `campo → coluna` alterado (`column` vazio remove). */
 export function withMapping(
   source: DataSource | undefined,
@@ -112,7 +127,10 @@ export function withMapping(
 
 /** Descrição curta da origem para o painel. */
 export function describeSource(source: DataSource | undefined): string {
-  if (!source || source.kind === 'inline') return 'Dados inline';
+  if (!source || source.kind === 'inline') {
+    const from = source?.path ?? source?.url;
+    return from ? `Dados editados (vieram de ${from})` : 'Dados inline';
+  }
   if (source.kind === 'url') return `URL: ${source.url ?? ''}`;
   return `Arquivo ${source.kind.toUpperCase()}: ${source.path ?? ''}`;
 }

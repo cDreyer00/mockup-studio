@@ -13,6 +13,7 @@ import {
   addRow,
   cellText,
   describeSource,
+  editedSource,
   removeColumn,
   removeRow,
   setCell,
@@ -223,8 +224,13 @@ export function DataSection({ node }: { node: Node }) {
   const unmapped = unmappedFields(node);
   const mapping = source?.mapping ?? {};
 
-  const save = (next: unknown[]): void =>
-    void daemon.applySafe([setDataOp(node.id, { data: next })]);
+  // Editar à mão desliga a origem de arquivo/URL (vira inline) na mesma op: um undo só.
+  const save = (next: unknown[]): void => {
+    const edited = editedSource(source);
+    void daemon.applySafe([
+      setDataOp(node.id, { data: next, ...(edited ? { source: edited } : {}) }),
+    ]);
+  };
 
   const refresh = async (): Promise<void> => {
     setBusy(true);

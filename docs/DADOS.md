@@ -17,14 +17,14 @@ Um repetidor é um nó `type: 'repeater'` (id `rp_...`). Ele se comporta como um
 | Campo       | Descrição                                                                                                                                 |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `kind`      | `inline` (colado ou editado na tabela), `json` ou `csv` (arquivo local) ou `url` (HTTP(S)).                                               |
-| `path`      | Caminho absoluto do arquivo (`json`/`csv`).                                                                                               |
+| `path`      | Caminho absoluto do arquivo (`json`/`csv`). Em `inline`, só referência de onde os dados vieram antes de serem editados.                   |
 | `url`       | URL http(s) (`url`). JSON ou CSV, pelo content-type ou pela extensão.                                                                     |
 | `select`    | Caminho até a lista dentro do JSON, ex.: `data.items`. Sem ele: a própria lista, ou a primeira propriedade que seja lista (até 2 níveis). |
 | `mapping`   | Campo do template → caminho no item, ex.: `{ "nome": "user.fullName" }`.                                                                  |
 | `limit`     | Máximo de itens lidos da origem.                                                                                                          |
 | `fetchedAt` | Quando os dados foram lidos (ISO 8601).                                                                                                   |
 
-A origem fica guardada no documento: `refresh_data` (ou o botão **Atualizar** do painel) relê o arquivo ou a URL. Não há atualização automática.
+A origem fica guardada no documento: `refresh_data` (ou o botão **Atualizar** do painel) relê o arquivo ou a URL. Não há atualização automática. Editar a tabela no painel troca a origem para `inline` na mesma op (mantendo `path`/`url`, `mapping` e `fetchedAt` como referência), então **Atualizar** fica desativado e não descarta a edição; para voltar a ler o arquivo ou a URL, use **Vincular…**/`bind_data` de novo.
 
 ## Bindings
 

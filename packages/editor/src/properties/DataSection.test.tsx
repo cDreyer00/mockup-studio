@@ -11,6 +11,8 @@ import { makeDoc } from '../test/fixtures';
 import {
   addColumn,
   addRow,
+  describeSource,
+  editedSource,
   parseCell,
   removeColumn,
   removeRow,
@@ -111,6 +113,44 @@ describe('DataSection', () => {
         ],
       },
     ]);
+  });
+
+  it('editar dados vindos de arquivo troca a origem para inline (Atualizar não descarta a edição)', () => {
+    rep.dataSource = {
+      kind: 'json',
+      path: 'C:/dados/p.json',
+      select: 'items',
+      mapping: { cargo: 'idade' },
+      fetchedAt: '2026-11-16T10:00:00.000Z',
+    };
+    render(<PropertiesPanel />);
+    expect(screen.getByTestId('data-refresh').hasAttribute('disabled')).toBe(false);
+    const cell = screen.getByTestId('data-cell-1-nome');
+    fireEvent.change(cell, { target: { value: 'Beatriz' } });
+    fireEvent.blur(cell);
+    expect(daemon.applySafe).toHaveBeenCalledTimes(1);
+    expect(daemon.applySafe).toHaveBeenCalledWith([
+      {
+        type: 'setData',
+        changes: [
+          {
+            nodeId: rep.id,
+            data: [
+              { nome: 'Ana', idade: 30 },
+              { nome: 'Beatriz', idade: 25 },
+            ],
+            source: {
+              kind: 'inline',
+              path: 'C:/dados/p.json',
+              mapping: { cargo: 'idade' },
+              fetchedAt: '2026-11-16T10:00:00.000Z',
+            },
+          },
+        ],
+      },
+    ]);
+    expect(editedSource({ kind: 'inline' })).toBeUndefined();
+    expect(describeSource({ kind: 'inline', url: 'https://x/a.json' })).toContain('editados');
   });
 
   it('adicionar linha inclui todas as colunas (inclusive do template)', () => {
