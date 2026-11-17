@@ -33,7 +33,7 @@ describe('isPrivateAddress', () => {
     '0:0:0:0:0:0:7f00:1',
     '64:ff9b::7f00:1',
     'fe80::1%eth0',
-  ])('%s é privado', (a) => expect(isPrivateAddress(a)).toBe(true));
+  ])('%s is private', (a) => expect(isPrivateAddress(a)).toBe(true));
 
   it.each([
     '8.8.8.8',
@@ -49,44 +49,44 @@ describe('isPrivateAddress', () => {
     'fec0::1',
     '::ffff:8.8.8.8',
     '::ffff:808:808',
-    'exemplo.com',
-  ])('%s é público', (a) => expect(isPrivateAddress(a)).toBe(false));
+    'example.com',
+  ])('%s is public', (a) => expect(isPrivateAddress(a)).toBe(false));
 });
 
 describe('originOf', () => {
-  it('normaliza porta padrão, caixa e ws/wss', () => {
-    expect(originOf('http://Exemplo.com/a')).toBe('http://exemplo.com:80');
-    expect(originOf('https://exemplo.com:443/')).toBe('https://exemplo.com:443');
+  it('normalizes default port, case and ws/wss', () => {
+    expect(originOf('http://Example.com/a')).toBe('http://example.com:80');
+    expect(originOf('https://example.com:443/')).toBe('https://example.com:443');
     expect(originOf('ws://127.0.0.1:3000/x')).toBe('http://127.0.0.1:3000');
     expect(originOf('wss://a.com/')).toBe('https://a.com:443');
   });
-  it('devolve null para protocolos sem origem de rede e URLs inválidas', () => {
+  it('returns null for protocols without a network origin and for invalid URLs', () => {
     expect(originOf('data:text/html,x')).toBeNull();
-    expect(originOf('nao é url')).toBeNull();
+    expect(originOf('not a url')).toBeNull();
   });
 });
 
 describe('isLocalhostName', () => {
-  it('reconhece localhost e subdomínios', () => {
+  it('recognizes localhost and subdomains', () => {
     expect(isLocalhostName('localhost')).toBe(true);
     expect(isLocalhostName('app.localhost')).toBe(true);
     expect(isLocalhostName('localhost.')).toBe(true);
-    expect(isLocalhostName('localhost.exemplo.com')).toBe(false);
+    expect(isLocalhostName('localhost.example.com')).toBe(false);
   });
 });
 
 describe('subrequestDecision', () => {
   const main = 'http://127.0.0.1:5173';
-  it('libera a mesma origem da página principal, mesmo privada', () => {
+  it('allows the same origin as the main page, even if private', () => {
     expect(subrequestDecision('http://127.0.0.1:5173/a.png', main)).toBe('allow');
     expect(subrequestDecision('ws://127.0.0.1:5173/hmr', main)).toBe('allow');
   });
-  it('bloqueia outra origem local (porta ou host diferentes)', () => {
+  it('blocks another local origin (different port or host)', () => {
     expect(subrequestDecision('http://127.0.0.1:5174/a.png', main)).toBe('block');
     expect(subrequestDecision('http://localhost:5173/a.png', main)).toBe('block');
     expect(subrequestDecision('https://127.0.0.1:5173/a.png', main)).toBe('block');
   });
-  it('bloqueia faixas privadas, link-local, CGNAT e IPv6/mapeado', () => {
+  it('blocks private ranges, link-local, CGNAT and IPv6/mapped', () => {
     for (const u of [
       'http://10.0.0.5/x',
       'http://172.20.1.1/x',
@@ -103,22 +103,22 @@ describe('subrequestDecision', () => {
     ])
       expect(subrequestDecision(u, main), u).toBe('block');
   });
-  it('sem origem confiável nenhum destino privado passa', () => {
+  it('without a trusted origin no private destination passes', () => {
     expect(subrequestDecision('http://127.0.0.1:5173/a.png', null)).toBe('block');
     expect(subrequestDecision('http://192.168.0.2/a.png', null)).toBe('block');
   });
-  it('libera IP público, data/blob/about e manda resolver nomes', () => {
+  it('allows public IPs, data/blob/about and sends names to be resolved', () => {
     expect(subrequestDecision('http://8.8.8.8/x', null)).toBe('allow');
     expect(subrequestDecision('data:image/png;base64,AAAA', null)).toBe('allow');
     expect(subrequestDecision('blob:http://127.0.0.1:1/x', null)).toBe('allow');
-    expect(subrequestDecision('https://exemplo.com/x.png', main)).toBe('resolve');
+    expect(subrequestDecision('https://example.com/x.png', main)).toBe('resolve');
   });
-  it('bloqueia protocolos não suportados e URLs inválidas', () => {
+  it('blocks unsupported protocols and invalid URLs', () => {
     expect(subrequestDecision('file:///C:/Windows/win.ini', main)).toBe('block');
-    expect(subrequestDecision('ftp://exemplo.com/x', main)).toBe('block');
+    expect(subrequestDecision('ftp://example.com/x', main)).toBe('block');
     expect(subrequestDecision('xx', main)).toBe('block');
   });
-  it('nome da origem confiável passa sem resolver', () => {
+  it('the name of the trusted origin passes without resolving', () => {
     expect(subrequestDecision('http://app.test:3000/x', 'http://app.test:3000')).toBe('allow');
   });
 });

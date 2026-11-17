@@ -1,7 +1,7 @@
 /**
- * Integração REAL de componentes: Electron headless + cliente MCP (Streamable HTTP).
- * `insert_component('shadcn-like/Button', …)` precisa aparecer certo no screenshot.
- * Requer `npm run build` (desktop e editor) antes. `QA_SHOT_DIR` grava os PNGs para inspeção.
+ * REAL components integration: headless Electron + MCP client (Streamable HTTP).
+ * `insert_component('shadcn-like/Button', …)` must show up correctly in the screenshot.
+ * Requires `npm run build` (desktop and editor) first. `QA_SHOT_DIR` writes the PNGs for inspection.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -39,19 +39,19 @@ async function freePort(): Promise<number> {
 async function waitHealth(url: string, child: ChildProcess, ms = 60000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Electron encerrou (código ${child.exitCode})`);
+    if (child.exitCode !== null) throw new Error(`Electron exited (code ${child.exitCode})`);
     try {
       const r = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (r.ok && ((await r.json()) as { render?: boolean }).render === true) return;
     } catch {
-      /* ainda subindo */
+      /* still starting up */
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Timeout aguardando /api/health com render: true');
+  throw new Error('Timed out waiting for /api/health with render: true');
 }
 
-describe.skipIf(!built || !editorReady)('Componentes via MCP real (Electron headless)', () => {
+describe.skipIf(!built || !editorReady)('Components via real MCP (headless Electron)', () => {
   let tmp: string;
   let child: ChildProcess;
   let client: Client;
@@ -62,10 +62,10 @@ describe.skipIf(!built || !editorReady)('Componentes via MCP real (Electron head
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-comp-'));
     const dataDir = path.join(tmp, 'data');
     fs.mkdirSync(dataDir);
-    const doc = createDocument('Componentes');
+    const doc = createDocument('Components');
     const frame = createNodeFromTag('div', {
       isRoot: true,
-      name: 'Tela',
+      name: 'Screen',
       styles: { width: '400px', height: '200px', background: '#ffffff', padding: '24px' },
       position: { x: 0, y: 0 },
     });
@@ -113,24 +113,24 @@ describe.skipIf(!built || !editorReady)('Componentes via MCP real (Electron head
     const img = (await call('get_screenshot', { nodeId, scale: 2 })).find(
       (c) => c.type === 'image',
     );
-    expect(img, 'screenshot sem imagem').toBeTruthy();
+    expect(img, 'screenshot without an image').toBeTruthy();
     expect(img!.mimeType).toBe('image/png');
     return Buffer.from(img!.data!, 'base64');
   };
 
-  it('insert_component Button outline "Salvar" renderiza no screenshot e difere do default', async () => {
+  it('insert_component Button outline "Save" renders in the screenshot and differs from the default', async () => {
     const out = await call('insert_component', {
       component: 'shadcn-like/Button',
       parentId: frameId,
-      props: { variant: 'outline', label: 'Salvar' },
+      props: { variant: 'outline', label: 'Save' },
     });
-    const outlineId = /Instância criada: (\S+)/.exec(text(out))![1]!;
+    const outlineId = /Instance created: (\S+)/.exec(text(out))![1]!;
     const def = await call('insert_component', {
       component: 'shadcn-like/Button',
       parentId: frameId,
-      props: { label: 'Padrão' },
+      props: { label: 'Default' },
     });
-    const defaultId = /Instância criada: (\S+)/.exec(text(def))![1]!;
+    const defaultId = /Instance created: (\S+)/.exec(text(def))![1]!;
 
     const a = await shot(outlineId);
     const b = await shot(defaultId);
@@ -144,12 +144,12 @@ describe.skipIf(!built || !editorReady)('Componentes via MCP real (Electron head
       fs.writeFileSync(path.join(process.env.QA_SHOT_DIR, 'button-default.png'), b);
       fs.writeFileSync(path.join(process.env.QA_SHOT_DIR, 'frame.png'), await shot(frameId));
     }
-    // o layout medido no navegador de verdade tem o botão com largura/altura plausíveis
+    // the layout measured in the real browser has the button with plausible width/height
     const layout = text(await call('get_layout', { nodeId: outlineId }));
     expect(layout).toMatch(/\d+/);
   });
 
-  it('o frame inteiro com as instâncias renderiza (ids virtuais não quebram o render)', async () => {
+  it('the whole frame with the instances renders (virtual ids do not break the render)', async () => {
     const png = await shot(frameId);
     expect(pngSize(png)).toEqual({ width: 800, height: 400 });
   });

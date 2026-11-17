@@ -1,7 +1,7 @@
 /**
- * RenderService: motor de screenshot/layout do daemon. Mantém UMA BrowserWindow oculta carregando
- * `/render.html` (página de render do editor) e captura o nó via CDP (`Page.captureScreenshot`).
- * Operações são serializadas numa fila; a janela é recriada se o processo de render morrer ou travar.
+ * RenderService: the daemon's screenshot/layout engine. Keeps ONE hidden BrowserWindow loading
+ * `/render.html` (the editor's render page) and captures the node via CDP (`Page.captureScreenshot`).
+ * Operations are serialized in a queue; the window is recreated if the render process dies or hangs.
  */
 import { BrowserWindow, nativeImage } from 'electron';
 import type { CaptureRequest, CaptureResult, RenderProvider, RenderTarget } from '@mockup/server';
@@ -21,23 +21,23 @@ import {
   withTimeout,
 } from './render-utils.js';
 
-// o índice do server ainda não reexporta esses tipos: derivados do contrato do provider
+// the server index does not re-export these types yet: derived from the provider contract
 type CaptureFrames = NonNullable<RenderProvider['captureFrames']>;
 type FramesRequest = Parameters<CaptureFrames>[0];
 type FramesInfo = Awaited<ReturnType<CaptureFrames>>;
 
 export interface RenderServiceOptions {
-  /** Origem do daemon (ex.: `http://127.0.0.1:4747`); avaliada sob demanda (a porta só é conhecida após o listen). */
+  /** Daemon origin (e.g. `http://127.0.0.1:4747`); evaluated on demand (the port is only known after listen). */
   baseUrl: () => string;
-  /** Timeout por operação (padrão 30 s). */
+  /** Timeout per operation (default 30 s). */
   timeoutMs?: number;
-  /** Limite do cache LRU em bytes (padrão 256 MB). */
+  /** LRU cache limit in bytes (default 256 MB). */
   cacheBytes?: number;
 }
 
 const log = (...a: unknown[]): void => console.error('[mockup-render]', ...a);
 
-/** Limite de quadros por captura animada. */
+/** Frame limit per animated capture. */
 const MAX_FRAMES = 1800;
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
@@ -57,7 +57,7 @@ export class RenderService implements RenderProvider {
     this.timeoutMs = opts.timeoutMs ?? 30000;
   }
 
-  /** Executa `fn` na fila serial (uma operação por vez, mesmo se a anterior falhar). */
+  /** Runs `fn` in the serial queue (one operation at a time, even if the previous one fails). */
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {
     const run = this.queue.then(fn, fn);
     this.queue = run.catch(() => undefined);
@@ -72,14 +72,14 @@ export class RenderService implements RenderProvider {
       try {
         w.webContents.debugger.detach();
       } catch {
-        /* já desanexado */
+        /* already detached */
       }
       w.destroy();
     }
   }
 
   private ensureWindow(): Promise<BrowserWindow> {
-    if (this.closed) return Promise.reject(new Error('RenderService encerrado'));
+    if (this.closed) return Promise.reject(new Error('RenderService closed'));
     if (this.win && !this.win.isDestroyed() && this.winReady) return this.winReady;
     const win = new BrowserWindow({
       show: false,
@@ -102,15 +102,15 @@ export class RenderService implements RenderProvider {
       },
     });
     this.win = win;
-    // a página de render nunca navega nem abre janelas: tudo que não for o próprio render é negado
+    // the render page never navigates or opens windows: anything other than the render itself is denied
     win.webContents.on('will-navigate', (ev) => ev.preventDefault());
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    // Em janela realmente oculta o renderer cai no Page.captureScreenshot (Windows): a janela é
-    // "mostrada" sem moldura, transparente, fora da tela, sem foco e fora da barra de tarefas.
+    // In a truly hidden window the renderer falls back on Page.captureScreenshot (Windows): the window is
+    // "shown" frameless, transparent, off-screen, unfocused and outside the taskbar.
     win.setIgnoreMouseEvents(true);
     win.showInactive();
     win.webContents.on('render-process-gone', (_e, details) => {
-      log('processo de render encerrou:', details.reason);
+      log('render process exited:', details.reason);
       if (this.win === win) this.destroyWindow();
     });
     win.on('closed', () => {
@@ -126,13 +126,13 @@ export class RenderService implements RenderProvider {
         const ok = await win.webContents.executeJavaScript('window.__mockupRenderReady === true');
         if (ok) return win;
         if (Date.now() > deadline)
-          throw new Error('A página de render não ficou pronta (__mockupRenderReady).');
+          throw new Error('The render page did not become ready (__mockupRenderReady).');
         await new Promise((r) => setTimeout(r, 50));
       }
     })();
     this.winReady = ready;
     ready.catch((e) => {
-      log('falha ao preparar a página de render:', e instanceof Error ? e.message : e);
+      log('failed to prepare the render page:', e instanceof Error ? e.message : e);
       if (this.win === win) this.destroyWindow();
     });
     return ready;
@@ -146,8 +146,8 @@ export class RenderService implements RenderProvider {
   }
 
   /**
-   * Renderiza o nó com viewport ≥ frame; devolve o retângulo do nó. `t.time` (s), quando
-   * informado, posiciona as animações; sem ele a página usa 0 e o vídeo com poster mostra o poster.
+   * Renders the node with viewport ≥ frame; returns the node's rectangle. `t.time` (s), when
+   * provided, positions the animations; without it the page uses 0 and a video with a poster shows the poster.
    */
   private async prepare(
     win: BrowserWindow,
@@ -196,9 +196,9 @@ export class RenderService implements RenderProvider {
   async capture(req: CaptureRequest): Promise<CaptureResult> {
     const scale = req.scale ?? 1;
     const format = req.format ?? 'png';
-    // JPG não tem alfa: ignora `transparent`
+    // JPG has no alpha: ignores `transparent`
     const transparent = format === 'png' && !!req.transparent;
-    // O estado de prévia e o CSS base (preflight) mudam a imagem: entram na chave pelo docId.
+    // The preview state and the base CSS (preflight) change the image: they enter the key via the docId.
     const key = cacheKey({
       doc: req.doc,
       docId: [req.docId, req.doc.cssBase, req.state].filter(Boolean).join('#'),
@@ -246,8 +246,8 @@ export class RenderService implements RenderProvider {
       });
       png = Buffer.from(shot.data as string, 'base64');
     } catch (e) {
-      // fallback: capturePage (ignora clip fora da viewport, mas cobre falhas do CDP)
-      log('CDP falhou, usando capturePage:', e instanceof Error ? e.message : e);
+      // fallback: capturePage (ignores clip outside the viewport, but covers CDP failures)
+      log('CDP failed, using capturePage:', e instanceof Error ? e.message : e);
       const img = await win.webContents.capturePage({
         x: Math.round(box.x),
         y: Math.round(box.y),
@@ -281,7 +281,7 @@ export class RenderService implements RenderProvider {
     };
   }
 
-  /** Captura o retângulo do nó (CDP; fallback `capturePage`), como em `doCapture`. */
+  /** Captures the node's rectangle (CDP; `capturePage` fallback), as in `doCapture`. */
   private async shoot(win: BrowserWindow, box: RenderBox): Promise<Buffer> {
     try {
       const shot = await this.cdp(win, 'Page.captureScreenshot', {
@@ -291,8 +291,8 @@ export class RenderService implements RenderProvider {
       });
       return Buffer.from(shot.data as string, 'base64');
     } catch (e) {
-      // fallback: capturePage (ignora clip fora da viewport, mas cobre falhas do CDP)
-      log('CDP falhou, usando capturePage:', e instanceof Error ? e.message : e);
+      // fallback: capturePage (ignores clip outside the viewport, but covers CDP failures)
+      log('CDP failed, using capturePage:', e instanceof Error ? e.message : e);
       const img = await win.webContents.capturePage({
         x: Math.round(box.x),
         y: Math.round(box.y),
@@ -303,7 +303,7 @@ export class RenderService implements RenderProvider {
     }
   }
 
-  /** Captura N quadros (`start + i/fps`) do nó animado, sem cache; cada PNG vai para `onFrame`. */
+  /** Captures N frames (`start + i/fps`) of the animated node, without cache; each PNG goes to `onFrame`. */
   captureFrames(
     req: FramesRequest,
     onFrame: (png: Buffer, index: number) => Promise<void> | void,
@@ -344,7 +344,7 @@ export class RenderService implements RenderProvider {
           return { frames: total, pixelWidth: size!.width, pixelHeight: size!.height };
         })(),
         30000 + 2000 * total,
-        'captura de quadros',
+        'frame capture',
         () => this.destroyWindow(),
       ),
     );
@@ -361,13 +361,13 @@ export class RenderService implements RenderProvider {
           )) as LayoutNode;
         })(),
         this.timeoutMs,
-        'medição de layout',
+        'layout measurement',
         () => this.destroyWindow(),
       ),
     );
   }
 
-  /** Importação de página (import_url/import_html): fila e janela próprias, ver `SnapshotService`. */
+  /** Page import (import_url/import_html): its own queue and window, see `SnapshotService`. */
   snapshot(req: PageSnapshotRequest): Promise<PageSnapshotResult> {
     return this.snapshots.snapshot(req);
   }

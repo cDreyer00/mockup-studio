@@ -1,49 +1,49 @@
-/** Funções puras do RenderService (testáveis sem Electron). */
+/** Pure functions of the RenderService (testable without Electron). */
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getFrameOf, getPageOfNode, walk, type Document, type Node } from '@mockup/core';
 
-/** Lado máximo da imagem final, em px, após a escala. */
+/** Maximum side of the final image, in px, after scaling. */
 export const MAX_SIDE_PX = 16384;
 
-/** Lê largura/altura do cabeçalho IHDR de um PNG. */
+/** Reads width/height from a PNG's IHDR header. */
 export function pngSize(buf: Buffer): { width: number; height: number } {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47)
-    throw new Error('Resposta não é um PNG válido');
+    throw new Error('Response is not a valid PNG');
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-/** Limite do cache de render em bytes (soma dos PNG/JPG guardados). */
+/** Render cache limit in bytes (sum of the stored PNG/JPG). */
 export const CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
 /**
- * Valida a viewport (`frame × deviceScaleFactor`) antes de redimensionar a janela de render:
- * o Chromium falha ou esgota a memória com superfícies muito grandes.
+ * Validates the viewport (`frame × deviceScaleFactor`) before resizing the render window:
+ * Chromium fails or runs out of memory with very large surfaces.
  */
 export function assertViewport(width: number, height: number, scale: number): void {
   const w = Math.ceil(width * scale);
   const h = Math.ceil(height * scale);
   if (w > MAX_SIDE_PX || h > MAX_SIDE_PX) {
     throw new Error(
-      `Frame grande demais para renderizar: ${Math.ceil(width)}x${Math.ceil(height)}px CSS × escala ${scale} = ${w}x${h}px (limite de ${MAX_SIDE_PX}px por lado). Reduza a escala ou o tamanho do frame.`,
+      `Frame too large to render: ${Math.ceil(width)}x${Math.ceil(height)}px CSS × scale ${scale} = ${w}x${h}px (limit of ${MAX_SIDE_PX}px per side). Reduce the scale or the frame size.`,
     );
   }
 }
 
-/** Valida o tamanho final; lança erro claro quando excede o limite. */
+/** Validates the final size; throws a clear error when it exceeds the limit. */
 export function assertSize(width: number, height: number, scale: number): void {
   const w = Math.round(width * scale);
   const h = Math.round(height * scale);
-  if (w < 1 || h < 1) throw new Error(`O nó tem tamanho vazio (${width}x${height}).`);
+  if (w < 1 || h < 1) throw new Error(`The node has an empty size (${width}x${height}).`);
   if (w > MAX_SIDE_PX || h > MAX_SIDE_PX) {
     throw new Error(
-      `Imagem grande demais: ${w}x${h}px (limite de ${MAX_SIDE_PX}px por lado). Reduza a escala ou capture um nó menor.`,
+      `Image too large: ${w}x${h}px (limit of ${MAX_SIDE_PX}px per side). Reduce the scale or capture a smaller node.`,
     );
   }
 }
 
-/** Largura/altura em px declaradas no estilo do frame, quando forem valores `Npx`. */
+/** Width/height in px declared in the frame's style, when they are `Npx` values. */
 export function declaredSize(frame: Node | undefined): { width?: number; height?: number } {
   const styles = (frame?.style ?? {}) as Record<string, unknown>;
   const px = (v: unknown): number | undefined => {
@@ -62,13 +62,13 @@ export interface CacheKeyInput {
   quality?: number;
   maxWidth?: number;
   transparent: boolean;
-  /** Tempo (s) das animações; ausente ≠ 0 (sem tempo o vídeo com poster mostra o poster). */
+  /** Animation time (s); absent ≠ 0 (without a time a video with a poster shows the poster). */
   time?: number;
-  /** Impressão digital dos arquivos referenciados (ver `assetFingerprints`). */
+  /** Fingerprint of the referenced files (see `assetFingerprints`). */
   assets?: string[];
 }
 
-/** sha256 do que influencia a imagem: frame do nó, tokens, temas, fontes, fundo da página e parâmetros. */
+/** sha256 of what influences the image: the node's frame, tokens, themes, fonts, page background and parameters. */
 export function cacheKey(i: CacheKeyInput): string {
   return createHash('sha256')
     .update(
@@ -94,7 +94,7 @@ export function cacheKey(i: CacheKeyInput): string {
 
 const CSS_URL = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
 
-/** Referência relativa a `assets/` (descarta data:, http(s):, âncoras e caminhos absolutos). */
+/** Reference relative to `assets/` (discards data:, http(s):, anchors and absolute paths). */
 function relativeRef(raw: string): string | null {
   const ref = raw.trim();
   if (!ref || ref.startsWith('#') || ref.startsWith('/') || ref.startsWith('\\')) return null;
@@ -103,8 +103,8 @@ function relativeRef(raw: string): string | null {
 }
 
 /**
- * Arquivos de `assets/` que influenciam o render do frame do nó: `src` das imagens do frame,
- * `url(...)` relativos nos estilos do frame (e no fundo da página) e os arquivos das fontes do documento.
+ * Files in `assets/` that influence the render of the node's frame: the frame images' `src`,
+ * relative `url(...)` in the frame's styles (and in the page background) and the document's font files.
  */
 export function referencedAssets(doc: Document, nodeId: string): string[] {
   const refs = new Set<string>();
@@ -128,9 +128,9 @@ export function referencedAssets(doc: Document, nodeId: string): string[] {
 }
 
 /**
- * Tamanho e data de modificação de cada arquivo referenciado, lidos de `assetsDir`. Caminhos que
- * escapam da pasta (`..`) e arquivos ausentes são ignorados. Trocar o conteúdo de um arquivo com o
- * mesmo nome muda a impressão digital (e portanto a chave do cache).
+ * Size and modification date of each referenced file, read from `assetsDir`. Paths that
+ * escape the folder (`..`) and missing files are ignored. Changing the contents of a file with the
+ * same name changes the fingerprint (and therefore the cache key).
  */
 export function assetFingerprints(assetsDir: string | null | undefined, refs: string[]): string[] {
   if (!assetsDir) return [];
@@ -141,7 +141,7 @@ export function assetFingerprints(assetsDir: string | null | undefined, refs: st
     try {
       rel = decodeURIComponent(raw);
     } catch {
-      /* mantém o texto original */
+      /* keeps the original text */
     }
     if (rel.includes('\0') || rel.split(/[\\/]/).includes('..')) continue;
     const target = path.resolve(root, rel);
@@ -150,13 +150,13 @@ export function assetFingerprints(assetsDir: string | null | undefined, refs: st
       const st = fs.statSync(target);
       if (st.isFile()) out.push(`${raw}:${st.size}:${Math.round(st.mtimeMs)}`);
     } catch {
-      /* ausente: ignora */
+      /* missing: ignore */
     }
   }
   return out;
 }
 
-/** Cache LRU limitado por tamanho (`sizeOf`; padrão 1 por entrada = limite de entradas). */
+/** LRU cache bounded by size (`sizeOf`; default 1 per entry = entry count limit). */
 export class LruCache<V> {
   private map = new Map<string, { value: V; size: number }>();
   private total = 0;
@@ -176,7 +176,7 @@ export class LruCache<V> {
     const size = this.sizeOf(value);
     this.map.set(key, { value, size });
     this.total += size;
-    // descarta os menos usados; a própria entrada some se sozinha passar do limite
+    // drops the least recently used; the entry itself disappears if it alone exceeds the limit
     while (this.total > this.max && this.map.size > 0)
       this.drop(this.map.keys().next().value as string);
   }
@@ -189,7 +189,7 @@ export class LruCache<V> {
   get size(): number {
     return this.map.size;
   }
-  /** Soma dos tamanhos das entradas. */
+  /** Sum of the entry sizes. */
   get bytes(): number {
     return this.total;
   }
@@ -199,7 +199,7 @@ export class LruCache<V> {
   }
 }
 
-/** Rejeita se `p` não resolver em `ms`; `onTimeout` roda antes (ex.: destruir a janela travada). */
+/** Rejects if `p` does not resolve in `ms`; `onTimeout` runs first (e.g. destroy the hung window). */
 export async function withTimeout<T>(
   p: Promise<T>,
   ms: number,
@@ -210,7 +210,7 @@ export async function withTimeout<T>(
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       onTimeout?.();
-      reject(new Error(`Tempo esgotado (${Math.round(ms / 1000)} s) em: ${what}`));
+      reject(new Error(`Timed out (${Math.round(ms / 1000)} s) in: ${what}`));
     }, ms);
   });
   try {

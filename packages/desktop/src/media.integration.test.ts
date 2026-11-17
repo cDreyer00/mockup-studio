@@ -1,7 +1,7 @@
 /**
- * Integração REAL de mídia: sobe o Electron headless e confere, pelo screenshot e pela exportação,
- * vídeo com poster e `time`, ilha Three.js, Lottie e Rive vindos de `assets/` e export gif e mp4.
- * Requer os builds de core, server, editor e desktop.
+ * REAL media integration: starts headless Electron and checks, via screenshot and export,
+ * video with poster and `time`, a Three.js island, Lottie and Rive coming from `assets/` and gif and mp4 export.
+ * Requires the core, server, editor and desktop builds.
  */
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -24,7 +24,7 @@ const editorReady = fs.existsSync(path.join(repo, 'packages/editor/dist/render.h
 
 type Rgb = [number, number, number];
 
-/** Média RGB de um quadrado `size` x `size` no centro da imagem. */
+/** RGB average of a `size` x `size` square at the center of the image. */
 function centerColor(png: Buffer, size = 20): Rgb {
   const { width, height, rgba } = decodePng(png);
   const x0 = Math.floor(width / 2 - size / 2);
@@ -47,7 +47,7 @@ const isGreen = (c: Rgb): boolean => c[1] > 180 && c[0] < 90 && c[2] < 90;
 const isBlue = (c: Rgb): boolean => c[2] > 180 && c[0] < 90 && c[1] < 90;
 const isOrange = (c: Rgb): boolean => c[0] > 200 && c[1] > 90 && c[1] < 170 && c[2] < 60;
 
-/** Texto que `ffmpeg -i` imprime no stderr (a execução sem destino sai com erro). */
+/** Text that `ffmpeg -i` prints to stderr (running without an output exits with an error). */
 function ffmpegInfo(file: string): string {
   try {
     execFileSync(ffmpeg, ['-i', file], { encoding: 'utf8', stdio: 'pipe' });
@@ -72,7 +72,7 @@ const transform = {
   o: { a: 0, k: 100 },
 };
 
-/** Lottie mínimo: retângulo 200x200 preenchido de verde puro, 30 fps, 60 quadros. */
+/** Minimal Lottie: 200x200 rectangle filled with pure green, 30 fps, 60 frames. */
 const LOTTIE_GREEN = {
   v: '5.7.4',
   fr: 30,
@@ -143,8 +143,8 @@ const obj = (type: number, ...props: number[][]): number[] => [
 ];
 
 /**
- * `.riv` mínimo (formato 7.0): Backboard, Artboard 200x200 e um Shape com Rectangle 200x200 e
- * Fill/SolidColor. `color` é ARGB.
+ * Minimal `.riv` (format 7.0): Backboard, 200x200 Artboard and a Shape with a 200x200 Rectangle and
+ * Fill/SolidColor. `color` is ARGB.
  */
 function buildRiv(color: number): Buffer {
   return Buffer.from([
@@ -152,7 +152,7 @@ function buildRiv(color: number): Buffer {
     ...varuint(7),
     ...varuint(0),
     ...varuint(0),
-    0, // ToC vazia: só propriedades conhecidas
+    0, // empty ToC: only known properties
     ...obj(23), // Backboard
     ...obj(
       1, // Artboard
@@ -168,7 +168,7 @@ function buildRiv(color: number): Buffer {
 }
 
 describe.skipIf(!built || !editorReady)(
-  'Mídia: vídeo, Three.js, Lottie, Rive e export (integração)',
+  'Media: video, Three.js, Lottie, Rive and export (integration)',
   () => {
     let tmp: string;
     let child: ChildProcess;
@@ -217,7 +217,7 @@ describe.skipIf(!built || !editorReady)(
       return id;
     };
 
-    /** Frame novo; o nó de mídia entra com 100% x 100%, então o centro do frame é o da mídia. */
+    /** New frame; the media node goes in at 100% x 100%, so the frame's center is the media's. */
     const newFrame = async (name: string, w: number, h: number): Promise<string> => {
       const r = await mcp.call('create_frame', { name, width: w, height: h });
       return idOf(r.text, 'fr');
@@ -231,13 +231,13 @@ describe.skipIf(!built || !editorReady)(
 
     const fullSize = { width: '100%', height: '100%' };
 
-    describe('vídeo', () => {
+    describe('video', () => {
       let video: string;
       let poster: string;
 
       beforeAll(() => {
-        video = path.join(tmp, 'cores.mp4');
-        poster = path.join(tmp, 'capa.png');
+        video = path.join(tmp, 'colors.mp4');
+        poster = path.join(tmp, 'cover.png');
         const lavfi = (c: string): string[] => [
           '-f',
           'lavfi',
@@ -265,7 +265,7 @@ describe.skipIf(!built || !editorReady)(
         );
       }, 60000);
 
-      it('com poster: sem time mostra o poster; time 0.5 é vermelho e 1.5 é azul', async () => {
+      it('with poster: without time shows the poster; time 0.5 is red and 1.5 is blue', async () => {
         const frame = await newFrame('Video poster', 320, 180);
         const r = await mcp.call('insert_video', {
           parentId: frame,
@@ -282,8 +282,8 @@ describe.skipIf(!built || !editorReady)(
         expect(isBlue(blue), `time 1.5: ${blue}\n${stderr}`).toBe(true);
       }, 150000);
 
-      it('sem poster: sem time usa o video.time (1.5 s azul, 0.2 s vermelho)', async () => {
-        const frame = await newFrame('Video sem poster', 320, 180);
+      it('without poster: without time uses video.time (1.5 s blue, 0.2 s red)', async () => {
+        const frame = await newFrame('Video without poster', 320, 180);
         const r = await mcp.call('insert_video', {
           parentId: frame,
           source: video,
@@ -299,7 +299,7 @@ describe.skipIf(!built || !editorReady)(
       }, 150000);
     });
 
-    it('ilha Three.js: desenha um mesh colorido sobre o fundo limpo', async () => {
+    it('Three.js island: draws a colored mesh over the clear background', async () => {
       const frame = await newFrame('Three', 400, 300);
       const code = `
 const scene = new THREE.Scene();
@@ -313,48 +313,48 @@ return { scene, camera, update(t) {} };
       await mcp.call('insert_three', { parentId: frame, code, styles: fullSize });
       const png = await shot(frame);
       const c = centerColor(png);
-      expect(isOrange(c), `centro ${c}\n${stderr}`).toBe(true);
+      expect(isOrange(c), `center ${c}\n${stderr}`).toBe(true);
       const { width, rgba } = decodePng(png);
-      const i = (5 * width + 5) * 4; // canto: cor de limpeza (azul)
+      const i = (5 * width + 5) * 4; // corner: clear color (blue)
       expect(rgba[i + 2], `canto ${[rgba[i], rgba[i + 1], rgba[i + 2]]}`).toBeGreaterThan(200);
       const s = colorStats(png);
       expect(s.distinct).toBeGreaterThanOrEqual(2);
       expect(s.std).toBeGreaterThan(5);
     }, 120000);
 
-    it('Lottie de assets/: o screenshot mostra a cor do retângulo', async () => {
+    it('Lottie from assets/: the screenshot shows the color of the rectangle', async () => {
       const file = path.join(tmp, 'verde.json');
       fs.writeFileSync(file, JSON.stringify(LOTTIE_GREEN));
       const frame = await newFrame('Lottie', 200, 200);
       const r = await mcp.call('insert_embed', { parentId: frame, src: file, styles: fullSize });
       expect(r.text).toMatch(/assets\/lottie\//);
       const c = centerColor(await shot(frame, { time: 0.5 }));
-      expect(isGreen(c), `centro ${c}\n${stderr}`).toBe(true);
+      expect(isGreen(c), `center ${c}\n${stderr}`).toBe(true);
     }, 120000);
 
-    it('Rive de assets/: o screenshot mostra a cor do retângulo', async () => {
+    it('Rive from assets/: the screenshot shows the color of the rectangle', async () => {
       const file = path.join(tmp, 'laranja.riv');
       fs.writeFileSync(file, buildRiv(0xffff8000));
       const frame = await newFrame('Rive', 200, 200);
       const r = await mcp.call('insert_embed', { parentId: frame, src: file, styles: fullSize });
       expect(r.text).toMatch(/assets\/rive\//);
       const c = centerColor(await shot(frame, { time: 0.5 }));
-      expect(isOrange(c), `centro ${c}\n${stderr}`).toBe(true);
+      expect(isOrange(c), `center ${c}\n${stderr}`).toBe(true);
     }, 120000);
 
-    it('Rive de assets/ com bytes inválidos não trava o screenshot', async () => {
-      const file = path.join(tmp, 'quebrado.riv');
+    it('Rive from assets/ with invalid bytes does not hang the screenshot', async () => {
+      const file = path.join(tmp, 'broken.riv');
       fs.writeFileSync(
         file,
         Buffer.concat([Buffer.from('RIVE'), Buffer.from([255, 1, 2, 3, 4, 5])]),
       );
-      const frame = await newFrame('Rive quebrado', 200, 200);
+      const frame = await newFrame('Broken Rive', 200, 200);
       await mcp.call('insert_embed', { parentId: frame, src: file, styles: fullSize });
       const png = await shot(frame, { time: 0.5 });
       expect(pngSize(png)).toEqual({ width: 200, height: 200 });
     }, 120000);
 
-    describe('export animado curto', () => {
+    describe('short animated export', () => {
       let frame: string;
       beforeAll(async () => {
         frame = await newFrame('Export', 320, 240);
@@ -376,7 +376,7 @@ return { scene, camera, update(t) {} };
         return path.join(outDir, file!);
       };
 
-      it('gif de 1 s: assinatura GIF89a e duração ≈ 1 s', async () => {
+      it('1 s gif: GIF89a signature and duration ≈ 1 s', async () => {
         const file = await exportAs('gif');
         expect(fs.readFileSync(file).subarray(0, 6).toString('ascii')).toBe('GIF89a');
         const d = durationSeconds(file);
@@ -384,7 +384,7 @@ return { scene, camera, update(t) {} };
         expect(d).toBeLessThanOrEqual(1.3);
       }, 180000);
 
-      it('mp4 de 1 s: ftyp nos bytes 4..8 e duração ≈ 1 s', async () => {
+      it('1 s mp4: ftyp at bytes 4..8 and duration ≈ 1 s', async () => {
         const file = await exportAs('mp4');
         expect(fs.readFileSync(file).subarray(4, 8).toString('ascii')).toBe('ftyp');
         const d = durationSeconds(file);

@@ -1,18 +1,18 @@
 import { defineConfig } from 'electron-vite';
 
 /**
- * Processo principal em ESM com TODAS as dependências (server, core, express, ws, MCP SDK, zod...)
- * embutidas no bundle: só `electron` fica externo, então o electron-builder não precisa de node_modules.
- * `sharp` (nativo, opcional, carregado com import dinâmico por `optimize_assets`) também fica de fora:
- * em desenvolvimento resolve pelo node_modules do repositório; no app empacotado vem copiado em
- * `resources/native/node_modules` (extraResources do electron-builder), onde o server o procura.
- * Preload em CJS (exigência do sandbox). Não há build de renderer: o editor vem de packages/editor/dist.
+ * Main process in ESM with ALL dependencies (server, core, express, ws, MCP SDK, zod...)
+ * embedded in the bundle: only `electron` stays external, so electron-builder does not need node_modules.
+ * `sharp` (native, optional, loaded with a dynamic import by `optimize_assets`) is also left out:
+ * in development it resolves from the repository's node_modules; in the packaged app it is copied to
+ * `resources/native/node_modules` (electron-builder extraResources), where the server looks for it.
+ * Preload in CJS (sandbox requirement). There is no renderer build: the editor comes from packages/editor/dist.
  *
- * `bufferutil` e `utf-8-validate` (dependências opcionais do `ws`) não estão instalados: o Vite os
- * troca por um objeto vazio em vez de deixar o `require` falhar, e o `ws` passaria a chamar
- * `{}.unmask` em todo frame de 32 bytes ou mais vindo de um cliente, travando o processo principal
- * (o daemon para de responder ao primeiro `op:apply`). As variáveis abaixo fazem o `ws` usar a
- * implementação em JS.
+ * `bufferutil` and `utf-8-validate` (optional `ws` dependencies) are not installed: Vite replaces
+ * them with an empty object instead of letting the `require` fail, and `ws` would then call
+ * `{}.unmask` on every frame of 32 bytes or more coming from a client, hanging the main process
+ * (the daemon stops responding at the first `op:apply`). The variables below make `ws` use the
+ * JS implementation.
  */
 export default defineConfig({
   main: {
@@ -26,7 +26,7 @@ export default defineConfig({
       minify: false,
       rollupOptions: {
         input: { index: 'src/main/index.ts' },
-        // sharp (nativo, opcional) e ffmpeg-static (binário) são resolvidos em runtime
+        // sharp (native, optional) and ffmpeg-static (binary) are resolved at runtime
         external: ['electron', 'sharp', 'ffmpeg-static'],
         output: { format: 'es', entryFileNames: '[name].js' },
       },

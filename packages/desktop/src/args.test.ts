@@ -2,32 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { parseArgs, userArgs } from './main/args.js';
 
 describe('parseArgs', () => {
-  it('interpreta headless, porta, data-dir e arquivos', () => {
+  it('parses headless, port, data-dir and files', () => {
     expect(
-      parseArgs(['--headless', '--port', '5000', '--data-dir', 'D:\\dados', 'a.mockup.json']),
+      parseArgs(['--headless', '--port', '5000', '--data-dir', 'D:\\data', 'a.mockup.json']),
     ).toEqual({
       headless: true,
       cliArgs: [],
       port: 5000,
-      dataDir: 'D:\\dados',
+      dataDir: 'D:\\data',
       files: ['a.mockup.json'],
     });
   });
 
-  it('aceita --port=N e ignora opções do Chromium', () => {
+  it('accepts --port=N and ignores Chromium options', () => {
     const a = parseArgs(['--port=0', '--no-sandbox', '--inspect=9229', 'x.json', 'y.txt']);
     expect(a.port).toBe(0);
     expect(a.headless).toBe(false);
     expect(a.files).toEqual(['x.json']);
   });
 
-  it('rejeita porta inválida', () => {
+  it('rejects an invalid port', () => {
     expect(() => parseArgs(['--port', 'abc'])).toThrow(/--port/);
     expect(() => parseArgs(['--port', '70000'])).toThrow(/--port/);
     expect(() => parseArgs(['--data-dir'])).toThrow(/--data-dir/);
   });
 
-  it('--install-cli e --uninstall-cli repassam os demais argumentos ao CLI', () => {
+  it('--install-cli and --uninstall-cli pass the remaining arguments to the CLI', () => {
     const a = parseArgs(['--install-cli', '--bin-dir', 'D:\\bin', '--quiet']);
     expect(a.cliAction).toBe('install-cli');
     expect(a.cliArgs).toEqual(['--bin-dir', 'D:\\bin', '--quiet']);
@@ -37,7 +37,7 @@ describe('parseArgs', () => {
     expect(parseArgs(['x.json']).cliAction).toBeUndefined();
   });
 
-  it('userArgs corta o executável e, em dev, o caminho do app', () => {
+  it('userArgs strips the executable and, in dev, the app path', () => {
     expect(userArgs(['exe', 'a'], false)).toEqual(['a']);
     expect(userArgs(['electron', '.', 'a'], true)).toEqual(['a']);
   });

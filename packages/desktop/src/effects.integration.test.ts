@@ -1,8 +1,8 @@
 /**
- * Integração REAL dos efeitos: sobe o Electron headless, cria um frame com um efeito WebGL
- * (`mesh-gradient`) por MCP, verifica que o screenshot não é vazio (o WebGL desenhou), que o tempo
- * muda a imagem e que a exportação webm (ffmpeg) gera um vídeo de 2 s.
- * Requer os builds de core, server, editor e desktop.
+ * REAL effects integration: starts headless Electron, creates a frame with a WebGL effect
+ * (`mesh-gradient`) via MCP, checks that the screenshot is not empty (WebGL drew), that the time
+ * changes the image and that the webm export (ffmpeg) produces a 2 s video.
+ * Requires the core, server, editor and desktop builds.
  */
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ const electronExe = req('electron') as string;
 const built = fs.existsSync(path.join(appDir, 'out/main/index.js'));
 const editorReady = fs.existsSync(path.join(repo, 'packages/editor/dist/render.html'));
 
-describe.skipIf(!built || !editorReady)('Efeitos WebGL e exportação de vídeo (integração)', () => {
+describe.skipIf(!built || !editorReady)('WebGL effects and video export (integration)', () => {
   let tmp: string;
   let child: ChildProcess;
   let url: string;
@@ -71,7 +71,7 @@ describe.skipIf(!built || !editorReady)('Efeitos WebGL e exportação de vídeo 
     return r.images[0]!;
   };
 
-  it('mesh-gradient: o screenshot não é vazio (WebGL desenhou)', async () => {
+  it('mesh-gradient: the screenshot is not empty (WebGL drew)', async () => {
     const created = await mcp.call('create_frame', { name: 'Fx', width: 800, height: 600 });
     frame = /\b(fr_[A-Za-z0-9]+)/.exec(created.text)?.[1] ?? '';
     expect(frame, created.text).not.toBe('');
@@ -83,13 +83,13 @@ describe.skipIf(!built || !editorReady)('Efeitos WebGL e exportação de vídeo 
     expect(s.std, stderr).toBeGreaterThan(5);
   }, 90000);
 
-  it('time: 2 difere de time: 0', async () => {
+  it('time: 2 differs from time: 0', async () => {
     const a = await shot({ time: 0 });
     const b = await shot({ time: 2 });
     expect(a.equals(b)).toBe(false);
   }, 90000);
 
-  it('export webm de 2 s com ffmpeg', async () => {
+  it('2 s webm export with ffmpeg', async () => {
     const outDir = path.join(tmp, 'out');
     fs.mkdirSync(outDir);
     const r = await mcp.call('export', {
@@ -108,7 +108,7 @@ describe.skipIf(!built || !editorReady)('Efeitos WebGL e exportação de vídeo 
     try {
       execFileSync(ffmpeg, ['-i', full], { encoding: 'utf8', stdio: 'pipe' });
     } catch (e) {
-      // `ffmpeg -i` sem saída sai com erro; a informação vem no stderr
+      // `ffmpeg -i` without an output exits with an error; the information comes on stderr
       info = String((e as { stderr?: string }).stderr ?? '');
     }
     expect(info).toMatch(/Duration: 00:00:02/);

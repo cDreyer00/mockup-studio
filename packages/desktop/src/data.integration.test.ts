@@ -1,8 +1,8 @@
 /**
- * Integração REAL dos dados: Electron headless, repetidor ligado a 20 itens JSON pelo MCP
- * (`bind_data`) e `get_screenshot` do motor de render. As imagens dos cards vêm dos dados
- * (placeholders SVG em `assets/`). O PNG fica em `MOCKUP_DATA_SHOT` (padrão: pasta temporária do
- * sistema, `mockup-dados-20.png`) para conferência visual. Requer `npm run build` antes.
+ * REAL data integration: headless Electron, a repeater bound to 20 JSON items via MCP
+ * (`bind_data`) and `get_screenshot` from the render engine. The card images come from the data
+ * (SVG placeholders in `assets/`). The PNG goes to `MOCKUP_DATA_SHOT` (default: the system temp
+ * folder, `mockup-data-20.png`) for visual inspection. Requires `npm run build` first.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -36,16 +36,16 @@ async function freePort(): Promise<number> {
 async function waitHealth(url: string, child: ChildProcess, ms = 60000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Electron encerrou (código ${child.exitCode})`);
+    if (child.exitCode !== null) throw new Error(`Electron exited (code ${child.exitCode})`);
     try {
       const r = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (r.ok && ((await r.json()) as { render?: boolean }).render === true) return;
     } catch {
-      /* ainda subindo */
+      /* still starting up */
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Timeout aguardando /api/health com render: true');
+  throw new Error('Timed out waiting for /api/health with render: true');
 }
 
 interface ToolResult {
@@ -53,7 +53,7 @@ interface ToolResult {
   isError?: boolean;
 }
 
-/** Cliente MCP mínimo (Streamable HTTP, respostas JSON ou SSE). */
+/** Minimal MCP client (Streamable HTTP, JSON or SSE responses). */
 class Mcp {
   private session: string | null = null;
   private id = 0;
@@ -111,10 +111,10 @@ class Mcp {
   }
 }
 
-const ROLES = ['Design', 'Produto', 'Engenharia', 'Dados', 'Marketing'];
+const ROLES = ['Design', 'Product', 'Engineering', 'Data', 'Marketing'];
 const COLORS = ['#6c5ce7', '#00b894', '#e17055', '#0984e3', '#fdcb6e'];
 
-describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração)', () => {
+describe.skipIf(!built || !editorReady)('real data in the screenshot (integration)', () => {
   let tmp: string;
   let child: ChildProcess;
   let url: string;
@@ -122,12 +122,12 @@ describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração
   let file: string;
 
   beforeAll(async () => {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-dados-'));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mockup-data-'));
     const dataDir = path.join(tmp, 'data');
     fs.mkdirSync(dataDir);
-    file = path.join(tmp, 'equipe.mockup.json');
-    // Avatares determinísticos em assets/, citados pelos dados.
-    const ph = path.join(tmp, 'assets', 'avatares');
+    file = path.join(tmp, 'team.mockup.json');
+    // Deterministic avatars in assets/, referenced by the data.
+    const ph = path.join(tmp, 'assets', 'avatars');
     fs.mkdirSync(ph, { recursive: true });
     for (let i = 1; i <= 20; i++) {
       fs.writeFileSync(path.join(ph, `p${i}.svg`), placeholderSvg('avatar', { seed: `p${i}` }));
@@ -156,11 +156,11 @@ describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
-  it('repetidor com 20 itens JSON aparece inteiro no get_screenshot', async () => {
+  it('a repeater with 20 JSON items appears in full in get_screenshot', async () => {
     const mcp = await new Mcp(url).init();
-    await mcp.text('create_document', { path: file, name: 'Equipe' });
+    await mcp.text('create_document', { path: file, name: 'Team' });
     const created = await mcp.text('create_frame', {
-      name: 'Equipe',
+      name: 'Team',
       width: 1200,
       height: 1080,
       styles: {
@@ -176,23 +176,23 @@ describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração
     await mcp.text('write_html', {
       parentId: frameId,
       html:
-        '<h1 style="margin:0;font-size:36px;color:#2d3436">Nossa equipe</h1>' +
+        '<h1 style="margin:0;font-size:36px;color:#2d3436">Our team</h1>' +
         '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px">' +
         '<article style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border-radius:16px;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,.08)">' +
-        '<img src="{{avatar}}" alt="{{nome}}" style="width:96px;height:96px;border-radius:50%;object-fit:cover">' +
-        '<strong style="font-size:16px;color:#2d3436">{{nome}}</strong>' +
-        '<span style="font-size:13px;color:#636e72">{{cargo}}</span>' +
-        '<span data-cor="{{cor}}" style="font-size:12px;color:#b2bec3">#{{$number}}</span>' +
+        '<img src="{{avatar}}" alt="{{name}}" style="width:96px;height:96px;border-radius:50%;object-fit:cover">' +
+        '<strong style="font-size:16px;color:#2d3436">{{name}}</strong>' +
+        '<span style="font-size:13px;color:#636e72">{{role}}</span>' +
+        '<span data-color="{{color}}" style="font-size:12px;color:#b2bec3">#{{$number}}</span>' +
         '</article></div>',
     });
     const tree = await mcp.text('get_tree_summary', { nodeId: frameId, depth: 1 });
     const gridId = /^\s+(el_[0-9a-z]{8}) .*div/m.exec(tree)![1]!;
 
     const items = Array.from({ length: 20 }, (_, i) => ({
-      nome: `Pessoa ${String(i + 1).padStart(2, '0')}`,
-      cargo: ROLES[i % ROLES.length],
-      cor: COLORS[i % COLORS.length],
-      avatar: `avatares/p${i + 1}.svg`,
+      name: `Person ${String(i + 1).padStart(2, '0')}`,
+      role: ROLES[i % ROLES.length],
+      color: COLORS[i % COLORS.length],
+      avatar: `avatars/p${i + 1}.svg`,
     }));
     const bound = await mcp.text('bind_data', { nodeId: gridId, data: items });
     expect(bound).toMatch(/20 item/);
@@ -202,16 +202,16 @@ describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração
     const img = (shot.content ?? []).find((c) => c.type === 'image');
     expect(img?.mimeType, stderr).toBe('image/png');
     const png = Buffer.from(img!.data!, 'base64');
-    const out = process.env.MOCKUP_DATA_SHOT ?? path.join(os.tmpdir(), 'mockup-dados-20.png');
+    const out = process.env.MOCKUP_DATA_SHOT ?? path.join(os.tmpdir(), 'mockup-data-20.png');
     fs.writeFileSync(out, png);
-    console.log(`[dados] screenshot: ${out}`);
+    console.log(`[data] screenshot: ${out}`);
     expect(pngSize(png)).toEqual({ width: 1200, height: 1080 });
 
-    // Layout medido: 20 cards, o último com o texto do item 20.
+    // Measured layout: 20 cards, the last one with the text of item 20.
     const layout = await mcp.text('get_layout', { nodeId: frameId, depth: 4 });
-    expect(layout).toContain('Pessoa 01');
+    expect(layout).toContain('Person 01');
 
-    // Export HTML com os 20 itens e os avatares copiados.
+    // HTML export with the 20 items and the avatars copied.
     const outDir = path.join(tmp, 'export');
     const exp = await mcp.text('export', { nodeIds: [frameId], format: 'html', outputDir: outDir });
     expect(exp).toContain('.html');
@@ -222,8 +222,8 @@ describe.skipIf(!built || !editorReady)('dados reais no screenshot (integração
       ),
       'utf8',
     );
-    expect(html).toContain('Pessoa 20');
-    expect(html).not.toContain('{{nome}}');
-    expect(fs.existsSync(path.join(outDir, 'assets', 'avatares', 'p20.svg'))).toBe(true);
+    expect(html).toContain('Person 20');
+    expect(html).not.toContain('{{name}}');
+    expect(fs.existsSync(path.join(outDir, 'assets', 'avatars', 'p20.svg'))).toBe(true);
   });
 });

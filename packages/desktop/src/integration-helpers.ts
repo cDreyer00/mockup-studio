@@ -1,6 +1,6 @@
 /**
- * Utilitários compartilhados pelos testes de integração REAIS (Electron headless): porta livre,
- * espera do daemon, cliente MCP, decodificador PNG e estatísticas de cor.
+ * Utilities shared by the REAL integration tests (headless Electron): free port,
+ * daemon wait, MCP client, PNG decoder and color statistics.
  */
 import { type ChildProcess } from 'node:child_process';
 import net from 'node:net';
@@ -22,19 +22,19 @@ export async function freePort(): Promise<number> {
 export async function waitHealth(url: string, child: ChildProcess, ms = 60000): Promise<void> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Electron encerrou (código ${child.exitCode})`);
+    if (child.exitCode !== null) throw new Error(`Electron exited (code ${child.exitCode})`);
     try {
       const r = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) });
       if (r.ok && ((await r.json()) as { render?: boolean }).render === true) return;
     } catch {
-      /* ainda subindo */
+      /* still starting up */
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('Timeout aguardando /api/health com render: true');
+  throw new Error('Timed out waiting for /api/health with render: true');
 }
 
-/** Cliente MCP mínimo (JSON-RPC por HTTP; respostas JSON ou SSE). */
+/** Minimal MCP client (JSON-RPC over HTTP; JSON or SSE responses). */
 export class Mcp {
   private sessionId: string | null = null;
   private id = 0;
@@ -80,7 +80,7 @@ export class Mcp {
     return this;
   }
 
-  /** Chama a ferramenta; devolve o texto e as imagens da resposta. Lança se `isError`. */
+  /** Calls the tool; returns the response's text and images. Throws if `isError`. */
   async call(
     name: string,
     args: Record<string, unknown>,
@@ -99,7 +99,7 @@ export class Mcp {
   }
 }
 
-/** Decodificador PNG mínimo: 8 bits, RGB ou RGBA, sem entrelaçamento. Devolve RGBA. */
+/** Minimal PNG decoder: 8 bits, RGB or RGBA, no interlacing. Returns RGBA. */
 export function decodePng(buf: Buffer): { width: number; height: number; rgba: Uint8Array } {
   const { width, height } = pngSize(buf);
   let pos = 8;
@@ -110,13 +110,13 @@ export function decodePng(buf: Buffer): { width: number; height: number; rgba: U
     const type = buf.toString('ascii', pos + 4, pos + 8);
     const data = buf.subarray(pos + 8, pos + 8 + len);
     if (type === 'IHDR') {
-      expect(data[8], 'profundidade de bits').toBe(8);
+      expect(data[8], 'bit depth').toBe(8);
       colorType = data[9]!;
-      expect(data[12], 'entrelaçamento').toBe(0);
+      expect(data[12], 'interlacing').toBe(0);
     } else if (type === 'IDAT') idat.push(data);
     pos += 12 + len;
   }
-  if (colorType !== 2 && colorType !== 6) throw new Error(`colorType ${colorType} não suportado`);
+  if (colorType !== 2 && colorType !== 6) throw new Error(`colorType ${colorType} not supported`);
   const bpp = colorType === 6 ? 4 : 3;
   const stride = width * bpp;
   const raw = zlib.inflateSync(Buffer.concat(idat));
@@ -154,7 +154,7 @@ export function decodePng(buf: Buffer): { width: number; height: number; rgba: U
   return { width, height, rgba };
 }
 
-/** Cores distintas (amostra em grade) e desvio padrão da luminância. */
+/** Distinct colors (grid sample) and standard deviation of the luminance. */
 export function colorStats(png: Buffer): { distinct: number; std: number } {
   const { width, height, rgba } = decodePng(png);
   const colors = new Set<number>();

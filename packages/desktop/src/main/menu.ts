@@ -1,4 +1,4 @@
-/** Menu nativo em português. Ações vão ao renderer por IPC (`desktop:menu`). */
+/** Native menu in English. Actions go to the renderer via IPC (`desktop:menu`). */
 import path from 'node:path';
 import { Menu, type MenuItemConstructorOptions } from 'electron';
 
@@ -17,7 +17,7 @@ export type MenuAction =
   | 'zoomFit';
 
 export interface MenuDeps {
-  /** Envia a ação ao renderer da janela em foco. */
+  /** Sends the action to the focused window's renderer. */
   send(action: MenuAction, arg?: string): void;
   recent: string[];
   openMcpDocs(): void;
@@ -27,8 +27,8 @@ export interface MenuDeps {
 }
 
 /**
- * Atalhos que o editor JÁ trata no teclado (Ctrl+S/Z/Y, Ctrl+Shift+S/Z, +, -, Shift+0/1) usam
- * `registerAccelerator: false`: o menu mostra a tecla mas não a intercepta (evita disparo duplo).
+ * Shortcuts the editor ALREADY handles on the keyboard (Ctrl+S/Z/Y, Ctrl+Shift+S/Z, +, -, Shift+0/1) use
+ * `registerAccelerator: false`: the menu shows the key but does not intercept it (avoids double firing).
  */
 const displayOnly = { registerAccelerator: false } as const;
 
@@ -38,66 +38,66 @@ export function buildMenuTemplate(d: MenuDeps): MenuItemConstructorOptions[] {
         label: `${path.basename(p)}  —  ${path.dirname(p)}`,
         click: () => d.send('openRecent', p),
       }))
-    : [{ label: 'Nenhum documento recente', enabled: false }];
+    : [{ label: 'No recent documents', enabled: false }];
   return [
     {
-      label: 'Arquivo',
+      label: 'File',
       submenu: [
-        { label: 'Novo', accelerator: 'CmdOrCtrl+N', click: () => d.send('new') },
-        { label: 'Abrir…', accelerator: 'CmdOrCtrl+O', click: () => d.send('open') },
-        { label: 'Abrir recente', submenu: recent },
+        { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => d.send('new') },
+        { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => d.send('open') },
+        { label: 'Open recent', submenu: recent },
         { type: 'separator' },
         {
-          label: 'Salvar',
+          label: 'Save',
           accelerator: 'CmdOrCtrl+S',
           ...displayOnly,
           click: () => d.send('save'),
         },
         {
-          label: 'Salvar como…',
+          label: 'Save as…',
           accelerator: 'CmdOrCtrl+Shift+S',
           ...displayOnly,
           click: () => d.send('saveAs'),
         },
         { type: 'separator' },
-        { label: 'Fechar documento', accelerator: 'CmdOrCtrl+W', click: () => d.send('close') },
+        { label: 'Close document', accelerator: 'CmdOrCtrl+W', click: () => d.send('close') },
         { type: 'separator' },
-        { label: 'Sair', accelerator: 'Alt+F4', registerAccelerator: false, click: () => d.quit() },
+        { label: 'Quit', accelerator: 'Alt+F4', registerAccelerator: false, click: () => d.quit() },
       ],
     },
     {
-      label: 'Editar',
+      label: 'Edit',
       submenu: [
         {
-          label: 'Desfazer',
+          label: 'Undo',
           accelerator: 'CmdOrCtrl+Z',
           ...displayOnly,
           click: () => d.send('undo'),
         },
         {
-          label: 'Refazer',
+          label: 'Redo',
           accelerator: 'CmdOrCtrl+Shift+Z',
           ...displayOnly,
           click: () => d.send('redo'),
         },
         { type: 'separator' },
-        { label: 'Recortar', role: 'cut' },
-        { label: 'Copiar', role: 'copy' },
-        { label: 'Colar', role: 'paste' },
-        { label: 'Selecionar tudo', role: 'selectAll' },
+        { label: 'Cut', role: 'cut' },
+        { label: 'Copy', role: 'copy' },
+        { label: 'Paste', role: 'paste' },
+        { label: 'Select all', role: 'selectAll' },
       ],
     },
     {
-      label: 'Ver',
+      label: 'View',
       submenu: [
         {
-          label: 'Aumentar zoom',
+          label: 'Zoom in',
           accelerator: 'Shift+Plus',
           ...displayOnly,
           click: () => d.send('zoomIn'),
         },
         {
-          label: 'Diminuir zoom',
+          label: 'Zoom out',
           accelerator: '-',
           ...displayOnly,
           click: () => d.send('zoomOut'),
@@ -109,25 +109,25 @@ export function buildMenuTemplate(d: MenuDeps): MenuItemConstructorOptions[] {
           click: () => d.send('zoomReset'),
         },
         {
-          label: 'Ajustar à tela',
+          label: 'Zoom to fit',
           accelerator: 'Shift+1',
           ...displayOnly,
           click: () => d.send('zoomFit'),
         },
         { type: 'separator' },
-        { label: 'Recarregar', role: 'reload' },
-        { label: 'Ferramentas do desenvolvedor', role: 'toggleDevTools' },
+        { label: 'Reload', role: 'reload' },
+        { label: 'Developer tools', role: 'toggleDevTools' },
         { type: 'separator' },
-        { label: 'Tela cheia', role: 'togglefullscreen' },
+        { label: 'Toggle full screen', role: 'togglefullscreen' },
       ],
     },
     {
-      label: 'Ajuda',
+      label: 'Help',
       submenu: [
-        { label: 'Documentação do MCP', click: () => d.openMcpDocs() },
-        { label: 'Documentação de exportação', click: () => d.openExportDocs() },
+        { label: 'MCP documentation', click: () => d.openMcpDocs() },
+        { label: 'Export documentation', click: () => d.openExportDocs() },
         { type: 'separator' },
-        { label: 'Sobre o Mockup Studio', click: () => d.showAbout() },
+        { label: 'About Mockup Studio', click: () => d.showAbout() },
       ],
     },
   ];

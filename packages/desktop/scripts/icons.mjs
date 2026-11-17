@@ -1,6 +1,6 @@
 /**
- * Gera build/icon.png (512) e build/icon.ico (multi-tamanho, entradas PNG) a partir de build/icon.svg.
- * Usa o próprio Electron para rasterizar: `npm run icons -w @mockup/desktop`.
+ * Generates build/icon.png (512) and build/icon.ico (multi-size, PNG entries) from build/icon.svg.
+ * Uses Electron itself to rasterize: `npm run icons -w @mockup/desktop`.
  */
 import { app, BrowserWindow, nativeImage } from 'electron';
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const svg = fs.readFileSync(path.join(root, 'build', 'icon.svg'), 'utf8');
 const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 
-/** Rasteriza o SVG em 512x512 (uma única janela; os demais tamanhos saem de nativeImage.resize). */
+/** Rasterizes the SVG at 512x512 (a single window; the other sizes come from nativeImage.resize). */
 async function rasterize(size) {
   const win = new BrowserWindow({
     show: false,
@@ -46,7 +46,7 @@ async function rasterize(size) {
 
 function buildIco(entries) {
   const header = Buffer.alloc(6);
-  header.writeUInt16LE(1, 2); // tipo: ícone
+  header.writeUInt16LE(1, 2); // type: icon
   header.writeUInt16LE(entries.length, 4);
   const dir = Buffer.alloc(16 * entries.length);
   let offset = 6 + dir.length;
@@ -74,10 +74,10 @@ app.whenReady().then(async () => {
       png: big.resize({ width: size, height: size, quality: 'best' }).toPNG(),
     }));
     fs.writeFileSync(path.join(root, 'build', 'icon.ico'), buildIco(entries));
-    console.log('ícones gerados em build/ (icon.png 512, icon.ico', ICO_SIZES.join('/') + ')');
+    console.log('icons generated in build/ (icon.png 512, icon.ico', ICO_SIZES.join('/') + ')');
     app.exit(0);
   } catch (e) {
-    console.error('falha ao gerar ícones:', e);
+    console.error('failed to generate icons:', e);
     app.exit(1);
   }
 });
