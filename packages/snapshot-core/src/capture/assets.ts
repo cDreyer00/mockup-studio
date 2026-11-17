@@ -59,7 +59,16 @@ export interface InlineOptions {
   warn: (message: string) => void;
 }
 
-/** Tenta embutir os bytes dos assets como data URL (fetch na página, até 6 em paralelo). */
+/** Tamanho (caracteres) da data URL base64 de um blob: `data:<mime>;base64,` + 4 * ceil(bytes / 3). */
+export function estimateDataUrlLength(mime: string, byteSize: number): number {
+  return `data:${mime};base64,`.length + 4 * Math.ceil(byteSize / 3);
+}
+
+/**
+ * Tenta embutir os bytes dos assets como data URL (fetch na página, até 6 em paralelo).
+ * O limite total (`maxTotalBytes`) conta o tamanho das data URLs (caracteres do texto), que é o
+ * que pesa no payload; uma unidade só, para assets já embutidos e para os baixados.
+ */
 export async function inlineAssets(assets: SnapshotAsset[], opts: InlineOptions): Promise<void> {
   let total = 0;
   for (const a of assets) if (a.dataUrl) total += a.dataUrl.length;
@@ -75,9 +84,20 @@ export async function inlineAssets(assets: SnapshotAsset[], opts: InlineOptions)
       if (declared > opts.maxAssetBytes) throw new Error('maior que o limite por arquivo');
       const blob = await res.blob();
       if (blob.size > opts.maxAssetBytes) throw new Error('maior que o limite por arquivo');
-      if (total + blob.size > opts.maxTotalBytes) throw new Error('limite total de bytes atingido');
-      total += blob.size;
-      asset.dataUrl = await blobToDataUrl(blob);
+      // Reserva a estimativa antes de converter (os 6 em paralelo não estouram juntos).
+      const estimate = estimateDataUrlLength(blob.type || 'application/octet-stream', blob.size);
+      if (total + estimate > opts.maxTotalBytes) throw new Error('limite total de bytes atingido');
+      total += estimate;
+      let dataUrl: string;
+      try {
+        dataUrl = await blobToDataUrl(blob);
+      } catch (err) {
+        total -= estimate;
+        throw err;
+      }
+      // Confere com o tamanho real e ajusta a diferença.
+      total += dataUrl.length - estimate;
+      asset.dataUrl = dataUrl;
       const mime = (blob.type || res.headers.get('content-type') || '').split(';')[0]!.trim();
       if (mime) asset.mime = mime.toLowerCase();
     } catch (err) {

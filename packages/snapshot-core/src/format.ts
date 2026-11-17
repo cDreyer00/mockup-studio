@@ -22,7 +22,7 @@ export const SNAPSHOT_LIMITS = {
   maxDepth: 40,
   /** Maior asset embutido como data URL na captura (bytes); acima disso só a URL vai. */
   maxInlineAssetBytes: 4 * 1024 * 1024,
-  /** Soma máxima das data URLs embutidas (bytes). */
+  /** Soma máxima do tamanho das data URLs embutidas (caracteres do texto, ~4/3 dos bytes). */
   maxInlineTotalBytes: 40 * 1024 * 1024,
 } as const;
 

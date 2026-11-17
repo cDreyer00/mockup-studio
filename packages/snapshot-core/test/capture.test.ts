@@ -243,6 +243,21 @@ describe('captura da landing', () => {
     expect(snap.assets.every((a) => a.dataUrl === undefined)).toBe(true);
   });
 
+  it('maxInlineTotalBytes conta o tamanho das data URLs (caracteres), não os bytes crus', async () => {
+    const full = await capture('.hero');
+    const sizes = full.assets.filter((a) => a.dataUrl).map((a) => a.dataUrl!.length);
+    expect(sizes.length).toBeGreaterThan(0);
+    const sum = sizes.reduce((x, y) => x + y, 0);
+    // Exatamente a soma real: cabe tudo, sem avisos de limite.
+    const exact = await capture('.hero', { maxInlineTotalBytes: sum });
+    expect(exact.assets.filter((a) => a.dataUrl).length).toBe(sizes.length);
+    expect(exact.stats.warnings.some((w) => /limite total/.test(w))).toBe(false);
+    // Um caractere a menos: o último asset não cabe e vira aviso, mantendo só a URL.
+    const tight = await capture('.hero', { maxInlineTotalBytes: sum - 1 });
+    expect(tight.assets.filter((a) => a.dataUrl).length).toBe(sizes.length - 1);
+    expect(tight.stats.warnings.some((w) => /limite total/.test(w))).toBe(true);
+  });
+
   it('o atributo style original dos elementos da página fica intacto', async () => {
     const read = (): Promise<(string | null)[]> =>
       page.evaluate(() => [...document.querySelectorAll('*')].map((e) => e.getAttribute('style')));

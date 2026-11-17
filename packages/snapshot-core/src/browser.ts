@@ -25,6 +25,8 @@ export interface CaptureOptions {
   inlineAssets?: boolean;
   /** Limite por asset embutido (bytes). */
   maxInlineAssetBytes?: number;
+  /** Soma máxima das data URLs embutidas (caracteres). Padrão `SNAPSHOT_LIMITS.maxInlineTotalBytes`. */
+  maxInlineTotalBytes?: number;
   /** Seletor informado (vai em `source.selector`). */
   selector?: string;
 }
@@ -103,7 +105,7 @@ export async function captureElement(
   if (opts.inlineAssets !== false) {
     await inlineAssets(assets.list, {
       maxAssetBytes: opts.maxInlineAssetBytes ?? SNAPSHOT_LIMITS.maxInlineAssetBytes,
-      maxTotalBytes: SNAPSHOT_LIMITS.maxInlineTotalBytes,
+      maxTotalBytes: opts.maxInlineTotalBytes ?? SNAPSHOT_LIMITS.maxInlineTotalBytes,
       warn: (m) => warnings.push(m),
     });
   }
