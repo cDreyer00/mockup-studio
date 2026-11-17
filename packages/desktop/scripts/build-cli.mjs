@@ -1,11 +1,11 @@
 /**
- * Generates the CLI and Node daemon bundles for the packaged app (`out/cli/mockup.mjs` and
- * `out/cli/daemon.mjs`), self-contained (no node_modules at runtime): they run with Electron itself as
- * Node (`ELECTRON_RUN_AS_NODE=1`), since the end user has no Node installed.
+ * Gera o bundle do CLI e do daemon Node para o app empacotado (`out/cli/mockup.mjs` e
+ * `out/cli/daemon.mjs`), autocontidos (sem node_modules em runtime): rodam com o próprio Electron como
+ * Node (`ELECTRON_RUN_AS_NODE=1`), pois o usuário final não tem Node instalado.
  *
- * The entry is the already-compiled `dist/` of the cli and the server (the root build runs core, server, cli before
- * desktop), which avoids reconfiguring TypeScript here. ESM with CommonJS dependencies (express etc.):
- * the banner creates `require`, `__filename` and `__dirname` from `import.meta.url`.
+ * A entrada é o `dist/` já compilado do cli e do server (o build da raiz roda core, server, cli antes
+ * do desktop), que evita reconfigurar o TypeScript aqui. ESM com dependências CommonJS (express etc.):
+ * o banner cria `require`, `__filename` e `__dirname` a partir de `import.meta.url`.
  */
 import { build } from 'esbuild';
 import fs from 'node:fs';
@@ -46,8 +46,8 @@ await build({
   target: 'node22',
   minify: false,
   legalComments: 'none',
-  // sharp is native and optional (dynamic import in optimize_assets) and ffmpeg-static is a binary
-  // resolved at runtime: they stay out of the bundle; in the packaged app they come in resources/native.
+  // sharp é nativo e opcional (import dinâmico em optimize_assets) e ffmpeg-static é um binário
+  // resolvido em runtime: ficam fora do bundle; no app empacotado vêm em resources/native.
   external: ['sharp', 'ffmpeg-static'],
   banner: { js: banner },
   logLevel: 'info',
