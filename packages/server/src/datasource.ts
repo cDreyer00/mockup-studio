@@ -110,6 +110,13 @@ const isInside = (root: string, p: string): boolean => {
  * seguir symlinks, e dentro de `roots` quando informado. Devolve o caminho real.
  */
 export async function resolveDataPath(p: string, opts: LoadOptions = {}): Promise<string> {
+  // Caminho de rede (\\host\share, //host/share) ou de dispositivo (\\?\, \\.\): recusado antes de
+  // qualquer acesso ao disco, porque abrir um compartilhamento SMB pode enviar credenciais NTLM.
+  if (/^[\\/]{2}/.test(p)) {
+    throw new DataSourceError(
+      `Caminho recusado: "${p}" é um caminho de rede ou de dispositivo. Use um arquivo local ou url http(s).`,
+    );
+  }
   if (!path.isAbsolute(p)) {
     throw new DataSourceError(`path deve ser um caminho absoluto, recebido "${p}".`);
   }

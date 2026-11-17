@@ -109,13 +109,15 @@ describe('QA: caminhos de rede em bind_data', () => {
   const bs = String.fromCharCode(92);
   const unc = [bs + bs + '127.0.0.1', 'inexistente', 'x.csv'].join(bs);
 
-  // Hoje o UNC passa na validação e o realpath tenta abrir o compartilhamento SMB (vazando
-  // credenciais NTLM para um host controlado por quem escreve o prompt). Quando a recusa for
-  // implementada, troque it.fails por it.
-  it.skipIf(process.platform !== 'win32').fails(
-    'recusa caminho UNC antes de tocar a rede',
-    async () => {
-      await expect(resolveDataPath(unc)).rejects.not.toThrow(/não encontrado/i);
-    },
-  );
+  // Abrir um compartilhamento SMB pode enviar credenciais NTLM a um host escolhido no prompt:
+  // a recusa precisa acontecer antes de qualquer acesso ao disco (sem "não encontrado").
+  it('recusa caminho UNC e de dispositivo antes de tocar a rede', async () => {
+    for (const p of [
+      unc,
+      '//127.0.0.1/c$/x.csv',
+      bs + bs + '?' + bs + 'UNC' + bs + 'h' + bs + 's' + bs + 'x.csv',
+    ]) {
+      await expect(resolveDataPath(p), p).rejects.toThrow(/caminho de rede/i);
+    }
+  });
 });
