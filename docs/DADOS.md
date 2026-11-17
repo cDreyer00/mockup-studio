@@ -68,6 +68,8 @@ Objetos e listas viram JSON; campo inexistente vira vazio. URLs perigosas vindas
 3. Confira com `get_screenshot`. `get_data` mostra a origem, as colunas, os campos do template sem coluna correspondente e as primeiras linhas.
 4. `refresh_data` relê a origem depois que o arquivo ou a API mudar.
 
+`get_html` de um repetidor devolve o template com `data-mockup-repeat="<id>"` e `data-repeat="<itens>"`. Um `write_html` (ex.: `mode: "replace"`) que traga essa marca recria o repetidor com os dados e a origem do original (id novo, marca removida dos atributos); sem a marca o elemento vira contêiner comum e a resposta avisa quais repetidores perderam os dados (`undo` restaura).
+
 Ferramentas e parâmetros completos em [MCP.md](MCP.md#dados-reais); o guia `get_guide('data')` resume o fluxo para o agente.
 
 ## Editor

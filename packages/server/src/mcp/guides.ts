@@ -429,6 +429,10 @@ A resposta lista as colunas, os campos do template e avisa de campos sem coluna 
 - \`get_data(nodeId, limit?)\` mostra origem, colunas, campos do template e as primeiras linhas.
 - Rodar \`bind_data\` de novo no repetidor só troca os dados. Um \`undo\` desfaz a conversão.
 
+## Reescrever um repetidor com HTML
+
+\`get_html\` devolve só o template do repetidor, marcado com \`data-mockup-repeat="<id>"\` (e \`data-repeat="<itens>"\`, informativo). Mantenha esse atributo no HTML enviado a \`write_html\` (ex.: \`mode: "replace"\`): o elemento volta como repetidor com os dados e a origem do original (id novo). Sem a marca ele vira um contêiner comum e a resposta avisa que os dados foram perdidos (\`undo\` restaura). Para mudar só o card, prefira editar os nós do template.
+
 ## Limites
 
 Até 1000 itens e 2 MB de dados por repetidor; passou disso, use \`limit\` ou \`select\`. Contêiner sem filhos não vira repetidor (crie o template antes); frame raiz também não (coloque o template numa div dentro dele).

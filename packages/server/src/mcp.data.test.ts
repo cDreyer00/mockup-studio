@@ -306,6 +306,43 @@ describe('MCP: dados em repetidores', () => {
     expect(ok.isError, textOf(ok)).toBeFalsy();
   });
 
+  it('get_html marca o repetidor e write_html replace com a marca preserva os dados', async () => {
+    const box = await makeTemplate();
+    const file = path.join(ws.dir, 'lista.json');
+    fs.writeFileSync(file, JSON.stringify(items(5)));
+    await call('bind_data', { nodeId: box.id, path: file });
+    const rep = frame().children[0]!;
+    const html = textOf(await call('get_html', { nodeId: rep.id }));
+    expect(html).toContain(`data-mockup-repeat="${rep.id}"`);
+    expect(html).toContain('data-repeat="5"');
+    expect(html).toContain('{{nome}}');
+
+    const edited = html.replace('a combinar', 'sob consulta');
+    const w = await call('write_html', { parentId: rep.id, mode: 'replace', html: edited });
+    expect(w.isError, textOf(w)).toBeFalsy();
+    expect(textOf(w)).not.toContain('Aviso');
+    const back = frame().children[0]!;
+    expect(back.type).toBe('repeater');
+    expect(back.data).toEqual(items(5));
+    expect(back.dataSource).toMatchObject({ kind: 'json', path: file });
+    expect(back.attrs['data-mockup-repeat']).toBeUndefined();
+    expect(back.attrs['data-repeat']).toBeUndefined();
+    expect(JSON.stringify(back.children)).toContain('sob consulta');
+    expect(textOf(await call('get_code', { nodeId: ws.frameId, format: 'html' }))).toContain(
+      'Produto 5',
+    );
+
+    // sem a marca: vira contêiner comum, mas a resposta avisa e o undo restaura
+    const plain = html.replace(/ data-mockup-repeat="[^"]*"/, '').replace(/ data-repeat="\d+"/, '');
+    const lost = await call('write_html', { parentId: back.id, mode: 'replace', html: plain });
+    expect(textOf(lost)).toContain('perderam os dados');
+    expect(textOf(lost)).toContain(`${back.id} (5 itens)`);
+    expect(frame().children[0]!.type).not.toBe('repeater');
+    await call('undo');
+    expect(frame().children[0]!.type).toBe('repeater');
+    expect(frame().children[0]!.data).toHaveLength(5);
+  });
+
   it('contêiner sem filhos pede o template primeiro', async () => {
     const r1 = await call('write_html', {
       parentId: ws.frameId,

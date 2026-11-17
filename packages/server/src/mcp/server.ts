@@ -28,6 +28,7 @@ import {
 } from './context.js';
 import { formatToolInputError, notFoundToolMessage } from './errors.js';
 import { GUIDES, GUIDE_INFO, GUIDE_TOPICS } from './guides.js';
+import { lostRepeaters, markRepeaters, restoreRepeaters } from './repeaterHtml.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
@@ -541,7 +542,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     ({ nodeId, mode, docId }) => {
       const doc = store.get(store.resolveDocId(docId));
       const { node } = requireNode(doc, nodeId);
-      const out = nodesToHtml([node], { mode: mode ?? 'inline' });
+      const out = nodesToHtml([markRepeaters(node)], { mode: mode ?? 'inline' });
       return out.css && (mode ?? 'inline') === 'classes'
         ? `${out.html}\n<style>\n${out.css}\n</style>`
         : out.html;
@@ -681,7 +682,8 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
       const m = mode ?? 'append';
       const targetId = parentId ?? selectedOrFirstFrame(id, doc);
       const target = requireNode(doc, targetId);
-      const nodes = htmlToNodes(html, { css });
+      // Repetidores marcados por get_html (data-mockup-repeat) voltam com os dados do original.
+      const { nodes, restored } = restoreRepeaters(htmlToNodes(html, { css }), doc);
       if (!nodes.length)
         throw new ToolError('O HTML não gerou nenhum nó. Ex.: "<div><h1>Título</h1></div>".');
       const ops: Op[] = [];
@@ -725,9 +727,14 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
         }
         for (const node of nodes) ops.push({ type: 'createNode', parentId: targetId, node });
       }
+      const deleted = ops.flatMap((o) => (o.type === 'deleteNodes' ? o.nodeIds : []));
+      const lost = lostRepeaters(doc, deleted, restored);
       const r = apply(id, ops, 'write_html');
       const created = nodes.map((n) => n.id);
-      return `HTML aplicado (${m}). Nós criados: ${created.join(', ')}.\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
+      const warn = lost.length
+        ? `\nAviso: repetidor(es) substituído(s) sem a marca data-mockup-repeat perderam os dados: ${lost.map((l) => `${l.id} (${l.count} itens)`).join(', ')}. Use undo e mantenha o atributo data-mockup-repeat que get_html devolve, ou ligue os dados de novo com bind_data.`
+        : '';
+      return `HTML aplicado (${m}). Nós criados: ${created.join(', ')}.${warn}\n${summaryParent ? summaryOf(r.doc, [summaryParent]) : summaryOf(r.doc, created)}`;
     },
   );
 
