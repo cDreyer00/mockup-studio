@@ -425,4 +425,24 @@ describe('setAttrs em nó svg', () => {
     expect(markup).not.toContain('<c>');
     expect(findNode(after, 'el_svgsvg01')!.node.attrs).toEqual({});
   });
+
+  it('sem markup, usa node.attrs e o undo restaura exatamente os atributos anteriores', () => {
+    const doc = fixture();
+    const n = createNodeFromTag('svg', {});
+    n.id = 'el_svgbare1';
+    delete n.svg;
+    n.attrs = { width: '10', 'data-keep': 'x' };
+    doc.pages[0].frames[0].children.push(n);
+    const r = applyOp(doc, {
+      type: 'setAttrs',
+      changes: [{ nodeId: 'el_svgbare1', set: { width: '20', 'data-new': '1' } }],
+    });
+    expect(findNode(r.doc, 'el_svgbare1')!.node.attrs).toEqual({
+      width: '20',
+      'data-keep': 'x',
+      'data-new': '1',
+    });
+    const back = applyOps(r.doc, r.inverse).doc;
+    expect(findNode(back, 'el_svgbare1')!.node.attrs).toEqual({ width: '10', 'data-keep': 'x' });
+  });
 });

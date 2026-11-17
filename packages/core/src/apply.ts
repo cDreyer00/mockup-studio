@@ -264,7 +264,8 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
     const prevSet: Record<string, string> = {};
     const prevUnset: string[] = [];
     // Nó svg: os atributos valem para o `<svg>` raiz do markup (é o que export e render usam).
-    const target = node.type === 'svg' ? svgRootAttrs(node.svg ?? '') : node.attrs;
+    // Sem markup, a gravação vai para `node.attrs`, então é dele que vem o valor anterior.
+    const target = node.type === 'svg' && node.svg ? svgRootAttrs(node.svg) : node.attrs;
     for (const k of unique([...unset, ...Object.keys(set)])) {
       if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
