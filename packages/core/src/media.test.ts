@@ -5,11 +5,13 @@ import { History } from './history.js';
 import {
   DEFAULT_THREE_CODE,
   EMBED_PROVIDERS,
+  EmbedSpecSchema,
   MAX_THREE_CODE,
   createEffectNode,
   createEmbedNode,
   createVideoNode,
   detectEmbedProvider,
+  loopbackUrlProblem,
   mediaAssetRefs,
   mediaRefProblem,
   youtubeEmbedUrl,
@@ -436,5 +438,37 @@ describe('summary', () => {
     const tree = getDocumentSummary(fixture(), 3);
     expect(tree).toContain('effect:mesh-gradient');
     expect(tree).toContain('embed:iframe https://example.com/page');
+  });
+});
+
+describe('loopbackUrlProblem', () => {
+  it.each([
+    'http://localhost:5173/',
+    'http://app.localhost/x',
+    'http://127.0.0.1:4747/',
+    'http://127.5.6.7/',
+    'http://0.0.0.0/',
+    'http://[::1]:4747/',
+    'http://[::]/',
+    'http://[::ffff:127.0.0.1]/',
+    'http://LOCALHOST./',
+  ])('recusa %s', (url) => {
+    expect(loopbackUrlProblem(url)).toMatch(/loopback/);
+  });
+
+  it.each(['https://example.com/', 'https://128.0.0.1/', 'https://notlocalhost.com/'])(
+    'aceita %s',
+    (url) => {
+      expect(loopbackUrlProblem(url)).toBeNull();
+    },
+  );
+
+  it('EmbedSpecSchema recusa loopback em iframe e YouTube', () => {
+    expect(
+      EmbedSpecSchema.safeParse({ provider: 'iframe', url: 'http://127.0.0.1:4747/' }).success,
+    ).toBe(false);
+    expect(
+      EmbedSpecSchema.safeParse({ provider: 'iframe', url: 'https://example.com' }).success,
+    ).toBe(true);
   });
 });

@@ -66,10 +66,47 @@ const refSchema = (allowDataImage = false) =>
     if (p) ctx.addIssue({ code: 'custom', message: p });
   });
 
+/**
+ * Mensagem de erro se a URL aponta para loopback (localhost, 127.0.0.0/8, 0.0.0.0, ::1, ::),
+ * senão null. O editor e a página de render são servidos pelo daemon em 127.0.0.1: um iframe
+ * para essa origem daria acesso à API do daemon.
+ */
+export function loopbackUrlProblem(url: string): string | null {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
+  host = host.replace(/\.$/, '');
+  let loop =
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host === '0.0.0.0' ||
+    /^127\.\d+\.\d+\.\d+$/.test(host) ||
+    host === '::1' ||
+    host === '::';
+  if (!loop && host.includes(':')) {
+    // IPv4 mapeado: o URL normaliza ::ffff:127.0.0.1 para ::ffff:7f00:1.
+    const m = host.match(/^::ffff:(?:(\d+)\.\d+\.\d+\.\d+|([0-9a-f]{1,4}):[0-9a-f]{1,4})$/);
+    if (m) {
+      loop = m[1] !== undefined ? m[1] === '127' || m[1] === '0' : /^(7f..|0|0000)$/.test(m[2]!);
+    }
+  }
+  return loop
+    ? 'URLs de loopback (localhost/127.0.0.1) não são aceitas em iframe/YouTube: dariam acesso ao daemon do Mockup Studio'
+    : null;
+}
+
 const httpUrlSchema = z
   .string()
   .max(2000)
-  .regex(HTTP_URL, { error: 'URL inválida (use http:// ou https://)' });
+  .regex(HTTP_URL, { error: 'URL inválida (use http:// ou https://)' })
+  .superRefine((v, ctx) => {
+    const p = loopbackUrlProblem(v);
+    if (p) ctx.addIssue({ code: 'custom', message: p });
+  });
 
 export const EffectSpecSchema: z.ZodType<EffectSpec, unknown> = z.object({
   kind: z
