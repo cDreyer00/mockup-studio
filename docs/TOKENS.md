@@ -1,18 +1,18 @@
-# Tokens e temas
+# Tokens and themes
 
-O design system de um documento é um conjunto de variáveis CSS (tokens), metadados opcionais (grupo e descrição) e temas que sobrescrevem tokens em frames inteiros. Tudo é CSS real: o que o editor mostra é o que o export entrega.
+A document's design system is a set of CSS variables (tokens), optional metadata (group and description) and themes that override tokens on entire frames. It is all real CSS: what the editor shows is what the export delivers.
 
-## Modelo
+## Model
 
-Três campos do `Document` (tipos em `packages/core/src/types.ts`):
+Three `Document` fields (types in `packages/core/src/types.ts`):
 
-| Campo       | Tipo                                           | Descrição                                                                            |
-| ----------- | ---------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `tokens`    | `Record<string,string>`                        | Tokens base, equivalentes a `:root { --nome: valor }`.                               |
-| `tokenMeta` | `Record<string,{ group?, description? }>`      | Grupo e descrição por token. Opcional; sem grupo, ele é deduzido do nome.            |
-| `themes`    | `{ name, overrides: Record<string,string> }[]` | Temas. `overrides` são os tokens sobrescritos, equivalentes a `[data-theme="x"] {}`. |
+| Field       | Type                                           | Description                                                                               |
+| ----------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `tokens`    | `Record<string,string>`                        | Base tokens, equivalent to `:root { --name: value }`.                                     |
+| `tokenMeta` | `Record<string,{ group?, description? }>`      | Group and description per token. Optional; without a group, it is inferred from the name. |
+| `themes`    | `{ name, overrides: Record<string,string> }[]` | Themes. `overrides` are the overridden tokens, equivalent to `[data-theme="x"] {}`.       |
 
-O tema de um frame é o atributo HTML `data-theme` do nó (constante `THEME_ATTR`), em `node.attrs`. Vale para o nó e todos os descendentes; o tema do ancestral mais próximo vence. Nomes de token seguem `--[A-Za-z0-9_-]+`; nomes de tema, letras, dígitos, `-` e `_` (até 64 caracteres, começando por letra ou dígito).
+A frame's theme is the node's `data-theme` HTML attribute (constant `THEME_ATTR`), in `node.attrs`. It applies to the node and all descendants; the theme of the nearest ancestor wins. Token names follow `--[A-Za-z0-9_-]+`; theme names, letters, digits, `-` and `_` (up to 64 characters, starting with a letter or digit).
 
 ```json
 {
@@ -26,7 +26,7 @@ O tema de um frame é o atributo HTML `data-theme` do nó (constante `THEME_ATTR
     "--space-card": "calc(var(--space-4) * 1.5)"
   },
   "tokenMeta": {
-    "--color-primary": { "group": "color", "description": "Ação principal" }
+    "--color-primary": { "group": "color", "description": "Primary action" }
   },
   "themes": [
     {
@@ -37,78 +37,78 @@ O tema de um frame é o atributo HTML `data-theme` do nó (constante `THEME_ATTR
 }
 ```
 
-E num frame escuro: `{ "attrs": { "data-theme": "dark" } }`.
+And on a dark frame: `{ "attrs": { "data-theme": "dark" } }`.
 
-## Grupos
+## Groups
 
-Os grupos embutidos (`TOKEN_GROUPS`) são `color` (Cores), `typography` (Tipografia), `spacing` (Espaçamento), `radius` (Raio), `shadow` (Sombra) e `other` (Outros). `tokenMeta[nome].group` aceita também um nome livre, que aparece com o próprio nome. Um nome livre igual ao rótulo ou ao id de um grupo embutido (sem diferenciar caixa nem acentos, ex.: `Cores`, `cores`) conta como o embutido (`canonicalTokenGroup`): o painel e o `get_tokens` mostram um só grupo, e o tipo do valor é conferido como o do embutido.
+The built-in groups (`TOKEN_GROUPS`) are `color` (Colors), `typography` (Typography), `spacing` (Spacing), `radius` (Radius), `shadow` (Shadow) and `other` (Other). `tokenMeta[name].group` also accepts a free name, which appears under its own name. A free name equal to the label or id of a built-in group (case- and accent-insensitive, e.g. `Colors`, `colors`) counts as the built-in one (`canonicalTokenGroup`): the panel and `get_tokens` show a single group, and the value type is checked as for the built-in one.
 
-Sem grupo explícito, `inferTokenGroup` decide pelo prefixo do nome e, se não houver prefixo conhecido, pelo valor:
+Without an explicit group, `inferTokenGroup` decides by the name's prefix and, if there is no known prefix, by the value:
 
-- `color`/`colors`, `bg`, `background`, `fg`, `foreground`, `surface`, `border-color`, `accent`, `brand`: cor.
-- `shadow`, `elevation`, `drop-shadow`, `inset-shadow`: sombra.
-- `radius`, `radii`, `rounded`, `corner`: raio.
-- `font`, `text`, `leading`, `tracking`, `line-height`, `letter-spacing`, `typography`, `type`: tipografia.
-- `space`, `spacing`, `spacer`, `gap`, `size`, `padding`, `margin`, `inset`, `container`: espaçamento.
-- Sem prefixo: hex, `rgb()`/`oklch()`/`color-mix()` ou cor nomeada viram cor; comprimento com unidade vira espaçamento; `0 4px 12px #0003` vira sombra; o resto é "Outros".
+- `color`/`colors`, `bg`, `background`, `fg`, `foreground`, `surface`, `border-color`, `accent`, `brand`: color.
+- `shadow`, `elevation`, `drop-shadow`, `inset-shadow`: shadow.
+- `radius`, `radii`, `rounded`, `corner`: radius.
+- `font`, `text`, `leading`, `tracking`, `line-height`, `letter-spacing`, `typography`, `type`: typography.
+- `space`, `spacing`, `spacer`, `gap`, `size`, `padding`, `margin`, `inset`, `container`: spacing.
+- No prefix: hex, `rgb()`/`oklch()`/`color-mix()` or a named color become color; a length with a unit becomes spacing; `0 4px 12px #0003` becomes shadow; the rest is "Other".
 
-## Resolução
+## Resolution
 
-A semântica é a do CSS: uma variável é resolvida no elemento onde é declarada.
+The semantics are those of CSS: a variable is resolved on the element where it is declared.
 
-- **Escopo**: o `:root` resolve `tokens`. Um nó dentro de `data-theme="x"` vê os tokens base com as sobrescritas do tema; custom properties declaradas nos estilos dos ancestrais valem para os descendentes.
-- **Aliases acompanham o tema**: `--color-primary: var(--blue-600)` muda sozinho quando o tema sobrescreve `--blue-600`. Para isso o CSS do tema redeclara também os tokens base que dependem (direta ou indiretamente) de um token sobrescrito, com o valor base, de modo que sejam resolvidos dentro do tema. Sobrescrever o próprio alias no tema também funciona.
-- **Ciclos**: todas as variáveis do laço ficam sem valor (como no CSS) e aparecem como problema.
-- **Fallback**: `var(--x, 8px)` usa o fallback se `--x` não existe. Sem fallback, a referência fica no texto e entra em `broken` do relatório.
-- **SVG inline**: o markup de nós SVG pode usar `var(--token)` (em `style`, atributos de apresentação como `fill`, ou `<style>` interno). No canvas e no screenshot o SVG é desenhado num `<img>` por data URI, onde as variáveis do documento não chegam; por isso `inlineSvgVars(svg, scopeVarsFor(doc, nodeId))` troca as `var()` pelos valores do escopo do nó (tokens, tema efetivo e custom properties dos ancestrais) antes de montar a imagem, e o SVG segue o token e o tema. Variáveis declaradas dentro do próprio SVG ficam como estão. O data URI também ganha `xmlns` quando falta (sem ele a imagem não carrega e sai 0x0). Nos exportadores, HTML, React e o SVG sem layout (`foreignObject`) mantêm o SVG no DOM e as `var()` como foram escritas; o SVG com layout medido (standalone, sem CSS de tokens) resolve as `var()` do mesmo modo.
+- **Scope**: `:root` resolves `tokens`. A node inside `data-theme="x"` sees the base tokens with the theme's overrides; custom properties declared in ancestors' styles apply to descendants.
+- **Aliases follow the theme**: `--color-primary: var(--blue-600)` changes by itself when the theme overrides `--blue-600`. For that, the theme CSS also redeclares the base tokens that depend (directly or indirectly) on an overridden token, with the base value, so that they are resolved inside the theme. Overriding the alias itself in the theme also works.
+- **Cycles**: all variables in the loop end up with no value (as in CSS) and show up as a problem.
+- **Fallback**: `var(--x, 8px)` uses the fallback if `--x` does not exist. Without a fallback, the reference stays in the text and goes into the report's `broken`.
+- **Inline SVG**: the markup of SVG nodes can use `var(--token)` (in `style`, presentation attributes such as `fill`, or an internal `<style>`). On the canvas and in the screenshot the SVG is drawn in an `<img>` via data URI, where the document's variables do not reach; for that reason `inlineSvgVars(svg, scopeVarsFor(doc, nodeId))` replaces the `var()`s with the values from the node's scope (tokens, effective theme and ancestors' custom properties) before building the image, and the SVG follows the token and the theme. Variables declared inside the SVG itself are left as they are. The data URI also gets `xmlns` when it is missing (without it the image does not load and comes out 0x0). In the exporters, HTML, React and the layout-less SVG (`foreignObject`) keep the SVG in the DOM and the `var()`s as they were written; the SVG with measured layout (standalone, without token CSS) resolves the `var()`s the same way.
 
-### calc() e color-mix()
+### calc() and color-mix()
 
-`getComputedLike(doc, nodeId, { theme?, evaluate? })` resolve o tema (o do nó ou o forçado em `theme`) e avalia `calc()` e `color-mix()` quando possível (ex.: `calc(var(--space-4) * 2)` vira `32px`; `color-mix(in oklch, #2563eb, black 15%)` vira uma cor). Com `evaluate: false` o texto é mantido. O CSS exportado mantém `calc()`/`color-mix()` como foram escritos.
+`getComputedLike(doc, nodeId, { theme?, evaluate? })` resolves the theme (the node's or the one forced in `theme`) and evaluates `calc()` and `color-mix()` when possible (e.g. `calc(var(--space-4) * 2)` becomes `32px`; `color-mix(in oklch, #2563eb, black 15%)` becomes a color). With `evaluate: false` the text is kept. The exported CSS keeps `calc()`/`color-mix()` as they were written.
 
-### Validação
+### Validation
 
-`validateTokenValue(name, value, { group, vars })` devolve `null` ou um problema:
+`validateTokenValue(name, value, { group, vars })` returns `null` or a problem:
 
-- `error`: sintaxe inválida (parênteses/aspas desbalanceados, valor que escapa da declaração, vazio). O MCP recusa a chamada inteira.
-- `warning`: aceito, mas suspeito (referência a token inexistente, ou o tipo não bate com o grupo, como uma cor num token de espaçamento). Entra na resposta.
+- `error`: invalid syntax (unbalanced parentheses/quotes, a value that escapes the declaration, empty). The MCP server rejects the whole call.
+- `warning`: accepted, but suspicious (reference to a nonexistent token, or the type does not match the group, such as a color in a spacing token). It goes into the response.
 
-A conferência de tipo resolve as `var()` e usa o lexer do css-tree por propriedade (`color`, `box-shadow`, `font-family`...).
+The type check resolves the `var()`s and uses css-tree's per-property lexer (`color`, `box-shadow`, `font-family`...).
 
-**Por que css-tree**: é JavaScript puro e síncrono, com cerca de 200 KB no bundle `dist/csstree.esm`, que roda no navegador, no Node e nos bundles do Electron e do CLI. O lexer valida valores por propriedade, inclusive `color-mix()`. O `lightningcss-wasm` exigiria inicialização assíncrona e um binário WASM de vários MB, e é um transformador de CSS, não um validador por propriedade.
+**Why css-tree**: it is pure, synchronous JavaScript, about 200 KB in the `dist/csstree.esm` bundle, which runs in the browser, in Node and in the Electron and CLI bundles. The lexer validates values per property, including `color-mix()`. `lightningcss-wasm` would require asynchronous initialization and a WASM binary of several MB, and it is a CSS transformer, not a per-property validator.
 
-## Operações
+## Ops
 
-Em `packages/core/src/ops.ts`, todas com inverso exato (um undo cada):
+In `packages/core/src/ops.ts`, all with an exact inverse (one undo each):
 
-| Op              | Campos                            | Efeito                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `setTokens`     | `set?`, `unset?`, `theme?`        | Define/remove tokens da base ou, com `theme`, das sobrescritas daquele tema (que precisa existir).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `setTokenMeta`  | `set?`, `unset?`                  | Define (substitui por inteiro) ou remove grupo/descrição.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `setThemes`     | `themes`                          | Substitui a lista de temas (criar, remover, renomear, reordenar).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `replaceTokens` | `tokens`, `tokenMeta?`, `themes?` | Troca o sistema inteiro; usado por importação e pelos inversos.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `renameToken`   | `from`, `to`                      | Renomeia a chave (base, meta, temas) e todas as `var(--antigo)` (estilos, valores de `attrs`, markup de SVG inline, estados `node.states`, tokens e temas) e as classes de `node.classes` que usam o token: formas `[var(--antigo)]`/`(--antigo)` sempre; utilidades com o nome curto do tema (`bg-brand`, `hover:bg-brand/90`, `rounded-card`) só quando origem e destino estão no mesmo namespace (`--color-*` → `--color-*`). O undo devolve as classes antigas. Recusa destino que já existe ou que já está declarado no estilo de algum nó. Resultado: `{ from, to, nodes, references }`. |
+| Op              | Fields                            | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setTokens`     | `set?`, `unset?`, `theme?`        | Sets/removes tokens in the base or, with `theme`, in that theme's overrides (which must exist).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `setTokenMeta`  | `set?`, `unset?`                  | Sets (replaces entirely) or removes group/description.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `setThemes`     | `themes`                          | Replaces the list of themes (create, remove, rename, reorder).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `replaceTokens` | `tokens`, `tokenMeta?`, `themes?` | Replaces the whole system; used by import and by the inverses.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `renameToken`   | `from`, `to`                      | Renames the key (base, meta, themes) and all `var(--old)` (styles, `attrs` values, inline SVG markup, `node.states` states, tokens and themes) and the `node.classes` classes that use the token: `[var(--old)]`/`(--old)` forms always; utilities with the theme's short name (`bg-brand`, `hover:bg-brand/90`, `rounded-card`) only when source and destination are in the same namespace (`--color-*` → `--color-*`). Undo gives back the old classes. Rejects a destination that already exists or is already declared in some node's style. Result: `{ from, to, nodes, references }`. |
 
-Os planejadores `planDeleteTokens`, `planApplyToken`, `planCreateTheme`, `planDeleteTheme`, `planRenameTheme`, `planSetFrameTheme` e `planImportTokens` montam as ops compostas (por exemplo, apagar um tema também tira o `data-theme` dos nós). `getTokenReport(doc)` devolve tokens com grupo, valor, valor resolvido (base e por tema), usos, problema, mais temas com seus frames, tokens não usados e referências quebradas. Os estados (`node.states`) contam como uso; referências quebradas neles saem com `property: 'state:<chave>:<prop>'` (ex.: `state:hover:background-color`), e custom properties declaradas num estado valem só para aquele estado.
+The planners `planDeleteTokens`, `planApplyToken`, `planCreateTheme`, `planDeleteTheme`, `planRenameTheme`, `planSetFrameTheme` and `planImportTokens` build the composite ops (for example, deleting a theme also removes the `data-theme` from nodes). `getTokenReport(doc)` returns tokens with group, value, resolved value (base and per theme), usages, problem, plus themes with their frames, unused tokens and broken references. States (`node.states`) count as usage; broken references in them come out with `property: 'state:<key>:<prop>'` (e.g. `state:hover:background-color`), and custom properties declared in a state apply only to that state.
 
-## Ferramentas MCP
+## MCP tools
 
-Toda ferramenta de escrita gera ops e aplica numa única chamada (uma entrada de undo, o mesmo caminho do editor). `get_guide('tokens')` traz o fluxo recomendado.
+Every write tool generates ops and applies them in a single call (one undo entry, the same path as the editor). `get_guide('tokens')` brings the recommended flow.
 
-| Ferramenta        | Parâmetros                                                                 | Descrição                                                                                                 |
-| ----------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `get_tokens`      | `group?`, `theme?`, `format?` (`text`/`json`), `docId?`                    | Tokens por grupo (valor, resolvido, descrição, usos, não usado, problema), temas e referências quebradas. |
-| `set_tokens`      | `tokens?`, `unset?`, `theme?`, `groups?`, `descriptions?`, `docId?`        | Define/remove tokens, na base ou num tema; grava grupo e descrição.                                       |
-| `rename_token`    | `from`, `to`, `docId?`                                                     | Renomeia e atualiza as referências (estilos, estados, `attrs`, SVG, classes).                             |
-| `apply_token`     | `nodeIds`, `property`, `token`, `docId?`                                   | Grava `propriedade: var(--token)` nos nós.                                                                |
-| `create_theme`    | `name`, `overrides?`, `copyFrom?`, `docId?`                                | Cria um tema.                                                                                             |
-| `delete_theme`    | `name`, `docId?`                                                           | Remove o tema e o `data-theme` dos frames.                                                                |
-| `rename_theme`    | `from`, `to`, `docId?`                                                     | Renomeia o tema e o `data-theme` dos frames.                                                              |
-| `set_frame_theme` | `nodeIds`, `theme` (nome ou `null`), `docId?`                              | Define o tema dos frames; `null` volta aos tokens base.                                                   |
-| `import_tokens`   | `content`, `format?` (`css`/`json`), `mode?` (`merge`/`replace`), `docId?` | Importa CSS ou DTCG; devolve contagens e avisos.                                                          |
-| `export_tokens`   | `format` (`css`/`json`/`tailwind`), `docId?`                               | Devolve o texto.                                                                                          |
+| Tool              | Parameters                                                                 | Description                                                                                            |
+| ----------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `get_tokens`      | `group?`, `theme?`, `format?` (`text`/`json`), `docId?`                    | Tokens by group (value, resolved, description, usages, unused, problem), themes and broken references. |
+| `set_tokens`      | `tokens?`, `unset?`, `theme?`, `groups?`, `descriptions?`, `docId?`        | Sets/removes tokens, in the base or in a theme; saves group and description.                           |
+| `rename_token`    | `from`, `to`, `docId?`                                                     | Renames and updates the references (styles, states, `attrs`, SVG, classes).                            |
+| `apply_token`     | `nodeIds`, `property`, `token`, `docId?`                                   | Writes `property: var(--token)` to the nodes.                                                          |
+| `create_theme`    | `name`, `overrides?`, `copyFrom?`, `docId?`                                | Creates a theme.                                                                                       |
+| `delete_theme`    | `name`, `docId?`                                                           | Removes the theme and the frames' `data-theme`.                                                        |
+| `rename_theme`    | `from`, `to`, `docId?`                                                     | Renames the theme and the frames' `data-theme`.                                                        |
+| `set_frame_theme` | `nodeIds`, `theme` (name or `null`), `docId?`                              | Sets the frames' theme; `null` goes back to the base tokens.                                           |
+| `import_tokens`   | `content`, `format?` (`css`/`json`), `mode?` (`merge`/`replace`), `docId?` | Imports CSS or DTCG; returns counts and warnings.                                                      |
+| `export_tokens`   | `format` (`css`/`json`/`tailwind`), `docId?`                               | Returns the text.                                                                                      |
 
-`get_styles` aceita `theme` para mostrar os valores como se o próprio nó tivesse `data-theme` com aquele tema (no lugar do que tiver). Como no CSS, propriedades herdadas (cor, fonte...) chegam já calculadas no ancestral que as declara: um tema no filho não muda a `color: var(--fg)` herdada do frame. Para ver um frame inteiro no tema, consulte o frame ou troque o tema dele com `set_frame_theme`.
+`get_styles` accepts `theme` to show the values as if the node itself had `data-theme` with that theme (in place of whatever it has). As in CSS, inherited properties (color, font...) arrive already computed on the ancestor that declares them: a theme on the child does not change the frame's inherited `color: var(--fg)`. To see a whole frame in the theme, query the frame or change its theme with `set_frame_theme`.
 
 ```js
 set_tokens({
@@ -119,7 +119,7 @@ set_tokens({
     '--space-4': '16px',
   },
   groups: { '--blue-600': 'color' },
-  descriptions: { '--color-primary': 'Ação principal' },
+  descriptions: { '--color-primary': 'Primary action' },
 });
 create_theme({ name: 'dark', overrides: { '--blue-600': '#60a5fa' } });
 set_frame_theme({ nodeIds: ['fr_ab12cd34'], theme: 'dark' });
@@ -127,40 +127,40 @@ get_styles({ nodeIds: ['el_ab12cd34'], theme: 'dark' });
 rename_token({ from: '--color-brand', to: '--color-primary' });
 ```
 
-Regras do `set_tokens`: nomes sem `--` ganham o prefixo; `unset` sem `theme` remove da base, dos metadados e de todos os temas (`planDeleteTokens`); com `theme`, só das sobrescritas. Erro de valor recusa a chamada inteira; aviso entra na resposta. `groups` e `descriptions` mesclam com o meta existente (descrição vazia apaga).
+Rules of `set_tokens`: names without `--` get the prefix; `unset` without `theme` removes from the base, the metadata and all themes (`planDeleteTokens`); with `theme`, only from the overrides. A value error rejects the whole call; a warning goes into the response. `groups` and `descriptions` merge with the existing meta (an empty description deletes it).
 
-## Importar e exportar
+## Import and export
 
-| Formato    | Importação                                                                                                                                              | Exportação                                                                                                                                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `css`      | `:root { ... }` para a base; temas só por `[data-theme="x"]`, `.dark`, `.light` ou `.theme-x`; lê `@theme`, `@media (prefers-color-scheme)` e `@layer`. | `:root` e um `[data-theme="x"]` por tema (com os aliases dependentes redeclarados).                                                                                         |
-| `json`     | W3C Design Tokens (DTCG): grupos aninhados, `$value`, `$type`, `$description`, aliases `{a.b}`.                                                         | Os mesmos campos; o grupo do Mockup Studio e os valores por tema ficam em `$extensions["mockup-studio"]`.                                                                   |
-| `tailwind` | (use `css`; `@theme` é lido)                                                                                                                            | Tailwind v4: `@theme { ... }` para os namespaces de tema, `:root` para o resto, regras de tema e `@custom-variant theme-<nome>` (mais `dark` quando existe um tema `dark`). |
+| Format     | Import                                                                                                                                                           | Export                                                                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `css`      | `:root { ... }` for the base; themes only via `[data-theme="x"]`, `.dark`, `.light` or `.theme-x`; reads `@theme`, `@media (prefers-color-scheme)` and `@layer`. | `:root` and one `[data-theme="x"]` per theme (with the dependent aliases redeclared).                                                                                  |
+| `json`     | W3C Design Tokens (DTCG): nested groups, `$value`, `$type`, `$description`, `{a.b}` aliases.                                                                     | The same fields; Mockup Studio's group and the per-theme values go in `$extensions["mockup-studio"]`.                                                                  |
+| `tailwind` | (use `css`; `@theme` is read)                                                                                                                                    | Tailwind v4: `@theme { ... }` for the theme namespaces, `:root` for the rest, theme rules and `@custom-variant theme-<name>` (plus `dark` when a `dark` theme exists). |
 
-`import_tokens` com `mode: "merge"` (padrão) mantém o que existe e sobrescreve nomes repetidos (temas são mesclados por nome); `replace` troca tokens, metadados e temas. O resultado traz `warnings` (regras ignoradas, valores descartados, metadados com tipo errado: `$description` ou grupo/temas em `$extensions` que não sejam texto/objeto são descartados, e o token entra).
+`import_tokens` with `mode: "merge"` (default) keeps what exists and overwrites repeated names (themes are merged by name); `replace` replaces tokens, metadata and themes. The result carries `warnings` (ignored rules, discarded values, metadata with the wrong type: `$description` or group/themes in `$extensions` that are not text/object are discarded, and the token is imported).
 
-## Exportadores de código
+## Code exporters
 
-Os exportadores de projeto (ver [EXPORT.md](EXPORT.md)) usam o mesmo sistema:
+The project exporters (see [EXPORT.md](EXPORT.md)) use the same system:
 
-- **HTML**: `:root { ... }` com os tokens e `[data-theme="x"] { ... }` por tema; os frames mantêm o atributo `data-theme`.
-- **Tailwind**: o bloco acima (`@theme`, regras de tema e `@custom-variant`).
-- **React inline**: os estilos inline mantêm `var(--token)` e o CSS de tokens vem junto.
+- **HTML**: `:root { ... }` with the tokens and `[data-theme="x"] { ... }` per theme; frames keep the `data-theme` attribute.
+- **Tailwind**: the block above (`@theme`, theme rules and `@custom-variant`).
+- **React inline**: inline styles keep `var(--token)` and the tokens CSS comes along.
 
 ## Editor
 
-Detalhes e gestos em [EDITOR.md](EDITOR.md#tokens-e-temas). Toda ação do painel gera as mesmas ops das ferramentas MCP (mesmo undo).
+Details and gestures in [EDITOR.md](EDITOR.md#tokens-and-themes). Every panel action generates the same ops as the MCP tools (same undo).
 
-| No editor                                              | Ferramenta MCP                                    |
-| ------------------------------------------------------ | ------------------------------------------------- |
-| Aba **Tokens**: criar, editar valor, grupo e descrição | `set_tokens` (`tokens`, `groups`, `descriptions`) |
-| Renomear (duplo clique no nome)                        | `rename_token`                                    |
-| Excluir token                                          | `set_tokens` com `unset`                          |
-| Tema em edição + editar valor / remover sobrescrita    | `set_tokens` com `theme` (e `unset`)              |
-| Criar, renomear e excluir tema                         | `create_theme`, `rename_theme`, `delete_theme`    |
-| Importar (colar CSS ou JSON) e Exportar                | `import_tokens`, `export_tokens`                  |
-| Ícone "ligar a token" nos inputs de propriedades       | `apply_token`                                     |
-| Linha **Tema** do frame no painel de propriedades      | `set_frame_theme`                                 |
-| Avisos de não usado e de quebrado                      | `get_tokens` (`unused`, `broken`, `problem`)      |
+| In the editor                                             | MCP tool                                          |
+| --------------------------------------------------------- | ------------------------------------------------- |
+| **Tokens** tab: create, edit value, group and description | `set_tokens` (`tokens`, `groups`, `descriptions`) |
+| Rename (double click on the name)                         | `rename_token`                                    |
+| Delete token                                              | `set_tokens` with `unset`                         |
+| Theme being edited + edit value / remove override         | `set_tokens` with `theme` (and `unset`)           |
+| Create, rename and delete theme                           | `create_theme`, `rename_theme`, `delete_theme`    |
+| Import (paste CSS or JSON) and Export                     | `import_tokens`, `export_tokens`                  |
+| "Bind to token" icon on property inputs                   | `apply_token`                                     |
+| Frame **Theme** row in the properties panel               | `set_frame_theme`                                 |
+| Unused and broken warnings                                | `get_tokens` (`unused`, `broken`, `problem`)      |
 
-O canvas e a página de render (screenshot) injetam as regras de tema com o escopo `.cv-world `, então o que o agente vê em `get_screenshot` é o mesmo CSS do HTML exportado.
+The canvas and the render page (screenshot) inject the theme rules with the `.cv-world ` scope, so what the agent sees in `get_screenshot` is the same CSS as the exported HTML.

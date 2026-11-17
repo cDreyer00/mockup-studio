@@ -1,93 +1,93 @@
-# Dados reais
+# Real data
 
-Mockups com conteúdo de verdade: listas, tabelas e grades de cards preenchidas a partir de JSON, CSV ou de uma API HTTP. O agente (ou a interface) escreve **um** item como template e liga uma lista de dados a ele; o canvas, o screenshot e o código exportado mostram um item por linha.
+Mockups with real content: lists, tables and card grids filled from JSON, CSV or an HTTP API. The agent (or the UI) writes **one** item as a template and binds a data list to it; the canvas, the screenshot and the exported code show one item per row.
 
-## Repetidor
+## Repeater
 
-Um repetidor é um nó `type: 'repeater'` (id `rp_...`). Ele se comporta como um contêiner comum (tem `tag`, `style` e `attrs`, então `display: grid`, `flex`, `gap` etc. valem normalmente) e guarda:
+A repeater is a `type: 'repeater'` node (id `rp_...`). It behaves like a regular container (it has `tag`, `style` and `attrs`, so `display: grid`, `flex`, `gap` etc. work as usual) and stores:
 
-| Campo        | Tipo                    | Descrição                                                               |
-| ------------ | ----------------------- | ----------------------------------------------------------------------- |
-| `data`       | `unknown[]`             | Itens (até 1000 e 2 MB serializados).                                   |
-| `dataSource` | `DataSource` (opcional) | De onde vieram os dados, para atualizar, e o mapeamento de campos.      |
-| `children`   | `Node[]`                | O **template**: todos os filhos se repetem, em ordem, uma vez por item. |
+| Field        | Type                    | Description                                                      |
+| ------------ | ----------------------- | ---------------------------------------------------------------- |
+| `data`       | `unknown[]`             | Items (up to 1000 and 2 MB serialized).                          |
+| `dataSource` | `DataSource` (optional) | Where the data came from, for refreshing, and the field mapping. |
+| `children`   | `Node[]`                | The **template**: all children repeat, in order, once per item.  |
 
 `DataSource`:
 
-| Campo       | Descrição                                                                                                                                 |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `kind`      | `inline` (colado ou editado na tabela), `json` ou `csv` (arquivo local) ou `url` (HTTP(S)).                                               |
-| `path`      | Caminho absoluto do arquivo (`json`/`csv`). Em `inline`, só referência de onde os dados vieram antes de serem editados.                   |
-| `url`       | URL http(s) (`url`). JSON ou CSV, pelo content-type ou pela extensão.                                                                     |
-| `select`    | Caminho até a lista dentro do JSON, ex.: `data.items`. Sem ele: a própria lista, ou a primeira propriedade que seja lista (até 2 níveis). |
-| `mapping`   | Campo do template → caminho no item, ex.: `{ "nome": "user.fullName" }`.                                                                  |
-| `limit`     | Máximo de itens lidos da origem.                                                                                                          |
-| `fetchedAt` | Quando os dados foram lidos (ISO 8601).                                                                                                   |
+| Field       | Description                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`      | `inline` (pasted or edited in the table), `json` or `csv` (local file) or `url` (HTTP(S)).                                               |
+| `path`      | Absolute path of the file (`json`/`csv`). With `inline`, only a reference to where the data came from before it was edited.              |
+| `url`       | http(s) URL (`url`). JSON or CSV, by content-type or extension.                                                                          |
+| `select`    | Path to the list inside the JSON, e.g. `data.items`. Without it: the list itself, or the first property that is a list (up to 2 levels). |
+| `mapping`   | Template field → path in the item, e.g. `{ "name": "user.fullName" }`.                                                                   |
+| `limit`     | Maximum number of items read from the source.                                                                                            |
+| `fetchedAt` | When the data was read (ISO 8601).                                                                                                       |
 
-A origem fica guardada no documento: `refresh_data` (ou o botão **Atualizar** do painel) relê o arquivo ou a URL. Não há atualização automática. Editar a tabela no painel troca a origem para `inline` na mesma op (mantendo `path`/`url`, `mapping` e `fetchedAt` como referência), então **Atualizar** fica desativado e não descarta a edição; para voltar a ler o arquivo ou a URL, use **Vincular…**/`bind_data` de novo.
+The source is stored in the document: `refresh_data` (or the **Refresh** button in the panel) re-reads the file or URL. There is no automatic refresh. Editing the table in the panel switches the source to `inline` in the same op (keeping `path`/`url`, `mapping` and `fetchedAt` as a reference), so **Refresh** is disabled and does not discard the edit; to go back to reading the file or URL, use **Bind…**/`bind_data` again.
 
 ## Bindings
 
-Em `text`, `src` e nos valores de atributos (`href`, `alt`, `title`, `aria-label`, `data-*`...) dos nós do template:
+In `text`, `src` and in attribute values (`href`, `alt`, `title`, `aria-label`, `data-*`...) of the template nodes:
 
-| Sintaxe                  | Resultado                                                   |
-| ------------------------ | ----------------------------------------------------------- |
-| `{{nome}}`               | Campo do item.                                              |
-| `{{endereco.cidade}}`    | Caminho com ponto; índices de lista também (`{{fotos.0}}`). |
-| `{{cargo \| Sem cargo}}` | Valor padrão quando o campo falta ou é vazio.               |
-| `{{$number}}`            | Posição a partir de 1 (`{{$index}}` começa em 0).           |
-| `{{$item}}`              | O item inteiro (listas de textos ou números).               |
+| Syntax                | Result                                             |
+| --------------------- | -------------------------------------------------- |
+| `{{name}}`            | Item field.                                        |
+| `{{address.city}}`    | Dotted path; list indexes too (`{{photos.0}}`).    |
+| `{{role \| No role}}` | Default value when the field is missing or empty.  |
+| `{{$number}}`         | Position starting at 1 (`{{$index}}` starts at 0). |
+| `{{$item}}`           | The whole item (lists of strings or numbers).      |
 
-Objetos e listas viram JSON; campo inexistente vira vazio. URLs perigosas vindas dos dados (`javascript:`, `vbscript:`, `data:text/html`) são descartadas em `href`/`src`. Estilos não aceitam bindings (`{` e `}` são recusados no CSS); para variar cor ou tamanho por item, use classes/atributos ou dados com caminhos de imagem diferentes.
+Objects and lists become JSON; a nonexistent field becomes empty. Dangerous URLs coming from the data (`javascript:`, `vbscript:`, `data:text/html`) are discarded in `href`/`src`. Styles do not accept bindings (`{` and `}` are rejected in CSS); to vary color or size per item, use classes/attributes or data with different image paths.
 
-## Expansão
+## Expansion
 
-`expandRepeaterChildren` (core, `data.ts`) gera as cópias: o item 0 mantém os ids do template e os itens seguintes ganham o sufixo `~<índice>` (`tx_ab12~3`). Esses ids existem só na expansão, nunca no documento nem em ops.
+`expandRepeaterChildren` (core, `data.ts`) generates the copies: item 0 keeps the template's ids and the following items get the suffix `~<index>` (`tx_ab12~3`). These ids exist only during expansion, never in the document or in ops.
 
-- **Canvas e página de render** (`NodeView`): o repetidor renderiza os itens expandidos; cada cópia usa `data-node-id` do nó do template, então clicar em qualquer item seleciona o nó real do template e editar o template muda todos os itens.
-- **Screenshot e `get_layout`**: vêm da página de render, com os mesmos itens do canvas.
-- **Exportação** (html, tailwind, react, svg): `resolveRoots` expande antes de gerar o código; o repetidor sai como o contêiner com todos os itens (no React, a extração de repetições pode virar `map`). Imagens vindas dos dados entram na cópia de assets.
-- **Repetidor aninhado**: um repetidor dentro do template usa os próprios dados (não os do item externo); os ids continuam únicos.
-- **Sem dados**: o template aparece uma vez, com os bindings vazios.
+- **Canvas and render page** (`NodeView`): the repeater renders the expanded items; each copy uses the template node's `data-node-id`, so clicking any item selects the real template node and editing the template changes all items.
+- **Screenshot and `get_layout`**: come from the render page, with the same items as the canvas.
+- **Export** (html, tailwind, react, svg): `resolveRoots` expands before generating the code; the repeater comes out as the container with all the items (in React, repetition extraction can turn it into a `map`). Images coming from the data go into the asset copy.
+- **Nested repeater**: a repeater inside the template uses its own data (not the outer item's); ids remain unique.
+- **No data**: the template appears once, with empty bindings.
 
-## Fluxo pelo MCP
+## MCP flow
 
-1. Escreva o template com `write_html`, usando bindings:
+1. Write the template with `write_html`, using bindings:
 
    ```json
    {
      "name": "write_html",
      "arguments": {
        "parentId": "fr_ab12cd34",
-       "html": "<div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px\"><article style=\"padding:16px;border-radius:12px;background:#fff\"><img src=\"{{foto}}\" alt=\"{{nome}}\" style=\"width:100%;height:120px;object-fit:cover\"><h3>{{nome}}</h3><p>{{cargo | Sem cargo}}</p></article></div>"
+       "html": "<div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px\"><article style=\"padding:16px;border-radius:12px;background:#fff\"><img src=\"{{photo}}\" alt=\"{{name}}\" style=\"width:100%;height:120px;object-fit:cover\"><h3>{{name}}</h3><p>{{role | No role}}</p></article></div>"
      }
    }
    ```
 
-2. Ligue os dados ao contêiner com `bind_data` (ele vira repetidor; os filhos viram o template): `data` (lista inline), `path` (JSON/CSV local), `url` (HTTP) ou `text` + `format` (conteúdo colado). Opcionais: `select`, `mapping`, `limit`.
-3. Confira com `get_screenshot`. `get_data` mostra a origem, as colunas, os campos do template sem coluna correspondente e as primeiras linhas.
-4. `refresh_data` relê a origem depois que o arquivo ou a API mudar.
+2. Bind the data to the container with `bind_data` (it becomes a repeater; the children become the template): `data` (inline list), `path` (local JSON/CSV), `url` (HTTP) or `text` + `format` (pasted content). Optional: `select`, `mapping`, `limit`.
+3. Check with `get_screenshot`. `get_data` shows the source, the columns, the template fields with no matching column and the first rows.
+4. `refresh_data` re-reads the source after the file or API changes.
 
-`get_html` de um repetidor devolve o template com `data-mockup-repeat="<id>"` e `data-repeat="<itens>"`. Um `write_html` (ex.: `mode: "replace"`) que traga essa marca recria o repetidor com os dados e a origem do original (id novo, marca removida dos atributos); sem a marca o elemento vira contêiner comum e a resposta avisa quais repetidores perderam os dados (`undo` restaura).
+`get_html` of a repeater returns the template with `data-mockup-repeat="<id>"` and `data-repeat="<items>"`. A `write_html` (e.g. `mode: "replace"`) that carries this mark recreates the repeater with the original's data and source (new id, mark removed from the attributes); without the mark the element becomes a regular container and the response warns which repeaters lost their data (`undo` restores).
 
-Ferramentas e parâmetros completos em [MCP.md](MCP.md#dados-reais); o guia `get_guide('data')` resume o fluxo para o agente.
+Full tools and parameters in [MCP.md](MCP.md#real-data); the `get_guide('data')` guide summarizes the flow for the agent.
 
 ## Editor
 
-- **Painel "Dados"** (propriedades, repetidor selecionado): origem e data da leitura, **Atualizar**, **Vincular…** (colar JSON/CSV, caminho de arquivo ou URL, `select`, limite), **tabela editável** (editar célula, adicionar/remover linha e coluna; cada edição é uma op `setData`, com undo) e o **mapeamento** dos campos do template que não existem nos dados.
-- **Converter em repetidor**: contêineres com filhos ganham a ação no painel e no menu de contexto.
-- Camadas mostram o repetidor com o ícone de repetição; o resumo da árvore no MCP mostra `repeat:20` (e `<json`, `<csv` ou `<url` quando há origem externa).
+- **"Data" panel** (properties, repeater selected): source and read date, **Refresh**, **Bind…** (paste JSON/CSV, file path or URL, `select`, limit), **editable table** (edit cell, add/remove row and column; each edit is a `setData` op, with undo) and the **mapping** of template fields that do not exist in the data.
+- **Convert to repeater**: containers with children get the action in the panel and in the context menu.
+- Layers shows the repeater with the repeat icon; the tree summary in the MCP server shows `repeat:20` (and `<json`, `<csv` or `<url` when there is an external source).
 
-## Op e formato
+## Op and format
 
-- Op `setData`: `{ type: 'setData', changes: [{ nodeId, data?, source? }] }` — `data` substitui a lista (omitido mantém), `source` define a origem (`null` remove). O inverso restaura os valores anteriores. Só vale para nós `repeater`.
-- Converter um contêiner em repetidor é `deleteNodes` + `createNode` (o repetidor novo recebe os filhos com os mesmos ids), numa única entrada de undo.
-- No arquivo, `dataSource` e `data` ficam depois de `hidden` e antes de `children` em cada nó.
+- `setData` op: `{ type: 'setData', changes: [{ nodeId, data?, source? }] }` — `data` replaces the list (omitted keeps it), `source` sets the source (`null` removes it). The inverse restores the previous values. Only valid for `repeater` nodes.
+- Converting a container into a repeater is `deleteNodes` + `createNode` (the new repeater receives the children with the same ids), in a single undo entry.
+- In the file, `dataSource` and `data` come after `hidden` and before `children` in each node.
 
-## Leitura de JSON e CSV
+## Reading JSON and CSV
 
-- JSON: arquivo ou resposta até 5 MB; BOM ignorado; erro de sintaxe vira mensagem clara.
-- CSV: RFC 4180 (aspas, aspas duplicadas, quebras de linha dentro de aspas), separador detectado pela primeira linha (`,`, `;`, tab ou `|`), primeira linha = cabeçalho (coluna sem nome vira `colN`), valores em texto.
-- URL: http(s), timeout de 20 s, até 5 MB.
-- Arquivo (`path`): absoluto, só `.json`, `.csv` e `.tsv`; recusado se qualquer pasta ou o próprio arquivo for oculto (nome iniciado por `.`, ex.: `~/.ssh`, `~/.claude`), também depois de seguir symlinks. Pelo editor (`POST /api/data/:docId/:nodeId/bind`) o arquivo precisa estar na pasta do documento ou no home; a rota exige Origin local, como as demais escritas.
-- Limites: 1000 itens e 2 MB serializados por repetidor.
+- JSON: file or response up to 5 MB; BOM ignored; a syntax error becomes a clear message.
+- CSV: RFC 4180 (quotes, doubled quotes, line breaks inside quotes), separator detected from the first line (`,`, `;`, tab or `|`), first row = header (an unnamed column becomes `colN`), values as text.
+- URL: http(s), 20 s timeout, up to 5 MB.
+- File (`path`): absolute, only `.json`, `.csv` and `.tsv`; rejected if any folder or the file itself is hidden (name starting with `.`, e.g. `~/.ssh`, `~/.claude`), also after following symlinks. Through the editor (`POST /api/data/:docId/:nodeId/bind`) the file must be in the document's folder or in the home folder; the route requires a local Origin, like the other writes.
+- Limits: 1000 items and 2 MB serialized per repeater.

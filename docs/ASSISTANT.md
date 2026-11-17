@@ -1,83 +1,83 @@
-# Assistente de IA
+# AI assistant
 
-Um chat no editor conversa com o canvas usando as CLIs de agente já instaladas na máquina: **Claude Code** (`claude`) e **Codex** (`codex`). O daemon abre a CLI como subprocesso, registra o próprio MCP nela e a CLI edita o documento pelas mesmas ferramentas que qualquer agente externo usa ([MCP.md](MCP.md)). Não há chave de API própria: vale a conta que já está logada na CLI.
+A chat in the editor talks to the canvas using the agent CLIs already installed on the machine: **Claude Code** (`claude`) and **Codex** (`codex`). The daemon opens the CLI as a subprocess, registers its own MCP in it, and the CLI edits the document through the same tools any external agent uses ([MCP.md](MCP.md)). There is no API key of its own: whichever account is already logged in to the CLI is used.
 
-Cada pedido do usuário é um **turno**, e **cada turno é um único passo de desfazer** no editor.
+Each user request is a **turn**, and **each turn is a single undo step** in the editor.
 
-## Visão geral
+## Overview
 
-1. O usuário escreve o pedido no painel "Assistente" (com a seleção atual como contexto).
-2. O daemon monta o contexto (documento, seleção, resumo da árvore, screenshot) e inicia a CLI.
-3. A CLI conecta no MCP do daemon com um token de turno e edita o canvas. O editor vê as mudanças ao vivo, como em qualquer edição por MCP.
-4. O texto do agente chega por streaming ao painel. No fim, a mensagem final traz o status, as ferramentas usadas e quantas ops foram aplicadas.
+1. The user writes the request in the "Assistant" panel (with the current selection as context).
+2. The daemon builds the context (document, selection, tree summary, screenshot) and starts the CLI.
+3. The CLI connects to the daemon's MCP with a turn token and edits the canvas. The editor sees the changes live, as with any MCP edit.
+4. The agent's text arrives in the panel by streaming. At the end, the final message carries the status, the tools used and how many ops were applied.
 
-## Arquitetura
+## Architecture
 
 ```
- editor (painel Assistente)
+ editor (Assistant panel)
    │  WebSocket: assistant:send / cancel / history / clear / config
    │  ◄──────── assistant:event (turn-start, text, tool, tool-result, turn-end, cleared)
    ▼
  daemon (packages/server)
    AssistantService ── resolve backend ── AgentBackend.run(input, emit, signal)
         │                                      │
-        │ token do turno (resolveTurn)         ▼
-        │                              subprocesso da CLI (claude -p / codex exec)
-        │                              cwd temporário; prompt por stdin;
-        │                              config MCP e system prompt por arquivo temporário
+        │ turn token (resolveTurn)             ▼
+        │                              CLI subprocess (claude -p / codex exec)
+        │                              temporary cwd; prompt via stdin;
+        │                              MCP config and system prompt via temporary file
         │                                      │  HTTP Streamable
         ▼                                      ▼
-   DocumentStore.applyOps({ group })  ◄── MCP  /mcp?turn=<token>   (mesmo daemon, 127.0.0.1)
+   DocumentStore.applyOps({ group })  ◄── MCP  /mcp?turn=<token>   (same daemon, 127.0.0.1)
 ```
 
-Peças:
+Pieces:
 
-- `packages/server/src/agent/assistant.ts`: `AssistantService` (turnos, contexto, histórico, configuração, mensagens WS).
-- `packages/server/src/agent/cli.ts`: `ClaudeCliBackend`, `CodexCliBackend`, parsers do JSONL, `findExecutable`, `detectBackends`.
-- `packages/server/src/agent/backend.ts`: contrato `AgentBackend`.
-- `packages/server/src/mcp/session.ts` e `mcp/server.ts`: reconhecem o token `?turn=` e aplicam o grupo de undo do turno.
-- `packages/server/test/fixtures/fake-agent-cli.mjs`: CLI falsa dos testes.
+- `packages/server/src/agent/assistant.ts`: `AssistantService` (turns, context, history, configuration, WS messages).
+- `packages/server/src/agent/cli.ts`: `ClaudeCliBackend`, `CodexCliBackend`, JSONL parsers, `findExecutable`, `detectBackends`.
+- `packages/server/src/agent/backend.ts`: the `AgentBackend` contract.
+- `packages/server/src/mcp/session.ts` and `mcp/server.ts`: recognize the `?turn=` token and apply the turn's undo group.
+- `packages/server/test/fixtures/fake-agent-cli.mjs`: the tests' fake CLI.
 
-## Backends e detecção
+## Backends and detection
 
-O `AssistantService` conhece uma lista de backends (`claude`, depois `codex`). A configuração `backend: "auto"` usa o primeiro disponível; também dá para fixar um id.
+The `AssistantService` knows a list of backends (`claude`, then `codex`). The configuration `backend: "auto"` uses the first available one; you can also pin an id.
 
-Como a CLI é encontrada (`findExecutable`):
+How the CLI is found (`findExecutable`):
 
-- Procura no `PATH`. No Windows respeita o `PATHEXT` e prefere `.exe` a `.cmd`/`.bat` (um `.exe` roda direto, sem shell).
-- `.cmd`/`.bat` rodam por `shell: true` com um único comando já citado (argumentos com `"`, `%` ou quebra de linha são recusados; por isso nenhum argumento carrega JSON).
-- Variáveis de ambiente de override:
+- It searches the `PATH`. On Windows it respects `PATHEXT` and prefers `.exe` over `.cmd`/`.bat` (an `.exe` runs directly, without a shell).
+- `.cmd`/`.bat` run via `shell: true` with a single already-quoted command (arguments with `"`, `%` or a line break are rejected; that is why no argument carries JSON).
+- Override environment variables:
 
-| Variável            | Efeito                                                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `MOCKUP_CLAUDE_BIN` | Caminho do executável do Claude Code.                                                                                         |
-| `MOCKUP_CODEX_BIN`  | Caminho do executável do Codex.                                                                                               |
-| `MOCKUP_AGENT_CLI`  | Caminho de um script `.mjs`/`.js`: o backend `claude` passa a rodar `node <script>` (usado nos testes e e2e com a CLI falsa). |
+| Variable            | Effect                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `MOCKUP_CLAUDE_BIN` | Path to the Claude Code executable.                                                                                         |
+| `MOCKUP_CODEX_BIN`  | Path to the Codex executable.                                                                                               |
+| `MOCKUP_AGENT_CLI`  | Path to a `.mjs`/`.js` script: the `claude` backend runs `node <script>` instead (used in tests and e2e with the fake CLI). |
 
-`MOCKUP_AGENT_CLI` é para testes/e2e e vale também em produção: **não é uma fronteira de segurança**. Quem controla o ambiente do daemon (variáveis de ambiente, `PATH`, `MOCKUP_CLAUDE_BIN`) já controla qual processo ele executa; por isso não há restrição por `NODE_ENV`. Não defina essa variável fora de testes.
+`MOCKUP_AGENT_CLI` is meant for tests/e2e and also applies in production: **it is not a security boundary**. Whoever controls the daemon's environment (environment variables, `PATH`, `MOCKUP_CLAUDE_BIN`) already controls which process it runs; that is why there is no `NODE_ENV` restriction. Do not set this variable outside of tests.
 
-`info()` de cada backend devolve `{ id, name, available, path?, detail? }` (`detail` = versão de `--version`, ou o motivo da indisponibilidade) e é cacheado por 30 s.
+Each backend's `info()` returns `{ id, name, available, path?, detail? }` (`detail` = version from `--version`, or the reason for unavailability) and is cached for 30 s.
 
-## Flags usadas
+## Flags used
 
 **Claude Code** (`claude`):
 
 ```
 claude -p --input-format stream-json --output-format stream-json --verbose
   --include-partial-messages
-  --tools ""                                  sem ferramentas embutidas (Bash, Read, Edit...)
-  --strict-mcp-config --mcp-config <arq>      só o MCP do daemon (arquivo temporário)
-  --allowedTools mcp__mockup-studio           libera todas as tools desse servidor
-  --permission-mode dontAsk                   o que não está liberado é negado, sem prompt
-  --setting-sources ""                        ignora settings/hooks do usuário
+  --tools ""                                  no built-in tools (Bash, Read, Edit...)
+  --strict-mcp-config --mcp-config <file>     only the daemon's MCP (temporary file)
+  --allowedTools mcp__mockup-studio           allows all tools of that server
+  --permission-mode dontAsk                   anything not allowed is denied, without a prompt
+  --setting-sources ""                        ignores the user's settings/hooks
   --disable-slash-commands
-  --append-system-prompt-file <arq>           prompt de sistema por arquivo (sem quoting)
+  --append-system-prompt-file <file>          system prompt via file (no quoting)
   [--model <m>] [--resume=<session_id>]
 ```
 
-O `session_id` só segue como `--resume=<id>` (um argumento só, confirmado com a CLI real) e só se casar com `[A-Za-z0-9_][A-Za-z0-9_-]{0,127}`; veja "Histórico".
+The `session_id` is only passed as `--resume=<id>` (a single argument, confirmed with the real CLI) and only if it matches `[A-Za-z0-9_][A-Za-z0-9_-]{0,127}`; see "History".
 
-O prompt vai por stdin como uma mensagem `stream-json`:
+The prompt goes via stdin as a `stream-json` message:
 
 ```json
 {
@@ -95,70 +95,70 @@ O prompt vai por stdin como uma mensagem `stream-json`:
 **Codex** (`codex`):
 
 ```
-codex exec [-i <imagem.png>] --json --skip-git-repo-check --ephemeral -s read-only -C <pasta>
-  [-m <modelo>]
-  -c mcp_servers.<cada servidor do usuário>.enabled=false       (um -c por servidor)
-  --disable shell_tool --disable unified_exec --disable apps     (só as que existirem na versão)
+codex exec [-i <image.png>] --json --skip-git-repo-check --ephemeral -s read-only -C <folder>
+  [-m <model>]
+  -c mcp_servers.<each user server>.enabled=false               (one -c per server)
+  --disable shell_tool --disable unified_exec --disable apps    (only those that exist in the version)
   --disable browser_use --disable computer_use --disable in_app_browser
-  -c mcp_servers.mockup_studio.url=<url do MCP com ?turn=>
+  -c mcp_servers.mockup_studio.url=<MCP url with ?turn=>
   -c mcp_servers.mockup_studio.default_tools_approval_mode=approve
 ```
 
-O prompt (system prompt + contexto + pedido) vai por stdin. `approve` evita o bloqueio das tools que gravam em `codex exec`. Os valores dos `-c` seguem sem aspas: se não forem TOML válido o Codex usa a string crua, e assim nada precisa de aspas em `.cmd`. A conversa não é retomada por `resume` (turnos `--ephemeral`): o histórico recente vai resumido no prompt.
+The prompt (system prompt + context + request) goes via stdin. `approve` avoids blocking the tools that write in `codex exec`. The `-c` values stay unquoted: if they are not valid TOML, Codex uses the raw string, so nothing needs quotes in `.cmd`. The conversation is not resumed via `resume` (`--ephemeral` turns): the recent history is summarized in the prompt.
 
-**Isolamento do Codex.** O `-c` só _acrescenta_ à config do usuário (`~/.codex/config.toml`), então sem cuidado o agente herdaria os MCPs globais dele (inclusive um `mockup-studio` por stdio, sem token de turno) e o shell. Por isso, antes de cada turno o backend consulta o Codex (com timeout de 5 s e cache de 10 s):
+**Codex isolation.** `-c` only _adds_ to the user's config (`~/.codex/config.toml`), so without care the agent would inherit their global MCPs (including a `mockup-studio` over stdio, with no turn token) and the shell. That is why, before each turn, the backend queries Codex (with a 5 s timeout and 10 s cache):
 
-- `codex mcp list --json`: cada servidor listado ganha `-c mcp_servers.<nome>.enabled=false`; o servidor do turno usa a chave `mockup_studio` (ou `mockup_studio_turn` se o usuário já tiver um servidor com esse nome, para a URL do turno nunca se misturar com o dele);
-- `codex features list`: as features `shell_tool`, `unified_exec`, `apps`, `browser_use`, `computer_use` e `in_app_browser` recebem `--disable` (só as que a versão instalada lista; `--disable` de feature inexistente falha).
+- `codex mcp list --json`: each listed server gets `-c mcp_servers.<name>.enabled=false`; the turn's server uses the key `mockup_studio` (or `mockup_studio_turn` if the user already has a server with that name, so the turn URL never mixes with theirs);
+- `codex features list`: the features `shell_tool`, `unified_exec`, `apps`, `browser_use`, `computer_use` and `in_app_browser` get `--disable` (only those the installed version lists; `--disable` of a nonexistent feature fails).
 
-O que **é** isolado: os servidores MCP configurados, o shell e a execução unificada, e as integrações de apps/navegador/computer-use. O sandbox `-s read-only` continua valendo como segunda barreira.
+What **is** isolated: the configured MCP servers, the shell and unified execution, and the apps/browser/computer-use integrations. The `-s read-only` sandbox still applies as a second barrier.
 
-O que **não** dá para isolar:
+What **cannot** be isolated:
 
-- A config do usuário ainda é lida (modelo padrão, `instructions`, perfis, hooks, plugins, `AGENTS.md` da pasta de trabalho): não há flag estável para ignorá-la.
-- Se `codex mcp list` ou `codex features list` falhar ou estourar o tempo, o turno roda sem aquele isolamento (falha aberta, registrada no log; a falha não fica em cache). O shell e os MCPs do usuário voltam a existir nesse turno, mas o sandbox `read-only` e o system prompt seguem valendo.
-- Servidores cujo nome tenha caracteres fora de `[A-Za-z0-9_-]` (ponto, espaço, aspas) não podem ser desligados: o Codex não aceita chave entre aspas em `-c`. Ficam registrados no log e continuam ativos.
-- Ferramentas embutidas que não são uma das features desligadas acima (ex.: busca na web) não foram verificadas e continuam como o Codex as define; o sandbox `read-only` limita o que escrevem em disco.
+- The user's config is still read (default model, `instructions`, profiles, hooks, plugins, the working folder's `AGENTS.md`): there is no stable flag to ignore it.
+- If `codex mcp list` or `codex features list` fails or times out, the turn runs without that isolation (fail-open, recorded in the log; the failure is not cached). The user's shell and MCPs are back in that turn, but the `read-only` sandbox and the system prompt still apply.
+- Servers whose name has characters outside `[A-Za-z0-9_-]` (dot, space, quotes) cannot be disabled: Codex does not accept a quoted key in `-c`. They are recorded in the log and stay active.
+- Built-in tools that are not one of the features disabled above (e.g. web search) were not verified and stay as Codex defines them; the `read-only` sandbox limits what they write to disk.
 
-Em ambos: `windowsHide: true`, pasta de trabalho própria (fora do projeto do usuário), arquivos temporários apagados no fim do turno.
+In both: `windowsHide: true`, a dedicated working folder (outside the user's project), temporary files deleted at the end of the turn.
 
-## Contexto enviado
+## Context sent
 
-**System prompt**: papel (assistente de design dentro do Mockup Studio), usar só as ferramentas MCP do `mockup-studio`, `docId` explícito, trabalhar sobre a seleção, conferir com `get_screenshot`, não chamar `undo`, chamar `finish_working` e responder curto em português. O texto extra de `RunTurnOptions.instructions` é acrescentado.
+**System prompt**: role (design assistant inside Mockup Studio), use only the `mockup-studio` MCP tools, explicit `docId`, work on the selection, check with `get_screenshot`, do not call `undo`, call `finish_working` and reply briefly (1 to 3 sentences on what it did). The extra text from `RunTurnOptions.instructions` is appended.
 
-**Prompt do usuário**:
+**User prompt**:
 
-- documento: nome e `docId`;
-- seleção: ids e `getTreeSummary(nó, 3)` de cada nó (limitado a ~6000 caracteres); sem seleção, o resumo dos frames;
-- se há motor de render, um screenshot do primeiro nó selecionado (ou do primeiro frame), escala 1 e `maxWidth` 1024. Falha no screenshot não impede o turno;
-- sem sessão para continuar, um resumo curto das últimas mensagens da conversa;
-- o pedido do usuário.
+- document: name and `docId`;
+- selection: ids and `getTreeSummary(node, 3)` of each node (limited to ~6000 characters); with no selection, the summary of the frames;
+- if there is a render engine, a screenshot of the first selected node (or the first frame), scale 1 and `maxWidth` 1024. A screenshot failure does not prevent the turn;
+- with no session to continue, a short summary of the last messages of the conversation;
+- the user's request.
 
 ## Streaming
 
-O Claude emite `stream_event` com `text_delta` (com `--include-partial-messages`): viram eventos `text` na hora, sem repetir o texto quando a mensagem `assistant` completa chega. Mensagens separadas por ferramentas são unidas com uma linha em branco. O Codex entrega cada `agent_message` completo. `tool_use`/`tool_result` (Claude) e `mcp_tool_call` (Codex) viram `tool` e `tool-result` (nome sem o prefixo `mcp__mockup-studio__`, resumo = primeira linha do resultado, até 200 caracteres). Linhas não-JSON da CLI são ignoradas e registradas no log.
+Claude emits `stream_event` with `text_delta` (with `--include-partial-messages`): they become `text` events immediately, without repeating the text when the complete `assistant` message arrives. Messages separated by tools are joined with a blank line. Codex delivers each `agent_message` complete. `tool_use`/`tool_result` (Claude) and `mcp_tool_call` (Codex) become `tool` and `tool-result` (name without the `mcp__mockup-studio__` prefix, summary = first line of the result, up to 200 characters). Non-JSON lines from the CLI are ignored and recorded in the log.
 
-## Grupo de undo
+## Undo group
 
-- Cada turno tem um grupo `assistant:<turnId>` (ou o `group` passado em `RunTurnOptions`, quando outro serviço aninha um turno).
-- O token do turno (`crypto.randomBytes(16)`) vai na URL do MCP. O MCP passa o grupo a `store.applyOps(..., { group })`, e `History` funde as aplicações seguidas do mesmo grupo numa entrada: **um Ctrl+Z desfaz o turno inteiro**.
-- `undo`/`redo` pelo MCP são recusados dentro de um turno. O agente corrige com as ferramentas de edição.
-- Ao fim do turno (sucesso, erro ou cancelamento) o grupo é fechado, o token vira inválido (sessões antigas recusam escritas; novas sessões levam 403) e o daemon chama `finishWorking` para apagar o selo "agente trabalhando".
-- `opsCount` da mensagem final é o nº de ops aplicadas com o grupo do turno, contado pelo `DocumentStore` em cada `applyOps` (`groupOpsCount`), somando todas as entradas de undo do grupo.
+- Each turn has a group `assistant:<turnId>` (or the `group` passed in `RunTurnOptions`, when another service nests a turn).
+- The turn token (`crypto.randomBytes(16)`) goes in the MCP URL. The MCP passes the group to `store.applyOps(..., { group })`, and `History` merges consecutive applications of the same group into one entry: **a single Ctrl+Z undoes the whole turn**.
+- `undo`/`redo` through the MCP are rejected within a turn. The agent corrects with the editing tools.
+- At the end of the turn (success, error or cancellation) the group is closed, the token becomes invalid (old sessions reject writes; new sessions get 403) and the daemon calls `finishWorking` to clear the "agent working" badge.
+- The final message's `opsCount` is the number of ops applied with the turn's group, counted by the `DocumentStore` in each `applyOps` (`groupOpsCount`), summing all the group's undo entries.
 
-Limite: a fusão só vale para aplicações **consecutivas**. Se o usuário editar o documento (ou desfazer) no meio do turno, a próxima op do agente abre uma entrada nova: o turno passa a ter mais de um passo de undo (o `opsCount` continua certo). Enquanto o turno roda, o painel do assistente avisa que edições do usuário dividem o undo.
+Limit: merging only applies to **consecutive** applications. If the user edits the document (or undoes) in the middle of the turn, the agent's next op opens a new entry: the turn then has more than one undo step (`opsCount` stays correct). While the turn runs, the assistant panel warns that user edits split the undo.
 
-## Cancelamento e timeout
+## Cancellation and timeout
 
-- `assistant:cancel` aborta o turno: a árvore de processos da CLI é encerrada (Windows: `taskkill /pid <pid> /T /F`; outros: grupo de processos). O turno termina com `status: "cancelled"`; o que o agente já tinha feito continua no documento e é desfeito por um único undo.
-- Cada turno tem um timeout (padrão 10 minutos) que também mata a árvore e termina com `status: "error"`.
-- Só há um turno por documento por vez: um segundo `send` com turno rodando é recusado.
-- `close()` do serviço (encerramento do daemon) cancela tudo e aguarda.
-- Se o processo do daemon sair (`process.on('exit')`) com subprocessos de agente ainda vivos, todos são mortos de forma síncrona (`SIGKILL` no grupo de cada filho fora do Windows, onde eles rodam em grupo próprio e sobreviveriam; no Windows, um `taskkill /T /F` único). O listener só existe enquanto há filhos.
+- `assistant:cancel` aborts the turn: the CLI's process tree is terminated (Windows: `taskkill /pid <pid> /T /F`; others: process group). The turn ends with `status: "cancelled"`; what the agent had already done stays in the document and is undone by a single undo.
+- Each turn has a timeout (default 10 minutes) that also kills the tree and ends with `status: "error"`.
+- There is only one turn per document at a time: a second `send` while a turn is running is rejected.
+- The service's `close()` (daemon shutdown) cancels everything and waits.
+- If the daemon process exits (`process.on('exit')`) with agent subprocesses still alive, they are all killed synchronously (`SIGKILL` on each child's group outside Windows, where they run in their own group and would survive; on Windows, a single `taskkill /T /F`). The listener only exists while there are children.
 
-## Histórico
+## History
 
-Decisão: **arquivo lateral por documento**, ao lado do documento: `a.mockup.json` → `a.assistant.json`; qualquer outro nome só ganha o sufixo (`a.json` → `a.json.assistant.json`), de modo que `a.json` e `a.mockup.json` na mesma pasta não dividem o histórico. Se existir um documento aberto com o nome exato do arquivo lateral (ex.: `a.assistant.json`), o histórico daquele documento fica só em memória em vez de sobrescrevê-lo. Não entra no documento (o arquivo do projeto não suja nem cresce com conversa) e acompanha a pasta do projeto. Documento sem caminho (ainda não salvo): histórico só em memória; ao salvar, passa a ser gravado.
+Decision: a **sidecar file per document**, next to the document: `a.mockup.json` → `a.assistant.json`; any other name just gets the suffix (`a.json` → `a.json.assistant.json`), so that `a.json` and `a.mockup.json` in the same folder do not share history. If there is an open document with the exact name of the sidecar file (e.g. `a.assistant.json`), that document's history stays in memory only instead of overwriting it. It does not go in the document (the project file does not get dirty or grow with conversation) and it travels with the project folder. Document without a path (not yet saved): history in memory only; on save, it starts being written.
 
 ```json
 {
@@ -182,41 +182,41 @@ Decisão: **arquivo lateral por documento**, ao lado do documento: `a.mockup.jso
       "backend": "claude"
     }
   ],
-  "sessions": { "claude": "<session_id do Claude Code>" }
+  "sessions": { "claude": "<Claude Code session_id>" }
 }
 ```
 
-- Até 200 mensagens (as mais antigas saem). Gravado (atomicamente: temporário de nome único `<arquivo>.<pid>.<n>.<aleatório>.tmp` + `rename`) no fim de cada turno e no `clear`; as gravações do mesmo arquivo são serializadas, em ordem; carregado sob demanda em `history(docId)`.
-- `sessions` guarda o `session_id` por backend: o turno seguinte usa `--resume=<id>` (a pasta de trabalho é estável por documento, porque a CLI guarda a sessão por pasta). Se o resume falhar antes de qualquer ferramenta ou texto, o turno é refeito sem ele; se já houve texto ou ferramenta, o erro é mostrado (refazer repetiria efeitos).
-- O arquivo lateral é entrada não confiável (pode vir de um projeto baixado): só valem `session_id` que casam com `[A-Za-z0-9_][A-Za-z0-9_-]{0,127}`, tanto ao carregar o arquivo quanto ao receber a sessão do backend; o resto é descartado em silêncio (a conversa só recomeça sem `--resume`). Assim um valor como `--settings={...}` nunca vira argumento da CLI.
-- Turnos `ephemeral` (`RunTurnOptions.ephemeral`) não entram no histórico.
+- Up to 200 messages (the oldest drop off). Written (atomically: uniquely named temporary `<file>.<pid>.<n>.<random>.tmp` + `rename`) at the end of each turn and on `clear`; writes to the same file are serialized, in order; loaded on demand in `history(docId)`.
+- `sessions` stores the `session_id` per backend: the next turn uses `--resume=<id>` (the working folder is stable per document, because the CLI stores the session per folder). If the resume fails before any tool or text, the turn is redone without it; if there was already text or a tool, the error is shown (redoing would repeat effects).
+- The sidecar file is untrusted input (it may come from a downloaded project): only `session_id`s that match `[A-Za-z0-9_][A-Za-z0-9_-]{0,127}` are valid, both when loading the file and when receiving the session from the backend; the rest is silently discarded (the conversation just restarts without `--resume`). This way a value like `--settings={...}` never becomes a CLI argument.
+- `ephemeral` turns (`RunTurnOptions.ephemeral`) do not enter the history.
 
-## Configuração
+## Configuration
 
-`assistant:config` lê ou grava `{ backend: "auto" | "claude" | "codex" | ..., models?: { <backend>: <modelo> }, model?: string }`, persistida em `<dataDir>/assistant.json` (sem pasta de dados, só em memória).
+`assistant:config` reads or writes `{ backend: "auto" | "claude" | "codex" | ..., models?: { <backend>: <model> }, model?: string }`, persisted in `<dataDir>/assistant.json` (with no data folder, in memory only).
 
-- O modelo é **por backend** (`models`): um id do Claude não serve ao Codex, então no `auto` cada backend recebe só o seu (`--model` no Claude, `-m` no Codex); sem modelo para o backend escolhido, vale o padrão da CLI. Um `models` no patch é mesclado ao atual; valor vazio apaga a entrada.
-- `model` é um atalho: na escrita vale para o backend do mesmo patch (ou o atual) e é recusado com `backend: "auto"` (use `models`); na leitura devolve o `models[backend]` do backend configurado.
-- Compatibilidade: um `assistant.json` antigo só com `model` passa a valer para o backend configurado e, em `auto`, para o `claude` (o que o `auto` escolhe primeiro).
-- `backend` desconhecido, id desconhecido em `models` ou modelo inválido são recusados.
+- The model is **per backend** (`models`): a Claude id is no use to Codex, so in `auto` each backend receives only its own (`--model` on Claude, `-m` on Codex); with no model for the chosen backend, the CLI default applies. A `models` in the patch is merged into the current one; an empty value deletes the entry.
+- `model` is a shortcut: on write it applies to the backend of the same patch (or the current one) and is rejected with `backend: "auto"` (use `models`); on read it returns the configured backend's `models[backend]`.
+- Compatibility: an old `assistant.json` with only `model` now applies to the configured backend and, in `auto`, to `claude` (what `auto` picks first).
+- An unknown `backend`, an unknown id in `models` or an invalid model are rejected.
 
-`generateText` (usado pela geração de scripts) aceita `docId` e `signal` opcionais: com `docId`, no máximo uma geração por documento (a segunda é recusada) e `assistant:cancel`/`cancel(docId)` também a cancela; `signal` cancela em qualquer caso. Sem `docId`, até 4 gerações simultâneas.
+`generateText` (used by script generation) accepts optional `docId` and `signal`: with `docId`, at most one generation per document (the second is rejected) and `assistant:cancel`/`cancel(docId)` also cancels it; `signal` cancels in any case. Without `docId`, up to 4 simultaneous generations.
 
-## Protocolo WebSocket
+## WebSocket protocol
 
-Cliente para servidor (todas com `reqId`; o ack traz o resultado):
+Client to server (all with `reqId`; the ack carries the result):
 
-| Mensagem            | Campos                                      | Resultado                                                 |
+| Message             | Fields                                      | Result                                                    |
 | ------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `assistant:send`    | `docId`, `prompt`, `selection?`, `backend?` | `{ turnId }` (o resto chega por eventos)                  |
+| `assistant:send`    | `docId`, `prompt`, `selection?`, `backend?` | `{ turnId }` (the rest arrives via events)                |
 | `assistant:cancel`  | `docId`                                     | `{ cancelled }`                                           |
 | `assistant:history` | `docId`                                     | `{ messages, running: turnId \| null, backends, config }` |
-| `assistant:clear`   | `docId`                                     | `{}` (recusado com turno em andamento)                    |
+| `assistant:clear`   | `docId`                                     | `{}` (rejected while a turn is in progress)               |
 
-`docId` ausente, vazio ou que não seja texto é recusado em `cancel`/`history`/`clear` ("exige docId"); documento que não está aberto devolve o erro do store ("Documento não encontrado...") — só o `cancel` de um turno ainda em andamento num documento já fechado é aceito.
+A missing, empty or non-text `docId` is rejected in `cancel`/`history`/`clear` ("requires docId"); a document that is not open returns the store's error ("Document not found...") — only the `cancel` of a turn still in progress on an already-closed document is accepted.
 | `assistant:config` | `config?: { backend?, model?, models? }` | `{ config, backends }` |
 
-Servidor para cliente: `{ type: "assistant:event", docId, event }`, com `event.kind`:
+Server to client: `{ type: "assistant:event", docId, event }`, with `event.kind`:
 
 - `turn-start` `{ turnId, user, backend }`
 - `text` `{ turnId, text }` (delta)
@@ -225,11 +225,11 @@ Servidor para cliente: `{ type: "assistant:event", docId, event }`, com `event.k
 - `turn-end` `{ turnId, message }` (`message`: `status` `done | cancelled | error`, `text`, `error?`, `tools`, `opsCount`, `backend`)
 - `cleared`
 
-Durante um turno, `assistant:history` devolve também o pedido e uma mensagem do assistente com `status: "running"` (texto e ferramentas até então), para o editor se reconectar no meio do turno.
+During a turn, `assistant:history` also returns the request and an assistant message with `status: "running"` (text and tools so far), so the editor can reconnect in the middle of the turn.
 
-## Plugar outro backend (`AgentBackend`)
+## Plugging in another backend (`AgentBackend`)
 
-Um backend implementa (em `agent/backend.ts`):
+A backend implements (in `agent/backend.ts`):
 
 ```ts
 interface AgentBackend {
@@ -244,48 +244,48 @@ interface AgentBackend {
 }
 ```
 
-`AgentRunInput` traz `prompt`, `system`, `images`, `mcp` (`{ name, url }` com o token do turno), `resumeSession`, `model` e `cwd`. O backend emite `text`, `tool`, `tool-result` e `session`, devolve `{ text, sessionId? }`, rejeita com erro legível em falha e com `AbortError` quando o `signal` abortar. Uma API direta (sem CLI) precisa apenas conectar-se ao MCP em `input.mcp.url` (cliente MCP HTTP) e repassar as ferramentas ao modelo. Registre passando `agentBackends` a `startDaemon` (ou à opção `backends` do `AssistantService`).
+`AgentRunInput` carries `prompt`, `system`, `images`, `mcp` (`{ name, url }` with the turn token), `resumeSession`, `model` and `cwd`. The backend emits `text`, `tool`, `tool-result` and `session`, returns `{ text, sessionId? }`, rejects with a readable error on failure and with `AbortError` when the `signal` aborts. A direct API (no CLI) only needs to connect to the MCP at `input.mcp.url` (HTTP MCP client) and pass the tools on to the model. Register by passing `agentBackends` to `startDaemon` (or to the `backends` option of `AssistantService`).
 
-## Segurança
+## Security
 
-- O MCP só escuta em `127.0.0.1` (ou o host do daemon) e o `/mcp` valida o `Host`.
-- O token de turno é aleatório (128 bits), vale só enquanto o turno roda e só amarra a sessão a um documento e a um grupo de undo; depois dele, escritas são recusadas.
-- O Claude roda sem ferramentas embutidas (`--tools ""`), com `dontAsk`: só as tools do MCP do `mockup-studio` estão liberadas. O Codex roda em sandbox `read-only`, com os MCPs do usuário, o shell e as integrações desligados por flag (limites em "Isolamento do Codex").
-- Nenhuma chave é lida ou guardada pelo Mockup Studio: a autenticação é da própria CLI. O prompt e o screenshot vão para o provedor da CLI escolhida.
-- O subprocesso roda numa pasta temporária, nunca na pasta do projeto; argumentos não carregam conteúdo do usuário.
+- The MCP only listens on `127.0.0.1` (or the daemon's host) and `/mcp` validates the `Host`.
+- The turn token is random (128 bits), is valid only while the turn runs and only ties the session to one document and one undo group; after it, writes are rejected.
+- Claude runs without built-in tools (`--tools ""`), with `dontAsk`: only the `mockup-studio` MCP's tools are allowed. Codex runs in a `read-only` sandbox, with the user's MCPs, the shell and the integrations disabled by flag (limits in "Codex isolation").
+- No key is read or stored by Mockup Studio: authentication belongs to the CLI itself. The prompt and screenshot go to the chosen CLI's provider.
+- The subprocess runs in a temporary folder, never in the project folder; arguments do not carry user content.
 
-## Solução de problemas
+## Troubleshooting
 
-| Sintoma                                   | O que fazer                                                                                                      |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| "Nenhum agente de IA disponível"          | Instale o Claude Code ou o Codex e abra a CLI uma vez no terminal para fazer login. Confira com `mockup doctor`. |
-| CLI instalada mas não encontrada          | Defina `MOCKUP_CLAUDE_BIN` / `MOCKUP_CODEX_BIN` com o caminho do executável e reinicie o daemon.                 |
-| Erro de login/autenticação no turno       | A mensagem inclui o fim do stderr da CLI. Rode `claude` (ou `codex login`) no terminal e entre de novo.          |
-| "Já existe um turno em andamento"         | Cancele o turno atual ou espere o fim.                                                                           |
-| Turno demora e termina com "tempo limite" | O limite é de 10 minutos por turno; divida o pedido.                                                             |
-| O agente diz que o turno terminou         | O usuário cancelou ou o tempo acabou; as alterações já feitas continuam e um Ctrl+Z as desfaz.                   |
-| Sem screenshot no contexto                | O daemon está sem motor de render (daemon Node puro); abra o app desktop. O turno funciona sem a imagem.         |
-| Conversa "esqueceu" o contexto            | O `--resume` falhou e o turno recomeçou sem ele (resumo curto no prompt); limpe a conversa se preferir.          |
+| Symptom                                 | What to do                                                                                                                   |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| "No AI agent available"                 | Install Claude Code or Codex and open the CLI once in the terminal to log in. Check with `mockup doctor`.                    |
+| CLI installed but not found             | Set `MOCKUP_CLAUDE_BIN` / `MOCKUP_CODEX_BIN` to the executable's path and restart the daemon.                                |
+| Login/authentication error in the turn  | The message includes the end of the CLI's stderr. Run `claude` (or `codex login`) in the terminal and sign in again.         |
+| "A turn is already in progress"         | Cancel the current turn or wait for it to finish.                                                                            |
+| Turn takes long and ends with "timeout" | The limit is 10 minutes per turn; split the request.                                                                         |
+| The agent says the turn ended           | The user cancelled or time ran out; the changes already made stay and a Ctrl+Z undoes them.                                  |
+| No screenshot in the context            | The daemon has no render engine (plain Node daemon); open the desktop app. The turn works without the image.                 |
+| Conversation "forgot" the context       | The `--resume` failed and the turn restarted without it (short summary in the prompt); clear the conversation if you prefer. |
 
 ## Remix
 
-Gera variações de um nó **lado a lado**: clona o frame raiz que contém o nó (com todos os descendentes) e aplica uma transformação ao nó equivalente em cada clone. Os clones ficam numa linha à direita, começando depois do frame mais à direita da página que se sobrepõe verticalmente ao de origem, com 80 px entre eles, e se chamam `<frame> — <variação>`. Todas as ops de um remix entram numa única entrada de undo (um Ctrl+Z desfaz tudo) e os frames criados ficam selecionados.
+Generates variations of a node **side by side**: clones the root frame that contains the node (with all descendants) and applies a transformation to the equivalent node in each clone. The clones sit in a row to the right, starting after the rightmost frame of the page that overlaps the source one vertically, with 80 px between them, and are named `<frame> — <variation>`. All ops of a remix go into a single undo entry (one Ctrl+Z undoes everything) and the created frames are left selected.
 
-Tipos locais (determinísticos, sem IA; planejador puro `planRemix` em `packages/core/src/remix/`):
+Local kinds (deterministic, no AI; pure planner `planRemix` in `packages/core/src/remix/`):
 
-| `kind`        | Padrão / máx. | O que faz                                                                                                                                                                                                                    |
-| ------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `color-scale` | 10 / 10       | Escala de 10 tons (stops 50–900, OKLCH) a partir da primeira cor sólida do nó entre `background-color`, `background`, `color`, `border-color` e `fill` (`var()` resolvido); a base cai no stop de luminosidade mais próxima. |
-| `font-pairs`  | 4 / 10        | Pares curados (Editorial, Neutro, Display, Técnico, Humanista, Clássico) filtrados pelas fontes locais (instaladas ou do documento); títulos (h1–h6, ≥ 24 px ou peso ≥ 600) recebem a de título, o resto a de corpo.         |
-| `spacing`     | 4 / 5         | Escala 4/8 sobre `padding`, `margin` e `gap` em px: compacto, grade 4, grade 8, confortável, espaçoso. Variações iguais ao original ou a uma anterior saem, então podem vir menos que `count`.                               |
-| `layout`      | 3 / 3         | Rearranjos do contêiner flex mais próximo: direção invertida, ordem invertida e centralizado com quebra.                                                                                                                     |
+| `kind`        | Default / max | What it does                                                                                                                                                                                                                |
+| ------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `color-scale` | 10 / 10       | 10-shade scale (stops 50–900, OKLCH) from the node's first solid color among `background-color`, `background`, `color`, `border-color` and `fill` (`var()` resolved); the base falls on the closest-lightness stop.         |
+| `font-pairs`  | 4 / 10        | Curated pairs (Editorial, Neutral, Display, Technical, Humanist, Classic) filtered by local fonts (installed or from the document); headings (h1–h6, ≥ 24 px or weight ≥ 600) get the heading font, the rest the body font. |
+| `spacing`     | 4 / 5         | 4/8 scale over `padding`, `margin` and `gap` in px: compact, grid 4, grid 8, comfortable, spacious. Variations equal to the original or to a previous one are dropped, so fewer than `count` may come out.                  |
+| `layout`      | 3 / 3         | Rearrangements of the nearest flex container: reversed direction, reversed order and centered with wrap.                                                                                                                    |
 
-O tipo `ai` (exige `prompt`, padrão 3 variações) roda um turno do assistente com instruções para duplicar o frame, posicionar as cópias, renomeá-las e conferir com `get_screenshot`. O remix usa um grupo de undo próprio (ou o de quem chamou: um `remix` com `ai` feito de dentro de outro turno entra no mesmo undo) e devolve só os frames raiz novos **criados pelas ops desse grupo** (`groupCreatedIds`): frames que o usuário criar na página durante o turno não entram.
+The `ai` kind (requires `prompt`, default 3 variations) runs an assistant turn with instructions to duplicate the frame, position the copies, rename them and check with `get_screenshot`. The remix uses its own undo group (or the caller's: a `remix` with `ai` made from inside another turn goes into the same undo) and returns only the new root frames **created by the ops of that group** (`groupCreatedIds`): frames the user creates on the page during the turn are not included.
 
-`font-pairs` depende das fontes da máquina: a lista curada é filtrada pelas famílias instaladas no sistema (`listSystemFonts`) e pelas do documento (`doc.fonts`), então o mesmo documento pode gerar pares diferentes em outra máquina; se nada puder ser listado, a lista não é filtrada e o navegador cai no fallback genérico (`serif`, `sans-serif`, `monospace`) quando a fonte faltar.
+`font-pairs` depends on the machine's fonts: the curated list is filtered by the families installed on the system (`listSystemFonts`) and by those of the document (`doc.fonts`), so the same document may generate different pairs on another machine; if nothing can be listed, the list is not filtered and the browser falls back to the generic fallback (`serif`, `sans-serif`, `monospace`) when the font is missing.
 
-Disponível no menu de contexto do editor (mensagem WS `remix`) e na ferramenta MCP `remix({ nodeId, kind, count?, prompt?, docId? })`.
+Available in the editor's context menu (WS message `remix`) and in the MCP tool `remix({ nodeId, kind, count?, prompt?, docId? })`.
 
-## Interface no editor
+## Editor interface
 
-O painel lateral "Assistente" (feito à parte, em `packages/editor`) mostra a conversa do documento ativo: pedido do usuário, texto do agente em streaming, as ferramentas chamadas (com ok/erro) e o resultado de cada turno, com botões para cancelar o turno em andamento e limpar a conversa, e a escolha do backend/modelo. Ele só fala o protocolo WebSocket acima.
+The "Assistant" side panel (built separately, in `packages/editor`) shows the active document's conversation: the user's request, the agent's text streaming, the tools called (with ok/error) and the result of each turn, with buttons to cancel the turn in progress and clear the conversation, and the choice of backend/model. It only speaks the WebSocket protocol above.

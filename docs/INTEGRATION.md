@@ -1,12 +1,12 @@
-# Integração com agentes
+# Agent integration
 
-Como registrar o servidor MCP do Mockup Studio no Claude Code, no Codex CLI e em outros clientes. Referência das ferramentas em [MCP.md](MCP.md).
+How to register the Mockup Studio MCP server in Claude Code, Codex CLI and other clients. Tool reference in [MCP.md](MCP.md).
 
-## 1. Pré-requisitos e instalação do CLI
+## 1. Prerequisites and CLI installation
 
-Todos os clientes usam o comando `mockup` (`mockup mcp` fala MCP por stdio). Duas formas de instalar.
+All clients use the `mockup` command (`mockup mcp` speaks MCP over stdio). There are two ways to install it.
 
-**A partir do código** (Node 24, npm 11):
+**From source** (Node 24, npm 11):
 
 ```bash
 npm install
@@ -14,107 +14,107 @@ npm run build
 npm link -w @mockup/cli
 ```
 
-Isso cria `mockup`, `mockup.cmd` e `mockup.ps1` na pasta global do npm, que já está no PATH. Para desfazer: `npm unlink -g @mockup/cli`.
+This creates `mockup`, `mockup.cmd` and `mockup.ps1` in npm's global folder, which is already on the PATH. To undo: `npm unlink -g @mockup/cli`.
 
-**Pelo instalador do app** (`npm run dist` gera `dist/MockupStudio-Setup-<versão>-x64.exe`):
+**From the app installer** (`npm run dist` produces `dist/MockupStudio-Setup-<version>-x64.exe`):
 
-- Instala por usuário e registra o CLI: `mockup.cmd` em `%LOCALAPPDATA%\MockupStudio\bin`, e essa pasta entra no PATH do usuário. Abra um terminal novo depois.
-- O `mockup.cmd` roda o próprio executável do app como Node (`ELECTRON_RUN_AS_NODE=1`), então não precisa de Node instalado.
-- A desinstalação remove o shim e a entrada do PATH.
-- Comandos manuais: `mockup install-cli` e `mockup uninstall-cli` (ambos aceitam `--bin-dir <pasta>`), ou `"Mockup Studio.exe" --install-cli` / `--uninstall-cli` (reparo da instalação; o portátil recusa, porque roda de uma pasta temporária).
+- Installs per user and registers the CLI: `mockup.cmd` in `%LOCALAPPDATA%\MockupStudio\bin`, and that folder is added to the user's PATH. Open a new terminal afterwards.
+- `mockup.cmd` runs the app's own executable as Node (`ELECTRON_RUN_AS_NODE=1`), so Node does not need to be installed.
+- Uninstalling removes the shim and the PATH entry.
+- Manual commands: `mockup install-cli` and `mockup uninstall-cli` (both accept `--bin-dir <folder>`), or `"Mockup Studio.exe" --install-cli` / `--uninstall-cli` (installation repair; the portable build refuses, because it runs from a temporary folder).
 
-**Verificar:**
+**Verify:**
 
 ```bash
 mockup --version
-mockup doctor          # --json para saída legível por máquina
+mockup doctor          # --json for machine-readable output
 ```
 
-O `mockup doctor` confere:
+`mockup doctor` checks:
 
-- versão do CLI e do Node (>= 24, ou o Node embutido do Electron)
-- pasta de dados
-- daemon: rodando ou não, modo (desktop, headless, serve) e se há render/screenshot
-- porta 4747: livre, em uso pelo Mockup Studio ou ocupada por outro programa
-- Electron disponível e fontes do sistema
-- `mockup`, `claude` e `codex` no PATH, e se `mockup-studio` já está registrado
-- os comandos de registro já preenchidos com o caminho certo
+- CLI and Node version (>= 24, or Electron's bundled Node)
+- data folder
+- daemon: running or not, mode (desktop, headless, serve) and whether render/screenshot is available
+- port 4747: free, in use by Mockup Studio or taken by another program
+- Electron available and system fonts
+- `mockup`, `claude` and `codex` on the PATH, and whether `mockup-studio` is already registered
+- the registration commands already filled in with the right path
 
-## 2. Registro automático
+## 2. Automatic registration
 
 ```bash
-mockup setup claude          # só Claude Code
-mockup setup codex           # só Codex CLI
-mockup setup all             # os dois
+mockup setup claude          # Claude Code only
+mockup setup codex           # Codex CLI only
+mockup setup all             # both
 ```
 
 Flags:
 
-- `--http`: registra o transporte HTTP (`http://127.0.0.1:4747/mcp`) em vez de stdio.
-- `--skill`: copia `integrations/claude-code/SKILL.md` para `~/.claude/skills/mockup-studio/SKILL.md`.
-- `--print`: só imprime as instruções, sem executar nada.
-- `--force`: recria o registro do zero (`remove` + `add`), mesmo quando já está igual. Descarta campos extras (env, headers, aprovações).
-- `--approve` (Codex): grava `default_tools_approval_mode = "approve"` na seção `[mcp_servers.mockup-studio]`. Idempotente.
-- `--agents` (Codex): acrescenta o trecho de `integrations/codex/AGENTS.snippet.md` ao `~/.codex/AGENTS.md` (ou `$CODEX_HOME/AGENTS.md`), entre `<!-- mockup-studio:start -->` e `<!-- mockup-studio:end -->`. Roda de novo sem duplicar: atualiza o que está entre os marcadores e preserva o resto.
-- `--command path|shim|absolute`: forma do comando registrado.
-  - `path`: `mockup`, resolvido pelo PATH.
-  - `shim`: caminho absoluto de `%LOCALAPPDATA%\MockupStudio\bin\mockup.cmd`.
-  - `absolute`: caminho absoluto, sem depender do PATH. No app empacotado é o executável do app com `ELECTRON_RUN_AS_NODE=1`; a partir do repositório, o `node.exe` mais o script do CLI.
+- `--http`: registers the HTTP transport (`http://127.0.0.1:4747/mcp`) instead of stdio.
+- `--skill`: copies `integrations/claude-code/SKILL.md` to `~/.claude/skills/mockup-studio/SKILL.md`.
+- `--print`: only prints the instructions, without running anything.
+- `--force`: recreates the registration from scratch (`remove` + `add`), even when it is already identical. Discards extra fields (env, headers, approvals).
+- `--approve` (Codex): writes `default_tools_approval_mode = "approve"` in the `[mcp_servers.mockup-studio]` section. Idempotent.
+- `--agents` (Codex): appends the snippet from `integrations/codex/AGENTS.snippet.md` to `~/.codex/AGENTS.md` (or `$CODEX_HOME/AGENTS.md`), between `<!-- mockup-studio:start -->` and `<!-- mockup-studio:end -->`. Running it again does not duplicate: it updates what is between the markers and preserves the rest.
+- `--command path|shim|absolute`: form of the registered command.
+  - `path`: `mockup`, resolved via the PATH.
+  - `shim`: absolute path of `%LOCALAPPDATA%\MockupStudio\bin\mockup.cmd`.
+  - `absolute`: absolute path, without depending on the PATH. In the packaged app it is the app executable with `ELECTRON_RUN_AS_NODE=1`; from the repository, `node.exe` plus the CLI script.
 
-O setup lê o registro atual direto de `~/.claude.json` (ou `$CLAUDE_CONFIG_DIR/.claude.json`) e de `~/.codex/config.toml` (ou `$CODEX_HOME/config.toml`), sem rodar `mcp get` (que sobe o servidor e é lento). É idempotente e não destrói a sua config:
+Setup reads the current registration directly from `~/.claude.json` (or `$CLAUDE_CONFIG_DIR/.claude.json`) and from `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`), without running `mcp get` (which starts the server and is slow). It is idempotent and does not destroy your config:
 
-- Já registrado com o mesmo comando: não executa nada ("nada a fazer").
-- Claude com comando diferente: avisa que o re-registro descarta campos extras e faz `remove -s user` + `add --scope user`. Se o servidor só existe no escopo local ou de projeto, informa e adiciona no escopo user.
-- Codex com comando diferente: edita só as chaves de lançamento da seção no `config.toml` (`command`/`args`/`env`, ou `url` com `--http`). Chaves como `default_tools_approval_mode`, timeouts, comentários (inclusive no fim da linha) e as outras seções ficam como estão. Um `env = { ... }` em linha é atualizado em linha.
-- Troca de transporte no Codex: ao ir para `--http`, remove `command`, `args`, `env`, `env_vars` e `cwd` (o Codex não aceita essas chaves em servidor HTTP e não sobe); ao voltar para stdio, remove `url`, `bearer_token_env_var`, `http_headers` e `env_http_headers`. O setup lista o que removeu.
-- Antes de gravar, o setup confere o resultado com um parser TOML: se não ficar válido ou com o comando esperado, não grava nada e sugere editar à mão ou `--force`. Um `config.toml` já inválido é apontado (linha e coluna) pelo setup e pelo `mockup doctor`.
-- Sem a seção no Codex: `codex mcp add`.
-- Sem os executáveis no PATH, imprime as instruções.
+- Already registered with the same command: runs nothing ("nothing to do").
+- Claude with a different command: warns that re-registering discards extra fields and runs `remove -s user` + `add --scope user`. If the server only exists in the local or project scope, it reports that and adds it in the user scope.
+- Codex with a different command: edits only the section's launch keys in `config.toml` (`command`/`args`/`env`, or `url` with `--http`). Keys such as `default_tools_approval_mode`, timeouts, comments (including at the end of the line) and the other sections are left as they are. An inline `env = { ... }` is updated inline.
+- Transport switch in Codex: when moving to `--http`, it removes `command`, `args`, `env`, `env_vars` and `cwd` (Codex does not accept these keys on an HTTP server and does not start); when going back to stdio, it removes `url`, `bearer_token_env_var`, `http_headers` and `env_http_headers`. Setup lists what it removed.
+- Before writing, setup checks the result with a TOML parser: if it is not valid or does not have the expected command, it writes nothing and suggests editing by hand or `--force`. An already invalid `config.toml` is flagged (line and column) by setup and by `mockup doctor`.
+- Without the section in Codex: `codex mcp add`.
+- Without the executables on the PATH, it prints the instructions.
 
-`mockup doctor` mostra o escopo e o comando registrados e avisa (`!`) se o comando difere do atual. No Codex avisa também se falta `default_tools_approval_mode = "approve"` (`mockup setup codex --approve`) ou o trecho no `AGENTS.md` (`--agents`).
+`mockup doctor` shows the registered scope and command and warns (`!`) if the command differs from the current one. In Codex it also warns if `default_tools_approval_mode = "approve"` is missing (`mockup setup codex --approve`) or the snippet in `AGENTS.md` (`--agents`).
 
 ## 3. Claude Code
 
-**stdio (recomendado).** O `mockup mcp` sobe o daemon sozinho e, com o app/Electron disponível, tem screenshot:
+**stdio (recommended).** `mockup mcp` starts the daemon on its own and, with the app/Electron available, has screenshot:
 
 ```bash
 claude mcp add --scope user mockup-studio -- mockup mcp
 ```
 
-**HTTP.** Exige um daemon rodando (app aberto, `mockup serve --render` ou `npm run dev`):
+**HTTP.** Requires a running daemon (app open, `mockup serve --render` or `npm run dev`):
 
 ```bash
 claude mcp add --scope user --transport http mockup-studio http://127.0.0.1:4747/mcp
 ```
 
-Verificar e remover:
+Verify and remove:
 
 ```bash
 claude mcp list                          # mockup-studio: mockup mcp - ✔ Connected
 claude mcp remove mockup-studio -s user
 ```
 
-Dentro do Claude Code, `/mcp` mostra o estado do servidor e as ferramentas.
+Inside Claude Code, `/mcp` shows the server state and the tools.
 
-**Skill (opcional).** Ensina o fluxo de trabalho ao agente:
+**Skill (optional).** Teaches the workflow to the agent:
 
 ```bash
 mockup setup claude --skill
 ```
 
-Ou copie à mão [integrations/claude-code/SKILL.md](../integrations/claude-code/SKILL.md) para `~/.claude/skills/mockup-studio/SKILL.md`.
+Or copy [integrations/claude-code/SKILL.md](../integrations/claude-code/SKILL.md) by hand to `~/.claude/skills/mockup-studio/SKILL.md`.
 
-**Trecho para o `CLAUDE.md` global** (`~/.claude/CLAUDE.md`):
+**Snippet for the global `CLAUDE.md`** (`~/.claude/CLAUDE.md`):
 
 ```markdown
 ## Mockup Studio
 
-Para pedidos de mockup, tela, protótipo ou landing page, use o servidor MCP `mockup-studio`:
+For requests for a mockup, screen, prototype or landing page, use the `mockup-studio` MCP server:
 
-1. `get_guide('getting-started')`, depois `create_document` num caminho do projeto (`design/<nome>.mockup.json`).
-2. `set_tokens` (cores, espaçamento, fonte) e `create_frame` (um frame por breakpoint: Desktop 1440x900, Tablet 768x1024, Mobile 390x844).
-3. `write_html` uma seção por vez; `get_screenshot` depois de cada uma e corrija até ficar bom.
-4. `export` (html, tailwind ou react) se pedirem código; `finish_working` ao terminar.
+1. `get_guide('getting-started')`, then `create_document` at a project path (`design/<name>.mockup.json`).
+2. `set_tokens` (colors, spacing, font) and `create_frame` (one frame per breakpoint: Desktop 1440x900, Tablet 768x1024, Mobile 390x844).
+3. `write_html` one section at a time; `get_screenshot` after each one and fix until it looks right.
+4. `export` (html, tailwind or react) if code is requested; `finish_working` when done.
 ```
 
 ## 4. Codex CLI
@@ -125,7 +125,7 @@ Para pedidos de mockup, tela, protótipo ou landing page, use o servidor MCP `mo
 codex mcp add mockup-studio -- mockup mcp
 ```
 
-Funciona no Windows (verificado com o Codex CLI 0.163.0 e o shim `mockup.cmd` do `npm link`). O equivalente em `~/.codex/config.toml`:
+Works on Windows (verified with Codex CLI 0.163.0 and the `mockup.cmd` shim from `npm link`). The equivalent in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.mockup-studio]
@@ -133,18 +133,18 @@ command = "mockup"
 args = ["mcp"]
 ```
 
-No Windows, caminhos em TOML usam `\\` ou aspas simples literais (`'C:\caminho\bin.js'`).
+On Windows, paths in TOML use `\\` or single-quoted literals (`'C:\path\bin.js'`).
 
-**Variáveis de ambiente.** O Codex não repassa todo o ambiente ao servidor MCP. Para `MOCKUP_PORT`, `MOCKUP_DATA_DIR` e similares, declare-as no config:
+**Environment variables.** Codex does not pass the whole environment to the MCP server. For `MOCKUP_PORT`, `MOCKUP_DATA_DIR` and similar, declare them in the config:
 
 ```toml
 [mcp_servers.mockup-studio.env]
 MOCKUP_PORT = "4747"
 ```
 
-Ou use `--env K=V` no `codex mcp add`.
+Or use `--env K=V` in `codex mcp add`.
 
-**Aprovação das ferramentas.** O Codex só deixa passar sem pergunta as ferramentas marcadas como somente leitura. As que gravam (`create_document`, `write_html`, `export`...) pedem aprovação, e no `codex exec` (política `never`) elas são **bloqueadas** (`MCP tool call requires approval, but approval policy is never`). Para liberar as do Mockup Studio, que só mexem em documentos de design e na pasta de exportação:
+**Tool approval.** Codex only lets through without asking the tools marked as read-only. The ones that write (`create_document`, `write_html`, `export`...) ask for approval, and in `codex exec` (policy `never`) they are **blocked** (`MCP tool call requires approval, but approval policy is never`). To allow the Mockup Studio ones, which only touch design documents and the export folder:
 
 ```toml
 [mcp_servers.mockup-studio]
@@ -153,11 +153,11 @@ args = ["mcp"]
 default_tools_approval_mode = "approve"
 ```
 
-Ou só numa execução: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. O `mockup setup codex` não liga isso por conta própria (é uma decisão de permissão do usuário): use `mockup setup codex --approve` para gravar a chave.
+Or for a single run: `codex exec -c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"' "..."`. `mockup setup codex` does not turn this on by itself (it is a permission decision for the user): use `mockup setup codex --approve` to write the key.
 
-**AGENTS.md.** Sem o trecho de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), um pedido como "crie um mockup de tela de login" faz o Codex escrever um HTML à mão em vez de usar o MCP. `mockup setup codex --agents` instala o trecho no `~/.codex/AGENTS.md`, entre marcadores e sem duplicar.
+**AGENTS.md.** Without the snippet from [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md), a request such as "create a login screen mockup" makes Codex hand-write an HTML instead of using the MCP. `mockup setup codex --agents` installs the snippet in `~/.codex/AGENTS.md`, between markers and without duplicating.
 
-**HTTP** (daemon rodando):
+**HTTP** (daemon running):
 
 ```bash
 codex mcp add mockup-studio --url http://127.0.0.1:4747/mcp
@@ -168,22 +168,22 @@ codex mcp add mockup-studio --url http://127.0.0.1:4747/mcp
 url = "http://127.0.0.1:4747/mcp"
 ```
 
-Verificar:
+Verify:
 
 ```bash
 codex mcp list
 codex mcp get mockup-studio
 ```
 
-**Windows:** se algum ambiente não achar `mockup`, registre o comando absoluto: `mockup setup codex --command absolute`.
+**Windows:** if some environment cannot find `mockup`, register the absolute command: `mockup setup codex --command absolute`.
 
-**AGENTS.md (à mão).** Em vez do `--agents`, cole o conteúdo de [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) no `~/.codex/AGENTS.md` (global) ou no `AGENTS.md` do projeto.
+**AGENTS.md (by hand).** Instead of `--agents`, paste the contents of [integrations/codex/AGENTS.snippet.md](../integrations/codex/AGENTS.snippet.md) into `~/.codex/AGENTS.md` (global) or the project's `AGENTS.md`.
 
-## 5. Outros clientes
+## 5. Other clients
 
-Clientes com JSON `mcpServers`:
+Clients with `mcpServers` JSON:
 
-- Cursor: `~/.cursor/mcp.json` (global) ou `.cursor/mcp.json` (projeto).
+- Cursor: `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project).
 - Claude Desktop: `%APPDATA%\Claude\claude_desktop_config.json`.
 
 ```json
@@ -197,7 +197,7 @@ Clientes com JSON `mcpServers`:
 }
 ```
 
-VS Code, em `.vscode/mcp.json`:
+VS Code, in `.vscode/mcp.json`:
 
 ```json
 {
@@ -211,7 +211,7 @@ VS Code, em `.vscode/mcp.json`:
 }
 ```
 
-Variante HTTP (daemon rodando):
+HTTP variant (daemon running):
 
 ```json
 {
@@ -224,29 +224,29 @@ Variante HTTP (daemon rodando):
 }
 ```
 
-Se o cliente não resolver `mockup.cmd` sem shell, veja a próxima seção.
+If the client does not resolve `mockup.cmd` without a shell, see the next section.
 
 ## 6. Windows
 
-- Com `npm link`, `claude mcp add --scope user mockup-studio -- mockup mcp` funciona: o Claude Code resolve o shim `mockup.cmd`. O Codex também (verificado).
-- O Claude Code não precisa de `cmd /c mockup mcp`.
-- Clientes que não resolvem `.cmd` sem shell: use `cmd /c mockup mcp` ou o caminho absoluto impresso pelo `mockup doctor`, por exemplo `"C:\Program Files\nodejs\node.exe" "C:\...\packages\cli\dist\bin.js" mcp`.
-- No Git Bash, `/c` é convertido em `C:/`. Escreva `cmd //c` ou use o PowerShell.
-- Com o instalador, o `mockup.cmd` fica em `%LOCALAPPDATA%\MockupStudio\bin`. Abra um terminal novo depois de instalar para o PATH valer.
+- With `npm link`, `claude mcp add --scope user mockup-studio -- mockup mcp` works: Claude Code resolves the `mockup.cmd` shim. So does Codex (verified).
+- Claude Code does not need `cmd /c mockup mcp`.
+- Clients that do not resolve `.cmd` without a shell: use `cmd /c mockup mcp` or the absolute path printed by `mockup doctor`, for example `"C:\Program Files\nodejs\node.exe" "C:\...\packages\cli\dist\bin.js" mcp`.
+- In Git Bash, `/c` is converted to `C:/`. Write `cmd //c` or use PowerShell.
+- With the installer, `mockup.cmd` lives in `%LOCALAPPDATA%\MockupStudio\bin`. Open a new terminal after installing for the PATH to take effect.
 
-## 7. Como funciona
+## 7. How it works
 
-- `mockup mcp` fala MCP por stdio com o cliente e funciona como proxy para um único daemon em `127.0.0.1:4747`.
-- O daemon é compartilhado com o editor: o que o agente faz aparece no canvas em tempo real, e a seleção do editor chega ao agente.
-- Se não houver daemon, o CLI sobe o Electron headless (com motor de render, necessário para screenshot). Sem Electron, cai para um daemon Node, sem screenshot. `MOCKUP_NO_ELECTRON=1` força o daemon Node.
-- `mockup stop` encerra o daemon (o app com janela recusa: feche-o pela janela).
-- Variáveis: `MOCKUP_PORT` (padrão 4747), `MOCKUP_DATA_DIR`, `MOCKUP_DESKTOP_EXE`, `MOCKUP_NO_ELECTRON=1`.
+- `mockup mcp` speaks MCP over stdio with the client and acts as a proxy to a single daemon at `127.0.0.1:4747`.
+- The daemon is shared with the editor: what the agent does shows up on the canvas in real time, and the editor's selection reaches the agent.
+- If there is no daemon, the CLI starts headless Electron (with the render engine, required for screenshot). Without Electron, it falls back to a Node daemon, with no screenshot. `MOCKUP_NO_ELECTRON=1` forces the Node daemon.
+- `mockup stop` stops the daemon (the app with a window refuses: close it from the window).
+- Variables: `MOCKUP_PORT` (default 4747), `MOCKUP_DATA_DIR`, `MOCKUP_DESKTOP_EXE`, `MOCKUP_NO_ELECTRON=1`.
 
-## 8. Solução de problemas
+## 8. Troubleshooting
 
-- Comece por `mockup doctor`.
-- **Ferramentas não aparecem:** `claude mcp list` / `codex mcp list`; registre de novo com `mockup setup all`.
-- **Screenshot indisponível:** o daemon está em modo Node, sem render. Abra o app, ou `mockup stop` e deixe o `mockup mcp` subir o Electron headless. Confira se o Electron foi encontrado (`MOCKUP_DESKTOP_EXE`).
-- **Porta ocupada:** outro programa usa a 4747. Use `MOCKUP_PORT` (o mesmo valor no cliente e no daemon) ou libere a porta.
-- **Logs:** `daemon.log` na pasta de dados. Padrão no Windows: `%LOCALAPPDATA%\MockupStudio`; nos outros sistemas, `~/.mockup-studio`; `MOCKUP_DATA_DIR` troca a pasta.
-- No MCP: `get_guide('troubleshooting')` e `get_guide('setup')`.
+- Start with `mockup doctor`.
+- **Tools do not show up:** `claude mcp list` / `codex mcp list`; register again with `mockup setup all`.
+- **Screenshot unavailable:** the daemon is in Node mode, without render. Open the app, or `mockup stop` and let `mockup mcp` start headless Electron. Check that Electron was found (`MOCKUP_DESKTOP_EXE`).
+- **Port in use:** another program is using 4747. Use `MOCKUP_PORT` (the same value in the client and the daemon) or free the port.
+- **Logs:** `daemon.log` in the data folder. Default on Windows: `%LOCALAPPDATA%\MockupStudio`; on other systems, `~/.mockup-studio`; `MOCKUP_DATA_DIR` changes the folder.
+- In the MCP: `get_guide('troubleshooting')` and `get_guide('setup')`.

@@ -1,156 +1,156 @@
-# Efeitos
+# Effects
 
-Efeitos são fundos e blocos animados desenhados em `<canvas>`: sete efeitos prontos (seis shaders WebGL e um de partículas), cada um com parâmetros e presets. Vídeo, Lottie, Rive, YouTube, iframe e Three.js estão em [EMBEDS.md](EMBEDS.md).
+Effects are animated backgrounds and blocks drawn on a `<canvas>`: seven ready-made effects (six WebGL shaders and one particles effect), each with params and presets. Video, Lottie, Rive, YouTube, iframe and Three.js are covered in [EMBEDS.md](EMBEDS.md).
 
-Os shaders são **GLSL próprios** do projeto (fragment shaders GLSL ES 1.0, WebGL 1), escritos em `packages/core/src/effects/shaders.ts`; não há biblioteca de terceiros. As partículas são canvas 2D. O catálogo (`packages/core/src/effects/catalog.ts`) é a fonte única para o editor, a página de render, o MCP (`list_effects`) e os exportadores.
+The shaders are the project's **own GLSL** (GLSL ES 1.0 fragment shaders, WebGL 1), written in `packages/core/src/effects/shaders.ts`; there is no third-party library. Particles use canvas 2D. The catalog (`packages/core/src/effects/catalog.ts`) is the single source for the editor, the render page, the MCP (`list_effects`) and the exporters.
 
-Um efeito é um nó `type: 'effect'` com `effect: { kind, params }`:
+An effect is a node with `type: 'effect'` and `effect: { kind, params }`:
 
 ```json
 { "kind": "mesh-gradient", "params": { "color1": "#0d1b4c", "speed": 0.5 } }
 ```
 
-- `params` guarda só o que foi alterado; o que falta usa o padrão do catálogo.
-- Números fora da faixa são limitados a `min`/`max` ao resolver; pelo MCP, valores fora da faixa, de tipo errado ou de parâmetro inexistente são **recusados** com a lista de problemas.
-- Cores aceitas: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` e `transparent`.
-- No shader, cada parâmetro vira o uniform `u_<nome>` (cores em `vec4`, `select` como o índice da opção), mais `u_resolution` e `u_time` (já multiplicado por `speed`).
+- `params` stores only what was changed; anything missing uses the catalog default.
+- Numbers outside the range are clamped to `min`/`max` when resolved; through the MCP, out-of-range values, wrong types or unknown params are **rejected** with the list of problems.
+- Accepted colors: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()` and `transparent`.
+- In the shader, each param becomes the uniform `u_<name>` (colors as `vec4`, `select` as the option index), plus `u_resolution` and `u_time` (already multiplied by `speed`).
 
-## Catálogo
+## Catalog
 
-Todos os efeitos aceitam `speed` (número, 0 a 4, passo 0,05, padrão 1; 0 deixa o efeito estático), exceto onde indicado.
+All effects accept `speed` (number, 0 to 4, step 0.05, default 1; 0 makes the effect static), except where noted.
 
-| `kind`          | Categoria   | O que faz                                                                         |
-| --------------- | ----------- | --------------------------------------------------------------------------------- |
-| `mesh-gradient` | `shader`    | Degradê de quatro cores com manchas suaves deformadas por ruído, torção e grão.   |
-| `grain`         | `shader`    | Ruído de filme animado sobre um degradê de duas cores.                            |
-| `halftone`      | `shader`    | Pontos, quadrados ou linhas de meio-tom que variam de tamanho sobre um gradiente. |
-| `waves`         | `shader`    | Linhas fluidas onduladas com degradê entre duas cores sobre fundo sólido.         |
-| `liquid-metal`  | `shader`    | Metal líquido cromado com reflexos procedurais em movimento.                      |
-| `glass`         | `shader`    | Vidro canelado refrativo sobre um degradê em movimento, com desfoque e reflexos.  |
-| `particles`     | `particles` | Partículas em canvas 2D, determinísticas: posição é função de (seed, índice, t).  |
+| `kind`          | Category    | What it does                                                                   |
+| --------------- | ----------- | ------------------------------------------------------------------------------ |
+| `mesh-gradient` | `shader`    | Four-color gradient with soft blobs warped by noise, swirl and grain.          |
+| `grain`         | `shader`    | Animated film noise over a two-color gradient.                                 |
+| `halftone`      | `shader`    | Halftone dots, squares or lines that vary in size over a gradient.             |
+| `waves`         | `shader`    | Flowing wavy lines with a gradient between two colors over a solid background. |
+| `liquid-metal`  | `shader`    | Chrome liquid metal with moving procedural reflections.                        |
+| `glass`         | `shader`    | Refractive fluted glass over a moving gradient, with blur and reflections.     |
+| `particles`     | `particles` | Deterministic canvas 2D particles: position is a function of (seed, index, t). |
 
-### Parâmetros e presets
+### Params and presets
 
-Formato: `nome` tipo, padrão, faixa. Cores não têm faixa.
+Format: `name` type, default, range. Colors have no range.
 
 **`mesh-gradient`**
 
-| Parâmetro    | Tipo   | Padrão    | Faixa |
-| ------------ | ------ | --------- | ----- |
-| `color1`     | cor    | `#0d1b4c` |       |
-| `color2`     | cor    | `#00c2a8` |       |
-| `color3`     | cor    | `#7b2ff7` |       |
-| `color4`     | cor    | `#12d8fa` |       |
-| `speed`      | número | 1         | 0 a 4 |
-| `distortion` | número | 0,5       | 0 a 1 |
-| `swirl`      | número | 0,3       | 0 a 1 |
-| `grain`      | número | 0,15      | 0 a 1 |
+| Param        | Type   | Default   | Range  |
+| ------------ | ------ | --------- | ------ |
+| `color1`     | color  | `#0d1b4c` |        |
+| `color2`     | color  | `#00c2a8` |        |
+| `color3`     | color  | `#7b2ff7` |        |
+| `color4`     | color  | `#12d8fa` |        |
+| `speed`      | number | 1         | 0 to 4 |
+| `distortion` | number | 0.5       | 0 to 1 |
+| `swirl`      | number | 0.3       | 0 to 1 |
+| `grain`      | number | 0.15      | 0 to 1 |
 
 Presets: `aurora`, `sunset`, `ocean`, `candy`.
 
 **`grain`**
 
-| Parâmetro   | Tipo   | Padrão    | Faixa   |
-| ----------- | ------ | --------- | ------- |
-| `color1`    | cor    | `#1b1b1f` |         |
-| `color2`    | cor    | `#4a4a55` |         |
-| `intensity` | número | 0,55      | 0 a 1   |
-| `size`      | número | 1,5       | 0,5 a 6 |
-| `speed`     | número | 1         | 0 a 4   |
+| Param       | Type   | Default   | Range    |
+| ----------- | ------ | --------- | -------- |
+| `color1`    | color  | `#1b1b1f` |          |
+| `color2`    | color  | `#4a4a55` |          |
+| `intensity` | number | 0.55      | 0 to 1   |
+| `size`      | number | 1.5       | 0.5 to 6 |
+| `speed`     | number | 1         | 0 to 4   |
 
-Presets: `film`, `warm`, `cool`, `paper`. `size` é em px a 720 de altura.
+Presets: `film`, `warm`, `cool`, `paper`. `size` is in px at 720 height.
 
 **`halftone`**
 
-| Parâmetro    | Tipo   | Padrão                                | Faixa  |
-| ------------ | ------ | ------------------------------------- | ------ |
-| `color`      | cor    | `#111111`                             |        |
-| `background` | cor    | `#f4efe6`                             |        |
-| `dotSize`    | número | 22                                    | 6 a 60 |
-| `angle`      | número | 45                                    | 0 a 90 |
-| `speed`      | número | 1                                     | 0 a 4  |
-| `shape`      | select | `circle` (`circle`, `square`, `line`) |        |
+| Param        | Type   | Default                               | Range   |
+| ------------ | ------ | ------------------------------------- | ------- |
+| `color`      | color  | `#111111`                             |         |
+| `background` | color  | `#f4efe6`                             |         |
+| `dotSize`    | number | 22                                    | 6 to 60 |
+| `angle`      | number | 45                                    | 0 to 90 |
+| `speed`      | number | 1                                     | 0 to 4  |
+| `shape`      | select | `circle` (`circle`, `square`, `line`) |         |
 
-Presets: `ink`, `pop`, `blueprint`, `scanlines`. `dotSize` é o lado da célula em px a 720 de altura; `angle` é em graus.
+Presets: `ink`, `pop`, `blueprint`, `scanlines`. `dotSize` is the cell side in px at 720 height; `angle` is in degrees.
 
 **`waves`**
 
-| Parâmetro    | Tipo   | Padrão    | Faixa    |
-| ------------ | ------ | --------- | -------- |
-| `color1`     | cor    | `#22d3ee` |          |
-| `color2`     | cor    | `#e879f9` |          |
-| `background` | cor    | `#07070f` |          |
-| `frequency`  | número | 4         | 0,5 a 12 |
-| `amplitude`  | número | 1         | 0 a 2    |
-| `lines`      | número | 14        | 1 a 40   |
-| `speed`      | número | 1         | 0 a 4    |
+| Param        | Type   | Default   | Range     |
+| ------------ | ------ | --------- | --------- |
+| `color1`     | color  | `#22d3ee` |           |
+| `color2`     | color  | `#e879f9` |           |
+| `background` | color  | `#07070f` |           |
+| `frequency`  | number | 4         | 0.5 to 12 |
+| `amplitude`  | number | 1         | 0 to 2    |
+| `lines`      | number | 14        | 1 to 40   |
+| `speed`      | number | 1         | 0 to 4    |
 
 Presets: `neon`, `silk`, `deep`, `mint`.
 
 **`liquid-metal`**
 
-| Parâmetro   | Tipo   | Padrão    | Faixa   |
-| ----------- | ------ | --------- | ------- |
-| `tint`      | cor    | `#c9ced8` |         |
-| `highlight` | cor    | `#ffffff` |         |
-| `contrast`  | número | 1,4       | 0,5 a 3 |
-| `speed`     | número | 1         | 0 a 4   |
-| `scale`     | número | 1         | 0,3 a 3 |
+| Param       | Type   | Default   | Range    |
+| ----------- | ------ | --------- | -------- |
+| `tint`      | color  | `#c9ced8` |          |
+| `highlight` | color  | `#ffffff` |          |
+| `contrast`  | number | 1.4       | 0.5 to 3 |
+| `speed`     | number | 1         | 0 to 4   |
+| `scale`     | number | 1         | 0.3 to 3 |
 
 Presets: `chrome`, `gold`, `rose`, `obsidian`.
 
 **`glass`**
 
-| Parâmetro    | Tipo   | Padrão    | Faixa  |
-| ------------ | ------ | --------- | ------ |
-| `color1`     | cor    | `#6d5dfc` |        |
-| `color2`     | cor    | `#ff8ab3` |        |
-| `ribs`       | número | 24        | 4 a 80 |
-| `refraction` | número | 1         | 0 a 2  |
-| `blur`       | número | 0,25      | 0 a 1  |
-| `speed`      | número | 1         | 0 a 4  |
+| Param        | Type   | Default   | Range   |
+| ------------ | ------ | --------- | ------- |
+| `color1`     | color  | `#6d5dfc` |         |
+| `color2`     | color  | `#ff8ab3` |         |
+| `ribs`       | number | 24        | 4 to 80 |
+| `refraction` | number | 1         | 0 to 2  |
+| `blur`       | number | 0.25      | 0 to 1  |
+| `speed`      | number | 1         | 0 to 4  |
 
 Presets: `prism`, `dusk`, `lime`, `frost`.
 
 **`particles`**
 
-| Parâmetro    | Tipo     | Padrão                                         | Faixa     |
-| ------------ | -------- | ---------------------------------------------- | --------- |
-| `count`      | número   | 120                                            | 10 a 2000 |
-| `color`      | cor      | `#ffffff`                                      |           |
-| `background` | cor      | `#0b1020` (`transparent` deixa o canvas vazio) |           |
-| `size`       | número   | 2,5 (raio médio em px)                         | 0,5 a 12  |
-| `speed`      | número   | 1                                              | 0 a 4     |
-| `direction`  | select   | `up` (`up`, `down`, `left`, `right`, `random`) |           |
-| `twinkle`    | número   | 0,5                                            | 0 a 1     |
-| `links`      | booleano | `false` (linhas entre partículas vizinhas)     |           |
-| `seed`       | número   | 1 (mesma semente, mesmo desenho)               | 0 a 9999  |
+| Param        | Type    | Default                                           | Range      |
+| ------------ | ------- | ------------------------------------------------- | ---------- |
+| `count`      | number  | 120                                               | 10 to 2000 |
+| `color`      | color   | `#ffffff`                                         |            |
+| `background` | color   | `#0b1020` (`transparent` leaves the canvas empty) |            |
+| `size`       | number  | 2.5 (average radius in px)                        | 0.5 to 12  |
+| `speed`      | number  | 1                                                 | 0 to 4     |
+| `direction`  | select  | `up` (`up`, `down`, `left`, `right`, `random`)    |            |
+| `twinkle`    | number  | 0.5                                               | 0 to 1     |
+| `links`      | boolean | `false` (lines between neighboring particles)     |            |
+| `seed`       | number  | 1 (same seed, same drawing)                       | 0 to 9999  |
 
-Presets: `stars`, `snow`, `embers`, `network`, `fireflies` (este com fundo `transparent`).
+Presets: `stars`, `snow`, `embers`, `network`, `fireflies` (this one with a `transparent` background).
 
-Aplicar um preset define só os parâmetros que ele lista; os demais ficam nos padrões do efeito.
+Applying a preset sets only the params it lists; the rest stay at the effect's defaults.
 
-## No editor
+## In the editor
 
-- **Botão Efeitos** (ícone de brilho) na barra: abre uma galeria agrupada em Shaders e Partículas, com uma miniatura por preset (desenhada pelo próprio runtime). Clique insere o efeito como **fundo** do frame selecionado (ou do contêiner selecionado; sem seleção, do primeiro frame da página). Alt+clique ou botão direito insere como **camada** (filho comum).
-- Como fundo, o efeito vira o primeiro filho, com `position: absolute; inset: 0; width/height: 100%; z-index: -1; pointer-events: none`, e o pai ganha `position: relative` e `isolation: isolate` na mesma operação (um desfazer reverte tudo). Alvo travado ou sem frame mostra um aviso.
-- **Seção Efeito** nas propriedades de um nó de efeito: tipo, chips de preset (o preset ativo fica marcado), um controle por parâmetro (slider com campo numérico para números, seletor de cor, caixa para booleanos, lista para `select`) e "Restaurar padrões". Trocar o tipo descarta os parâmetros antigos. Arrastar um slider só envia a alteração ao soltar, então um arrasto é um passo de desfazer. Com vários efeitos do mesmo `kind` selecionados, a edição vale para todos.
-- **Pausa e play**: o botão de play/pausa da barra (ou **Shift+Espaço**) congela e retoma todas as animações do canvas (efeitos, partículas, vídeo, Lottie, Rive e Three.js), continuando de onde parou. Espaço sozinho continua sendo o pan.
-- Se o WebGL não estiver disponível ou o shader não compilar, o efeito mostra um fundo CSS aproximado (o mesmo usado nos exports estáticos) e um aviso no canto.
+- **Effects button** (sparkle icon) in the toolbar: opens a gallery grouped into Shaders and Particles, with one thumbnail per preset (drawn by the runtime itself). Click inserts the effect as the **background** of the selected frame (or of the selected container; with no selection, of the first frame on the page). Alt+click or right-click inserts it as a **layer** (regular child).
+- As a background, the effect becomes the first child, with `position: absolute; inset: 0; width/height: 100%; z-index: -1; pointer-events: none`, and the parent gets `position: relative` and `isolation: isolate` in the same operation (one undo reverts everything). A locked target or no frame shows a warning.
+- **Effect section** in the Properties of an effect node: type, preset chips (the active preset is highlighted), one control per param (slider with a number field for numbers, color picker, checkbox for booleans, list for `select`) and "Restore defaults". Changing the type discards the old params. Dragging a slider only sends the change on release, so a drag is one undo step. With several effects of the same `kind` selected, the edit applies to all of them.
+- **Pause and play**: the play/pause button in the toolbar (or **Shift+Space**) freezes and resumes all canvas animations (effects, particles, video, Lottie, Rive and Three.js), continuing from where they stopped. Space alone is still pan.
+- If WebGL is unavailable or the shader fails to compile, the effect shows an approximate CSS background (the same one used in static exports) and a warning in the corner.
 
 ## Via MCP
 
-`get_guide('effects')` traz um resumo para o agente (veja [MCP.md](MCP.md)). Ferramentas:
+`get_guide('effects')` gives a summary for the agent (see [MCP.md](MCP.md)). Tools:
 
-| Ferramenta      | Parâmetros                                                                                                               | Descrição                                                                                                                                                                                                               |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_effects`  | nenhum                                                                                                                   | Efeitos com categoria, descrição, parâmetros (`nome:tipo faixa=padrão`) e presets.                                                                                                                                      |
-| `add_effect`    | `nodeId`, `kind` (obrig.), `params`, `preset`, `placement` (`background` \| `child`), `name`, `styles`, `index`, `docId` | Cria o efeito. `background` (padrão) o põe como primeiro filho de `nodeId`; `child` insere um filho comum (padrão `100%` x `240px`, aceita `index`). `nodeId` deve ser um contêiner (não texto, imagem, svg nem mídia). |
-| `update_effect` | `nodeId` (obrig.), `params`, `kind`, `preset`, `reset`, `docId`                                                          | Mescla `params` nos atuais; `preset` é aplicado antes dos `params`; `kind` troca o efeito (parâmetros antigos descartados); `reset: true` volta aos padrões antes de aplicar preset e params.                           |
+| Tool            | Params                                                                                                                     | Description                                                                                                                                                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_effects`  | none                                                                                                                       | Effects with category, description, params (`name:type range=default`) and presets.                                                                                                                                           |
+| `add_effect`    | `nodeId`, `kind` (required), `params`, `preset`, `placement` (`background` \| `child`), `name`, `styles`, `index`, `docId` | Creates the effect. `background` (default) puts it as the first child of `nodeId`; `child` inserts a regular child (default `100%` x `240px`, accepts `index`). `nodeId` must be a container (not text, image, svg or media). |
+| `update_effect` | `nodeId` (required), `params`, `kind`, `preset`, `reset`, `docId`                                                          | Merges `params` into the current ones; `preset` is applied before `params`; `kind` switches the effect (old params discarded); `reset: true` returns to defaults before applying preset and params.                           |
 
-Os `params` do `add_effect` são mesclados sobre o preset (`{ ...preset, ...params }`). Preset inexistente, parâmetro desconhecido, tipo errado ou valor fora da faixa devolvem `isError` listando os problemas e os efeitos válidos.
+The `params` of `add_effect` are merged over the preset (`{ ...preset, ...params }`). An unknown preset, unknown param, wrong type or out-of-range value returns `isError` listing the problems and the valid effects.
 
-Fundo animado para um frame inteiro:
+Animated background for a whole frame:
 
 ```json
 {
@@ -164,7 +164,7 @@ Fundo animado para um frame inteiro:
 }
 ```
 
-Ajustar depois (o id do efeito vem na resposta de `add_effect` ou de `get_tree_summary`):
+Adjust it afterwards (the effect id comes in the `add_effect` or `get_tree_summary` response):
 
 ```json
 {
@@ -173,7 +173,7 @@ Ajustar depois (o id do efeito vem na resposta de `add_effect` ou de `get_tree_s
 }
 ```
 
-Trocar de efeito:
+Switch effect:
 
 ```json
 {
@@ -182,45 +182,45 @@ Trocar de efeito:
 }
 ```
 
-Conferir o resultado em dois instantes:
+Check the result at two points in time:
 
 ```json
 { "name": "get_screenshot", "arguments": { "nodeId": "fr_ab12cd34", "time": 0 } }
 { "name": "get_screenshot", "arguments": { "nodeId": "fr_ab12cd34", "time": 2 } }
 ```
 
-`time` (segundos, a partir de 0) renderiza o quadro de **todas** as animações naquele instante: efeitos, partículas, Lottie, Rive, Three.js e vídeo. Sem `time`, o render usa 0; a única diferença é o vídeo com `poster`, que mostra o poster quando `time` não é informado (veja [EMBEDS.md](EMBEDS.md)).
+`time` (seconds, from 0) renders the frame of **all** animations at that instant: effects, particles, Lottie, Rive, Three.js and video. Without `time`, the render uses 0; the only difference is video with a `poster`, which shows the poster when `time` is not given (see [EMBEDS.md](EMBEDS.md)).
 
-## Como o render captura
+## How the render captures
 
-As animações do editor correm em tempo real; a página de render (screenshot e export) usa um **relógio manual** para o resultado ser determinístico:
+Editor animations run in real time; the render page (screenshot and export) uses a **manual clock** so the result is deterministic:
 
-1. `get_screenshot` com `time: t` chama `__mockupRender.render({ ..., time: t })`. A página fixa o relógio das animações em `t` (sem `time`, em 0) em vez de deixar o tempo correr.
-2. Cada componente de mídia registra uma pendência quando começa a carregar ou quando o tempo muda, e a libera depois de desenhar aquele instante. A página **espera todas as pendências** (limite de 10 s no total; cada pendência se libera sozinha em 15 s no máximo, para um componente com falha não travar a captura), mais dois `requestAnimationFrame`, e só então mede e captura.
-3. Para quadros em sequência, o motor chama `setTime(t)`, espera do mesmo modo e tira a captura de cada quadro. A cache de screenshots inclui `time` na chave.
+1. `get_screenshot` with `time: t` calls `__mockupRender.render({ ..., time: t })`. The page pins the animation clock at `t` (at 0 without `time`) instead of letting time run.
+2. Each media component registers a pending item when it starts loading or when the time changes, and releases it after drawing that instant. The page **waits for all pending items** (10 s limit in total; each pending item releases itself after 15 s at most, so a failing component does not block the capture), plus two `requestAnimationFrame`s, and only then measures and captures.
+3. For frame sequences, the engine calls `setTime(t)`, waits the same way and takes a capture of each frame. The screenshot cache includes `time` in its key.
 
-O WebGL dos shaders precisa estar disponível na janela de render. No app desktop, se não houver GPU o Chromium cai no **SwiftShader** (WebGL por software, flag `enable-unsafe-swiftshader`); `MOCKUP_RENDER_GL=swiftshader` força o software, útil em VM ou CI (veja `packages/desktop/README.md`). Software é mais lento, mas gera o mesmo desenho.
+Shader WebGL must be available in the render window. In the desktop app, if there is no GPU, Chromium falls back to **SwiftShader** (software WebGL, flag `enable-unsafe-swiftshader`); `MOCKUP_RENDER_GL=swiftshader` forces software rendering, useful in a VM or CI (see `packages/desktop/README.md`). Software is slower but produces the same drawing.
 
-## Exportação
+## Export
 
-O `kind` e os parâmetros resolvidos de cada efeito vão para o código exportado.
+Each effect's `kind` and resolved params go into the exported code.
 
-| Formato     | Efeito                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `html`      | `<canvas data-mockup-effect='{...}'>` com fundo CSS de fallback e um `<script>` que embute o runtime e os shaders usados. |
-| `tailwind`  | Igual ao `html`, com as classes Tailwind.                                                                                 |
-| `svg`       | Sem JavaScript: o efeito vira o gradiente/cor de fallback do catálogo (`effectFallbackCss`).                              |
-| `react`     | Opção `effects`: `live` (padrão) ou `static`. Veja abaixo.                                                                |
-| `png`/`jpg` | Captura do render (relógio em `time` 0, ou o `time` do screenshot).                                                       |
+| Format      | Effect                                                                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `html`      | `<canvas data-mockup-effect='{...}'>` with a CSS fallback background and a `<script>` that embeds the runtime and the shaders used. |
+| `tailwind`  | Same as `html`, with Tailwind classes.                                                                                              |
+| `svg`       | No JavaScript: the effect becomes the catalog's fallback gradient/color (`effectFallbackCss`).                                      |
+| `react`     | `effects` option: `live` (default) or `static`. See below.                                                                          |
+| `png`/`jpg` | Render capture (clock at `time` 0, or the screenshot's `time`).                                                                     |
 
-- **Runtime**: o mesmo código roda no editor e no export. Respeita `prefers-reduced-motion: reduce` (desenha só o quadro 0), acompanha o tamanho do canvas com `ResizeObserver` e, se o WebGL falhar, o fundo CSS de fallback continua visível.
-- **React `effects: 'live'`** (padrão): cada efeito vira `<MockupEffect spec={...} />`, um componente embutido no `.tsx` que monta um `<canvas>` e chama `playEffect(canvas, spec)` (devolve `{ stop() }`, chamado no cleanup do `useEffect`). A `spec` fica numa constante tipada (`EffectMount`) no topo do arquivo. O runtime vai em `mockup-effects.js` + `mockup-effects.d.ts`, ao lado do `.tsx`, com os shaders de todo o catálogo, então o mesmo arquivo serve a todos os componentes exportados na pasta. O fundo CSS de fallback continua na `className`/`style` do canvas.
-- **React `effects: 'static'`**: grava um PNG de cada nó de efeito (capturado em `time: 0`) em `assets/effects/<id-do-efeito>.png`, e o efeito vira `<img src="assets/effects/<id>.png" alt="">`, sem runtime. Exige o motor de render. Só no `export`: o `get_code` sempre devolve a versão `live` e cita `mockup-effects.js` sem colar o runtime.
-- O fallback CSS também serve quando o HTML é aberto sem JavaScript.
+- **Runtime**: the same code runs in the editor and in the export. It respects `prefers-reduced-motion: reduce` (draws only frame 0), follows the canvas size with `ResizeObserver` and, if WebGL fails, the CSS fallback background stays visible.
+- **React `effects: 'live'`** (default): each effect becomes `<MockupEffect spec={...} />`, a component embedded in the `.tsx` that mounts a `<canvas>` and calls `playEffect(canvas, spec)` (returns `{ stop() }`, called in the `useEffect` cleanup). The `spec` lives in a typed constant (`EffectMount`) at the top of the file. The runtime goes in `mockup-effects.js` + `mockup-effects.d.ts`, next to the `.tsx`, with the shaders of the whole catalog, so the same file serves every component exported to the folder. The CSS fallback background stays in the canvas `className`/`style`.
+- **React `effects: 'static'`**: writes a PNG of each effect node (captured at `time: 0`) to `assets/effects/<effect-id>.png`, and the effect becomes `<img src="assets/effects/<id>.png" alt="">`, with no runtime. Requires the render engine. `export` only: `get_code` always returns the `live` version and mentions `mockup-effects.js` without pasting the runtime.
+- The CSS fallback also applies when the HTML is opened without JavaScript.
 
-### Export animado: mp4, webm e gif
+### Animated export: mp4, webm and gif
 
-`export` renderiza os quadros (a partir de `start`, um a cada `1/fps` s), envia os PNGs ao ffmpeg e grava `<slug-do-nó>.mp4`, `.webm` ou `.gif` em `outputDir` (padrão: `<pasta do documento>/exports/`).
+`export` renders the frames (from `start`, one every `1/fps` s), sends the PNGs to ffmpeg and writes `<node-slug>.mp4`, `.webm` or `.gif` to `outputDir` (default: `<document folder>/exports/`).
 
 ```json
 {
@@ -235,21 +235,21 @@ O `kind` e os parâmetros resolvidos de cada efeito vão para o código exportad
 }
 ```
 
-| Parâmetro  | Valor                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------- |
-| `format`   | `mp4`, `webm` ou `gif`.                                                                            |
-| `fps`      | Inteiro de 1 a 60. Padrão 30; no `gif` padrão 15 e máximo 30 (valores maiores são reduzidos a 30). |
-| `duration` | Segundos, maior que 0 e até 30. Padrão 3.                                                          |
-| `start`    | Instante inicial das animações, em segundos. Padrão 0.                                             |
-| `scale`    | 1 (padrão), 2 ou 3.                                                                                |
-| `maxWidth` | Largura máxima em px (mínimo 16); reduz mantendo a proporção. Use no `gif` para arquivos menores.  |
+| Param      | Value                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------- |
+| `format`   | `mp4`, `webm` or `gif`.                                                                                   |
+| `fps`      | Integer from 1 to 60. Default 30; for `gif` default 15 and maximum 30 (larger values are reduced to 30).  |
+| `duration` | Seconds, greater than 0 and up to 30. Default 3.                                                          |
+| `start`    | Start instant of the animations, in seconds. Default 0.                                                   |
+| `scale`    | 1 (default), 2 or 3.                                                                                      |
+| `maxWidth` | Maximum width in px (minimum 16); scales down keeping the aspect ratio. Use with `gif` for smaller files. |
 
-- O total de quadros é `duration x fps`, com teto de **1800** quadros.
-- **mp4**: H.264 (`libx264`, `yuv420p`, `+faststart`), largura e altura ajustadas para números pares. É o mais compatível.
-- **webm**: VP9 (`libvpx-vp9`, `crf 34`), em geral menor que o mp4.
-- **gif**: paleta gerada por `palettegen`/`paletteuse`, em loop infinito. Bom para README; reduza com `maxWidth` e `fps`.
-- Não há som; o resultado é só o que o canvas mostra.
-- Exige o motor de render com captura de quadros (app desktop atualizado) e o **ffmpeg**, localizado nesta ordem: variável de ambiente `MOCKUP_FFMPEG` (caminho do executável), pacote `ffmpeg-static` e `ffmpeg` no `PATH`. No app empacotado o binário vai em `resources/ffmpeg/` e `MOCKUP_FFMPEG` aponta para ele. Sem ffmpeg o erro explica como instalar. Se a codificação falha, o arquivo parcial é apagado.
-- A resposta informa quadros, fps, duração e tamanho do arquivo. Os assets não são copiados nos formatos animados.
+- The total number of frames is `duration x fps`, capped at **1800** frames.
+- **mp4**: H.264 (`libx264`, `yuv420p`, `+faststart`), width and height adjusted to even numbers. It is the most compatible.
+- **webm**: VP9 (`libvpx-vp9`, `crf 34`), usually smaller than mp4.
+- **gif**: palette generated by `palettegen`/`paletteuse`, looping forever. Good for a README; reduce it with `maxWidth` and `fps`.
+- There is no sound; the result is only what the canvas shows.
+- Requires the render engine with frame capture (updated desktop app) and **ffmpeg**, located in this order: the `MOCKUP_FFMPEG` environment variable (executable path), the `ffmpeg-static` package and `ffmpeg` on the `PATH`. In the packaged app the binary goes in `resources/ffmpeg/` and `MOCKUP_FFMPEG` points to it. Without ffmpeg the error explains how to install it. If encoding fails, the partial file is deleted.
+- The response reports frames, fps, duration and file size. Assets are not copied in the animated formats.
 
-Mais sobre os formatos de código em [EXPORT.md](EXPORT.md).
+More on the code formats in [EXPORT.md](EXPORT.md).

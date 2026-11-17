@@ -1,252 +1,252 @@
 # Editor
 
-Editor visual do Mockup Studio (`packages/editor`, Vite + React 19 + zustand). Roda no navegador (e, na tarefa 3, dentro do Electron) e fala com o daemon por WebSocket. **Toda mutação do documento vira `Op` do core enviada ao daemon (`op:apply`)**; o editor nunca altera o documento localmente. Assim o editor e o MCP veem sempre o mesmo documento, e o undo/redo do daemon vale para os dois.
+Mockup Studio's visual editor (`packages/editor`, Vite + React 19 + zustand). It runs in the browser (and, in task 3, inside Electron) and talks to the daemon over WebSocket. **Every document mutation becomes a core `Op` sent to the daemon (`op:apply`)**; the editor never changes the document locally. This way the editor and the MCP always see the same document, and the daemon's undo/redo applies to both.
 
-![Editor com o exemplo landing](img/editor.png)
+![Editor with the landing example](img/editor.png)
 
-## Como usar
+## How to use
 
 ```bash
 npm install
 npm run build
-npm run dev          # daemon em 127.0.0.1:4747 + editor em http://localhost:5173
+npm run dev          # daemon on 127.0.0.1:4747 + editor on http://localhost:5173
 ```
 
-Abra um documento pelo menu **Arquivo › Abrir…** (caminho do `.mockup.json`), por `mockup open <arquivo>` ou pelo MCP (`open_document`). **Arquivo › Novo…** cria um documento (o daemon acrescenta `.mockup.json` e nunca sobrescreve um arquivo existente).
+Open a document with the **File › Open…** menu (path to the `.mockup.json`), with `mockup open <file>`, or through the MCP (`open_document`). **File › New…** creates a document (the daemon appends `.mockup.json` and never overwrites an existing file).
 
-Fluxo típico: criar um frame (F e arrastar), desenhar containers (R) e textos (T) dentro dele, ajustar no painel de propriedades, mover e redimensionar no canvas, desfazer/refazer, salvar (Ctrl+S; o autosave do daemon também grava 800 ms após a última edição).
+Typical flow: create a frame (F and drag), draw containers (R) and texts (T) inside it, adjust in the properties panel, move and resize on the canvas, undo/redo, save (Ctrl+S; the daemon's autosave also writes 800 ms after the last edit).
 
 ## Layout
 
-- **Barra superior**: menu Arquivo (Novo, Abrir, Recentes, Salvar, Salvar como, Fechar), ferramentas, desfazer/refazer, nome do documento com indicador de não salvo (ponto) e seletor quando há vários abertos, zoom e status da conexão. O título da janela mostra o nome do arquivo (com `●` quando há alterações não salvas).
-- **Painel esquerdo**: quatro abas, **Camadas** (páginas — criar, renomear com duplo clique, excluir pelo menu de contexto, trocar —, busca de nós e a árvore de camadas da página ativa), **Componentes** (ver [Componentes](#componentes)), **Tokens** (ver [Tokens e temas](#tokens-e-temas)) e **Assets** (ver [Assets, imagens, dados e arquivos](#assets-imagens-dados-e-arquivos)).
-- **Canvas**: infinito, com os frames renderizados como HTML/CSS real.
-- **Painel direito**: três abas, **Design** (propriedades da seleção ou, sem seleção, o nome do documento e um resumo de tokens e temas), **Assistente** (ver [Assistente de IA](#assistente-de-ia)) e **Scripts** (ver [Scripts](#scripts)). A aba Design mantém a largura de sempre; Assistente e Scripts alargam o painel (380 px) para caber conversa e código.
+- **Top bar**: File menu (New, Open, Recent, Save, Save as, Close), tools, undo/redo, document name with an unsaved indicator (dot) and a selector when several are open, zoom and connection status. The window title shows the file name (with `●` when there are unsaved changes).
+- **Left panel**: four tabs, **Layers** (pages — create, rename with a double click, delete from the context menu, switch —, node search and the layer tree of the active page), **Components** (see [Components](#components)), **Tokens** (see [Tokens and themes](#tokens-and-themes)) and **Assets** (see [Assets, images, data and files](#assets-images-data-and-files)).
+- **Canvas**: infinite, with frames rendered as real HTML/CSS.
+- **Right panel**: three tabs, **Design** (properties of the selection or, with no selection, the document name and a summary of tokens and themes), **Assistant** (see [AI assistant](#ai-assistant)) and **Scripts** (see [Scripts](#scripts)). The Design tab keeps its usual width; Assistant and Scripts widen the panel (380 px) to fit conversation and code.
 
 ## Canvas
 
-- **Zoom**: Ctrl+roda ou pinça (no ponteiro), `+`/`-`, `Shift+0` (100%), `Shift+1` (ajustar tudo), `Shift+2` (zoom na seleção) e o menu de zoom da barra.
-- **Pan**: roda (Shift+roda na horizontal), espaço+arrastar, botão do meio ou a ferramenta Mão (H).
-- **Seleção** (regras no estilo das ferramentas de design): clique seleciona o filho direto do frame (ou o irmão da seleção atual); duplo clique desce um nível; Ctrl+clique seleciona o elemento exato; Shift+clique alterna; Esc sobe um nível; arrastar no vazio faz marquee de frames (Shift soma). Clicar ou arrastar o **nome do frame** seleciona/move o frame. Nós travados não são selecionáveis no canvas.
-- **Hover** com contorno, pela mesma regra do clique (Ctrl/Cmd mostra o elemento exato); **Alt** mostra a régua de distâncias entre a seleção e o nó sob o ponteiro.
-- **Mover**: frames raiz mudam `position`; filhos `position: absolute` mudam `left`/`top`; filhos em fluxo de um pai flex/bloco são **reordenados** com indicador de inserção (`moveNodes` com índice). Shift restringe ao eixo; Esc cancela o arrasto.
-- **Redimensionar** pelas 8 alças (`width`/`height` em px); Alt redimensiona a partir do centro; Shift mantém a proporção. O rótulo `W × H` aparece sob a seleção.
-- **Criar**: Frame (F) e Container (R) desenhando com arrasto (clique simples cria no tamanho padrão); Texto (T) com clique, já em edição; Imagem (botão da barra, clique no canvas, `Ctrl+Shift+K`, colar ou soltar arquivo) envia o arquivo para `assets/` do documento (`POST /api/assets/:docId`) e cria um nó `img` com `src` relativo. Dentro de pai flex o nó entra no fluxo; em pai bloco vira `absolute` (o pai ganha `position: relative` se for estático).
-- **Texto inline**: duplo clique num texto selecionado edita; Enter confirma, Shift+Enter quebra linha, Esc cancela.
-- **Menu de contexto** (botão direito, também nas camadas): criar componente, ir para principal, destacar instância, duplicar, agrupar em container, desagrupar, ordem (frente, avançar, recuar, trás), ocultar, travar, **Remix** (ver [Remix](#remix)) e excluir.
-- **MCP ao vivo**: mudanças feitas por agentes aparecem sem recarregar; a seleção feita pelo MCP (`set_selection`) seleciona e enquadra os nós; frames tocados pelo MCP nos últimos 4 s mostram o badge **IA** pulsante ao lado do nome. A seleção do editor é publicada no daemon (`get_selection`).
+- **Zoom**: Ctrl+wheel or pinch (at the pointer), `+`/`-`, `Shift+0` (100%), `Shift+1` (fit all), `Shift+2` (zoom to selection) and the bar's zoom menu.
+- **Pan**: wheel (Shift+wheel horizontally), space+drag, middle button or the Hand tool (H).
+- **Selection** (rules in the style of design tools): click selects the direct child of the frame (or a sibling of the current selection); double click goes down one level; Ctrl+click selects the exact element; Shift+click toggles; Esc goes up one level; dragging on empty space makes a frame marquee (Shift adds). Clicking or dragging the **frame name** selects/moves the frame. Locked nodes are not selectable on the canvas.
+- **Hover** with an outline, by the same rule as click (Ctrl/Cmd shows the exact element); **Alt** shows the distance ruler between the selection and the node under the pointer.
+- **Move**: root frames change `position`; `position: absolute` children change `left`/`top`; in-flow children of a flex/block parent are **reordered** with an insertion indicator (`moveNodes` with an index). Shift constrains to the axis; Esc cancels the drag.
+- **Resize** with the 8 handles (`width`/`height` in px); Alt resizes from the center; Shift keeps the proportion. The `W × H` label appears under the selection.
+- **Create**: Frame (F) and Container (R) by drawing with a drag (a simple click creates at the default size); Text (T) with a click, already in editing; Image (bar button, click on the canvas, `Ctrl+Shift+K`, paste or drop a file) uploads the file to the document's `assets/` (`POST /api/assets/:docId`) and creates an `img` node with a relative `src`. Inside a flex parent the node enters the flow; in a block parent it becomes `absolute` (the parent gets `position: relative` if it is static).
+- **Inline text**: double click on a selected text edits it; Enter confirms, Shift+Enter breaks the line, Esc cancels.
+- **Context menu** (right button, also on layers): create component, go to main, detach instance, duplicate, group into container, ungroup, order (front, forward, backward, back), hide, lock, **Remix** (see [Remix](#remix)) and delete.
+- **Live MCP**: changes made by agents appear without reloading; a selection made through the MCP (`set_selection`) selects and frames the nodes; frames touched by the MCP in the last 4 s show a pulsing **AI** badge next to the name. The editor's selection is published to the daemon (`get_selection`).
 
-## Camadas e páginas
+## Layers and pages
 
-- Árvore com ícone por tipo/tag, nome e tag; expandir/recolher; ocultar (olho) e travar (cadeado).
-- Clique seleciona, Ctrl+clique alterna, Shift+clique seleciona o intervalo. Duplo clique renomeia.
-- Arrastar linhas reordena ou muda o pai (antes/depois/dentro), inclusive para a raiz da página, na posição atual: texto, imagem e SVG ganham um frame em volta (com 24 px de recuo, como na colagem) e perdem o posicionamento absoluto; contêineres (`element`) viram nós raiz com a posição e o tamanho medidos, mas mantêm `type: element` (o `moveNodes` do core não muda o tipo). Tudo numa única entrada de undo.
-- A seleção é sincronizada com o canvas e o MCP (ancestrais expandidos e rolagem até a linha).
+- Tree with an icon per type/tag, name and tag; expand/collapse; hide (eye) and lock (padlock).
+- Click selects, Ctrl+click toggles, Shift+click selects the range. Double click renames.
+- Dragging rows reorders or changes the parent (before/after/inside), including to the page root, at the current position: text, image and SVG get a frame around them (with 24 px of inset, as in paste) and lose absolute positioning; containers (`element`) become root nodes with the measured position and size, but keep `type: element` (the core's `moveNodes` does not change the type). All in a single undo entry.
+- The selection is synchronized with the canvas and the MCP (ancestors expanded and scrolled to the row).
 
-## Propriedades
+## Properties
 
-Seções recolhíveis, com multisseleção ("Misto" quando os valores diferem):
+Collapsible sections, with multi-selection ("Mixed" when values differ):
 
-- **Nome**, tipo/tag e **Tema** (`data-theme` do elemento; ver abaixo).
-- **Posição e tamanho**: X/Y (frames e absolutos), W/H com modo Fixo, Auto, 100% ou Fill (`flex: 1` no eixo principal do pai flex), rotação (`transform: rotate()`), `position`.
-- **Layout**: display, direção, gap, quebra, alinhamento, distribuição, padding (vinculado ou por lado), margin, overflow.
-- **Tipografia**: família, peso, tamanho, altura de linha, espaçamento, alinhamento, cor, decoração, transformação e o conteúdo do texto.
-- **Aparência**: opacidade, fundo (cor, gradiente ou imagem), borda, raio (único ou por canto), sombras múltiplas, `mix-blend-mode` e `background-blend-mode`.
-- **Efeitos**: blur do `filter` e do `backdrop-filter` (preservando outras funções).
-- **Classes** (Tailwind): ver [Tailwind](#tailwind).
-- **Tag e atributos**: tag (op `setTag`), id, href, alt, placeholder, type e atributos livres.
-- **CSS avançado**: as propriedades brutas do nó (`prop: valor;` por linha), aplicadas no blur ou com Ctrl+Enter por diff (set/unset).
+- **Name**, type/tag and **Theme** (the element's `data-theme`; see below).
+- **Position and size**: X/Y (frames and absolute nodes), W/H with Fixed, Auto, 100% or Fill mode (`flex: 1` on the main axis of the flex parent), rotation (`transform: rotate()`), `position`.
+- **Layout**: display, direction, gap, wrap, alignment, distribution, padding (linked or per side), margin, overflow.
+- **Typography**: family, weight, size, line height, spacing, alignment, color, decoration, transform and the text content.
+- **Appearance**: opacity, background (color, gradient or image), border, radius (single or per corner), multiple shadows, `mix-blend-mode` and `background-blend-mode`.
+- **Effects**: `filter` and `backdrop-filter` blur (preserving other functions).
+- **Classes** (Tailwind): see [Tailwind](#tailwind).
+- **Tag and attributes**: tag (`setTag` op), id, href, alt, placeholder, type and free attributes.
+- **Advanced CSS**: the node's raw properties (`prop: value;` per line), applied on blur or with Ctrl+Enter by diff (set/unset).
 
-Inputs numéricos aceitam unidades (`px`, `%`, `rem`, `auto`, `calc()`...), setas ↑/↓ (Shift = ×10) e **arrastar o rótulo** na horizontal (prévia ao vivo, uma única entrada de undo ao soltar).
+Numeric inputs accept units (`px`, `%`, `rem`, `auto`, `calc()`...), ↑/↓ arrows (Shift = ×10) and **dragging the label** horizontally (live preview, a single undo entry on release).
 
-## Assistente de IA
+## AI assistant
 
-Aba **Assistente** do painel direito: uma conversa por documento com um agente (Claude Code ou Codex, instalados e logados na máquina) que edita o design pelas mesmas ferramentas do MCP.
+The **Assistant** tab of the right panel: one conversation per document with an agent (Claude Code or Codex, installed and logged in on the machine) that edits the design through the same MCP tools.
 
-- **Mensagens**: as do usuário à direita; as do assistente com o texto (quebras de linha preservadas), as **ferramentas chamadas** como chips (rodando, ok ou erro; o texto do resumo fica no `title`) e, quando o turno alterou o documento, o rodapé "N alterações — Ctrl+Z desfaz o turno". Erros e cancelamentos aparecem na própria mensagem.
-- **Streaming**: o texto e as ferramentas do turno em andamento chegam por `assistant:event` e aparecem na hora; o botão **Cancelar** (`assistant:cancel`) substitui o de enviar durante o turno.
-- **Entrada**: Enter envia, Shift+Enter quebra a linha. O indicador abaixo do campo mostra o contexto enviado ("2 nós selecionados" ou "sem seleção — o documento inteiro").
-- **Backend**: seletor Automático / Claude Code / Codex (com "indisponível" quando a CLI não foi encontrada), gravado por `assistant:config`. Sem nenhum backend, o painel pede para instalar e fazer login no Claude Code ou no Codex.
-- **Histórico**: carregado por `assistant:history` ao abrir o painel, trocar de documento ou reconectar; o botão de lixeira limpa (`assistant:clear`). O estado vive em `state/assistantStore.ts` (por documento: mensagens, turno parcial, backends, configuração).
-- **Undo**: cada turno vira **uma** entrada no histórico do daemon; um Ctrl+Z desfaz tudo o que o agente fez no turno.
-- O estado vazio oferece sugestões (clique preenche o campo).
+- **Messages**: the user's on the right; the assistant's with the text (line breaks preserved), the **tools called** as chips (running, ok or error; the summary text is in the `title`) and, when the turn changed the document, the footer "N changes — Ctrl+Z undoes the turn". Errors and cancellations appear in the message itself.
+- **Streaming**: the text and tools of the turn in progress arrive through `assistant:event` and appear immediately; the **Cancel** button (`assistant:cancel`) replaces the send button during the turn.
+- **Input**: Enter sends, Shift+Enter breaks the line. The indicator below the field shows the context sent ("2 nodes selected" or "no selection — the whole document").
+- **Backend**: Automatic / Claude Code / Codex selector (with "unavailable" when the CLI was not found), saved through `assistant:config`. With no backend, the panel asks you to install and log in to Claude Code or Codex.
+- **History**: loaded by `assistant:history` when opening the panel, switching documents or reconnecting; the trash button clears it (`assistant:clear`). State lives in `state/assistantStore.ts` (per document: messages, partial turn, backends, configuration).
+- **Undo**: each turn becomes **one** entry in the daemon's history; a single Ctrl+Z undoes everything the agent did in the turn.
+- The empty state offers suggestions (a click fills the field).
 
 ## Scripts
 
-Aba **Scripts**: um editor **CodeMirror 6** (JavaScript, tema escuro, autocomplete de `doc.` e dos membros dos nós) para automatizar o documento. O CodeMirror é carregado sob demanda (`import()`), fora do chunk principal; enquanto carrega (ou se falhar) um `textarea` faz o papel de editor.
+The **Scripts** tab: a **CodeMirror 6** editor (JavaScript, dark theme, autocomplete for `doc.` and node members) to automate the document. CodeMirror is loaded on demand (`import()`), outside the main chunk; while it loads (or if it fails) a `textarea` stands in as the editor.
 
-- **Executar**: botão ou Ctrl+Enter (`script:run`, com a seleção atual). O script roda no daemon; `console.log` vai para a saída, o `return` vira o resultado (JSON) e um erro aparece em vermelho. Imagens de `doc.screenshot()` aparecem como `<img>`, e o rodapé mostra "N ops • X ms". Cada execução é **uma** entrada de undo.
-- **API**: `doc.select(query)`, `doc.selectOne(query)`, `doc.get(id)`, `doc.selection()`, `doc.frames()`, `doc.pages()`, `doc.create(pai, spec)`, `doc.apply(op)`, `doc.screenshot(nó?)`, `doc.tokens()`/`doc.setTokens(...)`. Os _handles_ têm `id`, `type`, `tag`, `name`, `text`, `style` (proxy), `attrs`, `children`, `parent`, `frame`, `setStyle(obj)`, `remove()`, `duplicate()` e `select(query)`. Ex.: `doc.select('text').forEach((n, i) => n.name = 'Item ' + (i + 1))`.
-- **Biblioteca**: os scripts salvos ficam em `scripts/*.js` ao lado do documento (`script:list/read/save/delete`); abrir, salvar, salvar como (pede o nome) e excluir (com confirmação). Documento sem caminho: o painel avisa que é preciso salvá-lo antes.
-- **Gerar com IA**: descreva o que quer e o código gerado (`script:generate`) entra no editor para revisão antes de executar.
-- **Exemplos** prontos (renomear textos em sequência, trocar a cor dos botões...) e o rascunho por documento (sobrevive à troca de aba).
+- **Run**: button or Ctrl+Enter (`script:run`, with the current selection). The script runs in the daemon; `console.log` goes to the output, the `return` becomes the result (JSON) and an error appears in red. Images from `doc.screenshot()` appear as `<img>`, and the footer shows "N ops • X ms". Each run is **one** undo entry.
+- **API**: `doc.select(query)`, `doc.selectOne(query)`, `doc.get(id)`, `doc.selection()`, `doc.frames()`, `doc.pages()`, `doc.create(parent, spec)`, `doc.apply(op)`, `doc.screenshot(node?)`, `doc.tokens()`/`doc.setTokens(...)`. The _handles_ have `id`, `type`, `tag`, `name`, `text`, `style` (proxy), `attrs`, `children`, `parent`, `frame`, `setStyle(obj)`, `remove()`, `duplicate()` and `select(query)`. E.g.: `doc.select('text').forEach((n, i) => n.name = 'Item ' + (i + 1))`.
+- **Library**: saved scripts live in `scripts/*.js` next to the document (`script:list/read/save/delete`); open, save, save as (asks for the name) and delete (with confirmation). Document without a path: the panel warns that it must be saved first.
+- **Generate with AI**: describe what you want and the generated code (`script:generate`) goes into the editor for review before running.
+- Ready-made **examples** (rename texts in sequence, change the buttons' color...) and the per-document draft (survives switching tabs).
 
 ## Remix
 
-Itens do menu de contexto (canvas e camadas), habilitados com **exatamente um** nó selecionado (não em instâncias expandidas): **Remix: escala de cor**, **pares de fontes**, **espaçamento**, **layout** e **Remix com IA…** (pergunta o pedido e a quantidade de variações, padrão 3). O daemon cria as variações como frames lado a lado e as seleciona; o editor as enquadra e avisa por toast. Um remix inteiro é **uma** entrada de undo (um Ctrl+Z remove todos os frames). No remix com IA o painel abre a aba Assistente para acompanhar o turno. Erros do daemon aparecem como toast.
+Context menu items (canvas and layers), enabled with **exactly one** node selected (not in expanded instances): **Remix: color scale**, **font pairs**, **spacing**, **layout** and **Remix with AI…** (asks for the request and the number of variations, default 3). The daemon creates the variations as side-by-side frames and selects them; the editor frames them and notifies by toast. An entire remix is **one** undo entry (a single Ctrl+Z removes all the frames). In the AI remix the panel opens the Assistant tab to follow the turn. Daemon errors appear as a toast.
 
-## Componentes
+## Components
 
-Modelo, expansão e ops em [COMPONENTES.md](COMPONENTES.md). No editor:
+Model, expansion and ops in [COMPONENTS.md](COMPONENTS.md). In the editor:
 
-- **Visão expandida**: o `docStore` guarda o documento do daemon em `rawDoc` e expõe em `doc` a **visão** (`expandDocument`, memoizada, com compartilhamento estrutural entre versões). Canvas, índice, camadas, seleção, overlay e propriedades trabalham sobre a visão sem código especial; os planejadores do core (`createComponentOps`, `instanceNodeFor`, `detachInstanceOps`, `importKitOps`...) recebem o `rawDoc`. Uma instância aparece com o id dela (tipo da raiz do principal, `componentId`/`props` como marcador), os nós internos com ids virtuais `in_x/caminho` e o conteúdo de slot com os ids reais.
-- **Seleção**: clicar numa instância seleciona a instância; duplo clique desce para os nós internos (como em qualquer filho), Ctrl+clique vai direto. Nós internos **não** se movem, reordenam, duplicam, agrupam nem são excluídos (aviso na tela; nas camadas não são arrastáveis nem renomeáveis), mas estilo, texto (duplo clique), atributos, classes e ocultar viram **overrides** da instância (o daemon roteia as ops). Inserir (ferramentas, colar, soltar) nunca entra num nó interno nem na raiz da instância, só no **conteúdo de slot**, que é nó real: seleciona, edita texto, insere e arrasta como qualquer nó. O contêiner de slot em si não se move.
-- **Indicador roxo**: contorno de hover/seleção, alças e rótulo de tamanho roxos em instâncias, nós internos, contêineres de slot e no principal em edição; nas camadas, instância com ícone de componente (roxo forte), nós internos em roxo-claro e contêiner de slot com ícone tracejado.
-- **Criar componente** (Ctrl+Alt+K ou menu de contexto): o nó selecionado (não frame raiz, não interno) vira o principal e é trocado pela primeira instância, numa entrada de undo; props inferidas de `{{nome}}` e `data-slot`.
-- **Aba Componentes**: busca por nome; **Neste documento** lista os principais (nome, kit, nº de instâncias nas páginas): clique edita o principal, arrastar para o canvas ou o botão + insere uma instância (dentro do contêiner selecionado, logo depois da seleção ou no primeiro frame). Os **kits** do daemon (`GET /api/kits`, ex. **Kit shadcn-like**) inserem com clique ou arrastando: `importKitOps` com `onlyMissing` (se o componente ainda não está no documento; traz só os componentes e tokens que faltam, sem mexer nos principais já importados) e o `createNode` da instância (calculado sobre o documento com o kit aplicado localmente) vão numa única chamada. Solto em pai bloco, a instância fica `absolute` no ponto; fora de frames, ganha um frame em volta.
-- **Painel da instância** (seção Instância): componente de origem, um controle por prop (texto, número, liga/desliga, opções, cor com seletor de token) que gera `setInstanceProps` (voltar ao padrão remove a prop), botões dos slots (selecionam o contêiner) e **Ir para principal**, **Destacar** (`detachInstanceOps`), **Restaurar** (remove os overrides; desabilitado sem overrides) e **Enviar ao principal** (`pushOverridesToMainOps`).
-- **Modo de edição do principal** (Ir para principal, clique na aba, menu de contexto ou `go_to_main` do MCP): o canvas mostra só a página sintética `COMPONENT_EDIT_PAGE_ID` com a raiz do principal (instâncias aninhadas expandidas) dentro de um quadro tracejado não editável, com a largura da instância de origem; o selo "Editando componente X · N instâncias · **Concluir**" fica no topo. As edições usam os ids reais dos nós do principal (o daemon as transforma em `updateComponent`) e propagam para todas as instâncias; undo/redo normais. O painel mostra a seção **Componente** (nome, descrição e props: adicionar, remover, renomear, tipo, padrão e opções). **Esc** sem seleção (ou Concluir) volta à página de origem e seleciona a instância de onde se entrou; trocar de página também sai do modo. Os textos do principal mostram os placeholders (`{{label}}`).
-- **Copiar/colar**: copiar uma instância copia a instância (não a árvore expandida); um nó interno sai como nós concretos. Colar na raiz da página embrulha a instância num frame.
+- **Expanded view**: the `docStore` keeps the daemon's document in `rawDoc` and exposes the **view** in `doc` (`expandDocument`, memoized, with structural sharing between versions). Canvas, index, layers, selection, overlay and properties work on the view with no special code; the core planners (`createComponentOps`, `instanceNodeFor`, `detachInstanceOps`, `importKitOps`...) receive the `rawDoc`. An instance appears with its own id (type of the main component's root, `componentId`/`props` as a marker), the inner nodes with virtual ids `in_x/path` and the slot content with the real ids.
+- **Selection**: clicking an instance selects the instance; double click goes down to the inner nodes (like any child), Ctrl+click goes straight there. Inner nodes do **not** move, reorder, duplicate, group or get deleted (warning on screen; in layers they are not draggable or renameable), but style, text (double click), attributes, classes and hide become instance **overrides** (the daemon routes the ops). Inserting (tools, paste, drop) never goes into an inner node or the instance root, only into the **slot content**, which is a real node: it selects, edits text, inserts and drags like any node. The slot container itself does not move.
+- **Purple indicator**: purple hover/selection outline, handles and size label on instances, inner nodes, slot containers and the main component being edited; in layers, instance with a component icon (strong purple), inner nodes in light purple and slot container with a dashed icon.
+- **Create component** (Ctrl+Alt+K or context menu): the selected node (not a root frame, not an inner node) becomes the main component and is replaced by the first instance, in one undo entry; props inferred from `{{name}}` and `data-slot`.
+- **Components tab**: search by name; **In this document** lists the main components (name, kit, number of instances in the pages): click edits the main component, dragging to the canvas or the + button inserts an instance (inside the selected container, right after the selection or in the first frame). The daemon's **kits** (`GET /api/kits`, e.g. **shadcn-like kit**) insert with a click or by dragging: `importKitOps` with `onlyMissing` (if the component is not yet in the document; brings only the missing components and tokens, without touching main components already imported) and the instance's `createNode` (computed on the document with the kit applied locally) go in a single call. Dropped in a block parent, the instance becomes `absolute` at the point; outside frames, it gets a frame around it.
+- **Instance panel** (Instance section): source component, one control per prop (text, number, toggle, options, color with token picker) that produces `setInstanceProps` (going back to the default removes the prop), slot buttons (they select the container) and **Go to main**, **Detach** (`detachInstanceOps`), **Reset** (removes the overrides; disabled without overrides) and **Push to main** (`pushOverridesToMainOps`).
+- **Main component edit mode** (Go to main, click on the tab, context menu or the MCP's `go_to_main`): the canvas shows only the synthetic page `COMPONENT_EDIT_PAGE_ID` with the main component's root (nested instances expanded) inside a dashed, non-editable frame, with the width of the source instance; the badge "Editing component X · N instances · **Done**" sits at the top. Edits use the real ids of the main component's nodes (the daemon turns them into `updateComponent`) and propagate to all instances; normal undo/redo. The panel shows the **Component** section (name, description and props: add, remove, rename, type, default and options). **Esc** with no selection (or Done) returns to the source page and selects the instance you came from; switching page also leaves the mode. The main component's texts show the placeholders (`{{label}}`).
+- **Copy/paste**: copying an instance copies the instance (not the expanded tree); an inner node comes out as concrete nodes. Pasting at the page root wraps the instance in a frame.
 
-## Tokens e temas
+## Tokens and themes
 
-Tudo vira ops enviadas com `daemon.apply` (um undo por ação, o mesmo caminho do MCP); o editor não guarda estado de tokens fora do documento. O canvas e a página de render injetam `.cv-world [data-theme="x"] { --token: … }` (`themeRulesCss`), então o tema de um frame é o atributo `data-theme` e o CSS é o mesmo do export HTML.
+Everything becomes ops sent with `daemon.apply` (one undo per action, the same path as the MCP); the editor keeps no token state outside the document. The canvas and the render page inject `.cv-world [data-theme="x"] { --token: … }` (`themeRulesCss`), so a frame's theme is the `data-theme` attribute and the CSS is the same as the HTML export.
 
-### Aba Tokens
+### Tokens tab
 
-- **Lista** agrupada (Cores, Tipografia, Espaçamento, Raio, Sombra, Outros e, no fim, grupos livres), com seções recolhíveis e **busca** por nome, valor ou descrição. Cada linha mostra a prévia (amostra de cor, barra de espaçamento, raio, sombra, família/peso), o nome, o valor e o valor resolvido (`= #fff`) quando difere do declarado.
-- **Indicadores**: ícone discreto de _não usado_ (nenhum elemento nem token referencia) e triângulo de _problema_ (vermelho para valor/referência quebrada, âmbar para aviso), com a mensagem no `title` e abaixo da linha.
-- **Editar valor**: clique no valor, Enter confirma, Esc cancela. A validação (`validateTokenValue`) bloqueia erros (mensagem sob o campo) e aceita avisos, mostrando-os.
-- **Renomear**: duplo clique no nome (`renameToken`, atualiza todos os `var()`).
-- **Novo token**: botão `+` (nome, valor, grupo; grupo vazio = inferido).
-- **Mais opções** (`⋯` ou botão direito na linha): renomear, editar valor, grupo e descrição (`setTokenMeta`), copiar `var(--x)`, remover sobrescrita do tema, excluir (`planDeleteTokens`; Ctrl+Z desfaz).
-- **Tema em edição**: o seletor no topo escolhe _Base_ ou um tema. Com um tema, editar um valor grava na sobrescrita do tema (`setTokens` com `theme`); a linha mostra a etiqueta do tema e o botão para remover a sobrescrita; valores herdados aparecem esmaecidos. Botões para criar (copia o tema atual, se houver), renomear e excluir tema (o `data-theme` dos nós acompanha).
-- **Importar** (CSS ou JSON W3C, modo mesclar ou substituir, mostra os avisos do parser) e **Exportar** (CSS, JSON ou Tailwind, com botão Copiar).
+- Grouped **list** (Colors, Typography, Spacing, Radius, Shadow, Other and, at the end, free groups), with collapsible sections and **search** by name, value or description. Each row shows the preview (color swatch, spacing bar, radius, shadow, family/weight), the name, the value and the resolved value (`= #fff`) when it differs from the declared one.
+- **Indicators**: a discreet _unused_ icon (no element or token references it) and a _problem_ triangle (red for a broken value/reference, amber for a warning), with the message in the `title` and below the row.
+- **Edit value**: click the value, Enter confirms, Esc cancels. Validation (`validateTokenValue`) blocks errors (message under the field) and accepts warnings, showing them.
+- **Rename**: double click the name (`renameToken`, updates every `var()`).
+- **New token**: `+` button (name, value, group; empty group = inferred).
+- **More options** (`⋯` or right button on the row): rename, edit value, group and description (`setTokenMeta`), copy `var(--x)`, remove the theme override, delete (`planDeleteTokens`; Ctrl+Z undoes).
+- **Theme being edited**: the selector at the top chooses _Base_ or a theme. With a theme, editing a value writes to the theme's override (`setTokens` with `theme`); the row shows the theme's label and the button to remove the override; inherited values appear faded. Buttons to create (copies the current theme, if any), rename and delete a theme (the nodes' `data-theme` follows).
+- **Import** (CSS or W3C JSON, merge or replace mode, shows the parser's warnings) and **Export** (CSS, JSON or Tailwind, with a Copy button).
 
-### Ligar a token nos inputs
+### Binding tokens in inputs
 
-Cada input de cor, tamanho, espaçamento, raio, tipografia (tamanho, altura de linha, espaçamento entre letras, família, peso), cor da borda e da sombra tem um ícone de losango ("Ligar a um token") que abre um seletor com busca e a lista de tokens do tipo da propriedade (cor, espaçamento, raio, tipografia; **Todos** mostra o resto) com o valor resolvido. Escolher grava `var(--token)` (`planApplyToken`) em todos os nós selecionados. Quando o valor já é `var(--x)`, o input vira um **chip** com o nome do token e o valor resolvido no escopo do nó (respeitando `data-theme`); clicar no chip troca o token e o botão de desligar grava o valor resolvido literal. Implementado de forma genérica em `properties/TokenBinding.tsx` (`TokenBound`), plugado nos componentes compartilhados.
+Each color, size, spacing, radius, typography (size, line height, letter spacing, family, weight), border color and shadow color input has a diamond icon ("Bind to a token") that opens a picker with search and the list of tokens of the property's type (color, spacing, radius, typography; **All** shows the rest) with the resolved value. Choosing writes `var(--token)` (`planApplyToken`) to all selected nodes. When the value is already `var(--x)`, the input becomes a **chip** with the token name and the value resolved in the node's scope (respecting `data-theme`); clicking the chip swaps the token and the unbind button writes the literal resolved value. Implemented generically in `properties/TokenBinding.tsx` (`TokenBound`), plugged into the shared components.
 
-### Tema por elemento
+### Theme per element
 
-A linha **Tema** do painel de propriedades (frames e qualquer elemento) define o `data-theme` (`planSetFrameTheme`); "Padrão (base)" remove. Quando o elemento não declara tema, o select mostra o herdado (`Herdado (dark)`).
+The **Theme** row of the properties panel (frames and any element) sets the `data-theme` (`planSetFrameTheme`); "Default (base)" removes it. When the element declares no theme, the select shows the inherited one (`Inherited (dark)`).
 
-### Sem seleção
+### No selection
 
-O painel direito mostra o resumo (nº de tokens e temas, não usados, com problema), o seletor **CSS base** (Padrão / Tailwind (preflight), op `setCssBase`) e o botão "Abrir painel de tokens".
+The right panel shows the summary (number of tokens and themes, unused, with problems), the **Base CSS** selector (Default / Tailwind (preflight), `setCssBase` op) and the "Open tokens panel" button.
 
 ## Tailwind
 
-O Tailwind é nativo no modelo: `node.classes` (classes como escritas), `node.states` (estilos por variante: `hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` e combinações como `md:hover`) e `Document.cssBase`. O motor (compilador oficial do Tailwind v4, ~260 kB) é carregado **sob demanda**, em chunk separado, só quando a seção Classes aparece ou quando se cola HTML com classes; enquanto carrega a seção mostra "Carregando Tailwind…" e, se o import falhar, mostra o erro sem quebrar o painel.
+Tailwind is native to the model: `node.classes` (classes as written), `node.states` (per-variant styles: `hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` and combinations like `md:hover`) and `Document.cssBase`. The engine (the official Tailwind v4 compiler, ~260 kB) is loaded **on demand**, in a separate chunk, only when the Classes section appears or when HTML with classes is pasted; while it loads the section shows "Loading Tailwind…" and, if the import fails, shows the error without breaking the panel.
 
-- **Render com estados**: o canvas e a página de render (`window.__mockupRender.render({ ..., state })`) aplicam `resolveStateStyle` a cada nó. O frame raiz fornece o contexto: um breakpoint vale quando a **largura do frame** (o frame é o viewport; vale a prévia de redimensionamento) é maior ou igual a ele; `dark` vale dentro de um nó com `data-theme="dark"` (para a subárvore) ou na prévia "dark"; pseudo-estados valem na prévia. O contexto só muda ao cruzar um breakpoint, e só nós com `states` reprocessam o estilo.
-- **Prévia de estado**: seletor "Prévia" na barra superior (Nenhum, hover, focus, active, focus-visible, focus-within, disabled, dark; `previewState` no `uiStore`). Vale para todos os nós do canvas e não altera o documento.
-- **CSS base**: o canvas e o render usam `documentBaseCssFor(doc, ...)`; com `cssBase: 'tailwind'` entra o preflight do Tailwind. Escolha em "CSS base" no painel do documento (sem seleção).
-- **Seção Classes**:
-  - Campo de classes (Enter ou perder o foco aplica; Shift+Enter quebra a linha; Esc descarta). Aplicar usa `planSetClasses(..., 'replace')`: as classes passam a ser o estilo do nó (`style`, `states` e `classes` mudam numa só chamada, um undo), mantendo o posicionamento (`position`, `left`, `top`...) e o CSS sem classe equivalente quando as classes não os definem. Num nó sem `classes`, o campo abre com as classes equivalentes ao estilo atual (`engine.nodeClasses`); sair sem editar não aplica nada. Multisseleção mostra "Misto" e aplica a todos.
-  - Autocomplete (`engine.suggest`) para a classe sob o cursor, inclusive com prefixo de variante (`hover:bg-`): ↑/↓ navegam, Enter ou Tab aceitam, Esc fecha; o CSS da classe destacada aparece no rodapé da lista.
-  - Classes desconhecidas ou sem equivalente no modelo aparecem como aviso discreto abaixo do campo.
-  - **Mostrar como Tailwind** (lembrado no `uiStore`): as classes idiomáticas do estilo atual do nó, com variantes (`engine.nodeClasses`), somente leitura, com botão Copiar, mais o CSS que não tem classe equivalente. Serve também para nós gerados por CSS, sem `classes`.
-  - **Estados**: lista os `states` do nó com o CSS de cada um e um botão para remover (op `setStates`).
-- **Colar HTML**: se o HTML colado parece Tailwind (`detectTailwind`), o editor mantém as classes (`htmlToNodes(html, { keepClasses: true })`), compila-as (`applyTailwindToNodes`) e, se o documento ainda não usa o preflight, acrescenta `setCssBase` na mesma chamada (um undo). Como no `import_component` do MCP, se o HTML usa cores do shadcn (`bg-primary`, `border-input`...) que o documento não tem, os tokens do preset shadcn (e o tema `dark`) entram nas mesmas ops, com um aviso na tela, e bordas sem cor recebem `var(--color-border)`. Sem Tailwind, o comportamento é o de sempre.
-- **Prévia de estado `dark`**: além das variantes `dark:`, troca os tokens pelo tema `dark` do documento (o frame raiz recebe `data-theme="dark"` só no DOM), como `get_screenshot(state: 'dark')`. Breakpoints (`md:`...) usam as larguras dos tokens `--breakpoint-*` do documento.
+- **Render with states**: the canvas and the render page (`window.__mockupRender.render({ ..., state })`) apply `resolveStateStyle` to each node. The root frame provides the context: a breakpoint applies when the **frame width** (the frame is the viewport; the resize preview counts) is greater than or equal to it; `dark` applies inside a node with `data-theme="dark"` (for the subtree) or in the "dark" preview; pseudo-states apply in the preview. The context only changes when crossing a breakpoint, and only nodes with `states` reprocess the style.
+- **State preview**: "Preview" selector in the top bar (None, hover, focus, active, focus-visible, focus-within, disabled, dark; `previewState` in the `uiStore`). It applies to all nodes on the canvas and does not change the document.
+- **Base CSS**: the canvas and the render use `documentBaseCssFor(doc, ...)`; with `cssBase: 'tailwind'` the Tailwind preflight is included. Choose it under "Base CSS" in the document panel (no selection).
+- **Classes section**:
+  - Classes field (Enter or losing focus applies; Shift+Enter breaks the line; Esc discards). Applying uses `planSetClasses(..., 'replace')`: the classes become the node's style (`style`, `states` and `classes` change in a single call, one undo), keeping positioning (`position`, `left`, `top`...) and CSS with no equivalent class when the classes do not define them. On a node without `classes`, the field opens with the classes equivalent to the current style (`engine.nodeClasses`); leaving without editing applies nothing. Multi-selection shows "Mixed" and applies to all.
+  - Autocomplete (`engine.suggest`) for the class under the cursor, including with a variant prefix (`hover:bg-`): ↑/↓ navigate, Enter or Tab accept, Esc closes; the CSS of the highlighted class appears at the bottom of the list.
+  - Unknown classes, or classes with no equivalent in the model, appear as a discreet warning below the field.
+  - **Show as Tailwind** (remembered in the `uiStore`): the idiomatic classes for the node's current style, with variants (`engine.nodeClasses`), read-only, with a Copy button, plus the CSS that has no equivalent class. It also works for nodes generated from CSS, without `classes`.
+  - **States**: lists the node's `states` with the CSS of each and a button to remove (`setStates` op).
+- **Pasting HTML**: if the pasted HTML looks like Tailwind (`detectTailwind`), the editor keeps the classes (`htmlToNodes(html, { keepClasses: true })`), compiles them (`applyTailwindToNodes`) and, if the document does not yet use the preflight, adds `setCssBase` in the same call (one undo). As with the MCP's `import_component`, if the HTML uses shadcn colors (`bg-primary`, `border-input`...) that the document does not have, the tokens of the shadcn preset (and the `dark` theme) go in the same ops, with a warning on screen, and borders without a color get `var(--color-border)`. Without Tailwind, behavior is as usual.
+- **`dark` state preview**: besides the `dark:` variants, it swaps the tokens for the document's `dark` theme (the root frame gets `data-theme="dark"` only in the DOM), like `get_screenshot(state: 'dark')`. Breakpoints (`md:`...) use the widths of the document's `--breakpoint-*` tokens.
 
-## Assets, imagens, dados e arquivos
+## Assets, images, data and files
 
-Detalhes em [ASSETS.md](ASSETS.md) e [DADOS.md](DADOS.md).
+Details in [ASSETS.md](ASSETS.md) and [DATA.md](DATA.md).
 
-- **Tela inicial**: aparece no lugar do canvas quando nada está aberto e pelo botão **Início** (casa) da barra ou **Arquivo › Início**. Barra lateral com Recentes, Favoritos, Todos, pastas virtuais aninhadas (criar, renomear e excluir pelo menu de contexto; arrastar um cartão para a pasta move o arquivo) e tags. Busca por nome, tag e conteúdo (texto dos nós). Cartões com miniatura do primeiro frame (sem motor de render, um cartão neutro com nome e nº de frames), pasta, tags, estrela de favorito e selo "aberto"; clicar abre. Menu do cartão: favoritar, editar tags, mover para pasta, remover do índice. **Novo documento** e **Adicionar arquivo ou pasta** (diálogo nativo no desktop).
-- **Abas Camadas | Assets** no painel esquerdo. A aba Assets lista os arquivos de `assets/` com miniatura, busca, filtro "Não usados", contador de usos (clicar seleciona os nós), envio por arrastar ou **Enviar**, **Inserir** e arrastar para o canvas, **Copiar link** (URL `/cdn` estável), **Remover**, **Remover não usados**, **Otimizar** (WebP) e a **Biblioteca** global.
-- **Busca de nós** no topo de Camadas (Ctrl+F): `searchNodes` do core no documento ativo, com os filtros `tag:`, `name:`, `text:`, `class:`, `id:`, `attr:`, `data:`; clicar num resultado troca de página, seleciona e enquadra.
-- **Seção Imagem** (seleção só de imagens): trocar imagem, `object-fit`, `object-position` (grade 3×3 e campo livre), filtros com slider e campo (prévia ao vivo, uma entrada de undo ao soltar; preserva funções desconhecidas, como o blur da seção Efeitos), máscara `clip-path` (formas prontas ou CSS), **Recortar** e **Gerar placeholder** (tipo e semente).
-- **Recorte visual** (botão Recortar ou duplo clique na imagem selecionada): mostra a imagem inteira com a área de fora escurecida e um retângulo com 8 alças; arrastar dentro move. Enter/**Aplicar**/clique fora confirma (`object-view-box`), Esc cancela.
-- **Repetidores no canvas**: o repetidor mostra um item por linha de `data`; todas as cópias usam o `data-node-id` do nó do template, então clicar em qualquer item seleciona (e editar muda) o template. Na edição inline, o item 0 mostra o texto cru (`{{campo}}`).
-- **Seção Dados** (repetidor selecionado): origem e data da leitura, **Atualizar**, **Vincular…** (colar JSON/CSV, caminho ou URL, `select`, limite), tabela editável (célula, linha e coluna; cada edição é uma op `setData`; até 500 linhas desenhadas) e mapeamento de campos do template sem coluna. Contêineres com filhos ganham **Converter em repetidor** (seção e menu de contexto).
+- **Home screen**: appears in place of the canvas when nothing is open and through the bar's **Home** button (house) or **File › Home**. Sidebar with Recent, Favorites, All, nested virtual folders (create, rename and delete from the context menu; dragging a card to the folder moves the file) and tags. Search by name, tag and content (node text). Cards with a thumbnail of the first frame (without a render engine, a neutral card with the name and number of frames), folder, tags, favorite star and an "open" badge; clicking opens. Card menu: favorite, edit tags, move to folder, remove from the index. **New document** and **Add file or folder** (native dialog on desktop).
+- **Layers | Assets tabs** in the left panel. The Assets tab lists the files in `assets/` with a thumbnail, search, an "Unused" filter, a usage counter (clicking selects the nodes), upload by dragging or **Upload**, **Insert** and dragging to the canvas, **Copy link** (stable `/cdn` URL), **Remove**, **Remove unused**, **Optimize** (WebP) and the global **Library**.
+- **Node search** at the top of Layers (Ctrl+F): the core's `searchNodes` on the active document, with the filters `tag:`, `name:`, `text:`, `class:`, `id:`, `attr:`, `data:`; clicking a result switches page, selects and frames.
+- **Image section** (selection of images only): replace image, `object-fit`, `object-position` (3×3 grid and free field), filters with slider and field (live preview, one undo entry on release; preserves unknown functions, such as the blur from the Effects section), `clip-path` mask (ready-made shapes or CSS), **Crop** and **Generate placeholder** (type and seed).
+- **Visual crop** (Crop button or double click on the selected image): shows the whole image with the outside area darkened and a rectangle with 8 handles; dragging inside moves it. Enter/**Apply**/click outside confirms (`object-view-box`), Esc cancels.
+- **Repeaters on the canvas**: the repeater shows one item per row of `data`; all copies use the template node's `data-node-id`, so clicking any item selects (and editing changes) the template. In inline editing, item 0 shows the raw text (`{{field}}`).
+- **Data section** (repeater selected): source and read date, **Refresh**, **Bind…** (paste JSON/CSV, path or URL, `select`, limit), editable table (cell, row and column; each edit is a `setData` op; up to 500 rows drawn) and mapping of template fields with no column. Containers with children get **Convert to repeater** (section and context menu).
 
-## Atalhos
+## Shortcuts
 
-| Atalho                              | Ação                                                                                     |
-| ----------------------------------- | ---------------------------------------------------------------------------------------- |
-| V / H / F (ou A) / R / T            | Selecionar / Mão / Frame / Container / Texto                                             |
-| Ctrl+Shift+K                        | Inserir imagem                                                                           |
-| Ctrl+Alt+K                          | Criar componente da seleção                                                              |
-| Espaço (segurar)                    | Pan temporário                                                                           |
-| Alt (segurar)                       | Régua de distâncias; redimensionar do centro                                             |
-| Delete / Backspace                  | Excluir                                                                                  |
-| Ctrl+D                              | Duplicar                                                                                 |
-| Ctrl+G / Ctrl+Shift+G               | Agrupar em container / desagrupar                                                        |
-| Ctrl+] / Ctrl+[                     | Avançar / recuar                                                                         |
-| Ctrl+Shift+] / Ctrl+Shift+[         | Trazer para frente / enviar para trás                                                    |
-| Ctrl+Shift+H / Ctrl+Shift+L         | Ocultar / travar                                                                         |
-| Setas / Shift+setas                 | Mover 1 px / 10 px (reordena filhos em fluxo)                                            |
-| Esc                                 | Volta à ferramenta Selecionar; sobe um nível; sem seleção, conclui a edição do principal |
-| Enter / Shift+Enter                 | Seleciona os filhos / o pai                                                              |
-| Ctrl+A                              | Seleciona irmãos (ou todos os frames)                                                    |
-| Ctrl+Z / Ctrl+Shift+Z ou Ctrl+Y     | Desfazer / refazer                                                                       |
-| Ctrl+C / Ctrl+X / Ctrl+V            | Copiar / recortar / colar                                                                |
-| Ctrl+S / Ctrl+Shift+S               | Salvar / Salvar como                                                                     |
-| + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: aproximar, afastar, 100%, tudo, seleção                                            |
+| Shortcut                            | Action                                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| V / H / F (or A) / R / T            | Select / Hand / Frame / Container / Text                                                       |
+| Ctrl+Shift+K                        | Insert image                                                                                   |
+| Ctrl+Alt+K                          | Create component from selection                                                                |
+| Space (hold)                        | Temporary pan                                                                                  |
+| Alt (hold)                          | Distance ruler; resize from the center                                                         |
+| Delete / Backspace                  | Delete                                                                                         |
+| Ctrl+D                              | Duplicate                                                                                      |
+| Ctrl+G / Ctrl+Shift+G               | Group into container / ungroup                                                                 |
+| Ctrl+] / Ctrl+[                     | Bring forward / send backward                                                                  |
+| Ctrl+Shift+] / Ctrl+Shift+[         | Bring to front / send to back                                                                  |
+| Ctrl+Shift+H / Ctrl+Shift+L         | Hide / lock                                                                                    |
+| Arrows / Shift+arrows               | Move 1 px / 10 px (reorders in-flow children)                                                  |
+| Esc                                 | Back to the Select tool; go up one level; with no selection, finish editing the main component |
+| Enter / Shift+Enter                 | Select the children / the parent                                                               |
+| Ctrl+A                              | Select siblings (or all frames)                                                                |
+| Ctrl+Z / Ctrl+Shift+Z or Ctrl+Y     | Undo / redo                                                                                    |
+| Ctrl+C / Ctrl+X / Ctrl+V            | Copy / cut / paste                                                                             |
+| Ctrl+S / Ctrl+Shift+S               | Save / Save as                                                                                 |
+| + / - / Shift+0 / Shift+1 / Shift+2 | Zoom: in, out, 100%, all, selection                                                            |
 
-Os atalhos são ignorados enquanto o foco está num campo de texto, num diálogo ou na edição inline (exceto Ctrl+S).
+Shortcuts are ignored while focus is in a text field, a dialog or inline editing (except Ctrl+S).
 
 ## Clipboard
 
-- **Copiar** grava o HTML dos nós (`nodesToHtml`) no clipboard do sistema, com um marcador, e guarda uma cópia interna fiel.
-- **Colar**: o conteúdo copiado no próprio editor volta com fidelidade total e **ids novos**; HTML externo (de um navegador, de um agente ou texto que pareça HTML) passa por `htmlToNodes` do core (HTML que parece Tailwind: ver [Tailwind](#tailwind)); imagens viram upload para `assets/`; texto puro vira um nó de texto.
-- **Destino**: dentro do nó selecionado (se aceitar filhos), depois dele (se for folha) ou na raiz da página (como frame, no centro da tela).
+- **Copy** writes the nodes' HTML (`nodesToHtml`) to the system clipboard, with a marker, and keeps a faithful internal copy.
+- **Paste**: content copied in the editor itself comes back with full fidelity and **new ids**; external HTML (from a browser, an agent or text that looks like HTML) goes through the core's `htmlToNodes` (HTML that looks like Tailwind: see [Tailwind](#tailwind)); images become an upload to `assets/`; plain text becomes a text node.
+- **Destination**: inside the selected node (if it accepts children), after it (if it is a leaf) or at the page root (as a frame, in the center of the screen).
 
-## Arquitetura interna
+## Internal architecture
 
-| Pasta / arquivo                        | Conteúdo                                                                                                                                                      |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client/daemon.ts`                     | Cliente WS: reconexão, requisições com Promise (`ack`/`error` por `reqId`), integração das mensagens nos stores, upload de assets e recentes.                 |
-| `state/docStore.ts`                    | Estado do daemon: documentos, documento ativo (`rawDoc`) e a visão expandida (`doc`), histórico (`canUndo`/`canRedo`), atividade do agente.                   |
-| `state/uiStore.ts`                     | Estado local: seleção, hover, ferramenta, página, viewport, edição de texto, prévias de arrasto, prévia de estado, pedidos de foco, toasts, abas dos painéis. |
-| `state/assistantStore.ts`              | Assistente por documento: mensagens, turno em andamento (texto parcial e ferramentas), backends e configuração.                                               |
-| `tailwind/`                            | Carga sob demanda do motor Tailwind (`loader.ts`) e o hook `useTailwind`.                                                                                     |
-| `state/share.ts`                       | Compartilhamento estrutural: objetos de nós que não mudaram mantêm a identidade entre versões do documento.                                                   |
-| `model/tree.ts`                        | Índice de nós por documento (cache em `WeakMap`) e consultas (pai, cadeia, irmãos, topo da seleção...).                                                       |
-| `actions.ts`                           | Comandos compartilhados (excluir, duplicar, agrupar, ordem, mover com setas...) com builders puros testados.                                                  |
-| `canvas/`                              | Canvas, render dos nós, overlay (seleção, alças, marquee, régua), interações, criação, imagem.                                                                |
-| `layers/`                              | Páginas e árvore de camadas.                                                                                                                                  |
-| `components/`                          | Componentes: visão expandida e página do principal (`model.ts`), modo de edição, comandos, kits, aba Componentes, seções Instância/Componente.                |
-| `properties/`                          | Painel de propriedades e parsers de CSS (sombras, bordas, caixas, filtros, CSS avançado).                                                                     |
-| `dock/`                                | `RightDock`: abas Design, Assistente e Scripts do painel direito.                                                                                             |
-| `assistant/`                           | Painel do assistente de IA (mensagens, chips de ferramentas, composer, seletor de backend).                                                                   |
-| `scripts/`                             | Painel de scripts: editor CodeMirror (`cm.ts`, sob demanda), saída, biblioteca, exemplos e rascunhos por documento.                                           |
-| `remix/`                               | Ações do menu Remix (`daemon.remix`, diálogo do Remix com IA, enquadramento dos frames criados).                                                              |
-| `render/`, `desktop/`                  | Página de render (screenshots/medição) e ponte com o app desktop.                                                                                             |
-| `toolbar/`, `shortcuts/`, `clipboard/` | Barra superior, atalhos e clipboard.                                                                                                                          |
-| `ui/`                                  | Controles compartilhados (input numérico com unidades, seções, cor, menus, diálogo, toasts).                                                                  |
+| Folder / file                          | Contents                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `client/daemon.ts`                     | WS client: reconnection, Promise-based requests (`ack`/`error` by `reqId`), merging messages into the stores, asset upload and recents. |
+| `state/docStore.ts`                    | Daemon state: documents, active document (`rawDoc`) and the expanded view (`doc`), history (`canUndo`/`canRedo`), agent activity.       |
+| `state/uiStore.ts`                     | Local state: selection, hover, tool, page, viewport, text editing, drag previews, state preview, focus requests, toasts, panel tabs.    |
+| `state/assistantStore.ts`              | Assistant per document: messages, turn in progress (partial text and tools), backends and configuration.                                |
+| `tailwind/`                            | On-demand loading of the Tailwind engine (`loader.ts`) and the `useTailwind` hook.                                                      |
+| `state/share.ts`                       | Structural sharing: node objects that did not change keep their identity between document versions.                                     |
+| `model/tree.ts`                        | Per-document node index (cached in a `WeakMap`) and queries (parent, chain, siblings, selection top...).                                |
+| `actions.ts`                           | Shared commands (delete, duplicate, group, order, move with arrows...) with tested pure builders.                                       |
+| `canvas/`                              | Canvas, node rendering, overlay (selection, handles, marquee, ruler), interactions, creation, image.                                    |
+| `layers/`                              | Pages and the layer tree.                                                                                                               |
+| `components/`                          | Components: expanded view and main component page (`model.ts`), edit mode, commands, kits, Components tab, Instance/Component sections. |
+| `properties/`                          | Properties panel and CSS parsers (shadows, borders, boxes, filters, advanced CSS).                                                      |
+| `dock/`                                | `RightDock`: the Design, Assistant and Scripts tabs of the right panel.                                                                 |
+| `assistant/`                           | AI assistant panel (messages, tool chips, composer, backend selector).                                                                  |
+| `scripts/`                             | Scripts panel: CodeMirror editor (`cm.ts`, on demand), output, library, examples and per-document drafts.                               |
+| `remix/`                               | Remix menu actions (`daemon.remix`, AI Remix dialog, framing of the created frames).                                                    |
+| `render/`, `desktop/`                  | Render page (screenshots/measurement) and the bridge to the desktop app.                                                                |
+| `toolbar/`, `shortcuts/`, `clipboard/` | Top bar, shortcuts and clipboard.                                                                                                       |
+| `ui/`                                  | Shared controls (numeric input with units, sections, color, menus, dialog, toasts).                                                     |
 
-## Salvar como, fontes embutidas e app desktop
+## Save as, embedded fonts and desktop app
 
-- **Salvar como…** (Arquivo, Ctrl+Shift+S) envia `doc:saveAs`: o daemon grava no novo caminho (sobrescreve), copia `assets/` para ao lado do novo arquivo sem sobrescrever o que já existe, e passa a apontar o documento para ele (`doc:saved` com o caminho novo). Recusa um caminho que já é de OUTRO documento aberto. No navegador o caminho é digitado; no desktop abre o diálogo nativo.
-- **Fontes embutidas**: o canvas injeta um `<style>` com os `@font-face` de `doc.fonts` (`fontFaceCss` do core, arquivos em `/assets/<docId>/...`), então fontes de `add_font` aparecem como na exportação. As famílias do documento aparecem no seletor de fonte.
-- **Indicador "IA"**: o evento `agent:finished` do servidor apaga o selo dos frames dos nós informados (ou de todos, se a lista vier vazia).
-- **Ponte desktop** (`desktop/bridge.ts`): com `window.mockupDesktop` (preload do Electron), Novo/Abrir/Salvar como usam os diálogos nativos, o menu nativo aciona os mesmos fluxos (`onMenu`; undo/redo vão para o campo focado quando editável) e o editor informa nome/caminho/não salvo à janela (`setDocumentState`).
-- **Página de render** (`render.html`, `src/render/`): gerada junto com o editor em `dist/render.html` e servida em `/render.html`. Não conecta ao WebSocket. `window.__mockupRenderReady` fica `true` ao montar; `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renderiza só o frame raiz que contém o nó, em (0,0), com o mesmo `NodeView` do canvas (sem sombra, rótulo ou badge), espera fontes, imagens e 2 frames, e devolve `RenderBox`; `measure(nodeId)` devolve a `LayoutNode` medida do último render. Fundo: `transparent: true` deixa html/body transparentes (e usa `color-scheme: normal`; o processo principal deve usar fundo transparente na janela), senão usa o `background` da página do frame.
+- **Save as…** (File, Ctrl+Shift+S) sends `doc:saveAs`: the daemon writes to the new path (overwriting), copies `assets/` next to the new file without overwriting what already exists, and points the document at it (`doc:saved` with the new path). It rejects a path that already belongs to ANOTHER open document. In the browser the path is typed; on desktop it opens the native dialog.
+- **Embedded fonts**: the canvas injects a `<style>` with the `@font-face` rules from `doc.fonts` (the core's `fontFaceCss`, files in `/assets/<docId>/...`), so fonts from `add_font` appear as in the export. The document's families appear in the font selector.
+- **"AI" indicator**: the server's `agent:finished` event clears the badge from the frames of the nodes listed (or all of them, if the list is empty).
+- **Desktop bridge** (`desktop/bridge.ts`): with `window.mockupDesktop` (Electron preload), New/Open/Save as use the native dialogs, the native menu triggers the same flows (`onMenu`; undo/redo go to the focused field when editable) and the editor reports name/path/unsaved state to the window (`setDocumentState`).
+- **Render page** (`render.html`, `src/render/`): generated together with the editor at `dist/render.html` and served at `/render.html`. It does not connect to the WebSocket. `window.__mockupRenderReady` becomes `true` on mount; `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renders only the root frame that contains the node, at (0,0), with the same `NodeView` as the canvas (no shadow, label or badge), waits for fonts, images and 2 frames, and returns `RenderBox`; `measure(nodeId)` returns the measured `LayoutNode` of the last render. Background: `transparent: true` makes html/body transparent (and uses `color-scheme: normal`; the main process must use a transparent window background), otherwise it uses the frame's page `background`.
 
-Prévias de arrasto e redimensionamento (`ui.setPreview`) são transitórias: só ao soltar o editor envia as ops, numa única chamada (= uma entrada de undo).
+Drag and resize previews (`ui.setPreview`) are transient: only on release does the editor send the ops, in a single call (= one undo entry).
 
-## Desempenho
+## Performance
 
-Decisões:
+Decisions:
 
-- O documento chega completo a cada `doc:changed`; o editor aplica **compartilhamento estrutural** (`shareStructure`), então só os nós alterados (e seus ancestrais) ganham objetos novos.
-- `NodeView` e `FrameView` usam `React.memo` por identidade de nó; cada nó assina só a própria prévia de arrasto.
-- Seleção, hover, marquee e alças ficam numa **camada de overlay** separada: mudar a seleção ou passar o mouse não re-renderiza a árvore.
-- Pan e zoom escrevem o `transform` direto no DOM (sem render do React).
-- Linhas de camadas e o painel de propriedades assinam só os nós que exibem.
+- The document arrives in full on every `doc:changed`; the editor applies **structural sharing** (`shareStructure`), so only the changed nodes (and their ancestors) get new objects.
+- `NodeView` and `FrameView` use `React.memo` by node identity; each node subscribes only to its own drag preview.
+- Selection, hover, marquee and handles live in a separate **overlay layer**: changing the selection or moving the mouse does not re-render the tree.
+- Pan and zoom write the `transform` directly to the DOM (no React render).
+- Layer rows and the properties panel subscribe only to the nodes they display.
 
-Medições (Windows, documento com 300 nós em 6 frames × 50):
+Measurements (Windows, document with 300 nodes in 6 frames × 50):
 
-| Medição                                                        | Resultado                           | Onde                                     |
-| -------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
-| `applyOp` no daemon (`updateStyles`/`setPosition`/`moveNodes`) | ~0,8 / 0,65 / 0,63 ms por op        | `packages/core/src/perf.test.ts`         |
-| `JSON.stringify` do documento (custo do `doc:changed`)         | ~0,21 ms                            | `packages/core/src/perf.test.ts`         |
-| Clonagem do documento: JSON vs `structuredClone`               | ~0,62 ms vs ~0,87 ms (mantido JSON) | `packages/core/src/perf.test.ts`         |
-| Editor: `JSON.parse` + compartilhamento + índice               | ~0,30 + 0,36 + 0,04 ms por mensagem | `packages/editor/src/state/perf.test.ts` |
-| Latência MCP `update_styles` → DOM atualizado (ponta a ponta)  | média ~31 ms, máx. ~46 ms (10 ops)  | `packages/editor/e2e/perf.spec.ts`       |
-| Arrasto de frame com 50 nós (intervalo entre quadros)          | p95 ~16,7 ms (60 fps)               | `packages/editor/e2e/perf.spec.ts`       |
+| Measurement                                                        | Result                             | Where                                    |
+| ------------------------------------------------------------------ | ---------------------------------- | ---------------------------------------- |
+| `applyOp` in the daemon (`updateStyles`/`setPosition`/`moveNodes`) | ~0.8 / 0.65 / 0.63 ms per op       | `packages/core/src/perf.test.ts`         |
+| `JSON.stringify` of the document (cost of `doc:changed`)           | ~0.21 ms                           | `packages/core/src/perf.test.ts`         |
+| Document cloning: JSON vs `structuredClone`                        | ~0.62 ms vs ~0.87 ms (kept JSON)   | `packages/core/src/perf.test.ts`         |
+| Editor: `JSON.parse` + sharing + index                             | ~0.30 + 0.36 + 0.04 ms per message | `packages/editor/src/state/perf.test.ts` |
+| MCP `update_styles` → updated DOM latency (end to end)             | mean ~31 ms, max ~46 ms (10 ops)   | `packages/editor/e2e/perf.spec.ts`       |
+| Dragging a frame with 50 nodes (interval between frames)           | p95 ~16.7 ms (60 fps)              | `packages/editor/e2e/perf.spec.ts`       |
 
-Com esses números, a clonagem por JSON no core e o documento completo no `doc:changed` ficam bem abaixo de um quadro (16 ms) e foram mantidos; deltas por ops no WS ficam para quando os documentos crescerem uma ordem de grandeza.
+With these numbers, JSON cloning in the core and the full document in `doc:changed` stay well below one frame (16 ms) and were kept; op deltas over WS are left for when documents grow by an order of magnitude.
 
-## Testes
+## Tests
 
-- Unitários (Vitest, `npm test`): geometria do canvas (clique, inserção flex, redimensionamento, marquee, régua, fit), camadas (drop, achatamento, intervalo), propriedades (parsers e diff de CSS, modos de tamanho, caixas), atalhos, clipboard, comandos, cliente WS, compartilhamento estrutural e índice. Testes de componente com happy-dom.
-- E2E (Playwright + Chromium, `npm run test:e2e`): sobe um daemon na porta 4848 com `MOCKUP_DATA_DIR` temporário e o Vite na 5273 apontando para ele. Cobrem criar frame com a ferramenta, HTML via MCP aparecendo ao vivo e seleção sincronizada (editor ↔ MCP), mover e redimensionar, desfazer/refazer, salvar e reabrir, o Tailwind (shadcn no canvas, prévia hover, edição de classes, mostrar como Tailwind, CSS base), o painel de tokens e temas (criar, editar, renomear, tema com sobrescrita, ligar a token e trocar o tema do frame verificando a cor no canvas, avisos de não usado/quebrado, importar e exportar), o fluxo de edição (container, texto inline com quebra de linha, renomear, copiar/colar, duplicar, excluir, nova página), os scripts (renomear 10 textos por um script e desfazer tudo com um Ctrl+Z) e o Remix (escala de cor cria 10 frames, um Ctrl+Z remove), os componentes (Ctrl+Alt+K, instâncias com props pelo painel, edição do principal propagando para 3 instâncias e undo, override de texto e Restaurar, bloqueio de nó interno, kit shadcn-like por clique e arrastando, slot editável, `go_to_main` e Esc) e as medições de desempenho. Depois do Playwright, `test:e2e` roda `test:e2e:desktop`: a integração real no Electron headless dos efeitos (mesh gradient não vazio, `time`, export webm/gif/mp4) e da mídia (vídeo com poster e `time`, ilha Three.js, Lottie e Rive de `assets/`), em `packages/desktop/src/*.integration.test.ts`.
-- `npm run screenshot` regenera `docs/img/editor.png` com `examples/landing.mockup.json`.
-- Portas e pasta do e2e por variável de ambiente: `MOCKUP_E2E_DAEMON_PORT` (padrão 4848), `MOCKUP_E2E_EDITOR_PORT` (padrão 5273) e `MOCKUP_E2E_DIR` (padrão: pasta temporária nova por execução, com os documentos e o `MOCKUP_DATA_DIR` do daemon). `MOCKUP_E2E_DAEMON` é derivada da porta e lida pelos helpers. Mude as portas se o daemon de uso (4747) ou outro processo ocupar as padrão.
+- Unit (Vitest, `npm test`): canvas geometry (click, flex insertion, resizing, marquee, ruler, fit), layers (drop, flattening, range), properties (CSS parsers and diff, size modes, boxes), shortcuts, clipboard, commands, WS client, structural sharing and index. Component tests with happy-dom.
+- E2E (Playwright + Chromium, `npm run test:e2e`): starts a daemon on port 4848 with a temporary `MOCKUP_DATA_DIR` and Vite on 5273 pointing to it. They cover creating a frame with the tool, HTML via MCP appearing live and synchronized selection (editor ↔ MCP), move and resize, undo/redo, save and reopen, Tailwind (shadcn on the canvas, hover preview, class editing, show as Tailwind, base CSS), the tokens and themes panel (create, edit, rename, theme with override, bind to a token and switch the frame's theme checking the color on the canvas, unused/broken warnings, import and export), the editing flow (container, inline text with line break, rename, copy/paste, duplicate, delete, new page), scripts (rename 10 texts with a script and undo everything with one Ctrl+Z) and Remix (color scale creates 10 frames, one Ctrl+Z removes them), components (Ctrl+Alt+K, instances with props through the panel, main component editing propagating to 3 instances and undo, text override and Reset, inner node blocking, shadcn-like kit by click and by dragging, editable slot, `go_to_main` and Esc) and the performance measurements. After Playwright, `test:e2e` runs `test:e2e:desktop`: the real integration in headless Electron of effects (non-empty mesh gradient, `time`, webm/gif/mp4 export) and media (video with poster and `time`, Three.js island, Lottie and Rive from `assets/`), in `packages/desktop/src/*.integration.test.ts`.
+- `npm run screenshot` regenerates `docs/img/editor.png` with `examples/landing.mockup.json`.
+- E2E ports and folder by environment variable: `MOCKUP_E2E_DAEMON_PORT` (default 4848), `MOCKUP_E2E_EDITOR_PORT` (default 5273) and `MOCKUP_E2E_DIR` (default: a new temporary folder per run, with the documents and the daemon's `MOCKUP_DATA_DIR`). `MOCKUP_E2E_DAEMON` is derived from the port and read by the helpers. Change the ports if the everyday daemon (4747) or another process occupies the defaults.
 
-Na primeira vez: `npx playwright install chromium`.
+The first time: `npx playwright install chromium`.

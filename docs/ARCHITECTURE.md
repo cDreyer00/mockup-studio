@@ -1,407 +1,407 @@
-# Arquitetura
+# Architecture
 
-## Visão geral
+## Overview
 
 ```
- Agente (Claude Code, Codex)
+ Agent (Claude Code, Codex)
         |  stdio (JSON-RPC)
         v
- mockup mcp  (@mockup/cli)  -- proxy stdio <-> Streamable HTTP
-        |  1. usa o daemon vivo (daemon.json + /api/health)
-        |  2. senão sobe o Electron headless (screenshot)
-        |  3. senão sobe o daemon Node (sem render)
+ mockup mcp  (@mockup/cli)  -- stdio <-> Streamable HTTP proxy
+        |  1. uses the live daemon (daemon.json + /api/health)
+        |  2. otherwise starts headless Electron (screenshot)
+        |  3. otherwise starts the Node daemon (no render)
         |  HTTP  POST/GET/DELETE /mcp
         v
  +---------------------------------------------------+        +-------------------+
- | App desktop (@mockup/desktop, Electron)           |        | Disco             |
+ | Desktop app (@mockup/desktop, Electron)           |        | Disk              |
  |  +---------------------------------------------+  | -----> | *.mockup.json     |
- |  | Daemon in-process (@mockup/server)          |  |  save  | assets/           |
+ |  | In-process daemon (@mockup/server)          |  |  save  | assets/           |
  |  |  127.0.0.1:4747                             |  |        | daemon.json ...   |
- |  |  DocumentStore: docs, History, seleção      |  |        +-------------------+
- |  |  HTTP /api/* /assets/* /render/* e o editor |  |
- |  |  em /   MCP /mcp   WebSocket /ws            |  |
+ |  |  DocumentStore: docs, History, selection    |  |        +-------------------+
+ |  |  HTTP /api/* /assets/* /render/* and editor |  |
+ |  |  at /   MCP /mcp   WebSocket /ws            |  |
  |  +---------------------------------------------+  |
- |  RenderService: janela oculta em /render.html,    |
- |  captura via CDP (Page.captureScreenshot)         |
- |  Janela do editor (BrowserWindow) + menu nativo   |
+ |  RenderService: hidden window at /render.html,    |
+ |  capture via CDP (Page.captureScreenshot)         |
+ |  Editor window (BrowserWindow) + native menu      |
  +---------------------------------------------------+
-        ^  WS (eventos e requisições)
+        ^  WS (events and requests)
         v
- Editor (@mockup/editor: janela do app ou navegador)
+ Editor (@mockup/editor: app window or browser)
 ```
 
-Todas as mutações passam pelo daemon, que é a única fonte da verdade em tempo de execução. O editor e o MCP são clientes do mesmo `DocumentStore`. Clientes MCP HTTP (alternativa) falam direto com `/mcp`, sem o proxy.
+All mutations go through the daemon, which is the single source of truth at runtime. The editor and the MCP server are clients of the same `DocumentStore`. HTTP MCP clients (alternative) talk directly to `/mcp`, without the proxy.
 
-O daemon não depende do Electron: `startDaemon` recebe um `RenderProvider` opcional. O app desktop injeta o `RenderService` (e o `editorDir` do editor buildado). Sem ele (daemon Node puro), screenshot, `get_layout` e o SVG medido ficam indisponíveis, e `GET /api/health` devolve `render: false`. No modo `--headless` o app não abre janela: é o que `mockup mcp` e `mockup serve --render` sobem.
+The daemon does not depend on Electron: `startDaemon` takes an optional `RenderProvider`. The desktop app injects the `RenderService` (and the built editor's `editorDir`). Without it (pure Node daemon), screenshot, `get_layout` and the measured SVG are unavailable, and `GET /api/health` returns `render: false`. In `--headless` mode the app opens no window: it is what `mockup mcp` and `mockup serve --render` start.
 
-## Pacotes
+## Packages
 
-| Pacote             | Nome                                   | Responsabilidade                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------ | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core`    | `@mockup/core`                         | Modelo de documento, ops puras com inverso, `History` (undo/redo), `htmlToNodes`/`nodesToHtml`, `getTreeSummary`, `getComputedLike`, schema zod (`parseDocument`/`serializeDocument`). Exportadores html, tailwind, react e svg (`export/`, ver [EXPORT.md](EXPORT.md)). `layout.ts` (`LayoutNode`, geometria medida), `fonts.ts` (`@font-face` das fontes embutidas), `base.ts` (CSS base único do documento: o mesmo no canvas, no render e no código exportado, com o preflight do Tailwind quando `cssBase: 'tailwind'`; o CSS da interface do editor não vaza no design) e `states.ts` (estados por variante). Subpacote `@mockup/core/tailwind`: motor Tailwind v4 com o compilador oficial (ver [TAILWIND.md](TAILWIND.md)). Sem DOM e sem APIs do Node. |
-| `packages/server`  | `@mockup/server` (bin `mockup-daemon`) | Daemon Node em 127.0.0.1. `DocumentStore` (documentos abertos, undo por documento, seleção, autosave com debounce de 800 ms, salvar como), HTTP (inclui `/render/*` e o editor estático em `/`), WebSocket e MCP. Contrato `RenderProvider`. Express 5 e ws.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `packages/cli`     | `@mockup/cli` (bin `mockup`)           | `mockup mcp`, `mockup serve [--port] [--render]`, `mockup stop`, `mockup open <arquivo>`, `mockup new <arquivo> [--name]`. Descobre o daemon e localiza o Electron para subir o modo headless (`electron.ts`, `discover.ts`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `packages/editor`  | `@mockup/editor`                       | Vite + React 19 + zustand. Editor visual completo (canvas, seleção, camadas, propriedades, páginas, clipboard, undo/redo via daemon); toda mutação vira `Op` enviada por WS. Ver [EDITOR.md](EDITOR.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `packages/desktop` | `@mockup/desktop`                      | App Electron: janela do editor, daemon in-process, `RenderService` (screenshot via CDP), menu nativo em português, preload com diálogos nativos, modo `--headless`, instalador NSIS e portátil (electron-vite + electron-builder). Ver o [README do pacote](../packages/desktop/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Package            | Name                                   | Responsibility                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/core`    | `@mockup/core`                         | Document model, pure ops with inverses, `History` (undo/redo), `htmlToNodes`/`nodesToHtml`, `getTreeSummary`, `getComputedLike`, zod schema (`parseDocument`/`serializeDocument`). html, tailwind, react and svg exporters (`export/`, see [EXPORT.md](EXPORT.md)). `layout.ts` (`LayoutNode`, measured geometry), `fonts.ts` (`@font-face` for embedded fonts), `base.ts` (the document's single base CSS: the same on the canvas, in the render and in the exported code, with Tailwind's preflight when `cssBase: 'tailwind'`; the editor UI's CSS does not leak into the design) and `states.ts` (per-variant states). Subpackage `@mockup/core/tailwind`: Tailwind v4 engine using the official compiler (see [TAILWIND.md](TAILWIND.md)). No DOM and no Node APIs. |
+| `packages/server`  | `@mockup/server` (bin `mockup-daemon`) | Node daemon on 127.0.0.1. `DocumentStore` (open documents, per-document undo, selection, autosave with an 800 ms debounce, save as), HTTP (includes `/render/*` and the static editor at `/`), WebSocket and MCP. `RenderProvider` contract. Express 5 and ws.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `packages/cli`     | `@mockup/cli` (bin `mockup`)           | `mockup mcp`, `mockup serve [--port] [--render]`, `mockup stop`, `mockup open <file>`, `mockup new <file> [--name]`. Discovers the daemon and locates Electron to start headless mode (`electron.ts`, `discover.ts`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `packages/editor`  | `@mockup/editor`                       | Vite + React 19 + zustand. Complete visual editor (canvas, selection, layers, properties, pages, clipboard, undo/redo via the daemon); every mutation becomes an `Op` sent over WS. See [EDITOR.md](EDITOR.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `packages/desktop` | `@mockup/desktop`                      | Electron app: editor window, in-process daemon, `RenderService` (screenshot via CDP), native menu, preload with native dialogs, `--headless` mode, NSIS installer and portable build (electron-vite + electron-builder). See the [package README](../packages/desktop/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
-## Fluxo de uma edição
+## Flow of an edit
 
-1. Um cliente (ferramenta MCP ou editor via WS `op:apply`) produz uma ou mais `Op` serializáveis.
-2. O `DocumentStore` aplica cada op ao documento (função pura: devolve novo documento e as ops inversas) e registra o par no `History` do documento.
-3. A `revision` do documento é incrementada, o documento é marcado como `dirty` e o autosave é reagendado (debounce de 800 ms).
-4. O store emite o evento de mudança com `source` (`editor`, `mcp` ou `system`).
-5. O servidor WS envia `doc:changed` (com `ops`, `source`, `revision` e o `doc` completo) a todos os clientes conectados.
-6. O editor integra o documento recebido com compartilhamento estrutural (nós que não mudaram mantêm a identidade) e renderiza só o que mudou. Quem originou a edição recebe também um `ack` com o `reqId`, depois do `doc:changed`.
-7. Toda escrita via MCP devolve, na resposta, o resumo da árvore com profundidade 2.
+1. A client (MCP tool or the editor via WS `op:apply`) produces one or more serializable `Op`s.
+2. The `DocumentStore` applies each op to the document (a pure function: returns a new document and the inverse ops) and records the pair in the document's `History`.
+3. The document's `revision` is incremented, the document is marked `dirty` and autosave is rescheduled (800 ms debounce).
+4. The store emits the change event with `source` (`editor`, `mcp` or `system`).
+5. The WS server sends `doc:changed` (with `ops`, `source`, `revision` and the full `doc`) to all connected clients.
+6. The editor integrates the received document with structural sharing (nodes that did not change keep their identity) and renders only what changed. Whoever originated the edit also receives an `ack` with the `reqId`, after `doc:changed`.
+7. Every write via MCP returns, in the response, the tree summary at depth 2.
 
-Undo e redo executam as ops inversas guardadas no `History` e seguem o mesmo caminho (evento, WS, editor).
+Undo and redo run the inverse ops stored in the `History` and follow the same path (event, WS, editor).
 
 ## Editor
 
-- **Estado**: `docStore` (espelho do daemon: documentos, documento ativo, histórico, atividade do agente) e `uiStore` (seleção, hover, ferramenta, página ativa, viewport, prévias de arrasto, principal em edição), ambos zustand. Só o cliente WS escreve no `docStore`. O documento ativo fica em `rawDoc` (como o daemon o guarda) e em `doc` a **visão** usada pela interface: instâncias de componentes expandidas (`expandDocument`) e, no modo de edição de um principal, a página sintética com ele (ver [COMPONENTES.md](COMPONENTES.md#editor)).
-- **Cliente** (`client/daemon.ts`): uma requisição por `reqId`, resolvida pelo `ack` ou rejeitada pelo `error`; `apply(ops)` = uma entrada no histórico. A seleção local é publicada com `selection:set`; `selection:changed` com `source: 'mcp'` seleciona e enquadra os nós no editor.
-- **Render**: frames e nós como HTML/CSS real (`React.memo` por nó); seleção, alças e réguas numa camada de overlay; pan/zoom direto no `transform`.
-- **Prévias**: arrastar e redimensionar mostram uma prévia local transitória; ao soltar, as ops vão numa única chamada.
-- **Badge do agente**: frames tocados por ops com `source: 'mcp'` nos últimos 4 s.
+- **State**: `docStore` (mirror of the daemon: documents, active document, history, agent activity) and `uiStore` (selection, hover, tool, active page, viewport, drag previews, main component being edited), both zustand. Only the WS client writes to `docStore`. The active document lives in `rawDoc` (as the daemon stores it) and in `doc` the **view** used by the UI: expanded component instances (`expandDocument`) and, in main component edit mode, the synthetic page containing it (see [COMPONENTS.md](COMPONENTS.md#editor)).
+- **Client** (`client/daemon.ts`): one request per `reqId`, resolved by the `ack` or rejected by the `error`; `apply(ops)` = one history entry. The local selection is published with `selection:set`; `selection:changed` with `source: 'mcp'` selects and frames the nodes in the editor.
+- **Render**: frames and nodes as real HTML/CSS (`React.memo` per node); selection, handles and rulers in an overlay layer; pan/zoom directly on the `transform`.
+- **Previews**: dragging and resizing show a transient local preview; on release, the ops go in a single call.
+- **Agent badge**: frames touched by ops with `source: 'mcp'` in the last 4 s.
 
-Detalhes, atalhos e medições em [EDITOR.md](EDITOR.md).
+Details, shortcuts and measurements in [EDITOR.md](EDITOR.md).
 
-## Render e screenshot
+## Render and screenshot
 
-O daemon não conhece o Electron. Ele usa o contrato `RenderProvider` (`packages/server/src/render.ts`):
+The daemon does not know Electron. It uses the `RenderProvider` contract (`packages/server/src/render.ts`):
 
-| Método               | Descrição                                                                                                                                                                         |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capture(req)`       | `{ doc, docId, nodeId, scale?, format?, quality?, maxWidth?, transparent? }` devolve `{ data, mime, width, height, pixelWidth, pixelHeight }` (`width`/`height` em px CSS do nó). |
-| `measure(target)`    | Devolve o `LayoutNode` da subárvore do nó.                                                                                                                                        |
-| `close()` (opcional) | Libera a janela de render; o daemon chama ao encerrar.                                                                                                                            |
+| Method               | Description                                                                                                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capture(req)`       | `{ doc, docId, nodeId, scale?, format?, quality?, maxWidth?, transparent? }` returns `{ data, mime, width, height, pixelWidth, pixelHeight }` (`width`/`height` in the node's CSS px). |
+| `measure(target)`    | Returns the `LayoutNode` of the node's subtree.                                                                                                                                        |
+| `close()` (optional) | Releases the render window; the daemon calls it on shutdown.                                                                                                                           |
 
-Sem provider, as chamadas de render falham com a mensagem `RENDER_UNAVAILABLE` (ferramentas MCP com `isError`, rota `/render` com 503).
+Without a provider, render calls fail with the message `RENDER_UNAVAILABLE` (MCP tools with `isError`, `/render` route with 503).
 
-### Página de render
+### Render page
 
-`packages/editor/render.html` (build do editor, servida em `/render.html`) monta só o frame do nó, com o mesmo componente de nó e o mesmo CSS base do canvas (`documentBaseCss`), sem seleção, sombra do artboard nem interface.
+`packages/editor/render.html` (editor build, served at `/render.html`) mounts only the node's frame, with the same node component and the same base CSS as the canvas (`documentBaseCss`), without selection, artboard shadow or UI.
 
-- `window.__mockupRenderReady` vira `true` quando a página está montada.
-- `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renderiza o frame raiz do nó em 0,0 e devolve `RenderBox { frameId, frameWidth, frameHeight, x, y, width, height }`: o retângulo do nó relativo ao frame, em px CSS. O fundo é o da página do documento; com `transparent` o fundo fica transparente.
-- `window.__mockupRender.measure(nodeId)` devolve o `LayoutNode` do nó já renderizado.
-- Antes de responder, `render` espera as fontes (`@font-face` das fontes embutidas) e as imagens (`decode`, com limite de 5 s por espera).
+- `window.__mockupRenderReady` becomes `true` when the page is mounted.
+- `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renders the node's root frame at 0,0 and returns `RenderBox { frameId, frameWidth, frameHeight, x, y, width, height }`: the node's rectangle relative to the frame, in CSS px. The background is the document page's; with `transparent` the background is transparent.
+- `window.__mockupRender.measure(nodeId)` returns the `LayoutNode` of the already rendered node.
+- Before responding, `render` waits for fonts (`@font-face` of embedded fonts) and images (`decode`, with a 5 s limit per wait).
 
 ### LayoutNode
 
-Geometria medida no DOM real (`getBoundingClientRect` e `getComputedStyle`), em `packages/core/src/layout.ts`. Coordenadas em px CSS **relativas ao canto do frame raiz** (frame em 0,0, escala 1). Cada nó traz `id`, `name`, `type`, `tag`, `x`, `y`, `width`, `height`, um subconjunto do estilo computado (`LayoutStyle`), as linhas de texto renderizadas (`LayoutTextLine`: texto, retângulo e baseline aproximada) e os filhos. Alimenta `get_layout` e o exportador SVG.
+Geometry measured in the real DOM (`getBoundingClientRect` and `getComputedStyle`), in `packages/core/src/layout.ts`. Coordinates in CSS px **relative to the root frame's corner** (frame at 0,0, scale 1). Each node carries `id`, `name`, `type`, `tag`, `x`, `y`, `width`, `height`, a subset of the computed style (`LayoutStyle`), the rendered text lines (`LayoutTextLine`: text, rectangle and approximate baseline) and the children. It feeds `get_layout` and the SVG exporter.
 
-### RenderService (app desktop)
+### RenderService (desktop app)
 
-`packages/desktop/src/main/render.ts` implementa o `RenderProvider`:
+`packages/desktop/src/main/render.ts` implements the `RenderProvider`:
 
-- **Uma janela reutilizável** carrega `/render.html` e espera `__mockupRenderReady`. Sem moldura, transparente, fora da tela, sem foco e fora da barra de tarefas (ver [Decisões técnicas](#decisões-técnicas)).
-- **Fila serial:** uma operação por vez (capture e measure), mesmo se a anterior falhar.
-- **Recuperação:** se o processo de render morrer (`render-process-gone`), a janela falhar ao ficar pronta ou uma operação passar de 30 s, a janela é destruída e recriada na próxima chamada.
-- **Captura:** CDP (`webContents.debugger`) com `Emulation.setDeviceMetricsOverride` (viewport maior ou igual ao frame, `deviceScaleFactor` = escala) e `Page.captureScreenshot` com `clip` do nó. A escala vai de 1 a 3. `transparent` (só PNG) zera o fundo padrão. Se o CDP falhar, cai em `capturePage` (sem escala).
-- **Formato:** `maxWidth` reduz com `nativeImage.resize` (qualidade `best`); JPG sai de `nativeImage.toJPEG` (qualidade padrão 90). Limite de 16384 px por lado após a escala, com erro claro.
-- **Cache LRU** limitado a 256 MB (soma dos bytes das imagens), chaveado pelo sha256 de `{ frame do nó, tokens, fontes, fundo da página, docId, nodeId, escala, formato, qualidade, maxWidth, transparent, tamanho e data dos arquivos referenciados }` (`src` de imagens, `url()` relativos e fontes, lidos de `assets/`): trocar um arquivo mantendo o nome invalida o cache.
-- **Limites e isolamento:** a viewport (`frame × escala`) é validada contra 16384 px por lado antes de redimensionar a janela; a janela de render nega navegação e novas janelas.
+- **A reusable window** loads `/render.html` and waits for `__mockupRenderReady`. Frameless, transparent, offscreen, unfocused and out of the taskbar (see [Technical decisions](#technical-decisions)).
+- **Serial queue:** one operation at a time (capture and measure), even if the previous one fails.
+- **Recovery:** if the render process dies (`render-process-gone`), the window fails to become ready or an operation takes longer than 30 s, the window is destroyed and recreated on the next call.
+- **Capture:** CDP (`webContents.debugger`) with `Emulation.setDeviceMetricsOverride` (viewport greater than or equal to the frame, `deviceScaleFactor` = scale) and `Page.captureScreenshot` with the node's `clip`. The scale ranges from 1 to 3. `transparent` (PNG only) clears the default background. If CDP fails, it falls back to `capturePage` (no scale).
+- **Format:** `maxWidth` downsizes with `nativeImage.resize` (`best` quality); JPG comes from `nativeImage.toJPEG` (default quality 90). Limit of 16384 px per side after scaling, with a clear error.
+- **LRU cache** limited to 256 MB (sum of the images' bytes), keyed by the sha256 of `{ the node's frame, tokens, fonts, page background, docId, nodeId, scale, format, quality, maxWidth, transparent, size and date of the referenced files }` (image `src`, relative `url()` and fonts, read from `assets/`): replacing a file while keeping its name invalidates the cache.
+- **Limits and isolation:** the viewport (`frame × scale`) is validated against 16384 px per side before resizing the window; the render window denies navigation and new windows.
 
-## Formato de arquivo
+## File format
 
-Arquivo `*.mockup.json`: JSON com 2 espaços e chaves em ordem estável. Imagens ficam em `assets/` ao lado do arquivo. `version` é sempre `1`. A fonte da verdade dos tipos é `packages/core/src/types.ts`; o schema zod valida na leitura.
+`*.mockup.json` file: JSON with 2 spaces and keys in a stable order. Images live in `assets/` next to the file. `version` is always `1`. The source of truth for the types is `packages/core/src/types.ts`; the zod schema validates on read.
 
 ### Document
 
-| Campo       | Tipo                                      | Descrição                                                                                |
-| ----------- | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `version`   | `1`                                       | Versão do esquema.                                                                       |
-| `id`        | string                                    | Id do documento (`doc_xxxxxxxx`).                                                        |
-| `name`      | string                                    | Nome do documento.                                                                       |
-| `pages`     | `Page[]`                                  | Páginas.                                                                                 |
-| `tokens`    | `Record<string,string>`                   | Variáveis CSS do documento, ex. `{ "--color-primary": "#6c5ce7" }`.                      |
-| `tokenMeta` | `Record<string,{ group?, description? }>` | Opcional. Grupo e descrição por token (ver [TOKENS.md](TOKENS.md)).                      |
-| `themes`    | `{ name, overrides }[]`                   | Opcional. Temas que sobrescrevem tokens; o frame usa um tema pelo atributo `data-theme`. |
-| `fonts`     | `FontRef[]`                               | Fontes usadas.                                                                           |
-| `cssBase`   | `'tailwind'` (opcional)                   | CSS base com o preflight do Tailwind v4 (ausente = base padrão).                         |
-| `meta`      | `DocumentMeta`                            | `createdAt`, `updatedAt` (ISO 8601) e chaves extras livres.                              |
+| Field       | Type                                      | Description                                                                                       |
+| ----------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `version`   | `1`                                       | Schema version.                                                                                   |
+| `id`        | string                                    | Document id (`doc_xxxxxxxx`).                                                                     |
+| `name`      | string                                    | Document name.                                                                                    |
+| `pages`     | `Page[]`                                  | Pages.                                                                                            |
+| `tokens`    | `Record<string,string>`                   | The document's CSS variables, e.g. `{ "--color-primary": "#6c5ce7" }`.                            |
+| `tokenMeta` | `Record<string,{ group?, description? }>` | Optional. Group and description per token (see [TOKENS.md](TOKENS.md)).                           |
+| `themes`    | `{ name, overrides }[]`                   | Optional. Themes that override tokens; the frame uses a theme through the `data-theme` attribute. |
+| `fonts`     | `FontRef[]`                               | Fonts used.                                                                                       |
+| `cssBase`   | `'tailwind'` (optional)                   | Base CSS with Tailwind v4's preflight (absent = default base).                                    |
+| `meta`      | `DocumentMeta`                            | `createdAt`, `updatedAt` (ISO 8601) and free extra keys.                                          |
 
 ### Page
 
-| Campo        | Tipo     | Descrição                              |
-| ------------ | -------- | -------------------------------------- |
-| `id`         | string   | Id da página (`pg_xxxxxxxx`).          |
-| `name`       | string   | Nome.                                  |
-| `frames`     | `Node[]` | Nós raiz da página (frames).           |
-| `background` | string   | Fundo do canvas da página (valor CSS). |
+| Field        | Type     | Description                         |
+| ------------ | -------- | ----------------------------------- |
+| `id`         | string   | Page id (`pg_xxxxxxxx`).            |
+| `name`       | string   | Name.                               |
+| `frames`     | `Node[]` | The page's root nodes (frames).     |
+| `background` | string   | Page canvas background (CSS value). |
 
 ### Node
 
-| Campo      | Tipo                                                 | Descrição                                                                                                 |
-| ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `id`       | string                                               | Id com prefixo por tipo.                                                                                  |
-| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Tipo do nó; também `'repeater'` (ver [DADOS.md](DADOS.md)).                                               |
-| `name`     | string                                               | Nome legível (camada).                                                                                    |
-| `tag`      | string                                               | Tag HTML: `div`, `section`, `button`, `img`, `h1`, `p`, `span`...                                         |
-| `attrs`    | `Record<string,string>`                              | Atributos HTML, sem `style` e sem `class`.                                                                |
-| `style`    | `Record<string,string>`                              | CSS real em kebab-case, ex. `{ "display": "flex", "gap": "24px" }`. Tokens via `var(--color-primary)`.    |
-| `text`     | string (opcional)                                    | Conteúdo textual (`type: 'text'`).                                                                        |
-| `src`      | string (opcional)                                    | Imagem: caminho relativo em `assets/` ou data URL (`type: 'image'`).                                      |
-| `svg`      | string (opcional)                                    | Markup SVG inline (`type: 'svg'`).                                                                        |
-| `children` | `Node[]`                                             | Filhos.                                                                                                   |
-| `locked`   | boolean                                              | Bloqueado para edição na interface.                                                                       |
-| `hidden`   | boolean                                              | Oculto.                                                                                                   |
-| `position` | `{ x, y }` (opcional)                                | Posição no canvas (frames raiz) ou x/y de filhos com `position: absolute`.                                |
-| `classes`  | string (opcional)                                    | Classes Tailwind como foram escritas: dica de round-trip da exportação (ver [TAILWIND.md](TAILWIND.md)).  |
-| `states`   | `Record<string, Record<string,string>>` (opcional)   | Estilos por variante: `hover`, `dark`, `md`, `md:hover`... (`states.ts`, ver [TAILWIND.md](TAILWIND.md)). |
+| Field      | Type                                                 | Description                                                                                             |
+| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `id`       | string                                               | Id with a per-type prefix.                                                                              |
+| `type`     | `'frame' \| 'element' \| 'text' \| 'image' \| 'svg'` | Node type; also `'repeater'` (see [DATA.md](DATA.md)).                                                  |
+| `name`     | string                                               | Readable name (layer).                                                                                  |
+| `tag`      | string                                               | HTML tag: `div`, `section`, `button`, `img`, `h1`, `p`, `span`...                                       |
+| `attrs`    | `Record<string,string>`                              | HTML attributes, without `style` and without `class`.                                                   |
+| `style`    | `Record<string,string>`                              | Real CSS in kebab-case, e.g. `{ "display": "flex", "gap": "24px" }`. Tokens via `var(--color-primary)`. |
+| `text`     | string (optional)                                    | Text content (`type: 'text'`).                                                                          |
+| `src`      | string (optional)                                    | Image: relative path in `assets/` or data URL (`type: 'image'`).                                        |
+| `svg`      | string (optional)                                    | Inline SVG markup (`type: 'svg'`).                                                                      |
+| `children` | `Node[]`                                             | Children.                                                                                               |
+| `locked`   | boolean                                              | Locked for editing in the UI.                                                                           |
+| `hidden`   | boolean                                              | Hidden.                                                                                                 |
+| `position` | `{ x, y }` (optional)                                | Position on the canvas (root frames) or x/y of children with `position: absolute`.                      |
+| `classes`  | string (optional)                                    | Tailwind classes as written: export round-trip hint (see [TAILWIND.md](TAILWIND.md)).                   |
+| `states`   | `Record<string, Record<string,string>>` (optional)   | Per-variant styles: `hover`, `dark`, `md`, `md:hover`... (`states.ts`, see [TAILWIND.md](TAILWIND.md)). |
 
-Frames são os nós raiz da página: têm `width` e `height` em `style` e `position` no canvas. Servem como artboards e como breakpoints.
+Frames are the page's root nodes: they have `width` and `height` in `style` and `position` on the canvas. They serve as artboards and as breakpoints.
 
-Repetidores (`type: 'repeater'`) têm ainda `data` (lista de itens, até 1000 e 2 MB) e `dataSource` (origem `inline`, `json`, `csv` ou `url`, com `path`/`url`, `select`, `mapping`, `limit` e `fetchedAt`); os filhos são o template repetido por item. Ver [DADOS.md](DADOS.md).
+Repeaters (`type: 'repeater'`) also have `data` (list of items, up to 1000 and 2 MB) and `dataSource` (`inline`, `json`, `csv` or `url` source, with `path`/`url`, `select`, `mapping`, `limit` and `fetchedAt`); the children are the template repeated per item. See [DATA.md](DATA.md).
 
 ### FontRef
 
-| Campo     | Tipo                                       | Descrição                                                               |
-| --------- | ------------------------------------------ | ----------------------------------------------------------------------- |
-| `family`  | string                                     | Nome da família.                                                        |
-| `source`  | `'local' \| 'file' \| 'google'` (opcional) | Origem da fonte. Só `file` gera `@font-face`; `local` apenas registra.  |
-| `files`   | `string[]` (opcional)                      | Arquivos de fonte (relativos a `assets/`, ex. `fonts/inter-400.woff2`). |
-| `weights` | `number[]` (opcional)                      | Peso de cada arquivo (paralelo a `files`) ou o intervalo coberto.       |
-| `styles`  | `string[]` (opcional)                      | Estilo de cada arquivo (`normal` ou `italic`), paralelo a `files`.      |
+| Field     | Type                                       | Description                                                                 |
+| --------- | ------------------------------------------ | --------------------------------------------------------------------------- |
+| `family`  | string                                     | Family name.                                                                |
+| `source`  | `'local' \| 'file' \| 'google'` (optional) | Font source. Only `file` generates `@font-face`; `local` just registers it. |
+| `files`   | `string[]` (optional)                      | Font files (relative to `assets/`, e.g. `fonts/inter-400.woff2`).           |
+| `weights` | `number[]` (optional)                      | Weight of each file (parallel to `files`) or the covered range.             |
+| `styles`  | `string[]` (optional)                      | Style of each file (`normal` or `italic`), parallel to `files`.             |
 
-`files[i]` tem o peso `weights[i]` e o estilo `styles[i]` quando as listas têm o mesmo tamanho; senão todos os arquivos cobrem o intervalo de `weights` (padrão 100 a 900). `fontFaceCss` (`fonts.ts`) gera as regras `@font-face`: o canvas e a página de render usam `/assets/<docId>/<arquivo>` e o código exportado usa `assets/<arquivo>`.
+`files[i]` has weight `weights[i]` and style `styles[i]` when the lists have the same length; otherwise all files cover the `weights` range (default 100 to 900). `fontFaceCss` (`fonts.ts`) generates the `@font-face` rules: the canvas and the render page use `/assets/<docId>/<file>` and the exported code uses `assets/<file>`.
 
 ## Ids
 
-`nanoid` com 8 caracteres do alfabeto `[0-9a-z]`, precedidos por um prefixo que identifica o tipo.
+`nanoid` with 8 characters from the alphabet `[0-9a-z]`, preceded by a prefix that identifies the type.
 
-| Prefixo | Entidade  |
-| ------- | --------- |
-| `fr_`   | frame     |
-| `el_`   | element   |
-| `tx_`   | text      |
-| `im_`   | image     |
-| `sv_`   | svg       |
-| `rp_`   | repetidor |
-| `pg_`   | página    |
-| `doc_`  | documento |
+| Prefix | Entity   |
+| ------ | -------- |
+| `fr_`  | frame    |
+| `el_`  | element  |
+| `tx_`  | text     |
+| `im_`  | image    |
+| `sv_`  | svg      |
+| `rp_`  | repeater |
+| `pg_`  | page     |
+| `doc_` | document |
 
-Funções em `ids.ts`: `newId`, `newNodeId(type)`, `newPageId`, `newDocumentId`, `typeFromId`.
+Functions in `ids.ts`: `newId`, `newNodeId(type)`, `newPageId`, `newDocumentId`, `typeFromId`.
 
-## Operações e inversos
+## Ops and inverses
 
-Definidas em `packages/core/src/ops.ts`. Cada op é um objeto JSON com `type`. `applyOp` devolve `{ doc, inverse, result? }`; `inverse` é a lista de ops que desfaz exatamente a aplicação.
+Defined in `packages/core/src/ops.ts`. Each op is a JSON object with `type`. `applyOp` returns `{ doc, inverse, result? }`; `inverse` is the list of ops that exactly undoes the application.
 
-| Op (`type`)      | Campos                                                                                | Inverso                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `createNode`     | `node`, `parentId?` (null = frame raiz), `pageId?`, `index?`                          | `deleteNodes` do nó criado                                                                                          |
-| `deleteNodes`    | `nodeIds[]`                                                                           | `createNode` de cada nó removido, na posição original                                                               |
-| `moveNodes`      | `nodeIds[]`, `parentId?` (null = frame raiz), `pageId?`, `index?`                     | `moveNodes` de volta ao pai e índice anteriores                                                                     |
-| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` ou `nodeIds[]` + `styles` + `unset?`              | `updateStyles` restaurando valores e chaves anteriores                                                              |
-| `setText`        | `changes[{ nodeId, text }]`                                                           | `setText` com o texto anterior                                                                                      |
-| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                                   | `setAttrs` restaurando atributos anteriores                                                                         |
-| `renameNodes`    | `changes[{ nodeId, name }]`                                                           | `renameNodes` com os nomes anteriores                                                                               |
-| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId para newId, inclui descendentes)                         | `deleteNodes` dos clones; o `idMap` é devolvido em `result.idMap`                                                   |
-| `setPosition`    | `changes[{ nodeId, position }]`                                                       | `setPosition` com as posições anteriores                                                                            |
-| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                                  | `deletePage`                                                                                                        |
-| `deletePage`     | `pageId`                                                                              | `createPage` com nome, índice, fundo e `frames` da página removida                                                  |
-| `renamePage`     | `pageId`, `name`                                                                      | `renamePage` com o nome anterior                                                                                    |
-| `setTokens`      | `set?`, `unset?`, `theme?` (sobrescritas do tema)                                     | `setTokens` restaurando valores e removendo os criados                                                              |
-| `setTokenMeta`   | `set?`, `unset?`                                                                      | `setTokenMeta` restaurando os metadados anteriores                                                                  |
-| `setThemes`      | `themes[]`                                                                            | `setThemes` com a lista anterior                                                                                    |
-| `replaceTokens`  | `tokens`, `tokenMeta?`, `themes?`                                                     | `replaceTokens` com o sistema anterior                                                                              |
-| `renameToken`    | `from`, `to` (atualiza todas as `var()`; `result: { from, to, nodes, references }`)   | `renameToken` de volta e restauração dos valores alterados                                                          |
-| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                               | `setNodeFlags` com os valores anteriores                                                                            |
-| `setTag`         | `changes[{ nodeId, tag }]`                                                            | `setTag` com as tags anteriores (tags bloqueadas e void com filhos são recusadas; `image` só `img`, `svg` só `svg`) |
-| `setFonts`       | `fonts[]` (`FontRef`; substitui a lista inteira, sem famílias repetidas)              | `setFonts` com a lista anterior                                                                                     |
-| `setSrc`         | `changes[{ nodeId, src }]` (só nós `image`)                                           | `setSrc` com os `src` anteriores                                                                                    |
-| `setSvg`         | `changes[{ nodeId, svg, attrs? }]` (só nós `svg`, sanitizado)                         | `setSvg` com o markup anterior (e os `attrs` anteriores, se `attrs` veio, que substitui `node.attrs`)               |
-| `setClasses`     | `changes[{ nodeId, classes }]` (`null`/`''` remove; não mexe no estilo)               | `setClasses` com as classes anteriores                                                                              |
-| `setStates`      | `changes[{ nodeId, states }]` (substitui `node.states`; chaves validadas e canônicas) | `setStates` com os estados anteriores                                                                               |
-| `setCssBase`     | `base` (`default` ou `tailwind`)                                                      | `setCssBase` com a base anterior                                                                                    |
-| `setData`        | `changes[{ nodeId, data?, source? }]` (só nós `repeater`)                             | `setData` com os dados e a origem anteriores (`source: null` remove a origem)                                       |
+| Op (`type`)      | Fields                                                                               | Inverse                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `createNode`     | `node`, `parentId?` (null = root frame), `pageId?`, `index?`                         | `deleteNodes` of the created node                                                                                                |
+| `deleteNodes`    | `nodeIds[]`                                                                          | `createNode` for each removed node, at its original position                                                                     |
+| `moveNodes`      | `nodeIds[]`, `parentId?` (null = root frame), `pageId?`, `index?`                    | `moveNodes` back to the previous parent and index                                                                                |
+| `updateStyles`   | `changes[{ nodeId, set?, unset? }]` or `nodeIds[]` + `styles` + `unset?`             | `updateStyles` restoring previous values and keys                                                                                |
+| `setText`        | `changes[{ nodeId, text }]`                                                          | `setText` with the previous text                                                                                                 |
+| `setAttrs`       | `changes[{ nodeId, set?, unset? }]`                                                  | `setAttrs` restoring previous attributes                                                                                         |
+| `renameNodes`    | `changes[{ nodeId, name }]`                                                          | `renameNodes` with the previous names                                                                                            |
+| `duplicateNodes` | `nodeIds[]`, `idMap?` (oldId to newId, includes descendants)                         | `deleteNodes` of the clones; the `idMap` is returned in `result.idMap`                                                           |
+| `setPosition`    | `changes[{ nodeId, position }]`                                                      | `setPosition` with the previous positions                                                                                        |
+| `createPage`     | `pageId`, `name`, `index?`, `background?`, `frames?`                                 | `deletePage`                                                                                                                     |
+| `deletePage`     | `pageId`                                                                             | `createPage` with the removed page's name, index, background and `frames`                                                        |
+| `renamePage`     | `pageId`, `name`                                                                     | `renamePage` with the previous name                                                                                              |
+| `setTokens`      | `set?`, `unset?`, `theme?` (theme overrides)                                         | `setTokens` restoring values and removing the created ones                                                                       |
+| `setTokenMeta`   | `set?`, `unset?`                                                                     | `setTokenMeta` restoring the previous metadata                                                                                   |
+| `setThemes`      | `themes[]`                                                                           | `setThemes` with the previous list                                                                                               |
+| `replaceTokens`  | `tokens`, `tokenMeta?`, `themes?`                                                    | `replaceTokens` with the previous system                                                                                         |
+| `renameToken`    | `from`, `to` (updates all `var()`s; `result: { from, to, nodes, references }`)       | `renameToken` back and restoration of the changed values                                                                         |
+| `setNodeFlags`   | `changes[{ nodeId, locked?, hidden? }]`                                              | `setNodeFlags` with the previous values                                                                                          |
+| `setTag`         | `changes[{ nodeId, tag }]`                                                           | `setTag` with the previous tags (locked tags and void elements with children are rejected; `image` only `img`, `svg` only `svg`) |
+| `setFonts`       | `fonts[]` (`FontRef`; replaces the whole list, no repeated families)                 | `setFonts` with the previous list                                                                                                |
+| `setSrc`         | `changes[{ nodeId, src }]` (`image` nodes only)                                      | `setSrc` with the previous `src`s                                                                                                |
+| `setSvg`         | `changes[{ nodeId, svg, attrs? }]` (`svg` nodes only, sanitized)                     | `setSvg` with the previous markup (and the previous `attrs`, if `attrs` was given, which replaces `node.attrs`)                  |
+| `setClasses`     | `changes[{ nodeId, classes }]` (`null`/`''` removes; does not touch the style)       | `setClasses` with the previous classes                                                                                           |
+| `setStates`      | `changes[{ nodeId, states }]` (replaces `node.states`; keys validated and canonical) | `setStates` with the previous states                                                                                             |
+| `setCssBase`     | `base` (`default` or `tailwind`)                                                     | `setCssBase` with the previous base                                                                                              |
+| `setData`        | `changes[{ nodeId, data?, source? }]` (`repeater` nodes only)                        | `setData` with the previous data and source (`source: null` removes the source)                                                  |
 
-`renameToken` também atualiza as `var()` dentro de `states` (inverso com `setStates`).
+`renameToken` also updates the `var()`s inside `states` (inverse with `setStates`).
 
-Para que o histórico seja determinístico, o `idMap` de `duplicateNodes` e os ids de `createNode` ficam registrados na op guardada.
+For the history to be deterministic, `duplicateNodes`'s `idMap` and `createNode`'s ids are recorded in the stored op.
 
-## Protocolo WebSocket
+## WebSocket protocol
 
-Endpoint `ws://127.0.0.1:4747/ws`. Mensagens JSON, uma por frame. Tipos em `packages/core/src/protocol.ts`. Ao conectar, o servidor envia `hello`.
+Endpoint `ws://127.0.0.1:4747/ws`. JSON messages, one per frame. Types in `packages/core/src/protocol.ts`. On connect, the server sends `hello`.
 
-O `Origin` do handshake é validado (`isAllowedOrigin`): aceita ausente (clientes não-navegador) e `http(s)` em `localhost`, `127.0.0.1` ou `[::1]` (qualquer porta). `Origin: null` e `file://` são recusados (o app desktop carrega o editor de `http://127.0.0.1:<porta>`), porque iframes `sandbox` e páginas `data:` de qualquer site mandam esse valor. O resto recebe 403. Em `op:apply`, `docId` (string) e `ops` (array) são exigidos; cada op é validada pelo core e qualquer exceção vira `error` com o `reqId`.
+The handshake's `Origin` is validated (`isAllowedOrigin`): it accepts absent (non-browser clients) and `http(s)` on `localhost`, `127.0.0.1` or `[::1]` (any port). `Origin: null` and `file://` are rejected (the desktop app loads the editor from `http://127.0.0.1:<port>`), because `sandbox` iframes and `data:` pages from any site send that value. Everything else gets 403. In `op:apply`, `docId` (string) and `ops` (array) are required; each op is validated by the core and any exception becomes an `error` with the `reqId`.
 
-### Servidor para cliente
+### Server to client
 
-| `type`              | Campos                                                                                                                                      | Descrição                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (documento ativo ou null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Estado inicial.                                                              |
-| `doc:opened`        | `info`, `doc`, `history`                                                                                                                    | Documento aberto ou criado.                                                  |
-| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                                                    | Mudança aplicada. No MVP inclui o documento completo.                        |
-| `doc:saved`         | `docId`, `path`                                                                                                                             | Documento salvo em disco.                                                    |
-| `doc:closed`        | `docId`                                                                                                                                     | Documento fechado.                                                           |
-| `agent:finished`    | `docId`, `nodeIds[]` (vazio = todos os frames)                                                                                              | O agente terminou (`finish_working`): o editor apaga o selo "IA" dos frames. |
-| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                                                              | Seleção alterada.                                                            |
-| `active:changed`    | `docId` (ou null)                                                                                                                           | Documento ativo alterado.                                                    |
-| `ack`               | `reqId`, `result?`                                                                                                                          | Resposta de sucesso a uma requisição.                                        |
-| `error`             | `reqId?`, `message`                                                                                                                         | Erro.                                                                        |
+| `type`              | Fields                                                                                                                                      | Description                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (active document or null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Initial state.                                                                           |
+| `doc:opened`        | `info`, `doc`, `history`                                                                                                                    | Document opened or created.                                                              |
+| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                                                    | Change applied. In the MVP it includes the full document.                                |
+| `doc:saved`         | `docId`, `path`                                                                                                                             | Document saved to disk.                                                                  |
+| `doc:closed`        | `docId`                                                                                                                                     | Document closed.                                                                         |
+| `agent:finished`    | `docId`, `nodeIds[]` (empty = all frames)                                                                                                   | The agent finished (`finish_working`): the editor clears the "AI" badge from the frames. |
+| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                                                              | Selection changed.                                                                       |
+| `active:changed`    | `docId` (or null)                                                                                                                           | Active document changed.                                                                 |
+| `ack`               | `reqId`, `result?`                                                                                                                          | Success response to a request.                                                           |
+| `error`             | `reqId?`, `message`                                                                                                                         | Error.                                                                                   |
 
-`source` é `'editor'`, `'mcp'` ou `'system'`. `OpenDocumentInfo` tem `docId`, `name`, `path` (null se não salvo), `dirty` e `revision`.
+`source` is `'editor'`, `'mcp'` or `'system'`. `OpenDocumentInfo` has `docId`, `name`, `path` (null if unsaved), `dirty` and `revision`.
 
-### Cliente para servidor
+### Client to server
 
-Toda requisição tem `reqId` (string) e é respondida com `ack` ou `error`.
+Every request has a `reqId` (string) and is answered with `ack` or `error`.
 
-| `type`          | Campos               | Descrição                                                         |
-| --------------- | -------------------- | ----------------------------------------------------------------- |
-| `op:apply`      | `docId`, `ops[]`     | Aplica ops.                                                       |
-| `selection:set` | `docId`, `nodeIds[]` | Define a seleção.                                                 |
-| `doc:open`      | `path`               | Abre um arquivo.                                                  |
-| `doc:new`       | `path`, `name`       | Cria um documento (ack com o info, sem `doc`).                    |
-| `doc:close`     | `docId`              | Fecha o documento (salva se pendente); ack `{}`.                  |
-| `doc:save`      | `docId?`             | Salva (padrão: documento ativo).                                  |
-| `doc:saveAs`    | `docId?`, `path`     | Salva em outro caminho (ver abaixo); ack com o info do documento. |
-| `undo`          | `docId?`             | Desfaz.                                                           |
-| `redo`          | `docId?`             | Refaz.                                                            |
-| `active:set`    | `docId`              | Define o documento ativo.                                         |
+| `type`          | Fields               | Description                                                    |
+| --------------- | -------------------- | -------------------------------------------------------------- |
+| `op:apply`      | `docId`, `ops[]`     | Applies ops.                                                   |
+| `selection:set` | `docId`, `nodeIds[]` | Sets the selection.                                            |
+| `doc:open`      | `path`               | Opens a file.                                                  |
+| `doc:new`       | `path`, `name`       | Creates a document (ack with the info, without `doc`).         |
+| `doc:close`     | `docId`              | Closes the document (saves if pending); ack `{}`.              |
+| `doc:save`      | `docId?`             | Saves (default: active document).                              |
+| `doc:saveAs`    | `docId?`, `path`     | Saves to another path (see below); ack with the document info. |
+| `undo`          | `docId?`             | Undoes.                                                        |
+| `redo`          | `docId?`             | Redoes.                                                        |
+| `active:set`    | `docId`              | Sets the active document.                                      |
 
-`doc:saveAs` (`store.saveAs`): normaliza o caminho (`.json` vira `.mockup.json`) e **sobrescreve** o destino (o diálogo nativo já confirmou). Recusa com 409 se outro documento aberto usa o mesmo caminho. Copia o conteúdo de `assets/` para ao lado do novo arquivo (sem apagar a origem e sem sobrescrever arquivos já existentes), passa o documento a apontar para o novo caminho, emite `doc:saved` e atualiza os recentes. No editor: Ctrl+Shift+S, com o diálogo nativo no app desktop.
+`doc:saveAs` (`store.saveAs`): normalizes the path (`.json` becomes `.mockup.json`) and **overwrites** the destination (the native dialog already confirmed). Rejects with 409 if another open document uses the same path. Copies the contents of `assets/` next to the new file (without deleting the source and without overwriting files that already exist), makes the document point to the new path, emits `doc:saved` and updates the recents. In the editor: Ctrl+Shift+S, with the native dialog in the desktop app.
 
 ## HTTP
 
 Base `http://127.0.0.1:4747`.
 
-O header `Host` é validado antes de qualquer rota (`isAllowedHost`, proteção contra DNS rebinding): o hostname deve ser `127.0.0.1`, `localhost`, `::1` ou o `host` configurado no daemon, com qualquer porta. Caso contrário, 403 `{ error: 'Host não permitido' }`. Erros: `HttpError` e erros 4xx do body-parser mantêm o status; qualquer outro vira 500 `{ error: 'Erro interno' }` (detalhe só no log).
+The `Host` header is validated before any route (`isAllowedHost`, DNS rebinding protection): the hostname must be `127.0.0.1`, `localhost`, `::1` or the `host` configured in the daemon, with any port. Otherwise, 403 `{ error: 'Host not allowed' }`. Errors: `HttpError` and body-parser 4xx errors keep their status; any other becomes 500 `{ error: 'Internal error' }` (detail only in the log).
 
-| Rota                                         | Descrição                                                                                                                                                                                                                                                                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/health`                            | Estado do daemon (`ok`, `name`, `pid`, `port`, `startedAt`, `version`, `docs`, `activeDocId`, `render`, `mode`, `canShutdown`); usado pelo CLI para confirmar o `daemon.json`. `render` é `true` quando há motor de render (app desktop ou Electron headless).                                                    |
-| `GET /api/docs`                              | `{ documents, activeDocId }` com os documentos abertos.                                                                                                                                                                                                                                                           |
-| `GET /api/docs/:id`                          | `{ info, doc, selection }`: documento completo.                                                                                                                                                                                                                                                                   |
-| `POST /api/open`                             | Corpo `{ path }`. Abre um arquivo.                                                                                                                                                                                                                                                                                |
-| `POST /api/new`                              | Corpo `{ path, name }`. Cria um documento.                                                                                                                                                                                                                                                                        |
-| `POST /api/shutdown`                         | Encerra o daemon salvando os documentos (202); 409 no app com janela. Ver "Modo do daemon e encerramento por HTTP".                                                                                                                                                                                               |
-| `POST /api/save`                             | Corpo `{ docId? }`. Salva.                                                                                                                                                                                                                                                                                        |
-| `POST /api/active`                           | Corpo `{ docId }`. Define o documento ativo.                                                                                                                                                                                                                                                                      |
-| `GET /api/recent`                            | `{ recent: string[] }`: documentos recentes que ainda existem em disco.                                                                                                                                                                                                                                           |
-| `POST /api/assets/:docId?name=`              | Corpo binário cru (até 20 MB; extensões png, jpg, jpeg, gif, webp, svg, avif). Grava em `assets/` com nome sanitizado e sufixo `-1`, `-2` se já existir; responde `{ src }` relativo a `assets/`. 404 documento inexistente, 409 sem caminho (salvar antes), 400 nome/extensão/corpo inválido, 413 grande demais. |
-| `GET /assets/:docId/*`                       | Serve arquivos de `assets/` do documento.                                                                                                                                                                                                                                                                         |
-| `GET /render/:docId/:nodeId.(png\|jpg\|svg)` | Imagem do nó. Query: `scale` (1, 2 ou 3), `quality` (0 a 100, JPG), `maxWidth` (px), `transparent` (`1`/`true`, PNG). PNG e JPG vêm do `RenderProvider`; SVG vem de `exportSvg` (com `measure` quando há render; sem render, o fallback em `<foreignObject>`). `Cache-Control: no-store`.                         |
-| `/ws`                                        | WebSocket (upgrade).                                                                                                                                                                                                                                                                                              |
-| `/mcp`                                       | MCP Streamable HTTP.                                                                                                                                                                                                                                                                                              |
-| `GET /` e demais caminhos do editor          | Editor estático (SPA), só quando o daemon recebe `editorDir` com `index.html`. Arquivos estáticos primeiro; `GET` sem extensão fora de `/api`, `/assets`, `/mcp`, `/ws` e `/render` devolve `index.html`. Mesma origem que a API, os assets e o WS.                                                               |
+| Route                                        | Description                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                            | Daemon state (`ok`, `name`, `pid`, `port`, `startedAt`, `version`, `docs`, `activeDocId`, `render`, `mode`, `canShutdown`); used by the CLI to confirm `daemon.json`. `render` is `true` when there is a render engine (desktop app or headless Electron).                                                             |
+| `GET /api/docs`                              | `{ documents, activeDocId }` with the open documents.                                                                                                                                                                                                                                                                  |
+| `GET /api/docs/:id`                          | `{ info, doc, selection }`: full document.                                                                                                                                                                                                                                                                             |
+| `POST /api/open`                             | Body `{ path }`. Opens a file.                                                                                                                                                                                                                                                                                         |
+| `POST /api/new`                              | Body `{ path, name }`. Creates a document.                                                                                                                                                                                                                                                                             |
+| `POST /api/shutdown`                         | Shuts the daemon down, saving the documents (202); 409 in the app with a window. See "Daemon mode and shutdown over HTTP".                                                                                                                                                                                             |
+| `POST /api/save`                             | Body `{ docId? }`. Saves.                                                                                                                                                                                                                                                                                              |
+| `POST /api/active`                           | Body `{ docId }`. Sets the active document.                                                                                                                                                                                                                                                                            |
+| `GET /api/recent`                            | `{ recent: string[] }`: recent documents that still exist on disk.                                                                                                                                                                                                                                                     |
+| `POST /api/assets/:docId?name=`              | Raw binary body (up to 20 MB; extensions png, jpg, jpeg, gif, webp, svg, avif). Writes to `assets/` with a sanitized name and suffix `-1`, `-2` if it already exists; responds `{ src }` relative to `assets/`. 404 nonexistent document, 409 no path (save first), 400 invalid name/extension/body, 413 too large.    |
+| `GET /assets/:docId/*`                       | Serves files from the document's `assets/`.                                                                                                                                                                                                                                                                            |
+| `GET /render/:docId/:nodeId.(png\|jpg\|svg)` | Image of the node. Query: `scale` (1, 2 or 3), `quality` (0 to 100, JPG), `maxWidth` (px), `transparent` (`1`/`true`, PNG). PNG and JPG come from the `RenderProvider`; SVG comes from `exportSvg` (with `measure` when there is a render; without render, the `<foreignObject>` fallback). `Cache-Control: no-store`. |
+| `/ws`                                        | WebSocket (upgrade).                                                                                                                                                                                                                                                                                                   |
+| `/mcp`                                       | MCP Streamable HTTP.                                                                                                                                                                                                                                                                                                   |
+| `GET /` and other editor paths               | Static editor (SPA), only when the daemon receives an `editorDir` with `index.html`. Static files first; an extensionless `GET` outside `/api`, `/assets`, `/mcp`, `/ws` and `/render` returns `index.html`. Same origin as the API, assets and WS.                                                                    |
 
-Rotas de assets, dados e arquivos (montadas por `routes/index.ts`):
+Asset, data and file routes (mounted by `routes/index.ts`):
 
-- `GET /cdn/:hash.:ext`, `GET|DELETE /api/assets/:docId`, `POST /api/assets/:docId/link|remove-unused|optimize` e `/api/library`: CDN local por conteúdo, assets com usos e biblioteca ([ASSETS.md](ASSETS.md#http)).
-- `POST /api/data/:docId/:nodeId/bind|refresh` e `POST /api/placeholder/:docId`: dados de repetidores ([DADOS.md](DADOS.md)) e placeholders.
-- `GET /api/files`, `POST /api/files/meta|folders|add|forget`, `GET /api/files/thumbnail` e `GET /api/search/nodes`: índice de arquivos, miniaturas e busca de nós (ver [Índice de arquivos](#índice-de-arquivos-e-miniaturas)).
+- `GET /cdn/:hash.:ext`, `GET|DELETE /api/assets/:docId`, `POST /api/assets/:docId/link|remove-unused|optimize` and `/api/library`: local content-addressed CDN, assets with usages and library ([ASSETS.md](ASSETS.md#http)).
+- `POST /api/data/:docId/:nodeId/bind|refresh` and `POST /api/placeholder/:docId`: repeater data ([DATA.md](DATA.md)) and placeholders.
+- `GET /api/files`, `POST /api/files/meta|folders|add|forget`, `GET /api/files/thumbnail` and `GET /api/search/nodes`: file index, thumbnails and node search (see [File index](#file-index-and-thumbnails)).
 
-Respostas de `/render`:
+`/render` responses:
 
-| Código | Quando                                                                                                  |
-| ------ | ------------------------------------------------------------------------------------------------------- |
-| 400    | `scale` fora de 1, 2 ou 3; `quality` fora de 0 a 100; `maxWidth` inválido.                              |
-| 404    | Extensão diferente de png, jpg e svg; documento ou nó inexistente.                                      |
-| 500    | Falha do render ou do `exportSvg` (erro do render em `{ error }`; o do SVG é genérico, detalhe no log). |
-| 503    | PNG/JPG sem motor de render (daemon Node puro).                                                         |
+| Code | When                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------- |
+| 400  | `scale` outside 1, 2 or 3; `quality` outside 0 to 100; invalid `maxWidth`.                              |
+| 404  | Extension other than png, jpg and svg; nonexistent document or node.                                    |
+| 500  | Render or `exportSvg` failure (render error in `{ error }`; the SVG one is generic, detail in the log). |
+| 503  | PNG/JPG without a render engine (pure Node daemon).                                                     |
 
-O SVG sai com a mesma CSP dos assets (`ASSET_CSP`: `default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox`) e `X-Content-Type-Options: nosniff`, então aberto direto numa aba não roda script nem carrega recursos. Imagens do documento entram como data URL (lidas de `assets/`, sem sair da pasta).
+The SVG goes out with the same CSP as the assets (`ASSET_CSP`: `default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox`) and `X-Content-Type-Options: nosniff`, so opened directly in a tab it runs no script and loads no resources. Document images are inlined as data URLs (read from `assets/`, without leaving the folder).
 
 ## MCP
 
-- Transporte: Streamable HTTP em `http://127.0.0.1:4747/mcp`, com `@modelcontextprotocol/sdk` 1.x.
-- Sessões: o servidor atribui um id de sessão na inicialização; o cliente o envia no header `mcp-session-id` nas requisições seguintes.
-- Proteção: o transporte usa `enableDnsRebindingProtection` com `allowedHosts` `127.0.0.1:<porta>`, `localhost:<porta>` e `[::1]:<porta>` (o SDK compara o header `Host` inteiro, com porta). Host externo recebe 403.
-- Ciclo de vida: `mcp-session-id` desconhecido responde 404 (`-32001`, `Sessão não encontrada`) para o cliente reinicializar; requisição sem sessão que não seja `initialize` responde 400. `DELETE /mcp` encerra a sessão.
-- TTL: sessão ociosa por mais de 30 min (`sessionTtlMs`) é fechada por uma varredura periódica; cada requisição renova o `lastSeen`.
-- `mockup mcp` expõe o mesmo servidor por stdio, fazendo proxy para o endpoint HTTP.
-- Ferramentas, convenções e guias em [MCP.md](MCP.md).
+- Transport: Streamable HTTP at `http://127.0.0.1:4747/mcp`, with `@modelcontextprotocol/sdk` 1.x.
+- Sessions: the server assigns a session id on initialization; the client sends it in the `mcp-session-id` header on subsequent requests.
+- Protection: the transport uses `enableDnsRebindingProtection` with `allowedHosts` `127.0.0.1:<port>`, `localhost:<port>` and `[::1]:<port>` (the SDK compares the whole `Host` header, with port). An external host gets 403.
+- Lifecycle: an unknown `mcp-session-id` responds 404 (`-32001`, `Session not found`) so the client reinitializes; a request without a session that is not `initialize` responds 400. `DELETE /mcp` ends the session.
+- TTL: a session idle for more than 30 min (`sessionTtlMs`) is closed by a periodic sweep; each request renews `lastSeen`.
+- `mockup mcp` exposes the same server over stdio, proxying to the HTTP endpoint.
+- Tools, conventions and guides in [MCP.md](MCP.md).
 
-## Pasta de dados
+## Data folder
 
-`%LOCALAPPDATA%/MockupStudio` no Windows; nos demais sistemas, `~/.mockup-studio`. A variável `MOCKUP_DATA_DIR` sobrescreve.
+`%LOCALAPPDATA%/MockupStudio` on Windows; on other systems, `~/.mockup-studio`. The `MOCKUP_DATA_DIR` variable overrides it.
 
-| Arquivo       | Conteúdo                                                                                     |
-| ------------- | -------------------------------------------------------------------------------------------- |
-| `config.json` | `{ port? }`                                                                                  |
-| `recent.json` | Caminhos de documentos recentes.                                                             |
-| `daemon.json` | `{ port, pid, startedAt, url, mcpUrl, wsUrl }`. Escrito ao subir o daemon, removido ao sair. |
-| `files.json`  | Índice de arquivos: pastas virtuais, tags e favoritos (ver abaixo).                          |
-| `cdn/`        | CDN local e biblioteca: `<hash>.<ext>` e `index.json` (ver [ASSETS.md](ASSETS.md)).          |
-| `thumbs/`     | Miniaturas da tela inicial: `<sha1(caminho)>-<largura>.png`.                                 |
+| File          | Contents                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `config.json` | `{ port? }`                                                                                      |
+| `recent.json` | Paths of recent documents.                                                                       |
+| `daemon.json` | `{ port, pid, startedAt, url, mcpUrl, wsUrl }`. Written when the daemon starts, removed on exit. |
+| `files.json`  | File index: virtual folders, tags and favorites (see below).                                     |
+| `cdn/`        | Local CDN and library: `<hash>.<ext>` and `index.json` (see [ASSETS.md](ASSETS.md)).             |
+| `thumbs/`     | Home screen thumbnails: `<sha1(path)>-<width>.png`.                                              |
 
-`daemon.json` só é removido pelo próprio pid (`removeDaemonInfo(dir, process.pid)`): um daemon antigo que encerra não apaga o arquivo de um mais novo.
+`daemon.json` is only removed by its own pid (`removeDaemonInfo(dir, process.pid)`): an old daemon that exits does not delete a newer one's file.
 
-### Índice de arquivos e miniaturas
+### File index and thumbnails
 
-`files.json`: `{ version: 1, folders: string[], files: { [caminho]: { folder?, tags, favorite?, addedAt, lastOpenedAt? } } }`, com pastas virtuais aninhadas por `/` (`Clientes/Acme`). `files.ts` mantém um índice por `DocumentStore`: arquivos abertos, criados e salvos entram sozinhos (eventos do store); a gravação é atômica e em fila.
+`files.json`: `{ version: 1, folders: string[], files: { [path]: { folder?, tags, favorite?, addedAt, lastOpenedAt? } } }`, with virtual folders nested by `/` (`Clients/Acme`). `files.ts` keeps one index per `DocumentStore`: files that are opened, created and saved are added automatically (store events); writing is atomic and queued.
 
-- `GET /api/files?folder=&tag=&query=&favorites=1&recursive=1`: junta o índice, os recentes (`recent`: posição em `recent.json`) e os abertos (`open`, `docId`). `folder` lista só os arquivos diretamente na pasta (`recursive=1` inclui subpastas; `/` = sem pasta); `query` busca em nome, tags e no texto dos nós (`documentText`, cache por mtime), sem acento.
-- `POST /api/files/meta` (`{ path, folder?, tags?, addTags?, removeTags?, favorite? }`), `/folders` (`create`, `rename` move subpastas e arquivos, `delete` sobe os arquivos para a pasta-mãe), `/add` (arquivo ou pasta, até 2 níveis) e `/forget` (só tira do índice).
-- `GET /api/files/thumbnail?path=&w=480`: primeiro frame visível da primeira página com frames, pelo `RenderProvider` (`maxWidth` até 1024), em cache em `thumbs/` invalidado pelo mtime. Documento fechado: as imagens de `assets/` entram como data URL num clone (até 20 MB); as fontes embutidas ainda não. Só para arquivos do índice, dos recentes ou abertos (um `<img>` não manda Origin; qualquer outro caminho dá 404). 503 sem render, 404 sem arquivo ou sem frames.
-- `GET /api/search/nodes?query=&docId=`: `searchNodes` do core nos documentos abertos.
+- `GET /api/files?folder=&tag=&query=&favorites=1&recursive=1`: joins the index, the recents (`recent`: position in `recent.json`) and the open ones (`open`, `docId`). `folder` lists only the files directly in the folder (`recursive=1` includes subfolders; `/` = no folder); `query` searches name, tags and the nodes' text (`documentText`, cached by mtime), accent-insensitive.
+- `POST /api/files/meta` (`{ path, folder?, tags?, addTags?, removeTags?, favorite? }`), `/folders` (`create`, `rename` moves subfolders and files, `delete` moves the files up to the parent folder), `/add` (file or folder, up to 2 levels) and `/forget` (only removes from the index).
+- `GET /api/files/thumbnail?path=&w=480`: first visible frame of the first page with frames, via the `RenderProvider` (`maxWidth` up to 1024), cached in `thumbs/` and invalidated by mtime. Closed document: images from `assets/` are inlined as data URLs in a clone (up to 20 MB); embedded fonts are not yet. Only for files in the index, the recents or open ones (an `<img>` sends no Origin; any other path gives 404). 503 without render, 404 without a file or without frames.
+- `GET /api/search/nodes?query=&docId=`: the core's `searchNodes` over the open documents.
 
-### Gravação
+### Writing
 
-- `create` usa `normalizeDocumentPath` (`.json` vira `.mockup.json`) e abre com flag `wx`: nunca sobrescreve (erro `O arquivo já existe`).
-- Cada documento tem uma fila de saves (`saveChain`): nunca há duas gravações simultâneas no mesmo arquivo. `dirty` só volta a `false` se a revisão gravada ainda for a atual.
-- Gravação em temporário único (`<arquivo>.<pid>.<ts>.<contador>.<aleatório>.tmp`) seguido de `rename`, com 3 tentativas (50, 100 e 200 ms) em `EPERM`/`EBUSY`/`EACCES`. Em erro, o temporário é removido.
+- `create` uses `normalizeDocumentPath` (`.json` becomes `.mockup.json`) and opens with the `wx` flag: it never overwrites (error `The file already exists`).
+- Each document has a save queue (`saveChain`): there are never two simultaneous writes to the same file. `dirty` only goes back to `false` if the written revision is still the current one.
+- Writing to a unique temporary file (`<file>.<pid>.<ts>.<counter>.<random>.tmp`) followed by `rename`, with 3 retries (50, 100 and 200 ms) on `EPERM`/`EBUSY`/`EACCES`. On error, the temporary file is removed.
 
-A porta padrão é 4747. Pode ser definida com `--port` ou `MOCKUP_PORT` (e `port` em `config.json`).
+The default port is 4747. It can be set with `--port` or `MOCKUP_PORT` (and `port` in `config.json`).
 
-## Descoberta do daemon pelo CLI
+## Daemon discovery by the CLI
 
 `mockup mcp`:
 
-1. Lê `daemon.json` da pasta de dados.
-2. Confere com `GET /api/health` na porta registrada.
-3. Se responder, usa esse daemon (se ele não tem render, veja "Daemon sem render" abaixo). Caso contrário (arquivo ausente, obsoleto ou sem resposta), sobe um daemon headless destacado e espera ficar saudável. A ordem de preferência é:
-   1. **Electron headless** (com screenshot): `<exe> [app] --headless --port <porta>`, destacado, sem `ELECTRON_RUN_AS_NODE`. `MOCKUP_DATA_DIR` só é repassada se o usuário a definiu: senão o headless usa o mesmo `userData` (e o mesmo lock de instância única) do app aberto pelo menu Iniciar. O CLI espera `/api/health` com `render: true` (30 s); a saída vai para `daemon.log` na pasta de dados.
-   2. **Daemon Node** (sem render), se o Electron não for encontrado, encerrar antes de responder ou estourar o tempo. O CLI registra em stderr o motivo e avisa que screenshot e layout medido ficam indisponíveis.
-4. Faz proxy stdio para Streamable HTTP em `mcpUrl`.
+1. Reads `daemon.json` from the data folder.
+2. Checks it with `GET /api/health` on the registered port.
+3. If it responds, uses that daemon (if it has no render, see "Daemon without render" below). Otherwise (file missing, stale or unresponsive), starts a detached headless daemon and waits for it to become healthy. The order of preference is:
+   1. **Headless Electron** (with screenshot): `<exe> [app] --headless --port <port>`, detached, without `ELECTRON_RUN_AS_NODE`. `MOCKUP_DATA_DIR` is only passed along if the user set it: otherwise headless uses the same `userData` (and the same single-instance lock) as the app opened from the Start menu. The CLI waits for `/api/health` with `render: true` (30 s); output goes to `daemon.log` in the data folder.
+   2. **Node daemon** (no render), if Electron is not found, exits before responding or times out. The CLI logs the reason to stderr and warns that screenshot and measured layout are unavailable.
+4. Proxies stdio to Streamable HTTP at `mcpUrl`.
 
-O Electron é procurado em `locateElectron` (`packages/cli/src/electron.ts`), nesta ordem:
+Electron is looked up in `locateElectron` (`packages/cli/src/electron.ts`), in this order:
 
-| Ordem | Origem                                                                                                                     |
-| ----- | -------------------------------------------------------------------------------------------------------------------------- |
-| 1     | `MOCKUP_DESKTOP_EXE`: caminho do executável (app empacotado ou binário do Electron), se existir.                           |
-| 2     | Pasta gravada no registro (`InstallLocation` da chave de desinstalação, HKCU e depois HKLM): cobre pasta personalizada.    |
-| 3     | Instalação NSIS por usuário: `%LOCALAPPDATA%\Programs\Mockup Studio\Mockup Studio.exe` (Windows).                          |
-| 4     | Pacote de desenvolvimento: `@mockup/desktop` buildado (`out/main/index.js`) com o binário de `electron` do `node_modules`. |
+| Order | Source                                                                                                             |
+| ----- | ------------------------------------------------------------------------------------------------------------------ |
+| 1     | `MOCKUP_DESKTOP_EXE`: path to the executable (packaged app or Electron binary), if it exists.                      |
+| 2     | Folder recorded in the registry (`InstallLocation` of the uninstall key, HKCU then HKLM): covers a custom folder.  |
+| 3     | Per-user NSIS install: `%LOCALAPPDATA%\Programs\Mockup Studio\Mockup Studio.exe` (Windows).                        |
+| 4     | Development package: built `@mockup/desktop` (`out/main/index.js`) with the `electron` binary from `node_modules`. |
 
-`MOCKUP_NO_ELECTRON=1` desliga a busca e força o daemon Node. `mockup serve --render` usa a mesma busca, mas roda o Electron headless em primeiro plano (stdio herdado) e falha com mensagem se não o encontrar; sem `--render`, `mockup serve` sobe o daemon Node, que serve o editor em `/` quando ele está buildado.
+`MOCKUP_NO_ELECTRON=1` disables the lookup and forces the Node daemon. `mockup serve --render` uses the same lookup, but runs headless Electron in the foreground (inherited stdio) and fails with a message if it does not find it; without `--render`, `mockup serve` starts the Node daemon, which serves the editor at `/` when it is built.
 
-O daemon headless iniciado pelo `mockup mcp` (Electron ou Node) continua rodando depois que o proxy sai: é encerrado por sinal, por `mockup stop` ou pelo usuário.
+The headless daemon started by `mockup mcp` (Electron or Node) keeps running after the proxy exits: it is terminated by a signal, by `mockup stop` or by the user.
 
-### Modo do daemon e encerramento por HTTP
+### Daemon mode and shutdown over HTTP
 
-`GET /api/health` informa `mode`: `desktop` (app Electron, com janela ou headless), `headless` (daemon Node destacado pelo CLI) ou `serve` (`mockup serve` do usuário). `canShutdown` diz se `POST /api/shutdown` é aceito. A rota tem a proteção das demais escritas (Host local, Origin ausente ou local), responde 202 e fecha o daemon salvando os documentos. O Node standalone e o `mockup serve` encerram o processo; o Electron headless sai com `app.quit()`; o app com janela responde 409 e só fecha pela janela. `mockup stop` descobre o daemon e chama essa rota (sem matar processo por pid).
+`GET /api/health` reports `mode`: `desktop` (Electron app, with a window or headless), `headless` (Node daemon detached by the CLI) or `serve` (the user's `mockup serve`). `canShutdown` says whether `POST /api/shutdown` is accepted. The route has the same protection as the other writes (local Host, absent or local Origin), responds 202 and closes the daemon, saving the documents. Standalone Node and `mockup serve` end the process; headless Electron exits with `app.quit()`; the app with a window responds 409 and only closes through the window. `mockup stop` discovers the daemon and calls this route (without killing a process by pid).
 
-### Daemon sem render
+### Daemon without render
 
-Se o daemon achado tem `render: false` e há Electron disponível, `ensureDaemon` age conforme o modo. Em `headless` (iniciado pelo CLI): lê `GET /api/docs`, pede o shutdown, espera a porta liberar e sobe o Electron headless reabrindo os documentos pelo argv; se o Electron falhar, volta a um daemon Node com os mesmos documentos. Em `serve` (do usuário): mantém o daemon e avisa no log que o screenshot fica indisponível e como resolver (`mockup stop` ou `mockup serve --render`). Documentos sem arquivo não sobrevivem à troca. O app desktop faz o mesmo ao achar a porta ocupada por um daemon sem render: pede o shutdown, espera, sobe o daemon embutido e reabre os documentos dele e os do argv. Se o outro tiver render (outra instância Electron), a janela usa esse daemon.
+If the daemon found has `render: false` and Electron is available, `ensureDaemon` acts according to the mode. In `headless` (started by the CLI): reads `GET /api/docs`, requests shutdown, waits for the port to free up and starts headless Electron, reopening the documents via argv; if Electron fails, it goes back to a Node daemon with the same documents. In `serve` (the user's): keeps the daemon and warns in the log that screenshot is unavailable and how to fix it (`mockup stop` or `mockup serve --render`). Documents without a file do not survive the switch. The desktop app does the same when it finds the port taken by a daemon without render: requests shutdown, waits, starts the embedded daemon and reopens its documents and those from argv. If the other one has render (another Electron instance), the window uses that daemon.
 
-## Segurança
+## Security
 
-- **Somente 127.0.0.1**, sem autenticação. O header `Host` é validado em todas as rotas (DNS rebinding).
-- **Origem:** o WebSocket e as escritas HTTP (`/mcp` e `/api` fora de GET/HEAD/OPTIONS) só aceitam `Origin` ausente ou `http(s)` em `localhost`, `127.0.0.1` ou `[::1]` (`isAllowedOrigin`). `file://` e `null` **não** são mais aceitos: o app desktop serve o editor do próprio daemon, na mesma origem.
-- **Janela do app:** `contextIsolation` ligado, `sandbox` ligado, sem `nodeIntegration`. Navegação para outra origem é bloqueada (links `http(s)` abrem no navegador) e `window.open` é negado. Só clipboard (leitura e escrita sanitizada) é permitido, e só para a origem do daemon.
-- **Preload:** `window.mockupDesktop` só é exposto quando a página vem de `http://127.0.0.1` ou `http://localhost`; os handlers IPC conferem que o frame remetente é da origem do daemon.
-- **Janela de render:** `sandbox`, `contextIsolation`, sem `nodeIntegration` e sem preload; só carrega `/render.html` do daemon.
-- **SVG e assets:** respostas com `Content-Security-Policy` restritiva e `nosniff` (ver HTTP).
-- **CSS exportado:** declarações com valor que escapa da declaração são recusadas na edição e descartadas na leitura e no export (ver [EXPORT.md](EXPORT.md)).
+- **127.0.0.1 only**, no authentication. The `Host` header is validated on all routes (DNS rebinding).
+- **Origin:** the WebSocket and HTTP writes (`/mcp` and `/api` other than GET/HEAD/OPTIONS) only accept an absent `Origin` or `http(s)` on `localhost`, `127.0.0.1` or `[::1]` (`isAllowedOrigin`). `file://` and `null` are **no longer** accepted: the desktop app serves the editor from the daemon itself, on the same origin.
+- **App window:** `contextIsolation` on, `sandbox` on, no `nodeIntegration`. Navigation to another origin is blocked (`http(s)` links open in the browser) and `window.open` is denied. Only the clipboard (read and sanitized write) is allowed, and only for the daemon's origin.
+- **Preload:** `window.mockupDesktop` is only exposed when the page comes from `http://127.0.0.1` or `http://localhost`; the IPC handlers check that the sending frame is from the daemon's origin.
+- **Render window:** `sandbox`, `contextIsolation`, no `nodeIntegration` and no preload; it only loads the daemon's `/render.html`.
+- **SVG and assets:** responses with a restrictive `Content-Security-Policy` and `nosniff` (see HTTP).
+- **Exported CSS:** declarations whose value escapes the declaration are rejected on edit and discarded on read and on export (see [EXPORT.md](EXPORT.md)).
 
-## Decisões técnicas
+## Technical decisions
 
-- **npm workspaces:** um repositório, builds e testes com um único `npm install`; pacotes referenciados por versão (`0.1.0`).
-- **ESM em todo o monorepo**, TypeScript com `tsc`.
-- **core sem DOM e sem Node:** roda igual no daemon, no editor, no Electron e nos testes.
-- **SDK MCP 1.x** (`@modelcontextprotocol/sdk`). Existe uma v2 distribuída em pacotes separados; a migração fica para depois.
-- **Express 5 e ws:** HTTP e WebSocket no mesmo servidor, sem framework adicional.
-- **zod 4:** validação do arquivo e dos parâmetros das ferramentas.
-- **Vitest 5:** testes unitários e de integração em todos os pacotes.
-- **Documento completo no evento `doc:changed`:** simplifica os clientes no MVP; deltas por ops ficam para otimização posterior.
-- **Somente 127.0.0.1:** uso local, sem autenticação.
-- **Electron 45 + electron-vite + electron-builder:** o processo principal sai em ESM com todas as dependências embutidas (server, core, express, ws, SDK MCP, zod); só `electron` fica externo, então o pacote final não leva `node_modules`. O preload sai em CJS (exigência do sandbox). O editor vem de `packages/editor/dist` (dev) ou de `resources/editor` (empacotado). Saída em `dist/`: NSIS por usuário e portátil, sem assinatura de código.
-- **CDP `Page.captureScreenshot` em vez de `capturePage`:** `capturePage` captura na escala da tela e não aceita `deviceScaleFactor` nem recorte fora da viewport. Com `Emulation.setDeviceMetricsOverride` o render sai em escala 1 a 3 com `clip` do nó. `capturePage` fica como alternativa se o CDP falhar.
-- **Janela de render "mostrada" fora da tela:** com a janela realmente oculta (`show: false` sem nunca exibir), o renderer do Chromium cai no `Page.captureScreenshot` no Windows. A janela é criada sem moldura, transparente, sem foco, fora da barra de tarefas, em `x,y = -20000` e recebe `showInactive()`.
-- **Associação de `.mockup.json` por ProgID:** o Windows só enxerga a última extensão (`.json`); registrar `.json` como padrão sequestraria todos os JSON. O instalador (`build/installer.nsh`) cria o ProgID `MockupStudio.Document` (comando `"<exe>" "%1"`) e o lista em `HKCU\Software\Classes\.json\OpenWithProgids`, para aparecer em "Abrir com". O desinstalador remove as chaves.
-- **CSS base único do documento (`base.ts`):** `documentBaseCss` é a mesma fonte para o canvas, a página de render e o código exportado. No canvas ele é restrito ao contêiner (`.cv-world`), com a tipografia só nos frames, para não atingir rótulos e selos da interface. O CSS da interface do editor não vaza no design.
-- **Instância única no app:** `requestSingleInstanceLock` (por `userData`); uma segunda execução repassa os arquivos ao app aberto. Fechar a última janela com sessões MCP ativas deixa o app seguindo em headless.
+- **npm workspaces:** one repository, builds and tests with a single `npm install`; packages referenced by version (`0.1.0`).
+- **ESM across the whole monorepo**, TypeScript with `tsc`.
+- **core without DOM and without Node:** runs the same in the daemon, the editor, Electron and the tests.
+- **MCP SDK 1.x** (`@modelcontextprotocol/sdk`). A v2 exists, distributed in separate packages; migration is left for later.
+- **Express 5 and ws:** HTTP and WebSocket on the same server, with no additional framework.
+- **zod 4:** validation of the file and of the tools' parameters.
+- **Vitest 5:** unit and integration tests in every package.
+- **Full document in the `doc:changed` event:** simplifies the clients in the MVP; op deltas are left for later optimization.
+- **127.0.0.1 only:** local use, no authentication.
+- **Electron 45 + electron-vite + electron-builder:** the main process is emitted as ESM with all dependencies bundled in (server, core, express, ws, MCP SDK, zod); only `electron` stays external, so the final package carries no `node_modules`. The preload is emitted as CJS (a sandbox requirement). The editor comes from `packages/editor/dist` (dev) or from `resources/editor` (packaged). Output in `dist/`: per-user NSIS installer and portable build, without code signing.
+- **CDP `Page.captureScreenshot` instead of `capturePage`:** `capturePage` captures at the screen's scale and accepts neither `deviceScaleFactor` nor a clip outside the viewport. With `Emulation.setDeviceMetricsOverride` the render comes out at scale 1 to 3 with the node's `clip`. `capturePage` stays as a fallback if CDP fails.
+- **Render window "shown" offscreen:** with a truly hidden window (`show: false` never displayed), Chromium's renderer falls back on `Page.captureScreenshot` on Windows. The window is created frameless, transparent, unfocused, out of the taskbar, at `x,y = -20000` and receives `showInactive()`.
+- **`.mockup.json` association via ProgID:** Windows only sees the last extension (`.json`); registering `.json` as the default would hijack every JSON file. The installer (`build/installer.nsh`) creates the ProgID `MockupStudio.Document` (command `"<exe>" "%1"`) and lists it in `HKCU\Software\Classes\.json\OpenWithProgids`, so it shows up in "Open with". The uninstaller removes the keys.
+- **Single base CSS for the document (`base.ts`):** `documentBaseCss` is the same source for the canvas, the render page and the exported code. On the canvas it is restricted to the container (`.cv-world`), with typography only on the frames, so as not to affect the UI's labels and badges. The editor UI's CSS does not leak into the design.
+- **Single instance in the app:** `requestSingleInstanceLock` (per `userData`); a second run passes the files to the open app. Closing the last window with active MCP sessions leaves the app running in headless mode.

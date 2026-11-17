@@ -1,61 +1,61 @@
 # Mockup Studio
 
-Editor de design em canvas (artboards/frames), voltado para IA, com um servidor MCP que faz tudo o que a interface faz. Local, offline-first, sem conta.
+An AI-oriented canvas design editor (artboards/frames) with an MCP server that can do everything the UI does. Local, offline-first, no account.
 
-Quando você pede um mockup a um agente (Claude Code, Codex), ele usa o app via MCP para criar, ver (screenshot) e editar o design. O documento é HTML e CSS reais em um arquivo JSON legível (`*.mockup.json`).
+When you ask an agent (Claude Code, Codex) for a mockup, it drives the app over MCP to create, look at (screenshot) and edit the design. The document is real HTML and CSS stored in a readable JSON file (`*.mockup.json`).
 
-## Recursos
+## Features
 
-- Canvas com frames (artboards), camadas, propriedades, páginas, undo/redo.
-- HTML e CSS reais em `*.mockup.json`, com tokens como variáveis CSS.
-- MCP completo, com 45 ferramentas: tudo o que o editor faz, mais screenshot, medidas, imagens, ícones e fontes.
-- Screenshot dos nós via Electron, para o agente ver e iterar.
-- Exportação para html, tailwind, react, svg, png e jpg.
-- Offline, sem conta, uso local.
+- Canvas with frames (artboards), layers, properties, pages, undo/redo.
+- Real HTML and CSS in `*.mockup.json`, with tokens as CSS variables.
+- Full MCP server with 45 tools: everything the editor does, plus screenshots, measurements, images, icons and fonts.
+- Node screenshots rendered by Electron, so the agent can see the result and iterate.
+- Export to html, tailwind, react, svg, png and jpg.
+- Offline, no account, local use.
 
-![Editor do Mockup Studio](docs/img/editor.png)
+![Mockup Studio editor](docs/img/editor.png)
 
-## Status
+## What's included
 
-MVP concluído: monorepo, core, daemon, MCP, editor visual, app desktop (Electron) com render e empacotamento, CLI com `doctor` e `setup`, integração com agentes. O QA ponta a ponta com um mockup de 3 telas foi feito em 16/11/2026 (relatório em [docs/qa/mvp-e2e.md](docs/qa/mvp-e2e.md)).
+Monorepo with core, daemon, MCP server, visual editor, desktop app (Electron) with render engine and packaging, CLI with `doctor` and `setup`, and agent integrations.
 
-Fases 1 a 9 integradas (17/11/2026): tokens e temas, Tailwind nativo, componentes, snapshot de sites, assets e dados reais, vetores e grid, efeitos e embeds, assistente de IA, scripts e remix. Detalhes e pendências em [docs/PLANO.md](docs/PLANO.md).
+On top of that: tokens and themes, native Tailwind, components, website snapshots, assets and real data, vectors and grid, effects and embeds, AI assistant, scripts and remix. Scope and design notes in [docs/PLAN.md](docs/PLAN.md).
 
-## Instalação
+## Installation
 
-**Instalador (Windows).** `npm run dist` gera `dist/MockupStudio-Setup-<versão>-x64.exe`. A instalação é por usuário e registra o CLI `mockup` no PATH (abra um terminal novo depois). Também sai uma versão portátil, que não registra o CLI `mockup` (ela roda de uma pasta temporária).
+**Installer (Windows).** `npm run dist` builds `dist/MockupStudio-Setup-<version>-x64.exe`. The install is per user and adds the `mockup` CLI to the PATH (open a new terminal afterwards). A portable build is produced too; it does not register the `mockup` CLI (it runs from a temporary folder).
 
-**A partir do código.** Requisitos: Node 24 e npm 11.
+**From source.** Requirements: Node 24 and npm 11.
 
 ```bash
 git clone https://github.com/cDreyer00/mockup-studio.git
 cd mockup-studio
 npm install
 npm run build
-npm link -w @mockup/cli     # cria o comando `mockup`
+npm link -w @mockup/cli     # creates the `mockup` command
 ```
 
-Para desfazer: `npm unlink -g @mockup/cli`.
+To undo: `npm unlink -g @mockup/cli`.
 
-## Registrar no agente
+## Register with your agent
 
 ```bash
-mockup doctor            # diagnóstico e comandos de registro
-mockup setup all         # registra no Claude Code e no Codex
-claude mcp add --scope user mockup-studio -- mockup mcp   # ou o comando manual
+mockup doctor            # diagnostics and registration commands
+mockup setup all         # registers with Claude Code and Codex
+claude mcp add --scope user mockup-studio -- mockup mcp   # or the manual command
 ```
 
-Codex: `codex mcp add mockup-studio -- mockup mcp`. Detalhes, HTTP, Cursor, VS Code, Windows e solução de problemas em [docs/INTEGRACAO.md](docs/INTEGRACAO.md).
+Codex: `codex mcp add mockup-studio -- mockup mcp`. Details, HTTP, Cursor, VS Code, Windows and troubleshooting in [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
-## Uso rápido
+## Quick start
 
-- Peça ao agente: "crie um mockup de uma landing page para um app de finanças, com versões desktop e mobile". Ele cria os frames, confere os screenshots e itera.
-- Abra o editor para ver e ajustar: o app desktop ou `npm run dev` (editor em http://localhost:5173, daemon em `http://127.0.0.1:4747`). Use **Arquivo › Abrir…** ou, no terminal, `mockup open examples/landing.mockup.json`.
-- Comandos do CLI: `mockup mcp` (stdio para agentes), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup install-cli`, `mockup uninstall-cli`, `mockup --version`.
+- Ask the agent: "create a mockup of a landing page for a finance app, with desktop and mobile versions". It creates the frames, checks the screenshots and iterates.
+- Open the editor to view and adjust: the desktop app or `npm run dev` (editor at http://localhost:5173, daemon at `http://127.0.0.1:4747`). Use **File › Open…** or, from the terminal, `mockup open examples/landing.mockup.json`.
+- CLI commands: `mockup mcp` (stdio for agents), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup install-cli`, `mockup uninstall-cli`, `mockup --version`.
 
-Guia do editor, atalhos e medições de desempenho em [docs/EDITOR.md](docs/EDITOR.md).
+Editor guide, shortcuts and performance measurements in [docs/EDITOR.md](docs/EDITOR.md).
 
-## Desenvolvimento
+## Development
 
 ```bash
 npm install
@@ -63,80 +63,77 @@ npm run build
 npm run dev
 ```
 
-`npm run dev` sobe o daemon em `http://127.0.0.1:4747` e o editor em http://localhost:5173. Nenhum documento é aberto automaticamente.
+`npm run dev` starts the daemon at `http://127.0.0.1:4747` and the editor at http://localhost:5173. No document is opened automatically.
 
-## App desktop (Electron)
+## Desktop app (Electron)
 
-O app desktop abre o editor numa janela nativa (menu em português, diálogos de abrir/salvar), embute o daemon (HTTP, WebSocket e MCP na mesma porta 4747) e o motor de render que gera screenshots PNG/JPG dos nós.
+The desktop app opens the editor in a native window (native menu, open/save dialogs), embeds the daemon (HTTP, WebSocket and MCP on the same port 4747) and the render engine that produces PNG/JPG screenshots of nodes.
 
 ```bash
-npm run build                          # core, server, cli, editor e desktop
-npm start -w @mockup/desktop           # janela do editor
-npm start -w @mockup/desktop -- --headless --port 4747   # sem janela (só daemon + render)
-npm start -w @mockup/desktop -- caminho/arquivo.mockup.json   # abre o arquivo
+npm run build                          # core, server, cli, editor and desktop
+npm start -w @mockup/desktop           # editor window
+npm start -w @mockup/desktop -- --headless --port 4747   # no window (daemon + render only)
+npm start -w @mockup/desktop -- path/to/file.mockup.json   # opens the file
 ```
 
-- **Headless:** `--headless`, `--port N`, `--data-dir D`. Uma segunda execução repassa os arquivos à instância existente (e abre a janela, se for o caso). Ao fechar a janela com agentes MCP conectados, o app continua rodando sem janela.
-- **`mockup mcp` e o Electron:** sem daemon vivo, o CLI sobe o Electron headless (variável `MOCKUP_DESKTOP_EXE`, instalação padrão em `%LOCALAPPDATA%\Programs\Mockup Studio` ou o pacote do monorepo) e o screenshot fica disponível. Sem Electron, cai para o daemon Node (sem screenshot). `MOCKUP_NO_ELECTRON=1` força o daemon Node. Se já houver um daemon Node headless (sem screenshot) iniciado pelo CLI, ele é trocado pelo Electron headless com os mesmos documentos abertos; um `mockup serve` seu não é derrubado (o CLI avisa). `mockup stop` encerra o daemon descoberto (o app com janela recusa: feche-o pela janela). `MOCKUP_DATA_DIR` só é repassada ao app se você a definiu. `mockup serve --render` roda o Electron headless em primeiro plano; `mockup serve` (Node) também serve o editor em `http://127.0.0.1:4747/` se o editor estiver buildado.
-- **Render por HTTP:** `GET /render/<docId>/<nodeId>.png?scale=1|2|3&transparent=1`, `.jpg?quality=90` e `.svg`.
-- **Empacotar:** `npm run dist` (da raiz, depois do build) gera em `dist/` o instalador NSIS (`MockupStudio-Setup-*.exe`, por usuário, com escolha de pasta) e a versão portátil (`MockupStudio-Portable-*.exe`), além de `dist/win-unpacked/`. Sem assinatura de código.
-- **Associação de arquivo (Windows):** o Windows só enxerga a última extensão de `.mockup.json` (`.json`), então o instalador NÃO assume `.json`. Ele registra o ProgID `MockupStudio.Document` e o lista em "Abrir com" dos arquivos `.json`; o app abre o arquivo recebido no argumento. Ícones: `npm run icons -w @mockup/desktop`.
+- **Headless:** `--headless`, `--port N`, `--data-dir D`. A second launch forwards the files to the running instance (and opens the window, if applicable). When the window is closed while MCP agents are connected, the app keeps running without a window.
+- **`mockup mcp` and Electron:** with no daemon running, the CLI starts Electron headless (`MOCKUP_DESKTOP_EXE` variable, the default install at `%LOCALAPPDATA%\Programs\Mockup Studio` or the monorepo package) and screenshots are available. Without Electron, it falls back to the Node daemon (no screenshots). `MOCKUP_NO_ELECTRON=1` forces the Node daemon. If a headless Node daemon (no screenshots) started by the CLI is already running, it is replaced by headless Electron with the same documents open; a `mockup serve` you started yourself is not killed (the CLI warns). `mockup stop` shuts down the discovered daemon (the windowed app refuses: close it from its window). `MOCKUP_DATA_DIR` is only forwarded to the app if you set it. `mockup serve --render` runs headless Electron in the foreground; `mockup serve` (Node) also serves the editor at `http://127.0.0.1:4747/` if the editor has been built.
+- **Render over HTTP:** `GET /render/<docId>/<nodeId>.png?scale=1|2|3&transparent=1`, `.jpg?quality=90` and `.svg`.
+- **Packaging:** `npm run dist` (from the root, after the build) writes to `dist/` the NSIS installer (`MockupStudio-Setup-*.exe`, per user, with folder choice) and the portable build (`MockupStudio-Portable-*.exe`), plus `dist/win-unpacked/`. No code signing.
+- **File association (Windows):** Windows only sees the last extension of `.mockup.json` (`.json`), so the installer does NOT take over `.json`. It registers the `MockupStudio.Document` ProgID and lists it under "Open with" for `.json` files; the app opens the file passed as an argument. Icons: `npm run icons -w @mockup/desktop`.
 
-Detalhes de arquitetura em [packages/desktop/README.md](packages/desktop/README.md).
+Architecture details in [packages/desktop/README.md](packages/desktop/README.md).
 
-## Testes
+## Tests
 
 ```bash
-npm test                     # unitários (Vitest) de todos os pacotes
-npx playwright install chromium   # uma vez
-npm run test:e2e             # e2e do editor (Playwright) + integração de mídia no Electron
-npm run test:e2e:desktop     # só a integração de efeitos/vídeo/embeds no Electron real
-npm run screenshot           # regenera docs/img/editor.png
+npm test                     # unit tests (Vitest) for all packages
+npx playwright install chromium   # once
+npm run test:e2e             # editor e2e (Playwright) + media integration in Electron
+npm run test:e2e:desktop     # only the effects/video/embeds integration in real Electron
+npm run screenshot           # regenerates docs/img/editor.png
 npm run lint
 ```
 
-## Estrutura do repositório
+## Repository layout
 
 ```
 packages/
-  core/      @mockup/core    modelo, ops, History, HTML <-> nós, exportadores, schema zod
-  snapshot-core/ @mockup/snapshot-core captura de sites em nós (usado pelo server e pela extensão)
-  server/    @mockup/server  daemon: documentos, HTTP, WebSocket, MCP
-  cli/       @mockup/cli     comando `mockup` (mcp, serve, open, new, stop, doctor, setup, install-cli, uninstall-cli)
-  editor/    @mockup/editor  Vite + React 19 + zustand: editor visual (e2e em editor/e2e)
-  desktop/   @mockup/desktop shell Electron, motor de render e empacotamento
-  extension/ @mockup/extension extensão do Chrome para snapshot de páginas
-docs/        PLANO, ARQUITETURA, MCP, EDITOR, EXPORT, INTEGRACAO e guias de cada recurso
-integrations/ skill do Claude Code e trecho de AGENTS.md para o Codex
-examples/    documentos de exemplo
-kits/        kits de componentes prontos (.mockup.json)
+  core/      @mockup/core    model, ops, History, HTML <-> nodes, exporters, zod schema
+  snapshot-core/ @mockup/snapshot-core website capture into nodes (used by the server and the extension)
+  server/    @mockup/server  daemon: documents, HTTP, WebSocket, MCP
+  cli/       @mockup/cli     `mockup` command (mcp, serve, open, new, stop, doctor, setup, install-cli, uninstall-cli)
+  editor/    @mockup/editor  Vite + React 19 + zustand: visual editor (e2e in editor/e2e)
+  desktop/   @mockup/desktop Electron shell, render engine and packaging
+  extension/ @mockup/extension Chrome extension for page snapshots
+docs/        PLAN, ARCHITECTURE, MCP, EDITOR, EXPORT, INTEGRATION and a guide per feature
+integrations/ Claude Code skill and AGENTS.md snippet for Codex
+examples/    example documents
+kits/        ready-made component kits (.mockup.json)
 ```
 
-## Documentação
+## Documentation
 
-- [docs/PLANO.md](docs/PLANO.md): escopo do MVP e fases seguintes
-- [docs/ARQUITETURA.md](docs/ARQUITETURA.md): pacotes, formato de arquivo, ops, protocolo WS, HTTP
-- [docs/MCP.md](docs/MCP.md): conexão, convenções e ferramentas
-- [docs/EDITOR.md](docs/EDITOR.md): uso do editor, atalhos, painéis e desempenho
-- [docs/EXPORT.md](docs/EXPORT.md): exportadores html, tailwind, react e svg
-- [docs/EFEITOS.md](docs/EFEITOS.md): efeitos animados (shaders e partículas), render com `time` e export mp4, webm e gif
-- [docs/EMBEDS.md](docs/EMBEDS.md): vídeo, Lottie, Rive, YouTube, iframe, ilhas Three.js e uso offline
-- [docs/INTEGRACAO.md](docs/INTEGRACAO.md): registro no Claude Code, Codex e outros clientes
-- [packages/desktop/README.md](packages/desktop/README.md): app Electron, render e empacotamento
+- [docs/PLAN.md](docs/PLAN.md): MVP scope and later phases
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): packages, file format, ops, WS protocol, HTTP
+- [docs/MCP.md](docs/MCP.md): connection, conventions and tools
+- [docs/EDITOR.md](docs/EDITOR.md): using the editor, shortcuts, panels and performance
+- [docs/EXPORT.md](docs/EXPORT.md): html, tailwind, react and svg exporters
+- [docs/INTEGRATION.md](docs/INTEGRATION.md): registering with Claude Code, Codex and other clients
+- [packages/desktop/README.md](packages/desktop/README.md): Electron app, render and packaging
 
-## Roadmap
+Feature guides:
 
-Fases em [docs/PLANO.md](docs/PLANO.md), todas integradas:
+- Tokens with groups and themes as real CSS: [TOKENS.md](docs/TOKENS.md).
+- Tailwind classes in the model: [TAILWIND.md](docs/TAILWIND.md).
+- Components: [COMPONENTS.md](docs/COMPONENTS.md).
+- Website snapshots: [SNAPSHOT.md](docs/SNAPSHOT.md).
+- Assets and real data: [ASSETS.md](docs/ASSETS.md), [DATA.md](docs/DATA.md).
+- Vectors and grid: [VECTORS.md](docs/VECTORS.md), [GRID.md](docs/GRID.md).
+- Animated effects (shaders and particles), render with `time` and mp4, webm and gif export: [EFFECTS.md](docs/EFFECTS.md).
+- Video, Lottie, Rive, YouTube, iframe, Three.js islands and offline use: [EMBEDS.md](docs/EMBEDS.md).
+- AI assistant, scripts and remix: [ASSISTANT.md](docs/ASSISTANT.md), [SCRIPTS.md](docs/SCRIPTS.md).
 
-- Fase 2: tokens com grupos e temas em CSS real ([TOKENS.md](docs/TOKENS.md)).
-- Fase 3: classes Tailwind no modelo ([TAILWIND.md](docs/TAILWIND.md)).
-- Fase 4: componentes ([COMPONENTES.md](docs/COMPONENTES.md)).
-- Fase 5: snapshot de sites ([SNAPSHOT.md](docs/SNAPSHOT.md)); versões nomeadas seguem abertas.
-- Fase 6: assets e dados reais ([ASSETS.md](docs/ASSETS.md), [DADOS.md](docs/DADOS.md)).
-- Fase 7: vetores e grid ([VETORES.md](docs/VETORES.md), [GRID.md](docs/GRID.md)).
-- Fase 8: efeitos e embeds ([EFEITOS.md](docs/EFEITOS.md), [EMBEDS.md](docs/EMBEDS.md)).
-- Fase 9: assistente de IA, scripts e remix ([ASSISTENTE.md](docs/ASSISTENTE.md), [SCRIPTS.md](docs/SCRIPTS.md)).
+## License
 
-## Licença
-
-MIT. Veja [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

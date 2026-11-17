@@ -1,253 +1,253 @@
-# Plano do Mockup Studio
+# Mockup Studio plan
 
-Editor de design em canvas voltado para IA, com servidor MCP que cobre tudo o que a interface faz. Uso pessoal, local, offline-first, sem conta. Prioridade máxima: quando o usuário pede um mockup a um agente, o agente usa o app via MCP para criar, ver (screenshot) e editar o design.
+AI-oriented canvas design editor with an MCP server that covers everything the UI does. Personal use, local, offline-first, no account. Top priority: when the user asks an agent for a mockup, the agent uses the app via MCP to create, view (screenshot) and edit the design.
 
 ## MVP (branch `feature/mvp`)
 
-### Tarefa 1 — Fundação (concluída)
+### Task 1 — Foundation (done)
 
 - Monorepo (npm workspaces, ESM, TypeScript, Vitest).
-- `core`: modelo, ops com inverso, `History`, HTML <-> nós, resumo da árvore, schema zod.
-- Daemon: documentos abertos, HTTP, WebSocket, MCP (Streamable HTTP), autosave.
+- `core`: model, ops with inverse, `History`, HTML <-> nodes, tree summary, zod schema.
+- Daemon: open documents, HTTP, WebSocket, MCP (Streamable HTTP), autosave.
 - CLI: `mockup mcp | serve | open | new`.
-- MCP básico: leitura e escrita de documentos, nós, estilos, tokens, seleção, undo/redo.
-- Scaffold do editor como visualizador somente leitura.
-- Documentação inicial.
+- Basic MCP: read and write documents, nodes, styles, tokens, selection, undo/redo.
+- Editor scaffold as a read-only viewer.
+- Initial documentation.
 
-### Tarefa 2 — Editor visual completo (concluída)
+### Task 2 — Full visual editor (done)
 
-- **Canvas infinito**
-  - Zoom: Ctrl+roda, pinch, `+`, `-`, `Shift+0`, `Shift+1`, `Shift+2`.
-  - Pan: espaço, botão do meio, roda.
-- **Seleção**
-  - Clique, Shift, marquee.
-  - Duplo clique entra no nó; Esc sobe um nível.
-  - Alças, hover e régua de distâncias com Alt.
-- **Mover**
-  - Frames no canvas.
-  - Reordenar em contêiner flex, com indicador.
-  - `x`/`y` em filhos absolute.
-  - Setas: 1 px; com Shift: 10 px.
-- **Redimensionar**
-  - Alças; Alt redimensiona pelo centro; Shift mantém proporção.
-  - Modos auto, 100% e fill.
-- **Ferramentas**: Frame (F), Container (R), Texto (T), Imagem (upload para `assets/`).
-- **Texto**: edição inline.
-- **Painel de camadas**
-  - Árvore, arrastar para mudar o pai, renomear, ocultar, travar.
-  - Menu de contexto: duplicar, excluir, agrupar, desagrupar, ordem.
-- **Painel de propriedades**
-  - Posição e tamanho, layout flex, tipografia, aparência, efeitos, tag/atributos, nome.
-  - Inputs com arrastar e unidades; CSS avançado.
-- **Páginas**.
-- **Undo/redo** via daemon.
-- **Clipboard** interno e colar HTML externo.
-- **Seleção sincronizada** com o MCP; badge "agente trabalhando".
-- **Arquivo**: abrir, novo, salvar, recentes, indicador de não salvo.
-- **Desempenho** com 300 nós. Pendências herdadas da tarefa 1: `applyOp` faz cópia profunda do documento via JSON a cada op, e `doc:changed` envia o documento completo pelo WebSocket a cada mudança. Medir com 300 nós e, se preciso, trocar por clonagem estrutural (`structuredClone`/cópia por caminho) e por deltas de ops no WS.
-- **Qualidade**: testes Vitest, 5 testes e2e com Playwright, `docs/EDITOR.md`, screenshot no README.
+- **Infinite canvas**
+  - Zoom: Ctrl+wheel, pinch, `+`, `-`, `Shift+0`, `Shift+1`, `Shift+2`.
+  - Pan: space, middle button, wheel.
+- **Selection**
+  - Click, Shift, marquee.
+  - Double-click enters the node; Esc goes up one level.
+  - Handles, hover and distance ruler with Alt.
+- **Move**
+  - Frames on the canvas.
+  - Reorder in a flex container, with an indicator.
+  - `x`/`y` on absolute children.
+  - Arrows: 1 px; with Shift: 10 px.
+- **Resize**
+  - Handles; Alt resizes from the center; Shift keeps the aspect ratio.
+  - Modes auto, 100% and fill.
+- **Tools**: Frame (F), Container (R), Text (T), Image (upload to `assets/`).
+- **Text**: inline editing.
+- **Layers panel**
+  - Tree, drag to change the parent, rename, hide, lock.
+  - Context menu: duplicate, delete, group, ungroup, order.
+- **Properties panel**
+  - Position and size, flex layout, typography, appearance, effects, tag/attributes, name.
+  - Inputs with drag and units; advanced CSS.
+- **Pages**.
+- **Undo/redo** via the daemon.
+- Internal **clipboard** and pasting external HTML.
+- **Selection synced** with the MCP; "agent working" badge.
+- **File**: open, new, save, recent, unsaved indicator.
+- **Performance** with 300 nodes. Pending items inherited from task 1: `applyOp` deep-copies the document via JSON on every op, and `doc:changed` sends the whole document over the WebSocket on every change. Measure with 300 nodes and, if needed, switch to structural cloning (`structuredClone`/path copy) and to op deltas over the WS.
+- **Quality**: Vitest tests, 5 e2e tests with Playwright, `docs/EDITOR.md`, screenshot in the README.
 
-Resultado: tudo acima entregue (ver [EDITOR.md](EDITOR.md)). Medição com 300 nós: `applyOp` < 1 ms, `doc:changed` completo < 1 ms para serializar e integrar, latência MCP → canvas ~31 ms, arrasto a 60 fps; a clonagem por JSON e o documento completo no WS foram mantidos. Decisões: zustand para os stores; op `setTag` (com ferramenta MCP `set_tag`); `history` (`canUndo`/`canRedo`) nos eventos; `doc:new`/`doc:close` no WS; `POST /api/assets/:docId` e `GET /api/recent`.
+Result: everything above delivered (see [EDITOR.md](EDITOR.md)). Measurement with 300 nodes: `applyOp` < 1 ms, full `doc:changed` < 1 ms to serialize and integrate, MCP → canvas latency ~31 ms, dragging at 60 fps; JSON cloning and the full document over the WS were kept. Decisions: zustand for the stores; `setTag` op (with the `set_tag` MCP tool); `history` (`canUndo`/`canRedo`) in the events; `doc:new`/`doc:close` over the WS; `POST /api/assets/:docId` and `GET /api/recent`.
 
-Pendências herdadas da tarefa 2 que seguem abertas (as de diálogos nativos, "Salvar como" e troca de `src` foram atendidas na tarefa 3):
+Items inherited from task 2 that remain open (native dialogs, "Save as" and `src` swapping were handled in task 3):
 
-- Op para o fundo da página (`page.background`): o fundo ainda não tem op nem controle no painel.
-- Canvas: marquee com Ctrl para selecionar filhos de um frame; arrastar no canvas para mudar o pai (hoje só pelas camadas); seleção mista (livres + em fluxo) move só os livres; pai `grid` tratado como bloco vertical na reordenação.
-- Texto criado fora de um frame mostra um aviso em vez de criar um frame.
+- Op for the page background (`page.background`): the background still has no op and no control in the panel.
+- Canvas: marquee with Ctrl to select children of a frame; drag on the canvas to change the parent (today only via layers); mixed selection (free + in-flow) moves only the free ones; `grid` parent treated as a vertical block when reordering.
+- Text created outside a frame shows a warning instead of creating a frame.
 
-### Tarefa 3 — Electron, screenshot e exportação (concluída)
+### Task 3 — Electron, screenshot and export (done)
 
 - **`packages/desktop`**
-  - electron-vite e electron-builder; daemon in-process; menu nativo; diálogos; associação `.mockup.json`; ícone próprio.
-  - Modo `--headless`; `mockup mcp` sobe Electron headless com fallback para o daemon Node.
-  - `npm run dist`: NSIS e portátil.
+  - electron-vite and electron-builder; in-process daemon; native menu; dialogs; `.mockup.json` association; custom icon.
+  - `--headless` mode; `mockup mcp` starts headless Electron with a fallback to the Node daemon.
+  - `npm run dist`: NSIS and portable.
 - **`RenderService`**
-  - `BrowserWindow` offscreen, página de render, fontes e assets, `deviceScaleFactor` 1 a 3, `capturePage`, cache por hash.
-  - JPG via `nativeImage`; SVG via exportador do core e `measure(nodeId)`.
-  - Rotas `GET /render/:docId/:nodeId.png|svg`.
-- **Exportadores** em `packages/core/src/export`, com snapshots:
-  - html: classes por slug, tokens em `:root`.
-  - tailwind: v4, classes idiomáticas, valores arbitrários `[...]`.
-  - react: TSX, `className` Tailwind ou inline, PascalCase, extração de repetições em `map`.
-- **MCP novo**
+  - Offscreen `BrowserWindow`, render page, fonts and assets, `deviceScaleFactor` 1 to 3, `capturePage`, cache by hash.
+  - JPG via `nativeImage`; SVG via the core exporter and `measure(nodeId)`.
+  - Routes `GET /render/:docId/:nodeId.png|svg`.
+- **Exporters** in `packages/core/src/export`, with snapshots:
+  - html: classes by slug, tokens in `:root`.
+  - tailwind: v4, idiomatic classes, arbitrary values `[...]`.
+  - react: TSX, Tailwind or inline `className`, PascalCase, extraction of repetitions into `map`.
+- **New MCP**
   - `get_screenshot(nodeId?, scale?, format?, maxWidth?)`, `get_layout(nodeId, depth?)`.
   - `export(nodeIds[], format, scale?, outputDir?)`, `get_code(nodeId, format, styles?)`.
-  - `insert_image`, `insert_icon` (Lucide via `lucide-static` e Heroicons via `@iconify-json/heroicons`, MIT), `search_icons`.
+  - `insert_image`, `insert_icon` (Lucide via `lucide-static` and Heroicons via `@iconify-json/heroicons`, MIT), `search_icons`.
   - `list_fonts`, `get_font_info`, `add_font` (offline-first).
   - `finish_working`.
-  - Guias `screenshot-loop` e `export`.
+  - Guides `screenshot-loop` and `export`.
 - `docs/EXPORT.md`.
 
-Resultado: tudo acima entregue (ver [ARQUITETURA.md](ARQUITETURA.md), [EXPORT.md](EXPORT.md), [MCP.md](MCP.md) e o [README do desktop](../packages/desktop/README.md)).
+Result: everything above delivered (see [ARCHITECTURE.md](ARCHITECTURE.md), [EXPORT.md](EXPORT.md), [MCP.md](MCP.md) and the [desktop README](../packages/desktop/README.md)).
 
-- App Electron 45 com o daemon in-process, o `RenderService` (janela oculta em `/render.html`, captura via CDP `Page.captureScreenshot`, escala 1 a 3, JPG e `maxWidth` por `nativeImage`, cache LRU por hash, fila serial e recuperação da janela), menu nativo, diálogos de abrir/salvar, "Salvar como" (`doc:saveAs`, Ctrl+Shift+S) e modo `--headless`. `mockup mcp` sobe o Electron headless e cai para o daemon Node (sem screenshot); `mockup serve --render` roda o Electron em primeiro plano.
-- `npm run dist` gera o instalador NSIS (por usuário) e o portátil em `dist/`; associação de `.mockup.json` por ProgID em `OpenWithProgids` (o Windows só vê a última extensão).
-- Exportadores html, tailwind (v4), react (Tailwind ou inline) e svg (com layout medido ou `<foreignObject>`), com snapshots. CSS base único do documento (`base.ts`): o mesmo no canvas, no render e no código exportado; o CSS da interface não vaza no design.
-- MCP: `get_screenshot`, `get_layout`, `export`, `get_code`, `insert_image`, `insert_icon`, `search_icons`, `list_fonts`, `get_font_info`, `add_font`, `finish_working`, e os guias `screenshot-loop` e `export`. Ops novas `setFonts` e `setSrc`; evento `agent:finished`; rotas `GET /render/:docId/:nodeId.(png|jpg|svg)`; editor estático em `/`; `render` no `/api/health`.
-- Pendências herdadas da tarefa 1 resolvidas: o WebSocket não aceita mais `Origin` `file://` (o app serve o editor do próprio daemon); valores de `style` que escapam da declaração são recusados na edição e descartados na leitura e no export; tokens ganham o prefixo `--` automaticamente. Segue em aberto só o `allowedHosts` do MCP, que não inclui o host de bind (só importa se o daemon deixar de escutar em 127.0.0.1).
+- Electron 45 app with the in-process daemon, the `RenderService` (hidden window at `/render.html`, capture via CDP `Page.captureScreenshot`, scale 1 to 3, JPG and `maxWidth` via `nativeImage`, LRU cache by hash, serial queue and window recovery), native menu, open/save dialogs, "Save as" (`doc:saveAs`, Ctrl+Shift+S) and `--headless` mode. `mockup mcp` starts headless Electron and falls back to the Node daemon (no screenshot); `mockup serve --render` runs Electron in the foreground.
+- `npm run dist` produces the NSIS installer (per user) and the portable build in `dist/`; `.mockup.json` association via ProgID in `OpenWithProgids` (Windows only sees the last extension).
+- Exporters html, tailwind (v4), react (Tailwind or inline) and svg (with measured layout or `<foreignObject>`), with snapshots. A single document base CSS (`base.ts`): the same on the canvas, in the render and in the exported code; the UI CSS does not leak into the design.
+- MCP: `get_screenshot`, `get_layout`, `export`, `get_code`, `insert_image`, `insert_icon`, `search_icons`, `list_fonts`, `get_font_info`, `add_font`, `finish_working`, and the guides `screenshot-loop` and `export`. New ops `setFonts` and `setSrc`; `agent:finished` event; routes `GET /render/:docId/:nodeId.(png|jpg|svg)`; static editor at `/`; `render` in `/api/health`.
+- Items inherited from task 1 resolved: the WebSocket no longer accepts `Origin` `file://` (the app serves the editor from the daemon itself); `style` values that escape the declaration are rejected on edit and discarded on read and export; tokens get the `--` prefix automatically. Only the MCP `allowedHosts` remains open, which does not include the bind host (only matters if the daemon stops listening on 127.0.0.1).
 
-Pendências herdadas para a tarefa 4:
+Items inherited for task 4:
 
-- O menu nativo e os diálogos do app não são exercitados em teste automatizado de UI.
-- O cache de render não invalida se um arquivo de `assets/` for trocado mantendo o nome.
-- O instalador NSIS é gerado, mas a instalação e a associação de arquivo não foram testadas numa máquina limpa; sem assinatura de código.
-- `add_font` com `google` só baixa o estilo normal e o subconjunto latin, e não foi testado contra a internet.
-- O Tailwind exportado só foi validado num projeto Vite com `@tailwindcss/vite`; outros bundlers não foram testados.
-- SVG com layout ignora `transform`, sombras múltiplas e gradientes não lineares.
-- `insert_image` usa o tamanho intrínseco, sem limitar ao do pai.
-- O daemon headless (Electron) iniciado pelo `mockup mcp` continua rodando até ser encerrado (como o daemon Node).
+- The app's native menu and dialogs are not exercised in automated UI tests.
+- The render cache does not invalidate if a file in `assets/` is replaced keeping the same name.
+- The NSIS installer is generated, but installation and file association were not tested on a clean machine; no code signing.
+- `add_font` with `google` only downloads the normal style and the latin subset, and was not tested against the internet.
+- The exported Tailwind was only validated in a Vite project with `@tailwindcss/vite`; other bundlers were not tested.
+- SVG with layout ignores `transform`, multiple shadows and non-linear gradients.
+- `insert_image` uses the intrinsic size, without limiting it to the parent's.
+- The headless daemon (Electron) started by `mockup mcp` keeps running until it is stopped (like the Node daemon).
 
-### Tarefa 4 — Integração com agentes e QA ponta a ponta
+### Task 4 — Agent integration and end-to-end QA
 
-- **Instalação do CLI**: `npm link`, `mockup.cmd` em `%LOCALAPPDATA%\MockupStudio\bin` pelo instalador, `mockup doctor`.
-- **`docs/INTEGRACAO.md`**
-  - Claude Code: `claude mcp add --scope user mockup-studio -- mockup mcp` e variante HTTP.
-  - Codex: `codex mcp add mockup-studio -- mockup mcp` e `config.toml`.
-  - JSON `mcpServers` para Cursor, VS Code e Claude Desktop.
+- **CLI installation**: `npm link`, `mockup.cmd` in `%LOCALAPPDATA%\MockupStudio\bin` via the installer, `mockup doctor`.
+- **`docs/INTEGRATION.md`**
+  - Claude Code: `claude mcp add --scope user mockup-studio -- mockup mcp` and HTTP variant.
+  - Codex: `codex mcp add mockup-studio -- mockup mcp` and `config.toml`.
+  - `mcpServers` JSON for Cursor, VS Code and Claude Desktop.
   - `mockup setup claude|codex|all`.
-- **Guias no MCP**: `getting-started` (6 passos), `design-system`, `responsive`, `screenshot-loop`, `export`, `troubleshooting`, `setup`.
-- Revisão das descrições de todas as ferramentas.
-- `integrations/claude-code/SKILL.md` e `integrations/codex/AGENTS.snippet.md`.
-- **QA e2e** com mockup real de 3 telas, registrado em [qa/mvp-e2e.md](qa/mvp-e2e.md) (concluído em 16/11/2026).
-- README final com licença MIT.
+- **Guides in the MCP**: `getting-started` (6 steps), `design-system`, `responsive`, `screenshot-loop`, `export`, `troubleshooting`, `setup`.
+- Review of the descriptions of all tools.
+- `integrations/claude-code/SKILL.md` and `integrations/codex/AGENTS.snippet.md`.
+- **E2E QA** with a real 3-screen mockup (completed 2026-11-16).
+- Final README with MIT license.
 
-Resultado (integração; o QA e2e foi feito depois, veja [qa/mvp-e2e.md](qa/mvp-e2e.md)):
+Result (integration; the e2e QA was done afterwards):
 
-- CLI: `npm link -w @mockup/cli` expõe `mockup`; `mockup doctor [--json]` (Node, pasta de dados, daemon, modo e render, porta, Electron, fontes, `mockup`/`claude`/`codex` no PATH e registro) com os comandos de registro preenchidos; `mockup setup claude|codex|all [--http] [--skill] [--print] [--command path|shim|absolute]`, idempotente; `mockup install-cli`/`uninstall-cli` (shim `mockup.cmd` e PATH do usuário pelo registro, preservando `%VAR%`); `mockup --version`.
-- App empacotado: CLI e daemon Node em `resources/cli` (bundle esbuild, rodam com `ELECTRON_RUN_AS_NODE=1`), `integrations/` em `resources/integrations`; o NSIS roda `install-cli` na instalação e `uninstall-cli` na desinstalação (não na atualização); `--install-cli`/`--uninstall-cli` no próprio exe.
-- MCP: `instructions` do servidor; guias `getting-started` (6 passos), `design-system` (absorve `tokens`), `layout`, `responsive` (Mobile/Tablet/Desktop), `screenshot-loop`, `export`, `troubleshooting` e `setup`, também como `guide://<topic>`; descrições de todas as ferramentas revisadas, com exemplos; erros de parâmetro em português por campo, com exemplo de chamada, e sugestão para ferramenta inexistente.
-- `docs/INTEGRACAO.md`, `integrations/claude-code/SKILL.md`, `integrations/codex/AGENTS.snippet.md`, README final e `LICENSE` (MIT).
-- Verificado no Windows: Claude Code 2.1.319 e Codex 0.163.0 iniciam `mockup mcp` pelo shim `.cmd` do npm (sem `cmd /c`); `claude mcp list` mostra `mockup-studio` conectado e o Codex chama as ferramentas.
+- CLI: `npm link -w @mockup/cli` exposes `mockup`; `mockup doctor [--json]` (Node, data folder, daemon, mode and render, port, Electron, fonts, `mockup`/`claude`/`codex` on the PATH and registration) with the registration commands filled in; `mockup setup claude|codex|all [--http] [--skill] [--print] [--command path|shim|absolute]`, idempotent; `mockup install-cli`/`uninstall-cli` (`mockup.cmd` shim and user PATH via the registry, preserving `%VAR%`); `mockup --version`.
+- Packaged app: CLI and Node daemon in `resources/cli` (esbuild bundle, run with `ELECTRON_RUN_AS_NODE=1`), `integrations/` in `resources/integrations`; NSIS runs `install-cli` on install and `uninstall-cli` on uninstall (not on update); `--install-cli`/`--uninstall-cli` on the exe itself.
+- MCP: server `instructions`; guides `getting-started` (6 steps), `design-system` (absorbs `tokens`), `layout`, `responsive` (Mobile/Tablet/Desktop), `screenshot-loop`, `export`, `troubleshooting` and `setup`, also as `guide://<topic>`; descriptions of all tools reviewed, with examples; per-field parameter errors, with a call example, and a suggestion for a nonexistent tool.
+- `docs/INTEGRATION.md`, `integrations/claude-code/SKILL.md`, `integrations/codex/AGENTS.snippet.md`, final README and `LICENSE` (MIT).
+- Verified on Windows: Claude Code 2.1.319 and Codex 0.163.0 start `mockup mcp` through the npm `.cmd` shim (without `cmd /c`); `claude mcp list` shows `mockup-studio` connected and Codex calls the tools.
 
-Pendências:
+Pending:
 
-- ~~QA e2e com mockup real de 3 telas~~: concluído em 16/11/2026, relatório em [qa/mvp-e2e.md](qa/mvp-e2e.md).
-- O instalador NSIS não foi executado numa máquina (só compilado); hooks de PATH testados pelo `--install-cli`/`--uninstall-cli` do `win-unpacked` com pasta temporária.
-- Se o `uninstall-cli` falhar na desinstalação, o fallback em NSIS apaga o shim mas a entrada no PATH fica (inofensiva).
+- ~~E2E QA with a real 3-screen mockup~~: completed 2026-11-16.
+- The NSIS installer was not run on a machine (only built); PATH hooks tested via `--install-cli`/`--uninstall-cli` of `win-unpacked` with a temporary folder.
+- If `uninstall-cli` fails during uninstall, the NSIS fallback deletes the shim but the PATH entry stays (harmless).
 
-## Fases seguintes
+## Next phases
 
-Após o MVP, uma branch por fase. Status em 17/11/2026: **as fases 1 a 9 estão integradas** na branch `chore/integracao-fases` (merge de `feature/design-system`, com as fases 2, 3, 4 e 9, e de `feature/revisao-fases-paralelas`, com as fases 5 a 8; ver "Integração das fases" no fim).
+After the MVP, one branch per phase. Status on 2026-11-17: **phases 1 to 9 are integrated** in the `chore/integracao-fases` branch (merge of `feature/design-system`, with phases 2, 3, 4 and 9, and of `feature/revisao-fases-paralelas`, with phases 5 to 8; see "Phase integration" at the end).
 
-### Fase 2 — Tokens e temas em CSS real (`feature/design-system`, concluída)
+### Phase 2 — Tokens and themes in real CSS (`feature/design-system`, done)
 
-- Tokens com grupos (cores, tipografia, espaçamento, raio, sombra).
-- Temas: `themes: { name, overrides }`; frame com `theme`.
-- Resolução de `var()`, `calc()` e `color-mix()` em `getComputedLike` e nos exportadores (HTML com `:root` e `[data-theme]`, Tailwind `@theme`, React com CSS vars).
-- Validação com `css-tree` ou `lightningcss`.
-- Painel de tokens no editor, com seletor de token nos inputs.
-- MCP: `get_tokens` ampliado, `rename_token`, `apply_token`, `create_theme`, `set_frame_theme`, `import_tokens` (CSS `:root` e W3C Design Tokens JSON), `export_tokens(css|json|tailwind)`.
+- Tokens with groups (colors, typography, spacing, radius, shadow).
+- Themes: `themes: { name, overrides }`; frame with `theme`.
+- Resolution of `var()`, `calc()` and `color-mix()` in `getComputedLike` and in the exporters (HTML with `:root` and `[data-theme]`, Tailwind `@theme`, React with CSS vars).
+- Validation with `css-tree` or `lightningcss`.
+- Tokens panel in the editor, with a token picker in the inputs.
+- MCP: expanded `get_tokens`, `rename_token`, `apply_token`, `create_theme`, `set_frame_theme`, `import_tokens` (CSS `:root` and W3C Design Tokens JSON), `export_tokens(css|json|tailwind)`.
 - `docs/TOKENS.md`.
 
-Resultado (branch `feature/design-system`; ver [TOKENS.md](TOKENS.md)):
+Result (branch `feature/design-system`; see [TOKENS.md](TOKENS.md)):
 
-- Core: `tokenMeta` (grupo, descrição) e `themes` opcionais no documento (arquivos antigos continuam iguais); tema do frame no atributo `data-theme`; ops `setTokens` com `theme`, `setTokenMeta`, `setThemes`, `replaceTokens` e `renameToken` (atualiza todas as referências, undo exato). Resolução com a semântica do CSS (aliases redeclarados dentro do tema, ciclos sem valor), `calc()`/`min()`/`max()`/`clamp()` e `color-mix()` avaliados em `getComputedLike`; validação com css-tree (bundle `dist/csstree.esm`); import/export CSS, W3C Design Tokens e Tailwind v4.
-- Exportadores: HTML com `:root` e `[data-theme]`, Tailwind com regras de tema e `@custom-variant theme-<nome>`, React inline com as variáveis do tema; cache de render chaveado também pelos temas.
-- Editor: aba Tokens (busca, grupos, edição inline, temas, importar/exportar, avisos), "ligar a token" nos inputs, tema por frame, `background-blend-mode`.
-- MCP: `get_tokens`/`set_tokens` ampliados, `rename_token`, `apply_token`, `create_theme`, `rename_theme`, `delete_theme`, `set_frame_theme`, `import_tokens`, `export_tokens`, `theme` em `get_styles` e o guia `tokens`.
+- Core: optional `tokenMeta` (group, description) and `themes` on the document (old files stay the same); frame theme in the `data-theme` attribute; ops `setTokens` with `theme`, `setTokenMeta`, `setThemes`, `replaceTokens` and `renameToken` (updates all references, exact undo). Resolution with CSS semantics (aliases redeclared inside the theme, cycles without value), `calc()`/`min()`/`max()`/`clamp()` and `color-mix()` evaluated in `getComputedLike`; validation with css-tree (bundle `dist/csstree.esm`); CSS, W3C Design Tokens and Tailwind v4 import/export.
+- Exporters: HTML with `:root` and `[data-theme]`, Tailwind with theme rules and `@custom-variant theme-<name>`, inline React with the theme variables; render cache also keyed by the themes.
+- Editor: Tokens tab (search, groups, inline editing, themes, import/export, warnings), "bind to token" in the inputs, theme per frame, `background-blend-mode`.
+- MCP: expanded `get_tokens`/`set_tokens`, `rename_token`, `apply_token`, `create_theme`, `rename_theme`, `delete_theme`, `set_frame_theme`, `import_tokens`, `export_tokens`, `theme` in `get_styles` and the `tokens` guide.
 
-Pendências: seletor de token em gradientes, `transform`, `filter` e `flex`; reordenar tokens por arrasto; o chunk do canvas cresceu (~650 kB) com css-tree e zod.
+Pending: token picker in gradients, `transform`, `filter` and `flex`; reordering tokens by drag; the canvas chunk grew (~650 kB) with css-tree and zod.
 
-### Fase 3 — Tailwind nativo (`feature/design-system`, concluída)
+### Phase 3 — Native Tailwind (`feature/design-system`, done)
 
-- Aceitar classes utilitárias em `write_html` e ao colar (classe para CSS).
-- Exportação Tailwind fiel e round-trip.
+- Accept utility classes in `write_html` and when pasting (class to CSS).
+- Faithful Tailwind export and round-trip.
 
-Resultado (ver [TAILWIND.md](TAILWIND.md)):
+Result (see [TAILWIND.md](TAILWIND.md)):
 
-- Core: motor `@mockup/core/tailwind` com o compilador oficial `tailwindcss` v4 (JS puro, roda no daemon, no editor e nos testes; carregado sob demanda no editor), cache por tokens do `@theme`; `node.classes` (dica de round-trip), `node.states` (`hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` e combinações), `cssBase: 'tailwind'` (preflight no canvas, render e export); ops `setClasses`, `setStates`, `setCssBase`; caminho inverso canonicalizado (`canonicalizeCandidates`, com design system leve sem `mask-*`/`scroll-*` e cache por motor: 1ª exportação da landing 2,4 s → 1,2 s a frio, ~15 ms repetida) e conferido contra o compilador; preset de tokens do shadcn/ui.
-- Exportadores: Tailwind e React com o motor (classes do autor reaproveitadas, variantes, `@custom-variant dark`, neutralização de `line-height` só onde precisa); HTML com regras por estado (`:hover`, `@media`, tema `dark`).
-- Editor: render com estados (breakpoint pela largura do frame, `dark` pelo tema), prévia de estado na barra, seção "Classes" com autocomplete, avisos, "Mostrar como Tailwind" e lista de estados, CSS base no painel do documento, colar HTML Tailwind.
-- MCP: `write_html` com detecção de Tailwind (`tailwind`, `css: 'tailwind'`), `import_component`, `set_classes`, `get_classes`, `suggest_classes`, `get_tailwind_config`, `set_css_base`, `state` em `get_screenshot`/`get_styles`/`update_styles`, `get_code`/`export` com o motor, guia `tailwind`.
+- Core: `@mockup/core/tailwind` engine with the official `tailwindcss` v4 compiler (pure JS, runs in the daemon, in the editor and in tests; loaded on demand in the editor), cache by `@theme` tokens; `node.classes` (round-trip hint), `node.states` (`hover`, `focus`, `active`, `disabled`, `dark`, `sm`..`2xl` and combinations), `cssBase: 'tailwind'` (preflight in the canvas, render and export); ops `setClasses`, `setStates`, `setCssBase`; canonicalized reverse path (`canonicalizeCandidates`, with a light design system without `mask-*`/`scroll-*` and a per-engine cache: first landing export 2.4 s → 1.2 s cold, ~15 ms repeated) and checked against the compiler; shadcn/ui token preset.
+- Exporters: Tailwind and React with the engine (author's classes reused, variants, `@custom-variant dark`, `line-height` neutralization only where needed); HTML with per-state rules (`:hover`, `@media`, `dark` theme).
+- Editor: render with states (breakpoint by frame width, `dark` by theme), state preview in the bar, "Classes" section with autocomplete, warnings, "Show as Tailwind" and states list, base CSS in the document panel, paste Tailwind HTML.
+- MCP: `write_html` with Tailwind detection (`tailwind`, `css: 'tailwind'`), `import_component`, `set_classes`, `get_classes`, `suggest_classes`, `get_tailwind_config`, `set_css_base`, `state` in `get_screenshot`/`get_styles`/`update_styles`, `get_code`/`export` with the engine, `tailwind` guide.
 
-Pendências: variantes de grupo/atributo e pseudo-elementos só ficam na classe; os campos de estilo do painel não editam estados (só o campo de classes); `animate-*` não anima no canvas; o `state` do screenshot não foi exercitado no Electron real (só com provider falso); a primeira exportação de cada motor (tokens novos) ainda custa ~1 s de aquecimento da canonicalização do Tailwind.
+Pending: group/attribute variants and pseudo-elements stay only in the class; the panel's style fields do not edit states (only the classes field); `animate-*` does not animate on the canvas; the screenshot `state` was not exercised in real Electron (only with a fake provider); the first export of each engine (new tokens) still costs ~1 s of Tailwind canonicalization warm-up.
 
-### Fase 4 — Componentes (`feature/design-system`, concluída)
+### Phase 4 — Components (`feature/design-system`, done)
 
-- Mestres e instâncias com overrides; propriedades e variantes.
-- Biblioteca por documento.
-- MCP para criar, instanciar e destacar.
+- Main components and instances with overrides; props and variants.
+- Per-document library.
+- MCP to create, instantiate and detach.
 
-Resultado (ver [COMPONENTES.md](COMPONENTES.md)):
+Result (see [COMPONENTS.md](COMPONENTS.md)):
 
-- Core: `doc.components` (`ComponentDef` com props `string|number|boolean|enum|color|slot`, variantes por `when` e raiz), nó `instance` com `props` e `overrides` por caminho de ids do principal; slots como contêineres `data-slot` filhos reais da instância (reaproveitam ops, camadas e seleção); `expandInstance`/`expandDocument` com ids virtuais `instância/caminho` e compartilhamento estrutural; `applyOp` roteia ops em ids virtuais (vira override) e em nós do principal (vira `updateComponent`); ops `addComponent`, `deleteComponent`, `updateComponent`, `replaceNode`, `setInstanceProps`, `setInstanceOverrides`; planejadores `createComponentOps` (com `bind`), `instanceNodeFor`, `detachInstanceOps`, `pushOverridesToMainOps`, `resetInstanceOps`, `importKitOps`. Documentos antigos sem `components` continuam iguais.
-- Exportadores: HTML, Tailwind e SVG expandem as instâncias; React gera um componente tipado por principal (enum como união de literais, slots como `ReactNode`/`children`, variantes condicionais).
-- Kit `kits/shadcn-like.mockup.json` (Button, Input, Card, Navbar, Tabs, Dialog, Table, List, tokens shadcn e tema `dark`), servido em `/api/kits` e empacotado em `resources/kits`. Ícones: Heroicons (`@iconify-json/heroicons`, MIT) ao lado do Lucide, com busca unificada por kit.
-- MCP: `list_components`, `get_component`, `create_component`, `update_component`, `update_component_html`, `delete_component`, `insert_component` (importa o kit se preciso), `set_instance_props`, `set_instance_override`, `reset_instance`, `detach_instance`, `push_overrides_to_main`, `go_to_main`, `import_kit`; leitura e screenshot por ids virtuais e de principais; guia `components`.
-- Editor: aba Componentes (biblioteca e kit, arrastar/clicar), Ctrl+Alt+K, edição isolada do principal, indicador roxo, painel de props, slots editáveis, ir para principal, destacar, restaurar e enviar ao principal.
+- Core: `doc.components` (`ComponentDef` with props `string|number|boolean|enum|color|slot`, variants by `when` and root), `instance` node with `props` and `overrides` by path of main component ids; slots as `data-slot` containers that are real children of the instance (reuse ops, layers and selection); `expandInstance`/`expandDocument` with virtual ids `instance/path` and structural sharing; `applyOp` routes ops on virtual ids (becomes an override) and on main component nodes (becomes `updateComponent`); ops `addComponent`, `deleteComponent`, `updateComponent`, `replaceNode`, `setInstanceProps`, `setInstanceOverrides`; planners `createComponentOps` (with `bind`), `instanceNodeFor`, `detachInstanceOps`, `pushOverridesToMainOps`, `resetInstanceOps`, `importKitOps`. Old documents without `components` stay the same.
+- Exporters: HTML, Tailwind and SVG expand the instances; React generates a typed component per main component (enum as a union of literals, slots as `ReactNode`/`children`, conditional variants).
+- Kit `kits/shadcn-like.mockup.json` (Button, Input, Card, Navbar, Tabs, Dialog, Table, List, shadcn tokens and `dark` theme), served at `/api/kits` and packaged in `resources/kits`. Icons: Heroicons (`@iconify-json/heroicons`, MIT) alongside Lucide, with unified search per kit.
+- MCP: `list_components`, `get_component`, `create_component`, `update_component`, `update_component_html`, `delete_component`, `insert_component` (imports the kit if needed), `set_instance_props`, `set_instance_override`, `reset_instance`, `detach_instance`, `push_overrides_to_main`, `go_to_main`, `import_kit`; reading and screenshot by virtual and main component ids; `components` guide.
+- Editor: Components tab (library and kit, drag/click), Ctrl+Alt+K, isolated editing of the main component, purple indicator, props panel, editable slots, go to main, detach, reset and push to main.
 
-Pendências: overrides não removem atributos/estados do principal (sem `unsetAttrs`/`unsetStates`); `update_component_html` gera ids novos (overrides antigos perdem efeito); renomear prop no painel não reescreve os `{{placeholders}}`; inserir um componente de kit importa o kit inteiro; o React não exporta variantes que mudam atributos, visibilidade ou props de aninhadas, nem extrai `.map` dentro dos componentes; "Restaurar"/"Enviar ao principal" não valem para instâncias aninhadas.
+Pending: overrides do not remove attributes/states from the main component (no `unsetAttrs`/`unsetStates`); `update_component_html` generates new ids (old overrides stop taking effect); renaming a prop in the panel does not rewrite the `{{placeholders}}`; inserting a kit component imports the whole kit; React does not export variants that change attributes, visibility or props of nested instances, nor extract `.map` inside the components; "Reset"/"Push to main" do not apply to nested instances.
 
-### Fase 5 — Snapshots e versões (`feature/snapshot-web`, concluída como snapshot de sites)
+### Phase 5 — Snapshots and versions (`feature/snapshot-web`, done as site snapshot)
 
-- Versões nomeadas, diff visual, restaurar.
+- Named versions, visual diff, restore.
 
-Entregue como **snapshot de sites** (ver [SNAPSHOT.md](SNAPSHOT.md)): seções de sites reais viram nós editáveis (HTML/CSS reais) pelo pacote `@mockup/snapshot-core` (captura no navegador com `getComputedStyle` curado, pseudo-elementos como nós, imagens e fontes baixadas para `assets/`), pela extensão MV3 (`packages/extension`, Chrome e Edge), por colar no editor e pelo app desktop (captura headless isolada, com `netguard` contra rede privada). MCP: `import_url`, `import_html`, `cleanup_imported`; guia `import`.
+Delivered as **site snapshot** (see [SNAPSHOT.md](SNAPSHOT.md)): sections of real sites become editable nodes (real HTML/CSS) via the `@mockup/snapshot-core` package (in-browser capture with curated `getComputedStyle`, pseudo-elements as nodes, images and fonts downloaded to `assets/`), via the MV3 extension (`packages/extension`, Chrome and Edge), via paste in the editor and via the desktop app (isolated headless capture, with `netguard` against private networks). MCP: `import_url`, `import_html`, `cleanup_imported`; `import` guide.
 
-Pendências: versões nomeadas, diff visual e restaurar continuam abertos; páginas atrás de login só pela extensão; `canvas`/`video`/`iframe` capturados viram placeholders; valores ficam resolvidos no viewport da captura; animações e estados não entram.
+Pending: named versions, visual diff and restore remain open; pages behind login only via the extension; captured `canvas`/`video`/`iframe` become placeholders; values are resolved at the capture viewport; animations and states are not included.
 
-### Fase 6 — Assets
+### Phase 6 — Assets
 
-- Gerenciador de imagens, fontes e ícones.
-- Otimização e importação em lote.
-- SVG inline editável.
+- Manager for images, fonts and icons.
+- Optimization and batch import.
+- Editable inline SVG.
 
-Entregue na branch `feature/assets-dados` (assets com link direto, imagem, dados reais e organização; ver [ASSETS.md](ASSETS.md) e [DADOS.md](DADOS.md)):
+Delivered in the `feature/assets-dados` branch (assets with direct link, image, real data and organization; see [ASSETS.md](ASSETS.md) and [DATA.md](DATA.md)):
 
-- **Assets**: CDN local endereçado por conteúdo (`/cdn/<hash>.<ext>`, estável entre documentos e reinícios), biblioteca global, listagem com usos, remover não usados, otimização com sharp (opcional), aba Assets no editor. MCP: `list_assets`, `upload_asset`, `get_asset_url`, `optimize_assets`, `remove_unused_assets`.
-- **Imagens**: seção Imagem (fit, posição, filtros, máscara `clip-path`), recorte visual com alças (`object-view-box`) e placeholders SVG determinísticos. MCP: `set_image`, `generate_placeholder`.
-- **Dados reais**: nó `repeater` com `data` e bindings `{{campo}}`, op `setData`, expansão no canvas, render, screenshot e export; JSON/CSV/URL com origem guardada e atualização manual; seção Dados com tabela editável. MCP: `bind_data`, `refresh_data`, `get_data`.
-- **Organização**: `files.json` com pastas virtuais, tags e favoritos, tela inicial com miniaturas e busca por nome/tag/conteúdo, busca de nós. MCP: `list_files`, `search_nodes`, `tag_file`, `manage_folders`, `move_files`.
-- Guias `assets` e `data`.
+- **Assets**: content-addressed local CDN (`/cdn/<hash>.<ext>`, stable across documents and restarts), global library, listing with usages, remove unused, optimization with sharp (optional), Assets tab in the editor. MCP: `list_assets`, `upload_asset`, `get_asset_url`, `optimize_assets`, `remove_unused_assets`.
+- **Images**: Image section (fit, position, filters, `clip-path` mask), visual crop with handles (`object-view-box`) and deterministic SVG placeholders. MCP: `set_image`, `generate_placeholder`.
+- **Real data**: `repeater` node with `data` and `{{field}}` bindings, `setData` op, expansion in the canvas, render, screenshot and export; JSON/CSV/URL with stored source and manual refresh; Data section with an editable table. MCP: `bind_data`, `refresh_data`, `get_data`.
+- **Organization**: `files.json` with virtual folders, tags and favorites, home screen with thumbnails and search by name/tag/content, node search. MCP: `list_files`, `search_nodes`, `tag_file`, `manage_folders`, `move_files`.
+- Guides `assets` and `data`.
 
-Pendências: no app empacotado o sharp vem em `resources/native` só para a plataforma em que o pacote foi gerado (Windows x64); recorte com `object-view-box` só aparece no Chromium (o código exportado mostra a imagem inteira em Firefox/Safari); miniaturas de documentos fechados sem as fontes embutidas; estilos não aceitam bindings; importação em lote e SVG inline editável seguem abertos; a validação dos dados serializa a lista inteira (`JSON.stringify` no `DataSchema`) a cada `setData`; `fetchBytes` (imagens e dados por URL) não filtra endereços de rede privada.
+Pending: in the packaged app sharp ships in `resources/native` only for the platform where the package was built (Windows x64); `object-view-box` crop only shows in Chromium (the exported code shows the whole image in Firefox/Safari); thumbnails of closed documents without the embedded fonts; styles do not accept bindings; batch import and editable inline SVG remain open; data validation serializes the whole list (`JSON.stringify` in `DataSchema`) on every `setData`; `fetchBytes` (images and data by URL) does not filter private network addresses.
 
-### Fase 7 — Vetores e grid (`feature/vetores-grid`, concluída)
+### Phase 7 — Vectors and grid (`feature/vetores-grid`, done)
 
-- Desenho vetorial básico: pen, formas, operações booleanas.
-- Grids e colunas, guias e snapping.
+- Basic vector drawing: pen, shapes, boolean operations.
+- Grids and columns, guides and snapping.
 
-Resultado (ver [VETORES.md](VETORES.md) e [GRID.md](GRID.md)):
+Result (see [VECTORS.md](VECTORS.md) and [GRID.md](GRID.md)):
 
-- Core: `Node.vector` (paths, viewBox, tinta e gradientes; `raw` preserva o SVG importado), op `setVector`, formas (`rect`, `ellipse`, `line`, `polygon`, `star`), booleanas com `polygon-clipping`, achatar, ids do SVG escopados por nó no export; CSS Grid de primeira classe (trilhas, áreas, spans) com leitura e resumo.
-- Editor: pen, ferramenta de formas, edição de pontos, seção Vetor, overlay de grid com trilhas, célula de destino e alças de span.
-- MCP: `create_shape`, `set_path`, `insert_svg`, `get_svg`, `set_vector_paint`, `boolean_op`, `flatten`, `text_to_outlines`, `set_grid`, `place_in_grid`, trilhas medidas em `get_layout`; guias `vectors` e `grid`.
+- Core: `Node.vector` (paths, viewBox, paint and gradients; `raw` preserves the imported SVG), `setVector` op, shapes (`rect`, `ellipse`, `line`, `polygon`, `star`), boolean operations with `polygon-clipping`, flatten, SVG ids scoped per node on export; first-class CSS Grid (tracks, areas, spans) with reading and summary.
+- Editor: pen, shape tool, point editing, Vector section, grid overlay with tracks, target cell and span handles.
+- MCP: `create_shape`, `set_path`, `insert_svg`, `get_svg`, `set_vector_paint`, `boolean_op`, `flatten`, `text_to_outlines`, `set_grid`, `place_in_grid`, measured tracks in `get_layout`; guides `vectors` and `grid`.
 
-### Fase 8 — Efeitos e embeds (`feature/efeitos-embeds`, concluída)
+### Phase 8 — Effects and embeds (`feature/efeitos-embeds`, done)
 
-- Filtros, máscaras, blend modes.
-- Embeds (vídeo, iframe, Lottie) e animações simples.
+- Filters, masks, blend modes.
+- Embeds (video, iframe, Lottie) and simple animations.
 
-Resultado (ver [EFEITOS.md](EFEITOS.md) e [EMBEDS.md](EMBEDS.md)):
+Result (see [EFFECTS.md](EFFECTS.md) and [EMBEDS.md](EMBEDS.md)):
 
-- Core: nós `effect` (sete efeitos: seis shaders GLSL próprios e partículas, com parâmetros e presets), `video` e `embed` (Lottie, Rive, YouTube, iframe e ilhas Three.js), op `setMedia`, runtime dos efeitos compartilhado entre editor, render e export.
-- Render com `time` determinístico (espera cada mídia desenhar o instante); export HTML/Tailwind/React com os nós de mídia (React com helpers e arquivos extras; efeitos estáticos em PNG) e export animado mp4, webm e gif com ffmpeg empacotado.
-- MCP: `list_effects`, `add_effect`, `update_effect`, `insert_video`, `insert_embed`, `insert_three`, `update_media`, `time` em `get_screenshot`, formatos animados em `export`; guia `effects`.
+- Core: `effect` nodes (seven effects: six custom GLSL shaders and particles, with parameters and presets), `video` and `embed` (Lottie, Rive, YouTube, iframe and Three.js islands), `setMedia` op, effects runtime shared between editor, render and export.
+- Render with deterministic `time` (waits for each media to draw the instant); HTML/Tailwind/React export with the media nodes (React with helpers and extra files; static effects as PNG) and animated export mp4, webm and gif with bundled ffmpeg.
+- MCP: `list_effects`, `add_effect`, `update_effect`, `insert_video`, `insert_embed`, `insert_three`, `update_media`, `time` in `get_screenshot`, animated formats in `export`; `effects` guide.
 
-### Fase 9 — Assistente de IA no editor (`feature/design-system`, concluída)
+### Phase 9 — AI assistant in the editor (`feature/design-system`, done)
 
-- Chat lateral usando as mesmas ferramentas do MCP.
-- Sugestões de layout e variações.
+- Side chat using the same tools as the MCP.
+- Layout suggestions and variations.
 
-Resultado (ver [ASSISTENTE.md](ASSISTENTE.md) e [SCRIPTS.md](SCRIPTS.md)):
+Result (see [ASSISTANT.md](ASSISTANT.md) and [SCRIPTS.md](SCRIPTS.md)):
 
-- Core: grupos de undo no `History` (aplicações seguidas do mesmo grupo viram uma entrada; `closeGroup`), protocolo WS `assistant:*`, `script:*` e `remix`, planejadores puros de remix (`planRemix`, `colorScale` em OKLCH).
-- Assistente: backends `claude` (`claude -p` com stream-json) e `codex` (`codex exec --json`) por subprocesso, detectados no PATH (`.exe`/`.cmd`), com o MCP do próprio daemon em `/mcp?turn=<token>`; contexto da seleção (ids, resumo da árvore, screenshot); streaming por `assistant:event`; um grupo de undo por turno (undo/redo recusados no turno; sessão do turno encerrado não escreve); cancelamento e timeout matando a árvore de processos; histórico em `<base>.assistant.json` ao lado do documento e `--resume` da conversa; interface `AgentBackend` para uma API direta.
-- Scripts: sandbox em worker (`eval`, `resourceLimits`, timeout por `terminate`) com `node:vm` sem geração de código e ponte só por JSON; API `doc.select/get/selection/apply/screenshot/create/tokens` e handles com `style`/`attrs` em Proxy; uma execução = um undo; biblioteca `scripts/*.js`; gerar com IA; MCP `run_script` e `list_scripts`.
-- Remix: `color-scale` (10 tons), `font-pairs`, `spacing` (escala 4/8), `layout` (3 rearranjos do flex) e `ai`, pelo menu de contexto e pelo MCP `remix`; frames lado a lado num único undo.
-- Editor: abas Design/Assistente/Scripts no painel direito, chat com streaming e chips de ferramentas, painel de scripts com CodeMirror 6 (chunk sob demanda), Remix no menu de contexto.
-- Guias `assistant` e `scripts`.
-- Corrigido no app desktop: o bundle do `ws` trocava o `bufferutil` opcional por um objeto vazio e o daemon travava no primeiro frame de 32 bytes ou mais vindo de um cliente WS (bug anterior à fase; teste de regressão no `headless.integration.test`).
-- Verificado com as CLIs reais nesta máquina (Claude Code 2.1.319 e Codex 0.163.0): "deixe o botão primário mais destacado" altera o botão selecionado e um único undo desfaz o turno.
+- Core: undo groups in `History` (consecutive applications of the same group become one entry; `closeGroup`), WS protocol `assistant:*`, `script:*` and `remix`, pure remix planners (`planRemix`, `colorScale` in OKLCH).
+- Assistant: `claude` (`claude -p` with stream-json) and `codex` (`codex exec --json`) backends via subprocess, detected on the PATH (`.exe`/`.cmd`), with the daemon's own MCP at `/mcp?turn=<token>`; selection context (ids, tree summary, screenshot); streaming via `assistant:event`; one undo group per turn (undo/redo rejected during the turn; the session of a finished turn does not write); cancellation and timeout killing the process tree; history in `<base>.assistant.json` next to the document and `--resume` of the conversation; `AgentBackend` interface for a direct API.
+- Scripts: sandbox in a worker (`eval`, `resourceLimits`, timeout via `terminate`) with `node:vm` without code generation and a JSON-only bridge; API `doc.select/get/selection/apply/screenshot/create/tokens` and handles with `style`/`attrs` in a Proxy; one run = one undo; `scripts/*.js` library; generate with AI; MCP `run_script` and `list_scripts`.
+- Remix: `color-scale` (10 shades), `font-pairs`, `spacing` (4/8 scale), `layout` (3 flex rearrangements) and `ai`, via the context menu and the MCP `remix`; frames side by side in a single undo.
+- Editor: Design/Assistant/Scripts tabs in the right panel, chat with streaming and tool chips, scripts panel with CodeMirror 6 (chunk on demand), Remix in the context menu.
+- Guides `assistant` and `scripts`.
+- Fixed in the desktop app: the `ws` bundle replaced the optional `bufferutil` with an empty object and the daemon hung on the first frame of 32 bytes or more from a WS client (bug predating the phase; regression test in `headless.integration.test`).
+- Verified with the real CLIs on this machine (Claude Code 2.1.319 and Codex 0.163.0): "make the primary button stand out more" changes the selected button and a single undo reverts the turn.
 
-Pendências: edição do usuário no meio de um turno quebra a fusão do grupo (o turno vira mais de um passo de undo); o Codex não permite desligar o shell embutido (roda em sandbox `read-only`); scripts recusam a palavra `import` em qualquer lugar do texto (defesa contra `import()` na vm); sem `save_script` no MCP; o chunk do CodeMirror tem ~507 kB.
+Pending: a user edit in the middle of a turn breaks the group merge (the turn becomes more than one undo step); Codex does not allow turning off the built-in shell (runs in a `read-only` sandbox); scripts reject the word `import` anywhere in the text (defense against `import()` in the vm); no `save_script` in the MCP; the CodeMirror chunk is ~507 kB.
 
-## Integração das fases (`chore/integracao-fases`, 17/11/2026)
+## Phase integration (`chore/integracao-fases`, 2026-11-17)
 
-Merge de `feature/revisao-fases-paralelas` (fases 5 a 8, já juntas a partir da main) sobre `feature/design-system` (fases 2, 3, 4 e 9), com as funcionalidades dos dois lados mantidas. Decisões e ajustes:
+Merge of `feature/revisao-fases-paralelas` (phases 5 to 8, already joined from main) onto `feature/design-system` (phases 2, 3, 4 and 9), keeping the features from both sides. Decisions and adjustments:
 
-- Componentes × fases 6 a 8: `setVector`, `setMedia` e `setData` miram nós de instância e de principal (`targetIds`) e, num id virtual, viram override; `NodeOverride` ganhou `vector`, `effect`, `video`, `embed`, `data` e `dataSource` (schema de arquivo, validação estrita e expansão). As ferramentas e rotas que leem o nó para montar ops (`bind_data`, `refresh_data`, `get_data`, `generate_placeholder`, `boolean_op`, `flatten`, `text_to_outlines`) leem pela visão expandida (`docWithNodes`). Ver [COMPONENTES.md](COMPONENTES.md#overrides-nodeoverride).
-- `write_html` com Tailwind (fase 3) e a ida e volta de repetidores pelo `data-mockup-repeat` (fase 6) valem juntos; `get_html` de instâncias marca os repetidores expandidos.
-- Exportadores: preâmbulo React único (helpers de mídia, `ReactNode` dos slots e `safeUrl`), com os componentes renderizados antes do preâmbulo para registrar a mídia de dentro deles; `export` usa a árvore expandida para render, vídeo e efeitos estáticos (inclusive dentro de instâncias) e para a cópia de assets.
-- Editor: painel esquerdo único com as abas Camadas, Assets, Componentes e Tokens (só a ativa mostra o nome); tela inicial de arquivos no lugar do canvas; screenshot com `state` (prévia de estado) e `time` (animações).
-- Corrigidos no merge: regras CSS sem fechar herdadas da branch paralela (`.data-error` em `properties.css`, que aninhava o CSS do vetor e quebrava o layout do editor no Electron, e `.cv-crop-bar` em `canvas.css`, que escondia o overlay de grid); `ExpandOptions` duplicado no core (o do repetidor virou `RepeaterExpandOptions`).
+- Components × phases 6 to 8: `setVector`, `setMedia` and `setData` target instance and main component nodes (`targetIds`) and, on a virtual id, become an override; `NodeOverride` gained `vector`, `effect`, `video`, `embed`, `data` and `dataSource` (file schema, strict validation and expansion). The tools and routes that read the node to build ops (`bind_data`, `refresh_data`, `get_data`, `generate_placeholder`, `boolean_op`, `flatten`, `text_to_outlines`) read through the expanded view (`docWithNodes`). See [COMPONENTS.md](COMPONENTS.md#overrides-nodeoverride).
+- `write_html` with Tailwind (phase 3) and the repeater round-trip via `data-mockup-repeat` (phase 6) work together; `get_html` of instances marks the expanded repeaters.
+- Exporters: a single React preamble (media helpers, slots' `ReactNode` and `safeUrl`), with the components rendered before the preamble to register the media inside them; `export` uses the expanded tree for render, video and static effects (including inside instances) and for the asset copy.
+- Editor: single left panel with the Layers, Assets, Components and Tokens tabs (only the active one shows its name); files home screen in place of the canvas; screenshot with `state` (state preview) and `time` (animations).
+- Fixed in the merge: unclosed CSS rules inherited from the parallel branch (`.data-error` in `properties.css`, which nested the vector CSS and broke the editor layout in Electron, and `.cv-crop-bar` in `canvas.css`, which hid the grid overlay); duplicated `ExpandOptions` in the core (the repeater's became `RepeaterExpandOptions`).

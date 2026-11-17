@@ -1,147 +1,147 @@
-# Snapshot de sites
+# Site snapshot
 
-Traz seções de sites reais para o canvas como **nós editáveis** (HTML/CSS reais, não imagem). Há três entradas, todas pelo mesmo pipeline do daemon:
+Brings sections of real sites onto the canvas as **editable nodes** (real HTML/CSS, not an image). There are three entry points, all through the same daemon pipeline:
 
-| Entrada                        | Quem usa | Como                                                                                                               |
-| ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| Extensão de navegador (MV3)    | Usuário  | Seleciona a seção sob o cursor em qualquer aba e envia ao app (ou copia para colar com Ctrl+V no editor).          |
-| `import_url` / Importar de URL | Agente   | O app abre a página num Electron headless isolado, roda a captura no seletor e cria o frame. Precisa do render.    |
-| `import_html`                  | Agente   | HTML completo (com `<style>`/`<link>`) renderizado da mesma forma; sem render cai na conversão HTML → nós do core. |
+| Entry point                    | Who uses it | How                                                                                                                                       |
+| ------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser extension (MV3)        | User        | Selects the section under the cursor in any tab and sends it to the app (or copies it to paste with Ctrl+V in the editor).                |
+| `import_url` / Import from URL | Agent       | The app opens the page in an isolated headless Electron, runs the capture on the selector and creates the frame. Needs the render engine. |
+| `import_html`                  | Agent       | Full HTML (with `<style>`/`<link>`) rendered the same way; without a render engine it falls back to the core's HTML → nodes conversion.   |
 
-## Como funciona
+## How it works
 
-1. **Captura** (`@mockup/snapshot-core`, roda no navegador): percorre a subárvore do elemento e, para cada nó, lê `getComputedStyle` de uma lista curada de propriedades. Só fica o que difere do padrão (o padrão de cada tag é medido num iframe oculto com o mesmo CSS base do documento do canvas, `documentBaseCss`); propriedades herdadas só aparecem quando mudam em relação ao pai, e a raiz recebe a tipografia explícita. Tamanhos: `width`/`height` em px só quando o elemento não tem tamanho automático (testado trocando por `auto` e medindo, com o `style` original restaurado), sempre na raiz e em elementos substituídos. `::before`/`::after` com conteúdo viram nós reais; `fixed` vira `absolute` relativo à raiz, `sticky` vira `relative`. Imagens (`<img>`, `background-image`) e fontes (`@font-face` usados) viram assets, embutidos como data URL quando a página permite ler os bytes. Limites: 3000 nós, 40 níveis (`stats.truncated` avisa).
-2. **Formato** (`SnapshotPayload`, `packages/snapshot-core/src/format.ts`): o nó raiz no formato do core, com referências `asset:<id>` no `src` das imagens e em `url("asset:<id>")` nos estilos, a lista de assets (URL original e, se houver, a data URL), as fontes, a captura de referência e avisos.
-3. **Importação** (daemon, `packages/server/src/snapshot/`): valida o payload, troca os ids, transforma a raiz em frame (posição à direita do último frame da página), grava as imagens em `assets/` (documento não salvo: data URL), embute imagens de fundo como data URL (até 2 MB; o canvas não resolve `url()` relativos em estilos), grava as fontes em `assets/fonts/` e as registra em `doc.fonts`, e cria ao lado um frame oculto **"Referência — <nome>"** com a captura de tela. Tudo numa única entrada do histórico (um undo desfaz).
-4. **Simplificação** (`planCleanup`, mesma lógica no MCP e no editor): remove wrappers vazios, desembrulha wrappers neutros com um único filho e deixa tamanhos fluidos (`width` em px igual à largura de conteúdo do pai vira auto; `height` em px de blocos com conteúdo vira `min-height`).
+1. **Capture** (`@mockup/snapshot-core`, runs in the browser): walks the element's subtree and, for each node, reads `getComputedStyle` for a curated list of properties. Only what differs from the default is kept (each tag's default is measured in a hidden iframe with the same base CSS as the canvas document, `documentBaseCss`); inherited properties only appear when they change relative to the parent, and the root gets explicit typography. Sizes: `width`/`height` in px only when the element does not have an automatic size (tested by switching to `auto` and measuring, with the original `style` restored), always on the root and on replaced elements. `::before`/`::after` with content become real nodes; `fixed` becomes `absolute` relative to the root, `sticky` becomes `relative`. Images (`<img>`, `background-image`) and fonts (used `@font-face`) become assets, embedded as a data URL when the page allows reading the bytes. Limits: 3000 nodes, 40 levels (`stats.truncated` warns).
+2. **Format** (`SnapshotPayload`, `packages/snapshot-core/src/format.ts`): the root node in the core's format, with `asset:<id>` references in the images' `src` and in `url("asset:<id>")` in styles, the asset list (original URL and, if any, the data URL), the fonts, the reference capture and warnings.
+3. **Import** (daemon, `packages/server/src/snapshot/`): validates the payload, swaps the ids, turns the root into a frame (positioned to the right of the page's last frame), writes the images to `assets/` (unsaved document: data URL), embeds background images as a data URL (up to 2 MB; the canvas does not resolve relative `url()`s in styles), writes the fonts to `assets/fonts/` and registers them in `doc.fonts`, and creates next to it a hidden frame **"Reference — <name>"** with the screenshot. All in a single history entry (one undo reverts it).
+4. **Simplification** (`planCleanup`, same logic in the MCP and the editor): removes empty wrappers, unwraps neutral wrappers with a single child and makes sizes fluid (a `width` in px equal to the parent's content width becomes auto; a `height` in px on blocks with content becomes `min-height`).
 
-## Extensão (Chrome e Edge)
+## Extension (Chrome and Edge)
 
-### Instalar (modo desenvolvedor)
+### Install (developer mode)
 
-1. `npm run build` (ou só `npm run build -w @mockup/snapshot-core -w @mockup/extension`).
-2. Abra `chrome://extensions` (ou `edge://extensions`) e ligue o **Modo do desenvolvedor**.
-3. **Carregar sem compactação** e escolha a pasta `packages/extension/dist`.
-4. Fixe o ícone "Mockup Studio — Capturar seção" na barra.
+1. `npm run build` (or just `npm run build -w @mockup/snapshot-core -w @mockup/extension`).
+2. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
+3. **Load unpacked** and choose the `packages/extension/dist` folder.
+4. Pin the "Mockup Studio — Capture section" icon to the toolbar.
 
-Depois de um novo build, clique em "Recarregar" no cartão da extensão.
+After a new build, click "Reload" on the extension's card.
 
-### Usar
+### Use
 
-1. Deixe o Mockup Studio aberto (app desktop ou `mockup serve`) com um documento ativo. Salve o documento para as imagens e fontes irem para `assets/`.
-2. Na aba do site, clique no ícone da extensão. Escolha o destino: **Enviar ao Mockup Studio** (padrão) ou **Copiar para colar (Ctrl+V)**. A porta do daemon (padrão 4747) fica salva no popup; o popup mostra se o app está no ar.
-3. **Selecionar seção**: o contorno segue o cursor e o rótulo mostra tag, classes e tamanho. **↑** sobe para o elemento pai, **↓** volta ao filho, **Esc** cancela, clique captura.
-4. Enviado: o frame aparece no canvas (toast "Enviado ao Mockup Studio (N nós)"). Se o app não responder, o snapshot é copiado e basta colar no editor com Ctrl+V.
+1. Keep Mockup Studio open (desktop app or `mockup serve`) with an active document. Save the document so images and fonts go to `assets/`.
+2. On the site's tab, click the extension icon. Choose the destination: **Send to Mockup Studio** (default) or **Copy to paste (Ctrl+V)**. The daemon port (default 4747) is saved in the popup; the popup shows whether the app is running.
+3. **Select section**: the outline follows the cursor and the label shows tag, classes and size. **↑** goes up to the parent element, **↓** goes back to the child, **Esc** cancels, click captures.
+4. Sent: the frame appears on the canvas (toast "Sent to Mockup Studio (N nodes)"). If the app does not respond, the snapshot is copied and you just paste it into the editor with Ctrl+V.
 
-A captura de referência usa `chrome.tabs.captureVisibleTab`: só a parte visível do elemento entra na imagem (ver [Referência recortada](#referência-recortada-pela-viewport)).
+The reference capture uses `chrome.tabs.captureVisibleTab`: only the visible part of the element goes into the image (see [Reference cropped to the viewport](#reference-cropped-to-the-viewport)).
 
-### Roteiro de teste manual da extensão
+### Manual test script for the extension
 
-1. `npm run build -w @mockup/extension` (monta `packages/extension/dist`).
-2. `chrome://extensions` > **Modo do desenvolvedor** > **Carregar sem compactação** > `packages/extension/dist`. Confira que o id é `agjagmcpikghnfnnapjbicplkmommmkn` (fixo, vem da `key` do manifest; é o único que o daemon aceita).
-3. Com o Mockup Studio aberto e um documento ativo, abra um site e clique no ícone da extensão. O popup deve mostrar "Mockup Studio no ar".
-4. Escolha **Enviar** (ou **Copiar**) e clique em **Selecionar seção**: o contorno segue o cursor; teste **hover**, **↑**, **↓** e **Esc** (cancela); clique na seção.
-5. Modo Enviar: toast "Enviado ao Mockup Studio (N nós)" e o frame (mais o oculto "Referência") aparece no editor. Modo Copiar: toast "Copiado", e Ctrl+V no canvas do editor cria o frame.
-6. Feche o app e repita no modo Enviar: o toast diz que o app não respondeu e que a captura foi **copiada**; abra o app e cole com Ctrl+V.
-7. Selecione uma seção maior que a janela (ou reduza a janela): o frame importado leva o aviso "A imagem de referência cobre só a parte visível da seção...".
-8. Seção enorme (milhares de imagens grandes): o toast de erro pede uma seção menor (ver limites abaixo).
+1. `npm run build -w @mockup/extension` (assembles `packages/extension/dist`).
+2. `chrome://extensions` > **Developer mode** > **Load unpacked** > `packages/extension/dist`. Check that the id is `agjagmcpikghnfnnapjbicplkmommmkn` (fixed, comes from the manifest `key`; it is the only one the daemon accepts).
+3. With Mockup Studio open and an active document, open a site and click the extension icon. The popup should show "Mockup Studio is running".
+4. Choose **Send** (or **Copy**) and click **Select section**: the outline follows the cursor; test **hover**, **↑**, **↓** and **Esc** (cancels); click the section.
+5. Send mode: toast "Sent to Mockup Studio (N nodes)" and the frame (plus the hidden "Reference") appears in the editor. Copy mode: toast "Copied", and Ctrl+V on the editor canvas creates the frame.
+6. Close the app and repeat in Send mode: the toast says the app did not respond and that the capture was **copied**; open the app and paste with Ctrl+V.
+7. Select a section larger than the window (or shrink the window): the imported frame carries the warning "The reference image covers only the visible part of the section...".
+8. Huge section (thousands of large images): the error toast asks for a smaller section (see limits below).
 
-### Limites de tamanho
+### Size limits
 
-- O content script captura com `maxInlineTotalBytes` de 32 MiB (soma do tamanho das data URLs embutidas, em caracteres: ~4/3 dos bytes; o padrão do core é 40 MiB). O que passa do limite fica só com a URL e o daemon tenta baixar.
-- O snapshot vai ao service worker por `chrome.runtime.sendMessage`, que o Chrome limita a ~64 MiB por mensagem. A extensão mede o JSON (inclusive a referência) e, acima de 48 MiB, remove a `dataUrl` dos maiores assets até caber (o daemon baixa pela URL) e acrescenta um aviso em `stats.warnings`; uma referência que sozinha passa de 24 MiB é removida (com aviso). Se nem assim couber, o toast de erro diz que a seção é grande demais e sugere uma menor.
-- Mensagens ao usuário: app fora do ar (sem resposta) copia para o clipboard e avisa; erro HTTP do daemon (400, 403, 413...) mostra um toast de erro com o status e a mensagem `{ error }` e **não** copia; falha de tamanho do `sendMessage` mostra a mensagem de seção grande demais.
+- The content script captures with `maxInlineTotalBytes` of 32 MiB (the sum of the size of the embedded data URLs, in characters: ~4/3 of the bytes; the core's default is 40 MiB). What exceeds the limit keeps only the URL and the daemon tries to download it.
+- The snapshot goes to the service worker through `chrome.runtime.sendMessage`, which Chrome limits to ~64 MiB per message. The extension measures the JSON (including the reference) and, above 48 MiB, removes the `dataUrl` of the largest assets until it fits (the daemon downloads them by URL) and adds a warning to `stats.warnings`; a reference that alone exceeds 24 MiB is removed (with a warning). If it still does not fit, the error toast says the section is too large and suggests a smaller one.
+- User messages: app down (no response) copies to the clipboard and warns; a daemon HTTP error (400, 403, 413...) shows an error toast with the status and the `{ error }` message and does **not** copy; a `sendMessage` size failure shows the section-too-large message.
 
-### Referência recortada pela viewport
+### Reference cropped to the viewport
 
-A imagem de referência é o `captureVisibleTab` recortado no retângulo da seção, limitado à parte visível da aba. Quando o retângulo passa da viewport (qualquer lado), a extensão acrescenta em `stats.warnings` "A imagem de referência cobre só a parte visível da seção (WxH de W2xH2 px); role a página ou use import_url para a captura inteira." (se nada da seção está visível, não há referência e o aviso diz isso). `reference.width`/`height` são o tamanho do recorte, coerentes com a imagem. O frame editável sempre traz a seção inteira; só a referência é parcial.
+The reference image is the `captureVisibleTab` cropped to the section's rectangle, limited to the visible part of the tab. When the rectangle goes past the viewport (on any side), the extension adds to `stats.warnings` "The reference image covers only the visible part of the section (WxH of W2xH2 px); scroll the page or use import_url for the full capture." (if none of the section is visible, there is no reference and the warning says so). `reference.width`/`height` are the size of the crop, consistent with the image. The editable frame always carries the whole section; only the reference is partial.
 
-### O que o e2e cobre e o que não cobre
+### What the e2e covers and what it does not
 
-`packages/editor/e2e/snapshot-extension.spec.ts` tem dois blocos:
+`packages/editor/e2e/snapshot-extension.spec.ts` has two blocks:
 
-- **activeTab simulado** (cópia de `dist` com `host_permissions: ["<all_urls>"]`, mesmo id): id fixo, envio e fidelidade no canvas (dimensões e pixels), edição inline, modo copiar + colar, referência recortada com aviso, app fora do ar (copia) e erro HTTP do daemon (não copia). O início do seletor é chamado direto no service worker.
-- **manifesto real** (`dist` sem alteração: sem `host_permissions`, com `key`): id fixo, popup com status "no ar" (ping), POST do service worker passando na Origin do id fixo e no CORS, recusa da injeção sem o gesto do usuário (o popup mostra "Não foi possível iniciar nesta página.") e o fluxo completo: o CDP `Extensions.triggerAction` (Chromium 159 do Playwright) faz o papel do clique no ícone, abre o popup real e concede o `activeTab` à aba; o popup é dirigido por `Runtime.evaluate`.
+- **simulated activeTab** (a copy of `dist` with `host_permissions: ["<all_urls>"]`, same id): fixed id, send and fidelity on the canvas (dimensions and pixels), inline editing, copy mode + paste, cropped reference with a warning, app down (copies) and daemon HTTP error (does not copy). The start of the selector is called directly in the service worker.
+- **real manifest** (`dist` unmodified: no `host_permissions`, with `key`): fixed id, popup with "running" status (ping), the service worker's POST passing the fixed id's Origin and CORS, rejection of injection without the user gesture (the popup shows "Could not start on this page.") and the full flow: CDP `Extensions.triggerAction` (Playwright's Chromium 159) plays the role of the icon click, opens the real popup and grants `activeTab` to the tab; the popup is driven by `Runtime.evaluate`.
 
-Não cobre: o clique físico no ícone da barra (UI do navegador), o menu "fixar extensão", o Edge, a leitura dos toasts (ficam num shadow root fechado) e sites reais (CSP, cookies, iframes).
+It does not cover: the physical click on the toolbar icon (browser UI), the "pin extension" menu, Edge, reading the toasts (they live in a closed shadow root) and real sites (CSP, cookies, iframes).
 
-### Permissões
+### Permissions
 
-`activeTab` (acesso à aba só depois do clique no ícone), `scripting` (injetar o seletor) e `clipboardWrite` (copiar). Sem `host_permissions` e sem telemetria: o POST para `http://127.0.0.1:<porta>/api/snapshot` sai do service worker com `Origin: chrome-extension://<id>`, e o daemon aceita essa origem **só nessa rota** (com CORS e preflight); as demais rotas continuam recusando origens de extensão.
+`activeTab` (access to the tab only after the icon click), `scripting` (inject the selector) and `clipboardWrite` (copy). No `host_permissions` and no telemetry: the POST to `http://127.0.0.1:<port>/api/snapshot` leaves from the service worker with `Origin: chrome-extension://<id>`, and the daemon accepts that origin **only on that route** (with CORS and preflight); the other routes keep rejecting extension origins.
 
-## Colar no editor
+## Paste into the editor
 
-O formato de clipboard é o JSON do payload em texto puro (começa com `{"format":"mockup-snapshot"`). No editor, Ctrl+V com esse conteúdo envia o snapshot ao daemon (`POST /api/snapshot`), centraliza o frame na viewport, seleciona e mostra "Seção importada (N nós)" com os avisos, se houver.
+The clipboard format is the payload JSON as plain text (starts with `{"format":"mockup-snapshot"`). In the editor, Ctrl+V with that content sends the snapshot to the daemon (`POST /api/snapshot`), centers the frame in the viewport, selects it and shows "Section imported (N nodes)" with the warnings, if any.
 
-No editor também há:
+The editor also has:
 
-- **Importar de URL** (ícone de globo na barra): URL, seletor CSS (vazio = página inteira), largura do viewport (padrão 1440) e "Anexar imagem de referência". Precisa do motor de render (app desktop ou `mockup serve --render`).
-- **Simplificar importação** (menu de contexto de um nó com filhos, no canvas ou nas camadas): aplica o `planCleanup` numa única entrada do histórico.
+- **Import from URL** (globe icon in the toolbar): URL, CSS selector (empty = whole page), viewport width (default 1440) and "Attach reference image". Needs the render engine (desktop app or `mockup serve --render`).
+- **Simplify import** (context menu of a node with children, on the canvas or in the Layers): applies `planCleanup` in a single history entry.
 
 ## MCP
 
-| Ferramenta         | Uso                                                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `import_url`       | `url` http(s), `selector` (padrão `body`), `width`/`height` do viewport (padrão 1440x900), `timeout_ms` (padrão 20000, até 60000).         |
-| `import_html`      | `html`, `css`, `assets_base_url` (resolve URLs relativas), `selector`, `width`/`height`. Sem render: conversão do core (fidelidade menor). |
-| `cleanup_imported` | `nodeId` e as regras `remove_empty`, `unwrap`, `fluid` (todas ligadas por padrão).                                                         |
+| Tool               | Use                                                                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import_url`       | `url` http(s), `selector` (default `body`), viewport `width`/`height` (default 1440x900), `timeout_ms` (default 20000, up to 60000).                |
+| `import_html`      | `html`, `css`, `assets_base_url` (resolves relative URLs), `selector`, `width`/`height`. Without a render engine: core conversion (lower fidelity). |
+| `cleanup_imported` | `nodeId` and the rules `remove_empty`, `unwrap`, `fluid` (all on by default).                                                                       |
 
-As de importação aceitam também `name`, `reference`, `pageId`, `x`, `y` e `docId`. Fluxo sugerido (`get_guide('import')`): importar, `get_screenshot` do frame e comparar com o frame "Referência", `cleanup_imported`, extrair tokens de cores repetidas com `set_tokens`. Detalhes em [MCP.md](MCP.md#importação-de-sites).
+The import tools also accept `name`, `reference`, `pageId`, `x`, `y` and `docId`. Suggested flow (`get_guide('import')`): import, `get_screenshot` of the frame and compare with the "Reference" frame, `cleanup_imported`, extract tokens from repeated colors with `set_tokens`. Details in [MCP.md](MCP.md#importing-sites).
 
 ## HTTP
 
-| Rota                    | Corpo                                                                          | Notas                                                         |
-| ----------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `POST /api/snapshot`    | `{ payload, docId?, pageId?, x?, y?, reference?, name? }` (ou o payload puro)  | Aceita Origin local e `chrome-extension://`. Corpo até 64 MB. |
-| `POST /api/import/url`  | `{ url, selector?, viewport?: { width, height }, timeoutMs?, ...posição }`     | 503 sem motor de render.                                      |
-| `POST /api/import/html` | `{ html, css?, assetsBaseUrl?, selector?, viewport?, timeoutMs?, ...posição }` | Sem render usa a conversão do core (`method: 'html'`).        |
+| Route                   | Body                                                                            | Notes                                                                |
+| ----------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `POST /api/snapshot`    | `{ payload, docId?, pageId?, x?, y?, reference?, name? }` (or the bare payload) | Accepts local Origin and `chrome-extension://`. Body up to 64 MB.    |
+| `POST /api/import/url`  | `{ url, selector?, viewport?: { width, height }, timeoutMs?, ...position }`     | 503 without a render engine.                                         |
+| `POST /api/import/html` | `{ html, css?, assetsBaseUrl?, selector?, viewport?, timeoutMs?, ...position }` | Without a render engine uses the core conversion (`method: 'html'`). |
 
-Respondem `SnapshotImportResult` (`docId`, `pageId`, `frameId`, `referenceId?`, `nodes`, `images`, `fonts`, `warnings`, `method`). Erros: 400 corpo/URL inválidos, 404 documento ou página inexistente, 409 nenhum documento aberto, 502 falha na captura, 503 sem render.
+They respond with `SnapshotImportResult` (`docId`, `pageId`, `frameId`, `referenceId?`, `nodes`, `images`, `fonts`, `warnings`, `method`). Errors: 400 invalid body/URL, 404 nonexistent document or page, 409 no document open, 502 capture failure, 503 no render engine.
 
-## Captura headless (app desktop)
+## Headless capture (desktop app)
 
-O `RenderProvider.snapshot` do app (`packages/desktop/src/main/snapshot.ts`) abre **uma janela nova por importação**, numa sessão em memória própria (`mockup-snapshot`), e a destrói no fim:
+The app's `RenderProvider.snapshot` (`packages/desktop/src/main/snapshot.ts`) opens **a new window per import**, in its own in-memory session (`mockup-snapshot`), and destroys it at the end:
 
-- rede: só `http`, `https`, `ws`, `wss`, `data`, `blob` e `about`; `file://` é cancelado; permissões, downloads, popups e navegações depois da inicial são negados; áudio mudo. O isolamento de rede local está detalhado em [Isolamento da janela de captura](#isolamento-da-janela-de-captura);
-- viewport exato via CDP; depois do load espera o seletor aparecer (até 5 s em `import_url` e `import_html` com `assets_base_url`, em que o JS da página pode montar o DOM; até 1 s em `import_html` sem base, HTML estático com JS desligado), depois `document.fonts.ready` e as imagens (até 3 s). Seletor que não aparece dá o erro `Seletor "..." não encontrado ... (esperou N s após o carregamento)`;
-- status HTTP da navegação principal (`import_url`) 4xx/5xx **não** é erro: a página de erro é importada (pode ser o que se quer, ex.: o design de um 404) e o resultado leva o aviso `A página respondeu HTTP <status>: ...`. Falha de rede (DNS, conexão recusada) continua sendo erro;
-- a captura roda num mundo isolado (o JS da página não interfere); a referência sai do `Page.captureScreenshot` com o retângulo do elemento;
-- prazo total `timeout_ms` (padrão 20 s): estourou, a janela é destruída e a ferramenta responde com erro.
+- network: only `http`, `https`, `ws`, `wss`, `data`, `blob` and `about`; `file://` is canceled; permissions, downloads, popups and navigations after the initial one are denied; audio muted. Local network isolation is detailed in [Capture window isolation](#capture-window-isolation);
+- exact viewport via CDP; after load it waits for the selector to appear (up to 5 s in `import_url` and `import_html` with `assets_base_url`, where the page's JS may build the DOM; up to 1 s in `import_html` without a base, static HTML with JS off), then `document.fonts.ready` and the images (up to 3 s). A selector that does not appear gives the error `Selector "..." not found ... (waited N s after load)`;
+- the HTTP status of the main navigation (`import_url`) 4xx/5xx is **not** an error: the error page is imported (it may be what you want, e.g. the design of a 404) and the result carries the warning `The page responded HTTP <status>: ...`. A network failure (DNS, connection refused) is still an error;
+- the capture runs in an isolated world (the page's JS does not interfere); the reference comes from `Page.captureScreenshot` with the element's rectangle;
+- total deadline `timeout_ms` (default 20 s): once exceeded, the window is destroyed and the tool responds with an error.
 
-### Isolamento da janela de captura
+### Capture window isolation
 
-A página importada é código não confiável; a janela impede que ela use a máquina do usuário como ponte (`packages/desktop/src/main/netguard.ts`, aplicado em `snapshot.ts`):
+The imported page is untrusted code; the window prevents it from using the user's machine as a bridge (`packages/desktop/src/main/netguard.ts`, applied in `snapshot.ts`):
 
-- **Daemon sempre bloqueado:** qualquer requisição (navegação principal inclusive) para a origem do daemon (127.0.0.1/localhost/`[::1]` na porta dele) é cancelada.
-- **Navegação principal livre:** a URL importada pode ser qualquer `http(s)`, inclusive `localhost` e a rede local (o dev server do usuário). A origem dela (protocolo, host e porta) vira a **origem confiável** da importação e é atualizada se o servidor redirecionar. No `import_html` com `assets_base_url`, a origem confiável é a do `assets_base_url`; sem ele, nenhuma origem privada é confiável.
-- **Subrequisições** (imagens, CSS, fontes, `fetch`/XHR, iframes, websockets...) para loopback (`127/8`, `::1`, `localhost`, `*.localhost`), redes privadas (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (`169.254/16`, `fe80::/10`), `0/8`, CGNAT (`100.64/10`) e IPv4 mapeado em IPv6 são **bloqueadas**, a menos que a origem seja igual à origem confiável. Uma página em `http://127.0.0.1:5173` carrega seus assets, mas não alcança `http://localhost:5173` nem `http://127.0.0.1:3000`.
-- **DNS:** para nomes de host (não IP) a janela resolve com `dns.lookup` (todos os endereços) antes de liberar e bloqueia se algum for privado; falha na resolução também bloqueia. O resultado fica em cache por 30 s por host.
-- **JavaScript desligado no `import_html` sem `assets_base_url`:** o HTML recebe uma CSP `script-src 'none'` (via `<meta>` logo após o doctype), então `<script>`, handlers `on*=` e `javascript:` da página não executam. A captura não é afetada porque roda num mundo isolado, que ignora a CSP da página. `webPreferences.javascript: false` foi testado e **não serve**: desliga também o mundo isolado e a importação estoura o prazo. Com `assets_base_url` (e no `import_url`) a página é "de verdade" e o JS roda normalmente.
-- **Risco residual:** o resolvedor do Chromium é independente do `dns.lookup` do Node (cache próprio, DNS seguro/DoH, `/etc/hosts` e resolvedores do sistema podem responder diferente), e há uma janela entre a checagem e a conexão (DNS rebinding). Por isso o bloqueio por nome é uma segunda linha; a primeira são os literais IP/`localhost`, avaliados sem DNS. O download dos assets pelo daemon tem sua própria checagem na conexão (ver abaixo).
+- **Daemon always blocked:** any request (main navigation included) to the daemon's origin (127.0.0.1/localhost/`[::1]` on its port) is canceled.
+- **Main navigation free:** the imported URL can be any `http(s)`, including `localhost` and the local network (the user's dev server). Its origin (protocol, host and port) becomes the import's **trusted origin** and is updated if the server redirects. In `import_html` with `assets_base_url`, the trusted origin is that of `assets_base_url`; without it, no private origin is trusted.
+- **Subrequests** (images, CSS, fonts, `fetch`/XHR, iframes, websockets...) to loopback (`127/8`, `::1`, `localhost`, `*.localhost`), private networks (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (`169.254/16`, `fe80::/10`), `0/8`, CGNAT (`100.64/10`) and IPv4-mapped IPv6 are **blocked**, unless the origin equals the trusted origin. A page at `http://127.0.0.1:5173` loads its assets, but does not reach `http://localhost:5173` or `http://127.0.0.1:3000`.
+- **DNS:** for host names (not IPs) the window resolves with `dns.lookup` (all addresses) before allowing and blocks if any is private; a resolution failure also blocks. The result is cached for 30 s per host.
+- **JavaScript off in `import_html` without `assets_base_url`:** the HTML gets a `script-src 'none'` CSP (via `<meta>` right after the doctype), so the page's `<script>`, `on*=` handlers and `javascript:` do not run. The capture is not affected because it runs in an isolated world, which ignores the page's CSP. `webPreferences.javascript: false` was tested and **does not work**: it also turns off the isolated world and the import times out. With `assets_base_url` (and in `import_url`) the page is "real" and JS runs normally.
+- **Residual risk:** Chromium's resolver is independent of Node's `dns.lookup` (its own cache, secure DNS/DoH, `/etc/hosts` and system resolvers may answer differently), and there is a window between the check and the connection (DNS rebinding). So blocking by name is a second line; the first is the IP/`localhost` literals, evaluated without DNS. The daemon's asset download has its own check at connection time (see below).
 
-## Segurança e limites
+## Security and limits
 
-- **Origin da extensão:** `POST /api/snapshot` só aceita `chrome-extension://<id fixo>` (o id vem da `key` do manifest, `MOCKUP_EXTENSION_ID` em `@mockup/snapshot-core`); qualquer outra extensão recebe 403. Quem empacotar a extensão com outra chave libera o id novo pela variável de ambiente `MOCKUP_EXTENSION_IDS` do daemon (lista separada por vírgula ou espaço, ids de 32 letras a-p, lida a cada requisição).
-- **Rede local no download de assets:** as URLs de imagens e fontes do payload (que pode vir da extensão, do clipboard ou da janela de captura) são baixadas pelo daemon com um cliente próprio que recusa destinos em loopback (`127/8`, `::1`), redes privadas (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (`169.254/16`, `fe80::/10`), `0/8`, CGNAT (`100.64/10`), multicast/reservados e IPv4 mapeado em IPv6. A checagem é feita na resolução de DNS da própria conexão (sem janela para DNS rebinding) e a cada redirecionamento (até 5). **Exceção:** URLs com a mesma origem (protocolo, host e porta) de `source.url`, a página importada; assim importar de um dev server em `localhost` baixa os assets dele. A falha vira um aviso da importação ("destino na rede local bloqueado: ...") e o asset fica sem arquivo.
-- **URLs perigosas:** valores `javascript:` e `data:` que não sejam imagem em `href`, `src`, `action`, `formaction` e `xlink:href` (e no `src` das imagens) são removidos e entram no aviso "Itens removidos por segurança".
-- **Orçamento por importação:** a soma dos bytes de imagens e fontes carregados (data URL decodificada ou baixada) é limitada a 150 MB (`MAX_IMPORT_TOTAL_BYTES`), além de 20 MB por arquivo. Ao estourar, um aviso único informa e os assets restantes ficam sem arquivo.
-- **Viewport:** largura de 320 a 3840 px e altura de 200 a 4000 px (`IMPORT_VIEWPORT_LIMITS`), os mesmos no editor, nas rotas e no MCP.
+- **Extension Origin:** `POST /api/snapshot` only accepts `chrome-extension://<fixed id>` (the id comes from the manifest `key`, `MOCKUP_EXTENSION_ID` in `@mockup/snapshot-core`); any other extension gets 403. Whoever packages the extension with a different key allows the new id through the daemon's `MOCKUP_EXTENSION_IDS` environment variable (comma- or space-separated list, 32-letter a-p ids, read on every request).
+- **Local network in asset download:** the image and font URLs in the payload (which may come from the extension, the clipboard or the capture window) are downloaded by the daemon with its own client that rejects destinations in loopback (`127/8`, `::1`), private networks (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (`169.254/16`, `fe80::/10`), `0/8`, CGNAT (`100.64/10`), multicast/reserved and IPv4-mapped IPv6. The check is done at the connection's own DNS resolution (no window for DNS rebinding) and on every redirect (up to 5). **Exception:** URLs with the same origin (protocol, host and port) as `source.url`, the imported page; this way importing from a dev server on `localhost` downloads its assets. The failure becomes an import warning ("local network destination blocked: ...") and the asset is left without a file.
+- **Dangerous URLs:** `javascript:` and non-image `data:` values in `href`, `src`, `action`, `formaction` and `xlink:href` (and in images' `src`) are removed and go into the "Items removed for security" warning.
+- **Budget per import:** the sum of bytes of loaded images and fonts (decoded or downloaded data URL) is limited to 150 MB (`MAX_IMPORT_TOTAL_BYTES`), in addition to 20 MB per file. When exceeded, a single warning reports it and the remaining assets are left without a file.
+- **Viewport:** width from 320 to 3840 px and height from 200 to 4000 px (`IMPORT_VIEWPORT_LIMITS`), the same in the editor, the routes and the MCP.
 
-## Limitações
+## Limitations
 
-- Páginas atrás de login só pela extensão (o `import_url` abre uma sessão limpa, sem cookies).
-- `canvas`, `video`, `iframe`, `object` e `embed` viram placeholders cinza do mesmo tamanho.
-- Imagens e fontes de outra origem sem CORS: a extensão não lê os bytes e o daemon os baixa da URL original; se o servidor exigir cookies ou bloquear, a imagem fica vazia (com aviso). Folhas de estilo de outra origem sem CORS podem esconder `@font-face` (a fonte cai no fallback).
-- Valores ficam resolvidos no viewport da captura: porcentagens, `vw`, `fr` e `clamp()` viram px. Para outro breakpoint, importe de novo com outra largura.
-- Animações, transições, `:hover` e estados não entram; só o estado no momento da captura.
-- `counter()` em pseudo-elementos é ignorado; `list-style-image` e `border-image` com `url()` não são importados.
-- A captura de referência da extensão só cobre a parte visível do elemento (a extensão avisa; use `import_url` para a captura inteira).
-- `cleanup_imported` é heurístico: confira o screenshot depois (undo desfaz).
+- Pages behind a login only through the extension (`import_url` opens a clean session, with no cookies).
+- `canvas`, `video`, `iframe`, `object` and `embed` become gray placeholders of the same size.
+- Images and fonts from another origin without CORS: the extension cannot read the bytes and the daemon downloads them from the original URL; if the server requires cookies or blocks it, the image is empty (with a warning). Stylesheets from another origin without CORS may hide `@font-face` (the font falls back).
+- Values are resolved at the capture viewport: percentages, `vw`, `fr` and `clamp()` become px. For another breakpoint, import again with another width.
+- Animations, transitions, `:hover` and states are not included; only the state at the moment of capture.
+- `counter()` in pseudo-elements is ignored; `list-style-image` and `border-image` with `url()` are not imported.
+- The extension's reference capture only covers the visible part of the element (the extension warns; use `import_url` for the full capture).
+- `cleanup_imported` is heuristic: check the screenshot afterwards (undo reverts it).
 
-## Testes
+## Tests
 
-- `packages/snapshot-core/test/capture.test.ts`: captura real no Chromium do Playwright das fixtures em `packages/snapshot-core/test/fixtures/` (header com nav, hero com imagem, botão com pseudo-elemento; fontes; casos extras).
-- `packages/server/src/snapshot.*.test.ts`: pipeline, rotas (origem da extensão) e ferramentas MCP com render falso.
-- `packages/desktop/src/snapshot.integration.test.ts`: `import_url` via MCP no Electron headless real contra uma página local, medindo o tempo (< 10 s).
-- `packages/editor/e2e/snapshot-extension.spec.ts`: a extensão carregada no Chromium do Playwright, em dois blocos (activeTab simulado com `host_permissions` só na cópia; e o manifesto real, com popup, Origin/CORS, recusa sem gesto e fluxo completo via CDP `Extensions.triggerAction`). Detalhes em [O que o e2e cobre e o que não cobre](#o-que-o-e2e-cobre-e-o-que-não-cobre).
-- `packages/editor/e2e/snapshot-paste.spec.ts`: colar snapshot, simplificar e o diálogo de importar URL.
+- `packages/snapshot-core/test/capture.test.ts`: real capture in Playwright's Chromium of the fixtures in `packages/snapshot-core/test/fixtures/` (header with nav, hero with image, button with pseudo-element; fonts; extra cases).
+- `packages/server/src/snapshot.*.test.ts`: pipeline, routes (extension origin) and MCP tools with a fake render engine.
+- `packages/desktop/src/snapshot.integration.test.ts`: `import_url` via MCP in the real headless Electron against a local page, measuring the time (< 10 s).
+- `packages/editor/e2e/snapshot-extension.spec.ts`: the extension loaded in Playwright's Chromium, in two blocks (simulated activeTab with `host_permissions` only on the copy; and the real manifest, with popup, Origin/CORS, rejection without a gesture and full flow via CDP `Extensions.triggerAction`). Details in [What the e2e covers and what it does not](#what-the-e2e-covers-and-what-it-does-not).
+- `packages/editor/e2e/snapshot-paste.spec.ts`: paste snapshot, simplify and the import URL dialog.

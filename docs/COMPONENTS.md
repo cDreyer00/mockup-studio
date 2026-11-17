@@ -1,272 +1,272 @@
-# Componentes
+# Components
 
-Componentes reutilizáveis do documento: um **principal** (`ComponentDef`, na biblioteca `doc.components`) e **instâncias** (`type: 'instance'`) espalhadas pelas páginas. Editar o principal propaga para todas as instâncias; cada instância tem **props**, **slots** e **overrides** próprios. Há um kit padrão (`kits/shadcn-like.mockup.json`) importável em qualquer documento.
+Reusable document components: a **main component** (`ComponentDef`, in the `doc.components` library) and **instances** (`type: 'instance'`) scattered across the pages. Editing the main component propagates to all instances; each instance has its own **props**, **slots** and **overrides**. There is a default kit (`kits/shadcn-like.mockup.json`) that can be imported into any document.
 
-Tipos em `packages/core/src/types.ts`; lógica em `packages/core/src/components/`.
+Types in `packages/core/src/types.ts`; logic in `packages/core/src/components/`.
 
-## Modelo
+## Model
 
 ### ComponentDef
 
-| Campo         | Tipo                 | Descrição                                                                                     |
-| ------------- | -------------------- | --------------------------------------------------------------------------------------------- |
-| `id`          | string               | `cp_xxxxxxxx` (kits usam ids estáveis próprios, ex. `cp_sbutton1`).                           |
-| `name`        | string               | Nome (PascalCase recomendado: vira o nome do componente React). Único no documento.           |
-| `description` | string (opcional)    | Descrição para agentes e para o painel.                                                       |
-| `kit`         | string (opcional)    | Kit de origem (`shadcn-like`). Referência `kit/Nome` no MCP (`shadcn-like/Button`).           |
-| `props`       | `PropDef[]`          | Propriedades, na ordem de exibição.                                                           |
-| `root`        | `Node`               | Árvore do principal (nunca `type: 'frame'`; sem `position`). Ids únicos no documento inteiro. |
-| `variants`    | `ComponentVariant[]` | Sobrescritas condicionais pelas props (ver Variantes).                                        |
+| Field         | Type                 | Description                                                                                         |
+| ------------- | -------------------- | --------------------------------------------------------------------------------------------------- |
+| `id`          | string               | `cp_xxxxxxxx` (kits use their own stable ids, e.g. `cp_sbutton1`).                                  |
+| `name`        | string               | Name (PascalCase recommended: it becomes the React component name). Unique in the document.         |
+| `description` | string (optional)    | Description for agents and for the panel.                                                           |
+| `kit`         | string (optional)    | Source kit (`shadcn-like`). Reference `kit/Name` in the MCP (`shadcn-like/Button`).                 |
+| `props`       | `PropDef[]`          | Props, in display order.                                                                            |
+| `root`        | `Node`               | The main component's tree (never `type: 'frame'`; no `position`). Ids unique in the whole document. |
+| `variants`    | `ComponentVariant[]` | Conditional overrides driven by the props (see Variants).                                           |
 
-`doc.components` fica ausente quando vazio: documentos antigos continuam válidos sem migração.
+`doc.components` is absent when empty: old documents remain valid without migration.
 
 ### PropDef
 
-| Campo         | Tipo                                                               | Descrição                                   |
-| ------------- | ------------------------------------------------------------------ | ------------------------------------------- |
-| `name`        | string                                                             | Identificador (`label`, `variant`, `open`). |
-| `type`        | `'string' \| 'number' \| 'boolean' \| 'enum' \| 'color' \| 'slot'` | Tipo, define o controle no painel.          |
-| `default`     | `string \| number \| boolean` (opcional)                           | Valor padrão (slots não têm).               |
-| `options`     | `string[]` (opcional)                                              | Opções de `enum`.                           |
-| `description` | string (opcional)                                                  |                                             |
+| Field         | Type                                                               | Description                              |
+| ------------- | ------------------------------------------------------------------ | ---------------------------------------- |
+| `name`        | string                                                             | Identifier (`label`, `variant`, `open`). |
+| `type`        | `'string' \| 'number' \| 'boolean' \| 'enum' \| 'color' \| 'slot'` | Type, defines the control in the panel.  |
+| `default`     | `string \| number \| boolean` (optional)                           | Default value (slots have none).         |
+| `options`     | `string[]` (optional)                                              | `enum` options.                          |
+| `description` | string (optional)                                                  |                                          |
 
-Como cada tipo age na árvore:
+How each type acts on the tree:
 
-- **string, number, color**: por **placeholder** `{{nome}}` em `text`, valores de `attrs`, valores de `style` e `states`, `src` e props (string) de instâncias aninhadas. Ex.: texto `{{label}}`, estilo `background: {{color}}`. O valor é convertido para string e substituído literalmente.
-- **boolean e enum**: por **variantes** (`when: { variant: 'outline' }`, `when: { disabled: true }`). Também valem em placeholders.
-- **slot**: o contêiner do principal com o atributo `data-slot="<nome>"` (e uma prop `slot` com esse nome) é o ponto onde entra o conteúdo da instância. Os filhos do contêiner no principal são o conteúdo padrão.
+- **string, number, color**: by **placeholder** `{{name}}` in `text`, `attrs` values, `style` and `states` values, `src` and (string) props of nested instances. E.g.: text `{{label}}`, style `background: {{color}}`. The value is converted to a string and substituted literally.
+- **boolean and enum**: by **variants** (`when: { variant: 'outline' }`, `when: { disabled: true }`). They also work in placeholders.
+- **slot**: the main component's container with the attribute `data-slot="<name>"` (and a `slot` prop with that name) is the point where the instance's content goes. The container's children in the main component are the default content.
 
-### Variantes
+### Variants
 
 ```ts
 interface ComponentVariant {
-  when: Record<string, PropValue>; // todas as props precisam bater (comparação por String())
-  overrides: Record<string, NodeOverride>; // chave '' = raiz do principal
+  when: Record<string, PropValue>; // all props must match (compared via String())
+  overrides: Record<string, NodeOverride>; // key '' = root of the main component
 }
 ```
 
-As variantes que batem são aplicadas na ordem da lista (a última ganha). Ex.: o Button do kit tem `variant` (enum `default | secondary | outline | ghost | destructive`) e uma variante por opção que troca `background`, `color`, `border` e o `hover`.
+The matching variants are applied in list order (the last one wins). E.g.: the kit's Button has `variant` (enum `default | secondary | outline | ghost | destructive`) and one variant per option that swaps `background`, `color`, `border` and the `hover`.
 
-`when` precisa de ao menos uma condição: uma variante com `when: {}` valeria sempre (o lugar desses estilos é o principal) e o export React não teria como representá-la. As ops (`addComponent`, `updateComponent`, no schema e no handler) recusam com "variante sem condição: mova os estilos para o principal". Na leitura de arquivo a variante vazia é **descartada** (como as declarações de estilo inseguras), sem recusar o documento; a expansão também a ignora.
+`when` needs at least one condition: a variant with `when: {}` would always apply (those styles belong in the main component) and the React export would have no way to represent it. The ops (`addComponent`, `updateComponent`, in the schema and in the handler) reject with "variant without a condition: move the styles to the main component". When reading a file the empty variant is **discarded** (like unsafe style declarations), without rejecting the document; expansion also ignores it.
 
-### Instância
+### Instance
 
-Um nó `type: 'instance'`:
+A node of `type: 'instance'`:
 
-| Campo                                 | Descrição                                                                                                           |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `id`                                  | `in_xxxxxxxx`.                                                                                                      |
-| `componentId`                         | Id do principal.                                                                                                    |
-| `props`                               | Valores das props (só os que diferem do padrão).                                                                    |
-| `overrides`                           | `Record<caminho, NodeOverride>`: sobrescritas por nó do principal.                                                  |
-| `style`, `attrs`, `states`, `classes` | Sobrescrevem a **raiz** do principal (mesclados por cima). `position`, `name`, `hidden`, `locked` são da instância. |
-| `tag`                                 | Ignorada na expansão (vale a tag da raiz do principal); guardada igual à do principal.                              |
-| `children`                            | Só **contêineres de slot** (ver Slots).                                                                             |
+| Field                                 | Description                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `id`                                  | `in_xxxxxxxx`.                                                                                                         |
+| `componentId`                         | Id of the main component.                                                                                              |
+| `props`                               | Prop values (only those that differ from the default).                                                                 |
+| `overrides`                           | `Record<path, NodeOverride>`: per-node overrides of the main component.                                                |
+| `style`, `attrs`, `states`, `classes` | Override the main component's **root** (merged on top). `position`, `name`, `hidden`, `locked` belong to the instance. |
+| `tag`                                 | Ignored on expansion (the main component root's tag applies); stored equal to the main component's.                    |
+| `children`                            | Only **slot containers** (see Slots).                                                                                  |
 
 ### Slots
 
-O conteúdo de cada slot fica nos **filhos reais** do nó instância: um contêiner por slot, `{ type: 'element', tag: 'div', name: 'Slot <nome>', attrs: { 'data-slot': '<nome>' } }`, cujos filhos são o conteúdo. Assim todas as ops existentes (`createNode`, `moveNodes`, `deleteNodes`, `setText`...), o painel de camadas, `findNode` e a seleção funcionam no conteúdo de slot sem código novo.
+The content of each slot lives in the instance node's **real children**: one container per slot, `{ type: 'element', tag: 'div', name: 'Slot <name>', attrs: { 'data-slot': '<name>' } }`, whose children are the content. This way all existing ops (`createNode`, `moveNodes`, `deleteNodes`, `setText`...), the layers panel, `findNode` and selection work on slot content with no new code.
 
-- Instâncias são criadas com um contêiner para cada prop `slot` (vazio = usa o conteúdo padrão do principal).
-- Na expansão, o contêiner `data-slot` do principal é renderizado com o **id do contêiner da instância**, o estilo do principal mesclado com o `overrides[id do contêiner do principal]` e por cima o `style` do contêiner da instância; os filhos são os do contêiner da instância (ou, se ele estiver vazio, o conteúdo padrão do principal).
-- A instância só aceita filhos que sejam contêineres de slot: `createNode`/`moveNodes` com `parentId` da instância é recusado ("insira dentro de um slot").
-- Inserir num contêiner de slot virtual (id expandido do principal) cria o contêiner real da instância (id determinístico) e insere nele.
+- Instances are created with one container for each `slot` prop (empty = uses the main component's default content).
+- On expansion, the main component's `data-slot` container is rendered with the **id of the instance's container**, the main component's style merged with `overrides[id of the main component's container]` and, on top, the `style` of the instance's container; the children are those of the instance's container (or, if it is empty, the main component's default content).
+- The instance only accepts children that are slot containers: `createNode`/`moveNodes` with the instance's `parentId` is rejected ("insert inside a slot").
+- Inserting into a virtual slot container (expanded id from the main component) creates the instance's real container (deterministic id) and inserts into it.
 
-Decisão: o enunciado original previa `slots: Record<string, Node[]>`; guardar os slots como filhos reais evita duplicar a lógica de árvore (busca, ops, camadas, clipboard) para um segundo lugar onde nós moram.
+Decision: the original brief called for `slots: Record<string, Node[]>`; storing slots as real children avoids duplicating the tree logic (search, ops, layers, clipboard) for a second place where nodes live.
 
 ### Overrides (NodeOverride)
 
 ```ts
 interface NodeOverride {
-  style?: Record<string, string>; // mesclado
-  unsetStyle?: string[]; // remove do principal
+  style?: Record<string, string>; // merged
+  unsetStyle?: string[]; // removes from the main component
   text?: string;
-  attrs?: Record<string, string>; // mesclado
+  attrs?: Record<string, string>; // merged
   hidden?: boolean;
   classes?: string;
-  states?: Record<string, Record<string, string>>; // mesclado por variante de estado
+  states?: Record<string, Record<string, string>>; // merged per state variant
   src?: string;
   svg?: string;
-  props?: Record<string, PropValue>; // props de instância aninhada
-  vector?: Vector; // nó svg: com ele, svg é o markup gerado (ou o informado)
-  effect?: EffectSpec; // nó effect (objeto inteiro, como setMedia)
-  video?: VideoSpec; // nó video
-  embed?: EmbedSpec; // nó embed
-  data?: unknown[]; // repetidor: itens (`[]` vale como lista vazia)
-  dataSource?: DataSource; // repetidor: origem dos dados
+  props?: Record<string, PropValue>; // props of a nested instance
+  vector?: Vector; // svg node: with it, svg is the generated markup (or the one given)
+  effect?: EffectSpec; // effect node (whole object, like setMedia)
+  video?: VideoSpec; // video node
+  embed?: EmbedSpec; // embed node
+  data?: unknown[]; // repeater: items (`[]` counts as an empty list)
+  dataSource?: DataSource; // repeater: data source
 }
 ```
 
-Cada campo só vale no tipo de nó dele (`src` em imagem, `svg`/`vector` em svg, `effect`/`video`/`embed` no nó do mesmo tipo, `data`/`dataSource` em repetidor). Um `svg` sem `vector` descarta o vetor do principal na visão (o desenho deixou de ser o do vetor). Os placeholders `{{prop}}` não valem dentro de `effect`, `video`, `embed` nem `data`; num repetidor dentro de um principal, os bindings `{{campo}}` do template que coincidem com o nome de uma prop são resolvidos pela prop (os demais ficam para o repetidor).
+Each field only applies to its own node type (`src` on image, `svg`/`vector` on svg, `effect`/`video`/`embed` on the node of the same type, `data`/`dataSource` on repeater). An `svg` without `vector` discards the main component's vector in the view (the drawing is no longer the vector's). `{{prop}}` placeholders do not apply inside `effect`, `video`, `embed` or `data`; on a repeater inside a main component, the template's `{{field}}` bindings that match the name of a prop are resolved by the prop (the others are left to the repeater).
 
-**Caminho**: ids dos nós do principal separados por `/`. Um nó direto do principal é `el_label01`; um nó dentro de uma instância aninhada no principal é `<id da instância aninhada no principal>/<id do nó no principal dela>` (ex. `in_okbtn001/tx_label01`). Ids são estáveis: inserir ou reordenar nós no principal não invalida overrides (overrides de nós que deixaram de existir são ignorados).
+**Path**: ids of the main component's nodes separated by `/`. A direct node of the main component is `el_label01`; a node inside an instance nested in the main component is `<id of the nested instance in the main component>/<id of the node in its main component>` (e.g. `in_okbtn001/tx_label01`). Ids are stable: inserting or reordering nodes in the main component does not invalidate overrides (overrides for nodes that no longer exist are ignored).
 
-## Expansão
+## Expansion
 
-`expandInstance(doc, instance)` devolve a árvore concreta da instância; `expandDocument(doc)` devolve o documento com todas as instâncias expandidas (mesmos objetos onde não há instância; cache por documento). Render do canvas, página de render (screenshot), `get_layout` e os exportadores HTML/Tailwind/SVG usam a árvore expandida. O React gera um componente por principal (ver Exportação).
+`expandInstance(doc, instance)` returns the instance's concrete tree; `expandDocument(doc)` returns the document with all instances expanded (same objects where there is no instance; cached per document). Canvas render, the render page (screenshot), `get_layout` and the HTML/Tailwind/SVG exporters use the expanded tree. React generates one component per main component (see Export).
 
-Ordem de aplicação, para a instância `I` do componente `C`:
+Order of application, for instance `I` of component `C`:
 
-1. Clona `C.root`.
-2. Props efetivas = padrões de `C.props` + `I.props`.
-3. Variantes de `C` cujo `when` bate, na ordem.
-4. Placeholders `{{prop}}`.
-5. `I.overrides` (depois das variantes: o que a instância mudou ganha).
-6. Raiz: `I.style`, `I.attrs`, `I.states`, `I.classes` mesclados sobre a raiz; `position`, `name`, `hidden`, `locked` da instância.
-7. Slots (ver acima).
-8. Instâncias aninhadas são expandidas recursivamente, recebendo os overrides de `I` com o prefixo do seu caminho.
+1. Clone `C.root`.
+2. Effective props = defaults from `C.props` + `I.props`.
+3. Variants of `C` whose `when` matches, in order.
+4. `{{prop}}` placeholders.
+5. `I.overrides` (after the variants: what the instance changed wins).
+6. Root: `I.style`, `I.attrs`, `I.states`, `I.classes` merged onto the root; `position`, `name`, `hidden`, `locked` from the instance.
+7. Slots (see above).
+8. Nested instances are expanded recursively, receiving `I`'s overrides with their path prefix.
 
-### Ids expandidos
+### Expanded ids
 
-- A raiz expandida tem o id da instância e mantém `componentId` e `props` como marcador (o tipo vira o da raiz do principal).
-- Nós vindos da árvore de um principal recebem id **virtual** `<id da instância>/<caminho>` (ex. `in_ab12cd34/tx_label01`, aninhado `in_ab12cd34/in_okbtn001/tx_label01`). `isVirtualId(id)` = contém `/`.
-- Nós reais (contêineres de slot e conteúdo de slot de uma instância da página) mantêm o id.
-- Componente inexistente, ciclo ou profundidade > 16: a instância vira um contêiner de aviso (borda tracejada, texto "Componente ausente") com o id da instância.
-- Componente grande demais: se a expansão de uma instância geraria mais de `MAX_EXPANDED_NODES` (50 000) nós, ela vira o mesmo contêiner de aviso com o texto "Componente grande demais" (o aviso em `warnings` traz o tamanho estimado). A profundidade sozinha não limita um DAG largo (C1 com 4 instâncias de C2, C2 com 4 de C3... dá 4^10 nós em 10 níveis). O tamanho vem de `expandedSize(doc, componentId)`, memoizado por array de componentes (linear na biblioteca): nós da raiz do principal, com cada instância aninhada contando o tamanho do componente dela (limite superior: inclui o conteúdo padrão dos slots). O limite é por instância (inclusive aninhada), não por documento: um documento com muitas instâncias grandes cresce linearmente com o número delas.
-- Cache: `expandDocument` por objeto do documento e cada instância de página por (objeto do nó, array de componentes). Pendência: a chave do cache por instância é a identidade do array `doc.components`, então qualquer mudança em qualquer principal invalida a expansão de todas as instâncias (inclusive de componentes não afetados); uma chave estável por componente (versão/hash do principal e das dependências) evitaria isso, mas exige versionar os principais em cada op.
+- The expanded root has the instance's id and keeps `componentId` and `props` as a marker (the type becomes that of the main component's root).
+- Nodes coming from a main component's tree get a **virtual** id `<instance id>/<path>` (e.g. `in_ab12cd34/tx_label01`, nested `in_ab12cd34/in_okbtn001/tx_label01`). `isVirtualId(id)` = contains `/`.
+- Real nodes (slot containers and the slot content of a page instance) keep their id.
+- Missing component, cycle or depth > 16: the instance becomes a warning container (dashed border, text "Missing component") with the instance's id.
+- Component too large: if the expansion of an instance would generate more than `MAX_EXPANDED_NODES` (50,000) nodes, it becomes the same warning container with the text "Component too large" (the warning in `warnings` carries the estimated size). Depth alone does not limit a wide DAG (C1 with 4 instances of C2, C2 with 4 of C3... gives 4^10 nodes in 10 levels). The size comes from `expandedSize(doc, componentId)`, memoized per components array (linear in the library): nodes of the main component's root, with each nested instance counting the size of its component (upper bound: includes the slots' default content). The limit is per instance (including nested), not per document: a document with many large instances grows linearly with their number.
+- Cache: `expandDocument` per document object and each page instance by (node object, components array). Pending: the per-instance cache key is the identity of the `doc.components` array, so any change to any main component invalidates the expansion of all instances (including those of unaffected components); a stable per-component key (version/hash of the main component and its dependencies) would avoid this, but requires versioning the main components on each op.
 
-### Edição pelo id expandido (roteamento de ops)
+### Editing through the expanded id (op routing)
 
-`applyOp` roteia ops cujos alvos não são nós reais das páginas:
+`applyOp` routes ops whose targets are not real page nodes:
 
-- **Id virtual de instância** (`in_x/caminho`): `updateStyles`, `setText`, `setAttrs`, `setNodeFlags` (`hidden`), `setClasses`, `setStates`, `setSrc`, `setSvg`, `setVector`, `setMedia`, `setData` e `setInstanceProps` (instância aninhada) viram `setInstanceOverrides` na instância dona. Por isso as ferramentas e painéis das fases 6 a 8 (`bind_data`, `refresh_data`, `update_effect`, `update_media`, `set_path`, `set_vector_paint`, `set_image`, seções Dados, Imagem, Efeito e Vetor) funcionam com o id virtual; as que mudam estrutura (`boolean_op`, `flatten`, `text_to_outlines`, converter em repetidor) são recusadas dentro da instância, como as demais. Estrutura (`createNode` fora de slot, `deleteNodes`, `moveNodes`, `duplicateNodes`, `setTag`) é recusada com mensagem pedindo para editar o principal ou destacar.
-- **Nó da árvore de um principal** (id real dentro de `doc.components[].root`): qualquer op de nó é aplicada a um documento temporário com a raiz do principal e vira `updateComponent { root }`. É assim que o editor (modo de edição do principal) e o MCP (`update_styles` com ids do principal) editam o principal.
-- Inverso exato (o da op roteada), então undo/redo funcionam igual.
-- Op que o roteador não conhece (fora de `targetIds`) mirando um id virtual falha com `Operação "X" não é suportada em nós de instância; use set_instance_override ou destaque a instância (detach_instance)`; mirando um nó de principal, com `Operação "X" não é suportada em nós de um principal; ...` (em vez de "Nó não encontrado"). Os alvos dessas ops são deduzidos dos campos usuais (`nodeId`, `nodeIds`, `parentId`, `changes[].nodeId`).
+- **Virtual instance id** (`in_x/path`): `updateStyles`, `setText`, `setAttrs`, `setNodeFlags` (`hidden`), `setClasses`, `setStates`, `setSrc`, `setSvg`, `setVector`, `setMedia`, `setData` and `setInstanceProps` (nested instance) become `setInstanceOverrides` on the owning instance. That is why the tools and panels of phases 6 to 8 (`bind_data`, `refresh_data`, `update_effect`, `update_media`, `set_path`, `set_vector_paint`, `set_image`, the Data, Image, Effect and Vector sections) work with the virtual id; those that change structure (`boolean_op`, `flatten`, `text_to_outlines`, convert to repeater) are rejected inside the instance, like the others. Structure (`createNode` outside a slot, `deleteNodes`, `moveNodes`, `duplicateNodes`, `setTag`) is rejected with a message asking you to edit the main component or detach.
+- **Node in a main component's tree** (real id inside `doc.components[].root`): any node op is applied to a temporary document with the main component's root and becomes `updateComponent { root }`. This is how the editor (main component edit mode) and the MCP (`update_styles` with main component ids) edit the main component.
+- Exact inverse (that of the routed op), so undo/redo work the same.
+- An op the router does not know (outside `targetIds`) aimed at a virtual id fails with `Operation "X" is not supported on instance nodes; use set_instance_override or detach the instance (detach_instance)`; aimed at a main component node, with `Operation "X" is not supported on nodes of a main component; ...` (instead of "Node not found"). The targets of these ops are deduced from the usual fields (`nodeId`, `nodeIds`, `parentId`, `changes[].nodeId`).
 
 ## Ops
 
-Primitivas (em `ops.ts`, com inverso exato):
+Primitives (in `ops.ts`, with exact inverse):
 
-| Op                     | Campos                                                                 | Inverso                                      |
+| Op                     | Fields                                                                 | Inverse                                      |
 | ---------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
-| `addComponent`         | `component`, `index?`                                                  | `deleteComponent` (ver `force` abaixo)       |
-| `deleteComponent`      | `componentId` (recusa se houver instâncias)                            | `addComponent` na posição original           |
-| `updateComponent`      | `componentId`, `name?`, `description?`, `props?`, `variants?`, `root?` | `updateComponent` com os valores anteriores  |
-| `replaceNode`          | `nodeId`, `node` (troca o nó no lugar; ids novos validados)            | `replaceNode` de volta                       |
-| `setInstanceProps`     | `changes[{ nodeId, set?, unset? }]`                                    | `setInstanceProps` com os valores anteriores |
-| `setInstanceOverrides` | `changes[{ nodeId, overrides \| null }]` (substitui o mapa)            | `setInstanceOverrides` com o mapa anterior   |
+| `addComponent`         | `component`, `index?`                                                  | `deleteComponent` (see `force` below)        |
+| `deleteComponent`      | `componentId` (rejects if there are instances)                         | `addComponent` at the original position      |
+| `updateComponent`      | `componentId`, `name?`, `description?`, `props?`, `variants?`, `root?` | `updateComponent` with the previous values   |
+| `replaceNode`          | `nodeId`, `node` (swaps the node in place; new ids validated)          | `replaceNode` back                           |
+| `setInstanceProps`     | `changes[{ nodeId, set?, unset? }]`                                    | `setInstanceProps` with the previous values  |
+| `setInstanceOverrides` | `changes[{ nodeId, overrides \| null }]` (replaces the map)            | `setInstanceOverrides` with the previous map |
 
-`deleteComponent.force` é **interno**: só o inverso de um `addComponent` feito quando já existiam instâncias daquele id (órfãs, ex. criadas por `createNode` antes do principal) o usa, para o desfazer voltar exatamente ao estado anterior. No caso comum o inverso é `deleteComponent` sem `force`: o desfazer roda os inversos em ordem inversa, então as instâncias criadas depois já foram desfeitas (e `createComponentOps` usa um nó provisório para o `addComponent` acontecer sem instâncias). A entrada pública recusa `force` (`assertPublicOps` em `ops.schema.ts`, chamada por `DocumentStore.applyOps`, que atende o WS `op:apply` e as ferramentas do MCP); o desfazer/refazer aplica os inversos pelo histórico, sem passar por ela.
+`deleteComponent.force` is **internal**: only the inverse of an `addComponent` made when instances of that id already existed (orphans, e.g. created by `createNode` before the main component) uses it, so that undo returns exactly to the previous state. In the common case the inverse is `deleteComponent` without `force`: undo runs the inverses in reverse order, so the instances created later were already undone (and `createComponentOps` uses a provisional node so that `addComponent` happens without instances). The public entry point rejects `force` (`assertPublicOps` in `ops.schema.ts`, called by `DocumentStore.applyOps`, which serves the WS `op:apply` and the MCP tools); undo/redo applies the inverses from the history, without going through it.
 
-Planejadores (em `components/plan.ts`, devolvem `Op[]` aplicadas como uma entrada de histórico):
+Planners (in `components/plan.ts`, return `Op[]` applied as one history entry):
 
-| Função                                                | Ops                                                                                                                                  |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `createComponentOps(doc, nodeId, { name, props })`    | `replaceNode` (nó → provisório) + `addComponent` (raiz = o nó, mesmos ids, livres depois da troca) + `replaceNode` (→ instância)     |
-| `instanceNodeFor(doc, componentId, { props, slots })` | (nó) instância pronta para `createNode`, com os contêineres de slot                                                                  |
-| `detachInstanceOps(doc, nodeId)`                      | `replaceNode` (instância → árvore concreta com ids novos; conteúdo de slot mantém os ids; instâncias aninhadas continuam instâncias) |
-| `pushOverridesToMainOps(doc, nodeId)`                 | `updateComponent` (overrides gravados no principal) + `setInstanceOverrides` (limpa)                                                 |
-| `resetInstanceOps(doc, nodeId)`                       | `setInstanceOverrides` null                                                                                                          |
-| `importKitOps(doc, kit, kitName, { onlyMissing })`    | `addComponent` dos ausentes, `updateComponent` dos divergentes (sem `onlyMissing`) + tokens e tema `dark` que faltam (ver Kits)      |
+| Function                                              | Ops                                                                                                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createComponentOps(doc, nodeId, { name, props })`    | `replaceNode` (node → provisional) + `addComponent` (root = the node, same ids, free after the swap) + `replaceNode` (→ instance)                 |
+| `instanceNodeFor(doc, componentId, { props, slots })` | (node) instance ready for `createNode`, with the slot containers                                                                                  |
+| `detachInstanceOps(doc, nodeId)`                      | `replaceNode` (instance → concrete tree with new ids; slot content keeps its ids; nested instances remain instances)                              |
+| `pushOverridesToMainOps(doc, nodeId)`                 | `updateComponent` (overrides written to the main component) + `setInstanceOverrides` (clears)                                                     |
+| `resetInstanceOps(doc, nodeId)`                       | `setInstanceOverrides` null                                                                                                                       |
+| `importKitOps(doc, kit, kitName, { onlyMissing })`    | `addComponent` for the missing ones, `updateComponent` for the diverged ones (without `onlyMissing`) + missing tokens and `dark` theme (see Kits) |
 
-`createComponent` recusa frames raiz, nós dentro de instâncias (ids virtuais) e nós já dentro de um principal que gerariam ciclo.
+`createComponent` rejects root frames, nodes inside instances (virtual ids) and nodes already inside a main component that would create a cycle.
 
 ## Kits
 
-Um kit é um documento `*.mockup.json` com `components` e os tokens que eles usam (e, opcionalmente, uma página de vitrine). O padrão é `kits/shadcn-like.mockup.json` (estética shadcn/ui, MIT; sem código copiado), com os tokens do preset shadcn da Fase 3 (`--color-*`, `--radius*`, tema `dark`).
+A kit is a `*.mockup.json` document with `components` and the tokens they use (and, optionally, a showcase page). The default is `kits/shadcn-like.mockup.json` (shadcn/ui aesthetic, MIT; no copied code), with the Phase 3 shadcn preset tokens (`--color-*`, `--radius*`, `dark` theme).
 
-| Componente | Props                                                                                          | Slots               |
-| ---------- | ---------------------------------------------------------------------------------------------- | ------------------- |
-| Button     | `variant` (default, secondary, outline, ghost, destructive), `size` (sm, default, lg), `label` | —                   |
-| Input      | `placeholder`, `value`, `type`                                                                 | —                   |
-| Card       | `title`, `description`                                                                         | `content`, `footer` |
-| Navbar     | `brand`                                                                                        | `links`, `actions`  |
-| Tabs       | `tab1`, `tab2`, `tab3`, `active` (enum 1..3)                                                   | `content`           |
-| Dialog     | `title`, `description`                                                                         | `content`, `footer` |
-| Table      | `caption`                                                                                      | `rows`              |
-| List       | —                                                                                              | `items`             |
+| Component | Props                                                                                          | Slots               |
+| --------- | ---------------------------------------------------------------------------------------------- | ------------------- |
+| Button    | `variant` (default, secondary, outline, ghost, destructive), `size` (sm, default, lg), `label` | —                   |
+| Input     | `placeholder`, `value`, `type`                                                                 | —                   |
+| Card      | `title`, `description`                                                                         | `content`, `footer` |
+| Navbar    | `brand`                                                                                        | `links`, `actions`  |
+| Tabs      | `tab1`, `tab2`, `tab3`, `active` (enum 1..3)                                                   | `content`           |
+| Dialog    | `title`, `description`                                                                         | `content`, `footer` |
+| Table     | `caption`                                                                                      | `rows`              |
+| List      | —                                                                                              | `items`             |
 
-`import_kit` copia os componentes (com `kit` preenchido) e cria só os tokens que faltam (e as sobrescritas do tema `dark` deles). Um componente do kit é identificado pelo **id** do kit (estável, ex. `cp_sbutton1`), não pelo nome: renomear não faz o componente parecer ausente.
+`import_kit` copies the components (with `kit` filled in) and creates only the missing tokens (and their `dark` theme overrides). A kit component is identified by the kit's **id** (stable, e.g. `cp_sbutton1`), not by name: renaming does not make the component look missing.
 
-Reimportar não desfaz edições do usuário nos principais. `importKitOps` classifica cada componente do kit:
+Re-importing does not undo the user's edits to the main components. `importKitOps` classifies each kit component:
 
-| Status      | Quando                                                                               | Op                |
+| Status      | When                                                                                 | Op                |
 | ----------- | ------------------------------------------------------------------------------------ | ----------------- |
-| `added`     | O id não está no documento.                                                          | `addComponent`    |
-| `unchanged` | Está, com `kit` igual, e é idêntico ao do kit.                                       | —                 |
-| `diverged`  | Está, com `kit` igual, mas difere (edição, nome, props) e `onlyMissing` está ligado. | — (mantido)       |
-| `updated`   | Está, com `kit` igual, difere e `onlyMissing` está desligado (sobrescrever).         | `updateComponent` |
+| `added`     | The id is not in the document.                                                       | `addComponent`    |
+| `unchanged` | It is, with the same `kit`, and is identical to the kit's.                           | —                 |
+| `diverged`  | It is, with the same `kit`, but differs (edit, name, props) and `onlyMissing` is on. | — (kept)          |
+| `updated`   | It is, with the same `kit`, differs and `onlyMissing` is off (overwrite).            | `updateComponent` |
 
-Componentes com o id de um do kit mas outro `kit` (ou sem `kit`) nunca são tocados e saem em `skipped`.
+Components with the id of one in the kit but a different `kit` (or no `kit`) are never touched and are reported in `skipped`.
 
-- `insert_component('kit/Nome')` (MCP) e inserir pela aba do editor usam `onlyMissing: true` quando o componente falta: adicionam os componentes ausentes do kit (o pedido e as dependências) e os tokens que faltam, sem tocar nos existentes.
-- `import_kit(name)` (padrão `overwrite: false`) também usa `onlyMissing`: adiciona os ausentes e lista os divergentes, com a instrução para atualizar. `import_kit(name, overwrite: true)` substitui os divergentes (só os do mesmo kit) pelos do kit; é uma entrada de histórico (desfazível).
+- `insert_component('kit/Name')` (MCP) and inserting from the editor's tab use `onlyMissing: true` when the component is missing: they add the kit's missing components (the request and its dependencies) and the missing tokens, without touching existing ones.
+- `import_kit(name)` (default `overwrite: false`) also uses `onlyMissing`: it adds the missing ones and lists the diverged ones, with the instruction to update. `import_kit(name, overwrite: true)` replaces the diverged ones (only those of the same kit) with the kit's; it is one history entry (undoable).
 
-## Estendendo
+## Extending
 
-Checklist para quem acrescenta ops, campos de nó ou tipos de nó (vetores, grid, efeitos, embeds...) sem quebrar componentes. Nomes reais das funções (procure por eles; os números de linha mudam).
+Checklist for anyone adding ops, node fields or node types (vectors, grid, effects, embeds...) without breaking components. Real function names (search for them; line numbers change).
 
-**Op nova que mira nós** (além do de sempre: tipo em `Op` em `ops.ts`, `OpSchema` e `OP_TYPES` em `ops.schema.ts`, handler com inverso exato no `switch` de `applyOp` em `apply.ts`):
+**New op that targets nodes** (besides the usual: type in `Op` in `ops.ts`, `OpSchema` and `OP_TYPES` in `ops.schema.ts`, handler with exact inverse in the `applyOp` `switch` in `apply.ts`):
 
-- [ ] `targetIds` (`components/route.ts`): um `case` devolvendo os ids que a op mira. Sem isso a op é recusada em nós de instância e de principal (ver "Edição pelo id expandido").
-- [ ] Se for de **conteúdo** (muda o visual de um nó, não a estrutura): um `case` em `virtualToOverrides` (`components/route.ts`) convertendo a op em `NodeOverride` (provavelmente com um campo novo, ver abaixo). Sem `case` ela cai no `default`, que recusa como estrutura ("edite o principal ou destaque a instância").
-- [ ] Se for de **estrutura** e tiver alvos que não estão em `changes[]`: um `case` em `routeComponentOp` (como `deleteNodes`/`moveNodes`) recusando ids virtuais com `refuseStructure` e agrupando por dono. Ops com `changes[].nodeId` já são particionadas pelo `default` de `routeComponentOp`.
-- [ ] Nós de um principal: `applyInComponent` aplica qualquer op num documento temporário; se a op não pode tocar a raiz do principal (como apagar/mover), acrescente a recusa no `switch` do início de `applyInComponent`.
-- [ ] Testes em `components/ops.test.ts` (roteamento): id virtual, id de principal, undo/redo.
+- [ ] `targetIds` (`components/route.ts`): a `case` returning the ids the op targets. Without it the op is rejected on instance and main component nodes (see "Editing through the expanded id").
+- [ ] If it is about **content** (changes a node's visuals, not the structure): a `case` in `virtualToOverrides` (`components/route.ts`) converting the op into a `NodeOverride` (probably with a new field, see below). Without a `case` it falls into the `default`, which rejects it as structure ("edit the main component or detach the instance").
+- [ ] If it is about **structure** and has targets that are not in `changes[]`: a `case` in `routeComponentOp` (like `deleteNodes`/`moveNodes`) rejecting virtual ids with `refuseStructure` and grouping by owner. Ops with `changes[].nodeId` are already partitioned by the `default` of `routeComponentOp`.
+- [ ] Nodes of a main component: `applyInComponent` applies any op on a temporary document; if the op cannot touch the main component's root (like delete/move), add the rejection to the `switch` at the start of `applyInComponent`.
+- [ ] Tests in `components/ops.test.ts` (routing): virtual id, main component id, undo/redo.
 
-**Campo novo em `Node` que deva ser sobrescrevível por instância/variante**:
+**New field on `Node` that must be overridable per instance/variant**:
 
 - [ ] `NodeOverride` (`types.ts`).
-- [ ] `RawOverrideSchema` (`ops.schema.ts`): forma aceita em `setInstanceOverrides`.
-- [ ] `NodeOverrideSchema` e `OVERRIDE_KEYS` (`schema.ts`): leitura de arquivo (com a mesma limpeza do campo no `NodeSchema`) e ordem estável na serialização. O campo em si também vai em `NodeSchema` e `orderNode`.
-- [ ] `applyOverride`, `mergeOverride` e `substOverride` (`components/expand.ts`); se o campo aceita `{{prop}}`, também `substNode`. Se for objeto ou lista, copie em `copyNode` (a expansão não pode mutar o principal).
-- [ ] `normalizeOverride` (`components/ops.ts`): validação estrita (lança em valor inseguro) usada por `setInstanceOverrides` e pelo roteador.
-- [ ] Se o MCP deve expor: `nodeOverrideSchema` de `set_instance_override` (`packages/server/src/mcp/tools/components.ts`).
+- [ ] `RawOverrideSchema` (`ops.schema.ts`): the shape accepted in `setInstanceOverrides`.
+- [ ] `NodeOverrideSchema` and `OVERRIDE_KEYS` (`schema.ts`): file reading (with the same sanitizing of the field as in `NodeSchema`) and stable order in serialization. The field itself also goes in `NodeSchema` and `orderNode`.
+- [ ] `applyOverride`, `mergeOverride` and `substOverride` (`components/expand.ts`); if the field accepts `{{prop}}`, also `substNode`. If it is an object or list, copy it in `copyNode` (expansion must not mutate the main component).
+- [ ] `normalizeOverride` (`components/ops.ts`): strict validation (throws on an unsafe value) used by `setInstanceOverrides` and by the router.
+- [ ] If the MCP should expose it: the `nodeOverrideSchema` of `set_instance_override` (`packages/server/src/mcp/tools/components.ts`).
 
-**`NodeType` novo**:
+**New `NodeType`**:
 
-- [ ] `NodeType` (`types.ts`) e o `z.enum` de `type` em `NodeSchema` (`schema.ts`).
-- [ ] `ID_PREFIX` (`ids.ts`): prefixo do id (usado também por `derivedNodeId` no import de kits e no destacar).
-- [ ] `assertRootShape` (`components/ops.ts`): se o tipo não pode ser raiz de um principal (como `frame` e `instance`), recuse ali e no `refine` de `componentDefSchema` (`schema.ts`).
-- [ ] Se o tipo tem campo próprio (como `src` em `image`, `svg` em `svg`), a regra "só vale nesse tipo" em `applyOverride` e no `case` de `virtualToOverrides`.
+- [ ] `NodeType` (`types.ts`) and the `type` `z.enum` in `NodeSchema` (`schema.ts`).
+- [ ] `ID_PREFIX` (`ids.ts`): the id prefix (also used by `derivedNodeId` in kit import and in detach).
+- [ ] `assertRootShape` (`components/ops.ts`): if the type cannot be the root of a main component (like `frame` and `instance`), reject it there and in the `refine` of `componentDefSchema` (`schema.ts`).
+- [ ] If the type has its own field (like `src` on `image`, `svg` on `svg`), the "only applies to this type" rule in `applyOverride` and in the `case` of `virtualToOverrides`.
 
-## Ícones
+## Icons
 
-Dois kits empacotados offline: **Lucide** (`lucide-static`) e **Heroicons** (`@iconify-json/heroicons`, MIT). `search_icons(query, kit?)` busca nos dois (ou num só) e devolve `kit/nome`; `insert_icon(name)` aceita `lucide/arrow-right`, `heroicons/arrow-right` ou o nome sem kit (Lucide primeiro).
+Two bundled offline kits: **Lucide** (`lucide-static`) and **Heroicons** (`@iconify-json/heroicons`, MIT). `search_icons(query, kit?)` searches both (or just one) and returns `kit/name`; `insert_icon(name)` accepts `lucide/arrow-right`, `heroicons/arrow-right` or the name without a kit (Lucide first).
 
 ## MCP
 
-| Ferramenta                    | Descrição                                                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `list_components`             | Biblioteca do documento (id, nome, kit, props, nº de instâncias) e kits disponíveis.                        |
-| `get_component`               | Props, variantes, árvore do principal com ids (para editar por `update_styles` etc.) e HTML.                |
-| `create_component`            | Transforma um nó em componente (o nó vira a primeira instância).                                            |
-| `update_component`            | Nome, descrição, props e variantes.                                                                         |
-| `update_component_html`       | Substitui a árvore do principal por HTML (Tailwind aceito; `{{prop}}` e `data-slot`).                       |
-| `delete_component`            | Remove o principal (recusa com instâncias, a menos que `detach_instances`).                                 |
-| `insert_component`            | Insere uma instância (`componentId`, nome ou `kit/Nome`; importa o que falta do kit) com props e slots.     |
-| `set_instance_props`          | Define/remove props de instâncias.                                                                          |
-| `set_instance_override`       | Sobrescreve um nó da instância por caminho (estilo, texto, atributos, oculto).                              |
-| `reset_instance`              | Remove os overrides.                                                                                        |
-| `detach_instance`             | Destaca: a instância vira nós comuns.                                                                       |
-| `push_overrides_to_main`      | Grava os overrides da instância no principal.                                                               |
-| `go_to_main`                  | Seleciona/enquadra o principal no editor e devolve sua árvore.                                              |
-| `import_kit`                  | Importa um kit pelo nome (`shadcn-like`) ou caminho de um `.mockup.json`; `overwrite` sobrescreve editados. |
-| `search_icons`, `insert_icon` | Ampliados com vários kits.                                                                                  |
+| Tool                          | Description                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `list_components`             | The document's library (id, name, kit, props, number of instances) and available kits.                              |
+| `get_component`               | Props, variants, the main component's tree with ids (to edit via `update_styles` etc.) and HTML.                    |
+| `create_component`            | Turns a node into a component (the node becomes the first instance).                                                |
+| `update_component`            | Name, description, props and variants.                                                                              |
+| `update_component_html`       | Replaces the main component's tree with HTML (Tailwind accepted; `{{prop}}` and `data-slot`).                       |
+| `delete_component`            | Removes the main component (rejects with instances, unless `detach_instances`).                                     |
+| `insert_component`            | Inserts an instance (`componentId`, name or `kit/Name`; imports what is missing from the kit) with props and slots. |
+| `set_instance_props`          | Sets/removes instance props.                                                                                        |
+| `set_instance_override`       | Overrides an instance node by path (style, text, attributes, hidden).                                               |
+| `reset_instance`              | Removes the overrides.                                                                                              |
+| `detach_instance`             | Detaches: the instance becomes plain nodes.                                                                         |
+| `push_overrides_to_main`      | Writes the instance's overrides to the main component.                                                              |
+| `go_to_main`                  | Selects/frames the main component in the editor and returns its tree.                                               |
+| `import_kit`                  | Imports a kit by name (`shadcn-like`) or path to a `.mockup.json`; `overwrite` overwrites edited ones.              |
+| `search_icons`, `insert_icon` | Extended with several kits.                                                                                         |
 
-Parâmetros finais (tabela completa em [MCP.md](MCP.md#componentes)): `insert_component(component, parentId?, props?, slots?, index?, name?, styles?)`, `get_component(component)`, `create_component(nodeId, name?, description?, props?)` (props com `bind: { nodeId, target }`), `update_component(componentId, name?, description?, props?, variants?)` (listas substituem), `set_instance_override(nodeId, path, style?, unset_style?, text?, attrs?, hidden?)`, `import_kit(name, overwrite?)`. Os ids virtuais (`in_x/caminho`) e os nós de um principal valem nas ferramentas de leitura (`get_html`, `get_styles`, `get_tree_summary`, `get_screenshot`, `get_code`...), e `get_screenshot('cp_...')` renderiza o principal numa instância padrão.
+Final parameters (full table in [MCP.md](MCP.md#components)): `insert_component(component, parentId?, props?, slots?, index?, name?, styles?)`, `get_component(component)`, `create_component(nodeId, name?, description?, props?)` (props with `bind: { nodeId, target }`), `update_component(componentId, name?, description?, props?, variants?)` (lists replace), `set_instance_override(nodeId, path, style?, unset_style?, text?, attrs?, hidden?)`, `import_kit(name, overwrite?)`. Virtual ids (`in_x/path`) and main component nodes work in the read tools (`get_html`, `get_styles`, `get_tree_summary`, `get_screenshot`, `get_code`...), and `get_screenshot('cp_...')` renders the main component in a default instance.
 
-Kits: a pasta `kits/` é achada por `MOCKUP_KITS_DIR`, por `resources/kits` (app empacotado) ou subindo da pasta do código até a raiz do repositório (desenvolvimento e bundle do daemon). HTTP: `GET /api/kits` (`{ kits: [{ name, components: [{ id, name, description, props }] }] }`) e `GET /api/kits/:name` (o documento do kit). Por caminho (`import_kit('/abs/meu.mockup.json')`), a extensão `.mockup.json` é obrigatória; arquivo com JSON malformado dá "JSON inválido" (sem repassar a mensagem do parser, que pode trazer trechos do arquivo) e documento inválido lista os erros do schema.
+Kits: the `kits/` folder is found via `MOCKUP_KITS_DIR`, via `resources/kits` (packaged app) or by walking up from the code folder to the repository root (development and daemon bundle). HTTP: `GET /api/kits` (`{ kits: [{ name, components: [{ id, name, description, props }] }] }`) and `GET /api/kits/:name` (the kit's document). By path (`import_kit('/abs/my.mockup.json')`), the `.mockup.json` extension is required; a file with malformed JSON gives "Invalid JSON" (without passing on the parser's message, which may include snippets of the file) and an invalid document lists the schema errors.
 
-Guia: `get_guide('components')`.
+Guide: `get_guide('components')`.
 
 ## Editor
 
-Detalhes em [EDITOR.md](EDITOR.md#componentes).
+Details in [EDITOR.md](EDITOR.md#components).
 
-- O editor trabalha sobre a **visão expandida** (`expandDocument` do documento do daemon): canvas, camadas, seleção e propriedades veem instâncias como árvores concretas; os planejadores recebem o documento real.
-- Aba **Componentes** no painel esquerdo: biblioteca do documento (clique edita o principal; arrastar ou + insere) e os kits do daemon (`GET /api/kits`; clique ou arrastar insere, importando o kit na mesma chamada).
-- **Criar componente** da seleção: Ctrl+Alt+K (também no menu de contexto, com "Ir para principal" e "Destacar instância").
-- Instâncias com indicador roxo (contorno, alças e ícone nas camadas); nós internos em roxo-claro; contêiner de slot com ícone próprio.
-- Nós internos: estilo, texto, atributos e ocultar viram overrides; mover, duplicar, agrupar e excluir são bloqueados com aviso.
-- Painel de propriedades da instância: controles por tipo de prop, slots, "Ir para principal", "Destacar", "Restaurar" (overrides) e "Enviar ao principal".
-- **Edição do principal** em modo isolado (página sintética `COMPONENT_EDIT_PAGE_ID`, raiz num quadro não editável com a largura da instância de origem): as edições usam os ids reais e propagam para as instâncias; a seção Componente edita nome, descrição e props. `go_to_main` do MCP entra no modo. Esc (sem seleção) ou "Concluir" volta e seleciona a instância de origem.
-- Slots editáveis no canvas: o conteúdo de slot é nó real (selecionar, editar texto, inserir, arrastar).
+- The editor works on the **expanded view** (`expandDocument` of the daemon's document): canvas, layers, selection and properties see instances as concrete trees; the planners receive the real document.
+- **Components** tab in the left panel: the document's library (click edits the main component; drag or + inserts) and the daemon's kits (`GET /api/kits`; click or drag inserts, importing the kit in the same call).
+- **Create component** from the selection: Ctrl+Alt+K (also in the context menu, with "Go to main" and "Detach instance").
+- Instances with a purple indicator (outline, handles and icon in layers); inner nodes in light purple; slot container with its own icon.
+- Inner nodes: style, text, attributes and hide become overrides; move, duplicate, group and delete are blocked with a warning.
+- Instance properties panel: controls per prop type, slots, "Go to main", "Detach", "Reset" (overrides) and "Push to main".
+- **Main component editing** in isolated mode (synthetic page `COMPONENT_EDIT_PAGE_ID`, root in a non-editable frame with the width of the source instance): edits use the real ids and propagate to the instances; the Component section edits name, description and props. The MCP's `go_to_main` enters the mode. Esc (no selection) or "Done" returns and selects the source instance.
+- Editable slots on the canvas: slot content is a real node (select, edit text, insert, drag).
 
-## Exportação
+## Export
 
-Detalhes por formato em `EXPORT.md` (seção Componentes).
+Details per format in `EXPORT.md` (Components section).
 
-- HTML, Tailwind e SVG: instâncias expandidas (o resultado é o mesmo do canvas); ids virtuais (`in_x/...`) também são exportáveis.
-- React: um componente por principal usado (`export function Button({ variant = 'default', label = 'Botão', ... }: ButtonProps)`), com props tipadas (`enum` vira união de literais, `slot` vira `ReactNode`; o primeiro slot também aceita `children`; todo componente aceita `className` e `style`, mesclados na raiz), variantes como estilos ou classes condicionais (uma cadeia de ternários por propriedade) e instâncias como `<Button variant="outline" label="Salvar" />`. Instâncias com overrides em nós internos (ou `attrs`/`classes`/`states`, slot customizado, prop fora do tipo) saem expandidas no lugar, com o comentário `{/* instância de Button com overrides */}`. O `style` da instância (posição, margem) vai inline na tag do componente.
+- HTML, Tailwind and SVG: expanded instances (the result is the same as the canvas); virtual ids (`in_x/...`) are also exportable.
+- React: one component per main component used (`export function Button({ variant = 'default', label = 'Button', ... }: ButtonProps)`), with typed props (`enum` becomes a union of literals, `slot` becomes `ReactNode`; the first slot also accepts `children`; every component accepts `className` and `style`, merged onto the root), variants as conditional styles or classes (a chain of ternaries per property) and instances as `<Button variant="outline" label="Save" />`. Instances with overrides on inner nodes (or `attrs`/`classes`/`states`, custom slot, prop outside the type) come out expanded in place, with the comment `{/* instance of Button with overrides */}`. The instance's `style` (position, margin) goes inline on the component tag.
