@@ -1,11 +1,11 @@
 /**
- * Gera o bundle do CLI e do daemon Node para o app empacotado (`out/cli/mockup.mjs` e
- * `out/cli/daemon.mjs`), autocontidos (sem node_modules em runtime): rodam com o próprio Electron como
- * Node (`ELECTRON_RUN_AS_NODE=1`), pois o usuário final não tem Node instalado.
+ * Generates the CLI and Node daemon bundles for the packaged app (`out/cli/mockup.mjs` and
+ * `out/cli/daemon.mjs`), self-contained (no node_modules at runtime): they run with Electron itself as
+ * Node (`ELECTRON_RUN_AS_NODE=1`), since end users do not have Node installed.
  *
- * A entrada é o `dist/` já compilado do cli e do server (o build da raiz roda core, server, cli antes
- * do desktop), que evita reconfigurar o TypeScript aqui. ESM com dependências CommonJS (express etc.):
- * o banner cria `require`, `__filename` e `__dirname` a partir de `import.meta.url`.
+ * The input is the already-compiled `dist/` of cli and server (the root build runs core, server, cli before
+ * desktop), which avoids reconfiguring TypeScript here. ESM with CommonJS dependencies (express etc.):
+ * the banner creates `require`, `__filename` and `__dirname` from `import.meta.url`.
  */
 import { build } from 'esbuild';
 import fs from 'node:fs';
@@ -21,7 +21,7 @@ const entries = {
 };
 for (const file of Object.values(entries)) {
   if (!fs.existsSync(file)) {
-    console.error(`[build-cli] ${file} não existe: rode o build do cli e do server antes.`);
+    console.error(`[build-cli] ${file} does not exist: run the cli and server builds first.`);
     process.exit(1);
   }
 }
@@ -46,8 +46,8 @@ await build({
   target: 'node22',
   minify: false,
   legalComments: 'none',
-  // sharp é nativo e opcional (import dinâmico em optimize_assets) e ffmpeg-static é um binário
-  // resolvido em runtime: ficam fora do bundle; no app empacotado vêm em resources/native.
+  // sharp is native and optional (dynamic import in optimize_assets) and ffmpeg-static is a binary
+  // resolved at runtime: they stay out of the bundle; in the packaged app they come from resources/native.
   external: ['sharp', 'ffmpeg-static'],
   banner: { js: banner },
   logLevel: 'info',

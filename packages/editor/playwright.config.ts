@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E do editor: sobe um daemon numa porta de teste com pasta de dados temporária e o Vite
- * apontando para ele. A pasta é criada uma vez pelo processo principal e herdada pelos workers
- * via variável de ambiente.
+ * Editor E2E: starts a daemon on a test port with a temporary data folder, and Vite
+ * pointing at it. The folder is created once by the main process and inherited by the workers
+ * via an environment variable.
  */
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const DAEMON_PORT = Number(process.env.MOCKUP_E2E_DAEMON_PORT ?? 4848);
@@ -20,7 +20,7 @@ fs.mkdirSync(dataDir, { recursive: true });
 
 export default defineConfig({
   testDir: './e2e',
-  // Um único daemon/documento ativo compartilhado: os testes rodam em série.
+  // A single shared active daemon/document: tests run serially.
   workers: 1,
   fullyParallel: false,
   timeout: 60_000,
@@ -38,7 +38,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
     {
-      // `npm run screenshot`: gera docs/img/editor.png para o README.
+      // `npm run screenshot`: generates docs/img/editor.png for the README.
       name: 'screenshot',
       testMatch: /screenshot\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 960 } },

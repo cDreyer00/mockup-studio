@@ -6,7 +6,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     testTimeout: 120000,
     hookTimeout: 120000,
-    // o teste de integração sobe o Electron real: um arquivo por vez
+    // the integration test starts real Electron: one file at a time
     fileParallelism: false,
   },
 });

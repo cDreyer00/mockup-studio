@@ -1,31 +1,31 @@
-; Hooks do instalador NSIS do Mockup Studio (incluído por electron-builder.yml > nsis.include).
+; NSIS installer hooks for Mockup Studio (included by electron-builder.yml > nsis.include).
 ;
-; 1) Associação de arquivos: o Windows só enxerga a última extensão de "nome.mockup.json" (".json"),
-;    então NÃO tomamos ".json" como padrão: registramos um ProgID próprio e o listamos em "Abrir com".
+; 1) File association: Windows only sees the last extension of "name.mockup.json" (".json"),
+;    so we do NOT claim ".json" as the default: we register our own ProgID and list it under "Open with".
 ;
-; 2) CLI embutido: o instalador roda o bundle do CLI (resources\cli\mockup.mjs) com o próprio
-;    executável do app como Node (ELECTRON_RUN_AS_NODE=1; o usuário não tem Node). `install-cli`
-;    escreve %LOCALAPPDATA%\MockupStudio\bin\mockup.cmd e acrescenta essa pasta ao PATH do usuário;
-;    `uninstall-cli` desfaz as duas coisas. A variável ELECTRON_RUN_AS_NODE é definida só durante
-;    cada chamada e REMOVIDA logo depois: o "Executar Mockup Studio" do fim da instalação herda o
-;    ambiente do instalador e abriria como Node se ela continuasse definida.
+; 2) Bundled CLI: the installer runs the CLI bundle (resources\cli\mockup.mjs) with the app's own
+;    executable as Node (ELECTRON_RUN_AS_NODE=1; the user does not have Node). `install-cli`
+;    writes %LOCALAPPDATA%\MockupStudio\bin\mockup.cmd and appends that folder to the user's PATH;
+;    `uninstall-cli` undoes both. The ELECTRON_RUN_AS_NODE variable is set only during
+;    each call and REMOVED right after: the "Run Mockup Studio" option at the end of setup inherits the
+;    installer's environment and would open as Node if it stayed set.
 ;
-; Ordem na instalação (installSection.nsh): copia os arquivos -> customInstall (associação de
-; arquivo, depois install-cli). Ordem na desinstalação (uninstaller.nsh): customUnInstall roda
-; ANTES de apagar $INSTDIR (o exe e o bundle ainda existem) -> remove os arquivos. Numa atualização
-; por cima o instalador novo chama o desinstalador antigo com --updated: aí NÃO desfazemos o CLI
-; (o customInstall seguinte o reinstala, e o PATH nunca fica sem a pasta nem é reescrito à toa).
-; Se o uninstall-cli falhar (bundle ausente, versão antiga), o fallback em NSIS puro apaga o
-; mockup.cmd e a pasta se vazia; PENDÊNCIA: nesse caso a entrada no PATH do usuário fica para trás
-; (inofensiva: aponta para uma pasta inexistente); `mockup uninstall-cli`/--uninstall-cli a limpa.
+; Install order (installSection.nsh): copies the files -> customInstall (file association,
+; then install-cli). Uninstall order (uninstaller.nsh): customUnInstall runs
+; BEFORE $INSTDIR is deleted (the exe and bundle still exist) -> removes the files. On an update
+; over an existing install the new installer calls the old uninstaller with --updated: in that case we do NOT undo the CLI
+; (the following customInstall reinstalls it, and the PATH never loses the folder nor is rewritten needlessly).
+; If uninstall-cli fails (missing bundle, old version), the pure-NSIS fallback deletes
+; mockup.cmd and the folder if empty. TODO: in that case the user's PATH entry is left behind
+; (harmless: it points to a nonexistent folder); `mockup uninstall-cli`/--uninstall-cli cleans it up.
 !macro customInstall
-  WriteRegStr HKCU "Software\Classes\MockupStudio.Document" "" "Documento do Mockup Studio"
+  WriteRegStr HKCU "Software\Classes\MockupStudio.Document" "" "Mockup Studio Document"
   WriteRegStr HKCU "Software\Classes\MockupStudio.Document\DefaultIcon" "" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
-  WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open" "" "Abrir no Mockup Studio"
+  WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open" "" "Open in Mockup Studio"
   WriteRegStr HKCU "Software\Classes\MockupStudio.Document\shell\open\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
   WriteRegStr HKCU "Software\Classes\.json\OpenWithProgids" "MockupStudio.Document" ""
 
-  ; CLI embutido (falha não aborta a instalação)
+  ; Bundled CLI (a failure does not abort the install)
   System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "1")'
   nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" install-cli --quiet'
   Pop $0
@@ -37,14 +37,14 @@
   DeleteRegValue HKCU "Software\Classes\.json\OpenWithProgids" "MockupStudio.Document"
   DeleteRegKey HKCU "Software\Classes\MockupStudio.Document"
 
-  ; CLI embutido: só na desinstalação de verdade (em atualização o customInstall o refaz)
+  ; Bundled CLI: only on a real uninstall (on update, customInstall redoes it)
   ${ifNot} ${isUpdated}
     System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "1")'
     nsExec::ExecToLog '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "$INSTDIR\resources\cli\mockup.mjs" uninstall-cli --quiet'
     Pop $0
     System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", p 0)'
     DetailPrint "uninstall-cli terminou com código $0"
-    ; fallback mínimo em NSIS puro (não mexe no PATH)
+    ; minimal pure-NSIS fallback (does not touch the PATH)
     Delete "$LOCALAPPDATA\MockupStudio\bin\mockup.cmd"
     RMDir "$LOCALAPPDATA\MockupStudio\bin"
     RMDir "$LOCALAPPDATA\MockupStudio"
