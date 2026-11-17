@@ -14,7 +14,7 @@ export interface ElectronLaunch {
   /** Argumentos antes das opções do app (caminho do app em dev). */
   args: string[];
   /** De onde veio (para log). */
-  source: 'MOCKUP_DESKTOP_EXE' | 'instalado' | 'dev';
+  source: 'MOCKUP_DESKTOP_EXE' | 'embutido' | 'instalado' | 'dev';
 }
 
 const PRODUCT_NAME = 'Mockup Studio';
@@ -65,18 +65,22 @@ export function registryInstallDirs(run: (args: string[]) => string = reg): stri
 }
 
 /**
- * Procura o app: (1) MOCKUP_DESKTOP_EXE, (2) instalação registrada (pasta personalizada),
+ * Procura o app: (1) MOCKUP_DESKTOP_EXE, (1b) o próprio processo quando roda como Node dentro do
+ * Electron (app empacotado: `process.execPath` é o app), (2) instalação registrada (pasta personalizada),
  * (3) instalação NSIS padrão por usuário, (4) pacote do monorepo + electron.
  */
 export function locateElectron(
   env: NodeJS.ProcessEnv = process.env,
   installDirs: () => string[] = registryInstallDirs,
+  self: { versions: NodeJS.ProcessVersions; execPath: string } = process,
 ): ElectronLaunch | null {
   if (env.MOCKUP_NO_ELECTRON === '1') return null;
 
   const fromEnv = env.MOCKUP_DESKTOP_EXE;
   if (fromEnv && fs.existsSync(fromEnv))
     return { exe: fromEnv, args: [], source: 'MOCKUP_DESKTOP_EXE' };
+
+  if (self.versions.electron) return { exe: self.execPath, args: [], source: 'embutido' };
 
   if (process.platform === 'win32') {
     for (const dir of installDirs()) {

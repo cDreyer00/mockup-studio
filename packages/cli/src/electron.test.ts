@@ -85,3 +85,22 @@ describe.skipIf(!dev || !editorReady())('spawnElectronHeadless (Electron real)',
     expect(fs.existsSync(path.join(dataDir, 'daemon.json'))).toBe(true);
   });
 });
+
+describe('locateElectron embutido', () => {
+  const self = {
+    versions: { ...process.versions, electron: '40.0.0' },
+    execPath: String.raw`C:\App\Mockup Studio.exe`,
+  };
+  it('sob o Electron o próprio executável é o app', () => {
+    expect(locateElectron(withElectron, () => [], self)).toEqual({
+      exe: self.execPath,
+      args: [],
+      source: 'embutido',
+    });
+  });
+  it('MOCKUP_DESKTOP_EXE tem prioridade e MOCKUP_NO_ELECTRON desliga', () => {
+    const env = { ...withElectron, MOCKUP_DESKTOP_EXE: process.execPath };
+    expect(locateElectron(env, () => [], self)?.source).toBe('MOCKUP_DESKTOP_EXE');
+    expect(locateElectron({ ...withElectron, MOCKUP_NO_ELECTRON: '1' }, () => [], self)).toBeNull();
+  });
+});

@@ -151,3 +151,43 @@ describe('ensureDaemon com daemon sem render', () => {
     expect(loc.port).toBe(node.port);
   });
 });
+
+describe('resolveDaemonBin / daemonEnv', () => {
+  const norm = (s: string) => s.replaceAll(String.fromCharCode(92), '/');
+  const present = ['/env/d.mjs', '/b/daemon.mjs', '/s/bin.js'];
+  const exists = (p: string) => present.includes(norm(p));
+  it('MOCKUP_DAEMON_BIN, depois daemon.mjs ao lado, depois @mockup/server', async () => {
+    const { resolveDaemonBin } = await import('./discover.js');
+    const env = { MOCKUP_DAEMON_BIN: '/env/d.mjs' };
+    expect(resolveDaemonBin({ env, exists, bundleDir: '/b' })).toBe('/env/d.mjs');
+    expect(norm(resolveDaemonBin({ env: {}, exists, bundleDir: '/b' }))).toBe('/b/daemon.mjs');
+    const viaServer = resolveDaemonBin({
+      env: {},
+      exists,
+      bundleDir: '/x',
+      resolveServer: () => '/s/index.js',
+    });
+    expect(norm(viaServer)).toBe('/s/bin.js');
+  });
+  it('erro claro quando nada é encontrado', async () => {
+    const { resolveDaemonBin } = await import('./discover.js');
+    expect(() =>
+      resolveDaemonBin({
+        env: {},
+        exists: () => false,
+        bundleDir: '/x',
+        resolveServer: () => {
+          throw new Error('nope');
+        },
+      }),
+    ).toThrow(/MOCKUP_DAEMON_BIN/);
+  });
+  it('ELECTRON_RUN_AS_NODE só sob o Electron', async () => {
+    const { daemonEnv } = await import('./discover.js');
+    expect(daemonEnv('/d', {}, true)).toMatchObject({
+      ELECTRON_RUN_AS_NODE: '1',
+      MOCKUP_DATA_DIR: '/d',
+    });
+    expect(daemonEnv('/d', {}, false).ELECTRON_RUN_AS_NODE).toBeUndefined();
+  });
+});

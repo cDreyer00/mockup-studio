@@ -21,8 +21,9 @@ import {
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ensureDaemon, log, type DaemonLocation } from './discover.js';
+import { VERSION } from './version.js';
 
-const CLIENT_INFO = { name: 'mockup-cli', version: '0.1.0' };
+const CLIENT_INFO = { name: 'mockup-cli', version: VERSION };
 
 const NETWORK_CODES = new Set([
   'ECONNREFUSED',

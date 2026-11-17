@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   checkHealth,
   getDataDir,
@@ -81,10 +82,51 @@ export async function findDaemon(): Promise<DaemonLocation | null> {
   return null;
 }
 
-function resolveDaemonBin(): string {
-  const require = createRequire(import.meta.url);
-  const entry = require.resolve('@mockup/server');
-  return path.join(path.dirname(entry), 'bin.js');
+export interface DaemonBinSource {
+  env?: NodeJS.ProcessEnv;
+  /** Pasta do arquivo atual (no bundle do app, ao lado do `daemon.mjs`). */
+  bundleDir?: string;
+  exists?: (p: string) => boolean;
+  /** Resolve `@mockup/server` (monorepo); pode lançar. */
+  resolveServer?: () => string;
+}
+
+/**
+ * Caminho do binário do daemon Node: `MOCKUP_DAEMON_BIN`, depois `daemon.mjs` ao lado do bundle
+ * do CLI, depois o `bin.js` do pacote `@mockup/server` (monorepo).
+ */
+export function resolveDaemonBin(src: DaemonBinSource = {}): string {
+  const env = src.env ?? process.env;
+  const exists = src.exists ?? fs.existsSync;
+  const fromEnv = env.MOCKUP_DAEMON_BIN;
+  if (fromEnv && exists(fromEnv)) return fromEnv;
+  const bundleDir = src.bundleDir ?? path.dirname(fileURLToPath(import.meta.url));
+  const beside = path.join(bundleDir, 'daemon.mjs');
+  if (exists(beside)) return beside;
+  try {
+    const entry = src.resolveServer
+      ? src.resolveServer()
+      : createRequire(import.meta.url).resolve('@mockup/server');
+    const bin = path.join(path.dirname(entry), 'bin.js');
+    if (exists(bin)) return bin;
+  } catch {
+    /* sem o pacote (bundle) */
+  }
+  throw new Error(
+    'binário do daemon não encontrado: defina MOCKUP_DAEMON_BIN, coloque daemon.mjs ao lado do CLI ' +
+      'ou rode `npm run build` (o pacote @mockup/server precisa estar buildado).',
+  );
+}
+
+/** Ambiente do daemon Node destacado; sob o Electron o executável só roda JS com ELECTRON_RUN_AS_NODE=1. */
+export function daemonEnv(
+  dataDir: string,
+  base: NodeJS.ProcessEnv = process.env,
+  electron: boolean = !!process.versions.electron,
+): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base, MOCKUP_DATA_DIR: dataDir };
+  if (electron) env.ELECTRON_RUN_AS_NODE = '1';
+  return env;
 }
 
 /** Sobe um daemon headless destacado (sobrevive ao fim deste processo) e espera o health. */
@@ -110,7 +152,7 @@ export async function spawnHeadlessDaemon(
     detached: true,
     stdio: logFd === undefined ? 'ignore' : ['ignore', logFd, logFd],
     windowsHide: true,
-    env: { ...process.env, MOCKUP_DATA_DIR: dataDir },
+    env: daemonEnv(dataDir),
   });
   if (logFd !== undefined) {
     try {
