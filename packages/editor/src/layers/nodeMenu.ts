@@ -3,7 +3,8 @@
  * Opera sobre a seleção atual (quem abre o menu seleciona o nó clicado antes, se preciso).
  */
 import { actions } from '../actions';
-import { getNode, topLevel } from '../model/tree';
+import { convertToRepeater } from '../client/features';
+import { getNode, getParent, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import type { MenuItem } from '../ui/overlays';
@@ -14,6 +15,12 @@ export function buildNodeMenu(): MenuItem[] {
   const nodes = doc ? sel.map((id) => getNode(doc, id)!).filter(Boolean) : [];
   const none = nodes.length === 0;
   const allHidden = nodes.length > 0 && nodes.every((n) => n.hidden);
+  const convertible =
+    !!doc &&
+    nodes.length === 1 &&
+    nodes[0]!.type === 'element' &&
+    nodes[0]!.children.length > 0 &&
+    getParent(doc, nodes[0]!.id) !== null;
   const allLocked = nodes.length > 0 && nodes.every((n) => n.locked);
   return [
     {
@@ -33,6 +40,11 @@ export function buildNodeMenu(): MenuItem[] {
       shortcut: 'Ctrl+Shift+G',
       disabled: none || nodes.every((n) => n.children.length === 0),
       onSelect: () => void actions.ungroup(),
+    },
+    {
+      label: 'Converter em repetidor',
+      disabled: !convertible,
+      onSelect: () => void convertToRepeater(sel[0]!),
     },
     {
       label: 'Trazer para frente',

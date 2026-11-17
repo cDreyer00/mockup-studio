@@ -4,9 +4,11 @@ import { canHaveChildren } from '../model/tree';
 import { AppearanceSection } from './AppearanceSection';
 import { AttrsSection } from './AttrsSection';
 import { CssSection } from './CssSection';
+import { ConvertToRepeater, DataSection } from './DataSection';
 import { DocumentInfo } from './DocumentInfo';
 import { EffectsSection } from './EffectsSection';
 import { HeaderSection } from './HeaderSection';
+import { ImageSection } from './ImageSection';
 import { LayoutSection } from './LayoutSection';
 import { SizeSection } from './SizeSection';
 import { TypographySection } from './TypographySection';
@@ -27,6 +29,7 @@ export function PropertiesPanel() {
   const nodes = ctxs.map((c) => c.node);
   const locked = ctxs.some((c) => c.locked);
   const container = nodes.every(canHaveChildren);
+  const single = nodes.length === 1 ? ctxs[0]! : null;
 
   return (
     <LockedContext.Provider value={locked}>
@@ -38,6 +41,12 @@ export function PropertiesPanel() {
         )}
         <HeaderSection nodes={nodes} locked={locked} />
         <SizeSection ctxs={ctxs} />
+        {nodes.every((n) => n.type === 'image') && <ImageSection nodes={nodes} />}
+        {single?.node.type === 'repeater' && <DataSection node={single.node} />}
+        {single &&
+          !single.isRoot &&
+          single.node.type === 'element' &&
+          single.node.children.length > 0 && <ConvertToRepeater node={single.node} />}
         {container && <LayoutSection ctxs={ctxs} />}
         <TypographySection nodes={nodes} />
         <AppearanceSection nodes={nodes} />
