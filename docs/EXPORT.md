@@ -38,13 +38,24 @@ O SVG embute as fontes registradas em `doc.fonts` como `@font-face` com `src:url
 - controles (`button`, `input`, `select`, `textarea`) herdam fonte, cor e `letter-spacing`;
 - tipografia padrão da raiz (`body` no código exportado): fonte do sistema (`system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`), 16px, `line-height: normal`, texto preto.
 
-Nos formatos html, react com estilos inline e svg ele entra como CSS (`BASE_CSS`). No Tailwind o preflight já cobre o reset e os controles, então só a tipografia da raiz vira `@layer base { body { ... } }` no `theme.css` (`TAILWIND_BASE_CSS`, dentro de `tailwindThemeCss`).
+Nos formatos html, react com estilos inline e svg ele entra como CSS (`documentBaseCssFor(doc)`). No Tailwind o preflight já cobre o reset e os controles, então só a tipografia da raiz vira `@layer base { body { ... } }` no `theme.css` (`tailwindBaseCssFor(doc)`, dentro de `tailwindThemeCss`).
+
+`doc.cssBase` escolhe a base (op `setCssBase`):
+
+- ausente (padrão): a base acima;
+- `'tailwind'`: o preflight do Tailwind v4 (reset de `padding`/`border`, `h1..h6` sem tamanho, imagens `display: block`, listas sem marcador...) e a raiz tipográfica do Tailwind (fonte do sistema do v4, `line-height: 1.5`). No html, react inline e svg o preflight entra no CSS; no Tailwind só o `body` da camada base muda (o `@import "tailwindcss"` já traz o preflight). `BASE_CSS` e `TAILWIND_BASE_CSS` continuam exportados como as constantes da base padrão.
 
 ## html
 
 ```ts
 exportHtml(doc, { pageId?, nodeIds?, title?, mode?: 'classes' | 'inline', fragment?: boolean }): string
 ```
+
+Os estados (`node.states`) saem como regras do `<style>` logo após a regra base do nó:
+`.slug:hover { ... }`, `@media (min-width: 768px) { .slug { ... } }` (`sm` 640, `md` 768, `lg` 1024,
+`xl` 1280, `2xl` 1536), `.slug:where([data-theme="dark"], [data-theme="dark"] *) { ... }` para `dark` e
+as combinações (o `@media` envolve o seletor com a pseudo-classe). Ver "Estados e variantes" na seção
+Tailwind.
 
 - `mode: 'classes'` (padrão): uma classe por nó, com o **slug do nome da camada** (`Hero Title` →
   `.hero-title`; acentos removidos; repetidos ganham `-2`, `-3`). `mode: 'inline'`: `style=""` em cada tag.
@@ -97,9 +108,10 @@ Navbar do Desktop 1440 (`nodeIds: ['el_dsk00007'], fragment: true`, trecho):
 ## tailwind
 
 ```ts
-exportTailwind(doc, { pageId?, nodeIds?, title?, fragment?: boolean, cdn?: boolean }): string
+exportTailwind(doc, { pageId?, nodeIds?, title?, fragment?: boolean, cdn?: boolean, tailwind?: TailwindEngine }): string
 cssToTailwind(style, { tokens? }): { classes: string[]; rest: Record<string, string> }
 tailwindThemeCss(doc, { import?: boolean }): string
+neutralLeadingSizes(doc): Set<string>
 ```
 
 Tailwind **v4**. O documento completo (padrão) inclui
@@ -167,7 +179,40 @@ para `rest` e o exportador a emite em `style=""`.
 
 Detalhe do `line-height`: `text-sm` etc. trazem um `line-height` padrão no Tailwind. Para que o
 espaçamento de linha continue o do documento, `tailwindThemeCss` acrescenta ao `@theme`
-`--text-<tamanho>--line-height: inherit;` para cada tamanho nomeado usado.
+`--text-<tamanho>--line-height: inherit;` só para os tamanhos nomeados usados por algum nó (base ou
+estado) cujo `line-height` **não** é o padrão do Tailwind para aquele tamanho (ou que não tem
+`line-height`). Nós importados de Tailwind (`font-size: 0.875rem` + `line-height: 1.4286`, ou `20px`)
+dispensam a neutralização; `neutralLeadingSizes(doc)` devolve esse conjunto. Um nó com o padrão que
+convive com um nó fora do padrão no mesmo tamanho recebe um `leading-*` explícito para não mudar.
+
+### Motor do documento (`options.tailwind`)
+
+Com `tailwind: await getTailwindEngine(doc)` (de `@mockup/core/tailwind`, que roda o compilador
+oficial do Tailwind v4) as classes de cada nó vêm de `engine.nodeClasses(node, { neutralLeading })`
+em vez de `cssToTailwind`:
+
+- **dica `node.classes`**: as classes que o autor escreveu (import de HTML Tailwind, `set_classes`) são
+  reaproveitadas, na ordem original, enquanto ainda reproduzem o estilo atual do nó; o que foi editado
+  depois é gerado de novo. Classes que o modelo não representa (`group`, `group-hover:x`,
+  `[&_svg]:size-4`, `has-[>svg]:px-3`, `aria-invalid:...`) e as desconhecidas saem como estão;
+- **canonicalização + conferência**: o que não vem da dica passa pelo mapeamento estático, é
+  canonicalizado pelo Tailwind (`p-[16px]` vira `p-4`, `mt-2 mb-2` vira `my-2`) e conferido contra o
+  compilador (comparação independente de shorthand: `padding: 8px 16px` bate com `py-2 px-4`). Se não
+  reproduz o estilo, cai para `[prop:valor]`;
+- o que não vira classe continua indo para `style=""` (`rest`).
+
+Sem o motor o mapeamento é o estático de sempre (saída idêntica à anterior).
+
+### Estados e variantes
+
+`node.states` (`hover`, `focus`, `focus-visible`, `focus-within`, `active`, `disabled`, `dark`,
+`sm|md|lg|xl|2xl` e combinações como `md:hover`) são exportados como classes com prefixo de variante
+(`hover:bg-[#5b4bd6]`, `md:px-6`, `dark:bg-[#222]`, `md:hover:...`). Com o motor, `nodeClasses` já
+faz isso (e reaproveita `hover:bg-primary/90` do autor); sem o motor, `cssToTailwind` do estado com
+o prefixo (propriedades sem classe nem forma arbitrária segura são descartadas, pois `style=""` não
+tem variantes). Quando algum nó tem estado `dark`, o tema exportado inclui
+`@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));` (o tema `dark` do
+documento, via `data-theme`).
 
 ### Tokens e `@theme`
 
@@ -211,12 +256,15 @@ Gera um componente funcional TSX (`export function Nome()` + `export default Nom
 `tsc --strict` e `noUnusedLocals` num template Vite React TS (os testes compilam a saída com o
 compilador do TypeScript). O nome é o PascalCase do nome do nó (acentos removidos).
 
-- `styles: 'tailwind'` (padrão): `className` com as classes acima; `css` traz `tailwindThemeCss(doc)`
-  (coloque num `.css` importado pelo app, com o Tailwind v4 instalado).
+- `styles: 'tailwind'` (padrão): `className` com as classes acima (com `options.tailwind` as do motor,
+  incluindo as variantes de `node.states`); `css` traz `tailwindThemeCss(doc)` (coloque num `.css`
+  importado pelo app, com o Tailwind v4 instalado). Irmãos só são extraídos em `map(...)` se também
+  têm os mesmos estados.
 - `styles: 'inline'`: `style={{ backgroundColor: 'var(--color-bg)' }}` (camelCase, tudo string com
   unidade). Os tokens do documento viram custom properties no `style` do elemento **raiz**
   (`{ '--color-bg': '#0f1115', ... } as CSSProperties`, com `import type { CSSProperties } from 'react'`).
-  `css` traz o CSS base do documento e os `@font-face`.
+  `css` traz o CSS base do documento e os `@font-face`. **Estados não são exportados** neste modo
+  (`style={{}}` não tem `:hover` nem `@media`); use `styles: 'tailwind'` para levá-los.
 - Atributos: `for` → `htmlFor`, `tabindex` → `tabIndex={0}`, `readonly` → `readOnly`, booleanos sem
   valor (`disabled`), `aria-*`/`data-*` mantidos, `value` de campo vira `defaultValue`, tags void
   auto-fechadas. Só atributos HTML conhecidos entram (os demais são descartados para o TSX compilar).
@@ -271,6 +319,8 @@ export default Cards;
 exportSvg(doc, { nodeId, layout?: LayoutNode, resolveImage?: (src) => string | undefined }): string
 ```
 
+O SVG é uma imagem estática: `node.states` (hover, dark, breakpoints) são ignorados.
+
 **Com `layout`** (geometria medida pela página de render, `measure(nodeId)`): `<svg>` com
 `width`/`height`/`viewBox` do nó raiz medido; coordenadas relativas a ele. Para cada nó visível
 (`display: none`, `opacity: 0` e `visibility: hidden` são ignorados):
@@ -317,10 +367,19 @@ devolver data URLs; sem ele o `src` original é mantido. As fontes embutidas (`f
 
 ## Limitações conhecidas
 
-- Tailwind: o mapeamento é por declaração; seletores, pseudo-classes, `@media` e estados não existem no
-  modelo e, portanto, não são exportados. Propriedades de shorthand com formas raras (`border-radius`
-  com `/`, `border-color` com 4 valores, `margin` com 5+ valores) caem em classe arbitrária ou `rest`.
-  Não rodamos o compilador do Tailwind nos testes: as classes seguem a documentação do v4.
+- Tailwind: o mapeamento é por declaração. Seletores arbitrários e variantes que o modelo não
+  representa (`group-hover:`, `has-[...]:`, `aria-*:`, `[&_svg]:`) só sobrevivem como texto em
+  `node.classes` (com o motor saem verbatim no Tailwind), sem o CSS correspondente nos outros formatos.
+  Propriedades de shorthand com formas raras (`border-radius` com `/`, `border-color` com 4 valores,
+  `margin` com 5+ valores) caem em classe arbitrária ou `rest`. Sem o motor as classes seguem a
+  documentação do v4; com ele o compilador oficial confere cada uma. Mesmo com o motor, `shadow-sm`,
+  opacidade de cor (`bg-blue-500/50`), gradientes e `ring-*` saem, sem a dica `node.classes`, como
+  classe arbitrária equivalente (`shadow-[...]`, `bg-[color-mix(...)]`) e não na forma idiomática.
+- Estados: no HTML viram regras no `<style>` (`.slug:hover`, `@media (min-width: 768px)`,
+  `.slug:where([data-theme="dark"], [data-theme="dark"] *)`; breakpoints valem pela largura da janela,
+  não do frame). No modo `inline` o estilo base fica em `style=""` e os nós com estados ganham uma
+  classe só para as regras dos estados, que saem com `!important` (o `style` inline venceria a
+  cascata). Estados não são exportados no React inline nem no SVG.
 - React: só atributos HTML conhecidos são emitidos; tags customizadas (`my-element`) precisam de
   declaração de tipos no projeto; `selected`/`value` em `option` podem gerar avisos do React.
   Extração de repetições é só para irmãos **consecutivos** e não aninha (dentro de um item, filhos
