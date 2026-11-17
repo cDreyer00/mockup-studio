@@ -14,7 +14,7 @@ export const EFFECTS_GUIDE = `# Efeitos, vídeo, embeds e export animado
 - Vídeo com \`poster\` mostra o poster no screenshot quando \`time\` não é informado.
 
 ## Vídeo
-- \`insert_video(parentId, source, poster?)\`: \`source\` é um caminho absoluto (mp4, m4v, mov, webm, ogg; até 500 MB; copiado para \`assets/videos/\`) ou uma URL http(s) (referenciada direto; só toca com rede). Documento sem caminho em disco só aceita URL.
+- \`insert_video(parentId, source, poster?)\`: \`source\` é um caminho absoluto (mp4, m4v, mov, webm, ogv; até 500 MB; copiado para \`assets/videos/\`) ou uma URL http(s) (referenciada direto; só toca com rede). Documento sem caminho em disco só aceita URL.
 - Padrões: mudo, em loop, autoplay, sem controles, 640x360 com \`object-fit: cover\`. \`update_media\` altera as opções.
 
 ## Embeds
@@ -23,8 +23,8 @@ export const EFFECTS_GUIDE = `# Efeitos, vídeo, embeds e export animado
 - \`update_media\` troca url, src, code ou parâmetros de um embed.
 
 ## Ilha Three.js
-- \`insert_three(parentId, code?, params?)\`. O código é o corpo de uma função com \`THREE, renderer, canvas, width, height, params\` e devolve \`{ scene, camera, update(t) }\` (t em segundos). Sem \`code\`, usa um torus giratório.
-- Roda isolada num iframe sandbox: sem rede e sem acesso ao documento. Parâmetros chegam em \`params\`.
+- \`insert_three(parentId, code?, params?)\`. O código é o corpo de uma função com \`THREE, renderer, canvas, width, height, params\` e devolve \`{ scene, camera, update(t) }\` (t em segundos). Sem \`code\`, usa um nó de toro giratório.
+- Roda isolada num iframe sandbox, sem acesso ao documento (o sandbox não bloqueia a rede). Parâmetros chegam em \`params\`.
 
 ## Export animado
 - \`export(nodeIds, format: 'mp4' | 'webm' | 'gif', fps?, duration?, start?, maxWidth?, scale?)\`: renderiza os quadros e codifica com ffmpeg. Padrões: 30 fps (gif 15, máximo 30), 3 s, \`start\` 0; duração até 30 s. Exige render e ffmpeg (\`MOCKUP_FFMPEG\` ou o ffmpeg embutido).

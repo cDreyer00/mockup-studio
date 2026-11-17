@@ -19,9 +19,6 @@ import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
 
 const MAX_INLINE_BYTES = 20 * 1024;
 
-/** `exportReact` pode devolver arquivos extras (`files`) e aceitar `effectImages` (core novo). */
-type ExtraFiles = { files?: { name: string; code: string }[] };
-
 function effectNodes(node: Node, out: Node[] = []): Node[] {
   if (node.type === 'effect') out.push(node);
   for (const c of node.children) effectNodes(c, out);
@@ -100,7 +97,7 @@ export function registerExportTools(ctx: ToolContext): void {
     {
       title: 'Exportar nós para arquivos',
       description:
-        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg (exigem render), mp4, webm, gif (animados: exigem render com captura de quadros e ffmpeg; use fps, duration, start), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
+        'Grava um arquivo por nó em outputDir (padrão <pasta do documento>/exports/); sobrescreve os de mesmo nome. Formatos: png, jpg, mp4, webm, gif (exigem render; os animados usam fps/duration/start e ffmpeg), svg, html, tailwind, react. Copia assets. Para só ler o código use get_code.',
       example: { nodeIds: ['fr_ab12cd34'], format: 'mp4', fps: 30, duration: 3 },
       inputSchema: {
         nodeIds: z
@@ -350,7 +347,7 @@ export function registerExportTools(ctx: ToolContext): void {
             componentName: name,
             ...(assetsBase ? { assetsBase } : {}),
             ...(Object.keys(effectImages).length ? { effectImages } : {}),
-          } as Parameters<typeof exportReact>[1]) as ReturnType<typeof exportReact> & ExtraFiles;
+          });
           await write(uniq(r.componentName, '.tsx'), r.code, true);
           for (const f of r.files ?? []) await write(f.name, f.code, true);
           if (r.css) {
@@ -454,8 +451,15 @@ export function registerExportTools(ctx: ToolContext): void {
         styles: styles ?? 'tailwind',
         componentName: pascalOf(slugOf(node.name, node.id)),
         ...(assetsBase ? { assetsBase } : {}),
-      }) as ReturnType<typeof exportReact> & ExtraFiles;
-      const extra = (r.files ?? []).map((f) => `\n\n// ${f.name}\n${f.code}`).join('');
+      });
+      // o runtime dos efeitos é fixo e grande: só o nome (o export grava o arquivo)
+      const extra = (r.files ?? [])
+        .map((f) =>
+          f.name.startsWith('mockup-effects.')
+            ? `\n\n// ${f.name}: runtime dos efeitos, gravado por export(format: 'react')`
+            : `\n\n// ${f.name}\n${f.code}`,
+        )
+        .join('');
       return (
         (r.css
           ? `// ${r.componentName}.tsx\n${r.code}\n\n/* ${(styles ?? 'tailwind') === 'tailwind' ? 'theme.css' : `${r.componentName}.css`} */\n${r.css}`

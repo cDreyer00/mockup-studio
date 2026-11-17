@@ -80,7 +80,7 @@ export function registerEffectTools(ctx: ToolContext): void {
     {
       title: 'Adicionar efeito visual',
       description:
-        'Adiciona um efeito (shader WebGL ou partículas; veja list_effects). placement "background" (padrão): vira o primeiro filho de nodeId, cobrindo-o atrás do conteúdo; o pai ganha position: relative e isolation: isolate. "child": filho comum com styles (padrão 100% x 240px). nodeId deve ser um contêiner, não texto/imagem/svg/mídia.',
+        'Adiciona um efeito (veja list_effects) em nodeId, um contêiner. placement "background" (padrão): primeiro filho cobrindo o contêiner atrás do conteúdo (o pai ganha position: relative e isolation: isolate). "child": filho comum com styles (padrão 100% x 240px).',
       example: {
         nodeId: 'fr_ab12cd34',
         kind: 'mesh-gradient',
@@ -166,9 +166,9 @@ export function registerEffectTools(ctx: ToolContext): void {
       title: 'Atualizar efeito',
       description:
         'Altera um efeito existente: mescla params nos atuais, aplica um preset, troca o kind (os params antigos são descartados) ou, com reset, volta aos padrões. Veja list_effects.',
-      example: { nodeId: 'ef_ab12cd34', params: { speed: 1.2 } },
+      example: { nodeId: 'fx_ab12cd34', params: { speed: 1.2 } },
       inputSchema: {
-        nodeId: z.string().describe('Id do nó de efeito, ex.: "ef_ab12cd34".'),
+        nodeId: z.string().describe('Id do nó de efeito, ex.: "fx_ab12cd34".'),
         params: paramsField,
         kind: z.string().optional().describe('Novo tipo de efeito, ex.: "particles".'),
         preset: z.string().optional().describe('Preset a aplicar antes dos params.'),

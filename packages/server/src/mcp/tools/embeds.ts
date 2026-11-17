@@ -239,7 +239,7 @@ export function registerEmbedTools(ctx: ToolContext): void {
     {
       title: 'Inserir vídeo',
       description:
-        'Insere um vídeo (nó video) em parentId. source: caminho absoluto (mp4, m4v, mov, webm ou ogg, até 500 MB; validado pelos bytes e copiado para assets/videos/) ou URL http(s) (referenciada direto, sem baixar: só toca com rede). Documento sem caminho em disco exige URL. poster: imagem (caminho, URL ou data URL) mostrada antes de tocar e no get_screenshot sem time. Padrões: muted, loop e autoplay ligados, controls desligado, 640x360 object-fit cover.',
+        'Insere um vídeo em parentId. source: caminho absoluto (mp4, m4v, mov, webm, ogv; até 500 MB; copiado para assets/videos/) ou URL http(s) (só toca com rede). poster aparece no get_screenshot sem time. Padrões: mudo, loop, autoplay, sem controls, 640x360.',
       example: {
         parentId: 'fr_ab12cd34',
         source: 'C:/videos/demo.mp4',
@@ -307,7 +307,7 @@ export function registerEmbedTools(ctx: ToolContext): void {
     {
       title: 'Inserir embed (YouTube, Lottie, Rive, iframe)',
       description:
-        'Insere conteúdo incorporado (nó embed) em parentId. O provedor é detectado: URL do YouTube (youtube, com start do ?t=), .json/.lottie (lottie), .riv (rive), outra URL http(s) (iframe). Lottie e Rive aceitam caminho absoluto ou URL e são COPIADOS para assets/lottie ou assets/rive (funcionam offline; JSON Lottie com v/fr/layers, Rive começa com RIVE; até 50 MB). YouTube e iframe precisam de rede. Para vídeo em arquivo use insert_video; para Three.js, insert_three.',
+        'Insere um embed em parentId com provedor detectado pela URL: YouTube (start do ?t=), .json/.lottie (Lottie), .riv (Rive), outra http(s) (iframe). Lottie e Rive (caminho absoluto ou URL, até 50 MB) são copiados para assets/ e funcionam offline; YouTube e iframe precisam de rede.',
       example: { parentId: 'fr_ab12cd34', url: 'https://youtu.be/dQw4w9WgXcQ?t=42' },
       inputSchema: {
         parentId: z.string().describe('Id do pai, ex.: "fr_ab12cd34".'),
@@ -392,7 +392,7 @@ export function registerEmbedTools(ctx: ToolContext): void {
     {
       title: 'Inserir cena Three.js',
       description:
-        'Insere uma ilha Three.js (nó embed) em parentId. O code é o CORPO de uma função com as variáveis THREE, renderer, canvas, width, height e params, e deve devolver { scene, camera, update(t) } (t em segundos; chame sem code para ver o exemplo padrão do torus). Roda isolada num iframe sandbox, sem rede nem acesso ao documento; o render do get_screenshot e do export animado avança o relógio t.',
+        'Insere uma ilha Three.js em parentId. code é o CORPO de uma função com THREE, renderer, canvas, width, height e params que devolve { scene, camera, update(t) } (t em s; sem code usa um nó de toro). Roda num iframe sandbox, sem acesso ao documento; get_screenshot(time) avança t.',
       example: {
         parentId: 'fr_ab12cd34',
         params: { color: '#ff6b6b' },
