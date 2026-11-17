@@ -74,6 +74,13 @@ function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   for (const c of node.children) prepareNode(c, false, opts);
 }
 
+/** Cópia preparada (ver `prepareNode`) de uma árvore que não é raiz do export: principais e instâncias expandidas. */
+export function prepareTree(node: Node, opts: PrepareOptions = {}): Node {
+  const copy = deepClone(node);
+  prepareNode(copy, false, opts);
+  return copy;
+}
+
 export function resolveRoots(
   doc: Document,
   selection: RootSelection = {},

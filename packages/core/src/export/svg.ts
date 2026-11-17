@@ -1,6 +1,7 @@
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import { resolveVars } from '../computed.js';
 import { documentBaseCssFor } from '../base.js';
+import { expandDocument } from '../components/expand.js';
 import { findNode } from '../document.js';
 import { fontFaceCss } from '../fonts.js';
 import type { LayoutNode, LayoutRect } from '../layout.js';
@@ -605,7 +606,9 @@ function fallbackSvg(doc: Document, options: SvgExportOptions): string {
 }
 
 /** SVG standalone do nó (rects com raio, borda e sombra; textos posicionados; imagens embutidas). */
-export function exportSvg(doc: Document, options: SvgExportOptions): string {
+export function exportSvg(source: Document, options: SvgExportOptions): string {
+  // instâncias expandidas: o layout do canvas usa os mesmos ids (inclusive virtuais `in_x/...`)
+  const doc = expandDocument(source);
   if (!findNode(doc, options.nodeId)) throw new Error(`Nó "${options.nodeId}" não encontrado`);
   return options.layout ? layoutSvg(doc, options.layout, options) : fallbackSvg(doc, options);
 }

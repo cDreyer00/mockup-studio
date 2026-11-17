@@ -356,6 +356,80 @@ Navbar com um layout medido à mão (fundo com sombra, logo e botão com raio):
 </svg>
 ```
 
+## Componentes
+
+Documentos com componentes principais (`doc.components`, ver `COMPONENTES.md`) exportam assim:
+
+| Formato  | Instâncias                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------------- |
+| html     | Expandidas (`expandDocument`): o resultado é igual ao do canvas. `data-slot` dos slots é mantido. |
+| tailwind | Expandidas, como no html.                                                                           |
+| svg      | Expandidas; o layout (com `layout`) e o fallback `<foreignObject>` usam a árvore concreta.         |
+| react    | Um componente por principal usado; instâncias viram JSX.                                            |
+
+Em html, tailwind e svg, `nodeIds`/`nodeId` aceitam também ids **virtuais** (`in_x/tx_label01`, nós de
+dentro de uma instância); o React também aceita, e exporta o nó já expandido.
+
+### React
+
+Para cada principal usado pelas raízes exportadas (inclusive os usados por outros principais) o arquivo
+traz, antes do componente da tela:
+
+```tsx
+export interface ButtonProps {
+  /** Estilo visual do botão. */
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'default' | 'lg';
+  /** Texto do botão. */
+  label?: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
+export function Button({ variant = 'default', size = 'default', label = 'Botão', className, style }: ButtonProps) {
+  return (
+    <button
+      className={[
+        'inline-flex ... rounded-md',
+        variant === 'outline' ? 'border' : 'border-0', // variantes: uma cadeia por propriedade
+        variant === 'secondary' ? 'bg-secondary' : variant === 'outline' ? 'bg-background' : 'bg-primary',
+        className,
+      ].filter(Boolean).join(' ')}
+      style={style}
+    >
+      <span>{label}</span>
+    </button>
+  );
+}
+```
+
+- **Props**: `string`/`color` viram `string`, `number` e `boolean` mantêm o tipo, `enum` vira a união de
+  literais (as opções mais o padrão) e `slot` vira `ReactNode` (importado de `react`). O primeiro slot
+  também aceita `children`. Toda prop é opcional, com o padrão do principal na desestruturação (só as
+  props usadas no corpo são desestruturadas, o `tsc --noUnusedParameters` continua passando). Todo
+  componente aceita `className` e `style`, mesclados na raiz (o `style` por último).
+- **Placeholders**: `{{prop}}` vira `{label}` em texto, `title={`Selo ${texto}`}` em atributo e
+  `width: `calc(${largura}px + 2px)`` em estilo (nunca vira classe Tailwind). Num estado (`hover` etc.)
+  o placeholder fica com o valor padrão.
+- **Variantes**: cada propriedade de estilo (e de estado, no Tailwind) alterada por variantes vira uma
+  cadeia de ternários `cond2 ? v2 : cond1 ? v1 : base`, na ordem das variantes (a última que bate ganha,
+  como na expansão); no modo Tailwind a cadeia escolhe classes (`variant === 'outline' ? 'border' : 'border-0'`,
+  sem conflito de classes), no inline escolhe valores do `style`. `text` de variante também vira ternário.
+- **Slots**: o contêiner `data-slot` vira `{content ?? children ?? (<>conteúdo padrão</>)}`.
+- **Instâncias**: `<Button variant="outline" label="Salvar" />`; o `style` da instância (posição, margem,
+  largura) vai sempre inline em `style={{...}}` (ganha das classes do componente). Slots preenchidos: o
+  primeiro como filhos JSX, os demais como prop (`footer={<Button label="Confirmar" />}`).
+- **Expandida no lugar** (com o comentário `{/* instância de Button com overrides */}`): instância com
+  `overrides`, `attrs`, `classes` ou `states`, contêiner de slot customizado (estilo, atributos), props não
+  declaradas ou com valor fora do tipo (enum desconhecido, número inválido) e componente ausente.
+- Nomes em PascalCase únicos: se o principal colide com o componente da tela (ou com outro), vira
+  `Button2` / `Button2Props`.
+
+Limitações: variantes que mudam `attrs`, `hidden`, `classes`, `src`, `svg` ou `props` de aninhadas não são
+exportadas (o componente leva um comentário `// Nota:` listando os nós); `states` de uma instância e
+condições de variante fora do tipo da prop são ignoradas ou expandidas; repetições em `map` não são
+extraídas dentro do corpo dos componentes.
+
 ## Imagens e `assets/`
 
 `src` de nós `image` é relativo a `assets/` (ou data URL). Em html/tailwind/react o `src` exportado é

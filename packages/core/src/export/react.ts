@@ -1,4 +1,5 @@
 import { documentBaseCssFor } from '../base.js';
+import { expandDocument, isVirtualId } from '../components/expand.js';
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import type { TailwindEngine } from '../tailwind/engine.js';
 import type { AnyNode, Element } from 'domhandler';
@@ -18,6 +19,8 @@ import {
   safeAttrs,
 } from './common.js';
 import { neutralLeadingSizes, tailwindNodeParts, tailwindThemeCss } from './tailwind.js';
+import { createComponentSupport } from './reactComponents.js';
+import type { ComponentSupport, ScopeHooks } from './reactComponents.js';
 
 export interface ReactExportOptions {
   /** Nó raiz do componente (um componente por nó). */
@@ -49,7 +52,7 @@ export interface ReactExport {
 /* Utilitários de código                                                   */
 /* ====================================================================== */
 
-const RESERVED = new Set([
+export const RESERVED = new Set([
   'break',
   'case',
   'catch',
@@ -96,7 +99,7 @@ const RESERVED = new Set([
 ]);
 
 /** String JS entre aspas simples. */
-function jsString(s: string): string {
+export function jsString(s: string): string {
   return `'${s
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
@@ -107,18 +110,18 @@ function jsString(s: string): string {
 }
 
 /** Valor de atributo JSX: literal simples ou expressão `{'...'}`. */
-function attrValue(v: string): string {
+export function attrValue(v: string): string {
   return /^[^"&\n\r\u2028\u2029]*$/.test(v) ? `"${v}"` : `{${jsString(v)}}`;
 }
 
-function words(name: string): string[] {
+export function words(name: string): string[] {
   const slug = slugify(name);
   return slug === 'node' && !/node/i.test(name) ? [] : slug.split('-').filter(Boolean);
 }
 
 const cap = (w: string): string => w.charAt(0).toUpperCase() + w.slice(1);
 
-function pascalCase(name: string): string {
+export function pascalCase(name: string): string {
   return words(name).map(cap).join('');
 }
 
@@ -128,14 +131,14 @@ function camelCase(name: string): string {
 }
 
 /** Nome de componente válido (PascalCase, começa por letra). */
-function componentIdent(name: string): string {
+export function componentIdent(name: string): string {
   const p = pascalCase(name);
   if (p === '') return 'Component';
   return /^[A-Za-z]/.test(p) ? p : `Component${p}`;
 }
 
 /** Identificador camelCase seguro a partir de um nome de camada; `null` se não der. */
-function fieldIdent(name: string): string | null {
+export function fieldIdent(name: string): string | null {
   const c = camelCase(name);
   if (c === '' || !/^[a-z]/.test(c)) return null;
   return RESERVED.has(c) ? `${c}Value` : c;
@@ -148,7 +151,7 @@ function jsxTextSegment(seg: string): string {
 }
 
 /** Filhos JSX de um texto: quebras viram `{'\n'}` (white-space preserva) ou `<br />`. */
-function textChildren(text: string, preserveNewlines: boolean): string[] {
+export function textChildren(text: string, preserveNewlines: boolean): string[] {
   const parts = text.split(/\r?\n/);
   const out: string[] = [];
   parts.forEach((seg, i) => {
@@ -165,19 +168,21 @@ function textChildren(text: string, preserveNewlines: boolean): string[] {
 const needsCssPropertiesCast = (style: Record<string, string>): boolean =>
   Object.keys(style).some((k) => k.startsWith('--'));
 
-function reactStyleKey(prop: string): string {
+export function reactStyleKey(prop: string): string {
   if (prop.startsWith('--')) return jsString(prop);
   if (prop.startsWith('-ms-')) return `ms${cap(toCamelCase(prop.slice(4)))}`;
   const c = toCamelCase(prop);
   return /^[A-Za-z_$][\w$]*$/.test(c) ? c : jsString(c);
 }
 
-interface Usage {
+export interface Usage {
   cssProperties: boolean;
+  /** Algum componente gerado usa `ReactNode` (props de slot e `children`). */
+  reactNode?: boolean;
 }
 
 /** `style={{ ... }}`; custom properties exigem `as CSSProperties` (marcado em `usage`). */
-function styleProp(style: Record<string, string>, usage: Usage): string {
+export function styleProp(style: Record<string, string>, usage: Usage): string {
   const body = Object.entries(style)
     .map(([k, v]) => `${reactStyleKey(k)}: ${jsString(v)}`)
     .join(', ');
@@ -282,13 +287,17 @@ const NUMERIC_PROPS = new Set([
 const VALUE_AS_DEFAULT = new Set(['input', 'textarea', 'select']);
 
 /** Trechos `nome=valor` das props de um nó (sem `className`/`style`/`src` de imagem). */
-function attrProps(node: Node, skip: Set<string>): string[] {
+export function attrProps(
+  node: Node,
+  skip: Set<string>,
+  fmt: (v: string) => string = attrValue,
+): string[] {
   const out: string[] = [];
   for (const [k, v] of Object.entries(safeAttrs(node))) {
     const lower = k.toLowerCase();
     if (skip.has(lower)) continue;
     if (/^(aria|data)-[\w.-]+$/i.test(k)) {
-      out.push(`${lower}=${attrValue(v)}`);
+      out.push(`${lower}=${fmt(v)}`);
       continue;
     }
     let prop = PROP_NAMES[lower];
@@ -300,7 +309,7 @@ function attrProps(node: Node, skip: Set<string>): string[] {
     } else if (NUMERIC_PROPS.has(prop)) {
       if (/^-?\d+$/.test(v.trim())) out.push(`${prop}={${v.trim()}}`);
     } else {
-      out.push(`${prop}=${attrValue(v)}`);
+      out.push(`${prop}=${fmt(v)}`);
     }
   }
   return out;
@@ -459,22 +468,29 @@ function svgToJsx(markup: string, depth: number, extra: string[], usage: Usage):
 /* Emissão de elementos                                                    */
 /* ====================================================================== */
 
-const pad = (depth: number): string => '  '.repeat(depth);
+export const pad = (depth: number): string => '  '.repeat(depth);
 const MAX_LINE = 100;
 
 /**
  * Monta um elemento: auto-fechado sem filhos; uma linha com um único filho de texto curto;
  * senão filhos recuados. Props vão para linhas próprias se a tag passar de `MAX_LINE` colunas.
  */
-function emitElement(tag: string, props: string[], kids: string[][], depth: number): string[] {
+export function emitElement(
+  tag: string,
+  props: string[],
+  kids: string[][],
+  depth: number,
+): string[] {
   const p = pad(depth);
   const oneLine = `${p}<${tag}${props.length > 0 ? ' ' + props.join(' ') : ''}`;
-  const multi = oneLine.length > MAX_LINE;
+  // props com várias linhas (slots como JSX) sempre ficam em linhas próprias
+  const multi = oneLine.length > MAX_LINE || props.some((pr) => pr.includes('\n'));
   const out: string[] = [];
   const closeOpen = (selfClose: boolean): void => {
     if (multi) {
       out.push(`${p}<${tag}`);
-      for (const pr of props) out.push(`${p}  ${pr}`);
+      // props de várias linhas (slots em JSX, `className` longo) chegam indentadas em relação à prop
+      for (const pr of props) out.push(`${p}  ${pr.split('\n').join('\n' + p + '  ')}`);
       out.push(`${p}${selfClose ? '/>' : '>'}`);
     } else out.push(`${oneLine}${selfClose ? ' />' : '>'}`);
   };
@@ -521,6 +537,7 @@ function signature(node: Node): string {
     node.text !== undefined && node.text !== '',
     node.src !== undefined,
     node.type === 'svg' ? (node.svg ?? '') : null,
+    node.type === 'instance' ? [node.componentId, node.props, node.overrides] : null,
     node.children.map(signature),
   ]);
 }
@@ -632,7 +649,7 @@ function commonName(nodes: Node[], parentName: string): string {
 /* Renderização                                                            */
 /* ====================================================================== */
 
-interface RenderCtx {
+export interface RenderCtx {
   mode: 'tailwind' | 'inline';
   doc: Document;
   /** Tema do nó (`data-theme`), para redeclarar as variáveis no modo inline. */
@@ -648,6 +665,10 @@ interface RenderCtx {
   arrays: string[];
   usedNames: Set<string>;
   slots?: SlotMap;
+  /** Suporte a componentes (instâncias como JSX, um componente por principal usado). */
+  components?: ComponentSupport;
+  /** Presente enquanto se renderiza o corpo de um principal (props, variantes e slots). */
+  scope?: ScopeHooks;
 }
 
 function uniqueName(base: string, ctx: RenderCtx): string {
@@ -657,7 +678,12 @@ function uniqueName(base: string, ctx: RenderCtx): string {
   return name;
 }
 
-function styleProps(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
+/** Classes Tailwind e declarações inline de um nó (`inline`: só estilo; `tailwind`: classes + o que não virou classe). */
+export function styleParts(
+  node: Node,
+  ctx: RenderCtx,
+  isRoot: boolean,
+): { classes: string[]; style: Record<string, string> } {
   if (ctx.mode === 'inline') {
     const theme = ctx.themeOf(node);
     const style = {
@@ -665,19 +691,25 @@ function styleProps(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
       ...(theme ? themeDeclarations(ctx.doc, theme) : {}),
       ...node.style,
     };
-    return Object.keys(style).length > 0 ? [styleProp(style, ctx.usage)] : [];
+    return { classes: [], style };
   }
   const { classes, rest } = tailwindNodeParts(node, ctx.tokens, {
     engine: ctx.engine,
     neutralLeading: ctx.neutralLeading,
   });
+  return { classes, style: rest };
+}
+
+function styleProps(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
+  if (ctx.scope) return ctx.scope.styleProps(node, ctx);
+  const { classes, style } = styleParts(node, ctx, isRoot);
   const out: string[] = [];
   if (classes.length > 0) out.push(`className=${attrValue(classes.join(' '))}`);
-  if (Object.keys(rest).length > 0) out.push(styleProp(rest, ctx.usage));
+  if (Object.keys(style).length > 0) out.push(styleProp(style, ctx.usage));
   return out;
 }
 
-function renderNode(
+export function renderNode(
   node: Node,
   depth: number,
   ctx: RenderCtx,
@@ -685,6 +717,9 @@ function renderNode(
   isRoot: boolean,
   extraProps: string[] = [],
 ): string[] {
+  if (node.type === 'instance' && ctx.components) {
+    return ctx.components.renderInstance(node, depth, ctx, inheritedPre, isRoot, extraProps);
+  }
   const slot = ctx.slots?.get(node) ?? {};
   const pre = node.style['white-space']
     ? preservesNewlines(node.style['white-space'])
@@ -697,17 +732,21 @@ function renderNode(
 
   const isImg = node.type === 'image' || node.tag === 'img';
   if (isImg) {
+    const fmt = ctx.scope?.attrValue ?? attrValue;
     if (slot.src) props.push(`src={item.${slot.src.field}}`);
     else if (node.src !== undefined) {
-      const url = assetUrl(node.src, ctx.assetsBase);
-      if (!isUnsafeUrl(url)) props.push(`src=${attrValue(url)}`);
+      if (ctx.scope?.hasPlaceholder(node.src)) props.push(`src=${fmt(node.src)}`);
+      else {
+        const url = assetUrl(node.src, ctx.assetsBase);
+        if (!isUnsafeUrl(url)) props.push(`src=${attrValue(url)}`);
+      }
     }
     if (slot.alt) props.push(`alt={item.${slot.alt.field}}`);
-    else props.push(`alt=${attrValue(node.attrs.alt ?? '')}`);
+    else props.push(`alt=${fmt(node.attrs.alt ?? '')}`);
   }
   const skip = new Set<string>(isImg ? ['src', 'alt'] : []);
   if (slot.href) skip.add('href');
-  props.push(...attrProps(node, skip));
+  props.push(...attrProps(node, skip, ctx.scope?.attrValue));
   if (slot.href) props.push(`href={item.${slot.href.field}}`);
 
   if (VOID_TAGS.has(node.tag)) return emitElement(node.tag, props, [], depth);
@@ -715,14 +754,16 @@ function renderNode(
   const kids: string[][] = [];
   if (slot.text) kids.push([`{item.${slot.text.field}}`].map((l) => pad(depth + 1) + l));
   else if (node.text !== undefined && node.text !== '') {
-    kids.push(textChildren(node.text, pre).map((l) => pad(depth + 1) + l));
+    const lines = ctx.scope?.textChildren(node, pre) ?? textChildren(node.text, pre);
+    kids.push(lines.map((l) => pad(depth + 1) + l));
   }
-  kids.push(...renderChildren(node.children, depth + 1, ctx, pre, node));
+  const slotKids = ctx.scope?.slotChildren(node, depth + 1, ctx, pre);
+  kids.push(...(slotKids ?? renderChildren(node.children, depth + 1, ctx, pre, node)));
   return emitElement(node.tag, props, kids, depth);
 }
 
 /** Filhos de um nó; irmãos repetidos viram `array.map(...)` quando `extractRepeats` está ligado. */
-function renderChildren(
+export function renderChildren(
   children: Node[],
   depth: number,
   ctx: RenderCtx,
@@ -786,7 +827,11 @@ function camelCaseOr(slug: string, fallback: string): string {
 /** Gera um componente TSX funcional a partir de um nó (Vite + React + TypeScript strict). */
 export function exportReact(doc: Document, options: ReactExportOptions): ReactExport {
   const mode = options.styles ?? 'tailwind';
-  const [root] = resolveRoots(doc, { nodeIds: [options.nodeId] });
+  // ids virtuais (`in_x/...`) só existem na árvore expandida; os demais mantêm as instâncias
+  // como estão (viram componentes JSX)
+  const [root] = resolveRoots(isVirtualId(options.nodeId) ? expandDocument(doc) : doc, {
+    nodeIds: [options.nodeId],
+  });
   const componentName = componentIdent(options.componentName ?? root.name);
   const usage: Usage = { cssProperties: false };
   const ctx: RenderCtx = {
@@ -800,13 +845,19 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     extractRepeats: options.extractRepeats ?? true,
     usage,
     arrays: [],
-    usedNames: new Set([componentName, 'CSSProperties']),
+    usedNames: new Set([componentName, 'CSSProperties', 'ReactNode']),
   };
+  ctx.components = createComponentSupport(doc, ctx);
 
   const body = renderNode(root, 2, ctx, false, true);
+  const generated = ctx.components.renderAll(); // um componente por principal usado
   const code: string[] = [];
-  if (usage.cssProperties) code.push("import type { CSSProperties } from 'react';", '');
+  const imports = [usage.cssProperties ? 'CSSProperties' : '', usage.reactNode ? 'ReactNode' : ''];
+  if (imports.some(Boolean)) {
+    code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
+  }
   for (const a of ctx.arrays) code.push(a, '');
+  for (const g of generated) code.push(g, '');
   code.push(
     `export function ${componentName}() {`,
     '  return (',

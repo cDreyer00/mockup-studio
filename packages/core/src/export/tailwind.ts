@@ -1,3 +1,4 @@
+import { expandDocument } from '../components/expand.js';
 import { fontFaceCss } from '../fonts.js';
 import { escapeCssText } from '../html.js';
 import { isValidCssPropertyName } from '../styles.js';
@@ -1217,7 +1218,9 @@ export function tailwindAttrs(
 }
 
 /** HTML com `class` Tailwind v4 (documento completo ou fragmento). */
-export function exportTailwind(doc: Document, options: TailwindExportOptions = {}): string {
+export function exportTailwind(source: Document, options: TailwindExportOptions = {}): string {
+  // instâncias de componentes expandidas (igual ao canvas); aceita ids virtuais
+  const doc = expandDocument(source);
   const selection: RootSelection = { pageId: options.pageId, nodeIds: options.nodeIds };
   const roots = resolveRoots(doc, selection);
   const tokens = cleanTokens(doc.tokens);

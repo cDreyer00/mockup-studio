@@ -1,4 +1,5 @@
 import { documentBaseCssFor } from '../base.js';
+import { expandDocument } from '../components/expand.js';
 import { escapeCssText } from '../html.js';
 import { fontFaceCss } from '../fonts.js';
 import { breakpointsOf } from '../states.js';
@@ -37,7 +38,9 @@ export interface HtmlExportOptions {
  * continua em `style=""`; os nós com estados ganham uma classe só para as regras dos estados, que
  * saem com `!important` (o `style` inline ganharia da cascata).
  */
-export function exportHtml(doc: Document, options: HtmlExportOptions = {}): string {
+export function exportHtml(source: Document, options: HtmlExportOptions = {}): string {
+  // instâncias de componentes viram a árvore concreta (igual ao canvas); aceita ids virtuais
+  const doc = expandDocument(source);
   const mode = options.mode ?? 'classes';
   const roots = resolveRoots(doc, options);
 
