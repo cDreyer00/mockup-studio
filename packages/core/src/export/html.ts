@@ -54,7 +54,7 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   const tokens = rootTokensCss(doc.tokens);
   if (tokens) css.push(tokens);
   css.push(`  ${BASE_CSS}`);
-  const faces = fontFaceCss(doc, (f) => `assets/${f}`);
+  const faces = fontFaceCss(doc, (f) => `assets/${f}`, 'swap');
   if (faces) css.push(indentLines(faces, 1));
   if (rules.length > 0) css.push(indentLines(rules.join('\n'), 1));
   const style = escapeCssText(css.join('\n'));

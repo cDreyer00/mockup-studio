@@ -1090,7 +1090,7 @@ export function tailwindThemeCss(
   if (root.length > 0) blocks.push(`:root {\n${root.join('\n')}\n}`);
   blocks.push(TAILWIND_BASE_CSS);
   const assetsBase = opts.assetsBase ?? 'assets/';
-  const faces = fontFaceCss(doc, (f) => `${assetsBase}${f}`);
+  const faces = fontFaceCss(doc, (f) => `${assetsBase}${f}`, 'swap');
   if (faces) blocks.push(faces);
   return escapeCssText(blocks.join('\n\n')) + '\n';
 }

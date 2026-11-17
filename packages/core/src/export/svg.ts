@@ -539,6 +539,7 @@ function layoutSvg(doc: Document, layout: LayoutNode, options: SvgExportOptions)
     ? fontFaceCss(
         { fonts: fontsWithResolvableFiles(doc, options.resolveImage) },
         (f) => options.resolveImage?.(f) ?? f,
+        'swap',
       )
     : '';
   if (fontCss)
@@ -583,7 +584,7 @@ function fallbackSvg(doc: Document, options: SvgExportOptions): string {
   const tokenStyle = Object.entries(cleanTokens(doc.tokens))
     .map(([k, v]) => `${k}: ${v}`)
     .join('; ');
-  const faces = fontFaceCss(doc, (f) => options.resolveImage?.(f) ?? `assets/${f}`);
+  const faces = fontFaceCss(doc, (f) => options.resolveImage?.(f) ?? `assets/${f}`, 'swap');
   const css = `${BASE_CSS}${faces ? '\n' + faces : ''}`;
   const wrapper = `<div xmlns="http://www.w3.org/1999/xhtml"${tokenStyle ? ` style="${escapeHtmlAttr(tokenStyle)}"` : ''}>`;
   return [

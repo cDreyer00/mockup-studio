@@ -795,7 +795,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   let css: string | undefined;
   if (mode === 'tailwind') css = tailwindThemeCss(doc, { assetsBase: ctx.assetsBase });
   else {
-    const faces = fontFaceCss(doc, (f) => `${ctx.assetsBase}${f}`);
+    const faces = fontFaceCss(doc, (f) => `${ctx.assetsBase}${f}`, 'swap');
     css = `${BASE_CSS}\n${faces ? faces + '\n' : ''}`;
   }
   return { componentName, code: code.join('\n'), css };
