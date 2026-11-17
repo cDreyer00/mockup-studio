@@ -125,6 +125,15 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
       z.object({ nodeId: id, svg: z.string(), attrs: z.record(z.string(), z.string()).optional() }),
     ),
   }),
+  z.object({
+    type: z.literal('setClasses'),
+    changes: z.array(z.object({ nodeId: id, classes: z.string().nullable() })),
+  }),
+  z.object({
+    type: z.literal('setStates'),
+    changes: z.array(z.object({ nodeId: id, states: z.record(z.string(), strMap).nullable() })),
+  }),
+  z.object({ type: z.literal('setCssBase'), base: z.enum(['default', 'tailwind']) }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -152,6 +161,9 @@ const OP_TYPES = [
   'setFonts',
   'setSrc',
   'setSvg',
+  'setClasses',
+  'setStates',
+  'setCssBase',
 ];
 
 /** Valida e normaliza uma op; lança `Error('Operação inválida: ...')` com os problemas legíveis. */

@@ -37,6 +37,17 @@ export interface Node {
   hidden: boolean;
   /** Posição no canvas (frames raiz) ou x/y de filhos com `position: absolute`. */
   position?: Position;
+  /**
+   * Classes Tailwind como foram escritas (`write_html`, `set_classes`, colar). É uma dica de
+   * round-trip: o render usa `style`/`states`; a exportação Tailwind reaproveita as classes que
+   * ainda batem com o estilo atual. Ver `docs/TAILWIND.md`.
+   */
+  classes?: string;
+  /**
+   * Estilos condicionais por variante (`hover`, `dark`, `md`, `md:hover`...; ver `states.ts`).
+   * Ausente quando vazio.
+   */
+  states?: Record<string, Record<string, string>>;
 }
 
 export interface Page {
@@ -93,6 +104,11 @@ export interface Document {
   /** Temas do documento, na ordem de exibição. Ausente quando vazio. */
   themes?: Theme[];
   fonts: FontRef[];
+  /**
+   * CSS base do documento: ausente (padrão do Mockup Studio) ou `tailwind` (acrescenta o preflight
+   * do Tailwind v4 no canvas, no render e no código exportado).
+   */
+  cssBase?: 'tailwind';
   meta: DocumentMeta;
 }
 

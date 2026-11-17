@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { collectIds } from './document.js';
 import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { sanitizeSvg } from './svg.js';
+import { normalizeStateKey } from './states.js';
 import {
   BLOCKED_TAGS,
   TAG_RE,
@@ -13,6 +14,32 @@ import {
 import type { Document, FontRef, Node, Page, Theme, TokenMeta } from './types.js';
 
 const PositionSchema = z.object({ x: z.number(), y: z.number() });
+
+/** Classes Tailwind do nó: espaços colapsados; vazio vira ausente. */
+const ClassesSchema = z
+  .string()
+  .transform((s) => s.trim().replace(/\s+/g, ' '))
+  .transform((s) => (s === '' ? undefined : s))
+  .optional();
+
+/**
+ * Estados do nó (`hover`, `dark`, `md:hover`...): chaves inválidas e declarações inseguras são
+ * descartadas (como em `style`), chaves normalizadas para a ordem canônica; vazio vira ausente.
+ */
+export const StatesSchema = z
+  .record(z.string(), z.record(z.string(), z.string()))
+  .transform((states) => {
+    const out: Record<string, Record<string, string>> = {};
+    for (const [k, v] of Object.entries(states)) {
+      const key = normalizeStateKey(k);
+      if (!key) continue;
+      const style = dropUnsafeStyles(v);
+      if (Object.keys(style).length === 0) continue;
+      out[key] = { ...(out[key] ?? {}), ...style };
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  })
+  .optional();
 
 const TagSchema = z
   .string()
@@ -175,6 +202,14 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       locked: z.boolean().default(false),
       hidden: z.boolean().default(false),
       position: PositionSchema.optional(),
+      classes: ClassesSchema,
+      states: StatesSchema,
+    })
+    .transform((n) => {
+      // Campos opcionais que a normalização esvaziou não aparecem como `undefined` no objeto.
+      if (n.classes === undefined) delete n.classes;
+      if (n.states === undefined) delete n.states;
+      return n;
     })
     .refine((n) => !VOID_TAGS.has(n.tag) || (n.children.length === 0 && n.text === undefined), {
       error: 'tag void (ex. img, input, br) não pode ter filhos nem texto',
@@ -225,6 +260,8 @@ export const DocumentSchema: z.ZodType<Document, unknown> = z.object({
   tokens: FileTokensSchema.default({}),
   tokenMeta: FileTokenMetaSchema,
   themes: FileThemesSchema,
+  // Valor desconhecido de `cssBase` cai para o padrão em vez de recusar o arquivo.
+  cssBase: z.enum(['tailwind']).optional().catch(undefined),
   // Na leitura de arquivo, fonte inválida/perigosa é descartada (como as declarações de estilo
   // ruins) em vez de recusar o documento inteiro; a op `setFonts` continua estrita.
   fonts: z
@@ -302,6 +339,8 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.text !== undefined) out.text = n.text;
   if (n.src !== undefined) out.src = n.src;
   if (n.svg !== undefined) out.svg = n.svg;
+  if (n.classes !== undefined) out.classes = n.classes;
+  if (n.states !== undefined && Object.keys(n.states).length > 0) out.states = n.states;
   out.locked = n.locked;
   out.hidden = n.hidden;
   out.children = n.children.map(orderNode);
@@ -318,6 +357,7 @@ export function serializeDocument(doc: Document): string {
     tokens: doc.tokens,
     ...(doc.tokenMeta && Object.keys(doc.tokenMeta).length > 0 && { tokenMeta: doc.tokenMeta }),
     ...(doc.themes && doc.themes.length > 0 && { themes: doc.themes }),
+    ...(doc.cssBase && { cssBase: doc.cssBase }),
     fonts: doc.fonts.map((f) => {
       const o: Record<string, unknown> = { family: f.family };
       if (f.source !== undefined) o.source = f.source;

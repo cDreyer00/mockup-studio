@@ -173,6 +173,30 @@ export interface SetSvgOp {
   changes: { nodeId: string; svg: string; attrs?: Record<string, string> }[];
 }
 
+/**
+ * Define as classes Tailwind escritas no nó (`node.classes`, dica de round-trip). `null` ou `''`
+ * remove. Não mexe no estilo: `set_classes` combina esta op com `updateStyles` e `setStates`.
+ */
+export interface SetClassesOp {
+  type: 'setClasses';
+  changes: { nodeId: string; classes: string | null }[];
+}
+
+/**
+ * Substitui os estados do nó (`node.states`: `hover`, `dark`, `md`...; ver `states.ts`).
+ * `null` ou `{}` remove todos.
+ */
+export interface SetStatesOp {
+  type: 'setStates';
+  changes: { nodeId: string; states: Record<string, Record<string, string>> | null }[];
+}
+
+/** CSS base do documento: `tailwind` (preflight do Tailwind v4) ou `default`. */
+export interface SetCssBaseOp {
+  type: 'setCssBase';
+  base: 'default' | 'tailwind';
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -195,7 +219,10 @@ export type Op =
   | SetTagOp
   | SetFontsOp
   | SetSrcOp
-  | SetSvgOp;
+  | SetSvgOp
+  | SetClassesOp
+  | SetStatesOp
+  | SetCssBaseOp;
 
 export type OpType = Op['type'];
 

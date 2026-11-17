@@ -7,6 +7,7 @@ import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase }
 import { normalizeTokenNames } from './schema.js';
 import { findVarRefs, normalizeTokenName, renameTokenProblem, replaceVarRefs } from './tokens.js';
 import { sanitizeSvg, setSvgRootAttrs, svgRootAttrs } from './svg.js';
+import { normalizeStateKey } from './states.js';
 import type { Document, Node, NodePath, Page, Theme, TokenMeta } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
@@ -553,6 +554,7 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
   // `setAttrs` (nós comuns) ou `setSvg` com `attrs` (nó svg com markup, onde `setAttrs` mexeria no
   // `<svg>` raiz e não em `node.attrs`), restaurando markup e attrs juntos.
   const styleInv: StyleChange[] = [];
+  const statesInv: { nodeId: string; states: Record<string, Record<string, string>> }[] = [];
   const attrsInv: { nodeId: string; set: Record<string, string>; unset: string[] }[] = [];
   const svgInv: { nodeId: string; svg: string; attrs?: Record<string, string> }[] = [];
   const touched = new Set<string>();
@@ -576,6 +578,27 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
         styleInv.push({ nodeId: node.id, set, unset });
         node.style = next;
         touched.add(node.id);
+      }
+
+      if (node.states) {
+        let statesChanged = false;
+        const nextStates: Record<string, Record<string, string>> = {};
+        for (const [key, st] of Object.entries(node.states)) {
+          const ns: Record<string, string> = {};
+          for (const [k, v] of Object.entries(st)) {
+            const nk = k === from ? to : k;
+            const nv = replaceVarRefs(v, from, to);
+            if (nk !== k || nv !== v) statesChanged = true;
+            if (nv !== v) refs++;
+            ns[nk] = nv;
+          }
+          nextStates[key] = ns;
+        }
+        if (statesChanged) {
+          statesInv.push({ nodeId: node.id, states: deepClone(node.states) });
+          node.states = nextStates;
+          touched.add(node.id);
+        }
       }
 
       const prevAttrs = node.attrs ?? {};
@@ -612,6 +635,7 @@ function doRenameToken(d: Document, op: Extract<Op, { type: 'renameToken' }>): A
     });
   }
   if (styleInv.length > 0) inverse.push({ type: 'updateStyles', changes: styleInv });
+  if (statesInv.length > 0) inverse.push({ type: 'setStates', changes: statesInv });
   if (attrsInv.length > 0) inverse.push({ type: 'setAttrs', changes: attrsInv });
   if (svgInv.length > 0) inverse.push({ type: 'setSvg', changes: svgInv });
   return { inverse, result: { from, to, nodes: touched.size, references: refs } };
@@ -668,6 +692,57 @@ function doSetSvg(d: Document, op: Extract<Op, { type: 'setSvg' }>): Applied {
     if (c.attrs) p.node.attrs = { ...c.attrs };
   }
   return { inverse: [{ type: 'setSvg', changes: prev.reverse() }] };
+}
+
+function doSetClasses(d: Document, op: Extract<Op, { type: 'setClasses' }>): Applied {
+  const prev: { nodeId: string; classes: string | null }[] = [];
+  for (const c of op.changes) {
+    const p = requireNode(d, c.nodeId);
+    prev.push({ nodeId: c.nodeId, classes: p.node.classes ?? null });
+    const next = (c.classes ?? '').trim().replace(/\s+/g, ' ');
+    if (/[<>{};"'`]/.test(next)) fail(`Classes inválidas no nó "${c.nodeId}": ${next}`);
+    if (next) p.node.classes = next;
+    else delete p.node.classes;
+  }
+  return { inverse: [{ type: 'setClasses', changes: prev.reverse() }] };
+}
+
+function doSetStates(d: Document, op: Extract<Op, { type: 'setStates' }>): Applied {
+  const prev: { nodeId: string; states: Record<string, Record<string, string>> | null }[] = [];
+  for (const c of op.changes) {
+    const p = requireNode(d, c.nodeId);
+    prev.push({ nodeId: c.nodeId, states: p.node.states ? deepClone(p.node.states) : null });
+    const next: Record<string, Record<string, string>> = {};
+    for (const [rawKey, styles] of Object.entries(c.states ?? {})) {
+      const key = normalizeStateKey(rawKey);
+      if (!key) {
+        fail(
+          `Estado inválido "${rawKey}" no nó "${c.nodeId}" (use hover, focus, focus-visible, focus-within, active, disabled, dark, sm, md, lg, xl, 2xl ou combinações como "md:hover")`,
+        );
+      }
+      const clean: Record<string, string> = {};
+      for (const [k, v] of Object.entries(styles)) {
+        const prop = toKebabCase(k.trim());
+        if (!isValidCssPropertyName(prop)) fail(`Propriedade CSS inválida: "${k}"`);
+        const problem = cssValueProblem(v);
+        if (problem) fail(`Valor inválido em ${prop} (${key}): ${problem}`);
+        if (v.trim() !== '') clean[prop] = v.trim();
+      }
+      if (Object.keys(clean).length > 0) {
+        next[key] = { ...(next[key] ?? {}), ...normalizeStyles(clean) };
+      }
+    }
+    if (Object.keys(next).length > 0) p.node.states = next;
+    else delete p.node.states;
+  }
+  return { inverse: [{ type: 'setStates', changes: prev.reverse() }] };
+}
+
+function doSetCssBase(d: Document, op: Extract<Op, { type: 'setCssBase' }>): Applied {
+  const prev = d.cssBase ?? 'default';
+  if (op.base === 'tailwind') d.cssBase = 'tailwind';
+  else delete d.cssBase;
+  return { inverse: [{ type: 'setCssBase', base: prev }] };
 }
 
 /* ---------------- API pública ---------------- */
@@ -740,6 +815,15 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setSrc':
       applied = doSetSrc(d, op);
+      break;
+    case 'setClasses':
+      applied = doSetClasses(d, op);
+      break;
+    case 'setStates':
+      applied = doSetStates(d, op);
+      break;
+    case 'setCssBase':
+      applied = doSetCssBase(d, op);
       break;
     case 'setSvg':
       applied = doSetSvg(d, op);

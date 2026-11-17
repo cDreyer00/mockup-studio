@@ -66,6 +66,8 @@ export function createNode(init: Partial<Node> & { tag: string }): Node {
   if (init.src !== undefined) node.src = init.src;
   if (init.svg !== undefined) node.svg = init.svg;
   if (init.position !== undefined) node.position = init.position;
+  if (init.classes) node.classes = init.classes;
+  if (init.states && Object.keys(init.states).length > 0) node.states = init.states;
   return node;
 }
 
@@ -193,6 +195,9 @@ export function cloneNodeWithNewIds(
       children: n.children.map(clone),
     };
     if (n.position) copy.position = { ...n.position };
+    if (n.states) {
+      copy.states = Object.fromEntries(Object.entries(n.states).map(([k, v]) => [k, { ...v }]));
+    }
     return copy;
   };
   return { node: clone(node), idMap };
