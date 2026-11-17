@@ -66,7 +66,7 @@ Pedido literal: `crie um mockup de tela de login`, sem instruções extras, só 
 3. Pedido literal com o `AGENTS.md` do snippet no projeto: passou a usar o MCP (`get_guide` e `create_document`), mas com o mesmo bloqueio de aprovação caiu para HTML à mão.
 4. `AGENTS.md` do snippet + `-c 'mcp_servers.mockup-studio.default_tools_approval_mode="approve"'`: **fluxo completo** em 1 min: `get_guide` (getting-started e design-system), `create_document`, `set_tokens`, `create_frame`, `write_html`, `get_screenshot` (jpg 800), `export` html, `finish_working`. Gerou `design/login.mockup.json` e `design/exports/desktop.html`.
 
-Conclusão: o Codex funciona de ponta a ponta, mas exige o snippet de AGENTS.md e a aprovação das ferramentas do servidor. Isso agora está documentado (INTEGRACAO.md e `get_guide('troubleshooting')`); ver pendência P1.
+Conclusão: o Codex funciona de ponta a ponta, mas exige o snippet de AGENTS.md e a aprovação das ferramentas do servidor. Isso está documentado (INTEGRACAO.md e `get_guide('troubleshooting')`) e agora é feito por `mockup setup codex --agents --approve` (P1).
 
 ## 5. Tempos medidos
 
@@ -102,16 +102,16 @@ Corrigidos:
 | 6 | Guia `responsive` não diz como nomear frames com várias telas. | Mockup com 3 telas x 2 breakpoints. | Corrigido em 969bc60 (padrão `<Tela> - <Breakpoint>` e linha por tela). |
 | 7 | Descrição de `create_document` dizia "com um frame vazio", mas o documento nasce sem frames. | `create_document` e `get_basic_info`. | Corrigido em 969bc60. |
 | 8 | Frame de altura fixa esconde overflow: o flexbox espreme os blocos e o screenshot parece caber, mas o código exportado (altura mínima) fica maior (dashboard: gráfico 190 px virou 150 px no canvas). | Dashboard com muito conteúdo num frame 1440x900; comparar `get_layout` com o html exportado. | Mitigado em 969bc60 (dica no guia `screenshot-loop`); a causa é inerente ao CSS. |
-| 9 | Codex: ferramentas que gravam são bloqueadas no `codex exec`, e sem AGENTS.md ele nem usa o MCP. | Ver seção 4. | Documentado em 7eb5373 (INTEGRACAO.md e guia `troubleshooting`); ver P1 para a automação. |
+| 9 | Codex: ferramentas que gravam são bloqueadas no `codex exec`, e sem AGENTS.md ele nem usa o MCP. | Ver seção 4. | Documentado em 7eb5373 (INTEGRACAO.md e guia `troubleshooting`); automatizado em P1. |
+| P1 | `mockup setup codex` não instalava o snippet de AGENTS.md nem ligava `default_tools_approval_mode = "approve"`; sem isso o Codex ignora o MCP ou é bloqueado. | `codex exec "crie um mockup de tela de login"` com o registro padrão. | Corrigido em 940eb77: `mockup setup codex --approve` grava a chave na seção do servidor e `--agents` acrescenta o snippet ao `~/.codex/AGENTS.md` entre marcadores (só com a flag, idempotentes, preservando o resto); `mockup doctor` avisa quando faltam. Testes em `setup.test.ts` e `doctor.test.ts`. |
+| P2 | `set_attrs` em nó `svg` (ex.: `height`) era aceito (`ok`) mas não alterava o markup exportado nem o render. | `write_html` com `<svg height="190">`, `set_attrs` `{height:"150"}`, `export` html. | Corrigido em b93cf94: os atributos são mesclados no `<svg>` raiz do markup (sanitizado de novo), com desfazer; teste em `apply.test.ts`. |
+| P3 | `add_font` google com 4 pesos gravava 4 arquivos idênticos (Inter é variável) e 4 `@font-face`. | `add_font({family:"Inter", source:"google", weights:[400,500,600,700]})` e olhar `assets/fonts/`. | Corrigido em 4da73ff: conteúdo idêntico vira um arquivo só e um `@font-face` com `font-weight:400 700`; documentos antigos continuam válidos. Teste em `mcp.fonts.test.ts` (sem rede). |
+| P4 | `@font-face` exportado usava `font-display: block` (texto invisível enquanto a fonte carrega). | Abrir o html/React exportado e capturar logo após o load. | Corrigido em 4180ffc: `swap` em html, react, tailwind e svg (e no `get_code`); o editor e o render interno seguem com `block` para o screenshot ser determinístico. Teste em `fontdisplay.test.ts`. |
 
 Pendentes (pequenos ou de design, sem correção aplicada):
 
 | # | Problema | Como reproduzir | Justificativa e sugestão |
 | --- | --- | --- | --- |
-| P1 | `mockup setup codex` não instala o snippet de AGENTS.md nem liga `default_tools_approval_mode = "approve"`. Sem isso o Codex ignora o MCP ou é bloqueado. | `codex exec "crie um mockup de tela de login"` com o registro padrão. | Mexe no `~/.codex` e em permissão: decisão do usuário. Sugestão: flags `mockup setup codex --agents --approve` (idempotentes, com aviso do que muda), e o `mockup doctor` avisar quando faltar. |
-| P2 | `set_attrs` em nó `svg` (ex.: `height`) é aceito (`ok`) mas não altera o markup exportado nem o render; o valor original do `<svg>` continua valendo. | `write_html` com `<svg height="190">`, `set_attrs` `{height:"150"}`, `export` html: continua `height="190"`. | Contornável com `update_styles` (CSS vence). Sugestão: `set_attrs` em svg mesclar os atributos no `<svg>` raiz, ou recusar com mensagem apontando `update_styles`. Mencionado no guia `screenshot-loop`. |
-| P3 | `add_font` google com 4 pesos grava 4 arquivos idênticos (Inter é fonte variável: 4 x 48 KB, mesmo hash) e 4 `@font-face`. | `add_font({family:"Inter", source:"google", weights:[400,500,600,700]})` e olhar `assets/fonts/`. | Só desperdício de disco e de CSS. Sugestão: deduplicar por hash e emitir um `@font-face` com faixa de pesos. |
-| P4 | `@font-face` exportado usa `font-display: block`: com a fonte ainda carregando, o texto fica invisível (até 3 s); vi isso numa captura feita cedo demais. | Abrir o React/html exportado e capturar logo após o load. | Útil para screenshots determinísticos, ruim para código entregue. Sugestão: `swap` nos formatos de entrega, `block` só no render interno. |
 | P5 | `write_html` descarta `<script>` sem avisar (resposta `ok`, nó vazio). | `write_html` com `<div><script>alert(1)</script></div>`. | Comportamento seguro, mas o agente não sabe que foi descartado. Sugestão: nota "N elemento(s) removido(s): script". |
 | P6 | Nome de camada vem só da primeira classe: `class="card chart"` vira "Card" (vários nós "Card" no resumo). | `write_html` com classes compostas e `get_tree_summary`. | Cosmético; o agente pode passar `data-name` ou usar `rename_nodes`. Sugestão: usar a classe mais específica (última) ou `data-name` no guia. |
 | P7 | `set_tokens` devolve a lista completa de tokens a cada chamada (27 linhas no meu caso). | Qualquer `set_tokens` com muitos tokens. | Gasto de contexto pequeno; sugestão: devolver só os alterados e a contagem. |
@@ -128,3 +128,11 @@ codex mcp list
 # abrir docs/qa/financas.mockup.json no app ou via open_document e rodar get_screenshot em cada frame
 mockup stop            # ao terminar
 ```
+
+## 8. Reexecução do registro depois das correções
+
+Depois das correções do `mockup setup` (não recria um registro igual; lê `~/.claude.json` e `~/.codex/config.toml` em vez de `mcp get`; no Codex edita só `command`/`args`/`env` preservando o resto), nesta máquina:
+
+- `mockup setup claude` e `mockup setup codex`, duas vezes cada: as quatro execuções responderam "já registrado com o mesmo comando; nada a fazer", e o hash de `~/.claude.json` e de `~/.codex/config.toml` ficou igual antes e depois.
+- `claude mcp list`: `mockup-studio: mockup mcp - ✔ Connected`. `codex mcp list`: `mockup-studio  mockup  mcp  ...  enabled`.
+- `mockup doctor` (≈ 2 s, sem conectar nos clientes) mostra o escopo e o comando registrados e avisa, no Codex, a falta de `default_tools_approval_mode = "approve"` e do trecho no `AGENTS.md`. `--approve`/`--agents` não foram aplicados aqui (mexem na config do usuário); `--print` mostra o que fariam.
