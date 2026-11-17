@@ -29,6 +29,7 @@ import {
 } from '@mockup/core';
 import { OutlineError, buildTextOutlineOps } from '../../outlines.js';
 import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
+import { docWithNodes } from '../../component-view.js';
 
 const stylesField = z.record(z.string(), z.string());
 
@@ -621,7 +622,8 @@ export function registerVectorTools(ctx: ToolContext): void {
     },
     async ({ nodeIds, op, name, docId }) => {
       const id = store.resolveDocId(docId);
-      const doc = store.get(id);
+      // ids virtuais (dentro de instâncias): lê da visão expandida; as ops roteiam
+      const doc = docWithNodes(store.get(id), nodeIds);
       for (const n of nodeIds) requireNode(doc, n);
       const boxes = await flowBoxes(doc, id, nodeIds);
       const built = guard(() =>
@@ -651,7 +653,8 @@ export function registerVectorTools(ctx: ToolContext): void {
     },
     async ({ nodeIds, name, docId }) => {
       const id = store.resolveDocId(docId);
-      const doc = store.get(id);
+      // ids virtuais (dentro de instâncias): lê da visão expandida; as ops roteiam
+      const doc = docWithNodes(store.get(id), nodeIds);
       for (const n of nodeIds) requireNode(doc, n);
       const boxes = await flowBoxes(doc, id, nodeIds);
       const built = guard(() => buildFlattenOps(doc, nodeIds, { name, boxes }));
@@ -684,7 +687,7 @@ export function registerVectorTools(ctx: ToolContext): void {
         throw new ToolError('Informe nodeIds (ou nodeId). Ex.: nodeIds ["tx_ab12cd34"].');
       }
       const id = store.resolveDocId(docId);
-      const doc = store.get(id);
+      const doc = docWithNodes(store.get(id), ids);
       for (const n of ids) requireNode(doc, n);
       let res;
       try {

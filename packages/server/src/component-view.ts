@@ -71,6 +71,19 @@ export function resolveRead(doc: Document, id: string): ReadResolution | undefin
   return path ? { path, doc: temp, component: c.component } : undefined;
 }
 
+/**
+ * Documento em que os nós `ids` existem, para quem monta ops lendo o nó (dados, placeholder,
+ * contornos, booleanas): o próprio documento (nós reais), o expandido (ids virtuais `in_x/...`;
+ * as ops roteiam para overrides) ou o temporário de um principal (as ops editam o principal).
+ */
+export function docWithNodes(doc: Document, ids: readonly string[]): Document {
+  if (ids.every((id) => findNode(doc, id))) return doc;
+  const expanded = expandDocument(doc);
+  const missing = ids.find((id) => !findNode(expanded, id));
+  if (missing === undefined) return expanded;
+  return resolveRead(doc, missing)?.doc ?? doc;
+}
+
 const PREVIEW_INSTANCE_ID = 'in_preview0';
 const PREVIEW_FRAME_ID = 'fr_preview0';
 

@@ -10,6 +10,7 @@ import {
 } from '../../datasource.js';
 import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
 import { registerImageEditTools } from './imageEdit.js';
+import { docWithNodes } from '../../component-view.js';
 
 /** Converte erros de dados em `ToolError` (mensagem já em português). */
 async function asToolError<T>(fn: () => Promise<T> | T): Promise<T> {
@@ -159,10 +160,10 @@ export function registerDataTools(ctx: ToolContext): void {
           ...(mapping ? { mapping } : {}),
           ...(limit ? { limit } : {}),
         });
-        return bindOps(store.get(id), nodeId, loaded);
+        return bindOps(docWithNodes(store.get(id), [nodeId]), nodeId, loaded);
       });
       const out = apply(id, bound.ops, 'bind_data');
-      const rep = dataReport(out.doc, bound.nodeId);
+      const rep = dataReport(docWithNodes(out.doc, [bound.nodeId]), bound.nodeId);
       const head = bound.converted
         ? `Contêiner ${nodeId} convertido em repetidor ${rep.nodeId} (os filhos viraram o template).`
         : `Dados do repetidor ${rep.nodeId} atualizados.`;
@@ -187,12 +188,12 @@ export function registerDataTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       repeaterOf(store.get(id), nodeId);
       const bound = await asToolError(async () => {
-        const rep = dataReport(store.get(id), nodeId);
+        const rep = dataReport(docWithNodes(store.get(id), [nodeId]), nodeId);
         const loaded = await reloadSource(rep.source);
-        return bindOps(store.get(id), nodeId, loaded);
+        return bindOps(docWithNodes(store.get(id), [nodeId]), nodeId, loaded);
       });
       const out = apply(id, bound.ops, 'refresh_data');
-      const rep = dataReport(out.doc, nodeId);
+      const rep = dataReport(docWithNodes(out.doc, [nodeId]), nodeId);
       return `Dados atualizados.\n${reportText(rep)}\n${summaryOf(out.doc, [nodeId])}`;
     },
   );
@@ -218,10 +219,10 @@ export function registerDataTools(ctx: ToolContext): void {
       annotations: READ,
     },
     async ({ nodeId, limit, docId }) => {
-      const doc = store.get(store.resolveDocId(docId));
+      const doc = docWithNodes(store.get(store.resolveDocId(docId)), [nodeId]);
       repeaterOf(doc, nodeId);
       const rep = await asToolError(() => dataReport(doc, nodeId));
-      const data = (findNode(doc, nodeId)!.node.data ?? []) as unknown[];
+      const data = (findNode(doc, nodeId)?.node.data ?? []) as unknown[];
       const n = limit ?? 20;
       const shown = Math.min(n, data.length);
       return `${reportText(rep)}\n\nPrimeiras ${shown} de ${data.length} linha(s):\n${tableOf(data, rep.columns, n)}`;

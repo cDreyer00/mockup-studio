@@ -19,6 +19,7 @@ import { sanitizeAssetName } from '../../http.js';
 import { PlaceholderError, buildPlaceholder } from '../../placeholder.js';
 import { ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
 import { loadSource } from './images.js';
+import { docWithNodes } from '../../component-view.js';
 
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024;
 
@@ -247,7 +248,7 @@ export function registerImageEditTools(ctx: ToolContext): void {
     },
     async ({ nodeId, kind, seed, width, height, label, docId }) => {
       const id = store.resolveDocId(docId);
-      const doc = store.get(id);
+      const doc = docWithNodes(store.get(id), [nodeId]);
       requireNode(doc, nodeId);
       let r;
       try {

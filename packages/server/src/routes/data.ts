@@ -12,6 +12,7 @@ import {
 } from '../datasource.js';
 import { PlaceholderError, buildPlaceholder } from '../placeholder.js';
 import { RouteError, requireDoc, wrap, type RouteContext } from './shared.js';
+import { docWithNodes } from '../component-view.js';
 
 /** Converte os erros de uso em 400 (os demais seguem para o middleware de erro). */
 async function guard<T>(fn: () => Promise<T> | T): Promise<T> {
@@ -83,9 +84,10 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
         const docPath = store.getInfo(docId).path;
         const roots = [os.homedir(), ...(docPath ? [path.dirname(docPath)] : [])];
         const loaded = await loadData(inputOf(body), { roots });
-        const r = bindOps(store.get(docId), String(req.params['nodeId']), loaded);
+        const target = String(req.params['nodeId']);
+        const r = bindOps(docWithNodes(store.get(docId), [target]), target, loaded);
         const out = store.applyOps(docId, r.ops, { source: 'editor', label: 'bind_data' });
-        const rep = dataReport(out.doc, r.nodeId);
+        const rep = dataReport(docWithNodes(out.doc, [r.nodeId]), r.nodeId);
         res.json({
           nodeId: rep.nodeId,
           count: rep.count,
@@ -103,11 +105,11 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
         const docId = String(req.params['docId']);
         requireDoc(ctx, docId);
         const nodeId = String(req.params['nodeId']);
-        const rep0 = dataReport(store.get(docId), nodeId);
+        const rep0 = dataReport(docWithNodes(store.get(docId), [nodeId]), nodeId);
         const loaded = await reloadSource(rep0.source);
-        const r = bindOps(store.get(docId), nodeId, loaded);
+        const r = bindOps(docWithNodes(store.get(docId), [nodeId]), nodeId, loaded);
         const out = store.applyOps(docId, r.ops, { source: 'editor', label: 'refresh_data' });
-        const rep = dataReport(out.doc, r.nodeId);
+        const rep = dataReport(docWithNodes(out.doc, [r.nodeId]), r.nodeId);
         res.json({
           nodeId: rep.nodeId,
           count: rep.count,
@@ -137,7 +139,7 @@ export function registerDataRoutes(app: Express, ctx: RouteContext): void {
           return v;
         };
         const seed = b['seed'];
-        const r = await buildPlaceholder(store.get(docId), store.assetsDir(docId), {
+        const r = await buildPlaceholder(docWithNodes(store.get(docId), [nodeId]), store.assetsDir(docId), {
           nodeId,
           kind: kind as PlaceholderKind,
           ...(typeof seed === 'string' || typeof seed === 'number' ? { seed } : {}),

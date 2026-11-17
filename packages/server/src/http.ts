@@ -4,7 +4,7 @@ import { PREVIEW_STATES, exportSvg, type PreviewState } from '@mockup/core';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { assetDataUrl, writeAsset } from './assets.js';
-import { renderTargetFor } from './component-view.js';
+import { docWithNodes, renderTargetFor } from './component-view.js';
 import { KitError, listKits, loadKit } from './kits.js';
 import { detectAsset, getLibrary } from './library.js';
 import { detectVideo, fetchAnimation, validateAnimation } from './mediaBytes.js';
@@ -420,7 +420,7 @@ export function createApp(
         throw new HttpError(400, 'nodeIds deve ser uma lista de ids de nós de texto, ex.: ["tx_ab12cd34"]');
       try {
         const out = await buildTextOutlineOps({
-          doc: store.get(docId),
+          doc: docWithNodes(store.get(docId), nodeIds as string[]),
           docId,
           nodeIds: nodeIds as string[],
           assetsDir: store.assetsDir(docId),
