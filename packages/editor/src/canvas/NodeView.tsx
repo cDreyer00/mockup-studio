@@ -8,14 +8,16 @@ import {
   useRef,
 } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { VOID_TAGS, inlineSvgVars } from '@mockup/core';
-import type { Document, Node, Op } from '@mockup/core';
+import { VOID_TAGS, inlineSvgVars, resolveStateStyle } from '@mockup/core';
+import type { Document, Node, Op, StateContext } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { useDoc } from '../state/docStore';
 import { nodeScopeVars } from '../tokens/reportCache';
 import { ui, useUi } from '../state/uiStore';
 import type { NodePreview } from '../state/uiStore';
 import { convertStyle, resolveSrc, resolveTag, safeAttrs, svgToDataUri } from './render-utils';
+import { StateCtxContext, rootStateCtx, themedStateCtx, toCoreContext } from './stateContext';
+import type { StateCtx } from './stateContext';
 
 /** Id do documento (resolve o caminho de assets). Estável entre edições. */
 export const DocIdContext = createContext('');
@@ -28,15 +30,20 @@ export const RenderDocContext = createContext<Document | null>(null);
 
 const px = (n: number): string => `${n}px`;
 
-/** CSS final do nó: estilo do documento + prévia transitória (arrasto/redimensionamento). */
+/**
+ * CSS final do nó: estilo do documento (com os estados ativos de `states`, quando há contexto) +
+ * prévia transitória (arrasto/redimensionamento).
+ */
 export function buildNodeStyle(
   node: Node,
   preview: NodePreview | undefined,
   root: boolean,
+  states?: StateContext,
 ): CSSProperties {
-  const style: Record<string, unknown> = { ...convertStyle(node.style ?? {}) };
+  const base = (states && node.states ? resolveStateStyle(node, states) : node.style) ?? {};
+  const style: Record<string, unknown> = { ...convertStyle(base) };
   // Filhos absolutos usam `position` como left/top quando não definidos no CSS.
-  if (!root && node.position && node.style?.position === 'absolute') {
+  if (!root && node.position && base.position === 'absolute') {
     style.left ??= px(node.position.x);
     style.top ??= px(node.position.y);
   }
@@ -49,7 +56,7 @@ export function buildNodeStyle(
     style.left = px(pos?.x ?? 0);
     style.top = px(pos?.y ?? 0);
     style.margin = 0;
-  } else if (preview?.position && node.style?.position === 'absolute') {
+  } else if (preview?.position && base.position === 'absolute') {
     style.left = px(preview.position.x);
     style.top = px(preview.position.y);
   }
@@ -160,9 +167,7 @@ function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
     withVars && !renderDoc && s.doc ? svgWithScope(s.doc, node, svg) : null,
   );
   const markup = useMemo(
-    () =>
-      fromStore ??
-      (withVars && renderDoc ? svgWithScope(renderDoc, node, svg) : svg),
+    () => fromStore ?? (withVars && renderDoc ? svgWithScope(renderDoc, node, svg) : svg),
     [fromStore, withVars, renderDoc, svg, node.id],
   );
   const src = useMemo(() => svgToDataUri(markup), [markup]);
@@ -173,6 +178,28 @@ function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
     style,
     'data-node-id': node.id,
   });
+}
+
+/**
+ * Contexto de estados deste nó: o frame raiz usa a própria largura; nós com data-theme trocam o
+ * dark da subárvore. Devolve o mesmo objeto enquanto nada muda (o contexto não re-renderiza a árvore).
+ */
+function useStableCtx(
+  node: Node,
+  root: boolean,
+  base: StateCtx,
+  rootWidth: string | undefined,
+): StateCtx {
+  const prev = useRef<StateCtx | null>(null);
+  let next = root ? rootStateCtx(base, rootWidth) : base;
+  const theme = node.attrs?.['data-theme'];
+  if (theme !== undefined) next = themedStateCtx(next, theme);
+  const same = (a: StateCtx): boolean =>
+    a.preview === next.preview && a.bpWidth === next.bpWidth && a.dark === next.dark;
+  if (same(base)) next = base;
+  else if (prev.current && same(prev.current)) next = prev.current;
+  prev.current = next;
+  return next;
 }
 
 interface NodeViewProps {
@@ -189,7 +216,22 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   const docId = useContext(DocIdContext);
   const preview = useUi((s) => s.preview[node.id]);
   const editing = useUi((s) => s.editingTextId === node.id);
-  const style = useMemo(() => buildNodeStyle(node, preview, root), [node, preview, root]);
+  const baseCtx = useContext(StateCtxContext);
+  const ctx = useStableCtx(
+    node,
+    root,
+    baseCtx,
+    root ? (preview?.style?.width ?? node.style.width) : undefined,
+  );
+  // Só quem tem estados reprocessa o estilo quando o contexto muda.
+  const statesCtx = node.states ? ctx : null;
+  const style = useMemo(
+    () => buildNodeStyle(node, preview, root, statesCtx ? toCoreContext(statesCtx) : undefined),
+    [node, preview, root, statesCtx],
+  );
+  /** A subárvore enxerga o contexto do frame raiz / do tema deste nó. */
+  const scoped = (el: ReactNode): ReactNode =>
+    ctx === baseCtx ? el : <StateCtxContext.Provider value={ctx}>{el}</StateCtxContext.Provider>;
   const attrs = useMemo(() => safeAttrs(node, docId), [node, docId]);
   if (node.hidden) return null;
 
@@ -211,14 +253,14 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   if (VOID_TAGS.has(tag)) return createElement(tag, props);
 
   if (editing && node.type === 'text') {
-    return (
+    return scoped(
       <EditableText
         tag={tag}
         props={props}
         text={node.text ?? ''}
         nodeId={node.id}
         hasWhiteSpace={node.style['white-space'] !== undefined}
-      />
+      />,
     );
   }
 
@@ -227,5 +269,5 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   for (const child of node.children ?? []) {
     if (!child.hidden) children.push(<NodeView key={child.id} node={child} />);
   }
-  return createElement(tag, props, ...children);
+  return scoped(createElement(tag, props, ...children));
 });

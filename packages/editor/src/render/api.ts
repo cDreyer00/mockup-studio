@@ -12,6 +12,7 @@ import type {
   LayoutStyle,
   LayoutTextLine,
   Node,
+  PreviewState,
   RenderBox,
 } from '@mockup/core';
 import { RenderApp, renderFrameOf } from './RenderApp';
@@ -23,6 +24,8 @@ export interface RenderPayload {
   docId: string;
   nodeId: string;
   transparent?: boolean;
+  /** Prévia de estado (hover, focus, active, focus-visible, disabled, dark). */
+  state?: PreviewState;
 }
 
 export interface MockupRenderApi {
@@ -174,7 +177,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
   let last: Last | null = null;
 
   const api: MockupRenderApi = {
-    async render({ doc, docId, nodeId, transparent }) {
+    async render({ doc, docId, nodeId, transparent, state }) {
       const picked = pickFrame(doc, nodeId);
       if (!picked) throw new Error(`Nó não encontrado no documento: ${nodeId}`);
       const frame = renderFrameOf(picked.frame);
@@ -190,7 +193,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       document.documentElement.style.colorScheme = transparent ? 'normal' : '';
 
       root ??= createRoot(container);
-      flushSync(() => root!.render(createElement(RenderApp, { doc, docId, frame })));
+      flushSync(() => root!.render(createElement(RenderApp, { doc, docId, frame, state })));
 
       const world = container.firstElementChild as HTMLElement | null;
       const frameEl = world?.querySelector<HTMLElement>(esc(frame.id));

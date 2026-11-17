@@ -4,7 +4,7 @@
  * não re-renderizem a árvore inteira.
  */
 import { create } from 'zustand';
-import type { Position } from '@mockup/core';
+import type { Position, PreviewState } from '@mockup/core';
 
 export type LeftTab = 'layers' | 'tokens';
 
@@ -52,6 +52,11 @@ export interface UiState {
   altDown: boolean;
   /** Aba ativa do painel esquerdo. */
   leftTab: LeftTab;
+  /** Prévia de estado (hover, focus, dark...) aplicada a todos os nós do canvas; 
+ull = nenhuma. */
+  previewState: PreviewState | null;
+  /** Seção Classes: mostra o estilo atual como classes Tailwind (somente leitura). */
+  showAsTailwind: boolean;
   /** Mensagem transitória para o usuário (erros de op, avisos). */
   toast: { text: string; kind: 'info' | 'error'; at: number } | null;
 }
@@ -68,6 +73,8 @@ export const useUi = create<UiState>(() => ({
   spaceDown: false,
   altDown: false,
   leftTab: 'layers',
+  previewState: null,
+  showAsTailwind: false,
   toast: null,
 }));
 
@@ -120,6 +127,12 @@ export const ui = {
   },
   setLeftTab(leftTab: LeftTab): void {
     if (useUi.getState().leftTab !== leftTab) useUi.setState({ leftTab });
+  },
+  setPreviewState(previewState: PreviewState | null): void {
+    if (useUi.getState().previewState !== previewState) useUi.setState({ previewState });
+  },
+  setShowAsTailwind(showAsTailwind: boolean): void {
+    useUi.setState({ showAsTailwind });
   },
   editText(id: string | null): void {
     useUi.setState({ editingTextId: id });

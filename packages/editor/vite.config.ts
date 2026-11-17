@@ -17,7 +17,14 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     // O editor compila contra o fonte do core.
-    alias: { '@mockup/core': path.resolve(dirname, '../core/src/index.ts') },
+    // O subpacote do Tailwind vem antes: o motor sai em chunk próprio (carregado sob demanda).
+    alias: [
+      {
+        find: /^@mockup\/core\/tailwind$/,
+        replacement: path.resolve(dirname, '../core/src/tailwind/index.ts'),
+      },
+      { find: /^@mockup\/core$/, replacement: path.resolve(dirname, '../core/src/index.ts') },
+    ],
   },
   server: { proxy },
   preview: { proxy },

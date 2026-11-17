@@ -12,6 +12,8 @@ import {
   Type,
   Undo2,
 } from 'lucide-react';
+import { PREVIEW_STATES } from '@mockup/core';
+import type { PreviewState } from '@mockup/core';
 import { actions } from '../actions';
 import { daemon } from '../client/daemon';
 import {
@@ -236,6 +238,44 @@ function DocumentTitle() {
   );
 }
 
+/* ---------------- prévia de estado ---------------- */
+
+const PREVIEW_LABELS: Record<PreviewState, string> = {
+  hover: 'hover',
+  focus: 'focus',
+  active: 'active',
+  'focus-visible': 'focus-visible',
+  'focus-within': 'focus-within',
+  disabled: 'disabled',
+  dark: 'dark',
+};
+
+/** Seletor da prévia de estado: aplica hover/focus/dark... a todos os nós do canvas. */
+function PreviewStateSelect() {
+  const state = useUi((s) => s.previewState);
+  return (
+    <label
+      className={`tb-preview${state ? ' on' : ''}`}
+      title="Prévia de estado: aplica as variantes (hover:, focus:, dark:...) a todo o canvas"
+    >
+      <span>Prévia</span>
+      <select
+        className="tb-doc-select"
+        data-testid="preview-state"
+        value={state ?? ''}
+        onChange={(e) => ui.setPreviewState((e.target.value || null) as PreviewState | null)}
+      >
+        <option value="">Nenhum</option>
+        {PREVIEW_STATES.map((s) => (
+          <option key={s} value={s}>
+            {PREVIEW_LABELS[s]}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 /* ---------------- zoom ---------------- */
 
 function ZoomMenu() {
@@ -328,6 +368,7 @@ export function Toolbar() {
       <div className="tb-center">
         <DocumentTitle />
       </div>
+      <PreviewStateSelect />
       <ZoomMenu />
       <span className="tb-sep" />
       <div className="tb-status" data-testid="connection-status" data-status={status}>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { documentBaseCss, fontFaceCss } from '@mockup/core';
+import { documentBaseCss, documentBaseCssFor, fontFaceCss } from '@mockup/core';
 import type { FontRef } from '@mockup/core';
 
 /** CSS `@font-face` das fontes embutidas do documento, com os arquivos em `/assets/<docId>/...`. */
@@ -19,6 +19,14 @@ export function FontFaces({ fonts, docId }: { fonts: FontRef[] | undefined; docI
  */
 export const DOCUMENT_BASE_CSS = documentBaseCss('.cv-world', '.cv-world > [data-node-id]');
 
-export function DocumentBase() {
-  return <style data-testid="doc-base">{DOCUMENT_BASE_CSS}</style>;
+/** CSS base do documento; com cssBase: 'tailwind' inclui o preflight do Tailwind. */
+export function DocumentBase({ cssBase }: { cssBase?: 'tailwind' }) {
+  const css = useMemo(
+    () =>
+      cssBase
+        ? documentBaseCssFor({ cssBase }, '.cv-world', '.cv-world > [data-node-id]')
+        : DOCUMENT_BASE_CSS,
+    [cssBase],
+  );
+  return <style data-testid="doc-base">{css}</style>;
 }

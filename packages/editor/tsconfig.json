@@ -13,7 +13,10 @@
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
     "baseUrl": ".",
-    "paths": { "@mockup/core": ["../core/src/index.ts"] }
+    "paths": {
+      "@mockup/core": ["../core/src/index.ts"],
+      "@mockup/core/tailwind": ["../core/src/tailwind/index.ts"]
+    }
   },
   "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts", "../core/src/vendor.d.ts"]
 }

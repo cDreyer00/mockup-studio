@@ -171,3 +171,18 @@
 .tb-dot.offline {
   background: var(--danger);
 }
+
+.tb-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.tb-preview.on > span {
+  color: var(--accent);
+}
+.tb-preview.on .tb-doc-select {
+  border-color: var(--accent);
+}

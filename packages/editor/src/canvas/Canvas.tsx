@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { frameSize } from '../model/tree';
 import { useDoc } from '../state/docStore';
@@ -14,6 +14,7 @@ import type { Rect, Viewport } from './geometry';
 import { measureWorldRect } from './dom';
 import { attachInteractions } from './interactions';
 import { DocIdContext } from './NodeView';
+import { BASE_STATE_CTX, StateCtxContext } from './stateContext';
 import { Overlay } from './Overlay';
 import './canvas.css';
 
@@ -44,6 +45,9 @@ export function Canvas() {
   const tokens = useDoc((s) => s.doc?.tokens);
   const themes = useDoc((s) => s.doc?.themes);
   const fonts = useDoc((s) => s.doc?.fonts);
+  const cssBase = useDoc((s) => s.doc?.cssBase);
+  const previewState = useUi((s) => s.previewState);
+  const stateCtx = useMemo(() => ({ ...BASE_STATE_CTX, preview: previewState }), [previewState]);
   const page = useActivePage();
   const focusRequest = useUi((s) => s.focusRequest);
   const pageRef = useRef(page);
@@ -208,12 +212,14 @@ export function Canvas() {
         style={tokens as CSSProperties | undefined}
       >
         <DocIdContext.Provider value={docId ?? ''}>
-          {page?.frames.map((f) => (
-            <FrameView key={f.id} frame={f} />
-          ))}
+          <StateCtxContext.Provider value={stateCtx}>
+            {page?.frames.map((f) => (
+              <FrameView key={f.id} frame={f} />
+            ))}
+          </StateCtxContext.Provider>
         </DocIdContext.Provider>
       </div>
-      <DocumentBase />
+      <DocumentBase cssBase={cssBase} />
       <ThemeStyles tokens={tokens ?? {}} themes={themes} />
       <FontFaces fonts={fonts} docId={docId ?? ''} />
       <Overlay rootRef={rootRef} />
