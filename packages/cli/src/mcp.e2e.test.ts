@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { locateElectron } from './electron.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const binPath = path.resolve(here, '../dist/bin.js');
@@ -110,6 +111,42 @@ describe('mockup mcp (stdio)', () => {
 
     const info = await client.callTool({ name: 'get_basic_info', arguments: {} });
     expect(textOf(info)).toContain('Desktop');
+
+    // Ciclo do agente: ver o resultado e entregar o código. Com Electron disponível (pacote desktop
+    // buildado), o CLI sobe o Electron headless e o screenshot é uma imagem PNG de verdade.
+    const shot = await client.callTool({
+      name: 'get_screenshot',
+      arguments: { nodeId: frameId, scale: 1, format: 'png' },
+    });
+    const content = (shot as { content: { type: string; data?: string; mimeType?: string }[] })
+      .content;
+    const image = content.find((c) => c.type === 'image');
+    if (locateElectron()) {
+      expect(shot.isError, textOf(shot)).toBeFalsy();
+      expect(image?.mimeType).toBe('image/png');
+      // assinatura PNG (\x89PNG) em base64
+      expect(image?.data?.startsWith('iVBORw0KGgo')).toBe(true);
+    } else {
+      expect(shot.isError).toBe(true);
+      expect(textOf(shot)).toMatch(/render/i);
+    }
+
+    const outputDir = path.join(dataDir, 'exports');
+    const exported = await client.callTool({
+      name: 'export',
+      arguments: { nodeIds: [frameId], format: 'html', outputDir },
+    });
+    expect(exported.isError, textOf(exported)).toBeFalsy();
+    const files = fs.readdirSync(outputDir).filter((f) => f.endsWith('.html'));
+    expect(files.length).toBe(1);
+    expect(fs.readFileSync(path.join(outputDir, files[0]), 'utf8')).toContain('Olá mundo');
+  });
+
+  it('erro de parâmetro chega pelo proxy com mensagem acionável', async () => {
+    const r = await client.callTool({ name: 'create_frame', arguments: { name: 'X' } });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('width');
+    expect(textOf(r)).toContain('Exemplo: create_frame(');
   });
 
   it('expõe os guias como resources', async () => {
