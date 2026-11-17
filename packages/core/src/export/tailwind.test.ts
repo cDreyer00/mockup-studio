@@ -1,7 +1,13 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '../schema.js';
-import { cssToTailwind, exportTailwind, tailwindThemeCss } from './tailwind.js';
+import { createNodeFromTag } from '../document.js';
+import {
+  cssToTailwind,
+  exportTailwind,
+  tailwindNodeParts,
+  tailwindThemeCss,
+} from './tailwind.js';
 
 const landing = parseDocument(
   fs.readFileSync(new URL('../../../../examples/landing.mockup.json', import.meta.url), 'utf8'),
@@ -282,5 +288,24 @@ describe('exportTailwind', () => {
     expect(frag).toContain('bg-surface');
     expect(frag).toContain('rounded-(--radius)');
     expect(frag).toContain('py-5 px-16');
+  });
+});
+
+describe('propriedades sem classe equivalente e estados do nó', () => {
+  it('propriedade alterada por um estado vai como classe arbitrária, não como style inline', () => {
+    const node = createNodeFromTag('div', {
+      styles: { 'scroll-snap-type': 'x mandatory', 'text-wrap': 'balance' },
+    });
+    node.states = { hover: { 'scroll-snap-type': 'none' } };
+    const { classes, rest } = tailwindNodeParts(node, {});
+    expect(rest).toEqual({});
+    expect(classes).toContain('[scroll-snap-type:x_mandatory]');
+    expect(classes).toContain('hover:[scroll-snap-type:none]');
+  });
+
+  it('valor que não vira classe arbitrária segura continua inline', () => {
+    const node = createNodeFromTag('div', { styles: { 'font-feature-settings': '"a;b"' } });
+    node.states = { hover: { 'font-feature-settings': 'normal' } };
+    expect(tailwindNodeParts(node, {}).rest).toEqual({ 'font-feature-settings': '"a;b"' });
   });
 });
