@@ -60,8 +60,6 @@ export interface ClassInfo {
   utility?: CompiledUtility;
   /** Motivo quando `unsupported`. */
   reason?: string;
-  /** Ordem do Tailwind (cascata). */
-  order?: bigint;
 }
 
 export interface TailwindStyles {
@@ -797,15 +795,7 @@ class Engine implements TailwindEngine {
       if (target !== 'self' && mapped.state !== '') {
         return { cls, status: 'unsupported', reason: 'classe de filhos com estado' };
       }
-      const order = this.ds.getClassOrder([cls])[0]?.[1] ?? null;
-      return {
-        cls,
-        status: 'applied',
-        state: mapped.state,
-        target,
-        utility,
-        order: order ?? undefined,
-      };
+      return { cls, status: 'applied', state: mapped.state, target, utility };
     }
     return { cls, status: 'unknown' };
   }
@@ -847,9 +837,18 @@ class Engine implements TailwindEngine {
         .filter((i) => i.status === 'unsupported')
         .map((i) => ({ cls: i.cls, reason: i.reason ?? '' })),
     };
+    // a ordem (cascata do Tailwind) só existe relativa à lista inteira: pede-se de uma vez
+    const orders = new Map<string, bigint>();
+    try {
+      for (const [c, o] of this.ds.getClassOrder(applied.map((i) => i.cls))) {
+        if (o !== null) orders.set(c, o);
+      }
+    } catch {
+      /* sem ordem: vale a do autor */
+    }
     const byOrder = (a: ClassInfo, b: ClassInfo): number => {
-      const x = a.order ?? 0n;
-      const y = b.order ?? 0n;
+      const x = orders.get(a.cls) ?? 0n;
+      const y = orders.get(b.cls) ?? 0n;
       return x < y ? -1 : x > y ? 1 : 0;
     };
     const groups = new Map<string, ClassInfo[]>();

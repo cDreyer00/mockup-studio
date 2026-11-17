@@ -196,3 +196,27 @@ describe('round-trip classes → estilo → classes', () => {
     ]);
   });
 });
+
+describe('cascata do Tailwind independe da ordem escrita', () => {
+  it.each([
+    ['px-2 p-4', 'p-4 px-2'],
+    ['border-b-0 border', 'border border-b-0'],
+    ['rounded-t-none rounded-lg', 'rounded-lg rounded-t-none'],
+    ['hover:px-8 hover:p-1', 'hover:p-1 hover:px-8'],
+  ])('%s == %s', (a, b) => {
+    expectSameCss(engine.classesToStyles(a), engine.classesToStyles(b));
+  });
+
+  it('a classe que vem depois no CSS do Tailwind vence', () => {
+    expect(engine.classesToStyles('px-2 p-4').style).toMatchObject({
+      'padding-inline': '0.5rem',
+    });
+    expect(engine.classesToStyles('border-b-0 border').style['border-bottom-width']).toBe('0px');
+    expect(engine.classesToStyles('rounded-t-none rounded-lg').style).toMatchObject({
+      'border-top-left-radius': '0',
+    });
+    expect(engine.classesToStyles('hover:px-8 hover:p-1').states.hover).toMatchObject({
+      'padding-inline': '2rem',
+    });
+  });
+});
