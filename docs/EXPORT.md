@@ -306,6 +306,18 @@ Navbar com um layout medido à mão (fundo com sombra, logo e botão com raio):
 </svg>
 ```
 
+## Efeitos, vídeo, embeds e formatos animados
+
+Nós `effect`, `video` e `embed` ([EFEITOS.md](EFEITOS.md), [EMBEDS.md](EMBEDS.md)) são exportados assim:
+
+- `html` e `tailwind`: efeito vira `<canvas data-mockup-effect>` com fundo CSS de fallback e um `<script>` que embute o runtime; vídeo vira `<video>`; YouTube e iframe viram `<iframe>`; Lottie, Rive e Three.js carregam suas bibliotecas de **CDN** (lottie-web 5 e three 0.187 pelo jsDelivr, Rive pelo unpkg), então precisam de rede para animar. Efeitos, vídeo local e o fallback CSS funcionam offline.
+- `svg`: sem scripts; o efeito vira o gradiente de fallback e vídeo e embeds viram placeholders.
+- `react`, opção `effects` (só `export`): `live` (padrão) recria os efeitos animados com `<MockupEffect>` e o runtime `mockup-effects.js`/`.d.ts` gravado ao lado do `.tsx`; `static` grava um PNG de cada efeito em `assets/effects/` e usa `<img>` (exige render). `exportReact` devolve esses arquivos extras em `files` e aceita `effectImages` (id do efeito → imagem). Vídeo, YouTube, iframe, Lottie, Rive e ilhas Three.js: veja [EMBEDS.md](EMBEDS.md#exportação).
+
+### mp4, webm e gif
+
+`export` aceita também `mp4`, `webm` e `gif`: renderiza os quadros do nó com o relógio das animações e os codifica com o ffmpeg (`MOCKUP_FFMPEG`, `ffmpeg-static` ou `ffmpeg` no `PATH`). Parâmetros: `fps` (1 a 60; padrão 30, gif 15 e no máximo 30), `duration` (até 30 s; padrão 3), `start` (padrão 0), `scale` e `maxWidth`. Exigem o motor de render com captura de quadros (app desktop). Esses formatos não passam pelo core e não copiam `assets/`. Detalhes em [EFEITOS.md](EFEITOS.md#export-animado-mp4-webm-e-gif).
+
 ## Imagens e `assets/`
 
 `src` de nós `image` é relativo a `assets/` (ou data URL). Em html/tailwind/react o `src` exportado é
