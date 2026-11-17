@@ -61,6 +61,16 @@ export function registerScriptTools(ctx: ToolContext): void {
       const source = code ?? (await scripts.read(id, name!)).code;
       // Dentro de um turno do assistente o script entra no mesmo grupo de undo do turno.
       const group = ctx.group();
+      // Se o turno terminar (ou for cancelado) com o script rodando, o host recusa novas escritas e a
+      // sandbox encerra o worker: o agente cancelado não continua gravando.
+      const alive = (): boolean => {
+        try {
+          ctx.group();
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       const touched = new Set<string>();
       const onChange = (e: DocChangedEvent): void => {
@@ -69,7 +79,7 @@ export function registerScriptTools(ctx: ToolContext): void {
       store.on('doc:changed', onChange);
       let r;
       try {
-        r = await scripts.run(id, source, { group, source: 'mcp', timeoutMs });
+        r = await scripts.run(id, source, { group, source: 'mcp', timeoutMs, alive });
       } finally {
         store.off('doc:changed', onChange);
       }

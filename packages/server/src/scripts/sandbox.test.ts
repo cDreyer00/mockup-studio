@@ -288,3 +288,178 @@ describe('sandbox: fuga e abuso', () => {
     expect(all.map((r) => JSON.parse(r.resultJson!))).toEqual([0, 1, 2, 3, 4, 5]);
   });
 });
+
+describe('sandbox: corpo do script e globais travados', () => {
+  it('"})" que fecha o invólucro é erro de sintaxe e nada executa', async () => {
+    const calls: string[] = [];
+    const r = await run('}); globalThis.x = 1; doc.id; (async function(){', 5000, calls);
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('Erro de sintaxe');
+    expect(calls).toEqual([]);
+  });
+
+  it('variações de fuga do invólucro (vírgula, comentário de linha, template) também falham', async () => {
+    const variants = [
+      '}), (doc.id, async function(){',
+      '}); doc.id; (async function(){ //',
+      '} doc.id; (async function(){',
+      '}); doc.id; (async () => {',
+      'return 1; }) + (function(){',
+    ];
+    for (const code of variants) {
+      const calls: string[] = [];
+      const r = await run(code, 5000, calls);
+      expect(r.ok, code).toBe(false);
+      expect(r.error, code).toContain('Erro de sintaxe');
+      expect(calls, code).toEqual([]);
+    }
+  });
+
+  it('"})" dentro de comentário, string, template e regex continua funcionando', async () => {
+    const r = await run(`
+      /* }) */
+      // }); (async function(){
+      const a = "})";
+      const b = '}); (async function(){';
+      const c = \`\${a}})\`;
+      const d = /\\}\\)/.test("})");
+      return [a, b, c, d];`);
+    expect(r.error).toBeUndefined();
+    expect(JSON.parse(r.resultJson!)).toEqual(['})', '}); (async function(){', '})})', true]);
+  });
+
+  it('await no topo, return e comentário final sem quebra de linha continuam válidos', async () => {
+    const r = await run('const x = await doc.tokens(); return 5; // fim');
+    expect(r.ok).toBe(true);
+    expect(JSON.parse(r.resultJson!)).toBe(5);
+  });
+
+  it('erro de sintaxe comum continua com a linha', async () => {
+    const r = await run('const a = 1;\nlet = = 2;');
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('Erro de sintaxe');
+    expect(r.error).toContain('linha 2');
+  });
+
+  it('código "sloppy" não existe: with, arguments.callee e this global falham', async () => {
+    for (const code of [
+      'with ({}) { return 1; }',
+      'return arguments.callee.caller;',
+      'return (function () { return this; })() === undefined ? "strict" : "sloppy";',
+    ]) {
+      const r = await run(code);
+      if (code.startsWith('return (function')) {
+        expect(JSON.parse(r.resultJson!)).toBe('strict');
+      } else {
+        expect(r.ok, code).toBe(false);
+      }
+    }
+    // a fuga do invólucro não consegue rodar código não estrito para alcançar arguments.callee.caller
+    const calls: string[] = [];
+    const r = await run(
+      '}); (function(){ return arguments.callee.caller; })(); doc.id; (async function(){',
+      5000,
+      calls,
+    );
+    expect(r.ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('globalThis.Error não pode ser trocado, redefinido nem apagado', async () => {
+    for (const code of [
+      'globalThis.Error = function () {}; return 1;',
+      'Error = function () {}; return 1;',
+      'Object.defineProperty(globalThis, "Error", { value: function () {} }); return 1;',
+      'delete globalThis.Error; return 1;',
+      'globalThis.TypeError = function () {}; return 1;',
+      'globalThis.Promise = function () {}; return 1;',
+      'globalThis.JSON = {}; return 1;',
+      'globalThis.Object = function () {}; return 1;',
+      'globalThis.Proxy = function () {}; return 1;',
+      'globalThis.Reflect = {}; return 1;',
+      'globalThis.Array = function () {}; return 1;',
+    ]) {
+      const r = await run(code);
+      expect(r.ok, code).toBe(false);
+      expect(r.error, code).toMatch(/TypeError|read only|Cannot|not configurable/);
+      expect((await run('return 1;')).ok).toBe(true);
+    }
+  });
+
+  it('erros da API continuam sendo instâncias do Error original', async () => {
+    const r = await run(`
+      const E = Error;
+      try { globalThis.Error = function () {}; } catch (_e) { /* travado */ }
+      try { doc.apply({ type: "x" }); } catch (e) { return [e instanceof E, e instanceof Error, e.constructor === E]; }`);
+    expect(r.ok).toBe(true);
+    expect(JSON.parse(r.resultJson!)).toEqual([true, true, true]);
+  });
+});
+
+describe('sandbox: cancelamento (signal e vigia)', () => {
+  it('signal abortado durante while(true) encerra rápido com ok:false', async () => {
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(), 150);
+    const t0 = Date.now();
+    const r = await runInSandbox('console.log("x"); while (true) {}', makeHandler(), {
+      timeoutMs: 30_000,
+      signal: ac.signal,
+    });
+    expect(r.ok).toBe(false);
+    expect(r.cancelled).toBe(true);
+    expect(r.timedOut).toBe(false);
+    expect(r.error).toContain('cancelada');
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect((await run('return 7;')).ok).toBe(true);
+  });
+
+  it('signal já abortado não sobe worker', async () => {
+    const calls: string[] = [];
+    const r = await runInSandbox('doc.id; return 1;', makeHandler(calls), {
+      signal: AbortSignal.abort(),
+    });
+    expect(r.ok).toBe(false);
+    expect(r.cancelled).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it('o vigia encerra um laço sem chamadas à API quando alive() fica falso', async () => {
+    let alive = true;
+    setTimeout(() => (alive = false), 150);
+    const t0 = Date.now();
+    const r = await runInSandbox('while (true) {}', makeHandler(), {
+      timeoutMs: 30_000,
+      alive: () => alive,
+    });
+    expect(r.ok).toBe(false);
+    expect(r.cancelled).toBe(true);
+    expect(r.error).toContain('turno do assistente terminou');
+    expect(Date.now() - t0).toBeLessThan(1000);
+  });
+
+  it('alive() falso desde o início: nem sobe o worker', async () => {
+    const calls: string[] = [];
+    const r = await runInSandbox('doc.id; return 1;', makeHandler(calls), { alive: () => false });
+    expect(r.ok).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('alive() que lança conta como falso', async () => {
+    const r = await runInSandbox('while (true) {}', makeHandler(), {
+      timeoutMs: 30_000,
+      alive: () => {
+        throw new Error('x');
+      },
+    });
+    expect(r.cancelled).toBe(true);
+  });
+
+  it('execução normal com vigia ativo termina sem cancelar', async () => {
+    const r = await runInSandbox('await doc.tokens(); return 2;', makeHandler(), {
+      alive: () => true,
+      signal: new AbortController().signal,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.cancelled).toBeUndefined();
+  });
+});

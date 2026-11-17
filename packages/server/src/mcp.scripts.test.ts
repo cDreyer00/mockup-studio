@@ -317,4 +317,42 @@ describe('MCP: run_script dentro de um turno do assistente', () => {
     expect(textOf(r)).toContain('já terminou');
     expect(daemon.store.get(docId).pages[0]!.frames[0]!.name).toBe('Desktop');
   });
+  it('o turno termina durante um script em laço de escritas: para e não grava mais', async () => {
+    const { docId } = daemon.store.list()[0]!;
+    const name = () => daemon.store.get(docId).pages[0]!.frames[0]!.name;
+    setTimeout(() => (turnOpen = false), 300);
+    const t0 = Date.now();
+    const r = await client.callTool({
+      name: 'run_script',
+      arguments: {
+        code: 'let i = 0; for (;;) { doc.frames()[0].name = "N" + i++; }',
+        timeoutMs: 30_000,
+      },
+    });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('turno do assistente terminou');
+    expect(Date.now() - t0).toBeLessThan(3000);
+    const depois = name();
+    expect(depois).toMatch(/^N\d+$/);
+    await new Promise((res) => setTimeout(res, 300));
+    expect(name()).toBe(depois);
+  });
+
+  it('o turno termina durante um laço sem chamadas à API: o vigia encerra o worker', async () => {
+    const { docId } = daemon.store.list()[0]!;
+    setTimeout(() => (turnOpen = false), 300);
+    const t0 = Date.now();
+    const r = await client.callTool({
+      name: 'run_script',
+      arguments: {
+        code: 'doc.frames()[0].name = "Uma vez"; while (true) {}',
+        timeoutMs: 30_000,
+      },
+    });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('turno do assistente terminou');
+    expect(textOf(r)).toContain('1 op(s) já foram aplicadas');
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(daemon.store.get(docId).pages[0]!.frames[0]!.name).toBe('Uma vez');
+  });
 });

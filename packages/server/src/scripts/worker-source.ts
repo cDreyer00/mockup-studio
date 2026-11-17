@@ -68,17 +68,42 @@ try {
     context,
   );
   const execute = factory(bridge, data.limits);
-  let userFn;
+  let userFn = null;
+  // 1) Validação: o código precisa ser, SOZINHO, um corpo de função async válido em modo estrito.
+  //    O construtor de AsyncFunction (deste realm, só para parsear: nada é executado) analisa o corpo
+  //    separadamente do cabeçalho, então um "}); ...; (async function(){" que fecharia o invólucro
+  //    abaixo vira SyntaxError aqui. Strings, comentários e templates com "})" continuam válidos.
+  let invalid = null;
   try {
-    // O cabeçalho fica na mesma linha do código para que o número da linha no erro seja o do usuário.
-    // Sem importModuleDynamically: import() não funciona (e o texto "import" é recusado antes).
-    userFn = new vm.Script('(async function () { "use strict"; ' + data.code + '\n})', {
-      filename: 'script.js',
-    }).runInContext(context);
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    new AsyncFunction('"use strict";\n' + data.code);
+  } catch (e) {
+    invalid = e && typeof e.message === 'string' ? e.message : 'erro de sintaxe';
+  }
+  // 2) Compilação no contexto: o invólucro só é usado com código já validado como corpo de função.
+  //    O cabeçalho fica na mesma linha do código para que o número da linha no erro seja o do usuário.
+  //    Sem importModuleDynamically: import() não funciona (e o texto "import" é recusado antes).
+  //    O "use strict" no topo do script cobre também o que estiver fora da função (defesa extra).
+  try {
+    const compiled = new vm.Script(
+      '"use strict"; (async function () { "use strict"; ' + data.code + '\n})',
+      { filename: 'script.js' },
+    );
+    if (invalid === null) userFn = compiled.runInContext(context);
   } catch (e) {
     const msg = e && typeof e.message === 'string' ? e.message : 'erro de sintaxe';
     const m = e && typeof e.stack === 'string' ? /script\.js:(\d+)/.exec(e.stack) : null;
-    finish('Erro de sintaxe: ' + msg + (m ? ' (linha ' + m[1] + ')' : ''));
+    if (invalid === null) invalid = msg;
+    invalid = invalid + (m ? ' (linha ' + m[1] + ')' : '');
+  }
+  if (invalid !== null) {
+    finish(
+      'Erro de sintaxe: ' +
+        invalid +
+        (userFn === null && !/\(linha \d+\)$/.test(invalid)
+          ? ' (o script deve ser um corpo de função async válido por si só: confira chaves e parênteses desbalanceados)'
+          : ''),
+    );
     userFn = null;
   }
   if (userFn) execute(userFn);
@@ -109,6 +134,11 @@ var ErrorCtor = Error;
 var MapCtor = Map;
 var ProxyCtor = Proxy;
 var StringCtor = String;
+var NumberCtor = Number;
+var arrayFrom = Array.from;
+var deleteProperty = Reflect.deleteProperty;
+var ownKeys = Reflect.ownKeys;
+var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 var limits = JSONparse(limitsJson);
 
 /* ---- defesas do contexto ---- */
@@ -129,7 +159,7 @@ var toRemove = [
 ];
 for (var r = 0; r < toRemove.length; r++) {
   try {
-    Reflect.deleteProperty(globalRef, toRemove[r]);
+    deleteProperty(globalRef, toRemove[r]);
   } catch (_e) {
     /* segue */
   }
@@ -193,8 +223,8 @@ function stringifySafe(v) {
       if (t === 'bigint' || t === 'function' || t === 'symbol') return StringCtor(x);
       if (x && t === 'object') {
         var tag = toStringTag.call(x);
-        if (tag === '[object Map]') return { map: Array.from(x) };
-        if (tag === '[object Set]') return { set: Array.from(x) };
+        if (tag === '[object Map]') return { map: arrayFrom(x) };
+        if (tag === '[object Set]') return { set: arrayFrom(x) };
         if (tag === '[object RegExp]' || tag === '[object Error]') return StringCtor(x);
       }
       return x;
@@ -441,7 +471,7 @@ defineProperties(NodeProto, {
     get: function () { return snap(this).position; },
     set: function (v) {
       var pos = null;
-      if (v) pos = { x: Number(v.x), y: Number(v.y) };
+      if (v) pos = { x: NumberCtor(v.x), y: NumberCtor(v.y) };
       writeOps([{ type: 'setPosition', changes: [{ nodeId: this.id, position: pos }] }]);
     },
     enumerable: true,
@@ -542,6 +572,28 @@ function lock(name, value) {
 }
 lock('doc', docApi);
 lock('console', consoleApi);
+
+// Depois de instalar doc e console, todos os globais restantes (Object, Function, Array, Error e subclasses, Promise, JSON, Proxy,
+// Reflect, Map, String, Number, Math...) ficam somente-leitura e não configuráveis: o script não pode
+// trocar o Error (nem nenhum outro construtor) que a API e os erros dela usam. O bootstrap só usa as
+// referências capturadas acima, nunca relê globalThis.X.
+(function lockBuiltins() {
+  var names = ownKeys(globalRef);
+  for (var i = 0; i < names.length; i++) {
+    var d = getOwnPropertyDescriptor(globalRef, names[i]);
+    if (!d || !d.configurable || !('value' in d)) continue;
+    try {
+      defineProperty(globalRef, names[i], {
+        value: d.value,
+        writable: false,
+        enumerable: d.enumerable,
+        configurable: false,
+      });
+    } catch (_e) {
+      /* segue */
+    }
+  }
+})();
 
 /* ---- execução ---- */
 function describe(e) {

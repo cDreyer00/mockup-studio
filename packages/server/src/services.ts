@@ -54,8 +54,14 @@ export interface AssistantServiceApi {
   runTurn(docId: string, prompt: string, opts?: RunTurnOptions): Promise<AssistantMessage>;
   /** Cancela o turno em andamento do documento. */
   cancel(docId: string): boolean;
-  /** Pergunta só de texto, sem MCP e sem ferramentas (ex.: gerar um script). */
-  generateText(prompt: string, opts?: { backend?: string; system?: string }): Promise<string>;
+  /**
+   * Pergunta só de texto, sem MCP e sem ferramentas (ex.: gerar um script). Com `docId`: no máximo
+   * uma por documento e cancelável por `cancel(docId)`; `signal` cancela em qualquer caso.
+   */
+  generateText(
+    prompt: string,
+    opts?: { backend?: string; system?: string; docId?: string; signal?: AbortSignal },
+  ): Promise<string>;
   resolveTurn(token: string): TurnBinding | null;
   backends(): Promise<AssistantBackendInfo[]>;
   getConfig(): AssistantConfig;
@@ -72,6 +78,13 @@ export interface ScriptRunOptions {
   /** Quem originou as ops (`editor` pelo painel, `mcp` pelo run_script). */
   source?: 'editor' | 'mcp';
   timeoutMs?: number;
+  /**
+   * Vigia de quem disparou a execução (ex.: o turno do assistente): consultado antes de cada
+   * escrita e a cada ~100 ms; ao ficar falso a execução é interrompida e nada mais é gravado.
+   */
+  alive?: () => boolean;
+  /** Cancelamento de fora: o worker é encerrado na hora e a execução devolve `ok: false`. */
+  signal?: AbortSignal;
 }
 
 export interface ScriptServiceApi {

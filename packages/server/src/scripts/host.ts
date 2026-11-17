@@ -108,7 +108,15 @@ export interface ScriptHostOptions {
   group: string;
   source: 'editor' | 'mcp';
   render?: RenderProvider;
+  /**
+   * Conferido antes de CADA chamada à API (e de cada escrita): falso = o dono da execução (ex.: o
+   * turno do assistente que disparou o script) terminou ou cancelou, e nada mais é aplicado.
+   */
+  alive?: () => boolean;
 }
+
+/** Mensagem de erro quando `alive()` fica falso no meio da execução. */
+export const TURN_ENDED_MESSAGE = 'O turno do assistente terminou; o script foi interrompido.';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -126,8 +134,20 @@ export class ScriptHost {
     return this.o.store.get(this.o.docId);
   }
 
+  /** Recusa (sem aplicar nada) quando o dono da execução já não está ativo. */
+  private assertAlive(): void {
+    let ok = true;
+    try {
+      ok = this.o.alive ? this.o.alive() !== false : true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) throw new Error(TURN_ENDED_MESSAGE);
+  }
+
   async call(method: string, rawArgs: unknown): Promise<unknown> {
     if (this.closed) throw new Error('A execução do script já terminou.');
+    this.assertAlive();
     if (++this.calls > MAX_CALLS) {
       throw new Error(`O script fez chamadas demais à API do documento (limite ${MAX_CALLS}).`);
     }
@@ -228,6 +248,8 @@ export class ScriptHost {
   }
 
   private apply(ops: Op[]) {
+    // Ponto único de toda escrita (apply, create, setTokens, setters de nó): confere o turno de novo.
+    this.assertAlive();
     const r = this.o.store.applyOps(this.o.docId, ops, {
       source: this.o.source,
       label: 'script',
@@ -377,6 +399,7 @@ export class ScriptHost {
       );
     }
     if (this.closed) throw new Error('A execução do script já terminou.');
+    this.assertAlive();
     const width = Math.round(r.width);
     const height = Math.round(r.height);
     this.images.push({

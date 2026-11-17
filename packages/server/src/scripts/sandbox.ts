@@ -5,6 +5,8 @@
  * principal, que responde com `handler(method, args)`.
  *
  * - Timeout no thread principal (`worker.terminate()`): mata `while (true) {}` e laços depois de `await`.
+ * - Cancelamento: `signal` abortado e um vigia (`alive()`, ex.: o turno do assistente que disparou o
+ *   script terminou) encerram o worker na hora, inclusive em laços que nunca chamam a API.
  * - Memória: `resourceLimits` do worker; estouro vira um erro legível e nunca derruba o daemon.
  * - Tamanho: limites de linhas/caracteres de log e do resultado.
  * Modelo de segurança completo em `docs/SCRIPTS.md`.
@@ -43,7 +45,32 @@ export interface SandboxOutcome {
   resultJson?: string;
   logs: string[];
   timedOut: boolean;
+  /** Verdadeiro se a execução foi interrompida de fora (`signal` abortado ou `alive()` falso). */
+  cancelled?: boolean;
 }
+
+export interface SandboxOptions {
+  timeoutMs?: number;
+  /** Aborta a execução: o worker é encerrado imediatamente. */
+  signal?: AbortSignal;
+  /** Vigia: consultado a cada `watchIntervalMs`; ao ficar falso o worker é encerrado. */
+  alive?: () => boolean;
+}
+
+/** Intervalo do vigia de `alive()` (ms). */
+export const WATCH_INTERVAL_MS = 100;
+
+export const CANCELLED_ABORT_MESSAGE = 'A execução foi cancelada; o script foi interrompido.';
+export const CANCELLED_TURN_MESSAGE = 'O turno do assistente terminou; o script foi interrompido.';
+
+const isAlive = (alive: (() => boolean) | undefined): boolean => {
+  if (!alive) return true;
+  try {
+    return alive() !== false;
+  } catch {
+    return false;
+  }
+};
 
 export function clampTimeout(timeoutMs: number | undefined): number {
   const t = Number.isFinite(timeoutMs) ? (timeoutMs as number) : SANDBOX_LIMITS.defaultTimeoutMs;
@@ -84,10 +111,22 @@ export function checkSource(code: string): string | undefined {
 export async function runInSandbox(
   code: string,
   handler: SandboxHandler,
-  opts: { timeoutMs?: number } = {},
+  opts: SandboxOptions = {},
 ): Promise<SandboxOutcome> {
   const rejected = checkSource(code);
   if (rejected) return { ok: false, error: rejected, logs: [], timedOut: false };
+  if (opts.signal?.aborted) {
+    return {
+      ok: false,
+      error: CANCELLED_ABORT_MESSAGE,
+      logs: [],
+      timedOut: false,
+      cancelled: true,
+    };
+  }
+  if (!isAlive(opts.alive)) {
+    return { ok: false, error: CANCELLED_TURN_MESSAGE, logs: [], timedOut: false, cancelled: true };
+  }
   const timeoutMs = clampTimeout(opts.timeoutMs);
 
   return new Promise<SandboxOutcome>((resolve) => {
@@ -131,18 +170,24 @@ export async function runInSandbox(
     worker.stderr.resume();
 
     let exitTimer: NodeJS.Timeout | undefined;
+    let watch: NodeJS.Timeout | undefined;
+    const onAbort = () => cancel(CANCELLED_ABORT_MESSAGE);
 
     const settle = (out: Omit<SandboxOutcome, 'logs' | 'timedOut'> & { timedOut?: boolean }) => {
       if (closed) return;
       closed = true;
       if (timer) clearTimeout(timer);
       if (exitTimer) clearTimeout(exitTimer);
+      if (watch) clearInterval(watch);
+      opts.signal?.removeEventListener('abort', onAbort);
       port1.close();
       worker
         .terminate()
         .catch(() => undefined)
         .then(() => resolve({ timedOut: false, ...out, logs }));
     };
+
+    const cancel = (error: string) => settle({ ok: false, error, cancelled: true });
 
     const reply = (json: string) => {
       if (closed) return;
@@ -224,5 +269,15 @@ export async function runInSandbox(
         error: `O script excedeu o tempo limite de ${timeoutMs} ms e foi interrompido.`,
       });
     }, timeoutMs);
+
+    // Cancelamento de fora: `signal` (imediato) e vigia de `alive()` (cobre laços sem chamadas à API).
+    if (opts.signal) opts.signal.addEventListener('abort', onAbort, { once: true });
+    if (opts.alive) {
+      watch = setInterval(() => {
+        if (!isAlive(opts.alive)) cancel(CANCELLED_TURN_MESSAGE);
+      }, WATCH_INTERVAL_MS);
+      watch.unref();
+    }
+    if (opts.signal?.aborted) onAbort();
   });
 }

@@ -603,6 +603,67 @@ describe('ScriptService: API do documento', () => {
     f.store.undo(f.docId, 'editor');
     expect(node('Título').name).toBe('Título');
   });
+
+  describe('cancelamento (alive e signal)', () => {
+    it('alive() vira falso no meio: ops anteriores ficam, nenhuma nova', async () => {
+      let alive = true;
+      let writes = 0;
+      // depois da primeira escrita o turno "termina"
+      f.store.on('doc:changed', () => {
+        if (++writes === 1) alive = false;
+      });
+      const r = await run(
+        `doc.get("${f.ids['Título']}").name = "Primeiro";
+         const erros = [];
+         const tenta = (fn) => { try { fn(); erros.push(null); } catch (e) { erros.push(e.message); } };
+         tenta(() => { doc.get("${f.ids['Parágrafo']}").name = "Segundo"; });
+         tenta(() => doc.create(null, { tag: "div" }));
+         tenta(() => doc.setTokens({ "--cor": "red" }));
+         tenta(() => doc.apply({ type: "deleteNodes", nodeIds: ["${f.ids['Rodapé']}"] }));
+         tenta(() => doc.get("${f.ids['Rodapé']}").remove());
+         tenta(() => doc.get("${f.ids['Rodapé']}").duplicate());
+         tenta(() => { doc.get("${f.ids['Título']}").style.color = "red"; });
+         tenta(() => doc.get("${f.ids['Título']}").setStyle({ color: "red" }));
+         return erros;`,
+        { alive: () => alive, group: 'turno:t1' },
+      );
+      expect(r.ok, r.error).toBe(true);
+      const erros = r.result as (string | null)[];
+      expect(erros).toHaveLength(8);
+      for (const e of erros) expect(e).toContain('turno do assistente terminou');
+      expect(r.opsCount).toBe(1);
+      expect(node('Título').name).toBe('Primeiro');
+      expect(node('Parágrafo').name).toBe('Parágrafo');
+      expect(node('Rodapé')).toBeTruthy();
+      expect(node('Título').style['color']).not.toBe('red');
+      expect(doc().tokens['--cor']).toBeUndefined();
+    });
+
+    it('signal abortado durante um laço encerra rápido com ok:false e mantém as ops já feitas', async () => {
+      const ac = new AbortController();
+      const t0 = Date.now();
+      const p = run(`doc.get("${f.ids['Título']}").name = "Antes"; while (true) {}`, {
+        timeoutMs: 30_000,
+        signal: ac.signal,
+      });
+      setTimeout(() => ac.abort(), 300);
+      const r = await p;
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('cancelada');
+      expect(r.opsCount).toBe(1);
+      expect(Date.now() - t0).toBeLessThan(2000);
+    });
+
+    it('vigia: alive() falso encerra um laço sem chamadas à API', async () => {
+      let alive = true;
+      setTimeout(() => (alive = false), 200);
+      const t0 = Date.now();
+      const r = await run('while (true) {}', { timeoutMs: 30_000, alive: () => alive });
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('turno do assistente terminou');
+      expect(Date.now() - t0).toBeLessThan(1500);
+    });
+  });
 });
 
 describe('ScriptService: biblioteca scripts/*.js', () => {

@@ -137,6 +137,15 @@ export class ScriptService implements ScriptServiceApi {
     const id = this.store.resolveDocId(docId || undefined);
     const ownsGroup = opts.group === undefined;
     const group = opts.group ?? `script:${randomUUID()}`;
+    const { signal } = opts;
+    const alive = (): boolean => {
+      if (signal?.aborted) return false;
+      try {
+        return opts.alive ? opts.alive() !== false : true;
+      } catch {
+        return false;
+      }
+    };
     const host = new ScriptHost({
       store: this.store,
       docId: id,
@@ -144,6 +153,7 @@ export class ScriptService implements ScriptServiceApi {
       group,
       source: opts.source ?? 'editor',
       render: this.opts.render,
+      alive,
     });
     const started = Date.now();
     let out: SandboxOutcome;
@@ -151,6 +161,8 @@ export class ScriptService implements ScriptServiceApi {
     try {
       out = await runInSandbox(typeof code === 'string' ? code : '', (m, a) => host.call(m, a), {
         timeoutMs: opts.timeoutMs,
+        signal,
+        alive: opts.alive ? alive : undefined,
       });
     } finally {
       host.closed = true;
