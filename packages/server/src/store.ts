@@ -458,11 +458,15 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     d.saveTimer.unref();
   }
 
-  applyOps(docId: string, ops: Op[], opts: { source: OpSource; label?: string }): ApplyOutcome {
+  applyOps(
+    docId: string,
+    ops: Op[],
+    opts: { source: OpSource; label?: string; group?: string },
+  ): ApplyOutcome {
     const d = this.entry(docId);
     // Entrada pública (editor pelo WS, ferramentas do MCP): sem campos internos (ex. `force`).
     assertPublicOps(ops);
-    const r = d.history.apply(ops, opts.label);
+    const r = d.history.apply(ops, opts.label, { group: opts.group });
     this.markChanged(d, r.appliedOps, opts.source);
     return {
       doc: r.doc,
@@ -492,6 +496,17 @@ export class DocumentStore extends EventEmitter<StoreEvents> {
     if (!r) return null;
     this.markChanged(d, r.ops, source);
     return { doc: r.doc, ops: r.ops, revision: d.history.revision };
+  }
+
+  /** Encerra um grupo de undo (fim do turno do assistente ou do script). */
+  closeGroup(docId: string, group: string): void {
+    this.docs.get(docId)?.history.closeGroup(group);
+  }
+
+  /** Nº de ops da entrada do topo da pilha de undo se ela for do grupo (0 caso contrário). */
+  groupOpsCount(docId: string, group: string): number {
+    const top = this.docs.get(docId)?.history.top;
+    return top?.group === group ? top.ops.length : 0;
   }
 
   getSelection(docId: string): string[] {

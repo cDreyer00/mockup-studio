@@ -42,7 +42,9 @@ import { registerComponentTools } from './tools/components.js';
 import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerImageTools } from './tools/images.js';
+import { registerRemixTools } from './tools/remix.js';
 import { registerRenderTools } from './tools/render.js';
+import { registerScriptTools } from './tools/scripts.js';
 import {
   parseStateOrThrow,
   planStateStyles,
@@ -254,8 +256,17 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     return out;
   }
 
+  const group = (): string | undefined => {
+    if (!opts.turn) return undefined;
+    const t = opts.turn();
+    if (t === null)
+      throw new ToolError(
+        'O turno do assistente que abriu esta sessão já terminou ou foi cancelado: nenhuma alteração foi feita.',
+      );
+    return t?.group;
+  };
   const apply = (docId: string, ops: Op[], label?: string) =>
-    store.applyOps(docId, ops, { source: 'mcp', label });
+    store.applyOps(docId, ops, { source: 'mcp', label, group: group() });
 
   const selectedOrFirstFrame = (docId: string, doc: Document): string => {
     const sel = store.getSelection(docId).find((id) => findNode(doc, id));
@@ -1272,6 +1283,10 @@ ${summaryOf(r.doc, nodeIds)}`;
         annotations: WRITE,
       },
       ({ docId }) => {
+        if (opts.turn?.() !== undefined)
+          throw new ToolError(
+            `Durante um turno do assistente ${kind === 'undo' ? 'o undo desfaria o turno inteiro (todas as suas ops formam um único grupo)' : 'o redo não está disponível'}. Corrija com as ferramentas de edição (update_styles, set_text, delete_nodes...).`,
+          );
         const id = store.resolveDocId(docId);
         const r = kind === 'undo' ? store.undo(id, 'mcp') : store.redo(id, 'mcp');
         if (!r) return kind === 'undo' ? 'Nada para desfazer.' : 'Nada para refazer.';
@@ -1316,6 +1331,7 @@ ${summaryOf(r.doc, nodeIds)}`;
     readNode,
     summaryOf,
     apply,
+    group,
     selectedOrFirstFrame,
   };
   registerRenderTools(ctx);
@@ -1325,6 +1341,8 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerTokenTools(ctx);
   registerTailwindTools(ctx);
   registerComponentTools(ctx);
+  registerScriptTools(ctx);
+  registerRemixTools(ctx);
 
   /* ---------- resources ---------- */
 

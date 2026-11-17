@@ -375,10 +375,7 @@ export function registerFontTools(ctx: ToolContext): void {
       // antigos continuam em assets/fonts.
       const at = doc.fonts.findIndex((f) => f.family.toLowerCase() === fam.toLowerCase());
       const fonts = at < 0 ? [...doc.fonts, ref] : doc.fonts.map((f, i) => (i === at ? ref : f));
-      store.applyOps(id, [{ type: 'setFonts', fonts }], {
-        source: 'mcp',
-        label: 'add_font',
-      });
+      ctx.apply(id, [{ type: 'setFonts', fonts }], 'add_font');
       const reg =
         ref.source === 'local'
           ? 'fonte local (sem arquivos)'

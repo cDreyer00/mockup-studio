@@ -1,10 +1,15 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import type { AgentBackend } from './agent/backend.js';
+import { AssistantService } from './agent/assistant.js';
 import { createApp } from './http.js';
 import { createMcpHandler } from './mcp/session.js';
 import { getDataDir, removeDaemonInfo, resolvePort, writeDaemonInfo } from './paths.js';
 import type { DaemonMode } from './http.js';
 import type { RenderProvider } from './render.js';
+import { RemixService } from './remix.js';
+import { ScriptService } from './scripts/service.js';
+import type { DaemonServices } from './services.js';
 import { DocumentStore } from './store.js';
 import { attachWebSocket } from './ws.js';
 
@@ -28,6 +33,11 @@ export interface DaemonOptions {
    * chama este callback (ex.: `process.exit` ou `app.quit`). Sem ele a rota responde 409.
    */
   onShutdown?: () => void;
+  /**
+   * Backends do assistente no lugar dos detectados (CLIs `claude` e `codex` no PATH). Usado nos
+   * testes com um backend falso.
+   */
+  agentBackends?: AgentBackend[];
 }
 
 export interface DaemonHandle {
@@ -37,6 +47,8 @@ export interface DaemonHandle {
   mcpUrl: string;
   wsUrl: string;
   store: DocumentStore;
+  /** Assistente, scripts e remix. */
+  services: Required<DaemonServices>;
   /** Motor de render injetado (ou `undefined`). */
   render?: RenderProvider;
   /** Número de sessões MCP ativas. */
@@ -55,11 +67,22 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
 
   const store = new DocumentStore({ dataDir });
   let actualPort = requestedPort;
+  const assistant = new AssistantService(store, {
+    dataDir,
+    getPort: () => actualPort,
+    host,
+    render: opts.render,
+    backends: opts.agentBackends,
+  });
+  const scripts = new ScriptService(store, { render: opts.render, assistant });
+  const remix = new RemixService(store, { assistant });
+  const services: Required<DaemonServices> = { assistant, scripts, remix };
   const mcp = createMcpHandler(store, {
     getPort: () => actualPort,
     sessionTtlMs: opts.sessionTtlMs,
     render: opts.render,
     dataDir,
+    services,
   });
   const app = createApp(store, mcp, {
     getPort: () => actualPort,
@@ -97,7 +120,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
 
   // O ws repassa os erros do servidor (EADDRINUSE) como `error` sem ouvinte, o que derrubaria o
   // processo antes da mensagem clara abaixo: só se anexa depois que a porta foi obtida.
-  const ws = attachWebSocket(server, store);
+  const ws = attachWebSocket(server, store, '/ws', services);
   actualPort = (server.address() as AddressInfo).port;
   const origin = `${host === '::1' ? '[::1]' : host}:${actualPort}`;
   const url = `http://${origin}`;
@@ -132,6 +155,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     mcpUrl,
     wsUrl,
     store,
+    services,
     render: opts.render,
     sessionCount: () => mcp.sessionCount(),
     close() {
@@ -141,6 +165,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
           process.off('SIGINT', onSignal);
           process.off('SIGTERM', onSignal);
         }
+        await assistant.close();
         await ws.close();
         await mcp.closeAll();
         server.closeAllConnections();

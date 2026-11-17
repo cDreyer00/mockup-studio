@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { ClientMessage, HelloEvent, ServerMessage } from '@mockup/core';
+import { attachServiceEvents, routeServiceMessage, type DaemonServices } from './services.js';
 import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -38,7 +39,13 @@ function buildHello(store: DocumentStore): HelloEvent {
   };
 }
 
-async function handleMessage(store: DocumentStore, msg: ClientMessage): Promise<unknown> {
+async function handleMessage(
+  store: DocumentStore,
+  msg: ClientMessage,
+  services: DaemonServices,
+): Promise<unknown> {
+  const routed = routeServiceMessage(services, msg);
+  if (routed) return routed;
   switch (msg.type) {
     case 'op:apply': {
       if (typeof msg.docId !== 'string' || !msg.docId)
@@ -96,6 +103,7 @@ export function attachWebSocket(
   httpServer: HttpServer,
   store: DocumentStore,
   path = '/ws',
+  services: DaemonServices = {},
 ): WsHandle {
   const wss = new WebSocketServer({
     server: httpServer,
@@ -120,6 +128,7 @@ export function attachWebSocket(
     store.on(name, fn as never);
     listeners.push(() => store.off(name, fn as never));
   }
+  listeners.push(attachServiceEvents(services, broadcast));
 
   wss.on('connection', (ws) => {
     send(ws, buildHello(store));
@@ -135,7 +144,7 @@ export function attachWebSocket(
       }
       const reqId = (msg as { reqId?: string }).reqId;
       Promise.resolve()
-        .then(() => handleMessage(store, msg))
+        .then(() => handleMessage(store, msg, services))
         .then(
           (result) => {
             if (reqId !== undefined) send(ws, { type: 'ack', reqId, result });

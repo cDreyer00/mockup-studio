@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Document, NodePath, Op } from '@mockup/core';
 import type { RenderProvider } from '../render.js';
+import type { DaemonServices, TurnResolver } from '../services.js';
 import type { DocumentStore } from '../store.js';
 
 export type Annotations = {
@@ -34,6 +35,10 @@ export interface McpServerOptions {
   dataDir?: string;
   /** Porta do daemon (para a mensagem de render indisponível). */
   getPort?: () => number;
+  /** Serviços da fase 9 (scripts, remix, assistente). */
+  services?: DaemonServices;
+  /** Sessão aberta por um agente do assistente (`/mcp?turn=<token>`): liga as ops ao turno. */
+  turn?: TurnResolver;
 }
 
 /** Configuração de uma ferramenta. `example` é uma chamada correta, citada nos erros de parâmetro. */
@@ -63,5 +68,10 @@ export interface ToolContext {
   readNode(doc: Document, id: string): { path: NodePath; doc: Document };
   summaryOf(doc: Document, ids: string[], fallbackIds?: string[]): string;
   apply(docId: string, ops: Op[], label?: string): ReturnType<DocumentStore['applyOps']>;
+  /**
+   * Grupo de undo da sessão: o do turno do assistente que abriu a sessão, ou `undefined` (sessão
+   * comum). Lança `ToolError` se o turno já terminou (o agente cancelado não escreve mais).
+   */
+  group(): string | undefined;
   selectedOrFirstFrame(docId: string, doc: Document): string;
 }

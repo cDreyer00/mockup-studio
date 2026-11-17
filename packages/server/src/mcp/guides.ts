@@ -1,3 +1,6 @@
+import { ASSISTANT_GUIDE } from './guide-assistant.js';
+import { SCRIPTS_GUIDE } from './guide-scripts.js';
+
 export const GUIDE_TOPICS = [
   'getting-started',
   'design-system',
@@ -10,6 +13,8 @@ export const GUIDE_TOPICS = [
   'export',
   'troubleshooting',
   'setup',
+  'assistant',
+  'scripts',
 ] as const;
 export type GuideTopic = (typeof GUIDE_TOPICS)[number];
 
@@ -66,9 +71,21 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     title: 'Guia: instalação e registro do MCP',
     description: 'Instalar o CLI mockup e registrar o MCP no Claude Code, Codex, Cursor e VS Code.',
   },
+  assistant: {
+    title: 'Guia: assistente no editor e remix',
+    description:
+      'Turnos do assistente (Claude Code/Codex por subprocesso), grupo de undo por turno, contexto da seleção e remix (color-scale, font-pairs, spacing, layout, ai).',
+  },
+  scripts: {
+    title: 'Guia: scripts',
+    description:
+      'run_script: API JavaScript do documento (doc.select, node.style, doc.apply, doc.screenshot), sandbox, timeout e biblioteca scripts/*.js.',
+  },
 };
 
 export const GUIDES: Record<GuideTopic, string> = {
+  assistant: ASSISTANT_GUIDE,
+  scripts: SCRIPTS_GUIDE,
   'getting-started': `# Começando com o Mockup Studio
 
 O documento é uma árvore de nós HTML/CSS reais: páginas > frames (artboards) > elementos.
@@ -96,7 +113,7 @@ Cada nó tem um id estável (ex.: \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 
 ## Guias
 
-\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`troubleshooting\`, \`setup\` — use \`get_guide(topic)\`.
+\`design-system\`, \`tokens\`, \`layout\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system e tokens
 

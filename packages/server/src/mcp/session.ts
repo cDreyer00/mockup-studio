@@ -4,6 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { RenderProvider } from '../render.js';
+import type { DaemonServices } from '../services.js';
 import type { DocumentStore } from '../store.js';
 import { createMcpServer } from './server.js';
 
@@ -28,6 +29,18 @@ export interface McpHandlerOptions {
   render?: RenderProvider;
   /** Pasta de dados do daemon. */
   dataDir?: string;
+  /** Serviços da fase 9; o assistente resolve o token `?turn=` das sessões abertas pelo agente. */
+  services?: DaemonServices;
+}
+
+/** Token de turno do assistente: query `?turn=` ou header `x-mockup-turn`. */
+function turnTokenOf(req: Request): string | undefined {
+  const q = req.query?.['turn'];
+  const fromQuery = Array.isArray(q) ? q[0] : q;
+  if (typeof fromQuery === 'string' && fromQuery) return fromQuery;
+  const h = req.headers['x-mockup-turn'];
+  const fromHeader = Array.isArray(h) ? h[0] : h;
+  return fromHeader || undefined;
 }
 
 export const DEFAULT_SESSION_TTL_MS = 30 * 60 * 1000;
@@ -71,10 +84,18 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
           return;
         }
         if (req.method === 'POST' && isInitializeRequest(req.body)) {
+          const token = turnTokenOf(req);
+          if (token && !opts.services?.assistant?.resolveTurn(token)) {
+            jsonRpcError(res, 403, -32002, 'Turno do assistente inexistente ou encerrado.');
+            return;
+          }
+          const assistant = opts.services?.assistant;
           const server = createMcpServer(store, {
             render: opts.render,
             dataDir: opts.dataDir,
             getPort: opts.getPort,
+            services: opts.services,
+            turn: token && assistant ? () => assistant.resolveTurn(token) : undefined,
           });
           const port = opts.getPort?.();
           const transport = new StreamableHTTPServerTransport({
