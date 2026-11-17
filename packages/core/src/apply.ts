@@ -5,6 +5,7 @@ import { TOKEN_NAME_RE, VOID_TAGS, attrNameProblem, nodeTagProblem, normalizeTag
 import type { ApplyResult, DuplicateNodesOp, Op, StyleChange } from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
+import { setSvgRootAttrs, svgRootAttrs } from './svg.js';
 import type { Document, Node, NodePath, Page } from './types.js';
 
 type Result = Record<string, unknown> | undefined;
@@ -262,12 +263,17 @@ function doSetAttrs(d: Document, op: Extract<Op, { type: 'setAttrs' }>): Applied
     const unset = unique((ch.unset ?? []).map((k) => k.trim()));
     const prevSet: Record<string, string> = {};
     const prevUnset: string[] = [];
+    // Nó svg: os atributos valem para o `<svg>` raiz do markup (é o que export e render usam).
+    const target = node.type === 'svg' ? svgRootAttrs(node.svg ?? '') : node.attrs;
     for (const k of unique([...unset, ...Object.keys(set)])) {
-      if (k in node.attrs) prevSet[k] = node.attrs[k];
+      if (k in target) prevSet[k] = target[k]!;
       else prevUnset.push(k);
     }
-    for (const k of unset) delete node.attrs[k];
-    Object.assign(node.attrs, set);
+    if (node.type === 'svg' && node.svg) node.svg = setSvgRootAttrs(node.svg, set, unset);
+    else {
+      for (const k of unset) delete node.attrs[k];
+      Object.assign(node.attrs, set);
+    }
     inv.push({ nodeId: ch.nodeId, set: prevSet, unset: prevUnset });
   }
   return { inverse: [{ type: 'setAttrs', changes: inv.reverse() }] };

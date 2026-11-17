@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp, applyOps } from './apply.js';
 import { createDocument, createNodeFromTag, findNode } from './document.js';
+import { svgRootAttrs } from './svg.js';
 import type { Op } from './ops.js';
 import type { Document, Node } from './types.js';
 
@@ -383,5 +384,45 @@ describe('applyOps', () => {
       ]),
     ).toThrow(/não encontrado/);
     expect(doc).toEqual(before);
+  });
+});
+
+describe('setAttrs em nó svg', () => {
+  const svgDoc = (): Document => {
+    const doc = fixture();
+    const n = createNodeFromTag('svg', {
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" height="190"><path d="M0 0"/></svg>',
+    });
+    n.id = 'el_svgsvg01';
+    doc.pages[0].frames[0].children.push(n);
+    return doc;
+  };
+
+  it('mescla no <svg> raiz, preserva viewBox/xmlns, escapa valores e desfaz', () => {
+    const doc = svgDoc();
+    const op: Op = {
+      type: 'setAttrs',
+      changes: [
+        {
+          nodeId: 'el_svgsvg01',
+          set: { height: '150', 'aria-label': 'a "b" <c>' },
+          unset: ['viewBox'],
+        },
+      ],
+    };
+    const r = applyOp(doc, op);
+    const after = r.doc;
+    // desfazer restaura os atributos (a ordem deles no markup pode mudar)
+    const back = applyOps(after, r.inverse).doc;
+    expect(svgRootAttrs(findNode(back, 'el_svgsvg01')!.node.svg!)).toEqual(
+      svgRootAttrs(findNode(doc, 'el_svgsvg01')!.node.svg!),
+    );
+    const markup = findNode(after, 'el_svgsvg01')!.node.svg!;
+    expect(markup).toContain('height="150"');
+    expect(markup).not.toContain('height="190"');
+    expect(markup).not.toContain('viewBox');
+    expect(markup).toContain('xmlns="http://www.w3.org/2000/svg"');
+    expect(markup).not.toContain('<c>');
+    expect(findNode(after, 'el_svgsvg01')!.node.attrs).toEqual({});
   });
 });

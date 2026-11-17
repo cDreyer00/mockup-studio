@@ -97,3 +97,23 @@ export function sanitizeSvg(svg: string): string {
   clean(root);
   return DomUtils.getOuterHTML(root, { xmlMode: true });
 }
+
+/** Atributos do `<svg>` raiz de um markup (vazio se não houver `<svg>`). */
+export function svgRootAttrs(svg: string): Record<string, string> {
+  const dom = parseXml(svg, { xmlMode: true });
+  const root = DomUtils.findOne((e) => localName(e.name) === 'svg', dom.children, true);
+  return root ? { ...root.attribs } : {};
+}
+
+/**
+ * Adiciona/substitui (`set`) e remove (`unset`) atributos do `<svg>` raiz e devolve o markup
+ * sanitizado de novo; os valores são escapados na serialização. Markup sem `<svg>` volta igual.
+ */
+export function setSvgRootAttrs(svg: string, set: Record<string, string>, unset: string[]): string {
+  const dom = parseXml(svg, { xmlMode: true });
+  const root = DomUtils.findOne((e) => localName(e.name) === 'svg', dom.children, true);
+  if (!root) return svg;
+  for (const k of unset) delete root.attribs[k];
+  Object.assign(root.attribs, set);
+  return sanitizeSvg(DomUtils.getOuterHTML(root, { xmlMode: true }));
+}

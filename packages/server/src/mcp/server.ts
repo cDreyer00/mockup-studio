@@ -860,7 +860,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Definir atributos',
       description:
-        'Define e/ou remove atributos HTML (href, alt, title...) de vários nós. Informe attrs e/ou unset.',
+        'Define e/ou remove atributos HTML (href, alt, title...) de vários nós. Informe attrs e/ou unset. Em nó svg os atributos vão para o <svg> raiz (ex.: height, width, viewBox, fill).',
       example: { nodeIds: ['el_ab12cd34'], attrs: { href: '/contato' } },
       inputSchema: {
         nodeIds: nodeIdsField,

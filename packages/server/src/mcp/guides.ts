@@ -208,7 +208,7 @@ Não confie só na estrutura: depois de cada conjunto de mudanças, olhe o resul
 
 - Alinhamento e espaçamento consistentes (gap, padding).
 - Nada cortado nem vazando do frame (overflow); imagens com proporção correta.
-- Conteúdo mais alto que o frame: com altura fixa o flexbox espreme os blocos (\`flex-shrink\`) e o screenshot parece caber, mas o código exportado (altura mínima) fica maior. Some as alturas com \`get_layout\` ou dê altura explícita aos blocos (num \`<svg>\` use \`update_styles\` com \`height\`; \`set_attrs\` não altera o markup do svg).
+- Conteúdo mais alto que o frame: com altura fixa o flexbox espreme os blocos (\`flex-shrink\`) e o screenshot parece caber, mas o código exportado (altura mínima) fica maior. Some as alturas com \`get_layout\` ou dê altura explícita aos blocos (num \`<svg>\` use \`set_attrs\` com \`height\` ou \`update_styles\`).
 - Contraste suficiente entre texto e fundo (4.5:1 no texto normal).
 - Textos quebrando em lugares ruins (títulos em muitas linhas, botões com texto em duas linhas).
 - Hierarquia: tamanhos e pesos coerentes; elementos repetidos idênticos.
