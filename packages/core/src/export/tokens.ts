@@ -9,7 +9,7 @@
  *   demais, regras de tema e `@custom-variant` por tema.
  */
 import { generate, parse, walk } from '../csstree.js';
-import { normalizeTokenNames } from '../schema.js';
+import { normalizeTokenNames, TokenMetaSchema } from '../schema.js';
 import { cssValueProblem } from '../styles.js';
 import { THEME_NAME_RE, TOKEN_NAME_RE } from '../tags.js';
 import {
@@ -98,6 +98,8 @@ export function tokensToDtcg(doc: Document): Json {
       if (name in t.overrides) themes[t.name] = t.overrides[name];
     }
     if (Object.keys(themes).length > 0) ext.themes = themes;
+    // Token sem valor base (só em temas): `$value` vazio + marca, para o import não o descartar.
+    if (value === undefined && Object.keys(themes).length > 0) ext.themeOnly = true;
     token.$extensions = { [DTCG_EXTENSION]: ext };
     const existing = node[leafKey];
     if (existing && typeof existing === 'object' && !('$value' in (existing as Json))) {
@@ -158,17 +160,28 @@ function themeOf(set: TokenSet, name: string): Theme {
 }
 
 /**
- * Seletor → destino: `null` = tokens base (`:root`, `html`, `:host`, `@theme`); string = tema
- * (`[data-theme="x"]`, `[data-theme=x]`, `.x`, `:root.x`, `html.x`, `.theme-x`); `undefined` = ignorar.
+ * Seletor → destino: `null` = tokens base (`:root`, `html`, `:host`, `*`, `@theme`); string = tema,
+ * só para `[data-theme="x"]` / `[data-theme=x]`, `.dark`, `.light` e `.theme-x` (os três últimos
+ * com prefixo opcional `:root`/`html`); `undefined` = ignorar (qualquer outra classe ou seletor).
  */
 function selectorTarget(selector: string): string | null | undefined {
   const s = selector.trim();
   if (/^(?::root|html|:host|\*)$/.test(s)) return null;
   let m = /^(?::root|html)?\[data-theme\s*=\s*["']?([a-zA-Z0-9_-]+)["']?\s*\]$/.exec(s);
   if (m) return m[1]!;
-  m = /^(?::root|html)?\.(?:theme-)?([a-zA-Z0-9_-]+)$/.exec(s);
+  m = /^(?::root|html)?\.(dark|light)$/.exec(s);
+  if (m) return m[1]!;
+  m = /^(?::root|html)?\.theme-([a-zA-Z0-9_-]+)$/.exec(s);
   if (m) return m[1]!;
   return undefined;
+}
+
+/** Aviso para `url()` remoto (`http:`, `https:` ou `//`); `null` se não houver. */
+function remoteUrlWarning(name: string, value: string): string | null {
+  const m = /url\(\s*["']?\s*((?:https?:|\/\/)[^"')\s]*)/i.exec(value);
+  return m
+    ? `${name} usa url() remoto (${m[1]}): o projeto é offline-first e o recurso pode não carregar`
+    : null;
 }
 
 /** Lê tokens de CSS: `:root {}`, `@theme {}`, `[data-theme="x"] {}`, `.dark {}` e `prefers-color-scheme`. */
@@ -191,6 +204,8 @@ export function parseTokensCss(css: string): TokenSet {
       set.warnings.push(`${name} descartado: ${problem ?? 'valor vazio'}`);
       return;
     }
+    const remote = remoteUrlWarning(name, v);
+    if (remote) set.warnings.push(remote);
     if (target === null) set.tokens[name] = v;
     else themeOf(set, target).overrides[name] = v;
   };
@@ -220,29 +235,33 @@ export function parseTokensCss(css: string): TokenSet {
       visitBlock(rule.block, target);
     }
   };
-  const top = ast as { type: string; children?: { toArray(): unknown[] } };
-  for (const node of top.children?.toArray() ?? []) {
-    const n = node as {
-      type: string;
-      name?: string;
-      prelude?: unknown;
-      block?: { children?: { toArray(): unknown[] } };
-    };
-    if (n.type === 'Rule') handleRule(n as { prelude: unknown; block: unknown }, null);
-    else if (n.type === 'Atrule' && n.name === 'theme' && n.block) visitBlock(n.block, null);
-    else if (n.type === 'Atrule' && n.name === 'media' && n.block) {
-      const q = n.prelude ? generate(n.prelude as Parameters<typeof generate>[0]) : '';
-      const m = /prefers-color-scheme\s*:\s*(dark|light)/.exec(q);
-      if (!m) {
-        set.warnings.push(`@media ignorado: "${q}"`);
-        continue;
-      }
-      for (const inner of n.block.children?.toArray() ?? []) {
-        const r = inner as { type: string; prelude: unknown; block: unknown };
-        if (r.type === 'Rule') handleRule(r, m[1]!);
-      }
-    } else if (n.type === 'Atrule') set.warnings.push(`@${n.name ?? ''} ignorado`);
-  }
+  type Children = { toArray(): unknown[] };
+  /** Percorre uma lista de nós; desce em `@media (prefers-color-scheme)` e `@layer` (recursivo). */
+  const visitNodes = (children: Children | undefined, media: string | null): void => {
+    for (const node of children?.toArray() ?? []) {
+      const n = node as {
+        type: string;
+        name?: string;
+        prelude?: unknown;
+        block?: { children?: Children } | null;
+      };
+      if (n.type === 'Rule') handleRule(n as { prelude: unknown; block: unknown }, media);
+      else if (n.type === 'Atrule' && n.name === 'theme' && n.block) visitBlock(n.block, null);
+      else if (n.type === 'Atrule' && n.name === 'layer') {
+        // `@layer a, b;` (só ordem) não tem bloco e não é aviso.
+        if (n.block) visitNodes(n.block.children, media);
+      } else if (n.type === 'Atrule' && n.name === 'media' && n.block) {
+        const q = n.prelude ? generate(n.prelude as Parameters<typeof generate>[0]) : '';
+        const m = /prefers-color-scheme\s*:\s*(dark|light)/.exec(q);
+        if (!m) {
+          set.warnings.push(`@media ignorado: "${q}"`);
+          continue;
+        }
+        visitNodes(n.block.children, m[1]!);
+      } else if (n.type === 'Atrule') set.warnings.push(`@${n.name ?? ''} ignorado`);
+    }
+  };
+  visitNodes((ast as { children?: Children }).children, null);
   set.tokens = normalizeTokenNames(set.tokens);
   // Redeclarações iguais ao valor base (como as que o export de tema gera para aliases) são redundantes.
   for (const t of set.themes) {
@@ -418,23 +437,65 @@ export function parseTokensJson(input: string | object): TokenSet {
       if (typeof t === 'string' && THEME_NAME_RE.test(t)) themeOf(set, t);
   }
 
-  const put = (name: string, value: string, meta: TokenMeta, themes: Record<string, unknown>) => {
+  /** Saneia e valida o meta; o que continuar inválido é descartado com aviso (não derruba o import). */
+  const cleanMeta = (name: string, meta: TokenMeta): TokenMeta => {
+    const out: TokenMeta = {};
+    if (meta.group !== undefined) {
+      const g = meta.group.trim().slice(0, 64).trim();
+      if (g !== '') {
+        const r = TokenMetaSchema.safeParse({ group: g });
+        if (r.success && r.data.group) out.group = r.data.group;
+        else set.warnings.push(`${name}: grupo "${g}" ignorado (caracteres inválidos)`);
+      }
+    }
+    if (meta.description !== undefined) {
+      // eslint-disable-next-line no-control-regex
+      const d = meta.description.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').slice(0, 500);
+      if (d.trim() !== '') {
+        const r = TokenMetaSchema.safeParse({ description: d });
+        if (r.success && r.data.description) out.description = r.data.description;
+        else set.warnings.push(`${name}: descrição ignorada (inválida)`);
+      }
+    }
+    return out;
+  };
+
+  const putThemes = (name: string, themes: Record<string, unknown>): void => {
+    for (const [theme, raw] of Object.entries(themes)) {
+      if (!THEME_NAME_RE.test(theme) || typeof raw !== 'string') continue;
+      const v = aliasToVar(raw);
+      if (cssValueProblem(v)) continue;
+      const remote = remoteUrlWarning(name, v);
+      if (remote) set.warnings.push(remote);
+      themeOf(set, theme).overrides[name] = v;
+    }
+  };
+
+  /** `themeOnly`: token sem valor base; grava só as sobrescritas de tema (e o meta). */
+  const put = (
+    name: string,
+    value: string,
+    meta: TokenMeta,
+    themes: Record<string, unknown>,
+    themeOnly = false,
+  ) => {
     if (!TOKEN_NAME_RE.test(name)) {
       set.warnings.push(`Nome de token inválido ignorado: "${name}"`);
       return;
     }
-    const problem = cssValueProblem(value);
-    if (problem || value === '') {
-      set.warnings.push(`${name} descartado: ${problem ?? 'valor vazio'}`);
-      return;
+    if (!themeOnly) {
+      const problem = cssValueProblem(value);
+      if (problem || value === '') {
+        set.warnings.push(`${name} descartado: ${problem ?? 'valor vazio'}`);
+        return;
+      }
+      const remote = remoteUrlWarning(name, value);
+      if (remote) set.warnings.push(remote);
+      set.tokens[name] = value;
     }
-    set.tokens[name] = value;
-    if (meta.group || meta.description) set.tokenMeta[name] = meta;
-    for (const [theme, raw] of Object.entries(themes)) {
-      if (!THEME_NAME_RE.test(theme) || typeof raw !== 'string') continue;
-      const v = aliasToVar(raw);
-      if (!cssValueProblem(v)) themeOf(set, theme).overrides[name] = v;
-    }
+    const clean = cleanMeta(name, meta);
+    if (clean.group || clean.description) set.tokenMeta[name] = clean;
+    putThemes(name, themes);
   };
 
   const visit = (node: Json, path: string[], inheritedType: string | undefined): void => {
@@ -450,6 +511,7 @@ export function parseTokensJson(input: string | object): TokenSet {
       const ext = ((node.$extensions as Json | undefined)?.[DTCG_EXTENSION] ?? {}) as {
         group?: unknown;
         themes?: unknown;
+        themeOnly?: unknown;
       };
       const description =
         typeof node.$description === 'string'
@@ -460,6 +522,14 @@ export function parseTokensJson(input: string | object): TokenSet {
       const group = typeof ext.group === 'string' ? ext.group : t ? GROUP_BY_TYPE[t] : undefined;
       const themes =
         ext.themes && typeof ext.themes === 'object' ? (ext.themes as Record<string, unknown>) : {};
+      if ((raw === '' || ext.themeOnly === true) && Object.keys(themes).length > 0) {
+        // Token só de tema (sem valor base): mantém as sobrescritas e o meta.
+        const meta: TokenMeta = {};
+        if (group) meta.group = group;
+        if (description) meta.description = description;
+        put(name, '', meta, themes, true);
+        return;
+      }
       const css = dtcgToCss(t, raw);
       if (css === null) {
         set.warnings.push(`${name}: valor não suportado (${t ?? 'sem $type'})`);
@@ -487,7 +557,10 @@ export function parseTokensJson(input: string | object): TokenSet {
     if (m.group && m.group === inferTokenGroup(k, set.tokens[k])) delete m.group;
     if (!m.group && !m.description) delete set.tokenMeta[k];
   }
-  if (Object.keys(set.tokens).length === 0) {
+  if (
+    Object.keys(set.tokens).length === 0 &&
+    !set.themes.some((t) => Object.keys(t.overrides).length > 0)
+  ) {
     throw new Error(
       'Nenhum token encontrado no JSON (esperado o formato W3C Design Tokens com $value)',
     );

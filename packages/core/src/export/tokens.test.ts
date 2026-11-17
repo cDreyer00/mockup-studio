@@ -252,7 +252,7 @@ describe('parseTokensCss', () => {
       :root { --a: 1px; --b: #fff }
       [data-theme=dark] { --b: #000 }
       .light { --b: #eee }
-      :root.sepia { --b: #ccc }
+      :root.theme-sepia { --b: #ccc }
       @theme { --color-x: red; }
     `);
     expect(set.tokens).toEqual({ '--a': '1px', '--b': '#fff', '--color-x': 'red' });
@@ -306,5 +306,87 @@ describe('parseTokens', () => {
     expect(parseTokens('{"a":{"$value":"1px"}}').tokens).toEqual({ '--a': '1px' });
     expect(parseTokens(':root { --a: 1px }').tokens).toEqual({ '--a': '1px' });
     expect(parseTokens('{"a":{"$value":"1px"}}', 'json').tokens).toEqual({ '--a': '1px' });
+  });
+});
+
+describe('revisão de import/export', () => {
+  it('json: token só de tema sobrevive ao round-trip', () => {
+    const doc = docWith({
+      tokens: { '--color-primary': '#111111' },
+      tokenMeta: { '--color-accent': { description: 'Só no escuro' } },
+      themes: [{ name: 'dark', overrides: { '--color-accent': '#ff00ff' } }],
+    });
+    const out = parseTokensJson(exportTokens(doc, 'json'));
+    expect(out.tokens).toEqual({ '--color-primary': '#111111' });
+    expect(out.tokens).not.toHaveProperty('--color-accent');
+    expect(out.themes.find((t) => t.name === 'dark')?.overrides).toEqual({
+      '--color-accent': '#ff00ff',
+    });
+    expect(out.tokenMeta['--color-accent']?.description).toBe('Só no escuro');
+  });
+
+  it('json: grupo inválido, descrição longa e com tab não derrubam o import', () => {
+    const set = parseTokensJson({
+      a: {
+        $value: '1px',
+        $extensions: { 'mockup-studio': { group: 'Marca!' } },
+      },
+      b: { $value: '2px', $description: 'x'.repeat(600) },
+      c: { $value: '3px', $description: 'linha\tcom\ttab\nsegunda' },
+    });
+    expect(set.tokens).toEqual({ '--a': '1px', '--b': '2px', '--c': '3px' });
+    expect(set.tokenMeta['--a']?.group).toBeUndefined();
+    expect(set.warnings.some((w) => w.includes('grupo "Marca!" ignorado'))).toBe(true);
+    expect(set.tokenMeta['--b']?.description).toHaveLength(500);
+    expect(set.tokenMeta['--c']?.description).toBe('linha com tab\nsegunda');
+    expect(() => planImportTokens(docWith({}), set, 'merge')).not.toThrow();
+  });
+
+  it('css: lê @layer base (formato shadcn), com @media aninhado', () => {
+    const set = parseTokensCss(`@layer base {
+      :root { --background: 0 0% 100%; }
+      .dark { --background: 222 84% 5%; }
+      @media (prefers-color-scheme: light) { :root { --fg: #000; } }
+    }
+    @media (prefers-color-scheme: dark) { @layer x { :root { --fg: #fff; } } }`);
+    expect(set.tokens['--background']).toBe('0 0% 100%');
+    expect(set.themes.find((t) => t.name === 'dark')?.overrides).toEqual({
+      '--background': '222 84% 5%',
+      '--fg': '#fff',
+    });
+    expect(set.themes.find((t) => t.name === 'light')?.overrides['--fg']).toBe('#000');
+  });
+
+  it('css: só seletores de tema conhecidos viram tema', () => {
+    const ruim = parseTokensCss(':root { --a: 1px } .button { --x: 1px }');
+    expect(ruim.themes).toEqual([]);
+    expect(ruim.warnings.some((w) => w.includes('Regra ignorada'))).toBe(true);
+    const set = parseTokensCss(`:root { --a: 1px }
+      .dark { --a: 2px } .theme-sepia { --a: 3px } html.light { --a: 4px }
+      [data-theme="x"] { --a: 5px }`);
+    expect(Object.fromEntries(set.themes.map((t) => [t.name, t.overrides['--a']]))).toEqual({
+      dark: '2px',
+      sepia: '3px',
+      light: '4px',
+      x: '5px',
+    });
+  });
+
+  it('url() remoto gera aviso (css e json, base e tema)', () => {
+    const css = parseTokensCss(
+      `:root { --bg-image: url("https://x.com/a.png") } .dark { --bg-image: URL(//cdn.x/b.png) } :root { --local: url(a.png) }`,
+    );
+    expect(css.warnings.filter((w) => w.includes('url() remoto'))).toHaveLength(2);
+    expect(
+      css.warnings.some((w) => w.includes('--bg-image usa url() remoto (https://x.com/a.png)')),
+    ).toBe(true);
+    const json = parseTokensJson({
+      bgImage: {
+        $value: 'url(https://x.com/a.png)',
+        $extensions: { 'mockup-studio': { themes: { dark: "url('http://x.com/b.png')" } } },
+      },
+    });
+    expect(json.warnings.filter((w) => w.includes('url() remoto'))).toHaveLength(2);
+    expect(json.tokens['--bgImage']).toBe('url(https://x.com/a.png)');
   });
 });
