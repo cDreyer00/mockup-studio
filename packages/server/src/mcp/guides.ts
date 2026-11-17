@@ -423,7 +423,7 @@ Componente = **principal** (na biblioteca do documento) + **instâncias** (nós 
 
 - \`list_components\` mostra a biblioteca e os kits; \`get_component('shadcn-like/Button')\` mostra props, opções e a árvore.
 - Kit \`shadcn-like\`: Button, Input, Card, Navbar, Tabs, Dialog, Table, List (usa os tokens shadcn; \`import_kit\` cria os que faltam).
-- \`insert_component('shadcn-like/Button', parentId, { variant: 'outline', label: 'Salvar' })\` importa o kit se preciso e insere a instância.
+- \`insert_component('shadcn-like/Button', parentId, { variant: 'outline', label: 'Salvar' })\` importa do kit o que falta (sem mexer nos principais já importados) e insere a instância. \`import_kit\` não sobrescreve principais editados (lista os divergentes); \`overwrite: true\` substitui.
 - Slots recebem HTML (Tailwind aceito): \`insert_component('shadcn-like/Card', parentId, { title: 'Plano' }, slots: { content: '<p>…</p>' })\`. A resposta traz os ids dos slots (use como parentId de write_html).
 - Props: \`set_instance_props(nodeIds, { variant: 'ghost' })\`. Props inválidas listam as válidas; enum lista as opções.
 

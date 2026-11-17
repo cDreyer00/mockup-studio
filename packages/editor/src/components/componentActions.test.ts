@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyOps, importKitOps, parseDocument } from '@mockup/core';
 import type { Document, Op } from '@mockup/core';
 import { actions } from '../actions';
 import { daemon } from '../client/daemon';
@@ -137,5 +138,26 @@ describe('inserir instância', () => {
     expect(create.node.componentId).toBe('cp_sbutton1');
     expect(create.node.props).toEqual({ label: 'Salvar' });
     expect(apply).toHaveBeenCalledTimes(1);
+  });
+
+  it('do kit: com o kit já importado, só adiciona o que falta (o principal editado fica)', async () => {
+    const kit = JSON.parse(fs.readFileSync(KIT_FILE, 'utf8')) as Document;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => kit })),
+    );
+    const { doc } = makeDoc();
+    const imported = applyOps(doc, importKitOps(doc, parseDocument(kit), 'shadcn-like').ops).doc;
+    // Button editado e Card apagado (sem instâncias).
+    const raw = applyOps(imported, [
+      { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
+      { type: 'deleteComponent', componentId: 'cp_scard001' },
+    ]).doc;
+    useDoc.setState(withView(raw));
+    await insertInstance('cp_scard001', { kit: 'shadcn-like' });
+    const ops = lastOps();
+    expect(ops.map((o) => o.type)).toEqual(['addComponent', 'createNode']);
+    const add = ops[0]!;
+    expect(add.type === 'addComponent' && add.component.id).toBe('cp_scard001');
   });
 });

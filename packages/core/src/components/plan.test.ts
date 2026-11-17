@@ -379,6 +379,79 @@ describe('importKitOps', () => {
     expect(importKitOps(d2, kit, 'shadcn-like').ops).toEqual([]);
   });
 
+  it('onlyMissing: reinserir um componente apagado não desfaz edições nos outros principais', () => {
+    const doc = fixture();
+    const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
+    // Edita o Button e apaga o List (sem instâncias).
+    const edited = applyOps(d1, [
+      { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
+      { type: 'deleteComponent', componentId: 'cp_slist001' },
+    ]).doc;
+    expect(getComponent(edited, 'cp_slist001')).toBeUndefined();
+    const plan = importKitOps(edited, kit, 'shadcn-like', { onlyMissing: true });
+    expect(plan.ops.map((o) => o.type)).toEqual(['addComponent']);
+    const status = Object.fromEntries(plan.components.map((c) => [c.id, c.status]));
+    expect(status.cp_slist001).toBe('added');
+    expect(status.cp_sbutton1).toBe('diverged');
+    expect(status.cp_scard001).toBe('unchanged');
+    const d2 = applyOps(edited, plan.ops).doc;
+    expect(getComponent(d2, 'cp_sbutton1')!.root.style.color).toBe('red');
+    expect(getComponent(d2, 'cp_slist001')!.kit).toBe('shadcn-like');
+    // Sem onlyMissing (overwrite) o Button volta ao do kit.
+    const over = importKitOps(d2, kit, 'shadcn-like');
+    expect(over.components.find((c) => c.id === 'cp_sbutton1')!.status).toBe('updated');
+    expect(
+      applyOps(d2, over.ops).doc.components!.find((c) => c.id === 'cp_sbutton1')!.root.style.color,
+    ).not.toBe('red');
+  });
+
+  it('onlyMissing: renomear não conta como ausente (o id do kit é o que vale)', () => {
+    const doc = fixture();
+    const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
+    // Renomeia e edita o Button do kit e apaga o Dialog (que usa o Button).
+    const renamed = applyOps(d1, [
+      { type: 'updateComponent', componentId: 'cp_sbutton1', name: 'Botao' },
+      { type: 'updateStyles', nodeIds: ['el_sbtnroot'], styles: { color: 'red' } },
+      { type: 'deleteComponent', componentId: 'cp_sdialog1' },
+    ]).doc;
+    // Inserir o Dialog de novo (como insert_component faz) só traz o Dialog.
+    const plan = importKitOps(renamed, kit, 'shadcn-like', { onlyMissing: true });
+    expect(plan.ops.map((o) => o.type)).toEqual(['addComponent']);
+    expect(plan.components.find((c) => c.id === 'cp_sdialog1')!.status).toBe('added');
+    expect(plan.components.find((c) => c.id === 'cp_sbutton1')).toEqual({
+      id: 'cp_sbutton1',
+      name: 'Botao',
+      status: 'diverged',
+    });
+    const d2 = applyOps(renamed, plan.ops).doc;
+    const btn = getComponent(d2, 'cp_sbutton1')!;
+    expect(btn.name).toBe('Botao');
+    expect(btn.root.style.color).toBe('red');
+    expect(d2.components!.filter((c) => c.name.startsWith('Button'))).toHaveLength(1); // o do fixture
+    // A instância de Button dentro do Dialog reimportado aponta para o Button renomeado.
+    const dlg = getComponent(d2, 'cp_sdialog1')!;
+    const nested: string[] = [];
+    walk(dlg.root, (x) => {
+      if (x.type === 'instance') nested.push(x.componentId!);
+    });
+    expect(nested).toContain('cp_sbutton1');
+  });
+
+  it('componentes com o id do kit mas de outra origem nunca são tocados', () => {
+    const doc = fixture();
+    const d1 = applyOps(doc, importKitOps(doc, kit, 'shadcn-like').ops).doc;
+    const foreign = applyOps(d1, [
+      { type: 'updateComponent', componentId: 'cp_sinput01', kit: null },
+      { type: 'updateStyles', nodeIds: ['el_sinproot'], styles: { color: 'red' } },
+    ]).doc;
+    for (const onlyMissing of [false, true]) {
+      const plan = importKitOps(foreign, kit, 'shadcn-like', { onlyMissing });
+      expect(plan.ops).toEqual([]);
+      expect(plan.skipped.map((c) => c.id)).toEqual(['cp_sinput01']);
+      expect(plan.components.some((c) => c.id === 'cp_sinput01')).toBe(false);
+    }
+  });
+
   it('ids de nós em colisão ganham ids derivados estáveis (chaves de variantes remapeadas)', () => {
     const doc = fixture();
     // Um nó da página com o id do rótulo do Button do kit.

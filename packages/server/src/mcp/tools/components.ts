@@ -639,12 +639,17 @@ export function registerComponentTools(ctx: ToolContext): void {
           throw new ToolError(
             `O kit "${kit.name}" não tem o componente "${component.slice(slash + 1)}". Componentes: ${(kit.doc.components ?? []).map((c) => c.name).join(', ')}.`,
           );
-        const imp = importKitOps(doc, kit.doc, kit.name);
+        // Só os componentes que faltam (pelo id do kit): principais já no documento, editados
+        // ou renomeados, ficam como estão.
+        const imp = importKitOps(doc, kit.doc, kit.name, { onlyMissing: true });
         ops.push(...imp.ops);
         work = applyOps(doc, imp.ops).doc;
         def = getComponent(work, kc.id);
         if (!def) throw componentNotFound(doc, component);
-        imported = ` Kit "${kit.name}" importado (${imp.components.filter((c) => c.status !== 'unchanged').length} componente(s)${imp.tokensAdded.length ? `, ${imp.tokensAdded.length} token(s)` : ''}).`;
+        const added = imp.components.filter((c) => c.status === 'added').length;
+        if (added > 0 || imp.tokensAdded.length > 0) {
+          imported = ` Kit "${kit.name}" importado (${added} componente(s)${imp.tokensAdded.length ? `, ${imp.tokensAdded.length} token(s)` : ''}).`;
+        }
       }
 
       // slots: HTML → nós (Tailwind aceito, como em write_html)
@@ -926,31 +931,58 @@ export function registerComponentTools(ctx: ToolContext): void {
     {
       title: 'Importar kit de componentes',
       description:
-        'Importa os componentes de um kit (nome, ex. "shadcn-like", ou caminho absoluto de um .mockup.json) com os tokens que faltam. Idempotente: importar de novo atualiza em vez de duplicar. Veja os kits em list_components.',
+        'Importa um kit (nome, ex. "shadcn-like", ou caminho absoluto de um .mockup.json) com os tokens que faltam. Idempotente: adiciona os componentes que faltam e lista os editados (divergentes) sem sobrescrever; overwrite: true os substitui pelos do kit. Kits em list_components.',
       example: { name: 'shadcn-like' },
       inputSchema: {
         name: z
           .string()
           .describe('Nome do kit ("shadcn-like") ou caminho absoluto de um .mockup.json.'),
+        overwrite: z
+          .boolean()
+          .optional()
+          .describe(
+            'true substitui os componentes do kit que diferem do kit (descarta as edições feitas neles). Padrão false: só adiciona os que faltam.',
+          ),
         docId: docIdField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    ({ name, docId }) => {
+    ({ name, overwrite, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const kit = kitOrThrow(name);
-      const imp = importKitOps(doc, kit.doc, kit.name);
+      const imp = importKitOps(doc, kit.doc, kit.name, { onlyMissing: overwrite !== true });
       const list = imp.components.map((c) => `${c.name} (${c.status})`).join(', ');
-      if (imp.ops.length === 0) return `Kit "${kit.name}" já está importado e atualizado: ${list}.`;
+      const diverged = imp.components.filter((c) => c.status === 'diverged');
+      const notes = [
+        diverged.length
+          ? `Divergentes do kit (mantidos com as suas edições): ${diverged.map((c) => c.name).join(', ')}. Para substituir pelos do kit: import_kit("${name}", overwrite: true).`
+          : undefined,
+        imp.skipped.length
+          ? `Mantidos sem mudança (mesmo id, mas de outra origem): ${imp.skipped.map((c) => `${c.name}${c.kit ? ` [kit ${c.kit}]` : ''}`).join(', ')}.`
+          : undefined,
+      ];
+      if (imp.ops.length === 0) {
+        return [
+          diverged.length
+            ? `Kit "${kit.name}": nada a importar (${list}).`
+            : `Kit "${kit.name}" já está importado e atualizado: ${list}.`,
+          ...notes,
+        ]
+          .filter(Boolean)
+          .join('\n');
+      }
       apply(id, imp.ops, 'import_kit');
       return [
         `Kit "${kit.name}" importado: ${list}.`,
         imp.tokensAdded.length
           ? `Tokens criados (${imp.tokensAdded.length}): ${imp.tokensAdded.slice(0, 8).join(', ')}${imp.tokensAdded.length > 8 ? ', …' : ''}.`
           : 'Nenhum token novo (o documento já tinha os usados).',
+        ...notes,
         'Insira com insert_component("kit/Nome", parentId, props); detalhes em get_component.',
-      ].join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
     },
   );
 }

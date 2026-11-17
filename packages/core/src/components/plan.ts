@@ -404,10 +404,31 @@ export function resetInstanceOps(doc: Document, nodeId: string): Op[] {
 
 /* ---------------- importKit ---------------- */
 
+/**
+ * Situação de cada componente do kit no documento:
+ * - `added`: não existia (pelo id do kit) e foi adicionado;
+ * - `updated`: existia com `kit` igual e foi sobrescrito pelo do kit (só sem `onlyMissing`);
+ * - `unchanged`: já igual ao do kit;
+ * - `diverged`: existe com `kit` igual mas difere do kit (edições do usuário) e foi mantido
+ *   (`onlyMissing`).
+ */
+export type ImportKitStatus = 'added' | 'updated' | 'unchanged' | 'diverged';
+
 export interface ImportKitResult {
   ops: Op[];
-  components: { id: string; name: string; status: 'added' | 'updated' | 'unchanged' }[];
+  components: { id: string; name: string; status: ImportKitStatus }[];
+  /** Componentes com o id de um do kit mas de outra origem (`kit` diferente): nunca são tocados. */
+  skipped: { id: string; name: string; kit?: string }[];
   tokensAdded: string[];
+}
+
+export interface ImportKitOptions {
+  /**
+   * Só adiciona os componentes ausentes (pelo id do kit, que é estável: renomear não conta como
+   * ausente); nunca atualiza os existentes (os que diferem saem como `diverged`). Tokens que
+   * faltam continuam sendo criados.
+   */
+  onlyMissing?: boolean;
 }
 
 function stableStringify(value: unknown): string {
@@ -442,13 +463,20 @@ function topoOrder(list: ComponentDef[]): ComponentDef[] {
 
 /**
  * Importa os componentes de um kit (documento `*.mockup.json` com `components`):
- * - mesmo id já no documento: `updateComponent` se mudou (senão `unchanged`); id novo: `addComponent`
- *   (dependências antes), com `kit` preenchido e nome único;
+ * - id novo: `addComponent` (dependências antes), com `kit` preenchido e nome único;
+ * - mesmo id já no documento com `kit === kitName`: `unchanged` se igual; se difere, `updated`
+ *   (`updateComponent`) ou, com `onlyMissing`, `diverged` (mantido como está);
+ * - mesmo id com outro `kit` (ou sem): nunca tocado (`skipped`);
  * - ids de nós que colidem com nós de outro dono ganham ids derivados (determinísticos, então
  *   importar de novo não muda nada), remapeando as chaves de variantes e overrides;
  * - tokens (com metadados) que faltam e as sobrescritas dos temas (ex. `dark`) desses tokens.
  */
-export function importKitOps(doc: Document, kit: Document, kitName: string): ImportKitResult {
+export function importKitOps(
+  doc: Document,
+  kit: Document,
+  kitName: string,
+  opts: ImportKitOptions = {},
+): ImportKitResult {
   const ops: Op[] = [];
 
   // Tokens que faltam, metadados e sobrescritas de tema deles (como planShadcnTokens).
@@ -494,6 +522,7 @@ export function importKitOps(doc: Document, kit: Document, kitName: string): Imp
     (doc.components ?? []).map((c) => [c.id, c.name] as [string, string]),
   );
   const components: ImportKitResult['components'] = [];
+  const skipped: ImportKitResult['skipped'] = [];
 
   /** Caminho de override relativo ao componente `cid` com os ids remapeados. */
   const remapPath = (path: string, cid: string): string => {
@@ -546,9 +575,16 @@ export function importKitOps(doc: Document, kit: Document, kitName: string): Imp
       when: { ...v.when },
       overrides: remapOverrides(deepClone(v.overrides), kc.id),
     }));
+    if (existing && existing.kit !== kitName) {
+      skipped.push({
+        id: existing.id,
+        name: existing.name,
+        ...(existing.kit !== undefined && { kit: existing.kit }),
+      });
+      continue;
+    }
     const takenNames = [...names].filter(([id]) => id !== kc.id).map(([, n]) => n);
     const name = uniqueComponentName(kc.name, takenNames);
-    names.set(kc.id, name);
     const desired: ComponentDef = {
       id: kc.id,
       name,
@@ -560,11 +596,16 @@ export function importKitOps(doc: Document, kit: Document, kitName: string): Imp
     if (kc.description !== undefined) desired.description = kc.description;
 
     if (!existing) {
+      names.set(kc.id, name);
       ops.push({ type: 'addComponent', component: desired });
       components.push({ id: kc.id, name, status: 'added' });
     } else if (stableStringify(existing) === stableStringify(desired)) {
       components.push({ id: kc.id, name, status: 'unchanged' });
+    } else if (opts.onlyMissing) {
+      // Edições do usuário no principal (inclusive renomear) são preservadas.
+      components.push({ id: kc.id, name: existing.name, status: 'diverged' });
     } else {
+      names.set(kc.id, name);
       ops.push({
         type: 'updateComponent',
         componentId: kc.id,
@@ -578,5 +619,5 @@ export function importKitOps(doc: Document, kit: Document, kitName: string): Imp
       components.push({ id: kc.id, name, status: 'updated' });
     }
   }
-  return { ops, components, tokensAdded };
+  return { ops, components, skipped, tokensAdded };
 }

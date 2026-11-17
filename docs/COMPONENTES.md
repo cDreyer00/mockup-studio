@@ -143,7 +143,7 @@ Planejadores (em `components/plan.ts`, devolvem `Op[]` aplicadas como uma entrad
 | `detachInstanceOps(doc, nodeId)`                      | `replaceNode` (instância → árvore concreta com ids novos; conteúdo de slot mantém os ids; instâncias aninhadas continuam instâncias) |
 | `pushOverridesToMainOps(doc, nodeId)`                 | `updateComponent` (overrides gravados no principal) + `setInstanceOverrides` (limpa)                                                 |
 | `resetInstanceOps(doc, nodeId)`                       | `setInstanceOverrides` null                                                                                                          |
-| `importKitOps(doc, kit, kitName)`                     | `addComponent`/`updateComponent` por componente do kit + tokens e tema `dark` que faltam                                             |
+| `importKitOps(doc, kit, kitName, { onlyMissing })`    | `addComponent` dos ausentes, `updateComponent` dos divergentes (sem `onlyMissing`) + tokens e tema `dark` que faltam (ver Kits)      |
 
 `createComponent` recusa frames raiz, nós dentro de instâncias (ids virtuais) e nós já dentro de um principal que gerariam ciclo.
 
@@ -162,7 +162,21 @@ Um kit é um documento `*.mockup.json` com `components` e os tokens que eles usa
 | Table      | `caption`                                                                                      | `rows`              |
 | List       | —                                                                                              | `items`             |
 
-`import_kit` copia os componentes (com `kit` preenchido; ids estáveis do kit, então importar de novo atualiza em vez de duplicar) e cria só os tokens que faltam.
+`import_kit` copia os componentes (com `kit` preenchido) e cria só os tokens que faltam (e as sobrescritas do tema `dark` deles). Um componente do kit é identificado pelo **id** do kit (estável, ex. `cp_sbutton1`), não pelo nome: renomear não faz o componente parecer ausente.
+
+Reimportar não desfaz edições do usuário nos principais. `importKitOps` classifica cada componente do kit:
+
+| Status      | Quando                                                                               | Op                |
+| ----------- | ------------------------------------------------------------------------------------ | ----------------- |
+| `added`     | O id não está no documento.                                                          | `addComponent`    |
+| `unchanged` | Está, com `kit` igual, e é idêntico ao do kit.                                       | —                 |
+| `diverged`  | Está, com `kit` igual, mas difere (edição, nome, props) e `onlyMissing` está ligado. | — (mantido)       |
+| `updated`   | Está, com `kit` igual, difere e `onlyMissing` está desligado (sobrescrever).         | `updateComponent` |
+
+Componentes com o id de um do kit mas outro `kit` (ou sem `kit`) nunca são tocados e saem em `skipped`.
+
+- `insert_component('kit/Nome')` (MCP) e inserir pela aba do editor usam `onlyMissing: true` quando o componente falta: adicionam os componentes ausentes do kit (o pedido e as dependências) e os tokens que faltam, sem tocar nos existentes.
+- `import_kit(name)` (padrão `overwrite: false`) também usa `onlyMissing`: adiciona os ausentes e lista os divergentes, com a instrução para atualizar. `import_kit(name, overwrite: true)` substitui os divergentes (só os do mesmo kit) pelos do kit; é uma entrada de histórico (desfazível).
 
 ## Ícones
 
@@ -170,25 +184,25 @@ Dois kits empacotados offline: **Lucide** (`lucide-static`) e **Heroicons** (`@i
 
 ## MCP
 
-| Ferramenta                    | Descrição                                                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `list_components`             | Biblioteca do documento (id, nome, kit, props, nº de instâncias) e kits disponíveis.                          |
-| `get_component`               | Props, variantes, árvore do principal com ids (para editar por `update_styles` etc.) e HTML.                  |
-| `create_component`            | Transforma um nó em componente (o nó vira a primeira instância).                                              |
-| `update_component`            | Nome, descrição, props e variantes.                                                                           |
-| `update_component_html`       | Substitui a árvore do principal por HTML (Tailwind aceito; `{{prop}}` e `data-slot`).                         |
-| `delete_component`            | Remove o principal (recusa com instâncias, a menos que `detach_instances`).                                   |
-| `insert_component`            | Insere uma instância (`componentId`, nome ou `kit/Nome`; importa o kit se preciso) com props e HTML por slot. |
-| `set_instance_props`          | Define/remove props de instâncias.                                                                            |
-| `set_instance_override`       | Sobrescreve um nó da instância por caminho (estilo, texto, atributos, oculto).                                |
-| `reset_instance`              | Remove os overrides.                                                                                          |
-| `detach_instance`             | Destaca: a instância vira nós comuns.                                                                         |
-| `push_overrides_to_main`      | Grava os overrides da instância no principal.                                                                 |
-| `go_to_main`                  | Seleciona/enquadra o principal no editor e devolve sua árvore.                                                |
-| `import_kit`                  | Importa um kit pelo nome (`shadcn-like`) ou caminho absoluto de um `.mockup.json`.                            |
-| `search_icons`, `insert_icon` | Ampliados com vários kits.                                                                                    |
+| Ferramenta                    | Descrição                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `list_components`             | Biblioteca do documento (id, nome, kit, props, nº de instâncias) e kits disponíveis.                        |
+| `get_component`               | Props, variantes, árvore do principal com ids (para editar por `update_styles` etc.) e HTML.                |
+| `create_component`            | Transforma um nó em componente (o nó vira a primeira instância).                                            |
+| `update_component`            | Nome, descrição, props e variantes.                                                                         |
+| `update_component_html`       | Substitui a árvore do principal por HTML (Tailwind aceito; `{{prop}}` e `data-slot`).                       |
+| `delete_component`            | Remove o principal (recusa com instâncias, a menos que `detach_instances`).                                 |
+| `insert_component`            | Insere uma instância (`componentId`, nome ou `kit/Nome`; importa o que falta do kit) com props e slots.     |
+| `set_instance_props`          | Define/remove props de instâncias.                                                                          |
+| `set_instance_override`       | Sobrescreve um nó da instância por caminho (estilo, texto, atributos, oculto).                              |
+| `reset_instance`              | Remove os overrides.                                                                                        |
+| `detach_instance`             | Destaca: a instância vira nós comuns.                                                                       |
+| `push_overrides_to_main`      | Grava os overrides da instância no principal.                                                               |
+| `go_to_main`                  | Seleciona/enquadra o principal no editor e devolve sua árvore.                                              |
+| `import_kit`                  | Importa um kit pelo nome (`shadcn-like`) ou caminho de um `.mockup.json`; `overwrite` sobrescreve editados. |
+| `search_icons`, `insert_icon` | Ampliados com vários kits.                                                                                  |
 
-Parâmetros finais (tabela completa em [MCP.md](MCP.md#componentes)): `insert_component(component, parentId?, props?, slots?, index?, name?, styles?)`, `get_component(component)`, `create_component(nodeId, name?, description?, props?)` (props com `bind: { nodeId, target }`), `update_component(componentId, name?, description?, props?, variants?)` (listas substituem), `set_instance_override(nodeId, path, style?, unset_style?, text?, attrs?, hidden?)`, `import_kit(name)`. Os ids virtuais (`in_x/caminho`) e os nós de um principal valem nas ferramentas de leitura (`get_html`, `get_styles`, `get_tree_summary`, `get_screenshot`, `get_code`...), e `get_screenshot('cp_...')` renderiza o principal numa instância padrão.
+Parâmetros finais (tabela completa em [MCP.md](MCP.md#componentes)): `insert_component(component, parentId?, props?, slots?, index?, name?, styles?)`, `get_component(component)`, `create_component(nodeId, name?, description?, props?)` (props com `bind: { nodeId, target }`), `update_component(componentId, name?, description?, props?, variants?)` (listas substituem), `set_instance_override(nodeId, path, style?, unset_style?, text?, attrs?, hidden?)`, `import_kit(name, overwrite?)`. Os ids virtuais (`in_x/caminho`) e os nós de um principal valem nas ferramentas de leitura (`get_html`, `get_styles`, `get_tree_summary`, `get_screenshot`, `get_code`...), e `get_screenshot('cp_...')` renderiza o principal numa instância padrão.
 
 Kits: a pasta `kits/` é achada por `MOCKUP_KITS_DIR`, por `resources/kits` (app empacotado) ou subindo da pasta do código até a raiz do repositório (desenvolvimento e bundle do daemon). HTTP: `GET /api/kits` (`{ kits: [{ name, components: [{ id, name, description, props }] }] }`) e `GET /api/kits/:name` (o documento do kit).
 

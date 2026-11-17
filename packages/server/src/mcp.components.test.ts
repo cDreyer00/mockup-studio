@@ -213,6 +213,62 @@ describe('MCP componentes: kits, instâncias, overrides e render', () => {
     expect(await fail('import_kit', { name: 'nao-existe' })).toContain('shadcn-like');
   });
 
+  it('insert_component de kit importa só o que falta e preserva o principal editado ou renomeado', async () => {
+    const first = await ok('insert_component', {
+      component: 'shadcn-like/Card',
+      parentId: ws.frameId,
+    });
+    expect(first).toContain('Kit "shadcn-like" importado (8 componente(s)');
+    // Edita e renomeia o Button, apaga o Dialog (sem instâncias) e insere o Dialog de novo.
+    await ok('update_styles', { nodeIds: ['el_sbtnroot'], styles: { color: 'red' } });
+    await ok('update_component', { componentId: 'cp_sbutton1', name: 'Botao' });
+    await ok('delete_component', { componentId: 'cp_sdialog1' });
+    const dlg = await ok('insert_component', {
+      component: 'shadcn-like/Dialog',
+      parentId: ws.frameId,
+    });
+    expect(dlg).toContain('Kit "shadcn-like" importado (1 componente(s))');
+    // `shadcn-like/Button` não acha pelo nome (renomeado), mas o id do kit já está no documento.
+    const again = await ok('insert_component', {
+      component: 'shadcn-like/Button',
+      parentId: ws.frameId,
+    });
+    expect(again).toContain('de "Botao"');
+    expect(again).not.toContain('importado');
+    const d = await doc();
+    const btn = d.components!.find((c) => c.id === 'cp_sbutton1')!;
+    expect(btn.name).toBe('Botao');
+    expect(btn.root.style.color).toBe('red');
+    expect(d.components).toHaveLength(8);
+  });
+
+  it('import_kit sem overwrite lista os divergentes; com overwrite atualiza', async () => {
+    await ok('import_kit', { name: 'shadcn-like' });
+    await ok('update_styles', { nodeIds: ['el_sbtnroot'], styles: { color: 'red' } });
+    await ok('delete_component', { componentId: 'cp_slist001' });
+    const t = await ok('import_kit', { name: 'shadcn-like' });
+    expect(t).toContain('List (added)');
+    expect(t).toContain('Button (diverged)');
+    expect(t).toContain('Divergentes do kit (mantidos com as suas edições): Button');
+    expect(t).toContain('overwrite: true');
+    let d = await doc();
+    expect(d.components!.find((c) => c.id === 'cp_sbutton1')!.root.style.color).toBe('red');
+    expect(d.components!.some((c) => c.id === 'cp_slist001')).toBe(true);
+    // Repetir sem overwrite: nada a importar, o divergente continua listado.
+    const rev = d.meta.updatedAt;
+    const same = await ok('import_kit', { name: 'shadcn-like' });
+    expect(same).toContain('nada a importar');
+    expect(same).toContain('Divergentes');
+    expect((await doc()).meta.updatedAt).toBe(rev);
+    const over = await ok('import_kit', { name: 'shadcn-like', overwrite: true });
+    expect(over).toContain('Button (updated)');
+    d = await doc();
+    expect(d.components!.find((c) => c.id === 'cp_sbutton1')!.root.style.color).toBe(
+      'var(--color-primary-foreground)',
+    );
+    expect(await ok('import_kit', { name: 'shadcn-like' })).toContain('já está importado');
+  });
+
   it('slots por HTML (Card): conteúdo vira nós reais no contêiner do slot', async () => {
     const t = await ok('insert_component', {
       component: 'shadcn-like/Card',

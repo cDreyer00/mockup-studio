@@ -139,7 +139,9 @@ export async function insertInstance(
   try {
     if (opts.kit && !getComponent(raw, componentId)) {
       const kit = await fetchKit(opts.kit);
-      const imported = importKitOps(raw, kit, opts.kit).ops;
+      // Só os componentes que faltam (pelo id do kit): principais já importados, editados ou
+      // renomeados, ficam como estão.
+      const imported = importKitOps(raw, kit, opts.kit, { onlyMissing: true }).ops;
       ops.push(...imported);
       base = applyOps(raw, imported).doc;
     }
