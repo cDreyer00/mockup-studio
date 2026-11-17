@@ -267,8 +267,19 @@ export function registerGridTools(ctx: ToolContext): void {
           );
         }
       }
-      // área nomeada e linhas/colunas explícitas se excluem: remove o lado que não foi pedido
-      const unset = area !== undefined ? ['grid-column', 'grid-row'] : ['grid-area'];
+      // Área nomeada, shorthands e formas longas (-start/-end) se sobrepõem: remove o que ficaria conflitando
+      // (grid-area redefine as quatro longhands; grid-column/grid-row redefinem as do seu eixo).
+      const conflicting =
+        area !== undefined
+          ? ['grid-column', 'grid-row', 'grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end']
+          : [
+              'grid-area',
+              ...(placement['grid-column'] !== undefined ? ['grid-column-start', 'grid-column-end'] : []),
+              ...(placement['grid-row'] !== undefined ? ['grid-row-start', 'grid-row-end'] : []),
+            ];
+      const unset = conflicting.filter(
+        (k) => placement[k] === undefined && found.some((p) => p.node.style[k] !== undefined),
+      );
       const r = apply(
         id,
         [
@@ -276,7 +287,7 @@ export function registerGridTools(ctx: ToolContext): void {
             type: 'updateStyles',
             nodeIds,
             styles: placement,
-            unset: unset.filter((k) => placement[k] === undefined),
+            unset: unset.length ? unset : undefined,
           },
         ],
         'place_in_grid',

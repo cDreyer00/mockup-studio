@@ -127,6 +127,31 @@ describe('MCP grid', () => {
     expect(textOf(beyond)).toContain('passa das 3 coluna');
   });
 
+  it('place_in_grid remove longhands e grid-area conflitantes ao gravar grid-column/grid-row', async () => {
+    const { box, kids } = await container(2);
+    await call('set_grid', { nodeId: box.id, columns: 3, rows: 2 });
+    const id = kids[0]!.id;
+    await call('update_styles', {
+      nodeIds: [id],
+      styles: {
+        'grid-column-start': '2',
+        'grid-column-end': 'span 2',
+        'grid-row-start': '1',
+        'grid-row-end': '2',
+        'grid-area': 'x',
+      },
+    });
+    expect(frame().children[0]!.children[0]!.style['grid-column-start']).toBe('2');
+    const r = await call('place_in_grid', { nodeIds: [id], column: 3, row: 2 });
+    expect(r.isError, textOf(r)).toBeFalsy();
+    const st = frame().children[0]!.children[0]!.style;
+    expect(st['grid-column']).toBe('3');
+    expect(st['grid-row']).toBe('2');
+    for (const k of ['grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end', 'grid-area']) {
+      expect(st[k], k).toBeUndefined();
+    }
+  });
+
   it('place_in_grid erra com mensagem útil quando o pai não é grid', async () => {
     const { box, kids } = await container(1);
     const r = await call('place_in_grid', { nodeIds: [kids[0]!.id], column: 1, row: 1 });
