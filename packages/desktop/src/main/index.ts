@@ -13,9 +13,18 @@ import {
   readRecent,
   resolvePort,
   startDaemon,
+  takeOverDaemon,
   type DaemonHandle,
 } from '@mockup/server';
 import { parseArgs, userArgs, type AppArgs } from './args.js';
+import {
+  SESSION_WATCH_MS,
+  dataDirOverride,
+  existingDaemonAction,
+  mergeFiles,
+  onAllWindowsClosed,
+  shouldQuitAfterSessions,
+} from './lifecycle.js';
 import { applyMenu, type MenuAction } from './menu.js';
 import { RenderService } from './render.js';
 
@@ -31,10 +40,12 @@ try {
   process.exit(2);
 }
 
-if (args.dataDir) process.env.MOCKUP_DATA_DIR = path.resolve(args.dataDir);
-if (process.env.MOCKUP_DATA_DIR) {
-  // userData próprio: o lock de instância única é por userData (testes e instâncias isoladas)
-  app.setPath('userData', path.join(path.resolve(process.env.MOCKUP_DATA_DIR), 'electron'));
+// userData próprio só quando o usuário pediu (--data-dir ou MOCKUP_DATA_DIR definida antes de
+// iniciar): o lock de instância única é por userData (testes e instâncias isoladas).
+const userDataDir = dataDirOverride(args, process.env);
+if (userDataDir) {
+  process.env.MOCKUP_DATA_DIR = userDataDir;
+  app.setPath('userData', path.join(userDataDir, 'electron'));
 }
 if (args.headless && process.env.MOCKUP_DISABLE_GPU === '1') app.disableHardwareAcceleration();
 app.setAppUserModelId('app.mockupstudio.desktop');
@@ -259,36 +270,79 @@ function showWindow(): void {
 
 // ---------------------------------------------------------------- inicialização
 
+/** Sobe o daemon embutido (com render) na porta; lança se a porta estiver ocupada. */
+function startEmbedded(port: number, files: string[]): Promise<DaemonHandle> {
+  const render = new RenderService({ baseUrl: () => baseUrl });
+  return startDaemon({
+    port,
+    render,
+    editorDir: resolveEditorDir(),
+    openFiles: files,
+    writeInfo: true,
+    mode: 'desktop',
+    // headless (ex.: aberto pelo CLI): `mockup stop` encerra o app; com janela, o daemon recusa (409)
+    onShutdown: startedHeadless ? () => app.quit() : undefined,
+  });
+}
+
 async function startServices(): Promise<boolean> {
   const port = args.port ?? resolvePort();
-  const render = new RenderService({ baseUrl: () => baseUrl });
+  const argvFiles = resolveFiles(args.files);
   try {
-    daemon = await startDaemon({
-      port,
-      render,
-      editorDir: resolveEditorDir(),
-      openFiles: resolveFiles(args.files),
-      writeInfo: true,
-    });
+    daemon = await startEmbedded(port, argvFiles);
     baseUrl = daemon.url;
     log(`daemon embutido em ${daemon.url} (render ativo)`);
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const other = port > 0 ? await checkHealth(`http://127.0.0.1:${port}`) : null;
+    const url = `http://127.0.0.1:${port}`;
+    const other = port > 0 ? await checkHealth(url) : null;
     if (other?.ok && other.name === 'mockup-studio') {
+      if (existingDaemonAction(other) === 'takeover') {
+        // daemon Node sem render (ex.: um headless antigo): pede o encerramento, espera a porta
+        // liberar e assume o lugar, reabrindo os documentos que ele tinha
+        log(
+          `porta ${port} ocupada por um daemon sem render (pid ${other.pid}); assumindo o lugar dele.`,
+        );
+        const r = await takeOverDaemon(url);
+        if (r.ok) {
+          if (r.unsaved > 0)
+            log(
+              `${r.unsaved} documento(s) sem arquivo do daemon anterior não puderam ser reabertos.`,
+            );
+          try {
+            daemon = await startEmbedded(port, mergeFiles(r.paths, argvFiles));
+            baseUrl = daemon.url;
+            log(
+              `daemon embutido em ${daemon.url} (render ativo; ${r.paths.length} documento(s) reaberto(s))`,
+            );
+            return true;
+          } catch (e2) {
+            console.error(
+              '[mockup-desktop] não foi possível subir o daemon após encerrar o anterior:',
+              e2 instanceof Error ? e2.message : e2,
+            );
+            if (!startedHeadless)
+              dialog.showErrorBox(APP_NAME, 'Não foi possível iniciar o daemon.');
+            return false;
+          }
+        }
+        log(
+          `não foi possível encerrar o daemon sem render (${r.reason ?? 'recusou'}); mantendo-o.`,
+        );
+      }
       if (startedHeadless) {
         console.error(
           `[mockup-desktop] já existe um daemon do Mockup Studio na porta ${port}; encerrando o headless.`,
         );
         return false;
       }
-      baseUrl = `http://127.0.0.1:${port}`;
+      baseUrl = url;
       log(
         `porta ${port} ocupada por outro daemon do Mockup Studio: a janela usará esse daemon; ` +
           `o render/screenshot é o dele (${other.render ? 'ativo' : 'indisponível'}).`,
       );
-      await openFiles(resolveFiles(args.files));
+      await openFiles(argvFiles);
       return true;
     }
     console.error('[mockup-desktop] não foi possível iniciar o daemon:', msg);
@@ -298,13 +352,26 @@ async function startServices(): Promise<boolean> {
   }
 }
 
+/** Sem janela e com sessões MCP ativas: segue headless e sai quando as sessões zerarem. */
+let sessionWatch: NodeJS.Timeout | null = null;
+function watchSessions(): void {
+  if (sessionWatch) return;
+  sessionWatch = setInterval(() => {
+    const hasWindow = !!mainWindow && !mainWindow.isDestroyed();
+    if (shouldQuitAfterSessions(startedHeadless, hasWindow, daemon?.sessionCount() ?? 0)) {
+      log('sessões MCP encerradas; saindo');
+      app.quit();
+    }
+  }, SESSION_WATCH_MS);
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (_e, argv, cwd) => {
     let second: AppArgs;
     try {
-      second = parseArgs(userArgs(argv, false));
+      second = parseArgs(userArgs(argv, process.defaultApp));
     } catch {
       second = { headless: false, files: [] as string[] };
     }
@@ -316,12 +383,14 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('window-all-closed', () => {
-    if (startedHeadless) return;
-    if (daemon && daemon.sessionCount() > 0) {
+    const action = onAllWindowsClosed(startedHeadless, daemon?.sessionCount() ?? 0);
+    if (action === 'stay') return;
+    if (action === 'watch' && daemon) {
       log(
         `janela fechada; ${daemon.sessionCount()} sessão(ões) MCP ativa(s): seguindo em modo headless`,
       );
       Menu.setApplicationMenu(null);
+      watchSessions();
       return;
     }
     app.quit();
