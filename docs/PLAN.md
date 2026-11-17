@@ -192,7 +192,7 @@ Pending: named versions, visual diff and restore remain open; pages behind login
 - Optimization and batch import.
 - Editable inline SVG.
 
-Delivered in the `feature/assets-dados` branch (assets with direct link, image, real data and organization; see [ASSETS.md](ASSETS.md) and [DATA.md](DATA.md)):
+Delivered in the `feature/assets-data` branch (assets with direct link, image, real data and organization; see [ASSETS.md](ASSETS.md) and [DATA.md](DATA.md)):
 
 - **Assets**: content-addressed local CDN (`/cdn/<hash>.<ext>`, stable across documents and restarts), global library, listing with usages, remove unused, optimization with sharp (optional), Assets tab in the editor. MCP: `list_assets`, `upload_asset`, `get_asset_url`, `optimize_assets`, `remove_unused_assets`.
 - **Images**: Image section (fit, position, filters, `clip-path` mask), visual crop with handles (`object-view-box`) and deterministic SVG placeholders. MCP: `set_image`, `generate_placeholder`.

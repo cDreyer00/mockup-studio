@@ -75,7 +75,7 @@ describe('NodeView: SVG with var()', () => {
     svg: '<svg width="4" height="4"><circle r="2" style="fill:var(--brand)"/></svg>',
   });
   const docWith = (theme?: string) => {
-    const doc = createDocument('Teste', { id: 'doc_svgvar01' });
+    const doc = createDocument('Test', { id: 'doc_svgvar01' });
     doc.tokens = { '--brand': '#111111' };
     doc.themes = [{ name: 'dark', overrides: { '--brand': '#eeeeee' } }];
     doc.pages[0].frames.push(

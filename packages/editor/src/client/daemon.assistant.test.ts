@@ -46,7 +46,7 @@ describe('DaemonClient: assistant, scripts and remix', () => {
   beforeEach(() => {
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeSocket;
     useAssistant.setState({ byDoc: {}, backends: [], config: null });
-    client = new DaemonClient(() => 'ws://teste/ws');
+    client = new DaemonClient(() => 'ws://test/ws');
     client.connect();
     ws = FakeSocket.last!;
     ws.onopen?.();

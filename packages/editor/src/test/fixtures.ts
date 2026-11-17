@@ -10,7 +10,7 @@ import type { Document, Node, Op } from '@mockup/core';
 
 /** Doc with 1 flex frame (column) containing 3 children and 1 absolute child. */
 export function makeDoc(): { doc: Document; frame: Node; a: Node; b: Node; c: Node; abs: Node } {
-  const doc = createDocument('Teste');
+  const doc = createDocument('Test');
   const a = createNodeFromTag('div', { name: 'A', styles: { width: '10px' } });
   const b = createNodeFromTag('p', { name: 'B', text: 'b' });
   const c = createNodeFromTag('div', { name: 'C' });

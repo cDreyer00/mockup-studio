@@ -84,7 +84,7 @@ describe('render-utils', () => {
   it('withTimeout rejects and calls onTimeout', async () => {
     let called = false;
     await expect(
-      withTimeout(new Promise(() => undefined), 20, 'teste', () => (called = true)),
+      withTimeout(new Promise(() => undefined), 20, 'test', () => (called = true)),
     ).rejects.toThrow(/Timed out/);
     expect(called).toBe(true);
     await expect(withTimeout(Promise.resolve(7), 1000, 'ok')).resolves.toBe(7);

@@ -49,7 +49,7 @@ describe('DaemonClient', () => {
   beforeEach(() => {
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeSocket;
     useUi.setState({ selection: [], pageId: null, focusRequest: null });
-    client = new DaemonClient(() => 'ws://teste/ws');
+    client = new DaemonClient(() => 'ws://test/ws');
     client.connect();
     FakeSocket.last!.onopen?.();
   });
