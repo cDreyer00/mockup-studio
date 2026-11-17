@@ -310,7 +310,8 @@ Navbar com um layout medido à mão (fundo com sombra, logo e botão com raio):
 
 `src` de nós `image` é relativo a `assets/` (ou data URL). Em html/tailwind/react o `src` exportado é
 `assets/<arquivo>` — copie a pasta `assets/` do documento ao lado do arquivo exportado (React:
-`assetsBase` muda o prefixo, ex. `/img/`). Em SVG as imagens só ficam autocontidas se `resolveImage`
+`assetsBase` muda o prefixo, ex. `/img/`). Num projeto Vite, coloque a pasta em `public/assets/`
+para o `src="assets/..."` resolver sem import. Em SVG as imagens só ficam autocontidas se `resolveImage`
 devolver data URLs; sem ele o `src` original é mantido. As fontes embutidas (`fonts[]` com
 `source: 'file'`) viram `@font-face` com `assets/<arquivo>` (html/tailwind/react) ou data URL (svg).
 
