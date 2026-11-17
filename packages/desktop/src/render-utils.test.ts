@@ -44,7 +44,7 @@ describe('render-utils', () => {
     expect(declaredSize(undefined)).toEqual({});
   });
 
-  it('cacheKey é estável e muda com escala, tokens e o frame', () => {
+  it('cacheKey é estável e muda com escala, tokens, temas e o frame', () => {
     const { doc, frame } = sampleDoc();
     const base = { doc, docId: 'd', nodeId: frame.id, scale: 1, format: 'png', transparent: false };
     const k = cacheKey(base);
@@ -57,6 +57,13 @@ describe('render-utils', () => {
     const doc3 = structuredClone(doc);
     doc3.pages[0]!.frames[0]!.style.width = '800px';
     expect(cacheKey({ ...base, doc: doc3 })).not.toBe(k);
+    const doc4 = structuredClone(doc);
+    doc4.themes = [{ name: 'dark', overrides: { '--x': '2' } }];
+    const k4 = cacheKey({ ...base, doc: doc4 });
+    expect(k4).not.toBe(k);
+    const doc5 = structuredClone(doc4);
+    doc5.themes![0]!.overrides['--x'] = '3';
+    expect(cacheKey({ ...base, doc: doc5 })).not.toBe(k4);
   });
 
   it('LruCache descarta o menos usado', () => {

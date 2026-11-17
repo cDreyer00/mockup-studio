@@ -237,6 +237,26 @@ describe('MCP tokens e temas', () => {
     expect(badValue.isError).toBe(true);
   });
 
+  it('create_theme valida sobrescritas contra o valor resolvido (base, aliases e copyFrom)', async () => {
+    await ok('set_tokens', { tokens: { '--b': '#111111', '--c': '#222222' } });
+    // --a aponta para --b (base) e --d para --e, outro override do mesmo tema
+    const out = await ok('create_theme', {
+      name: 'dark',
+      overrides: { '--a': 'var(--b)', '--d': 'var(--e)', '--e': '#333333' },
+    });
+    expect(out).not.toContain('Avisos');
+    // copyFrom: o alias novo aponta para uma sobrescrita herdada do outro tema
+    const out2 = await ok('create_theme', {
+      name: 'dark2',
+      copyFrom: 'dark',
+      overrides: { '--f': 'var(--e)', '--g': 'var(--c)' },
+    });
+    expect(out2).not.toContain('Avisos');
+    const bad = await call('create_theme', { name: 'x', overrides: { '--h': 'var(--nada)' } });
+    const badText = textOf(bad);
+    expect(bad.isError || badText.includes('Avisos')).toBe(true);
+  });
+
   it('set_tokens com theme grava nas sobrescritas; unset sem tema limpa base, meta e temas', async () => {
     await ok('set_tokens', {
       tokens: { '--color-bg': '#fff', '--color-fg': '#000' },

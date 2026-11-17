@@ -499,7 +499,7 @@ export function createMcpServer(store: DocumentStore, opts: McpServerOptions = {
     {
       title: 'Estilos efetivos',
       description:
-        'Estilos efetivos (herdados, com var() resolvido e calc()/color-mix() avaliados) de um ou mais nós, no formato "prop: valor". Com theme, como se o nó estivesse nesse tema.',
+        'Estilos efetivos (herdados, com var() resolvido e calc()/color-mix() avaliados) de um ou mais nós, no formato "prop: valor". Com theme, como se o próprio nó tivesse data-theme com esse tema (no lugar do que tiver); propriedades herdadas dos ancestrais continuam calculadas no tema deles, como no CSS.',
       example: { nodeIds: ['el_ab12cd34'] },
       inputSchema: {
         nodeIds: nodeIdsField,

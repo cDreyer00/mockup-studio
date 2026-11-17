@@ -401,14 +401,18 @@ export function registerTokenTools(ctx: ToolContext): void {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       const ov = normalizeKeys(overrides);
-      const vars = { ...doc.tokens, ...ov };
+      // O plano já valida nome, duplicidade e copyFrom; ele traz o tema novo com as sobrescritas
+      // finais (copyFrom + overrides), que usamos num documento hipotético para resolver var().
+      const planned = planCreateTheme(doc, name, { overrides: ov, copyFrom });
+      const draft: Document = {
+        ...doc,
+        themes: (planned[0] as Extract<Op, { type: 'setThemes' }>).themes,
+      };
+      const vars = resolvedTokens(draft, name.trim());
       const errors: string[] = [];
       const warnings: string[] = [];
       for (const [k, v] of Object.entries(ov)) {
-        const p = validateTokenValue(k, v, {
-          group: tokenGroup(doc, k),
-          vars: { ...resolvedTokens(doc), ...vars },
-        });
+        const p = validateTokenValue(k, v, { group: tokenGroup(draft, k), vars });
         if (p) (p.level === 'error' ? errors : warnings).push(`${k}: ${p.message}`);
       }
       if (errors.length) {
@@ -416,7 +420,7 @@ export function registerTokenTools(ctx: ToolContext): void {
           `Tema não criado; corrija o valor:\n${errors.map((e) => `- ${e}`).join('\n')}`,
         );
       }
-      const r = apply(id, planCreateTheme(doc, name, { overrides: ov, copyFrom }), 'create_theme');
+      const r = apply(id, planned, 'create_theme');
       const theme = r.doc.themes?.find((t) => t.name === name.trim());
       const out = [
         `Tema "${name.trim()}" criado com ${Object.keys(theme?.overrides ?? {}).length} sobrescrita(s). Aplique com set_frame_theme({ nodeIds: [...], theme: "${name.trim()}" }).`,
