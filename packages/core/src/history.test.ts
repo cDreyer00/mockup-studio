@@ -82,4 +82,43 @@ describe('History', () => {
     h.clear();
     expect(h.canUndo).toBe(false);
   });
+
+  it('grupo: aplicações seguidas do mesmo grupo viram uma entrada; undo desfaz todas', () => {
+    const { doc, pageId } = base();
+    const h = new History(doc);
+    const a = createNodeFromTag('div', { isRoot: true });
+    const b = createNodeFromTag('div', { isRoot: true });
+    const c = createNodeFromTag('div', { isRoot: true });
+    h.apply([{ type: 'createNode', pageId, node: a }], 'a', { group: 't1' });
+    const r = h.apply([{ type: 'createNode', pageId, node: b }], 'b', { group: 't1' });
+    expect(r.merged).toBe(true);
+    h.apply([{ type: 'renameNodes', changes: [{ nodeId: a.id, name: 'A2' }] }], 'c', {
+      group: 't1',
+    });
+    expect(h.top?.ops).toHaveLength(3);
+    expect(h.doc.pages[0].frames).toHaveLength(2);
+    h.undo();
+    expect(strip(h.doc)).toEqual(strip(doc));
+    expect(h.canUndo).toBe(false);
+    h.redo();
+    expect(h.doc.pages[0].frames.map((f) => f.name)).toContain('A2');
+    // depois de undo/redo o grupo fecha: outra aplicação do mesmo grupo é entrada nova
+    h.apply([{ type: 'createNode', pageId, node: c }], 'd', { group: 't1' });
+    h.undo();
+    expect(h.doc.pages[0].frames).toHaveLength(2);
+  });
+
+  it('grupo: aplicação sem grupo no meio quebra a fusão; closeGroup encerra', () => {
+    const { doc, pageId } = base();
+    const h = new History(doc);
+    const n = () => createNodeFromTag('div', { isRoot: true });
+    h.apply([{ type: 'createNode', pageId, node: n() }], undefined, { group: 'g' });
+    h.apply([{ type: 'createNode', pageId, node: n() }]);
+    const r = h.apply([{ type: 'createNode', pageId, node: n() }], undefined, { group: 'g' });
+    expect(r.merged).toBe(false);
+    h.closeGroup('g');
+    const r2 = h.apply([{ type: 'createNode', pageId, node: n() }], undefined, { group: 'g' });
+    expect(r2.merged).toBe(false);
+    expect(h.doc.pages[0].frames).toHaveLength(4);
+  });
 });

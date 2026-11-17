@@ -88,6 +88,114 @@ export interface ErrorMessage {
   message: string;
 }
 
+/* ---------- assistente de IA, scripts e remix (fase 9) ---------- */
+
+/** Backend de agente conhecido pelo daemon (CLI instalada ou API). */
+export interface AssistantBackendInfo {
+  /** `claude`, `codex` (CLIs) ou outro backend registrado (ex.: `fake` nos testes). */
+  id: string;
+  name: string;
+  available: boolean;
+  /** Executável encontrado no PATH (CLIs). */
+  path?: string;
+  /** Motivo de indisponibilidade ou versão. */
+  detail?: string;
+}
+
+/** Configuração do assistente (persistida na pasta de dados do daemon). */
+export interface AssistantConfig {
+  /** `auto` = o primeiro disponível (claude, depois codex). */
+  backend: string;
+  /** Modelo repassado à CLI (`--model`); vazio = padrão da CLI. */
+  model?: string;
+}
+
+export interface AssistantToolCall {
+  id: string;
+  name: string;
+  input?: unknown;
+  ok?: boolean;
+  /** Resumo curto do resultado (primeira linha, até ~200 caracteres). */
+  summary?: string;
+}
+
+export type AssistantTurnStatus = 'running' | 'done' | 'cancelled' | 'error';
+
+/** Mensagem do histórico do assistente de um documento. */
+export interface AssistantMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  at: string;
+  turnId: string;
+  /** Só nas mensagens do assistente. */
+  tools?: AssistantToolCall[];
+  status?: AssistantTurnStatus;
+  error?: string;
+  backend?: string;
+  /** Ops aplicadas pelo agente no turno (todas num único grupo de undo). */
+  opsCount?: number;
+  /** Seleção enviada como contexto (mensagem do usuário). */
+  selection?: string[];
+}
+
+/** Evento de streaming de um turno do assistente. */
+export type AssistantEvent =
+  | { kind: 'turn-start'; turnId: string; user: AssistantMessage; backend: string }
+  | { kind: 'text'; turnId: string; text: string }
+  | { kind: 'tool'; turnId: string; tool: AssistantToolCall }
+  | { kind: 'tool-result'; turnId: string; toolId: string; ok: boolean; summary?: string }
+  | { kind: 'turn-end'; turnId: string; message: AssistantMessage }
+  | { kind: 'cleared' };
+
+export interface AssistantEventMessage {
+  type: 'assistant:event';
+  docId: string;
+  event: AssistantEvent;
+}
+
+/** Imagem produzida por `doc.screenshot()` num script. */
+export interface ScriptImage {
+  nodeId: string;
+  mime: string;
+  /** Base64. */
+  data: string;
+  width: number;
+  height: number;
+}
+
+export interface ScriptRunResult {
+  ok: boolean;
+  /** Saída de `console.log/info/warn/error`, uma linha por chamada. */
+  logs: string[];
+  /** Valor devolvido pelo script (serializado em JSON; `undefined` vira ausente). */
+  result?: unknown;
+  error?: string;
+  images: ScriptImage[];
+  /** Ops aplicadas (todas num único grupo de undo). */
+  opsCount: number;
+  durationMs: number;
+}
+
+export interface ScriptFileInfo {
+  /** Nome do arquivo em `scripts/`, com `.js`. */
+  name: string;
+  size: number;
+  updatedAt: string;
+}
+
+/** Tipos de remix: locais e determinísticos, ou com IA. */
+export type RemixKind = 'color-scale' | 'font-pairs' | 'spacing' | 'layout' | 'ai';
+
+export interface RemixResult {
+  /** Frames criados lado a lado (vazio no `ai` até o turno terminar). */
+  frameIds: string[];
+  /** Nome de cada variação, paralelo a `frameIds`. */
+  labels: string[];
+  /** Turno do assistente (`ai`). */
+  turnId?: string;
+}
+
 export type ServerMessage =
   | HelloEvent
   | DocOpenedEvent
@@ -97,6 +205,7 @@ export type ServerMessage =
   | SelectionChangedEvent
   | ActiveChangedEvent
   | AgentFinishedEvent
+  | AssistantEventMessage
   | AckMessage
   | ErrorMessage;
 
@@ -161,6 +270,97 @@ export interface DocSaveAsRequest {
   path: string;
 }
 
+/** Envia um prompt ao assistente (um turno). Ack: `{ turnId }`; o resto chega por `assistant:event`. */
+export interface AssistantSendRequest {
+  type: 'assistant:send';
+  reqId: string;
+  docId: string;
+  prompt: string;
+  /** Seleção usada como contexto (padrão: a seleção do daemon). */
+  selection?: string[];
+  /** Backend do turno (padrão: o da configuração). */
+  backend?: string;
+}
+/** Cancela o turno em andamento do documento. Ack: `{ cancelled }`. */
+export interface AssistantCancelRequest {
+  type: 'assistant:cancel';
+  reqId: string;
+  docId: string;
+}
+/** Histórico e estado. Ack: `{ messages, running, backends, config }`. */
+export interface AssistantHistoryRequest {
+  type: 'assistant:history';
+  reqId: string;
+  docId: string;
+}
+export interface AssistantClearRequest {
+  type: 'assistant:clear';
+  reqId: string;
+  docId: string;
+}
+/** Lê (sem campos) ou grava a configuração. Ack: `{ config, backends }`. */
+export interface AssistantConfigRequest {
+  type: 'assistant:config';
+  reqId: string;
+  config?: Partial<AssistantConfig>;
+}
+
+/** Executa um script (um grupo de undo). Ack: `ScriptRunResult`. */
+export interface ScriptRunRequest {
+  type: 'script:run';
+  reqId: string;
+  docId: string;
+  code: string;
+  /** Seleção vista por `doc.selection()` (padrão: a do daemon). */
+  selection?: string[];
+}
+/** Biblioteca `scripts/*.js` ao lado do documento. Ack: `{ dir, scripts: ScriptFileInfo[] }`. */
+export interface ScriptListRequest {
+  type: 'script:list';
+  reqId: string;
+  docId: string;
+}
+/** Ack: `{ name, code }`. */
+export interface ScriptReadRequest {
+  type: 'script:read';
+  reqId: string;
+  docId: string;
+  name: string;
+}
+/** Ack: `{ name }` (nome normalizado, com `.js`). */
+export interface ScriptSaveRequest {
+  type: 'script:save';
+  reqId: string;
+  docId: string;
+  name: string;
+  code: string;
+}
+export interface ScriptDeleteRequest {
+  type: 'script:delete';
+  reqId: string;
+  docId: string;
+  name: string;
+}
+/** Gera um script a partir de um prompt (via backend do assistente). Ack: `{ code }`. */
+export interface ScriptGenerateRequest {
+  type: 'script:generate';
+  reqId: string;
+  docId: string;
+  prompt: string;
+}
+
+/** Gera variações de um nó lado a lado. Ack: `RemixResult`. */
+export interface RemixRequest {
+  type: 'remix';
+  reqId: string;
+  docId: string;
+  nodeId: string;
+  kind: RemixKind;
+  count?: number;
+  /** Obrigatório em `ai`. */
+  prompt?: string;
+}
+
 export type ClientMessage =
   | OpApplyRequest
   | SelectionSetRequest
@@ -171,4 +371,16 @@ export type ClientMessage =
   | ActiveSetRequest
   | DocNewRequest
   | DocCloseRequest
-  | DocSaveAsRequest;
+  | DocSaveAsRequest
+  | AssistantSendRequest
+  | AssistantCancelRequest
+  | AssistantHistoryRequest
+  | AssistantClearRequest
+  | AssistantConfigRequest
+  | ScriptRunRequest
+  | ScriptListRequest
+  | ScriptReadRequest
+  | ScriptSaveRequest
+  | ScriptDeleteRequest
+  | ScriptGenerateRequest
+  | RemixRequest;
