@@ -37,16 +37,28 @@ const common = {
   logLevel: 'warning',
 };
 await Promise.all([
-  build({ ...common, entryPoints: [path.join(root, 'src/content.ts')], format: 'iife', outfile: path.join(dist, 'content.js') }),
-  build({ ...common, entryPoints: [path.join(root, 'src/background.ts')], format: 'esm', outfile: path.join(dist, 'background.js') }),
-  build({ ...common, entryPoints: [path.join(root, 'src/popup.ts')], format: 'iife', outfile: path.join(dist, 'popup.js') }),
+  build({
+    ...common,
+    entryPoints: [path.join(root, 'src/content.ts')],
+    format: 'iife',
+    outfile: path.join(dist, 'content.js'),
+  }),
+  build({
+    ...common,
+    entryPoints: [path.join(root, 'src/background.ts')],
+    format: 'esm',
+    outfile: path.join(dist, 'background.js'),
+  }),
+  build({
+    ...common,
+    entryPoints: [path.join(root, 'src/popup.ts')],
+    format: 'iife',
+    outfile: path.join(dist, 'popup.js'),
+  }),
 ]);
 
 for (const file of ['manifest.json', 'popup.html', 'popup.css']) {
   fs.copyFileSync(path.join(root, file), path.join(dist, file));
 }
-fs.copyFileSync(
-  path.resolve(root, '../desktop/build/icon.png'),
-  path.join(dist, 'icons/icon.png'),
-);
+fs.copyFileSync(path.resolve(root, '../desktop/build/icon.png'), path.join(dist, 'icons/icon.png'));
 console.log(`extensão montada em ${dist}`);

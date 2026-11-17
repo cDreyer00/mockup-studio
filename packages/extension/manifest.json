@@ -24,9 +24,5 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "clipboardWrite"
-  ]
+  "permissions": ["activeTab", "scripting", "clipboardWrite"]
 }
