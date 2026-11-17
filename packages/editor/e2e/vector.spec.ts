@@ -166,3 +166,33 @@ test('Edição de pontos: Enter entra, arrastar âncora persiste e Esc sai', asy
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('vector-edit-overlay')).toHaveCount(0);
 });
+
+test('Booleana: união de duas formas vira um único svg pelo painel', async ({ page }) => {
+  const info = await createDoc('booleana');
+  const { box } = await frameWithBox(info.docId, page);
+
+  for (const [x, y] of [
+    [100, 100],
+    [160, 140],
+  ] as const) {
+    await page.keyboard.press('o');
+    await page.mouse.move(box.x + x, box.y + y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + x + 120, box.y + y + 120, { steps: 6 });
+    await page.mouse.up();
+  }
+  await expect
+    .poll(async () => findSvgs((await getDoc(info.docId)).pages[0]!.frames).length)
+    .toBe(2);
+  const ids = findSvgs((await getDoc(info.docId)).pages[0]!.frames).map((n) => n.id);
+  await page.getByTestId(`layer-row-${ids[0]}`).click();
+  await page.getByTestId(`layer-row-${ids[1]}`).click({ modifiers: ['Shift'] });
+  await page.getByTestId('vector-bool-union').click();
+
+  await expect
+    .poll(async () => findSvgs((await getDoc(info.docId)).pages[0]!.frames).length)
+    .toBe(1);
+  const out = findSvgs((await getDoc(info.docId)).pages[0]!.frames)[0]!;
+  expect(ids).not.toContain(out.id);
+  expect(out.vector?.paths.length).toBeGreaterThan(0);
+});
