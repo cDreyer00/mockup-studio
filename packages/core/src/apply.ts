@@ -1,6 +1,7 @@
 import { deepClone } from './clone.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
+import { effectKinds, getEffect } from './effects/catalog.js';
 import {
   LEAF_TYPES,
   TOKEN_NAME_RE,
@@ -479,6 +480,12 @@ function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied
       fail(`setMedia em "${c.nodeId}": informe exatamente um de effect, video ou embed`);
     const field = given[0]!;
     if (n.type !== field) fail(`O nó "${c.nodeId}" é ${n.type}; ${field} só vale em nós ${field}`);
+    if (field === 'effect' && c.effect && !getEffect(c.effect.kind)) {
+      const kinds = effectKinds();
+      fail(
+        `Efeito desconhecido "${c.effect.kind}" em "${c.nodeId}". Válidos: ${kinds.slice(0, 8).join(', ')}${kinds.length > 8 ? `… (${kinds.length} no total; veja list_effects)` : ''}`,
+      );
+    }
     prev.push({ nodeId: c.nodeId, [field]: deepClone(n[field]) });
     (n as unknown as Record<string, unknown>)[field] = deepClone(c[field]);
   }

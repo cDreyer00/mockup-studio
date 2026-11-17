@@ -500,3 +500,15 @@ describe('ida e volta de embeds por HTML', () => {
     expect(n!.type).not.toBe('embed');
   });
 });
+
+describe('setMedia com kind de efeito inexistente', () => {
+  it('recusa e lista kinds válidos', () => {
+    const doc = fixture();
+    expect(() =>
+      applyOp(doc, {
+        type: 'setMedia',
+        changes: [{ nodeId: 'fx_aaaaaaaa', effect: { kind: 'nao-existe', params: {} } }],
+      }),
+    ).toThrow(/Efeito desconhecido "nao-existe".*mesh-gradient/);
+  });
+});
