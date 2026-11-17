@@ -1,4 +1,4 @@
-/** Copiar, recortar e colar nós via eventos `copy`/`cut`/`paste` do documento. */
+/** Copy, cut and paste nodes via the document's `copy`/`cut`/`paste` events. */
 import { useEffect } from 'react';
 import type { Node, Op } from '@mockup/core';
 import { actions } from '../actions';
@@ -26,7 +26,7 @@ import {
 interface InternalClipboard {
   token: string;
   nodes: Node[];
-  /** Quantas vezes já foi colado (desloca cada nova colagem). */
+  /** How many times it has already been pasted (shifts each new paste). */
   pastes: number;
 }
 
@@ -39,9 +39,9 @@ function newToken(): string {
 }
 
 /**
- * Copia a seleção de topo; `false` se não há nada a copiar. No recorte (`editableOnly`), nós
- * travados ficam de fora: o `deleteSelection` não os exclui e colar depois os duplicaria.
- * Exportada para testes.
+ * Copies the top-level selection; `false` if there is nothing to copy. On cut (`editableOnly`), locked
+ * nodes are left out: `deleteSelection` does not delete them and pasting later would duplicate them.
+ * Exported for tests.
  */
 export function copySelection(e: ClipboardEvent, editableOnly = false): boolean {
   const { doc } = useDoc.getState();
@@ -52,13 +52,13 @@ export function copySelection(e: ClipboardEvent, editableOnly = false): boolean 
     ids = ids.filter((id) => !isLockedDeep(doc, id));
     if (total && !ids.length) {
       e.preventDefault();
-      ui.toast('Nós travados não podem ser recortados');
+      ui.toast('Locked nodes cannot be cut');
       return false;
     }
   }
   if (!ids.length) return false;
   const nodes: Node[] = [];
-  // Instâncias saem como instâncias (nó real); nós internos, como a árvore concreta.
+  // Instances are copied as instances (real node); internal nodes, as the concrete tree.
   const raw = useDoc.getState().rawDoc;
   for (const id of ids) {
     const n = copyableNode(raw, doc, id);
@@ -74,7 +74,7 @@ export function copySelection(e: ClipboardEvent, editableOnly = false): boolean 
   return true;
 }
 
-/** Cola `nodes` (já com ids originais) no alvo derivado da seleção; seleciona os colados. */
+/** Pastes `nodes` (with their original ids) at the target derived from the selection; selects the pasted ones. */
 async function pasteNodes(
   nodes: Node[],
   pasteCount: number,
@@ -137,7 +137,7 @@ async function handlePaste(data: DataTransfer): Promise<void> {
         return;
     }
   } catch (e) {
-    ui.toast(`Não foi possível colar: ${(e as Error).message}`, 'error');
+    ui.toast(`Could not paste: ${(e as Error).message}`, 'error');
   }
 }
 

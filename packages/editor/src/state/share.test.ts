@@ -4,7 +4,7 @@ import { makeDoc } from '../test/fixtures';
 import { shareStructure } from './share';
 
 describe('shareStructure', () => {
-  it('reaproveita subárvores iguais e troca só o caminho alterado', () => {
+  it('reuses equal subtrees and replaces only the changed path', () => {
     const { doc, a, b } = makeDoc();
     const next = applyOp(doc, {
       type: 'updateStyles',
@@ -22,12 +22,12 @@ describe('shareStructure', () => {
     expect(shared.tokens).toBe(doc.tokens);
   });
 
-  it('devolve o anterior quando nada mudou', () => {
+  it('returns the previous one when nothing changed', () => {
     const { doc } = makeDoc();
     expect(shareStructure(doc, JSON.parse(JSON.stringify(doc)))).toBe(doc);
   });
 
-  it('detecta chaves removidas', () => {
+  it('detects removed keys', () => {
     expect(shareStructure({ a: 1, b: 2 } as Record<string, number>, { a: 1 })).toEqual({ a: 1 });
   });
 });

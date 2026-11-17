@@ -1,4 +1,4 @@
-/** Atalhos globais do editor (estilo Figma). A tecla → comando está em `resolveShortcut`. */
+/** Global editor shortcuts (Figma style). The key → command mapping lives in `resolveShortcut`. */
 import { useEffect } from 'react';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
@@ -16,7 +16,7 @@ import { isEditableTarget, isInteractionBlocked } from './guards';
 import { resolveShortcut } from './resolveShortcut';
 import type { ShortcutCommand } from './resolveShortcut';
 
-/** Todos os nós de topo estão com a flag? (alterna: se todos estão, desliga; senão liga). */
+/** Do all top-level nodes have the flag? (toggles: if all do, turns it off; otherwise on). */
 function toggleFlag(flag: 'hidden' | 'locked'): void {
   const { doc } = useDoc.getState();
   if (!doc) return;
@@ -31,7 +31,7 @@ export async function pickAndInsertImage(): Promise<void> {
   if (file) await insertImageFile(file);
 }
 
-/** Executa um comando de atalho. */
+/** Runs a shortcut command. */
 export function runShortcut(cmd: ShortcutCommand): void {
   switch (cmd.type) {
     case 'tool':
@@ -62,7 +62,7 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return void actions.nudge(cmd.dx, cmd.dy);
     case 'escape':
       if (useUi.getState().tool !== 'select') return ui.setTool('select');
-      // Modo de edição do principal: Esc sem seleção conclui (volta à instância de origem).
+      // Main component edit mode: Esc with no selection finishes (returns to the source instance).
       if (useUi.getState().editingComponentId && !useUi.getState().selection.length) {
         return exitComponent();
       }
@@ -70,7 +70,7 @@ export function runShortcut(cmd: ShortcutCommand): void {
     case 'selectChildren': {
       const { doc } = useDoc.getState();
       if (!doc) return;
-      // Enter com um nó svg selecionado entra na edição de pontos.
+      // Enter with an SVG node selected enters point editing.
       const only = useUi.getState().selection;
       if (only.length === 1 && getNode(doc, only[0]!)?.type === 'svg')
         return ui.editVector(only[0]!);
@@ -108,7 +108,7 @@ export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const cmd = resolveShortcut(e);
-      // Ctrl+S / Ctrl+Shift+S sempre salvam, mesmo em campos de texto e modais.
+      // Ctrl+S / Ctrl+Shift+S always save, even in text fields and modals.
       if (cmd?.type === 'save' || cmd?.type === 'saveAs') {
         e.preventDefault();
         runShortcut(cmd);
@@ -118,7 +118,7 @@ export function useShortcuts(): void {
 
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
-        // Shift+Espaço: play/pausa das animações (Espaço sozinho continua sendo o pan).
+        // Shift+Space: play/pause animations (Space alone is still the pan).
         if (e.shiftKey) {
           if (!e.repeat) fxClock.toggle();
           return;

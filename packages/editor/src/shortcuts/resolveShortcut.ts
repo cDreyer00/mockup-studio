@@ -1,4 +1,4 @@
-/** Resolução pura tecla → comando (estilo Figma). Ctrl ≡ Meta. Espaço e Alt são tratados à parte. */
+/** Pure key → command resolution (Figma style). Ctrl ≡ Meta. Space and Alt are handled separately. */
 import type { ReorderKind } from '../actions';
 import type { Tool } from '../state/uiStore';
 
@@ -46,14 +46,14 @@ const TOOL_KEYS: Record<string, Tool> = {
   l: 'line',
 };
 
-/** Letra da tecla: `key` quando for uma letra ASCII, senão a partir do `code` (`KeyV` → `v`). */
+/** Key letter: `key` when it is an ASCII letter, otherwise derived from `code` (`KeyV` → `v`). */
 function letterOf(e: KeyInfo): string {
   if (/^[a-z]$/i.test(e.key)) return e.key.toLowerCase();
   const m = /^Key([A-Z])$/.exec(e.code);
   return m ? m[1]!.toLowerCase() : '';
 }
 
-/** `[`/`]` independente de layout (ABNT2 e US): prefere `key`, cai no `code`. */
+/** `[`/`]` regardless of layout (ABNT2 and US): prefers `key`, falls back to `code`. */
 function bracketOf(e: KeyInfo): '[' | ']' | null {
   if (e.key === ']' || e.key === '}') return ']';
   if (e.key === '[' || e.key === '{') return '[';
@@ -62,7 +62,7 @@ function bracketOf(e: KeyInfo): '[' | ']' | null {
   return null;
 }
 
-/** Dígito 0-9 pelo `code` (Digit/Numpad) ou, na falta, pelo `key`. */
+/** Digit 0-9 from `code` (Digit/Numpad) or, failing that, from `key`. */
 function digitOf(e: KeyInfo): string | null {
   const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
   if (m) return m[1]!;
@@ -105,7 +105,7 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
         return null;
     }
   }
-  // Ctrl+Alt+K: criar componente da seleção (como no Figma).
+  // Ctrl+Alt+K: create a component from the selection (as in Figma).
   if (mod && alt && !shift && letterOf(e) === 'k') return { type: 'createComponent' };
   if (mod || alt) return null;
 

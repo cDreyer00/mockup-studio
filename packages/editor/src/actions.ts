@@ -1,7 +1,7 @@
 /**
- * Comandos de alto nível compartilhados por canvas, camadas, barra de ferramentas e atalhos.
- * Cada comando produz `Op`s e as envia em UMA chamada `daemon.apply` (= uma entrada de undo).
- * As funções `build*` são puras (testáveis); as demais leem os stores e aplicam.
+ * High-level commands shared by the canvas, layers, toolbar and shortcuts.
+ * Each command produces `Op`s and sends them in ONE `daemon.apply` call (= one undo entry).
+ * The `build*` functions are pure (testable); the others read the stores and apply.
  */
 import { createNodeFromTag } from '@mockup/core';
 import type { Document, Node, Op } from '@mockup/core';
@@ -31,16 +31,16 @@ function state(): { doc: Document | null; selection: string[] } {
   return { doc: useDoc.getState().doc, selection: useUi.getState().selection };
 }
 
-/** Seleção de topo, sem nós travados (diretamente ou por ancestral). */
+/** Top-level selection, without locked nodes (directly or via an ancestor). */
 function editableSelection(doc: Document, ids: readonly string[]): string[] {
   return topLevel(doc, ids).filter((id) => !isLockedDeep(doc, id));
 }
 
 /* ------------------------------------------------------------------ */
-/* posição                                                            */
+/* position                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Posição atual (x, y) de um frame raiz ou filho absoluto, em px. */
+/** Current position (x, y) of a root frame or absolute child, in px. */
 export function nodeXY(doc: Document, node: Node): { x: number; y: number } {
   if (isRoot(doc, node.id)) return { x: node.position?.x ?? 0, y: node.position?.y ?? 0 };
   return {
@@ -50,9 +50,9 @@ export function nodeXY(doc: Document, node: Node): { x: number; y: number } {
 }
 
 /**
- * Ops que levam um frame raiz ou um filho absoluto a (x, y).
- * Frames raiz usam `setPosition`; filhos absolutos usam `left`/`top` em `style`
- * (ou `setPosition`, se o nó já usa `position` sem left/top no CSS).
+ * Ops that move a root frame or an absolute child to (x, y).
+ * Root frames use `setPosition`; absolute children use `left`/`top` in `style`
+ * (or `setPosition`, if the node already uses `position` without left/top in the CSS).
  */
 export function buildPositionOps(doc: Document, node: Node, x: number, y: number): Op[] {
   if (
@@ -71,7 +71,7 @@ export function buildPositionOps(doc: Document, node: Node, x: number, y: number
   ];
 }
 
-/** Nó que se move livremente (frame raiz ou `position: absolute|fixed`). */
+/** Node that moves freely (root frame or `position: absolute|fixed`). */
 export function isFreelyPositioned(doc: Document, node: Node): boolean {
   if (isRoot(doc, node.id)) return true;
   const p = node.style.position;
@@ -79,8 +79,8 @@ export function isFreelyPositioned(doc: Document, node: Node): boolean {
 }
 
 /**
- * Setas: frames e absolutos movem dx/dy; filhos em fluxo dentro de flex reordenam
- * (seta para trás/frente no eixo principal).
+ * Arrows: frames and absolute nodes move by dx/dy; in-flow children inside flex reorder
+ * (arrow backward/forward on the main axis).
  */
 export function buildNudgeOps(doc: Document, ids: readonly string[], dx: number, dy: number): Op[] {
   const ops: Op[] = [];
@@ -110,7 +110,7 @@ export function buildNudgeOps(doc: Document, ids: readonly string[], dx: number,
 }
 
 /* ------------------------------------------------------------------ */
-/* estrutura                                                          */
+/* structure                                                          */
 /* ------------------------------------------------------------------ */
 
 export function buildDeleteOps(doc: Document, ids: readonly string[]): Op[] {
@@ -119,8 +119,8 @@ export function buildDeleteOps(doc: Document, ids: readonly string[]): Op[] {
 }
 
 /**
- * Agrupa irmãos num container novo, na posição do primeiro. Em pai flex o container herda
- * direção/gap/alinhamento para manter o layout; frames raiz não são agrupáveis.
+ * Groups siblings into a new container, at the position of the first. In a flex parent the container inherits
+ * direction/gap/alignment to keep the layout; root frames cannot be grouped.
  */
 export function buildGroupOps(
   doc: Document,
@@ -147,14 +147,14 @@ export function buildGroupOps(
   };
 }
 
-/** Desagrupa: move os filhos para o lugar do container e o exclui. */
+/** Ungroups: moves the children to the container's place and deletes it. */
 export function buildUngroupOps(
   doc: Document,
   ids: readonly string[],
 ): { ops: Op[]; childIds: string[] } | null {
   const ops: Op[] = [];
   const childIds: string[] = [];
-  // Ordem inversa: desagrupar um irmão posterior não desloca o índice dos anteriores.
+  // Reverse order: ungrouping a later sibling does not shift the index of the earlier ones.
   for (const id of editableSelection(doc, ids).reverse()) {
     const node = getNode(doc, id)!;
     if (isRoot(doc, id) || !canHaveChildren(node) || node.children.length === 0) continue;
@@ -169,7 +169,7 @@ export function buildUngroupOps(
 
 export type ReorderKind = 'front' | 'back' | 'forward' | 'backward';
 
-/** Ordem entre irmãos: última posição = à frente (pintada por último). */
+/** Order among siblings: last position = in front (painted last). */
 export function buildReorderOps(doc: Document, ids: readonly string[], kind: ReorderKind): Op[] {
   const top = editableSelection(doc, ids);
   if (!top.length || !haveSameParent(doc, top)) return [];
@@ -186,12 +186,12 @@ export function buildReorderOps(doc: Document, ids: readonly string[], kind: Reo
 }
 
 /* ------------------------------------------------------------------ */
-/* comandos (leem os stores e aplicam)                                */
+/* commands (read the stores and apply)                                */
 /* ------------------------------------------------------------------ */
 
 let nudgeQueue: Promise<void> = Promise.resolve();
 
-/** Avisa e devolve `true` quando a seleção tem nós que não aceitam mudanças de estrutura. */
+/** Warns and returns `true` when the selection has nodes that do not accept structure changes. */
 function structureBlocked(doc: Document, ids: readonly string[]): boolean {
   const msg = structureBlock(doc, topLevel(doc, ids));
   if (msg) ui.toast(msg);
@@ -221,7 +221,7 @@ export const actions = {
     const { doc, selection } = state();
     if (!doc || structureBlocked(doc, selection)) return;
     const r = buildGroupOps(doc, selection);
-    if (!r) return ui.toast('Selecione irmãos (mesmo pai) dentro de um frame para agrupar');
+    if (!r) return ui.toast('Select siblings (same parent) inside a frame to group');
     if (await daemon.applySafe(r.ops)) ui.select([r.groupId]);
   },
 
@@ -229,7 +229,7 @@ export const actions = {
     const { doc, selection } = state();
     if (!doc || structureBlocked(doc, selection)) return;
     if (selection.some((id) => getNode(doc, id)?.componentId !== undefined)) {
-      return ui.toast('Destaque a instância para desagrupar o conteúdo dela');
+      return ui.toast('Select the instance to ungroup its content');
     }
     const r = buildUngroupOps(doc, selection);
     if (!r) return;
@@ -242,7 +242,7 @@ export const actions = {
     await daemon.applySafe(buildReorderOps(doc, selection, kind));
   },
 
-  /** Serializado: cada seta lê o documento depois do ack da anterior (senão perde movimentos). */
+  /** Serialized: each arrow reads the document after the previous one's ack (otherwise movements are lost). */
   nudge(dx: number, dy: number): Promise<void> {
     nudgeQueue = nudgeQueue.then(async () => {
       const { doc, selection } = state();
@@ -272,7 +272,7 @@ export const actions = {
     await daemon.applySafe([{ type: 'renameNodes', changes: [{ nodeId: id, name: trimmed }] }]);
   },
 
-  /** Ctrl+A: irmãos da seleção atual, ou todos os frames da página. */
+  /** Ctrl+A: siblings of the current selection, or all frames of the page. */
   selectAll(): void {
     const { doc, selection } = state();
     if (!doc) return;
@@ -289,7 +289,7 @@ export const actions = {
     ui.select(page ? page.frames.filter((f) => !f.hidden).map((f) => f.id) : []);
   },
 
-  /** Esc: sobe um nível (pai da seleção) ou limpa a seleção quando já está no frame raiz. */
+  /** Esc: goes up one level (parent of the selection) or clears the selection when already at the root frame. */
   selectParent(): void {
     const { doc, selection } = state();
     if (!doc || !selection.length) return;
@@ -308,7 +308,7 @@ export const actions = {
   async save(): Promise<void> {
     try {
       const { path } = await daemon.save();
-      ui.toast(`Salvo em ${path}`);
+      ui.toast(`Saved to ${path}`);
     } catch (e) {
       ui.toast((e as Error).message, 'error');
     }

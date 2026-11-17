@@ -1,4 +1,4 @@
-/** Painel do assistente de IA: conversa por documento com streaming, ferramentas e backend. */
+/** AI assistant panel: per-document conversation with streaming, tools and backend. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { isVirtualId } from '@mockup/core';
@@ -13,10 +13,10 @@ import { contextLabel, noBackendAvailable } from './logic';
 import './assistant.css';
 
 export const SUGGESTIONS = [
-  'Deixe o botão primário mais destacado',
-  'Crie uma variação escura desta tela',
-  'Revise o espaçamento e o alinhamento da seleção',
-  'Troque as cores fixas por tokens do design system',
+  'Make the primary button stand out more',
+  'Create a dark variation of this screen',
+  'Review the spacing and alignment of the selection',
+  'Replace hard-coded colors with design system tokens',
 ];
 
 const toastError = (e: unknown) => ui.toast(e instanceof Error ? e.message : String(e), 'error');
@@ -26,15 +26,15 @@ function BackendSelect({ backends, value }: { backends: AssistantBackendInfo[]; 
     <select
       className="select-input as-backend"
       data-testid="assistant-backend"
-      title="Backend do assistente"
+      title="Assistant backend"
       value={value}
       onChange={(e) => daemon.assistantConfig({ backend: e.target.value }).catch(toastError)}
     >
-      <option value="auto">Automático</option>
+      <option value="auto">Automatic</option>
       {backends.map((b) => (
         <option key={b.id} value={b.id} disabled={!b.available}>
           {b.name}
-          {b.available ? '' : ' (indisponível)'}
+          {b.available ? '' : ' (unavailable)'}
         </option>
       ))}
     </select>
@@ -52,7 +52,7 @@ export function AssistantPanel() {
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Carrega histórico, backends e configuração ao abrir o painel / trocar de documento / reconectar.
+  // Loads history, backends and settings when the panel opens / the document changes / on reconnect.
   useEffect(() => {
     if (!docId || status !== 'online') return;
     daemon.assistantHistory(docId).catch(() => undefined);
@@ -62,7 +62,7 @@ export function AssistantPanel() {
   const noBackend = config !== null && noBackendAvailable(backends);
   const ctx = useMemo(() => contextLabel(selectionCount), [selectionCount]);
 
-  // Rola para o fim quando chega conteúdo novo.
+  // Scrolls to the end when new content arrives.
   const tail = data.partial ? data.partial.text.length + data.partial.tools.length : 0;
   useEffect(() => {
     const el = listRef.current;
@@ -97,7 +97,7 @@ export function AssistantPanel() {
   if (!docId) {
     return (
       <div className="as-panel" data-testid="assistant-panel">
-        <div className="as-empty">Abra um documento para conversar com o assistente.</div>
+        <div className="as-empty">Open a document to chat with the assistant.</div>
       </div>
     );
   }
@@ -110,7 +110,7 @@ export function AssistantPanel() {
         <button
           type="button"
           className="icon-btn"
-          title="Limpar histórico"
+          title="Clear history"
           data-testid="assistant-clear"
           disabled={empty || running}
           onClick={() => daemon.assistantClear(docId).catch(toastError)}
@@ -121,8 +121,8 @@ export function AssistantPanel() {
 
       {noBackend && (
         <div className="as-notice" data-testid="assistant-no-backend">
-          Nenhum backend disponível. Instale e faça login no <b>Claude Code</b> (<code>claude</code>
-          ) ou no <b>Codex</b> (<code>codex</code>) e reabra este painel.
+          No backend available. Install and sign in to <b>Claude Code</b> (<code>claude</code>) or
+          <b>Codex</b> (<code>codex</code>) and reopen this panel.
         </div>
       )}
 
@@ -131,8 +131,7 @@ export function AssistantPanel() {
           <div className="as-empty" data-testid="assistant-empty">
             <Bot size={22} />
             <p>
-              Peça alterações no design em linguagem natural. Cada turno vira uma só entrada de
-              undo.
+              Ask for design changes in natural language. Each turn becomes a single undo entry.
             </p>
             <div className="as-suggestions">
               {SUGGESTIONS.map((s) => (
@@ -164,7 +163,7 @@ export function AssistantPanel() {
         </div>
         {running && (
           <div className="as-context as-warn" data-testid="assistant-split-warning">
-            Edições suas durante o turno dividem o undo do turno em mais de um passo.
+            Your edits during the turn split the turn's undo into more than one step.
           </div>
         )}
         <div className="as-input-row">
@@ -173,7 +172,7 @@ export function AssistantPanel() {
             data-testid="assistant-input"
             rows={2}
             value={text}
-            placeholder="Descreva o que o assistente deve fazer…"
+            placeholder="Describe what the assistant should do…"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
           />
@@ -182,17 +181,17 @@ export function AssistantPanel() {
               type="button"
               className="btn as-cancel"
               data-testid="assistant-cancel"
-              title="Cancelar o turno"
+              title="Cancel the turn"
               onClick={() => daemon.assistantCancel(docId).catch(toastError)}
             >
-              <Square size={12} /> Cancelar
+              <Square size={12} /> Cancel
             </button>
           ) : (
             <button
               type="button"
               className="btn primary as-send"
               data-testid="assistant-send"
-              title="Enviar (Enter)"
+              title="Send (Enter)"
               disabled={!text.trim() || sending || noBackend}
               onClick={() => void send(text)}
             >

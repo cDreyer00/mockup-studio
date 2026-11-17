@@ -7,8 +7,8 @@ import { makeDoc } from './test/fixtures';
 
 const childIds = (doc: Document, id: string) => getNode(doc, id)!.children.map((c) => c.id);
 
-describe('actions (builders puros)', () => {
-  it('nudge move frame raiz e filho absoluto', () => {
+describe('actions (pure builders)', () => {
+  it('nudge moves root frame and absolute child', () => {
     const { doc, frame, abs } = makeDoc();
     const next = applyOps(doc, buildNudgeOps(doc, [frame.id], 10, -5)).doc;
     expect(getNode(next, frame.id)!.position).toEqual({ x: 110, y: 45 });
@@ -16,14 +16,14 @@ describe('actions (builders puros)', () => {
     expect(getNode(n2, abs.id)!.style).toMatchObject({ left: '11px', top: '21px' });
   });
 
-  it('nudge em filho de flex coluna reordena no eixo principal', () => {
+  it('nudge on a child of a flex column reorders on the main axis', () => {
     const { doc, frame, a, b } = makeDoc();
     const next = applyOps(doc, buildNudgeOps(doc, [a.id], 0, 1)).doc;
     expect(childIds(next, frame.id).slice(0, 2)).toEqual([b.id, a.id]);
     expect(buildNudgeOps(doc, [a.id], 1, 0)).toEqual([]);
   });
 
-  it('agrupa e desagrupa preservando a ordem', () => {
+  it('groups and ungroups preserving the order', () => {
     const { doc, frame, a, b, c } = makeDoc();
     const g = buildGroupOps(doc, [b.id, a.id])!;
     const grouped = applyOps(doc, g.ops).doc;
@@ -38,7 +38,7 @@ describe('actions (builders puros)', () => {
     expect(buildGroupOps(doc, [frame.id])).toBeNull();
   });
 
-  it('reordena para frente/trás', () => {
+  it('reorders forward/backward', () => {
     const { doc, frame, a, abs } = makeDoc();
     const front = applyOps(doc, buildReorderOps(doc, [a.id], 'front')).doc;
     expect(childIds(front, frame.id).at(-1)).toBe(a.id);
@@ -48,7 +48,7 @@ describe('actions (builders puros)', () => {
     expect(childIds(fwd, frame.id)[1]).toBe(a.id);
   });
 
-  it('nós travados não são afetados', () => {
+  it('locked nodes are not affected', () => {
     const { doc, frame } = makeDoc();
     getNode(doc, frame.id)!.locked = true;
     expect(buildNudgeOps(doc, [frame.id], 1, 1)).toEqual([]);

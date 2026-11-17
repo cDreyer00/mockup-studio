@@ -1,4 +1,4 @@
-/** Chamadas HTTP ao daemon para dados de repetidores e placeholders (mesma origem do `daemon`). */
+/** HTTP calls to the daemon for repeater data and placeholders (same origin as `daemon`). */
 import type { DataSource } from '@mockup/core';
 import { useDoc } from '../state/docStore';
 import { ui } from '../state/uiStore';
@@ -15,7 +15,7 @@ export interface BindDataBody {
 }
 
 export interface BindDataResult {
-  /** Id do repetidor (novo quando um contêiner foi convertido). */
+  /** Repeater id (new when a container was converted). */
   nodeId: string;
   count: number;
   columns: string[];
@@ -33,7 +33,7 @@ export interface PlaceholderBody {
 
 function activeDoc(docId?: string): string {
   const id = docId ?? useDoc.getState().activeDocId;
-  if (!id) throw new Error('Nenhum documento aberto');
+  if (!id) throw new Error('No document open');
   return id;
 }
 
@@ -44,28 +44,28 @@ async function post<T>(url: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(json.error ?? `Falha na requisição (${res.status})`);
+  if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
   return json;
 }
 
 const enc = encodeURIComponent;
 
 export const features = {
-  /** Vincula dados ao repetidor; um contêiner com filhos é convertido em repetidor. */
+  /** Binds data to the repeater; a container with children is converted into a repeater. */
   bindData(nodeId: string, body: BindDataBody, docId?: string): Promise<BindDataResult> {
     return post(`/api/data/${enc(activeDoc(docId))}/${enc(nodeId)}/bind`, body);
   },
-  /** Relê a origem (arquivo/URL) da `dataSource`. */
+  /** Re-reads the source (file/URL) of the `dataSource`. */
   refreshData(nodeId: string, docId?: string): Promise<BindDataResult> {
     return post(`/api/data/${enc(activeDoc(docId))}/${enc(nodeId)}/refresh`, {});
   },
-  /** Gera um SVG placeholder e o aplica como `src` da imagem. */
+  /** Generates a placeholder SVG and applies it as the image `src`. */
   placeholder(body: PlaceholderBody, docId?: string): Promise<{ src: string; nodeId: string }> {
     return post(`/api/placeholder/${enc(activeDoc(docId))}`, body);
   },
 };
 
-/** Converte um contêiner com filhos em repetidor (os filhos viram o template) e o seleciona. */
+/** Converts a container with children into a repeater (the children become the template) and selects it. */
 export async function convertToRepeater(nodeId: string): Promise<string | null> {
   try {
     const res = await features.bindData(nodeId, { data: [] });

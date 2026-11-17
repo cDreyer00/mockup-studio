@@ -1,6 +1,6 @@
 /**
- * Carga sob demanda do motor Tailwind (`@mockup/core/tailwind`, ~260 kB com o compilador oficial):
- * só é baixado quando o painel de classes é aberto ou quando se cola HTML com classes.
+ * On-demand loading of the Tailwind engine (`@mockup/core/tailwind`, ~260 kB with the official compiler):
+ * it is only downloaded when the classes panel is opened or when HTML with classes is pasted.
  */
 import type { Document } from '@mockup/core';
 
@@ -12,7 +12,7 @@ export type TailwindEngine = Awaited<ReturnType<TailwindModule['getTailwindEngin
 let modulePromise: Promise<TailwindModule> | null = null;
 let loaded: TailwindModule | null = null;
 
-/** Módulo do motor (importado uma vez; uma falha pode ser tentada de novo). */
+/** Engine module (imported once; a failure can be retried). */
 export function loadTailwindModule(): Promise<TailwindModule> {
   modulePromise ??= import('@mockup/core/tailwind').then(
     (m) => (loaded = m),
@@ -24,7 +24,7 @@ export function loadTailwindModule(): Promise<TailwindModule> {
   return modulePromise;
 }
 
-/** Motor do documento (cache por tokens/temas, no próprio core). */
+/** Document engine (cached by tokens/themes, in core itself). */
 export async function loadTailwindEngine(
   doc: Pick<Document, 'tokens' | 'themes'>,
 ): Promise<{ mod: TailwindModule; engine: TailwindEngine }> {
@@ -32,7 +32,7 @@ export async function loadTailwindEngine(
   return { mod, engine: await mod.getTailwindEngine(doc) };
 }
 
-/** Motor já pronto (sem esperar), se o módulo e o motor do documento já foram carregados. */
+/** Engine that is already ready (without waiting), if the module and the document engine are already loaded. */
 export function peekEngine(doc: Pick<Document, 'tokens' | 'themes'>): TailwindEngine | undefined {
   return loaded?.peekTailwindEngine(doc);
 }

@@ -1,6 +1,6 @@
 /*
- * Base compartilhada entre o editor e a página de render: variáveis, box-sizing e a tipografia
- * herdada pelos nós renderizados (assim o canvas e o screenshot ficam idênticos).
+ * Base shared between the editor and the render page: variables, box-sizing and the typography
+ * inherited by the rendered nodes (so the canvas and the screenshot are identical).
  */
 :root {
   --bg: #0e0f12;

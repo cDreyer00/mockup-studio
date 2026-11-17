@@ -1,4 +1,4 @@
-/** Barra de ferramentas: arquivo, ferramentas, desfazer/refazer, documento, zoom e conexão. */
+/** Toolbar: file, tools, undo/redo, document, zoom and connection. */
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -52,21 +52,21 @@ import './toolbar.css';
 const ICON = 16;
 
 const TOOLS: { tool: Tool; title: string; key: string; icon: ReactNode }[] = [
-  { tool: 'select', title: 'Mover', key: 'V', icon: <MousePointer2 size={ICON} /> },
-  { tool: 'hand', title: 'Mão', key: 'H', icon: <Hand size={ICON} /> },
+  { tool: 'select', title: 'Move', key: 'V', icon: <MousePointer2 size={ICON} /> },
+  { tool: 'hand', title: 'Hand', key: 'H', icon: <Hand size={ICON} /> },
   { tool: 'frame', title: 'Frame', key: 'F', icon: <Frame size={ICON} /> },
   { tool: 'rect', title: 'Container', key: 'R', icon: <Square size={ICON} /> },
-  { tool: 'text', title: 'Texto', key: 'T', icon: <Type size={ICON} /> },
-  { tool: 'image', title: 'Imagem', key: 'Ctrl+Shift+K', icon: <ImageIcon size={ICON} /> },
-  { tool: 'pen', title: 'Caneta', key: 'P', icon: <PenTool size={ICON} /> },
-  { tool: 'ellipse', title: 'Elipse', key: 'O', icon: <Circle size={ICON} /> },
-  { tool: 'line', title: 'Linha', key: 'L', icon: <Slash size={ICON} /> },
-  { tool: 'polygon', title: 'Polígono', key: '', icon: <Hexagon size={ICON} /> },
+  { tool: 'text', title: 'Text', key: 'T', icon: <Type size={ICON} /> },
+  { tool: 'image', title: 'Image', key: 'Ctrl+Shift+K', icon: <ImageIcon size={ICON} /> },
+  { tool: 'pen', title: 'Pen', key: 'P', icon: <PenTool size={ICON} /> },
+  { tool: 'ellipse', title: 'Ellipse', key: 'O', icon: <Circle size={ICON} /> },
+  { tool: 'line', title: 'Line', key: 'L', icon: <Slash size={ICON} /> },
+  { tool: 'polygon', title: 'Polygon', key: '', icon: <Hexagon size={ICON} /> },
 ];
 
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
-  online: 'Conectado',
-  connecting: 'Conectando…',
+  online: 'Connected',
+  connecting: 'Connecting…',
   offline: 'Offline',
 };
 
@@ -161,7 +161,7 @@ function Dropdown({
   );
 }
 
-/* ---------------- arquivo ---------------- */
+/* ---------------- file ---------------- */
 
 function Logo() {
   return (
@@ -176,9 +176,9 @@ function FileMenu() {
   const [recent, setRecent] = useState<string[]>([]);
   const activeDocId = useDoc((s) => s.activeDocId);
   const items: DropItem[] = [
-    { label: 'Início', testId: 'file-home', onSelect: () => ui.setHome(true) },
-    { label: 'Novo…', testId: 'file-new', separator: true, onSelect: () => void newDocument() },
-    { label: 'Abrir…', testId: 'file-open', onSelect: () => void openDocument() },
+    { label: 'Home', testId: 'file-home', onSelect: () => ui.setHome(true) },
+    { label: 'New…', testId: 'file-new', separator: true, onSelect: () => void newDocument() },
+    { label: 'Open…', testId: 'file-open', onSelect: () => void openDocument() },
     ...recent.slice(0, 8).map<DropItem>((path, i) => ({
       label: fileNameOf(path) || path,
       testId: `file-recent-${i}`,
@@ -186,7 +186,7 @@ function FileMenu() {
       onSelect: () => void openDocument(path),
     })),
     {
-      label: 'Salvar',
+      label: 'Save',
       testId: 'file-save',
       shortcut: 'Ctrl+S',
       disabled: !activeDocId,
@@ -194,14 +194,14 @@ function FileMenu() {
       onSelect: () => void actions.save(),
     },
     {
-      label: 'Salvar como…',
+      label: 'Save as…',
       testId: 'file-save-as',
       shortcut: 'Ctrl+Shift+S',
       disabled: !activeDocId,
       onSelect: () => void saveDocumentAs(),
     },
     {
-      label: 'Fechar documento',
+      label: 'Close document',
       testId: 'file-close',
       disabled: !activeDocId,
       onSelect: () => void closeActiveDocument(),
@@ -210,12 +210,12 @@ function FileMenu() {
   return (
     <Dropdown
       testId="menu-file"
-      title="Arquivo"
+      title="File"
       items={items}
       onOpen={() => void daemon.recent().then(setRecent, () => setRecent([]))}
       trigger={
         <>
-          <span>Arquivo</span>
+          <span>File</span>
           <ChevronDown size={12} />
         </>
       }
@@ -223,12 +223,12 @@ function FileMenu() {
   );
 }
 
-/* ---------------- documento (centro) ---------------- */
+/* ---------------- document (center) ---------------- */
 
 function DocumentTitle() {
   const info = useDoc(selectActiveInfo);
   const documents = useDoc((s) => s.documents);
-  if (!info) return <div className="tb-doc tb-doc-empty">Sem documento</div>;
+  if (!info) return <div className="tb-doc tb-doc-empty">No document</div>;
   const file = fileNameOf(info.path);
   return (
     <div className="tb-doc" data-testid="doc-title">
@@ -255,13 +255,13 @@ function DocumentTitle() {
         </span>
       )}
       {info.dirty && (
-        <span className="tb-dirty" data-testid="dirty-indicator" title="Alterações não salvas" />
+        <span className="tb-dirty" data-testid="dirty-indicator" title="Unsaved changes" />
       )}
     </div>
   );
 }
 
-/* ---------------- prévia de estado ---------------- */
+/* ---------------- state preview ---------------- */
 
 const PREVIEW_LABELS: Record<PreviewState, string> = {
   hover: 'hover',
@@ -273,22 +273,22 @@ const PREVIEW_LABELS: Record<PreviewState, string> = {
   dark: 'dark',
 };
 
-/** Seletor da prévia de estado: aplica hover/focus/dark... a todos os nós do canvas. */
+/** State preview selector: applies hover/focus/dark... to all nodes on the canvas. */
 function PreviewStateSelect() {
   const state = useUi((s) => s.previewState);
   return (
     <label
       className={`tb-preview${state ? ' on' : ''}`}
-      title="Prévia de estado: aplica as variantes (hover:, focus:, dark:...) a todo o canvas"
+      title="State preview: applies the variants (hover:, focus:, dark:...) to the whole canvas"
     >
-      <span>Prévia</span>
+      <span>Preview</span>
       <select
         className="tb-doc-select"
         data-testid="preview-state"
         value={state ?? ''}
         onChange={(e) => ui.setPreviewState((e.target.value || null) as PreviewState | null)}
       >
-        <option value="">Nenhum</option>
+        <option value="">None</option>
         {PREVIEW_STATES.map((s) => (
           <option key={s} value={s}>
             {PREVIEW_LABELS[s]}
@@ -304,8 +304,8 @@ function PreviewStateSelect() {
 function ZoomMenu() {
   const z = useUi((s) => s.viewport.z);
   const items: DropItem[] = [
-    { label: 'Aproximar', testId: 'zoom-in', shortcut: '+', onSelect: () => canvasApi.zoomIn() },
-    { label: 'Afastar', testId: 'zoom-out', shortcut: '−', onSelect: () => canvasApi.zoomOut() },
+    { label: 'Zoom in', testId: 'zoom-in', shortcut: '+', onSelect: () => canvasApi.zoomIn() },
+    { label: 'Zoom out', testId: 'zoom-out', shortcut: '−', onSelect: () => canvasApi.zoomOut() },
     {
       label: 'Zoom 100%',
       testId: 'zoom-100',
@@ -314,13 +314,13 @@ function ZoomMenu() {
       onSelect: () => canvasApi.zoomTo(1),
     },
     {
-      label: 'Ajustar tudo',
+      label: 'Zoom to fit',
       testId: 'zoom-fit',
       shortcut: 'Shift+1',
       onSelect: () => canvasApi.fitAll(),
     },
     {
-      label: 'Zoom na seleção',
+      label: 'Zoom to selection',
       testId: 'zoom-selection',
       shortcut: 'Shift+2',
       onSelect: () => canvasApi.fitNodes(),
@@ -342,19 +342,19 @@ function ZoomMenu() {
   );
 }
 
-/* ---------------- mídia e animações ---------------- */
+/* ---------------- media and animations ---------------- */
 
 function MediaMenu() {
   const items: DropItem[] = [
-    { label: 'Inserir vídeo…', testId: 'media-video', onSelect: () => void pickAndInsertVideo() },
+    { label: 'Insert video…', testId: 'media-video', onSelect: () => void pickAndInsertVideo() },
     {
-      label: 'Inserir Lottie/Rive de arquivo…',
+      label: 'Insert Lottie/Rive from file…',
       testId: 'media-lottie-rive',
       onSelect: () => void pickAndInsertLottieRive(),
     },
-    { label: 'Embed por URL…', testId: 'media-embed-url', onSelect: mediaDialogs.openEmbedUrl },
+    { label: 'Embed from URL…', testId: 'media-embed-url', onSelect: mediaDialogs.openEmbedUrl },
     {
-      label: 'Ilha Three.js',
+      label: 'Three.js island',
       testId: 'media-three',
       separator: true,
       onSelect: () => void insertThreeIsland(),
@@ -363,7 +363,7 @@ function MediaMenu() {
   return (
     <Dropdown
       testId="media-button"
-      title="Mídia"
+      title="Media"
       items={items}
       trigger={<Clapperboard size={ICON} />}
     />
@@ -372,10 +372,10 @@ function MediaMenu() {
 
 function PlayToggle() {
   const playing = useFxClock((s) => s.playing);
-  const title = playing ? 'Pausar animações' : 'Tocar animações';
+  const title = playing ? 'Pause animations' : 'Play animations';
   return (
     <IconButton
-      title={`${title} (Shift+Espaço)`}
+      title={`${title} (Shift+Space)`}
       active={!playing}
       data-testid="fx-play-toggle"
       data-playing={playing}
@@ -386,7 +386,7 @@ function PlayToggle() {
   );
 }
 
-/* ---------------- barra ---------------- */
+/* ---------------- bar ---------------- */
 
 export function Toolbar() {
   const tool = useUi((s) => s.tool);
@@ -403,7 +403,7 @@ export function Toolbar() {
       </div>
       <FileMenu />
       <IconButton
-        title="Início (arquivos)"
+        title="Home (files)"
         active={homeOpen}
         data-testid="home-button"
         onClick={() => ui.setHome(!homeOpen)}
@@ -411,7 +411,7 @@ export function Toolbar() {
         <Home size={ICON} />
       </IconButton>
       <span className="tb-sep" />
-      <div className="tb-group" role="toolbar" aria-label="Ferramentas">
+      <div className="tb-group" role="toolbar" aria-label="Tools">
         {TOOLS.map((t) => (
           <IconButton
             key={t.tool}
@@ -425,14 +425,14 @@ export function Toolbar() {
         ))}
       </div>
       <span className="tb-sep" />
-      <div className="tb-group" role="toolbar" aria-label="Efeitos e mídia">
+      <div className="tb-group" role="toolbar" aria-label="Effects and media">
         <EffectsButton />
         <MediaMenu />
         <PlayToggle />
       </div>
       <span className="tb-sep" />
       <IconButton
-        title="Desfazer (Ctrl+Z)"
+        title="Undo (Ctrl+Z)"
         disabled={!canUndo}
         data-testid="undo"
         onClick={() => void actions.undo()}
@@ -440,7 +440,7 @@ export function Toolbar() {
         <Undo2 size={ICON} />
       </IconButton>
       <IconButton
-        title="Refazer (Ctrl+Shift+Z)"
+        title="Redo (Ctrl+Shift+Z)"
         disabled={!canRedo}
         data-testid="redo"
         onClick={() => void actions.redo()}

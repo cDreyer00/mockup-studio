@@ -14,7 +14,7 @@ const ctrlShift = { ctrlKey: true, shiftKey: true };
 const shift = { shiftKey: true };
 
 describe('resolveShortcut', () => {
-  it('ferramentas', () => {
+  it('tools', () => {
     expect(resolveShortcut(key('v'))).toEqual({ type: 'tool', tool: 'select' });
     expect(resolveShortcut(key('h'))).toEqual({ type: 'tool', tool: 'hand' });
     expect(resolveShortcut(key('f'))).toEqual({ type: 'tool', tool: 'frame' });
@@ -26,7 +26,7 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('x'))).toBeNull();
   });
 
-  it('imagem, salvar, duplicar, agrupar', () => {
+  it('image, save, duplicate, group', () => {
     expect(resolveShortcut(key('K', ctrlShift))).toEqual({ type: 'pickImage' });
     expect(resolveShortcut(key('k', ctrl))).toBeNull();
     expect(resolveShortcut(key('s', ctrl))).toEqual({ type: 'save' });
@@ -39,7 +39,7 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('G', ctrlShift))).toEqual({ type: 'ungroup' });
   });
 
-  it('ordem de empilhamento (colchetes por key e por code)', () => {
+  it('stacking order (brackets by key and by code)', () => {
     expect(resolveShortcut(key(']', ctrl))).toEqual({ type: 'reorder', kind: 'forward' });
     expect(resolveShortcut(key('[', ctrl))).toEqual({ type: 'reorder', kind: 'backward' });
     expect(resolveShortcut(key('}', ctrlShift))).toEqual({ type: 'reorder', kind: 'front' });
@@ -52,19 +52,19 @@ describe('resolveShortcut', () => {
       type: 'reorder',
       kind: 'back',
     });
-    // ABNT2: `]` está em Backslash
+    // ABNT2: `]` is on Backslash
     expect(resolveShortcut(key(']', ctrl, 'Backslash'))).toEqual({
       type: 'reorder',
       kind: 'forward',
     });
   });
 
-  it('ocultar e travar', () => {
+  it('hide and lock', () => {
     expect(resolveShortcut(key('H', ctrlShift))).toEqual({ type: 'toggleHidden' });
     expect(resolveShortcut(key('L', ctrlShift))).toEqual({ type: 'toggleLocked' });
   });
 
-  it('excluir e setas', () => {
+  it('delete and arrows', () => {
     expect(resolveShortcut(key('Delete'))).toEqual({ type: 'delete' });
     expect(resolveShortcut(key('Backspace'))).toEqual({ type: 'delete' });
     expect(resolveShortcut(key('ArrowLeft'))).toEqual({ type: 'nudge', dx: -1, dy: 0 });
@@ -75,14 +75,14 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('ArrowDown', shift))).toEqual({ type: 'nudge', dx: 0, dy: 10 });
   });
 
-  it('Esc, Enter, selecionar tudo', () => {
+  it('Esc, Enter, select all', () => {
     expect(resolveShortcut(key('Escape'))).toEqual({ type: 'escape' });
     expect(resolveShortcut(key('Enter'))).toEqual({ type: 'selectChildren' });
     expect(resolveShortcut(key('Enter', shift))).toEqual({ type: 'selectParent' });
     expect(resolveShortcut(key('a', ctrl))).toEqual({ type: 'selectAll' });
   });
 
-  it('desfazer e refazer', () => {
+  it('undo and redo', () => {
     expect(resolveShortcut(key('z', ctrl))).toEqual({ type: 'undo' });
     expect(resolveShortcut(key('Z', ctrlShift))).toEqual({ type: 'redo' });
     expect(resolveShortcut(key('y', ctrl))).toEqual({ type: 'redo' });
@@ -103,7 +103,7 @@ describe('resolveShortcut', () => {
     for (const [input, expected] of cases) expect(resolveShortcut(input)).toEqual(expected);
   });
 
-  it('Ctrl+Alt+K cria componente (também pelo code, com AltGr/layouts)', () => {
+  it('Ctrl+Alt+K creates a component (also via code, with AltGr/layouts)', () => {
     const ctrlAlt = { ctrlKey: true, altKey: true };
     expect(resolveShortcut(key('k', ctrlAlt))).toEqual({ type: 'createComponent' });
     expect(resolveShortcut(key('K', { metaKey: true, altKey: true }))).toEqual({
@@ -114,7 +114,7 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('k', { altKey: true }))).toBeNull();
   });
 
-  it('ignora combinações não mapeadas', () => {
+  it('ignores unmapped combinations', () => {
     expect(resolveShortcut(key('v', { altKey: true }))).toBeNull();
     expect(resolveShortcut(key('v', ctrl))).toBeNull();
     expect(resolveShortcut(key(' ', {}, 'Space'))).toBeNull();

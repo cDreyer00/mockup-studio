@@ -8,7 +8,7 @@ import react from '@vitejs/plugin-react';
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = process.env.VITE_DAEMON_PORT ?? '4747';
 const http = `http://127.0.0.1:${port}`;
-// O editor fala com o daemon pela mesma origem (dev e preview): /api, /assets, /cdn e /ws vão por proxy.
+// The editor talks to the daemon over the same origin (dev and preview): /api, /assets, /cdn and /ws go through a proxy.
 const proxy = {
   '/api': http,
   '/assets': http,
@@ -17,8 +17,8 @@ const proxy = {
 };
 
 /**
- * Gera `vendor/three.iife.js` (window.THREE) para as ilhas Three.js: o dev serve em memória e o
- * build emite o arquivo. O iframe sandbox (origem opaca) o carrega como script clássico.
+ * Generates `vendor/three.iife.js` (window.THREE) for the Three.js islands: dev serves it from memory and the
+ * build emits the file. The sandboxed iframe (opaque origin) loads it as a classic script.
  */
 function threeIife(): Plugin {
   let cached: Promise<string> | undefined;
@@ -52,8 +52,8 @@ function threeIife(): Plugin {
 export default defineConfig({
   plugins: [react(), threeIife()],
   resolve: {
-    // O editor compila contra o fonte do core.
-    // O subpacote do Tailwind vem antes: o motor sai em chunk próprio (carregado sob demanda).
+    // The editor compiles against the core source.
+    // The Tailwind subpackage comes first: the engine ends up in its own chunk (loaded on demand).
     alias: [
       {
         find: /^@mockup\/core\/tailwind$/,
@@ -70,7 +70,7 @@ export default defineConfig({
   preview: { proxy },
   build: {
     outDir: 'dist',
-    // Duas páginas: o editor e a página de render (screenshots do app desktop).
+    // Two pages: the editor and the render page (desktop app screenshots).
     rollupOptions: {
       input: {
         main: path.resolve(dirname, 'index.html'),

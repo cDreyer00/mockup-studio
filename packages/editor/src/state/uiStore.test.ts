@@ -4,10 +4,10 @@ import { ui, useUi } from './uiStore';
 afterEach(() => useUi.setState({ preview: {} }));
 
 describe('releasePreview', () => {
-  it('remove só a prévia do próprio gesto, mesmo se outro gesto começou antes do ack', () => {
+  it('removes only the preview of its own gesture, even if another gesture started before the ack', () => {
     const first = { a: { position: { x: 1, y: 1 } } };
     ui.setPreview(first);
-    // gesto novo (antes do ack do primeiro) define a própria prévia, inclusive no mesmo nó
+    // a new gesture (before the first one's ack) sets its own preview, including on the same node
     const second = { a: { position: { x: 9, y: 9 } }, b: { style: { opacity: '0.5' } } };
     ui.setPreview(second);
     ui.releasePreview(first);
@@ -16,7 +16,7 @@ describe('releasePreview', () => {
     expect(useUi.getState().preview).toEqual({});
   });
 
-  it('mantém entradas de outros nós', () => {
+  it('keeps entries of other nodes', () => {
     const mine = { a: { style: { left: '1px' } } };
     const other = { style: { top: '2px' } };
     useUi.setState({ preview: { ...mine, b: other } });

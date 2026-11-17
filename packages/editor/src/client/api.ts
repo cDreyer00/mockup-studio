@@ -1,11 +1,11 @@
 /**
- * Cliente HTTP tipado das rotas de assets, biblioteca, arquivos e busca (contrato da fase 6).
- * Usa URLs relativas à origem da página, como `client/daemon.ts` (o proxy do Vite cobre /api).
+ * Typed HTTP client for the assets, library, files and search routes (phase 6 contract).
+ * Uses URLs relative to the page origin, like `client/daemon.ts` (the Vite proxy covers /api).
  */
 import type { NodeMatch } from '@mockup/core';
 
 export interface AssetInfo {
-  /** Relativo a `assets/`, com barras normais. */
+  /** Relative to `assets/`, with forward slashes. */
   path: string;
   name: string;
   ext: string;
@@ -17,7 +17,7 @@ export interface AssetInfo {
   mtime: number;
   hash: string;
   cdnUrl: string;
-  /** Número de nós que usam o arquivo. */
+  /** Number of nodes that use the file. */
   uses: number;
   nodeIds: string[];
   refKinds: ('src' | 'style' | 'font' | 'data')[];
@@ -49,7 +49,7 @@ export interface FileEntry {
   pages: number;
   frames: number;
   missing?: boolean;
-  /** Posição em recent.json (0 = mais recente). */
+  /** Position in recent.json (0 = most recent). */
   recent?: number;
   match?: { field: 'name' | 'tag' | 'content'; snippet: string };
 }
@@ -81,7 +81,7 @@ export interface FileMetaPatch {
   favorite?: boolean;
 }
 
-/** Erro HTTP com o status (ex.: 409 = asset em uso). */
+/** HTTP error with the status (e.g. 409 = asset in use). */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -96,11 +96,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(url, init);
   } catch {
-    throw new ApiError('Sem conexão com o daemon. Verifique se ele está rodando.', 0);
+    throw new ApiError('No connection to the daemon. Check that it is running.', 0);
   }
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
-    throw new ApiError(body.error ?? `Falha na requisição (${res.status})`, res.status);
+    throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status);
   }
   return body;
 }
@@ -113,7 +113,7 @@ const json = (body: unknown): RequestInit => ({
 
 const enc = encodeURIComponent;
 
-/** Monta `?a=1&b=2` ignorando valores vazios. */
+/** Builds `?a=1&b=2` ignoring empty values. */
 export function queryString(params: Record<string, string | number | boolean | undefined>): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -124,12 +124,12 @@ export function queryString(params: Record<string, string | number | boolean | u
   return s ? `?${s}` : '';
 }
 
-/** URL para exibir um asset do documento (miniatura/visualização). */
+/** URL to display a document asset (thumbnail/preview). */
 export function assetViewUrl(docId: string, path: string): string {
   return `/assets/${enc(docId)}/${path.split('/').map(enc).join('/')}`;
 }
 
-/** URL da miniatura de um arquivo da tela inicial. */
+/** URL of the thumbnail of a home screen file. */
 export function thumbnailUrl(path: string, mtime?: number, w = 480): string {
   return `/api/files/thumbnail${queryString({ path, w, v: mtime })}`;
 }

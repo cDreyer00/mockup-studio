@@ -7,7 +7,7 @@ const at = '2026-01-01T00:00:00Z';
 const userMsg: AssistantMessage = {
   id: 'u1',
   role: 'user',
-  text: 'Destaque o botão',
+  text: 'Highlight the button',
   at,
   turnId: 't1',
 };
@@ -19,16 +19,16 @@ const feed = (...events: AssistantEvent[]) =>
 describe('assistantStore', () => {
   beforeEach(() => useAssistant.setState({ byDoc: {}, backends: [], config: null }));
 
-  it('turno completo: turn-start → text → tool → tool-result → turn-end', () => {
+  it('full turn: turn-start → text → tool → tool-result → turn-end', () => {
     feed({ kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' });
     expect(state().messages).toEqual([userMsg]);
     expect(state().partial).toEqual({ turnId: 't1', text: '', tools: [] });
 
     feed(
-      { kind: 'text', turnId: 't1', text: 'Vou ' },
-      { kind: 'text', turnId: 't1', text: 'ajustar.' },
+      { kind: 'text', turnId: 't1', text: 'I will ' },
+      { kind: 'text', turnId: 't1', text: 'adjust.' },
     );
-    expect(state().partial!.text).toBe('Vou ajustar.');
+    expect(state().partial!.text).toBe('I will adjust.');
 
     feed({ kind: 'tool', turnId: 't1', tool: { id: 'c1', name: 'mcp__mockup__update_styles' } });
     expect(state().partial!.tools).toEqual([{ id: 'c1', name: 'mcp__mockup__update_styles' }]);
@@ -39,7 +39,7 @@ describe('assistantStore', () => {
     const final: AssistantMessage = {
       id: 'a1',
       role: 'assistant',
-      text: 'Vou ajustar. Pronto.',
+      text: 'I will adjust. Done.',
       at,
       turnId: 't1',
       status: 'done',
@@ -52,7 +52,7 @@ describe('assistantStore', () => {
     expect(state().messages[1]!.opsCount).toBe(4);
   });
 
-  it('ferramenta com erro e turno cancelado/erro', () => {
+  it('tool with error and cancelled/errored turn', () => {
     feed(
       { kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' },
       { kind: 'tool', turnId: 't1', tool: { id: 'c1', name: 'x' } },
@@ -75,7 +75,7 @@ describe('assistantStore', () => {
     expect(state().messages[1]).toMatchObject({ status: 'error', error: 'boom' });
   });
 
-  it('eventos repetidos não duplicam mensagens; eventos de outro turno não vazam', () => {
+  it('repeated events do not duplicate messages; events from another turn do not leak', () => {
     feed(
       { kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' },
       { kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' },
@@ -85,14 +85,14 @@ describe('assistantStore', () => {
     expect(state().partial!.tools).toEqual([]);
   });
 
-  it('cleared esvazia mensagens e turno', () => {
+  it('cleared empties messages and turn', () => {
     feed({ kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' });
     feed({ kind: 'cleared' });
     expect(state().messages).toEqual([]);
     expect(state().partial).toBeNull();
   });
 
-  it('documentos independentes', () => {
+  it('independent documents', () => {
     assistantStore.applyEvent('a', {
       kind: 'turn-start',
       turnId: 't1',
@@ -104,7 +104,7 @@ describe('assistantStore', () => {
     expect(useAssistant.getState().byDoc['a']).toBeUndefined();
   });
 
-  it('setHistory reconstrói o turno em andamento a partir de uma mensagem "running"', () => {
+  it('setHistory rebuilds the turn in progress from a "running" message', () => {
     assistantStore.setHistory(DOC, {
       messages: [
         userMsg,
@@ -120,7 +120,7 @@ describe('assistantStore', () => {
     expect(useAssistant.getState().config).toEqual({ backend: 'auto' });
   });
 
-  it('setHistory preserva o parcial em curso do mesmo turno e limpa quando não há turno', () => {
+  it('setHistory keeps the in-progress partial of the same turn and clears it when there is no turn', () => {
     feed({ kind: 'turn-start', turnId: 't1', user: userMsg, backend: 'claude' });
     feed({ kind: 'text', turnId: 't1', text: 'abc' });
     const res = { messages: [userMsg], backends: [], config: { backend: 'auto' } };

@@ -9,8 +9,8 @@ export type TailwindState =
   | { status: 'ready'; engine: TailwindEngine; mod: TailwindModule };
 
 /**
- * Motor Tailwind do documento ativo, carregado sob demanda. Troca de motor quando os tokens/temas
- * mudam (mantendo o anterior até o novo ficar pronto, sem piscar "Carregando").
+ * Tailwind engine of the active document, loaded on demand. Switches engine when the tokens/themes
+ * change (keeping the previous one until the new one is ready, without flashing "Loading").
  */
 export function useTailwind(): TailwindState {
   const tokens = useDoc((s) => s.doc?.tokens);

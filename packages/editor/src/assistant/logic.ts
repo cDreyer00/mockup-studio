@@ -1,24 +1,24 @@
-/** Funções puras do painel do assistente. */
+/** Pure functions of the assistant panel. */
 import type { AssistantBackendInfo, AssistantToolCall } from '@mockup/core';
 
-/** Texto do indicador de contexto sob o campo de mensagem. */
+/** Text of the context indicator below the message field. */
 export function contextLabel(selectionCount: number): string {
-  if (selectionCount === 0) return 'sem seleção — o documento inteiro';
-  if (selectionCount === 1) return '1 nó selecionado';
-  return `${selectionCount} nós selecionados`;
+  if (selectionCount === 0) return 'no selection — the whole document';
+  if (selectionCount === 1) return '1 node selected';
+  return `${selectionCount} nodes selected`;
 }
 
-/** Rodapé de um turno que alterou o documento. */
+/** Footer of a turn that changed the document. */
 export function opsLabel(opsCount: number): string {
-  return `${opsCount} ${opsCount === 1 ? 'alteração' : 'alterações'} — Ctrl+Z desfaz o turno`;
+  return `${opsCount} ${opsCount === 1 ? 'change' : 'changes'} — Ctrl+Z undoes the turn`;
 }
 
-/** `true` se nenhum backend conhecido está disponível. */
+/** `true` if no known backend is available. */
 export function noBackendAvailable(backends: AssistantBackendInfo[]): boolean {
   return !backends.some((b) => b.available);
 }
 
-/** Nome curto da ferramenta (tira o prefixo `mcp__servidor__`). */
+/** Short tool name (strips the `mcp__server__` prefix). */
 export function toolLabel(name: string): string {
   const i = name.lastIndexOf('__');
   return i >= 0 ? name.slice(i + 2) : name;

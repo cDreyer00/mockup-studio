@@ -1,15 +1,15 @@
-/** Lógica pura da tela inicial: árvore de pastas virtuais e filtros. */
+/** Pure logic of the home screen: virtual folder tree and filters. */
 import type { FileEntry, FilesQuery } from '../client/api';
 
 export interface FolderNode {
-  /** Caminho completo (`Clientes/Acme`). */
+  /** Full path (`Clients/Acme`). */
   path: string;
-  /** Último segmento. */
+  /** Last segment. */
   name: string;
   children: FolderNode[];
 }
 
-/** Monta a árvore a partir de `folders` (cria os pais implícitos), ordenada por nome. */
+/** Builds the tree from `folders` (creating implicit parents), sorted by name. */
 export function buildFolderTree(folders: readonly string[]): FolderNode[] {
   const roots: FolderNode[] = [];
   const index = new Map<string, FolderNode>();
@@ -31,7 +31,7 @@ export function buildFolderTree(folders: readonly string[]): FolderNode[] {
     if (path) ensure(path);
   }
   const sort = (list: FolderNode[]): void => {
-    list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true }));
+    list.sort((a, b) => a.name.localeCompare(b.name, 'en-US', { numeric: true }));
     for (const n of list) sort(n.children);
   };
   sort(roots);
@@ -47,7 +47,7 @@ export type HomeFilter =
 
 export const DEFAULT_FILTER: HomeFilter = { kind: 'recent' };
 
-/** Parâmetros de `GET /api/files` para o filtro e a busca. */
+/** `GET /api/files` parameters for the filter and search. */
 export function buildFilesQuery(filter: HomeFilter, search: string): FilesQuery {
   const q: FilesQuery = {};
   const text = search.trim();
@@ -60,7 +60,7 @@ export function buildFilesQuery(filter: HomeFilter, search: string): FilesQuery 
   return q;
 }
 
-/** Ordena o resultado: Recentes (sem busca) só os que têm `recent`, em ordem; demais por nome. */
+/** Sorts the result: Recent (without search) keeps only files with `recent`, in order; the rest by name. */
 export function arrangeFiles(
   files: readonly FileEntry[],
   filter: HomeFilter,
@@ -69,7 +69,7 @@ export function arrangeFiles(
   if (filter.kind === 'recent' && !search.trim()) {
     return files.filter((f) => f.recent !== undefined).sort((a, b) => a.recent! - b.recent!);
   }
-  return [...files].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric: true }));
+  return [...files].sort((a, b) => a.name.localeCompare(b.name, 'en-US', { numeric: true }));
 }
 
 export function sameFilter(a: HomeFilter, b: HomeFilter): boolean {
@@ -79,12 +79,12 @@ export function sameFilter(a: HomeFilter, b: HomeFilter): boolean {
   return true;
 }
 
-/** Pasta formatada para o cartão. */
+/** Folder formatted for the card. */
 export function folderLabel(folder: string | null): string {
-  return folder ? folder.split('/').join(' / ') : 'Sem pasta';
+  return folder ? folder.split('/').join(' / ') : 'No folder';
 }
 
-/** Separa tags digitadas ("a, b  c") em lista única sem vazios. */
+/** Splits typed tags ("a, b  c") into a unique list without empty entries. */
 export function parseTags(text: string): string[] {
   return [
     ...new Set(

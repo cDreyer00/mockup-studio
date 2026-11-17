@@ -8,7 +8,7 @@ const CARD =
   '<div class="bg-card rounded-xl border py-6 shadow-sm"><button class="h-9 px-4 py-2 hover:bg-primary/90">Ok</button></div>';
 
 describe('htmlToPasteNodes', () => {
-  it('HTML Tailwind mantém as classes, compila estilo e estados e pede o preflight', async () => {
+  it('Tailwind HTML keeps the classes, compiles style and states and requests the preflight', async () => {
     const doc = createDocument('T');
     doc.tokens = { '--color-card': '#ffffff', '--color-primary': '#18181b' };
     const { nodes, ops, tailwind } = await htmlToPasteNodes(CARD, doc);
@@ -23,7 +23,7 @@ describe('htmlToPasteNodes', () => {
     expect(button.states?.hover).toBeTruthy();
   }, 20_000);
 
-  it('não repete setCssBase se o documento já é Tailwind', async () => {
+  it('does not repeat setCssBase if the document is already Tailwind', async () => {
     const doc = createDocument('T');
     doc.cssBase = 'tailwind';
     doc.tokens = { '--color-card': '#ffffff', '--color-primary': '#18181b' };
@@ -32,7 +32,7 @@ describe('htmlToPasteNodes', () => {
     expect(ops).toEqual([]);
   }, 20_000);
 
-  it('HTML sem Tailwind segue o caminho de antes (sem classes, sem ops)', async () => {
+  it('non-Tailwind HTML follows the previous path (no classes, no ops)', async () => {
     const doc = createDocument('T');
     const html = '<style>.box{padding:8px}</style><div class="box"><span>a</span></div>';
     const { nodes, ops, tailwind } = await htmlToPasteNodes(html, doc);
@@ -42,14 +42,14 @@ describe('htmlToPasteNodes', () => {
     expect(nodes[0]!.style.padding).toBe('8px');
   });
 
-  it('HTML sem atributo class nem carrega o motor', async () => {
+  it('HTML without a class attribute does not even load the engine', async () => {
     const doc = createDocument('T');
     const r = await htmlToPasteNodes('<div style="padding:4px"><p>x</p></div>', doc);
     expect(r.tailwind).toBe(false);
     expect(r.nodes).toHaveLength(1);
   });
 
-  it('doc sem tokens shadcn: cria os tokens na mesma colagem e usa a cor de borda do preset', async () => {
+  it('doc without shadcn tokens: creates the tokens in the same paste and uses the preset border color', async () => {
     const doc = createDocument('T');
     const { nodes, ops, notes } = await htmlToPasteNodes(CARD, doc);
     expect(ops.map((o) => o.type)).toEqual([
@@ -68,7 +68,7 @@ describe('htmlToPasteNodes', () => {
     expect(card.style['border-color']).toBe('var(--color-border)');
   }, 20_000);
 
-  it('doc com os tokens shadcn: não recria tokens e aplica defaultBorderColor', async () => {
+  it('doc with the shadcn tokens: does not recreate tokens and applies defaultBorderColor', async () => {
     const doc = createDocument('T');
     doc.cssBase = 'tailwind';
     doc.tokens = shadcnTokens();
@@ -78,7 +78,7 @@ describe('htmlToPasteNodes', () => {
     expect(nodes[0]!.style['border-color']).toBe('var(--color-border)');
   }, 20_000);
 
-  it('HTML sem cores shadcn não cria tokens', async () => {
+  it('HTML without shadcn colors does not create tokens', async () => {
     const doc = createDocument('T');
     const { ops, notes } = await htmlToPasteNodes('<div class="p-4 bg-blue-500">x</div>', doc);
     expect(ops).toEqual([{ type: 'setCssBase', base: 'tailwind' }]);

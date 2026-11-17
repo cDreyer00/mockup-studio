@@ -15,14 +15,14 @@ import {
 const center = { x: 1000, y: 500 };
 
 describe('looksLikeHtml', () => {
-  it('reconhece HTML', () => {
+  it('recognizes HTML', () => {
     expect(looksLikeHtml('<div>oi</div>')).toBe(true);
     expect(looksLikeHtml('  <section class="a">')).toBe(true);
     expect(looksLikeHtml('<img src="a.png">')).toBe(true);
     expect(looksLikeHtml('<!--mockup-studio:abc--><div></div>')).toBe(true);
   });
-  it('rejeita texto puro', () => {
-    expect(looksLikeHtml('olá mundo')).toBe(false);
+  it('rejects plain text', () => {
+    expect(looksLikeHtml('hello world')).toBe(false);
     expect(looksLikeHtml('1 < 2 e <b')).toBe(false);
     expect(looksLikeHtml('a <div>b</div>')).toBe(false);
     expect(looksLikeHtml('')).toBe(false);
@@ -30,8 +30,8 @@ describe('looksLikeHtml', () => {
   });
 });
 
-describe('marcador e serialização', () => {
-  it('serializa com o marcador no início', () => {
+describe('marker and serialization', () => {
+  it('serializes with the marker at the start', () => {
     const { a } = makeDoc();
     const html = serializeNodes([a], 'tok-1');
     expect(html.startsWith('<!--mockup-studio:tok-1-->')).toBe(true);
@@ -54,35 +54,35 @@ describe('marcador e serialização', () => {
 });
 
 describe('resolvePasteTarget', () => {
-  it('sem seleção: raiz da página', () => {
+  it('no selection: page root', () => {
     const { doc } = makeDoc();
     const t = resolvePasteTarget(doc, [], null)!;
     expect(t.parentId).toBeNull();
     expect(t.pageId).toBe(doc.pages[0]!.id);
     expect(t.index).toBeUndefined();
   });
-  it('um contêiner: dentro dele, ao final', () => {
+  it('one container: inside it, at the end', () => {
     const { doc, frame, c } = makeDoc();
     expect(resolvePasteTarget(doc, [frame.id], null)).toMatchObject({ parentId: frame.id });
     const t = resolvePasteTarget(doc, [c.id], null)!;
     expect(t.parentId).toBe(c.id);
     expect(t.index).toBeUndefined();
   });
-  it('nó folha: depois dele no mesmo pai', () => {
+  it('leaf node: after it in the same parent', () => {
     const { doc, frame, b } = makeDoc();
     expect(resolvePasteTarget(doc, [b.id], null)).toMatchObject({
       parentId: frame.id,
       index: 2,
     });
   });
-  it('vários: depois do último', () => {
+  it('several: after the last one', () => {
     const { doc, frame, a, c } = makeDoc();
     expect(resolvePasteTarget(doc, [c.id, a.id], null)).toMatchObject({
       parentId: frame.id,
       index: 3,
     });
   });
-  it('nunca cola dentro de nó travado: sobe para o pai, logo depois do travado', () => {
+  it('never pastes inside a locked node: goes up to the parent, right after the locked one', () => {
     const { doc, frame, c } = makeDoc();
     c.locked = true;
     expect(resolvePasteTarget(doc, [c.id], null)).toMatchObject({ parentId: frame.id, index: 3 });
@@ -91,7 +91,7 @@ describe('resolvePasteTarget', () => {
       index: 3,
     });
   });
-  it('frame raiz travado: cola na raiz da página', () => {
+  it('locked root frame: pastes at the page root', () => {
     const { doc, frame, b } = makeDoc();
     frame.locked = true;
     for (const sel of [[frame.id], [b.id]]) {
@@ -103,7 +103,7 @@ describe('resolvePasteTarget', () => {
 });
 
 describe('prepareNodesForPaste', () => {
-  it('na raiz: frames com ids novos únicos e posição no centro', () => {
+  it('at the root: frames with unique new ids and position at the center', () => {
     const { a, c } = makeDoc();
     const out = prepareNodesForPaste([a, c], { parentId: null, parent: null }, { center });
     expect(out).toHaveLength(2);
@@ -113,19 +113,19 @@ describe('prepareNodesForPaste', () => {
     expect(ids).not.toContain(c.id);
     expect(out.every((n) => n.type === 'frame' && n.id.startsWith('fr_'))).toBe(true);
     expect(out[0]!.position).toBeDefined();
-    // largura/altura padrão quando faltam
+    // default width/height when missing
     expect(out[1]!.style.width).toBe('400px');
     expect(out[1]!.style.height).toBe('300px');
     expect(out[0]!.style.width).toBe('10px');
-    // grupo centralizado
+    // centered group
     const x0 = out[0]!.position!.x;
     const x1 = out[1]!.position!.x + 400;
     expect((x0 + x1) / 2).toBeCloseTo(center.x, -1);
-    // original intacto
+    // original untouched
     expect(a.type).toBe('element');
   });
 
-  it('na raiz: usa a medida do original e desloca +40 por colagem repetida', () => {
+  it('at the root: uses the size of the original and shifts +40 per repeated paste', () => {
     const { c } = makeDoc();
     const measure = () => ({ w: 222, h: 111 });
     const p0 = prepareNodesForPaste([c], { parentId: null, parent: null }, { center, measure })[0]!;
@@ -140,7 +140,7 @@ describe('prepareNodesForPaste', () => {
     expect(p2.position!.y - p0.position!.y).toBe(80);
   });
 
-  it('na raiz: frames copiados preservam posição relativa; folhas são embrulhadas', () => {
+  it('at the root: copied frames keep their relative position; leaves are wrapped', () => {
     const { frame, b } = makeDoc();
     const f2 = { ...structuredClone(frame), position: { x: frame.position!.x + 500, y: 50 } };
     const [p1, p2] = prepareNodesForPaste(
@@ -157,7 +157,7 @@ describe('prepareNodesForPaste', () => {
     expect(wrapped!.children[0]!.id).not.toBe(b.id);
   });
 
-  it('dentro de um nó: frame vira element, sem position', () => {
+  it('inside a node: frame becomes element, without position', () => {
     const { frame, c } = makeDoc();
     const out = prepareNodesForPaste([frame], { parentId: c.id, parent: c }, { center });
     expect(out[0]!.type).toBe('element');
@@ -167,7 +167,7 @@ describe('prepareNodesForPaste', () => {
     expect(ids.some((id) => collectIds(frame).includes(id))).toBe(false);
   });
 
-  it('absoluto em pai não-flex: left/top +16px; em pai flex: inalterado', () => {
+  it('absolute in a non-flex parent: left/top +16px; in a flex parent: unchanged', () => {
     const { abs, c, frame } = makeDoc();
     const inBlock = prepareNodesForPaste([abs], { parentId: c.id, parent: c }, { center })[0]!;
     expect(inBlock.style.left).toBe('26px');
@@ -181,7 +181,7 @@ describe('prepareNodesForPaste', () => {
     expect(inFlex.style.top).toBe('20px');
   });
 
-  it('nó com tipo não-frame mantém o tipo dentro', () => {
+  it('node with a non-frame type keeps its type inside', () => {
     const t: Node = createNodeFromTag('p', { text: 'x' });
     const { frame } = makeDoc();
     const out = prepareNodesForPaste([t], { parentId: frame.id, parent: frame }, { center });
@@ -191,7 +191,7 @@ describe('prepareNodesForPaste', () => {
 });
 
 describe('withVectors', () => {
-  it('cola SVG como nó svg com vetor e tamanho do viewBox', async () => {
+  it('pastes SVG as an svg node with vector and viewBox size', async () => {
     const { htmlToNodes } = await import('@mockup/core');
     const { withVectors } = await import('./paste');
     const [n] = withVectors(

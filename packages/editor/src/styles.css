@@ -1,7 +1,7 @@
 /*
- * Tema base do editor (escuro, denso). Cada área tem o próprio CSS
+ * Base theme of the editor (dark, dense). Each area has its own CSS
  * (canvas/canvas.css, layers/layers.css, properties/properties.css, toolbar/toolbar.css)
- * e deve usar as variáveis abaixo.
+ * and must use the variables below.
  */
 @import './base.css';
 
@@ -28,7 +28,7 @@ body {
   grid-template-columns: var(--panel-w) 1fr var(--panel-w);
   min-height: 0;
 }
-/* Assistente e Scripts precisam de mais largura que as propriedades. */
+/* Assistant and Scripts need more width than the properties. */
 .main.right-wide {
   grid-template-columns: var(--panel-w) 1fr var(--panel-w-wide);
 }
@@ -62,7 +62,7 @@ body {
   text-align: center;
 }
 
-/* ---------------- botões ---------------- */
+/* ---------------- buttons ---------------- */
 
 .icon-btn {
   display: inline-grid;
@@ -107,7 +107,7 @@ body {
   font-weight: 600;
 }
 
-/* ---------------- seções e linhas do painel ---------------- */
+/* ---------------- panel sections and rows ---------------- */
 
 .panel-section {
   border-bottom: 1px solid var(--border);
@@ -259,7 +259,7 @@ textarea.mono {
   cursor: pointer;
 }
 
-/* ---------------- menu de contexto, modal, toast ---------------- */
+/* ---------------- context menu, modal, toast ---------------- */
 
 .context-menu {
   position: fixed;

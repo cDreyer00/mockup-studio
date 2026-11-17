@@ -1,6 +1,6 @@
 /**
- * Lógica pura do clipboard: serialização com marcador, detecção de HTML, alvo da colagem e
- * preparação dos nós (ids novos, conversão frame ↔ elemento, posições).
+ * Pure clipboard logic: serialization with a marker, HTML detection, paste target and
+ * node preparation (new ids, frame ↔ element conversion, positions).
  */
 import {
   cloneNodeWithNewIds,
@@ -27,7 +27,7 @@ import {
 } from '../model/tree';
 
 /* ------------------------------------------------------------------ */
-/* serialização                                                       */
+/* serialization                                                      */
 /* ------------------------------------------------------------------ */
 
 const MARKER_RE = /<!--mockup-studio:([\w-]+)-->/;
@@ -36,12 +36,12 @@ export function makeMarker(token: string): string {
   return `<!--mockup-studio:${token}-->`;
 }
 
-/** Extrai o token do marcador de uma string do clipboard (ou `null`). */
+/** Extracts the marker token from a clipboard string (or `null`). */
 export function extractMarker(text: string | null | undefined): string | null {
   return text ? (MARKER_RE.exec(text)?.[1] ?? null) : null;
 }
 
-/** HTML escrito no clipboard: marcador + markup dos nós (CSS inline). */
+/** HTML written to the clipboard: marker + node markup (inline CSS). */
 export function serializeNodes(nodes: Node[], token: string): string {
   return makeMarker(token) + nodesToHtml(nodes, { mode: 'inline', indent: false }).html;
 }
@@ -49,7 +49,7 @@ export function serializeNodes(nodes: Node[], token: string): string {
 const KNOWN_TAGS =
   'div|section|article|header|footer|nav|main|aside|p|span|a|button|h[1-6]|ul|ol|li|img|svg|form|input|label|table|figure|html|body|style';
 
-/** O texto parece HTML (começa com `<` e tem tag de fechamento ou tag conhecida)? */
+/** Does the text look like HTML (starts with `<` and has a closing tag or a known tag)? */
 export function looksLikeHtml(text: string | null | undefined): boolean {
   if (!text) return false;
   const t = text.trim();
@@ -58,19 +58,19 @@ export function looksLikeHtml(text: string | null | undefined): boolean {
   return new RegExp(`</[a-z][\\w-]*\\s*>|<(?:${KNOWN_TAGS})(?:[\\s>/])`, 'i').test(t);
 }
 
-/** HTML com atributo class (só então vale a pena carregar o motor Tailwind). */
+/** HTML with a class attribute (only then is it worth loading the Tailwind engine). */
 const HAS_CLASS_RE = /\bclass\s*=\s*["']/i;
 
 export interface HtmlPaste {
   nodes: Node[];
-  /** Ops extras aplicadas junto com a criação (ex.: setCssBase para Tailwind). */
+  /** Extra ops applied together with the creation (e.g. setCssBase for Tailwind). */
   ops: Op[];
   tailwind: boolean;
-  /** Avisos para o usuário (ex.: tokens shadcn criados junto com a colagem). */
+  /** Notices for the user (e.g. shadcn tokens created together with the paste). */
   notes: string[];
 }
 
-/** Nome da cor shadcn que a classe usa (`hover:bg-primary/90` → `primary`), como no MCP. */
+/** Name of the shadcn color the class uses (`hover:bg-primary/90` → `primary`), as in the MCP. */
 function shadcnColorOf(cls: string, names: string[]): string | null {
   const utility = cls
     .slice(cls.lastIndexOf(':') + 1)
@@ -85,9 +85,9 @@ function shadcnColorOf(cls: string, names: string[]): string | null {
 }
 
 /**
- * HTML colado → nós. Se parece Tailwind (detectTailwind), carrega o motor sob demanda, mantém as
- * classes (node.classes), compila-as em style/states e pede o preflight (setCssBase) se o
- * documento ainda não o usa. Sem Tailwind (ou se o motor falhar), é o htmlToNodes de sempre.
+ * Pasted HTML → nodes. If it looks like Tailwind (detectTailwind), loads the engine on demand, keeps the
+ * classes (node.classes), compiles them into style/states and requests the preflight (setCssBase) if the
+ * document does not use it yet. Without Tailwind (or if the engine fails), it is the usual htmlToNodes.
  */
 export async function htmlToPasteNodes(html: string, doc: Document): Promise<HtmlPaste> {
   const plain = (): HtmlPaste => ({
@@ -109,8 +109,8 @@ export async function htmlToPasteNodes(html: string, doc: Document): Promise<Htm
   const ops: Op[] = doc.cssBase === 'tailwind' ? [] : [{ type: 'setCssBase', base: 'tailwind' }];
   const notes: string[] = [];
 
-  // Como `import_component` (tokens "auto"): se o HTML usa cores do preset shadcn que o documento
-  // não tem, cria os tokens na mesma colagem (um undo só) e recompila o motor com eles.
+  // Like `import_component` (tokens "auto"): if the HTML uses shadcn preset colors that the document
+  // does not have, creates the tokens in the same paste (a single undo) and recompiles the engine with them.
   let tokens = doc.tokens;
   let themes = doc.themes;
   const used = new Set<string>();
@@ -130,12 +130,12 @@ export async function htmlToPasteNodes(html: string, doc: Document): Promise<Htm
         if (op.type === 'setTokens') Object.assign(tokens, op.set);
         if (op.type === 'setThemes') themes = op.themes;
       }
-      notes.push(`Tokens do preset shadcn criados (${plan.created.length}, mais o tema "dark").`);
+      notes.push(`shadcn preset tokens created (${plan.created.length}, plus the "dark" theme).`);
     }
   }
   const finalEngine =
     tokens === doc.tokens ? engine : await mod.getTailwindEngine({ tokens, themes });
-  // Mesma regra do MCP: com os tokens shadcn, borda sem cor usa var(--color-border).
+  // Same rule as the MCP: with the shadcn tokens, a border without a color uses var(--color-border).
   const shadcn = '--color-border' in tokens && '--color-primary' in tokens;
   mod.applyTailwindToNodes(nodes, finalEngine, {
     ...(shadcn ? { defaultBorderColor: 'var(--color-border)' } : {}),
@@ -146,8 +146,8 @@ export async function htmlToPasteNodes(html: string, doc: Document): Promise<Htm
 export type PasteKind = 'internal' | 'snapshot' | 'images' | 'html' | 'text' | 'none';
 
 /**
- * Nós svg colados como markup ganham o modelo vetorial (`svgToVector`, com `raw` preservado) e o
- * tamanho do viewBox, se o estilo não tiver largura/altura. Markup que não vira vetor fica como está.
+ * SVG nodes pasted as markup get the vector model (`svgToVector`, with `raw` preserved) and the
+ * viewBox size, if the style has no width/height. Markup that does not become a vector stays as is.
  */
 export function withVectors(nodes: Node[]): Node[] {
   return nodes.map((n) => {
@@ -167,7 +167,7 @@ export function withVectors(nodes: Node[]): Node[] {
   });
 }
 
-/** Decide como interpretar o conteúdo colado. */
+/** Decides how to interpret the pasted content. */
 export function classifyPaste(
   data: { html: string; text: string; imageCount: number },
   internalToken: string | null,
@@ -182,21 +182,21 @@ export function classifyPaste(
 }
 
 /* ------------------------------------------------------------------ */
-/* alvo                                                               */
+/* target                                                             */
 /* ------------------------------------------------------------------ */
 
 export interface PasteTarget {
-  /** Pai de destino; `null` = raiz da página. */
+  /** Target parent; `null` = page root. */
   parentId: string | null;
   parent: Node | null;
   pageId: string;
-  /** Índice de inserção; ausente = ao final. */
+  /** Insertion index; absent = at the end. */
   index?: number;
 }
 
 /**
- * Onde colar: 1 nó que aceita filhos → dentro dele, ao final; nó folha (ou vários) → depois
- * dele no mesmo pai; sem seleção → raiz da página.
+ * Where to paste: 1 node that accepts children → inside it, at the end; leaf node (or several) → after
+ * it in the same parent; no selection → page root.
  */
 export function resolvePasteTarget(
   doc: Document,
@@ -227,9 +227,9 @@ export function resolvePasteTarget(
       index: last.index + 1,
     };
   }
-  // Nada entra em nó travado (nem em descendente dele): sobe até o primeiro pai livre, colando
-  // logo depois do travado; acima do frame raiz, a colagem vai para a raiz da página.
-  // Nem em nós internos/raízes de instâncias (só no conteúdo de slot) e no quadro do principal.
+  // Nothing goes into a locked node (nor into a descendant of it): goes up to the first free parent, pasting
+  // right after the locked one; above the root frame, the paste goes to the page root.
+  // Nor into internal nodes/roots of instances (only into slot content) and into the main component's frame.
   while (
     target.parentId &&
     (isLockedDeep(doc, target.parentId) || !canInsertInto(doc, target.parentId))
@@ -247,7 +247,7 @@ export function resolvePasteTarget(
   return intoMain(doc, target);
 }
 
-/** No modo de edição do principal não há raiz de página: cola dentro da raiz do principal. */
+/** In main component edit mode there is no page root: pastes inside the main component's root. */
 function intoMain(doc: Document, target: PasteTarget): PasteTarget | null {
   if (target.parentId || target.pageId !== COMPONENT_EDIT_PAGE_ID) return target;
   const root = doc.pages.find((p) => p.id === COMPONENT_EDIT_PAGE_ID)?.frames[0]?.children[0];
@@ -256,15 +256,15 @@ function intoMain(doc: Document, target: PasteTarget): PasteTarget | null {
 }
 
 /* ------------------------------------------------------------------ */
-/* preparação                                                         */
+/* preparation                                                        */
 /* ------------------------------------------------------------------ */
 
 export interface PasteOptions {
-  /** Centro da tela em coordenadas do mundo (colagem na raiz). */
+  /** Screen center in world coordinates (paste at the root). */
   center: { x: number; y: number };
-  /** Quantas vezes este mesmo conteúdo já foi colado (desloca +40 / +16 por vez). */
+  /** How many times this same content has already been pasted (shifts +40 / +16 each time). */
   pasteCount?: number;
-  /** Mede o nó original (id) em px; usado quando faltam width/height. */
+  /** Measures the original node (id) in px; used when width/height are missing. */
   measure?: (id: string) => { w: number; h: number } | null;
 }
 
@@ -281,8 +281,8 @@ function sizeOf(node: Node, measure?: PasteOptions['measure']): { w: number; h: 
 }
 
 /**
- * Clona os nós com ids novos e os adapta ao destino. Na raiz viram frames (nós folha — texto,
- * imagem, svg — são embrulhados num frame novo); dentro de um nó, frames viram elementos.
+ * Clones the nodes with new ids and adapts them to the target. At the root they become frames (leaf nodes — text,
+ * image, svg — are wrapped in a new frame); inside a node, frames become elements.
  */
 export function prepareNodesForPaste(
   nodes: readonly Node[],
