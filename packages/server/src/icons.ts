@@ -1,7 +1,7 @@
 /**
- * Ícones Lucide a partir de `lucide-static` (`icon-nodes.json` + `tags.json`), carregados sob
- * demanda. Só imports de JSON (sem ler arquivos do pacote por caminho), para funcionar também
- * empacotado num bundle.
+ * Kits de ícones offline: Lucide (`lucide-static`: `icon-nodes.json` + `tags.json`) e Heroicons
+ * (`@iconify-json/heroicons`: `icons.json` no formato Iconify), carregados sob demanda. Só imports
+ * de JSON (sem ler arquivos do pacote por caminho), para funcionar também empacotado num bundle.
  */
 
 type IconNode = [tag: string, attrs: Record<string, string | number>];
@@ -128,4 +128,233 @@ export function searchIconNames(data: IconData, query: string, limit = 20): Icon
     .sort((a, b) => a.s - b.s || a.name.length - b.name.length || a.name.localeCompare(b.name))
     .slice(0, limit)
     .map((h) => ({ name: h.name, tags: data.tags[h.name] ?? [] }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Registro de kits
+// ---------------------------------------------------------------------------------------------
+
+export type IconKit = 'lucide' | 'heroicons';
+
+export interface IconKitInfo {
+  kit: IconKit;
+  label: string;
+  license: string;
+  count: number;
+  /** Como o kit desenha: traço ou preenchimento. */
+  note: string;
+}
+
+interface IconifyIcon {
+  body: string;
+  width?: number;
+  height?: number;
+}
+
+interface IconifySet {
+  icons: Record<string, IconifyIcon>;
+  aliases?: Record<string, { parent: string }>;
+  width?: number;
+  height?: number;
+}
+
+interface HeroData {
+  set: IconifySet;
+  names: string[];
+  /** Alias para o nome canônico. */
+  aliases: Record<string, string>;
+}
+
+let heroCache: Promise<HeroData> | null = null;
+
+export function loadHeroicons(): Promise<HeroData> {
+  heroCache ??= (async () => {
+    const mod = await import('@iconify-json/heroicons/icons.json', { with: { type: 'json' } });
+    const set = (mod as unknown as { default: IconifySet }).default;
+    const aliases: Record<string, string> = {};
+    for (const [a, v] of Object.entries(set.aliases ?? {})) aliases[a] = v.parent;
+    return { set, names: Object.keys(set.icons).sort(), aliases };
+  })();
+  return heroCache;
+}
+
+/** Estilo de um Heroicon pelo sufixo: `outline` (24, sem sufixo), `solid`, `20-solid`, `16-solid`. */
+export function heroiconStyle(name: string): 'outline' | 'solid' | '20-solid' | '16-solid' {
+  const m = /-(20-solid|16-solid|solid)$/.exec(name);
+  return m ? (m[1] as 'solid' | '20-solid' | '16-solid') : 'outline';
+}
+
+export interface IconRef {
+  kit: IconKit;
+  name: string;
+}
+
+export interface KitIconHit extends IconRef {
+  tags: string[];
+}
+
+const KITS: IconKit[] = ['lucide', 'heroicons'];
+
+export async function listIconKits(): Promise<IconKitInfo[]> {
+  const [l, h] = await Promise.all([loadIcons(), loadHeroicons()]);
+  return [
+    { kit: 'lucide', label: 'Lucide', license: 'ISC', count: l.names.length, note: 'traço, 24x24' },
+    {
+      kit: 'heroicons',
+      label: 'Heroicons',
+      license: 'MIT',
+      count: h.names.length,
+      note: 'outline 24 (sem sufixo, traço); -solid (24), -20-solid e -16-solid (preenchimento)',
+    },
+  ];
+}
+
+/** Candidatos do mesmo nome: `bars3` também tenta `bars-3`. */
+function nameCandidates(name: string): string[] {
+  const k = toKebab(name);
+  return [k, k.replace(/([a-z])(\d)/g, '$1-$2'), k.replace(/-(\d)/g, '$1')];
+}
+
+/** Separa `kit/nome` ou `kit:nome`; sem prefixo de kit conhecido devolve só o nome. */
+export function parseIconRef(input: string): { kit?: IconKit; name: string } {
+  const m = /^\s*(lucide|heroicons)\s*[/:]\s*(.+)$/i.exec(input);
+  if (m) return { kit: m[1]!.toLowerCase() as IconKit, name: m[2]!.trim() };
+  return { name: input.trim() };
+}
+
+/**
+ * Resolve `lucide/arrow-right`, `heroicons/arrow-right`, `heroicons:arrow-right` ou um nome sem kit
+ * (Lucide primeiro, depois Heroicons). `kit` força o kit quando o nome vem sem prefixo.
+ */
+export async function resolveIcon(nameOrKitName: string, kit?: IconKit): Promise<IconRef | null> {
+  const p = parseIconRef(nameOrKitName);
+  const only = p.kit ?? kit;
+  for (const k of only ? [only] : KITS) {
+    if (k === 'lucide') {
+      const c = resolveIconName(await loadIcons(), p.name);
+      if (c) return { kit: 'lucide', name: c };
+    } else {
+      const h = await loadHeroicons();
+      for (const c of nameCandidates(p.name)) {
+        const real = h.set.icons[c] ? c : h.aliases[c];
+        if (real && h.set.icons[real]) return { kit: 'heroicons', name: real };
+      }
+    }
+  }
+  return null;
+}
+
+function interleave<T>(lists: T[][]): T[] {
+  const out: T[] = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) {
+    for (const l of lists) if (i < l.length) out.push(l[i]!);
+  }
+  return out;
+}
+
+/** Até `limit` ícones parecidos (`kit/nome`), de todos os kits ou de um só. */
+export async function suggestSimilarIcons(
+  name: string,
+  opts: { kit?: IconKit; limit?: number } = {},
+): Promise<string[]> {
+  const limit = opts.limit ?? 5;
+  const p = parseIconRef(name);
+  const only = p.kit ?? opts.kit;
+  const kits = only ? [only] : KITS;
+  const per = Math.max(1, Math.ceil(limit / kits.length));
+  const lists: string[][] = [];
+  for (const k of kits) {
+    if (k === 'lucide') {
+      lists.push(suggestIcons(await loadIcons(), p.name, per).map((n) => `lucide/${n}`));
+    } else {
+      const h = await loadHeroicons();
+      // Sem estilo explícito, sugere só os outline (os demais são variações de tamanho/preenchimento).
+      const base = /solid/.test(p.name)
+        ? h.names
+        : h.names.filter((n) => heroiconStyle(n) === 'outline');
+      const data = { nodes: {}, tags: {}, names: base };
+      lists.push(suggestIcons(data, p.name, per).map((n) => `heroicons/${n}`));
+    }
+  }
+  return interleave(lists).slice(0, limit);
+}
+
+function searchHeroicons(h: HeroData, query: string, limit: number): KitIconHit[] {
+  const q = query.trim().toLowerCase();
+  const kq = toKebab(query);
+  if (!q) return [];
+  const hits: { name: string; s: number }[] = [];
+  for (const name of h.names) {
+    let s = -1;
+    if (name === kq) s = 0;
+    else if (name.startsWith(kq)) s = 1;
+    else if (name.includes(kq)) s = 2;
+    else if (heroiconStyle(name) === q) s = 3;
+    if (s >= 0) hits.push({ name, s });
+  }
+  return hits
+    .sort((a, b) => a.s - b.s || a.name.length - b.name.length || a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map((x) => ({ kit: 'heroicons' as const, name: x.name, tags: [heroiconStyle(x.name)] }));
+}
+
+/**
+ * Busca por nome (e tags, no Lucide) num kit ou em todos. Em "todos" intercala os kits para um
+ * não esconder o outro. Tags dos Heroicons: o estilo (`outline`, `solid`, `20-solid`, `16-solid`).
+ */
+export async function searchIcons(
+  query: string,
+  opts: { kit?: IconKit | 'all'; limit?: number } = {},
+): Promise<KitIconHit[]> {
+  const limit = opts.limit ?? 20;
+  const kits = !opts.kit || opts.kit === 'all' ? KITS : [opts.kit];
+  const lists: KitIconHit[][] = [];
+  for (const k of kits) {
+    if (k === 'lucide') {
+      const hits = searchIconNames(await loadIcons(), query, limit);
+      lists.push(hits.map((h) => ({ kit: 'lucide' as const, ...h })));
+    } else {
+      lists.push(searchHeroicons(await loadHeroicons(), query, limit));
+    }
+  }
+  return interleave(lists).slice(0, limit);
+}
+
+export interface KitIconSvgOptions {
+  size: number;
+  color: string;
+  /** Só vale para kits de traço (Lucide e Heroicons outline); sem valor, usa o do ícone. */
+  strokeWidth?: number;
+}
+
+/** O ícone usa traço (e portanto aceita `stroke_width`)? Lucide e Heroicons outline. */
+export function isStrokeIcon(ref: IconRef): boolean {
+  return ref.kit === 'lucide' || heroiconStyle(ref.name) === 'outline';
+}
+
+/**
+ * `<svg>` do ícone com cor literal (`currentColor` não herda dentro de `<img>`), mantendo o
+ * `viewBox` do ícone (24, 20 ou 16) e o tamanho pedido.
+ */
+export async function buildKitIconSvg(ref: IconRef, o: KitIconSvgOptions): Promise<string> {
+  if (ref.kit === 'lucide') {
+    const data = await loadIcons();
+    return buildIconSvg(data.nodes[ref.name]!, {
+      size: o.size,
+      color: o.color,
+      strokeWidth: o.strokeWidth ?? 2,
+    });
+  }
+  const h = await loadHeroicons();
+  const icon = h.set.icons[ref.name]!;
+  const w = icon.width ?? h.set.width ?? 24;
+  const ht = icon.height ?? h.set.height ?? 24;
+  let body = icon.body.replace(/currentColor/g, () => esc(o.color));
+  if (o.strokeWidth !== undefined && heroiconStyle(ref.name) === 'outline') {
+    body = body.replace(/stroke-width="[^"]*"/g, `stroke-width="${esc(o.strokeWidth)}"`);
+  }
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${o.size}" height="${o.size}" viewBox="0 0 ${w} ${ht}">` +
+    `${body}</svg>`
+  );
 }

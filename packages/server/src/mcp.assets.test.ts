@@ -15,6 +15,7 @@ import {
   parseRegFonts,
   splitFamilyStyle,
 } from './fonts.js';
+import { listIconKits, resolveIcon } from './icons.js';
 import { startDaemon, type DaemonHandle } from './index.js';
 import { makeWorkspace } from './test-utils.js';
 
@@ -263,7 +264,7 @@ describe('MCP imagens, ícones e fontes', () => {
       expect(n.svg).toContain('width="32"');
       expect(n.svg).not.toContain('currentColor');
       expect(n.style['width']).toBe('32px');
-      expect(n.name).toBe('Ícone arrow-right');
+      expect(n.name).toBe('Ícone lucide/arrow-right');
     });
 
     it('insert_icon com cor, traço, fallback e nome inexistente', async () => {
@@ -288,6 +289,112 @@ describe('MCP imagens, ícones e fontes', () => {
       const byTag = textOf(await call('search_icons', { query: 'magnifier' }));
       expect(byTag).toContain('search');
       expect(textOf(await call('search_icons', { query: 'zzzzqqq' }))).toContain('Nenhum');
+    });
+
+    it('search_icons por kit e em todos', async () => {
+      const luc = textOf(await call('search_icons', { query: 'arrow-right', kit: 'lucide' }));
+      expect(luc).toContain('- lucide/arrow-right');
+      expect(luc).not.toContain('heroicons/');
+      const hero = textOf(await call('search_icons', { query: 'arrow-right', kit: 'heroicons' }));
+      expect(hero).toContain('- heroicons/arrow-right (outline)');
+      expect(hero).toContain('- heroicons/arrow-right-20-solid (20-solid)');
+      expect(hero).toContain('- heroicons/arrow-right-solid (solid)');
+      expect(hero).not.toContain('lucide/');
+      const all = textOf(await call('search_icons', { query: 'arrow-right', limit: 6 }));
+      expect(all).toContain('- lucide/arrow-right');
+      expect(all).toContain('- heroicons/arrow-right (outline)');
+    });
+
+    it('resolveIcon com e sem prefixo de kit', async () => {
+      expect(await resolveIcon('lucide/arrow-right')).toEqual({
+        kit: 'lucide',
+        name: 'arrow-right',
+      });
+      expect(await resolveIcon('heroicons/arrow-right')).toEqual({
+        kit: 'heroicons',
+        name: 'arrow-right',
+      });
+      expect(await resolveIcon('heroicons:arrow-right-solid')).toEqual({
+        kit: 'heroicons',
+        name: 'arrow-right-solid',
+      });
+      // Sem kit: Lucide primeiro, depois Heroicons.
+      expect(await resolveIcon('arrow-right')).toEqual({ kit: 'lucide', name: 'arrow-right' });
+      expect(await resolveIcon('arrow-right-solid')).toEqual({
+        kit: 'heroicons',
+        name: 'arrow-right-solid',
+      });
+      expect(await resolveIcon('arrow-right', 'heroicons')).toEqual({
+        kit: 'heroicons',
+        name: 'arrow-right',
+      });
+      expect(await resolveIcon('heroicons/arrow-rigth')).toBeNull();
+      const kits = await listIconKits();
+      expect(kits.map((k) => k.kit)).toEqual(['lucide', 'heroicons']);
+      expect(kits.every((k) => k.count > 100)).toBe(true);
+    });
+
+    it('insert_icon de Heroicon outline: traço literal, viewBox 24 e stroke_width', async () => {
+      await call('update_styles', { nodeIds: [ws.frameId], styles: { color: '#336699' } });
+      const r = await call('insert_icon', {
+        parentId: ws.frameId,
+        name: 'heroicons/arrow-right',
+        size: 32,
+        stroke_width: 2.5,
+      });
+      expect(r.isError, textOf(r)).toBeFalsy();
+      const n = frame().children[0]!;
+      expect(n.name).toBe('Ícone heroicons/arrow-right');
+      expect(n.svg).toContain('stroke="#336699"');
+      expect(n.svg).toContain('viewBox="0 0 24 24"');
+      expect(n.svg).toContain('width="32"');
+      expect(n.svg).toContain('stroke-width="2.5"');
+      expect(n.svg).not.toContain('currentColor');
+      expect(n.style['width']).toBe('32px');
+    });
+
+    it('insert_icon de Heroicon solid: preenchimento literal, viewBox 20/16 e sem stroke_width', async () => {
+      const a = await call('insert_icon', {
+        parentId: ws.frameId,
+        name: 'heroicons:arrow-right-solid',
+        color: '#ff0000',
+        stroke_width: 3,
+      });
+      expect(a.isError, textOf(a)).toBeFalsy();
+      expect(textOf(a)).toContain('stroke_width ignorado');
+      const s = frame().children[0]!.svg!;
+      expect(s).toContain('fill="#ff0000"');
+      expect(s).toContain('viewBox="0 0 24 24"');
+      expect(s).not.toContain('currentColor');
+      expect(s).not.toContain('stroke-width');
+      await call('insert_icon', {
+        parentId: ws.frameId,
+        name: 'arrow-right-20-solid',
+        color: 'blue',
+      });
+      expect(frame().children[1]!.svg).toContain('viewBox="0 0 20 20"');
+      expect(frame().children[1]!.name).toBe('Ícone heroicons/arrow-right-20-solid');
+      await call('insert_icon', {
+        parentId: ws.frameId,
+        name: 'arrow-right-16-solid',
+        kit: 'heroicons',
+      });
+      expect(frame().children[2]!.svg).toContain('viewBox="0 0 16 16"');
+      expect(frame().children[2]!.svg).not.toContain('currentColor');
+    });
+
+    it('insert_icon com nome inexistente sugere ícones de vários kits', async () => {
+      const bad = await call('insert_icon', { parentId: ws.frameId, name: 'arrow-rigth' });
+      expect(bad.isError).toBe(true);
+      expect(textOf(bad)).toContain('lucide/arrow-right');
+      expect(textOf(bad)).toContain('heroicons/arrow-right');
+      const only = await call('insert_icon', {
+        parentId: ws.frameId,
+        name: 'arrow-rigth',
+        kit: 'heroicons',
+      });
+      expect(textOf(only)).toContain('no kit heroicons');
+      expect(textOf(only)).not.toContain('lucide/');
     });
   });
 

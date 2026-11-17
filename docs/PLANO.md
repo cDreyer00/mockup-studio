@@ -72,7 +72,7 @@ Pendências herdadas da tarefa 2 que seguem abertas (as de diálogos nativos, "S
 - **MCP novo**
   - `get_screenshot(nodeId?, scale?, format?, maxWidth?)`, `get_layout(nodeId, depth?)`.
   - `export(nodeIds[], format, scale?, outputDir?)`, `get_code(nodeId, format, styles?)`.
-  - `insert_image`, `insert_icon` (Lucide via `lucide-static`), `search_icons`.
+  - `insert_image`, `insert_icon` (Lucide via `lucide-static` e Heroicons via `@iconify-json/heroicons`, MIT), `search_icons`.
   - `list_fonts`, `get_font_info`, `add_font` (offline-first).
   - `finish_working`.
   - Guias `screenshot-loop` e `export`.

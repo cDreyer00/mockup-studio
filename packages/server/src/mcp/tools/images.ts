@@ -5,11 +5,11 @@ import { createNodeFromTag, getComputedLike } from '@mockup/core';
 import { detectImage, fetchBytes, parseDataUrl, writeAsset, type ImageInfo } from '../../assets.js';
 import { MAX_ASSET_BYTES, sanitizeAssetName } from '../../http.js';
 import {
-  buildIconSvg,
-  loadIcons,
-  resolveIconName,
-  searchIconNames,
-  suggestIcons,
+  buildKitIconSvg,
+  isStrokeIcon,
+  resolveIcon,
+  searchIcons,
+  suggestSimilarIcons,
 } from '../../icons.js';
 import { READ, ToolError, WRITE, docIdField, type ToolContext } from '../context.js';
 
@@ -160,24 +160,39 @@ export function registerImageTools(ctx: ToolContext): void {
   tool(
     'insert_icon',
     {
-      title: 'Inserir ícone Lucide',
+      title: 'Inserir ícone',
       description:
-        'Insere um ícone Lucide (nó svg). name em kebab-case; sem color usa a cor de texto do pai. Use search_icons para achar nomes.',
-      example: { parentId: 'el_ab12cd34', name: 'arrow-right', size: 24, color: '#0f172a' },
+        'Insere um ícone (nó svg) do Lucide ou Heroicons. name: "arrow-right", "lucide/..." ou "heroicons/..." (sem kit: Lucide, depois Heroicons). Heroicons sem sufixo = outline; "-solid", "-20-solid", "-16-solid" = preenchidos. Sem color usa a cor do texto do pai. Veja search_icons.',
+      example: {
+        parentId: 'el_ab12cd34',
+        name: 'heroicons/arrow-right',
+        size: 24,
+        color: '#0f172a',
+      },
       inputSchema: {
         parentId: z.string().describe('Id do pai, ex.: "el_ab12cd34".'),
-        name: z.string().describe('Nome do ícone Lucide, ex.: "arrow-right", "search", "user".'),
+        name: z
+          .string()
+          .describe('Nome do ícone, ex.: "arrow-right", "lucide/search", "heroicons/user-solid".'),
+        kit: z
+          .enum(['lucide', 'heroicons'])
+          .optional()
+          .describe(
+            'Kit, ex.: "heroicons" (padrão: pelo prefixo do nome; sem prefixo, Lucide e depois Heroicons).',
+          ),
         size: z.number().positive().optional().describe('Tamanho em px, ex.: 24 (padrão 24).'),
         color: z
           .string()
           .optional()
-          .describe('Cor do traço, ex.: "#0f172a" (padrão: cor do texto do pai).'),
+          .describe('Cor do ícone, ex.: "#0f172a" (padrão: cor do texto do pai).'),
         stroke_width: z
           .number()
           .positive()
           .max(6)
           .optional()
-          .describe('Espessura do traço, maior que 0 e até 6, ex.: 1.5 (padrão 2).'),
+          .describe(
+            'Espessura do traço (só Lucide e Heroicons outline), maior que 0 e até 6, ex.: 1.5 (padrão: 2 no Lucide, 1.5 no Heroicons).',
+          ),
         index: z
           .number()
           .int()
@@ -188,16 +203,15 @@ export function registerImageTools(ctx: ToolContext): void {
       },
       annotations: WRITE,
     },
-    async ({ parentId, name, size, color, stroke_width, index, docId }) => {
+    async ({ parentId, name, kit, size, color, stroke_width, index, docId }) => {
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
       requireNode(doc, parentId);
-      const data = await loadIcons();
-      const canonical = resolveIconName(data, name);
-      if (!canonical) {
-        const sug = suggestIcons(data, name, 5);
+      const ref = await resolveIcon(name, kit);
+      if (!ref) {
+        const sug = await suggestSimilarIcons(name, { kit, limit: 6 });
         throw new ToolError(
-          `Ícone "${name}" não existe no Lucide.${sug.length ? ` Parecidos: ${sug.join(', ')}.` : ''} Use search_icons(query) para procurar.`,
+          `Ícone "${name}" não existe${kit ? ` no kit ${kit}` : ' (Lucide, Heroicons)'}.${sug.length ? ` Parecidos: ${sug.join(', ')}.` : ''} Use search_icons(query) para procurar.`,
         );
       }
       let stroke = color?.trim();
@@ -212,30 +226,39 @@ export function registerImageTools(ctx: ToolContext): void {
             : '#111111';
       }
       const px = size ?? 24;
-      const svg = buildIconSvg(data.nodes[canonical]!, {
+      const svg = await buildKitIconSvg(ref, {
         size: px,
         color: stroke,
-        strokeWidth: stroke_width ?? 2,
+        strokeWidth: isStrokeIcon(ref) ? stroke_width : undefined,
       });
+      const label = `${ref.kit}/${ref.name}`;
       const node = createNodeFromTag('svg', {
-        name: `Ícone ${canonical}`,
+        name: `Ícone ${label}`,
         svg,
         styles: { width: `${px}px`, height: `${px}px` },
       });
       const r = apply(id, [{ type: 'createNode', parentId, node, index }], 'insert_icon');
-      return `Ícone "${canonical}" inserido: ${node.id} (${px}px, cor ${stroke}) em ${parentId}.\n${summaryOf(r.doc, [parentId])}`;
+      const ignored =
+        stroke_width !== undefined && !isStrokeIcon(ref)
+          ? ' stroke_width ignorado: ícone preenchido (solid).'
+          : '';
+      return `Ícone "${label}" inserido: ${node.id} (${px}px, cor ${stroke}) em ${parentId}.${ignored}\n${summaryOf(r.doc, [parentId])}`;
     },
   );
 
   tool(
     'search_icons',
     {
-      title: 'Buscar ícones Lucide',
+      title: 'Buscar ícones (Lucide, Heroicons)',
       description:
-        'Busca ícones Lucide por nome ou tag (em inglês). Devolve nomes kebab-case para usar em insert_icon.',
-      example: { query: 'cart', limit: 10 },
+        'Busca ícones offline por nome ou tag (em inglês) no Lucide, no Heroicons ou nos dois (kit "all", padrão). Devolve linhas "- kit/nome (tags)" para usar em insert_icon. No Heroicons as tags são o estilo: outline, solid, 20-solid, 16-solid.',
+      example: { query: 'cart', kit: 'all', limit: 10 },
       inputSchema: {
         query: z.string().min(1).describe('Termo de busca, ex.: "cart".'),
+        kit: z
+          .enum(['lucide', 'heroicons', 'all'])
+          .optional()
+          .describe('Kit a pesquisar, ex.: "heroicons" (padrão "all").'),
         limit: z
           .number()
           .int()
@@ -246,17 +269,22 @@ export function registerImageTools(ctx: ToolContext): void {
       },
       annotations: READ,
     },
-    async ({ query, limit }) => {
-      const data = await loadIcons();
-      const hits = searchIconNames(data, query, limit ?? 20);
+    async ({ query, kit, limit }) => {
+      const hits = await searchIcons(query, { kit, limit: limit ?? 20 });
       if (!hits.length) {
-        const sug = suggestIcons(data, query, 5);
+        const sug = await suggestSimilarIcons(query, {
+          kit: kit && kit !== 'all' ? kit : undefined,
+          limit: 5,
+        });
         return `Nenhum ícone para "${query}".${sug.length ? ` Parecidos: ${sug.join(', ')}.` : ''}`;
       }
       return (
         `${hits.length} ícone(s) para "${query}":\n` +
         hits
-          .map((h) => `- ${h.name}${h.tags.length ? ` (${h.tags.slice(0, 4).join(', ')})` : ''}`)
+          .map(
+            (h) =>
+              `- ${h.kit}/${h.name}${h.tags.length ? ` (${h.tags.slice(0, 4).join(', ')})` : ''}`,
+          )
           .join('\n')
       );
     },
