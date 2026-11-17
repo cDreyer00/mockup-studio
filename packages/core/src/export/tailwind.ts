@@ -1,6 +1,7 @@
 import { fontFaceCss } from '../fonts.js';
 import { escapeCssText } from '../html.js';
 import { isValidCssPropertyName } from '../styles.js';
+import { DARK_VARIANT_CSS, formatStateKey, parseStateKey, sortStateKeys } from '../states.js';
 import { themeRulesCss, themeVariantsCss } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import type { TailwindEngine } from '../tailwind/engine.js';
@@ -10,7 +11,8 @@ import {
   indentLines,
   renderHtmlTree,
   resolveRoots,
-  TAILWIND_BASE_CSS,
+  tailwindBaseCssFor,
+  usesDarkState,
   type RootSelection,
 } from './common.js';
 
@@ -1058,24 +1060,71 @@ export function cssToTailwind(
 /* Tema                                                                    */
 /* ====================================================================== */
 
-function collectFontSizes(nodes: Node[], into: Set<string>): void {
+/** `line-height` padrão do Tailwind v4 por tamanho (razão sobre o `font-size`) e o px equivalente. */
+const DEFAULT_LEADING: Record<string, { ratio: number; px?: number }> = {
+  xs: { ratio: 1 / 0.75, px: 16 },
+  sm: { ratio: 1.25 / 0.875, px: 20 },
+  base: { ratio: 1.5, px: 24 },
+  lg: { ratio: 1.75 / 1.125, px: 28 },
+  xl: { ratio: 1.75 / 1.25, px: 28 },
+  '2xl': { ratio: 2 / 1.5, px: 32 },
+  '3xl': { ratio: 2.25 / 1.875, px: 36 },
+  '4xl': { ratio: 2.5 / 2.25, px: 40 },
+  '5xl': { ratio: 1 },
+  '6xl': { ratio: 1 },
+  '7xl': { ratio: 1 },
+  '8xl': { ratio: 1 },
+  '9xl': { ratio: 1 },
+};
+
+/** O `line-height` do nó é exatamente o que o Tailwind aplicaria com `text-<size>`? */
+function hasDefaultLeading(size: string, lineHeight: string | undefined): boolean {
+  if (lineHeight === undefined) return false;
+  const def = own(DEFAULT_LEADING, size);
+  if (!def) return false;
+  const v = lineHeight.trim();
+  if (/^\d*\.?\d+$/.test(v)) return Math.abs(parseFloat(v) - def.ratio) < 0.002;
+  const px = toPx(v);
+  return px !== null && def.px !== undefined && Math.abs(px - def.px) < 0.01;
+}
+
+function collectNeutralSizes(nodes: Node[], into: Set<string>): void {
+  const visit = (style: Record<string, string>, fallbackLh: string | undefined): void => {
+    const fs = style['font-size'];
+    if (!fs) return;
+    const named = namedFontSize(fs);
+    if (named && !hasDefaultLeading(named, style['line-height'] ?? fallbackLh)) into.add(named);
+  };
   for (const n of nodes) {
-    const fs = n.style['font-size'];
-    if (fs) {
-      const named = namedFontSize(fs);
-      if (named) into.add(named);
-    }
-    collectFontSizes(n.children, into);
+    visit(n.style, undefined);
+    for (const st of Object.values(n.states ?? {})) visit(st, n.style['line-height']);
+    collectNeutralSizes(n.children, into);
   }
 }
 
 /**
- * CSS de tema do Tailwind v4 para o documento: `@import "tailwindcss";`, `@theme { ... }` com os
- * tokens que caem num namespace de tema (`--color-*`, `--font-*`, `--radius-*`...), `:root { ... }`
- * com os demais e `@font-face` das fontes embutidas (`assets/<arquivo>`).
+ * Tamanhos `text-*` que o tema exportado precisa neutralizar (`--text-X--line-height: inherit`): os
+ * usados por algum nó cujo `line-height` não é o padrão do Tailwind para aquele tamanho (ou que não
+ * tem `line-height`). Nós vindos do Tailwind (`font-size: 0.875rem` + `line-height: 1.4286`) dispensam.
+ */
+export function neutralLeadingSizes(doc: Document): Set<string> {
+  const sizes = new Set<string>();
+  for (const page of doc.pages) collectNeutralSizes(page.frames, sizes);
+  return sizes;
+}
+
+function usesDark(doc: Document): boolean {
+  return doc.pages.some((p) => p.frames.some(usesDarkState));
+}
+
+/**
+ * CSS de tema do Tailwind v4 para o documento: `@import "tailwindcss";`, o `@custom-variant dark`
+ * (quando algum nó tem estado `dark`), `@theme { ... }` com os tokens que caem num namespace de
+ * tema (`--color-*`, `--font-*`, `--radius-*`...), `:root { ... }` com os demais e `@font-face` das
+ * fontes embutidas (`assets/<arquivo>`).
  *
- * Os tamanhos `text-*` usados no documento têm o `line-height` padrão do Tailwind neutralizado
- * (`--text-sm--line-height: inherit`), para que a altura de linha continue a do documento.
+ * Os tamanhos `text-*` usados por nós sem o `line-height` padrão do Tailwind têm a altura de linha
+ * neutralizada (`--text-sm--line-height: inherit`), para que ela continue a do documento.
  */
 export function tailwindThemeCss(
   doc: Document,
@@ -1087,32 +1136,78 @@ export function tailwindThemeCss(
   for (const [k, v] of Object.entries(tokens)) {
     (themeNamespace(k) ? theme : root).push(`  ${k}: ${v};`);
   }
-  const sizes = new Set<string>();
-  for (const page of doc.pages) collectFontSizes(page.frames, sizes);
+  const sizes = neutralLeadingSizes(doc);
   for (const s of Object.values(FONT_SIZES)) {
     if (sizes.has(s)) theme.push(`  --text-${s}--line-height: inherit;`);
   }
   const blocks: string[] = [];
   if (opts.import !== false) blocks.push('@import "tailwindcss";');
+  if (usesDark(doc)) blocks.push(DARK_VARIANT_CSS);
   if (theme.length > 0) blocks.push(`@theme {\n${theme.join('\n')}\n}`);
   if (root.length > 0) blocks.push(`:root {\n${root.join('\n')}\n}`);
   const themeRules = themeRulesCss(doc);
   if (themeRules) blocks.push(themeRules);
   const variants = themeVariantsCss(doc);
   if (variants) blocks.push(variants);
-  blocks.push(TAILWIND_BASE_CSS);
+  blocks.push(tailwindBaseCssFor(doc));
   const assetsBase = opts.assetsBase ?? 'assets/';
   const faces = fontFaceCss(doc, (f) => `${assetsBase}${f}`, 'swap');
   if (faces) blocks.push(faces);
   return escapeCssText(blocks.join('\n\n')) + '\n';
 }
 
+export interface TailwindAttrOptions {
+  engine?: TailwindEngine;
+  /** Tamanhos `text-*` com o `line-height` neutralizado no tema (ver `neutralLeadingSizes`). */
+  neutralLeading?: ReadonlySet<string>;
+}
+
+/** Classes das variantes de um nó sem o motor: `hover:`, `md:`, `dark:`, `md:hover:`... */
+function stateClasses(node: Node, tokens: Record<string, string>): string[] {
+  const out: string[] = [];
+  for (const key of sortStateKeys(Object.keys(node.states ?? {}))) {
+    const parts = parseStateKey(key);
+    if (!parts) continue;
+    const prefix = formatStateKey(parts);
+    // o estado só traz o que muda: o que não tem classe (`rest`) não cabe em `style=""` e é descartado
+    for (const c of cssToTailwind(node.states![key], { tokens }).classes)
+      out.push(`${prefix}:${c}`);
+  }
+  return out;
+}
+
+/** Classes (com variantes) de um nó e o que não virou classe (`rest`, vai para `style`). */
+export function tailwindNodeParts(
+  node: Node,
+  tokens: Record<string, string>,
+  opts: TailwindAttrOptions = {},
+): TailwindMapping {
+  let classes: string[];
+  let rest: Record<string, string>;
+  const { engine, neutralLeading } = opts;
+  if (engine) {
+    ({ classes, rest } = engine.nodeClasses(node, { neutralLeading }));
+    // `text-sm` reaproveitado de `node.classes` não pode trazer o `line-height` padrão se o tema o neutraliza
+    const lh = node.style['line-height'];
+    if (lh && neutralLeading?.size && !classes.some((c) => /^leading-|^text-[a-z0-9]+\//.test(c))) {
+      if (classes.some((c) => /^text-[a-z0-9]+$/.test(c) && neutralLeading.has(c.slice(5)))) {
+        classes = [...classes, ...engine.stylesToClasses({ 'line-height': lh }, {}).classes];
+      }
+    }
+  } else {
+    ({ classes, rest } = cssToTailwind(node.style, { tokens }));
+    classes = [...classes, ...stateClasses(node, tokens)];
+  }
+  return { classes, rest };
+}
+
 /** Classe e `style` (para o que não tem classe) de um nó, no formato do renderizador de HTML. */
 export function tailwindAttrs(
   node: Node,
   tokens: Record<string, string>,
+  opts: TailwindAttrOptions = {},
 ): { cls?: string; style?: string } {
-  const { classes, rest } = cssToTailwind(node.style, { tokens });
+  const { classes, rest } = tailwindNodeParts(node, tokens, opts);
   const restEntries = Object.entries(rest);
   return {
     cls: classes.length > 0 ? classes.join(' ') : undefined,
@@ -1126,7 +1221,10 @@ export function exportTailwind(doc: Document, options: TailwindExportOptions = {
   const selection: RootSelection = { pageId: options.pageId, nodeIds: options.nodeIds };
   const roots = resolveRoots(doc, selection);
   const tokens = cleanTokens(doc.tokens);
-  const markup = renderHtmlTree(roots, { styleOf: (node) => tailwindAttrs(node, tokens) });
+  const neutralLeading = neutralLeadingSizes(doc);
+  const markup = renderHtmlTree(roots, {
+    styleOf: (node) => tailwindAttrs(node, tokens, { engine: options.tailwind, neutralLeading }),
+  });
   if (options.fragment) return markup + '\n';
 
   const head = [

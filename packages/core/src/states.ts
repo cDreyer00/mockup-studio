@@ -12,6 +12,10 @@
  */
 import type { Node } from './types.js';
 
+/** Variante `dark:` do Tailwind no Mockup Studio: o tema `dark` do documento (atributo `data-theme`). */
+export const DARK_VARIANT_CSS =
+  '@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));';
+
 export const BREAKPOINTS = ['sm', 'md', 'lg', 'xl', '2xl'] as const;
 export type Breakpoint = (typeof BREAKPOINTS)[number];
 

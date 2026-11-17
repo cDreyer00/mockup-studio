@@ -6,7 +6,8 @@ import { cssValueProblem, dropUnsafeStyles, isValidCssPropertyName } from '../st
 import { sanitizeSvg } from '../svg.js';
 import { ATTR_NAME_RE, TOKEN_NAME_RE, VOID_TAGS } from '../tags.js';
 import type { Document, Node } from '../types.js';
-import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss } from '../base.js';
+import { DOCUMENT_ROOT_DECLARATIONS, documentBaseCss, documentRootDeclarations } from '../base.js';
+import { BREAKPOINT_PX, parseStateKey, sortStateKeys } from '../states.js';
 
 /** Base do documento (a mesma do canvas e do render): ver `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
@@ -15,6 +16,11 @@ export const BASE_CSS = documentBaseCss();
 export const TAILWIND_BASE_CSS = `@layer base {
   body { ${DOCUMENT_ROOT_DECLARATIONS.split(';').join('; ')}; }
 }`;
+
+/** Tipografia da raiz para o Tailwind conforme `doc.cssBase` (o `body` da camada base). */
+export function tailwindBaseCssFor(doc: { cssBase?: 'tailwind' }): string {
+  return `@layer base {\n  body { ${documentRootDeclarations(doc).split(';').join('; ')}; }\n}`;
+}
 
 /** Seleção de nós a exportar: `nodeIds` ou os frames da página (`pageId` ou a primeira). */
 export interface RootSelection {
@@ -36,6 +42,16 @@ export interface PrepareOptions {
  */
 function prepareNode(node: Node, isRoot: boolean, opts: PrepareOptions): void {
   node.style = dropUnsafeStyles(node.style);
+  if (node.states) {
+    const states: Record<string, Record<string, string>> = {};
+    for (const [key, style] of Object.entries(node.states)) {
+      if (!parseStateKey(key)) continue;
+      const safe = dropUnsafeStyles(style);
+      if (Object.keys(safe).length > 0) states[key] = safe;
+    }
+    if (Object.keys(states).length > 0) node.states = states;
+    else delete node.states;
+  }
   if (!isRoot && node.style.position === 'absolute' && node.position) {
     if (!node.style.left) node.style.left = `${node.position.x}px`;
     if (!node.style.top) node.style.top = `${node.position.y}px`;
@@ -288,4 +304,46 @@ export function indentLines(text: string, n: number): string {
     .split('\n')
     .map((l) => (l === '' ? l : p + l))
     .join('\n');
+}
+
+/** O nó tem algum estado com a variante `dark`? */
+export function usesDarkState(node: Node): boolean {
+  if (node.states && Object.keys(node.states).some((k) => parseStateKey(k)?.dark)) return true;
+  return node.children.some(usesDarkState);
+}
+
+/**
+ * Regras CSS dos estados de um nó para o seletor `.cls`: pseudo-classes (`.cls:hover`), `dark`
+ * (`.cls:where([data-theme="dark"], [data-theme="dark"] *)`, o mesmo seletor do `@custom-variant`) e
+ * breakpoints (`@media (min-width: 768px)`, mobile first). `important` acrescenta `!important` às
+ * declarações (necessário quando o estilo base está inline).
+ */
+export function stateRulesCss(
+  selector: string,
+  states: Record<string, Record<string, string>> | undefined,
+  opts: { important?: boolean } = {},
+): string[] {
+  if (!states) return [];
+  const out: string[] = [];
+  for (const key of sortStateKeys(Object.keys(states))) {
+    const parts = parseStateKey(key);
+    const style = states[key];
+    if (!parts || Object.keys(style).length === 0) continue;
+    let sel = selector;
+    if (parts.dark) sel += ':where([data-theme="dark"], [data-theme="dark"] *)';
+    if (parts.pseudo) sel += `:${parts.pseudo}`;
+    const decls = opts.important
+      ? Object.fromEntries(
+          Object.entries(style).map(([k, v]) => [
+            k,
+            /!important\s*$/.test(v) ? v : `${v} !important`,
+          ]),
+        )
+      : style;
+    if (parts.breakpoint) {
+      const min = BREAKPOINT_PX[parts.breakpoint];
+      out.push(`@media (min-width: ${min}px) {\n  ${sel} {\n${cssBody(decls, '    ')}\n  }\n}`);
+    } else out.push(`${sel} {\n${cssBody(decls)}\n}`);
+  }
+  return out;
 }

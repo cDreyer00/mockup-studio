@@ -1,9 +1,9 @@
+import { documentBaseCssFor } from '../base.js';
 import { escapeCssText } from '../html.js';
 import { fontFaceCss } from '../fonts.js';
 import { themeRulesCss } from '../tokens.js';
 import type { Document } from '../types.js';
 import {
-  BASE_CSS,
   ClassNamer,
   cssBody,
   escapeHtmlText,
@@ -11,6 +11,7 @@ import {
   renderHtmlTree,
   resolveRoots,
   rootTokensCss,
+  stateRulesCss,
 } from './common.js';
 
 export interface HtmlExportOptions {
@@ -28,6 +29,12 @@ export interface HtmlExportOptions {
 /**
  * Exporta HTML standalone (frames da página ou nós selecionados). Tokens em `:root`, `@font-face`
  * das fontes embutidas (`assets/<arquivo>`), frame raiz com `min-height` no lugar de `height`.
+ * A base segue `doc.cssBase` (com o preflight do Tailwind quando `'tailwind'`).
+ *
+ * Estados (`node.states`) viram regras no `<style>`: `.slug:hover`, `@media (min-width: 768px)` para
+ * breakpoints e `.slug:where([data-theme="dark"], ...)` para `dark`. No modo `inline` o estilo base
+ * continua em `style=""`; os nós com estados ganham uma classe só para as regras dos estados, que
+ * saem com `!important` (o `style` inline ganharia da cascata).
  */
 export function exportHtml(doc: Document, options: HtmlExportOptions = {}): string {
   const mode = options.mode ?? 'classes';
@@ -37,16 +44,21 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   const rules: string[] = [];
   const markup = renderHtmlTree(roots, {
     styleOf: (node) => {
-      if (Object.keys(node.style).length === 0) return {};
+      const hasStyle = Object.keys(node.style).length > 0;
+      const hasStates = node.states !== undefined && Object.keys(node.states).length > 0;
+      if (!hasStyle && !hasStates) return {};
       if (mode === 'inline') {
-        return {
-          style: Object.entries(node.style)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join('; '),
-        };
+        const style = Object.entries(node.style)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('; ');
+        if (!hasStates) return { style };
+        const cls = namer.next(node.name);
+        rules.push(...stateRulesCss(`.${cls}`, node.states, { important: true }));
+        return hasStyle ? { cls, style } : { cls };
       }
       const cls = namer.next(node.name);
-      rules.push(`.${cls} {\n${cssBody(node.style)}\n}`);
+      if (hasStyle) rules.push(`.${cls} {\n${cssBody(node.style)}\n}`);
+      rules.push(...stateRulesCss(`.${cls}`, node.states));
       return { cls };
     },
   });
@@ -56,7 +68,7 @@ export function exportHtml(doc: Document, options: HtmlExportOptions = {}): stri
   if (tokens) css.push(tokens);
   const themes = themeRulesCss(doc, { indent: '  ' });
   if (themes) css.push(themes);
-  css.push(`  ${BASE_CSS}`);
+  css.push(`  ${documentBaseCssFor(doc)}`);
   const faces = fontFaceCss(doc, (f) => `assets/${f}`, 'swap');
   if (faces) css.push(indentLines(faces, 1));
   if (rules.length > 0) css.push(indentLines(rules.join('\n'), 1));

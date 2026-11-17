@@ -1,3 +1,4 @@
+import { documentBaseCssFor } from '../base.js';
 import { DomUtils, parseDocument as parseXml } from 'htmlparser2';
 import type { TailwindEngine } from '../tailwind/engine.js';
 import type { AnyNode, Element } from 'domhandler';
@@ -9,7 +10,6 @@ import { VOID_TAGS } from '../tags.js';
 import { nodeTheme, themeDeclarations } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import {
-  BASE_CSS,
   BOOLEAN_ATTRS,
   assetUrl,
   cleanTokens,
@@ -17,7 +17,7 @@ import {
   resolveRoots,
   safeAttrs,
 } from './common.js';
-import { cssToTailwind, tailwindThemeCss } from './tailwind.js';
+import { neutralLeadingSizes, tailwindNodeParts, tailwindThemeCss } from './tailwind.js';
 
 export interface ReactExportOptions {
   /** Nó raiz do componente (um componente por nó). */
@@ -513,6 +513,9 @@ function signature(node: Node): string {
     node.type,
     node.tag,
     Object.entries(node.style).sort(([a], [b]) => a.localeCompare(b)),
+    Object.entries(node.states ?? {})
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, st]) => [k, Object.entries(st).sort(([a], [b]) => a.localeCompare(b))]),
     attrs,
     varying,
     node.text !== undefined && node.text !== '',
@@ -635,6 +638,10 @@ interface RenderCtx {
   /** Tema do nó (`data-theme`), para redeclarar as variáveis no modo inline. */
   themeOf: (node: Node) => string | undefined;
   tokens: Record<string, string>;
+  /** Motor Tailwind do documento (classes canonicalizadas e variantes). */
+  engine?: TailwindEngine;
+  /** Tamanhos `text-*` com o `line-height` neutralizado no tema. */
+  neutralLeading: ReadonlySet<string>;
   assetsBase: string;
   extractRepeats: boolean;
   usage: Usage;
@@ -660,7 +667,10 @@ function styleProps(node: Node, ctx: RenderCtx, isRoot: boolean): string[] {
     };
     return Object.keys(style).length > 0 ? [styleProp(style, ctx.usage)] : [];
   }
-  const { classes, rest } = cssToTailwind(node.style, { tokens: ctx.tokens });
+  const { classes, rest } = tailwindNodeParts(node, ctx.tokens, {
+    engine: ctx.engine,
+    neutralLeading: ctx.neutralLeading,
+  });
   const out: string[] = [];
   if (classes.length > 0) out.push(`className=${attrValue(classes.join(' '))}`);
   if (Object.keys(rest).length > 0) out.push(styleProp(rest, ctx.usage));
@@ -784,6 +794,8 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     doc,
     themeOf: (node) => nodeTheme(doc, node),
     tokens: cleanTokens(doc.tokens),
+    engine: options.tailwind,
+    neutralLeading: neutralLeadingSizes(doc),
     assetsBase: options.assetsBase ?? 'assets/',
     extractRepeats: options.extractRepeats ?? true,
     usage,
@@ -810,7 +822,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   if (mode === 'tailwind') css = tailwindThemeCss(doc, { assetsBase: ctx.assetsBase });
   else {
     const faces = fontFaceCss(doc, (f) => `${ctx.assetsBase}${f}`, 'swap');
-    css = `${BASE_CSS}\n${faces ? faces + '\n' : ''}`;
+    css = `${documentBaseCssFor(doc)}\n${faces ? faces + '\n' : ''}`;
   }
   return { componentName, code: code.join('\n'), css };
 }

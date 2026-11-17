@@ -1,3 +1,4 @@
+import { sortStateKeys } from './states.js';
 import type { Document, Node } from './types.js';
 
 const TEXT_MAX = 40;
@@ -67,6 +68,17 @@ function flags(node: Node): string[] {
   return f;
 }
 
+/** Marcadores de Tailwind: `tw` (tem `classes`) e `states:hover,md` (tem estados com estilo). */
+function tailwindTokens(node: Node): string[] {
+  const out: string[] = [];
+  if (node.classes) out.push('tw');
+  const keys = Object.keys(node.states ?? {}).filter(
+    (k) => Object.keys(node.states![k]).length > 0,
+  );
+  if (keys.length > 0) out.push(`states:${sortStateKeys(keys).join(',')}`);
+  return out;
+}
+
 /** Linha única de resumo do nó. */
 export function summarizeNode(node: Node): string {
   const s = node.style;
@@ -78,7 +90,7 @@ export function summarizeNode(node: Node): string {
     const font = [s['font-size'], s['font-weight']].filter(Boolean).join('/');
     if (font) parts.push(font);
     if (s.color) parts.push(`color:${s.color}`);
-    parts.push(...flags(node));
+    parts.push(...tailwindTokens(node), ...flags(node));
     return parts.join(' ');
   }
 
@@ -86,7 +98,7 @@ export function summarizeNode(node: Node): string {
     if (node.src) parts.push(`src:${shortSrc(node.src)}`);
     const size = sizeToken(s);
     if (size) parts.push(size);
-    parts.push(...flags(node));
+    parts.push(...tailwindTokens(node), ...flags(node));
     return parts.join(' ');
   }
 
@@ -103,7 +115,7 @@ export function summarizeNode(node: Node): string {
   if (s.color) parts.push(`color:${s.color}`);
   if (s['border-radius']) parts.push(`radius:${shorten(s['border-radius'])}`);
   if (s.border) parts.push(`border:${shorten(s.border)}`);
-  parts.push(...flags(node));
+  parts.push(...tailwindTokens(node), ...flags(node));
   return parts.join(' ');
 }
 

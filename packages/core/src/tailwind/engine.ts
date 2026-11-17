@@ -15,7 +15,7 @@ import { __unstable__loadDesignSystem } from 'tailwindcss';
 import { evaluateCalc, formatHexColor, parseCssColor } from '../cssEval.js';
 import { cssToTailwind, themeNamespace } from '../export/tailwind.js';
 import { cssValueProblem, isValidCssPropertyName } from '../styles.js';
-import { formatStateKey, sortStateKeys, type StateKeyParts } from '../states.js';
+import { DARK_VARIANT_CSS, formatStateKey, sortStateKeys, type StateKeyParts } from '../states.js';
 import { themeVariantsCss } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import { TAILWIND_THEME_CSS, TAILWIND_VERSION } from './theme.generated.js';
@@ -23,9 +23,7 @@ import { TAILWIND_THEME_CSS, TAILWIND_VERSION } from './theme.generated.js';
 type DesignSystem = Awaited<ReturnType<typeof __unstable__loadDesignSystem>>;
 type AstNode = ReturnType<DesignSystem['candidatesToAst']>[number][number];
 
-/** Seletor de `dark:` no Mockup Studio: o tema `dark` do documento (atributo `data-theme`). */
-export const DARK_VARIANT_CSS =
-  '@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));';
+export { DARK_VARIANT_CSS };
 
 export { TAILWIND_VERSION };
 
