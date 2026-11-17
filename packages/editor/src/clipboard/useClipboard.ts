@@ -11,6 +11,7 @@ import { getNode, isLockedDeep, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { currentPageId } from '../state/hooks';
 import { ui, useUi } from '../state/uiStore';
+import { pasteSnapshot } from '../snapshot/pasteSnapshot';
 import { isEditableTarget, isInteractionBlocked } from '../shortcuts/guards';
 import {
   classifyPaste,
@@ -103,6 +104,9 @@ async function handlePaste(data: DataTransfer): Promise<void> {
     switch (kind) {
       case 'internal':
         if (internal) await pasteNodes(internal.nodes, internal.pastes++);
+        return;
+      case 'snapshot':
+        await pasteSnapshot(text);
         return;
       case 'images':
         for (const file of images) await insertImageFile(file);

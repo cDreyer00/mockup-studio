@@ -22,8 +22,12 @@ import type { Node } from '@mockup/core';
 import { DAEMON, createDoc, getDoc } from './helpers';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const extensionDist = path.resolve(process.env.MOCKUP_EXTENSION_DIST ?? path.resolve(here, '../../extension/dist'));
-const fixturesDir = path.resolve(process.env.MOCKUP_FIXTURES_DIR ?? path.resolve(here, '../../snapshot-core/test/fixtures'));
+const extensionDist = path.resolve(
+  process.env.MOCKUP_EXTENSION_DIST ?? path.resolve(here, '../../extension/dist'),
+);
+const fixturesDir = path.resolve(
+  process.env.MOCKUP_FIXTURES_DIR ?? path.resolve(here, '../../snapshot-core/test/fixtures'),
+);
 const daemonPort = Number(new URL(DAEMON).port);
 
 test.skip(
@@ -95,13 +99,19 @@ async function startPicker(mode: 'send' | 'copy'): Promise<Page> {
   await page.bringToFront();
   const sw = await serviceWorker();
   const tabId = await sw.evaluate(async (url) => {
-    const tabs = await chrome.tabs.query({});
-    return tabs.find((t) => (t as { url?: string }).url === url)?.id;
+    // `chrome` só existe no service worker; o tipo é declarado aqui para o tsc do editor.
+    type Tab = { id?: number; url?: string };
+    const api = (
+      globalThis as unknown as { chrome: { tabs: { query(q: object): Promise<Tab[]> } } }
+    ).chrome;
+    const tabs = await api.tabs.query({});
+    return tabs.find((t) => t.url === url)?.id;
   }, fixtureUrl);
   expect(tabId, 'aba da fixture encontrada pelo service worker').toBeDefined();
   await sw.evaluate(
     async ([id, opts]) => {
-      const start = (globalThis as unknown as { __mockupStartPicker: Function }).__mockupStartPicker;
+      const start = (globalThis as unknown as { __mockupStartPicker: Function })
+        .__mockupStartPicker;
       await start(id, opts);
     },
     [tabId, { mode, port: daemonPort }] as const,
@@ -184,11 +194,11 @@ test('captura a .hero, envia ao daemon e o frame fica editável e fiel no canvas
   expect(root, 'frame importado com filhos').toBeDefined();
   const all: Node[] = [];
   walk(root, (n) => all.push(n));
-  const h1 = all.find((n) => n.html?.tag === 'h1' || n.name?.toLowerCase().startsWith('h1'));
+  const h1 = all.find((n) => n.tag === 'h1');
   const texts = all.map((n) => n.text).filter(Boolean);
   const fixtureH1 = (await page.locator('.hero h1').first().innerText()).trim();
   expect(texts.join('|')).toContain(fixtureH1);
-  expect(all.some((n) => n.type === 'image' || n.svg || n.html?.tag === 'img')).toBe(true);
+  expect(all.some((n) => n.type === 'image' && n.tag === 'img')).toBe(true);
   // Frame oculto de referência.
   let hiddenRef = false;
   frames.forEach((f) => walk(f, (n) => (hiddenRef ||= n.hidden === true)));
@@ -198,17 +208,19 @@ test('captura a .hero, envia ao daemon e o frame fica editável e fiel no canvas
   const editor = await context.newPage();
   await editor.setViewportSize({ width: 2400, height: 1400 });
   await editor.goto(test.info().project.use.baseURL!);
-  const frameEl = editor
-    .getByTestId('canvas-world')
-    .locator(`[data-node-id="${root.id}"]`)
-    .first();
+  const frameEl = editor.getByTestId('canvas-world').locator(`[data-node-id="${root.id}"]`).first();
   await expect(frameEl).toBeVisible();
 
   // Editável: o texto do h1 aparece em um nó selecionável na árvore de camadas.
   const h1Node = all.find((n) => n.text?.includes(fixtureH1));
   expect(h1Node).toBeDefined();
   void h1;
-  await expect(editor.getByTestId(`layer-row-${h1Node!.id}`).or(editor.getByTestId(`layer-row-${root.id}`)).first()).toBeVisible();
+  await expect(
+    editor
+      .getByTestId(`layer-row-${h1Node!.id}`)
+      .or(editor.getByTestId(`layer-row-${root.id}`))
+      .first(),
+  ).toBeVisible();
 
   // Fidelidade: zoom 100% e screenshot do frame no canvas.
   await editor.getByTestId('canvas').focus();
@@ -216,7 +228,10 @@ test('captura a .hero, envia ao daemon e o frame fica editável e fiel no canvas
   await editor.waitForTimeout(500);
   const frameShot = await frameEl.screenshot();
   const diff = await pixelDiffRatio(editor, heroShot, frameShot);
-  console.log(`[snapshot-extension] razão de pixels diferentes: ${diff.ratio.toFixed(4)}`, JSON.stringify(diff));
+  console.log(
+    `[snapshot-extension] razão de pixels diferentes: ${diff.ratio.toFixed(4)}`,
+    JSON.stringify(diff),
+  );
   expect(diff.ratio).toBeLessThan(0.1);
 });
 
