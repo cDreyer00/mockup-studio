@@ -111,6 +111,20 @@ Pendências herdadas para a tarefa 4:
 - **QA e2e** com mockup real de 3 telas, registrado em `docs/qa/mvp-e2e.md`.
 - README final com licença MIT.
 
+Resultado (integração; o QA e2e é a etapa seguinte):
+
+- CLI: `npm link -w @mockup/cli` expõe `mockup`; `mockup doctor [--json]` (Node, pasta de dados, daemon, modo e render, porta, Electron, fontes, `mockup`/`claude`/`codex` no PATH e registro) com os comandos de registro preenchidos; `mockup setup claude|codex|all [--http] [--skill] [--print] [--command path|shim|absolute]`, idempotente; `mockup install-cli`/`uninstall-cli` (shim `mockup.cmd` e PATH do usuário pelo registro, preservando `%VAR%`); `mockup --version`.
+- App empacotado: CLI e daemon Node em `resources/cli` (bundle esbuild, rodam com `ELECTRON_RUN_AS_NODE=1`), `integrations/` em `resources/integrations`; o NSIS roda `install-cli` na instalação e `uninstall-cli` na desinstalação (não na atualização); `--install-cli`/`--uninstall-cli` no próprio exe.
+- MCP: `instructions` do servidor; guias `getting-started` (6 passos), `design-system` (absorve `tokens`), `layout`, `responsive` (Mobile/Tablet/Desktop), `screenshot-loop`, `export`, `troubleshooting` e `setup`, também como `guide://<topic>`; descrições de todas as ferramentas revisadas, com exemplos; erros de parâmetro em português por campo, com exemplo de chamada, e sugestão para ferramenta inexistente.
+- `docs/INTEGRACAO.md`, `integrations/claude-code/SKILL.md`, `integrations/codex/AGENTS.snippet.md`, README final e `LICENSE` (MIT).
+- Verificado no Windows: Claude Code 2.1.319 e Codex 0.163.0 iniciam `mockup mcp` pelo shim `.cmd` do npm (sem `cmd /c`); `claude mcp list` mostra `mockup-studio` conectado e o Codex chama as ferramentas.
+
+Pendências:
+
+- QA e2e com mockup real de 3 telas (`docs/qa/mvp-e2e.md`).
+- O instalador NSIS não foi executado numa máquina (só compilado); hooks de PATH testados pelo `--install-cli`/`--uninstall-cli` do `win-unpacked` com pasta temporária.
+- Se o `uninstall-cli` falhar na desinstalação, o fallback em NSIS apaga o shim mas a entrada no PATH fica (inofensiva).
+
 ## Fases seguintes
 
 Após o MVP, uma branch por fase.
