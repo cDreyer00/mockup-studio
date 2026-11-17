@@ -359,35 +359,48 @@ describe('planRemix spacing', () => {
     frameOf(after, id).children[0]!.children[2]!;
   const cloneRow = (after: Document, id: string): Node => frameOf(after, id).children[0]!;
 
-  it('4 variações em ordem fixa, arredondadas à grade', () => {
+  it('4 variações em ordem fixa, arredondadas à grade, sem repetir o original', () => {
     const doc = makeDoc();
     const plan = planRemix(doc, FRAME, 'spacing', { newId: counter() });
-    expect(plan.labels).toEqual(['compacto', 'grade 4', 'grade 8', 'confortável']);
+    // grade 4 sai: 12px 20px, 24px e 16px já estão na grade de 4 (seria igual ao original)
+    expect(plan.labels).toEqual(['compacto', 'grade 8', 'confortável', 'espaçoso']);
     const { doc: after } = applyOps(doc, plan.ops);
-    const [compact, g4, g8, comfy] = plan.frameIds;
+    const [compact, g8, comfy, roomy] = plan.frameIds;
     // compacto: x0,5 na grade de 4 (12px 20px -> 6px 10px -> 8px 12px)
     expect(cloneRow(after, compact!).style['padding']).toBe('12px');
     expect(cloneRow(after, compact!).style['gap']).toBe('8px');
     expect(cloneBtn(after, compact!).style['padding']).toBe('8px 12px');
-    // grade 4: 12px 20px já estão na grade -> sem mudança no botão
-    expect(cloneBtn(after, g4!).style['padding']).toBe('12px 20px');
     // grade 8: 12 -> 16, 20 -> 24
     expect(cloneBtn(after, g8!).style['padding']).toBe('16px 24px');
     expect(cloneRow(after, g8!).style['gap']).toBe('16px');
     // confortável: x1,5 na grade de 8 (12*1,5=18 -> 16; 20*1,5=30 -> 32)
     expect(cloneBtn(after, comfy!).style['padding']).toBe('16px 32px');
+    // espaçoso: x2 na grade de 8
+    expect(cloneBtn(after, roomy!).style['padding']).toBe('24px 40px');
+    expect(cloneRow(after, roomy!).style['padding']).toBe('48px');
     // original intacto
     expect(findNode(after, BTN)!.node.style['padding']).toBe('12px 20px');
   });
 
-  it('espaçoso é a quinta variação (count 5; acima disso limita a 5)', () => {
+  it('grade 4 entra quando muda algo; count acima do disponível limita', () => {
     const doc = makeDoc();
+    findNode(doc, BTN)!.node.style['padding'] = '10px 18px';
     const plan = planRemix(doc, FRAME, 'spacing', { count: 5 });
-    expect(plan.labels.at(-1)).toBe('espaçoso');
-    expect(planRemix(doc, FRAME, 'spacing', { count: 8 }).frameIds).toHaveLength(5);
+    expect(plan.labels).toEqual(['compacto', 'grade 4', 'grade 8', 'confortável', 'espaçoso']);
     const { doc: after } = applyOps(doc, plan.ops);
-    expect(cloneBtn(after, plan.frameIds[4]!).style['padding']).toBe('24px 40px');
-    expect(cloneRow(after, plan.frameIds[4]!).style['padding']).toBe('48px');
+    expect(cloneBtn(after, plan.frameIds[1]!).style['padding']).toBe('12px 20px');
+    expect(planRemix(doc, FRAME, 'spacing', { count: 8 }).frameIds).toHaveLength(5);
+    // no fixture padrão só há 4 variações distintas
+    expect(planRemix(makeDoc(), FRAME, 'spacing', { count: 5 }).frameIds).toHaveLength(4);
+  });
+
+  it('variações repetidas entre si saem: 4px só gera "grade 8"', () => {
+    const doc = makeDoc();
+    const btn = findNode(doc, BTN)!.node;
+    btn.style = { padding: '4px' };
+    // compacto e grade 4 dão 4px (igual ao original); confortável e espaçoso dão 8px (igual a grade 8)
+    const plan = planRemix(doc, BTN, 'spacing', { count: 5 });
+    expect(plan.labels).toEqual(['grade 8']);
   });
 
   it('não zera valores positivos pequenos e resolve var() de tokens', () => {

@@ -129,7 +129,7 @@ describe('RemixService', () => {
       count: 2,
     };
     const r = (await service.handle(msg)) as { frameIds: string[]; labels: string[] };
-    expect(r.labels).toEqual(['compacto', 'grade 4']);
+    expect(r.labels).toEqual(['compacto', 'grade 8']);
     expect(store.getSelection(docId)).toEqual(r.frameIds);
     await expect(
       service.handle({ type: 'selection:set', docId, nodeIds: [] } as unknown as ClientMessage),

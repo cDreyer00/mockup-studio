@@ -220,7 +220,7 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
       'O nó não tem espaçamento em px (padding, margin, gap) para variar. Defina valores como "16px" no nó ou nos filhos.',
     );
   const n = checkCount(count, 4, SPACING_VARIATIONS.length);
-  return SPACING_VARIATIONS.slice(0, n).map(({ label, fn }) => ({
+  const all = SPACING_VARIATIONS.map(({ label, fn }) => ({
     label,
     styles: entries.flatMap((e) => {
       const value = e.tokens
@@ -232,6 +232,20 @@ function planSpacing(doc: Document, node: Node, count: number | undefined): Vari
       return value === e.raw ? [] : [{ nodeId: e.nodeId, set: { [e.prop]: value } }];
     }),
   }));
+  // Descarta variações iguais ao original (nada muda) ou a uma anterior: evita frames duplicados.
+  const seen = new Set<string>();
+  const distinct = all.filter((v) => {
+    if (v.styles.length === 0) return false;
+    const key = JSON.stringify(v.styles);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (distinct.length === 0)
+    throw new Error(
+      'Nenhuma variação de espaçamento difere do original: os valores já estão na grade e no mínimo.',
+    );
+  return distinct.slice(0, n);
 }
 
 /* ---------------- layout ---------------- */
