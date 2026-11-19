@@ -11,12 +11,23 @@ import {
 } from './presentation.js';
 
 const frame = (id: string, name: string, children: Node[] = [], hidden = false): Node => ({
-  ...createNode({ id, type: 'frame', tag: 'div', name, style: { width: '400px', height: '300px' } }),
+  ...createNode({
+    id,
+    type: 'frame',
+    tag: 'div',
+    name,
+    style: { width: '400px', height: '300px' },
+  }),
   children,
   hidden,
 });
 
-const page = (frames: Node[]): Page => ({ id: 'pg_00000001', name: 'Page', frames, background: '' });
+const page = (frames: Node[]): Page => ({
+  id: 'pg_00000001',
+  name: 'Page',
+  frames,
+  background: '',
+});
 
 const deck = page([
   frame('fr_a', 'Intro', [createNode({ id: 'el_a1', tag: 'div', name: 'Box' })]),
