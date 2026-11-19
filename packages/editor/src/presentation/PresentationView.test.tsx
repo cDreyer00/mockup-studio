@@ -143,6 +143,34 @@ describe('PresentationView', () => {
     expect(useUi.getState().tool).toBe('rect');
   });
 
+  it('blocks the browser reload keys but leaves Tab, F11 and F12 alone', () => {
+    render(<PresentationView />);
+    act(() => void presentation.start());
+    // fireEvent returns false when the default action was prevented.
+    const allowed = (k: string, init: KeyboardEventInit = {}) =>
+      fireEvent.keyDown(window, { key: k, ...init });
+    expect(allowed('F5')).toBe(false);
+    expect(allowed('F5', { shiftKey: true })).toBe(false);
+    expect(allowed('r', { ctrlKey: true })).toBe(false);
+    expect(allowed('r', { metaKey: true })).toBe(false);
+    expect(allowed('ArrowRight')).toBe(false);
+    expect(allowed('Tab')).toBe(true);
+    expect(allowed('F11')).toBe(true);
+    expect(allowed('F12')).toBe(true);
+  });
+
+  it('Enter and Space on a focused control button activate it instead of advancing', () => {
+    const { getByTestId } = render(<PresentationView />);
+    act(() => void presentation.start());
+    const exit = getByTestId('presentation-exit');
+    expect(fireEvent.keyDown(exit, { key: 'Enter' })).toBe(true);
+    expect(fireEvent.keyDown(exit, { key: ' ' })).toBe(true);
+    expect(getByTestId('presentation-counter').textContent).toBe('1 / 3');
+    // Elsewhere they still advance.
+    expect(fireEvent.keyDown(getByTestId('presentation-stage'), { key: 'Enter' })).toBe(false);
+    expect(getByTestId('presentation-counter').textContent).toBe('2 / 3');
+  });
+
   it('F5 and Shift+F5 start from the first frame and from the selection', () => {
     const { getByTestId } = render(<Harness />);
     useUi.setState({ selection: [doc.pages[0]!.frames[1]!.id] });

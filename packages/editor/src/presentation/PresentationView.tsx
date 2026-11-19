@@ -108,15 +108,27 @@ function Slide({
   );
 }
 
+/** Keys left to the browser while presenting: focus moves between the controls, full screen, dev tools. */
+const BROWSER_KEYS = new Set(['Tab', 'F11', 'F12']);
+
+/** Enter or Space typed on a focused control button. */
+function isControlActivation(e: KeyboardEvent): boolean {
+  if (e.key !== 'Enter' && e.key !== ' ') return false;
+  return e.target instanceof Element && e.target.closest('.pres-controls') !== null;
+}
+
 /** Keyboard (capture phase, so no editor shortcut runs) and idle tracking while presenting. */
 function usePresentationInput(onActivity: () => void): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       // Nothing reaches the editor shortcuts, the canvas or a focused field.
       e.stopImmediatePropagation();
+      // Enter / Space on a focused control button (reached with Tab) activate it.
+      if (isControlActivation(e)) return;
       const action = presentationKey(e);
+      // The browser's own keys (F5 / Ctrl+R reload, Ctrl+P...) are blocked too.
+      if (action || !BROWSER_KEYS.has(e.key)) e.preventDefault();
       if (!action) return;
-      e.preventDefault();
       if (action === 'exit') presentation.stop();
       else presentation.navigate(action);
     };
