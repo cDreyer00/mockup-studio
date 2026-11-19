@@ -10,6 +10,7 @@ When you ask an agent (Claude Code, Codex) for a mockup, it drives the app over 
 - Real HTML and CSS in `*.mockup.json`, with tokens as CSS variables.
 - Full MCP server with 45 tools: everything the editor does, plus screenshots, measurements, images, icons and fonts.
 - Node screenshots rendered by Electron, so the agent can see the result and iterate.
+- Presentation mode: play a page as a slide show, one frame per slide (button, F5, desktop menu or MCP).
 - Export to html, tailwind, react, svg, png and jpg.
 - Offline, no account, local use.
 
