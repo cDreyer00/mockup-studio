@@ -246,3 +246,13 @@
   color: var(--text-dim);
   font-size: 10px;
 }
+.home-delete-message {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+}
+.home-delete-message p {
+  margin: 0 0 6px;
+}
+.home-delete-message p:last-child {
+  margin-bottom: 0;
+}

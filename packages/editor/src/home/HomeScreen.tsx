@@ -15,7 +15,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { api, thumbnailUrl } from '../client/api';
-import type { FileEntry, FilesResult } from '../client/api';
+import type { DeleteFileResult, FileEntry, FilesResult } from '../client/api';
 import { daemon } from '../client/daemon';
 import { getDesktop } from '../desktop/bridge';
 import { newDocument } from '../desktop/fileFlows';
@@ -51,6 +51,41 @@ async function guard(fn: () => Promise<unknown>): Promise<boolean> {
   }
 }
 
+/** Body of the "Delete file" confirmation: what goes, what stays and where it goes. */
+function DeleteMessage({ plan }: { plan: DeleteFileResult }) {
+  const fileName = plan.path.split(/[\\/]/).pop() ?? plan.name;
+  const few = (list: string[]) =>
+    list.length > 5
+      ? `${list.slice(0, 5).join(', ')} and ${list.length - 5} more`
+      : list.join(', ');
+  return (
+    <div className="home-delete-message" data-testid="home-delete-message">
+      <p>
+        Delete <strong>{fileName}</strong>?
+      </p>
+      {plan.assets.length > 0 && (
+        <p>
+          {plan.assets.length} {plan.assets.length === 1 ? 'asset' : 'assets'} used only by this
+          document will be removed too: {few(plan.assets)}.
+        </p>
+      )}
+      {plan.keptAssets.length > 0 && (
+        <p>
+          {plan.keptAssets.length} {plan.keptAssets.length === 1 ? 'asset stays' : 'assets stay'} in
+          assets/ because another document in the folder may use{' '}
+          {plan.keptAssets.length === 1 ? 'it' : 'them'}.
+        </p>
+      )}
+      {plan.open && <p>The document is open: it will be closed first.</p>}
+      <p>
+        {plan.mode === 'trash'
+          ? `The files will be moved to the ${plan.trashName}.`
+          : 'The files will be deleted permanently. This cannot be undone.'}
+      </p>
+    </div>
+  );
+}
+
 /* ---------------- card ---------------- */
 
 function FileCard({
@@ -58,11 +93,13 @@ function FileCard({
   onOpen,
   onMenu,
   onFavorite,
+  onDelete,
 }: {
   file: FileEntry;
   onOpen: () => void;
   onMenu: (x: number, y: number) => void;
   onFavorite: () => void;
+  onDelete: () => void;
 }) {
   const [thumbFailed, setThumbFailed] = useState(false);
   return (
@@ -77,6 +114,12 @@ function FileCard({
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter') onOpen();
+        else if (e.key === 'Delete' && !file.missing) {
+          // the card has focus: Delete asks to delete the file (not the canvas selection)
+          e.preventDefault();
+          e.stopPropagation();
+          onDelete();
+        }
       }}
       onDragStart={(e) => {
         e.dataTransfer.setData(FILE_DRAG_TYPE, file.path);
@@ -307,9 +350,42 @@ export function HomeScreen() {
 
   const forget = async (f: FileEntry) => {
     if (await guard(() => api.files.forget(f.path))) {
-      ui.toast(`"${f.name}" removed from the index. The file was not deleted.`);
+      ui.toast(
+        f.open
+          ? `"${f.name}" closed and removed from the index. The file was not deleted.`
+          : `"${f.name}" removed from the index. The file was not deleted.`,
+      );
       reload();
     }
+  };
+
+  const deleteFile = async (f: FileEntry) => {
+    let plan: DeleteFileResult;
+    try {
+      plan = await api.files.delete(f.path, true);
+    } catch (e) {
+      ui.toast(errorText(e), 'error');
+      return;
+    }
+    const ok = await prompt({
+      title: 'Delete file',
+      message: <DeleteMessage plan={plan} />,
+      fields: [],
+      confirmLabel: plan.mode === 'trash' ? `Move to ${plan.trashName}` : 'Delete permanently',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const r = await api.files.delete(f.path);
+      const done =
+        r.mode === 'trash' ? `"${f.name}" moved to the ${r.trashName}` : `"${f.name}" deleted`;
+      if (r.failedAssets.length)
+        ui.toast(`${done}, but ${r.failedAssets.length} asset(s) could not be removed.`, 'error');
+      else ui.toast(done);
+    } catch (e) {
+      ui.toast(errorText(e), 'error');
+    }
+    reload();
   };
 
   const cardMenu = (f: FileEntry, x: number, y: number) =>
@@ -326,6 +402,12 @@ export function HomeScreen() {
         danger: true,
         separator: true,
         onSelect: () => void forget(f),
+      },
+      {
+        label: 'Delete file…',
+        danger: true,
+        disabled: f.missing === true,
+        onSelect: () => void deleteFile(f),
       },
     ]);
 
@@ -516,6 +598,7 @@ export function HomeScreen() {
               onOpen={() => void open(f)}
               onMenu={(x, y) => cardMenu(f, x, y)}
               onFavorite={() => void patchMeta(f, { favorite: !f.favorite })}
+              onDelete={() => void deleteFile(f)}
             />
           ))}
         </div>

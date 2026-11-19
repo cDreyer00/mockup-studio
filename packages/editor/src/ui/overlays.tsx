@@ -106,6 +106,8 @@ interface PromptRequest {
   message?: ReactNode;
   fields: PromptField[];
   confirmLabel: string;
+  /** Destructive confirmation: red confirm button. */
+  danger?: boolean;
   resolve: (values: Record<string, string> | null) => void;
 }
 const usePrompt = create<{ req: PromptRequest | null }>(() => ({ req: null }));
@@ -119,6 +121,7 @@ export function prompt(opts: {
   message?: ReactNode;
   fields: PromptField[];
   confirmLabel?: string;
+  danger?: boolean;
 }): Promise<Record<string, string> | null> {
   return new Promise((resolve) => {
     usePrompt.getState().req?.resolve(null);
@@ -173,10 +176,16 @@ function PromptHost() {
           </label>
         ))}
         <div className="modal-actions">
-          <button type="button" className="btn" onClick={() => finish(null)}>
+          {/* destructive confirmation: focus starts on Cancel (Esc works, Enter does not delete) */}
+          <button
+            type="button"
+            className="btn"
+            autoFocus={req.danger && req.fields.length === 0}
+            onClick={() => finish(null)}
+          >
             Cancel
           </button>
-          <button type="submit" className="btn primary">
+          <button type="submit" className={`btn primary${req.danger ? ' danger' : ''}`}>
             {req.confirmLabel}
           </button>
         </div>

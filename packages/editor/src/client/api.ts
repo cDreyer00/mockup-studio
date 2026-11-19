@@ -36,6 +36,21 @@ export interface LibraryAsset {
   url: string;
 }
 
+/** `POST /api/files/delete`: what is (or would be) removed. */
+export interface DeleteFileResult {
+  path: string;
+  name: string;
+  open: boolean;
+  /** `trash`: Recycle Bin / Trash (desktop app); `permanent`: deleted for good. */
+  mode: 'trash' | 'permanent';
+  trashName: string;
+  /** `assets/` files used only by this document (removed with it). */
+  assets: string[];
+  /** `assets/` files another document in the folder may use (kept). */
+  keptAssets: string[];
+  failedAssets: string[];
+}
+
 export interface FileEntry {
   path: string;
   name: string;
@@ -205,6 +220,9 @@ export const api = {
     add: async (path: string): Promise<FileEntry[]> =>
       (await request<{ added: FileEntry[] }>('/api/files/add', json({ path }))).added ?? [],
     forget: (path: string): Promise<{ ok: true }> => request('/api/files/forget', json({ path })),
+    /** Deletes the file and its exclusive assets; `dryRun` only returns the plan. */
+    delete: (path: string, dryRun = false): Promise<DeleteFileResult> =>
+      request('/api/files/delete', json({ path, dryRun })),
   },
   search: {
     nodes: async (query: string, docId?: string): Promise<(NodeMatch & { docId: string })[]> =>
