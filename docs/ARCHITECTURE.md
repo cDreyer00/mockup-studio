@@ -229,18 +229,19 @@ The handshake's `Origin` is validated (`isAllowedOrigin`): it accepts absent (no
 
 ### Server to client
 
-| `type`              | Fields                                                                                                                                      | Description                                                                              |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (active document or null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Initial state.                                                                           |
-| `doc:opened`        | `info`, `doc`, `history`                                                                                                                    | Document opened or created.                                                              |
-| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                                                    | Change applied. In the MVP it includes the full document.                                |
-| `doc:saved`         | `docId`, `path`                                                                                                                             | Document saved to disk.                                                                  |
-| `doc:closed`        | `docId`                                                                                                                                     | Document closed.                                                                         |
-| `agent:finished`    | `docId`, `nodeIds[]` (empty = all frames)                                                                                                   | The agent finished (`finish_working`): the editor clears the "AI" badge from the frames. |
-| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                                                              | Selection changed.                                                                       |
-| `active:changed`    | `docId` (or null)                                                                                                                           | Active document changed.                                                                 |
-| `ack`               | `reqId`, `result?`                                                                                                                          | Success response to a request.                                                           |
-| `error`             | `reqId?`, `message`                                                                                                                         | Error.                                                                                   |
+| `type`              | Fields                                                                                                                                      | Description                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `hello`             | `documents: OpenDocumentInfo[]`, `activeDocId`, `doc` (active document or null), `selection[]`, `revision`, `history: { canUndo, canRedo }` | Initial state.                                                                                   |
+| `doc:opened`        | `info`, `doc`, `history`                                                                                                                    | Document opened or created.                                                                      |
+| `doc:changed`       | `docId`, `ops[]`, `source`, `revision`, `doc`, `history`                                                                                    | Change applied. In the MVP it includes the full document.                                        |
+| `doc:saved`         | `docId`, `path`                                                                                                                             | Document saved to disk.                                                                          |
+| `doc:closed`        | `docId`                                                                                                                                     | Document closed.                                                                                 |
+| `agent:finished`    | `docId`, `nodeIds[]` (empty = all frames)                                                                                                   | The agent finished (`finish_working`): the editor clears the "AI" badge from the frames.         |
+| `selection:changed` | `docId`, `nodeIds[]`, `source`                                                                                                              | Selection changed.                                                                               |
+| `active:changed`    | `docId` (or null)                                                                                                                           | Active document changed.                                                                         |
+| `editor:command`    | `commandId`, `command` (`presentation:start` \| `presentation:stop` \| `presentation:goto`)                                                 | Command for an editor window (presentation mode, from the MCP); it answers with `editor:result`. |
+| `ack`               | `reqId`, `result?`                                                                                                                          | Success response to a request.                                                                   |
+| `error`             | `reqId?`, `message`                                                                                                                         | Error.                                                                                           |
 
 `source` is `'editor'`, `'mcp'` or `'system'`. `OpenDocumentInfo` has `docId`, `name`, `path` (null if unsaved), `dirty` and `revision`.
 
@@ -248,18 +249,22 @@ The handshake's `Origin` is validated (`isAllowedOrigin`): it accepts absent (no
 
 Every request has a `reqId` (string) and is answered with `ack` or `error`.
 
-| `type`          | Fields               | Description                                                    |
-| --------------- | -------------------- | -------------------------------------------------------------- |
-| `op:apply`      | `docId`, `ops[]`     | Applies ops.                                                   |
-| `selection:set` | `docId`, `nodeIds[]` | Sets the selection.                                            |
-| `doc:open`      | `path`               | Opens a file.                                                  |
-| `doc:new`       | `path`, `name`       | Creates a document (ack with the info, without `doc`).         |
-| `doc:close`     | `docId`              | Closes the document (saves if pending); ack `{}`.              |
-| `doc:save`      | `docId?`             | Saves (default: active document).                              |
-| `doc:saveAs`    | `docId?`, `path`     | Saves to another path (see below); ack with the document info. |
-| `undo`          | `docId?`             | Undoes.                                                        |
-| `redo`          | `docId?`             | Redoes.                                                        |
-| `active:set`    | `docId`              | Sets the active document.                                      |
+| `type`            | Fields                                                       | Description                                                                                                 |
+| ----------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `op:apply`        | `docId`, `ops[]`                                             | Applies ops.                                                                                                |
+| `selection:set`   | `docId`, `nodeIds[]`                                         | Sets the selection.                                                                                         |
+| `doc:open`        | `path`                                                       | Opens a file.                                                                                               |
+| `doc:new`         | `path`, `name`                                               | Creates a document (ack with the info, without `doc`).                                                      |
+| `doc:close`       | `docId`                                                      | Closes the document (saves if pending); ack `{}`.                                                           |
+| `doc:save`        | `docId?`                                                     | Saves (default: active document).                                                                           |
+| `doc:saveAs`      | `docId?`, `path`                                             | Saves to another path (see below); ack with the document info.                                              |
+| `undo`            | `docId?`                                                     | Undoes.                                                                                                     |
+| `redo`            | `docId?`                                                     | Redoes.                                                                                                     |
+| `active:set`      | `docId`                                                      | Sets the active document.                                                                                   |
+| `editor:register` | `focused`                                                    | Registers the connection as an editor window; sent on connect and whenever the window gets focus. Ack `{}`. |
+| `editor:result`   | `commandId`, `ok`, `result?` (`PresentationState`), `error?` | Answer to an `editor:command`. Ack `{}`.                                                                    |
+
+The daemon (`EditorChannel`, `packages/server/src/editors.ts`) sends each `editor:command` to the window that last reported a running presentation (`editor:result` with `result.active`) while it stays connected; otherwise to the most recently focused window (ties: the most recently registered). It fails if no window is registered, if the window closes before answering, or after 5 s without an answer.
 
 `doc:saveAs` (`store.saveAs`): normalizes the path (`.json` becomes `.mockup.json`) and **overwrites** the destination (the native dialog already confirmed). Rejects with 409 if another open document uses the same path. Copies the contents of `assets/` next to the new file (without deleting the source and without overwriting files that already exist), makes the document point to the new path, emits `doc:saved` and updates the recents. In the editor: Ctrl+Shift+S, with the native dialog in the desktop app.
 

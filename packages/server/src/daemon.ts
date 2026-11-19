@@ -2,6 +2,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { AgentBackend } from './agent/backend.js';
 import { AssistantService } from './agent/assistant.js';
+import { EditorChannel } from './editors.js';
 import { createApp } from './http.js';
 import { createMcpHandler } from './mcp/session.js';
 import { getDataDir, removeDaemonInfo, resolvePort, writeDaemonInfo } from './paths.js';
@@ -47,7 +48,7 @@ export interface DaemonHandle {
   mcpUrl: string;
   wsUrl: string;
   store: DocumentStore;
-  /** Assistant, scripts and remix. */
+  /** Assistant, scripts, remix and editor windows. */
   services: Required<DaemonServices>;
   /** Injected render engine (or `undefined`). */
   render?: RenderProvider;
@@ -76,7 +77,8 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   });
   const scripts = new ScriptService(store, { render: opts.render, assistant });
   const remix = new RemixService(store, { assistant });
-  const services: Required<DaemonServices> = { assistant, scripts, remix };
+  const editors = new EditorChannel();
+  const services: Required<DaemonServices> = { assistant, scripts, remix, editors };
   const mcp = createMcpHandler(store, {
     getPort: () => actualPort,
     sessionTtlMs: opts.sessionTtlMs,

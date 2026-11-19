@@ -14,6 +14,7 @@ import type {
   ScriptRunResult,
   ServerMessage,
 } from '@mockup/core';
+import type { EditorChannel } from './editors.js';
 
 /** Link between an MCP session and an assistant turn (the CLI agent connects with `?turn=<token>`). */
 export interface TurnBinding {
@@ -116,6 +117,8 @@ export interface DaemonServices {
   assistant?: AssistantServiceApi;
   scripts?: ScriptServiceApi;
   remix?: RemixServiceApi;
+  /** Editor windows: commands from the MCP (presentation mode). */
+  editors?: EditorChannel;
 }
 
 /** Routes the phase 9 WS messages to the right service (`undefined` = not in this group). */

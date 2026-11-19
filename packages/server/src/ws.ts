@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { ClientMessage, HelloEvent, ServerMessage } from '@mockup/core';
+import type { EditorConnection } from './editors.js';
 import { attachServiceEvents, routeServiceMessage, type DaemonServices } from './services.js';
 import { STORE_EVENT_NAMES, type DocumentStore } from './store.js';
 
@@ -43,6 +44,7 @@ async function handleMessage(
   store: DocumentStore,
   msg: ClientMessage,
   services: DaemonServices,
+  conn: EditorConnection,
 ): Promise<unknown> {
   const routed = routeServiceMessage(services, msg);
   if (routed) return routed;
@@ -94,6 +96,19 @@ async function handleMessage(
     case 'active:set':
       store.setActive(msg.docId);
       return {};
+    case 'editor:register': {
+      if (typeof msg.focused !== 'boolean')
+        throw new Error('editor:register requires "focused" (boolean).');
+      services.editors?.register(conn, msg.focused);
+      return {};
+    }
+    case 'editor:result': {
+      if (typeof msg.commandId !== 'string' || !msg.commandId)
+        throw new Error('editor:result requires "commandId" (string).');
+      if (typeof msg.ok !== 'boolean') throw new Error('editor:result requires "ok" (boolean).');
+      services.editors?.resolve(conn, msg);
+      return {};
+    }
     default:
       throw new Error(`Unknown message type: ${(msg as { type?: string }).type ?? '?'}`);
   }
@@ -131,6 +146,8 @@ export function attachWebSocket(
   listeners.push(attachServiceEvents(services, broadcast));
 
   wss.on('connection', (ws) => {
+    const conn: EditorConnection = { send: (msg) => send(ws, msg) };
+    ws.on('close', () => services.editors?.unregister(conn));
     send(ws, buildHello(store));
     ws.on('message', (data) => {
       let msg: ClientMessage;
@@ -144,7 +161,7 @@ export function attachWebSocket(
       }
       const reqId = (msg as { reqId?: string }).reqId;
       Promise.resolve()
-        .then(() => handleMessage(store, msg, services))
+        .then(() => handleMessage(store, msg, services, conn))
         .then(
           (result) => {
             if (reqId !== undefined) send(ws, { type: 'ack', reqId, result });
