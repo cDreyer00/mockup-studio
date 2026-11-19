@@ -442,10 +442,11 @@ export class FileIndex {
    * merges the index, the recents and the open documents, so all three go: an open document is
    * closed first (pending changes saved), then the index entry, the recents entry and the cached
    * thumbnails are dropped. Opening the file again (Open file…, `mockup open`, `open_document`)
-   * registers it again as usual.
+   * registers it again as usual. Only `.mockup.json` paths (absolute) are accepted, as in
+   * `deleteFile`.
    */
-  async forget(p: string): Promise<void> {
-    const abs = path.resolve(p);
+  async forget(p: unknown): Promise<void> {
+    const abs = FileIndex.requireDocPath(p);
     await this.closeOpen(abs);
     await this.drop(abs);
   }
@@ -488,9 +489,17 @@ export class FileIndex {
    * Exclusive-asset rule: `assets/` is shared by every document in the same folder, so an asset is
    * removed only if this document references it (images, `url(assets/...)`, fonts, video/poster,
    * Lottie/Rive files, repeater data sources, `assets/` attributes) and no other `.mockup.json` in
-   * the folder mentions its path (open documents are checked in memory). If another document in
-   * the folder cannot be read, every asset is kept. Files no document references are never
-   * touched. Folders left empty inside `assets/` (and `assets/` itself) are removed.
+   * the folder uses it (open documents are checked in memory). Other documents are parsed and
+   * their references compared normalized (slashes, URL encoding, case-insensitive on Windows); a
+   * plain mention of the path in their text also keeps the asset (and is the only check for files
+   * that do not parse). If another document in the folder cannot be read, every asset is kept.
+   * Files no document references are never touched. Folders left empty inside `assets/` (and
+   * `assets/` itself) are removed.
+   *
+   * Links: an asset is removed only if its real path stays inside the real `assets/` of the
+   * document folder (no symbolic link or junction on the way, `assets/` included); otherwise it is
+   * left alone. A `.mockup.json` that is itself a symbolic link: only the link is removed, its
+   * target and every asset stay.
    *
    * With `trash` (desktop app) the files go to the Recycle Bin / Trash; otherwise they are deleted
    * for good. `dryRun` only returns the plan.
@@ -506,11 +515,16 @@ export class FileIndex {
     } catch {
       throw new FilesError(
         404,
-        `File not found: ${abs}. To only remove it from the list, use Remove from index (forget_file).`,
+        this.openDocFor(abs)
+          ? `${abs} is open but not saved to disk yet: there is no file to delete. Save it first, or use Remove from index (forget_file) to close it and drop it from the list.`
+          : `File not found: ${abs}. To only remove it from the list, use Remove from index (forget_file).`,
       );
     }
     if (st.isDirectory())
       throw new FilesError(400, `Not a file: ${abs}. Only ${DOCUMENT_EXT} files can be deleted.`);
+    // a linked document: only the link goes (its target may live anywhere, with other assets)
+    const planFor = async (): Promise<{ assets: string[]; keptAssets: string[] }> =>
+      st.isSymbolicLink() ? { assets: [], keptAssets: [] } : this.exclusiveAssets(abs);
     const base = {
       path: abs,
       name: path.basename(abs).replace(/\.mockup\.json$/i, ''),
@@ -518,11 +532,11 @@ export class FileIndex {
       mode: opts.trash ? ('trash' as const) : ('permanent' as const),
       trashName: TRASH_NAME,
     };
-    if (opts.dryRun) return { ...base, ...(await this.exclusiveAssets(abs)), failedAssets: [] };
+    if (opts.dryRun) return { ...base, ...(await planFor()), failedAssets: [] };
 
     await this.closeOpen(abs);
     // after closing: the saved version is the one whose references count
-    const plan = await this.exclusiveAssets(abs);
+    const plan = await planFor();
     const remove = async (target: string): Promise<void> => {
       if (opts.trash) await opts.trash(target);
       else await fs.promises.rm(target, { force: true });
@@ -530,15 +544,21 @@ export class FileIndex {
     try {
       await remove(abs);
     } catch (e) {
+      const why = (e instanceof Error ? e.message : String(e)).replace(/\.$/, '');
       throw new FilesError(
         500,
-        `Could not ${opts.trash ? `move ${abs} to the ${TRASH_NAME}` : `delete ${abs}`}: ${e instanceof Error ? e.message : String(e)}`,
+        `Could not ${opts.trash ? `move ${abs} to the ${TRASH_NAME}` : `delete ${abs}`}: ${why}. ${base.open ? 'The document was closed (changes saved); the file is still on disk.' : 'The file is still on disk.'}`,
       );
     }
-    const assetsDir = path.join(path.dirname(abs), 'assets');
+    const dir = path.dirname(abs);
+    const assetsDir = path.join(dir, 'assets');
+    const realDir = await realPathOf(dir);
     const failedAssets: string[] = [];
     for (const rel of plan.assets) {
       try {
+        // checked again right before removing: the folder may have changed since the plan
+        if (!realDir || !(await assetFileInside(dir, realDir, rel)))
+          throw new Error('no longer a regular file inside assets/');
         await remove(path.join(assetsDir, ...rel.split('/')));
       } catch {
         failedAssets.push(rel);
@@ -556,26 +576,29 @@ export class FileIndex {
 
   /** Assets of `abs` split into exclusive (removable) and possibly shared (kept). */
   private async exclusiveAssets(abs: string): Promise<{ assets: string[]; keptAssets: string[] }> {
+    const none = { assets: [], keptAssets: [] };
     const dir = path.dirname(abs);
-    const assetsDir = path.join(dir, 'assets');
-    if (!fs.existsSync(assetsDir)) return { assets: [], keptAssets: [] };
+    if (!fs.existsSync(path.join(dir, 'assets'))) return none;
+    const realDir = await realPathOf(dir);
+    if (!realDir) return none;
     const doc = await this.readDoc(abs);
     // unreadable document: its references are unknown, so no asset is removed
-    if (!doc) return { assets: [], keptAssets: [] };
-    const mine: string[] = [];
-    for (const rel of documentAssetPaths(doc)) {
-      try {
-        if ((await fs.promises.lstat(path.join(assetsDir, ...rel.split('/')))).isFile())
-          mine.push(rel);
-      } catch {
-        /* referenced but missing */
+    if (!doc) return none;
+    // on-disk name of each reference (as written, else URL-decoded): only regular files inside
+    // the real assets/ folder (missing ones and links are skipped), one entry per file
+    const found = new Map<string, string>();
+    for (const ref of documentAssetPaths(doc)) {
+      for (const rel of new Set([ref, decodeAssetPath(ref)])) {
+        if (!(await assetFileInside(dir, realDir, rel))) continue;
+        if (!found.has(assetKey(rel))) found.set(assetKey(rel), rel);
+        break;
       }
     }
-    mine.sort();
-    if (mine.length === 0) return { assets: [], keptAssets: [] };
+    const mine = [...found.values()].sort();
+    if (mine.length === 0) return none;
 
-    // every other document in the same folder, as text (open ones from memory: unsaved references)
-    const others: string[] = [];
+    // every other document in the same folder (open ones from memory: unsaved references)
+    const others: Neighbour[] = [];
     const seen: string[] = [abs];
     const isSeen = (p: string): boolean => seen.some((x) => sameKey(x, p));
     for (const d of this.store.list()) {
@@ -583,7 +606,8 @@ export class FileIndex {
       const other = path.resolve(d.path);
       if (!sameKey(path.dirname(other), dir) || isSeen(other)) continue;
       seen.push(other);
-      others.push(serializeDocument(this.store.get(d.docId)));
+      const od = this.store.get(d.docId);
+      others.push(neighbour(serializeDocument(od), od));
     }
     let unreadable = false;
     let entries: fs.Dirent[] = [];
@@ -599,7 +623,7 @@ export class FileIndex {
       seen.push(other);
       try {
         if ((await fs.promises.stat(other)).size > MAX_READ_BYTES) unreadable = true;
-        else others.push(await fs.promises.readFile(other, 'utf8'));
+        else others.push(neighbour(await fs.promises.readFile(other, 'utf8')));
       } catch {
         unreadable = true;
       }
@@ -608,8 +632,7 @@ export class FileIndex {
     const assets: string[] = [];
     const keptAssets: string[] = [];
     for (const rel of mine) {
-      const escaped = JSON.stringify(rel).slice(1, -1);
-      if (others.some((t) => t.includes(rel) || t.includes(escaped))) keptAssets.push(rel);
+      if (others.some((o) => o.uses(rel))) keptAssets.push(rel);
       else assets.push(rel);
     }
     return { assets, keptAssets };
@@ -679,6 +702,11 @@ export class FileIndex {
     if (this.find(abs)) return true;
     if (readRecent(this.dataDir).some((r) => sameKey(path.resolve(r), abs))) return true;
     return !!this.openDocFor(abs);
+  }
+
+  /** Whether a document at the path is open (from the store, not the index). */
+  isOpen(p: string): boolean {
+    return !!this.openDocFor(path.resolve(p));
   }
 
   /** File entry, if the path is in the index, open or in the recents. */
@@ -1004,7 +1032,8 @@ function inlineAssets(root: Node, assetsDir: string): void {
 /**
  * Paths relative to `assets/` a document references: image `src` and `url(assets/...)` (repeaters
  * expanded), fonts, video/poster, Lottie/Rive files, repeater data sources and attributes that
- * point at `assets/` (e.g. `href`).
+ * point at `assets/` (e.g. `href`). The `src` of other node types counts only when it starts with
+ * `assets/`.
  */
 export function documentAssetPaths(doc: Document): Set<string> {
   const out = new Set<string>(collectAssetRefs(doc).keys());
@@ -1013,12 +1042,93 @@ export function documentAssetPaths(doc: Document): Set<string> {
     if (rel) out.add(rel);
   };
   walk(doc, (n) => {
-    add(n.src);
+    // images are covered by collectAssetRefs (repeaters expanded); elsewhere `src` must be explicit
+    if (n.src && /^(\.\/)?assets\//.test(n.src.trim().replace(/\\/g, '/'))) add(n.src);
     for (const r of mediaAssetRefs(n)) add(r);
     add(n.dataSource?.path);
     for (const v of Object.values(n.attrs)) if (/^(\.\/)?assets\//.test(v.trim())) add(v);
   });
   return out;
+}
+
+/** URL-decoded asset path (as written when an escape is malformed). */
+function decodeAssetPath(rel: string): string {
+  try {
+    return decodeURIComponent(rel);
+  } catch {
+    return rel;
+  }
+}
+
+/** Comparison key of an asset path: forward slashes, URL-decoded, case-insensitive on Windows. */
+function assetKey(rel: string): string {
+  const s = decodeAssetPath(rel.replace(/\\/g, '/'));
+  return isWin ? s.toLowerCase() : s;
+}
+
+/** Another document of the folder, as seen by the exclusive-asset rule of `deleteFile`. */
+interface Neighbour {
+  /** Whether it may use the asset (`rel`, relative to `assets/`). */
+  uses(rel: string): boolean;
+}
+
+/**
+ * Neighbour from its text (and its document, when already in memory). Uses an asset when its
+ * parsed references match by `assetKey`, or, conservatively, when its text mentions the path in
+ * any common form (as written, decoded, URL-encoded, with backslashes, JSON-escaped;
+ * case-insensitive on Windows). Text that does not parse only gets the textual check.
+ */
+function neighbour(text: string, doc?: Document): Neighbour {
+  let refs: Set<string> | undefined;
+  try {
+    refs = new Set([...documentAssetPaths(doc ?? parseDocument(text))].map(assetKey));
+  } catch {
+    refs = undefined;
+  }
+  const fold = (s: string): string => (isWin ? s.toLowerCase() : s);
+  const hay = fold(text);
+  return {
+    uses(rel) {
+      if (refs?.has(assetKey(rel))) return true;
+      const decoded = decodeAssetPath(rel);
+      const forms = new Set([rel, decoded, decoded.replace(/\//g, '\\')]);
+      try {
+        forms.add(encodeURI(decoded));
+      } catch {
+        /* lone surrogate: no encoded form */
+      }
+      for (const f of [...forms]) forms.add(JSON.stringify(f).slice(1, -1));
+      return [...forms].some((f) => hay.includes(fold(f)));
+    },
+  };
+}
+
+/** Real path (symbolic links and junctions resolved), or undefined when it cannot be resolved. */
+async function realPathOf(p: string): Promise<string | undefined> {
+  try {
+    return await fs.promises.realpath(p);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Whether `<dir>/assets/<rel>` is a regular file whose real path is `<realDir>/assets/<rel>`: no
+ * symbolic link or junction on the way (`assets/`, its subfolders, the file itself), so removing
+ * it cannot reach a file outside the document folder.
+ */
+async function assetFileInside(dir: string, realDir: string, rel: string): Promise<boolean> {
+  const parts = rel.split('/');
+  // a decoded reference may spell `..` (`%2E%2E`) or a backslash: never leave assets/
+  if (parts.some((s) => s === '' || s === '.' || s === '..' || /[\\:\0]/.test(s))) return false;
+  const literal = path.join(dir, 'assets', ...parts);
+  const real = await realPathOf(literal);
+  if (!real || !sameKey(real, path.join(realDir, 'assets', ...parts))) return false;
+  try {
+    return (await fs.promises.lstat(literal)).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /** Removes the empty folders inside `root`, and `root` itself when it ends up empty. */

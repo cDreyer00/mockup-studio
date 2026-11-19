@@ -4,7 +4,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDocument, createNodeFromTag, serializeDocument } from '@mockup/core';
-import { FileIndex, FilesError, getFileIndex, normalizeFolder, normalizeTags } from './files.js';
+import {
+  FileIndex,
+  FilesError,
+  documentAssetPaths,
+  getFileIndex,
+  normalizeFolder,
+  normalizeTags,
+} from './files.js';
 import { DocumentStore } from './store.js';
 
 let dir: string;
@@ -430,6 +437,149 @@ describe('FileIndex.deleteFile', () => {
     }
   });
 
+  /** Folder outside `dir/assets` with a file that must survive any delete. */
+  const outside = (rel: string): string => {
+    const f = path.join(dir, 'outside', ...rel.split('/'));
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, 'keep me');
+    return f;
+  };
+  /** Creates a symbolic link to a file, or returns false where the OS does not allow it. */
+  const fileLink = (target: string, link: string): boolean => {
+    try {
+      fs.symlinkSync(target, link, 'file');
+      return true;
+    } catch {
+      return false; // Windows without Developer Mode / admin rights
+    }
+  };
+
+  it('never follows an assets/ folder that is a junction or symbolic link', async () => {
+    const victim = outside('victim.png');
+    fs.symlinkSync(path.join(dir, 'outside'), path.join(dir, 'assets'), 'junction');
+    const a = docUsing('a', { img: ['victim.png'] });
+    const idx = new FileIndex(store, dataDir);
+    expect(await idx.deleteFile(a, { dryRun: true })).toMatchObject({ assets: [], keptAssets: [] });
+    const r = await idx.deleteFile(a);
+    expect(r.assets).toEqual([]);
+    expect(fs.existsSync(a)).toBe(false);
+    expect(fs.readFileSync(victim, 'utf8')).toBe('keep me');
+    expect(fs.existsSync(path.join(dir, 'assets'))).toBe(true);
+  });
+
+  it('never follows a subfolder of assets/ that is a junction or symbolic link', async () => {
+    const victim = outside('victim.png');
+    asset('mine.png');
+    fs.symlinkSync(path.join(dir, 'outside'), path.join(dir, 'assets', 'sub'), 'junction');
+    const a = docUsing('a', { img: ['mine.png', 'sub/victim.png'] });
+    const trashed: string[] = [];
+    const r = await new FileIndex(store, dataDir).deleteFile(a, {
+      trash: async (p) => {
+        trashed.push(p);
+        fs.rmSync(p);
+      },
+    });
+    expect(r.assets).toEqual(['mine.png']);
+    expect(trashed).toEqual([path.resolve(a), path.join(dir, 'assets', 'mine.png')]);
+    expect(fs.readFileSync(victim, 'utf8')).toBe('keep me');
+  });
+
+  it('an asset that is itself a symbolic link is left alone', async (ctx) => {
+    const victim = outside('victim.png');
+    fs.mkdirSync(path.join(dir, 'assets'));
+    if (!fileLink(victim, path.join(dir, 'assets', 'link.png'))) return ctx.skip();
+    const a = docUsing('a', { img: ['link.png'] });
+    const r = await new FileIndex(store, dataDir).deleteFile(a);
+    expect(r.assets).toEqual([]);
+    expect(fs.readFileSync(victim, 'utf8')).toBe('keep me');
+    expect(fs.lstatSync(path.join(dir, 'assets', 'link.png')).isSymbolicLink()).toBe(true);
+  });
+
+  it('a .mockup.json that is a symbolic link: only the link is removed', async (ctx) => {
+    const real = docUsing('real', { img: ['x.png'] });
+    asset('x.png');
+    const linkDir = path.join(dir, 'links');
+    fs.mkdirSync(path.join(linkDir, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(linkDir, 'assets', 'x.png'), 'x');
+    const link = path.join(linkDir, 'alias.mockup.json');
+    if (!fileLink(real, link)) return ctx.skip();
+    const r = await new FileIndex(store, dataDir).deleteFile(link);
+    expect(r).toMatchObject({ assets: [], keptAssets: [] });
+    expect(fs.existsSync(link)).toBe(false);
+    expect(fs.existsSync(real)).toBe(true);
+    expect(fs.existsSync(path.join(linkDir, 'assets', 'x.png'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'assets', 'x.png'))).toBe(true);
+  });
+
+  it('a URL-encoded `..` in a reference does not reach outside assets/', async () => {
+    asset('mine.png');
+    const secret = path.join(dir, 'secret.png');
+    fs.writeFileSync(secret, 'keep me');
+    const a = docUsing('a', { img: ['mine.png', '%2E%2E/secret.png', '..%2Fsecret.png'] });
+    const r = await new FileIndex(store, dataDir).deleteFile(a);
+    expect(r.assets).toEqual(['mine.png']);
+    expect(fs.existsSync(secret)).toBe(true);
+  });
+
+  it('neighbours are compared normalized: URL encoding, backslashes and (Windows) case', async () => {
+    asset('my file.png');
+    asset('sub/deep.png');
+    asset('Shared.png');
+    asset('only-a.png');
+    const a = docUsing('a', { img: ['my file.png', 'sub/deep.png', 'Shared.png', 'only-a.png'] });
+    const b = docUsing('b', { img: ['my%20file.png'] });
+    // a backslash path and a different case, written straight into the JSON
+    const bDoc = JSON.parse(fs.readFileSync(b, 'utf8'));
+    const extra = createNodeFromTag('img', { name: 'Img' });
+    extra.src = 'assets\\sub\\deep.png';
+    const extra2 = createNodeFromTag('img', { name: 'Img' });
+    extra2.src = 'assets/shared.png';
+    bDoc.pages[0].frames[0].children.push(extra, extra2);
+    fs.writeFileSync(b, JSON.stringify(bDoc), 'utf8');
+    const r = await new FileIndex(store, dataDir).deleteFile(a, { dryRun: true });
+    const caseShared = process.platform === 'win32';
+    expect(r.keptAssets).toEqual(
+      caseShared ? ['Shared.png', 'my file.png', 'sub/deep.png'] : ['my file.png', 'sub/deep.png'],
+    );
+    expect(r.assets).toEqual(caseShared ? ['only-a.png'] : ['Shared.png', 'only-a.png']);
+  });
+
+  it('a reference written URL-encoded removes the decoded file on disk', async () => {
+    asset('my file.png');
+    const a = docUsing('a', { img: ['my%20file.png'] });
+    const r = await new FileIndex(store, dataDir).deleteFile(a);
+    expect(r.assets).toEqual(['my file.png']);
+    expect(fs.existsSync(path.join(dir, 'assets', 'my file.png'))).toBe(false);
+  });
+
+  it('a failure after closing the document says it was closed', async () => {
+    const a = docUsing('a', {});
+    await store.open(a);
+    const idx = getFileIndex(store, dataDir);
+    await expect(
+      idx.deleteFile(a, {
+        trash: async () => {
+          throw new Error('no recycle bin');
+        },
+      }),
+    ).rejects.toThrow(/no recycle bin\. The document was closed \(changes saved\)/);
+    expect(store.list()).toEqual([]);
+    expect(fs.existsSync(a)).toBe(true);
+  });
+
+  it('an open document not on disk yet: 404 with a clear message, and listed as missing', async () => {
+    const a = docUsing('a', {});
+    await store.open(a);
+    fs.rmSync(a);
+    const idx = getFileIndex(store, dataDir);
+    expect((await idx.get(a))!.missing).toBe(true);
+    const err = await idx.deleteFile(a).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FilesError);
+    expect((err as FilesError).status).toBe(404);
+    expect((err as FilesError).message).toContain('not saved to disk yet');
+    await store.closeAll();
+  });
+
   it('errors for missing files, folders and non-.mockup.json paths', async () => {
     const idx = new FileIndex(store, dataDir);
     await expect(idx.deleteFile(path.join(dir, 'nope.mockup.json'))).rejects.toThrow(
@@ -442,6 +592,25 @@ describe('FileIndex.deleteFile', () => {
     fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
     await expect(idx.deleteFile(path.join(dir, 'notes.txt'))).rejects.toThrow(/mockup\.json/);
     await expect(idx.deleteFile('relative.mockup.json')).rejects.toThrow(/absolute/);
+    // forget validates the same way
+    await expect(idx.forget(path.join(dir, 'notes.txt'))).rejects.toThrow(/mockup\.json/);
+    await expect(idx.forget('relative.mockup.json')).rejects.toThrow(/absolute/);
     expect(fs.existsSync(path.join(dir, 'notes.txt'))).toBe(true);
+  });
+});
+
+describe('documentAssetPaths', () => {
+  it('counts src on images, media and embeds; elsewhere only an explicit assets/ path', () => {
+    const doc = createDocument('d');
+    const frame = createNodeFromTag('div', { isRoot: true, name: 'F', position: { x: 0, y: 0 } });
+    const img = createNodeFromTag('img', { name: 'Img' });
+    img.src = 'photo.png';
+    const stray = createNodeFromTag('p', { name: 'P' });
+    stray.src = 'stray.png';
+    const explicit = createNodeFromTag('p', { name: 'P2' });
+    explicit.src = 'assets/explicit.png';
+    frame.children.push(img, stray, explicit);
+    doc.pages[0]!.frames.push(frame);
+    expect([...documentAssetPaths(doc)].sort()).toEqual(['explicit.png', 'photo.png']);
   });
 });
