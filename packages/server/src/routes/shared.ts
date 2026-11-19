@@ -3,6 +3,7 @@
  * error with status and the async handler adapter.
  */
 import type { NextFunction, Request, Response } from 'express';
+import type { TrashProvider } from '../files.js';
 import type { RenderProvider } from '../render.js';
 import type { DocumentStore } from '../store.js';
 
@@ -11,6 +12,8 @@ export interface RouteContext {
   /** Data folder (`files.json`, `cdn/`, thumbnails). Absent in tests without a data folder. */
   dataDir?: string;
   render?: RenderProvider;
+  /** OS trash for deleted documents (desktop app); without it they are deleted permanently. */
+  trash?: TrashProvider;
   getPort?: () => number;
   /** Upload limit (bytes). */
   maxAssetBytes: number;

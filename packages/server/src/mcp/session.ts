@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { TrashProvider } from '../files.js';
 import type { RenderProvider } from '../render.js';
 import type { DaemonServices } from '../services.js';
 import type { DocumentStore } from '../store.js';
@@ -27,6 +28,8 @@ export interface McpHandlerOptions {
   sessionTtlMs?: number;
   /** Render engine (screenshot, layout, measured SVG). */
   render?: RenderProvider;
+  /** OS trash for `delete_file` (desktop app). */
+  trash?: TrashProvider;
   /** Daemon data folder. */
   dataDir?: string;
   /** Phase 9 services; the assistant resolves the `?turn=` token of sessions opened by the agent. */
@@ -92,6 +95,7 @@ export function createMcpHandler(store: DocumentStore, opts: McpHandlerOptions =
           const assistant = opts.services?.assistant;
           const server = createMcpServer(store, {
             render: opts.render,
+            trash: opts.trash,
             dataDir: opts.dataDir,
             getPort: opts.getPort,
             services: opts.services,

@@ -1,6 +1,6 @@
 /**
  * File organization and search routes: filtered list, metadata (folder, tags, favorite),
- * virtual folders, register/forget, thumbnails and node search across the open documents.
+ * virtual folders, register/forget/delete, thumbnails and node search across the open documents.
  */
 import type { Express } from 'express';
 import { searchNodes } from '@mockup/core';
@@ -100,6 +100,21 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
       if (!p) throw new RouteError(400, 'Missing required field: path.');
       await index().forget(p);
       res.json({ ok: true });
+    }),
+  );
+
+  app.post(
+    '/api/files/delete',
+    wrap(async (req, res) => {
+      const b = (req.body ?? {}) as Record<string, unknown>;
+      if (b.dryRun !== undefined && typeof b.dryRun !== 'boolean')
+        throw new RouteError(400, 'dryRun must be true or false.');
+      res.json(
+        await index().deleteFile(FileIndex.requireDocPath(b.path), {
+          trash: ctx.trash,
+          dryRun: b.dryRun === true,
+        }),
+      );
     }),
   );
 

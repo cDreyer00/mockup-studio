@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Document, NodePath, Op } from '@mockup/core';
+import type { TrashProvider } from '../files.js';
 import type { RenderProvider } from '../render.js';
 import type { DaemonServices, TurnResolver } from '../services.js';
 import type { DocumentStore } from '../store.js';
@@ -32,6 +33,8 @@ export interface RichResult {
 export interface McpServerOptions {
   /** Render engine (Electron). Absent: screenshot tools report that there is no render. */
   render?: RenderProvider;
+  /** OS trash for `delete_file` (desktop app); without it files are deleted permanently. */
+  trash?: TrashProvider;
   dataDir?: string;
   /** Daemon port (for the render-unavailable message). */
   getPort?: () => number;

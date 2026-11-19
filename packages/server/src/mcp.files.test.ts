@@ -70,13 +70,17 @@ describe('files and search (HTTP and MCP)', () => {
   let calls: CaptureRequest[];
   let client: Client | undefined;
 
-  const start = async (render?: RenderProvider): Promise<void> => {
+  const start = async (
+    render?: RenderProvider,
+    trash?: (p: string) => Promise<void>,
+  ): Promise<void> => {
     daemon = await startDaemon({
       port: 0,
       dataDir: ws.dataDir,
       writeInfo: false,
       openFiles: [ws.file],
       render,
+      trash,
     });
   };
   const get = (p: string) => fetch(`${daemon.url}${p}`);
@@ -324,6 +328,86 @@ describe('files and search (HTTP and MCP)', () => {
     );
     await call('manage_folders', { action: 'delete', path: 'Accounts' });
     expect((await call('manage_folders', { action: 'list' })).text).toContain('(no folders)');
+  });
+
+  it('POST /api/files/forget on an open document closes it and keeps it out of the list', async () => {
+    await start();
+    const p = path.resolve(ws.file);
+    expect((await (await get('/api/files')).json()).files).toHaveLength(1);
+    expect((await post('/api/files/forget', { path: p })).status).toBe(200);
+    expect(daemon.store.list()).toEqual([]);
+    expect((await (await get('/api/files')).json()).files).toEqual([]);
+    expect((await get(`/api/files/thumbnail?path=${encodeURIComponent(p)}`)).status).toBe(404);
+    expect(fs.existsSync(p)).toBe(true);
+    // opening it again registers it again
+    await daemon.store.open(p);
+    expect((await (await get('/api/files')).json()).files).toHaveLength(1);
+  });
+
+  it('POST /api/files/delete: dry run, trash provider, errors', async () => {
+    const trashed: string[] = [];
+    await start(undefined, async (p) => {
+      trashed.push(p);
+      fs.rmSync(p);
+    });
+    const p = path.resolve(ws.file);
+    const plan = await (await post('/api/files/delete', { path: p, dryRun: true })).json();
+    expect(plan).toMatchObject({ path: p, name: 'test', open: true, mode: 'trash', assets: [] });
+    expect(fs.existsSync(p)).toBe(true);
+    expect(daemon.store.list()).toHaveLength(1);
+
+    const r = await post('/api/files/delete', { path: p });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ mode: 'trash', open: true });
+    expect(trashed).toEqual([p]);
+    expect(daemon.store.list()).toEqual([]);
+    expect((await (await get('/api/files')).json()).files).toEqual([]);
+
+    expect((await post('/api/files/delete', { path: p })).status).toBe(404);
+    expect((await post('/api/files/delete', { path: path.join(ws.dir, 'x.txt') })).status).toBe(
+      400,
+    );
+    expect((await post('/api/files/delete', { path: 'rel.mockup.json' })).status).toBe(400);
+    expect((await post('/api/files/delete', { path: p, dryRun: 'yes' })).status).toBe(400);
+  });
+
+  it('MCP tools: forget_file and delete_file', async () => {
+    await start();
+    const p = path.resolve(ws.file);
+    const docId = daemon.store.list()[0]!.docId;
+    let r = await call('forget_file', { docId });
+    expect(r.text).toContain('removed from the list (the document was closed first)');
+    expect(daemon.store.list()).toEqual([]);
+    expect((await call('list_files')).text).toContain('0 file(s)');
+    expect((await call('forget_file', { path: p })).text).toContain('was not in the list');
+    expect((await call('forget_file', { path: 'rel.mockup.json' })).isError).toBe(true);
+
+    const { file } = makeImageDoc(ws.dir);
+    const other = path.join(ws.dir, 'other.mockup.json');
+    fs.writeFileSync(other, fs.readFileSync(file, 'utf8').replace('assets/photo.png', 'x.png'));
+    r = await call('delete_file', { path: file });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('confirm: true');
+    r = await call('delete_file', { path: file, dryRun: true });
+    expect(r.text).toContain('deleted permanently');
+    expect(r.text).toContain('photo.png');
+    expect(r.text).toContain(
+      'Assets kept (another document in the folder may use them): background.png',
+    );
+    expect(fs.existsSync(file)).toBe(true);
+    r = await call('delete_file', { path: file, confirm: true });
+    expect(r.isError).toBe(false);
+    expect(r.text).toContain('deleted permanently (no trash)');
+    expect(fs.existsSync(file)).toBe(false);
+    expect(fs.existsSync(path.join(ws.dir, 'assets', 'photo.png'))).toBe(false);
+    expect(fs.existsSync(path.join(ws.dir, 'assets', 'background.png'))).toBe(true);
+    r = await call('delete_file', { path: file, confirm: true });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('File not found');
+    const tools = (await client!.listTools()).tools;
+    expect(tools.find((t) => t.name === 'delete_file')!.annotations).toMatchObject({
+      destructiveHint: true,
+    });
   });
 
   it('search_nodes tool', async () => {

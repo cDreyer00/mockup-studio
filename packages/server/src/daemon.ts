@@ -7,6 +7,7 @@ import { createApp } from './http.js';
 import { createMcpHandler } from './mcp/session.js';
 import { getDataDir, removeDaemonInfo, resolvePort, writeDaemonInfo } from './paths.js';
 import type { DaemonMode } from './http.js';
+import type { TrashProvider } from './files.js';
 import type { RenderProvider } from './render.js';
 import { RemixService } from './remix.js';
 import { ScriptService } from './scripts/service.js';
@@ -25,6 +26,11 @@ export interface DaemonOptions {
   sessionTtlMs?: number;
   /** Render engine (injected by the desktop app). Without it, screenshot/layout are unavailable. */
   render?: RenderProvider;
+  /**
+   * Moves a file to the OS Recycle Bin / Trash (the desktop app injects `shell.trashItem`). Without
+   * it, deleting a document (`delete_file`, Home › Delete file…) deletes permanently.
+   */
+  trash?: TrashProvider;
   /** Folder with the editor build (`packages/editor/dist`), served at `/` by the daemon. */
   editorDir?: string;
   /** Who started the daemon (health). Default: `desktop` with render, `headless` with `headless`, otherwise `serve`. */
@@ -83,6 +89,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     getPort: () => actualPort,
     sessionTtlMs: opts.sessionTtlMs,
     render: opts.render,
+    trash: opts.trash,
     dataDir,
     services,
   });
@@ -92,6 +99,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     allowedHosts: [host],
     dataDir,
     render: opts.render,
+    trash: opts.trash,
     editorDir: opts.editorDir,
     mode: opts.mode ?? (opts.render ? 'desktop' : opts.headless ? 'headless' : 'serve'),
     shutdown: opts.onShutdown

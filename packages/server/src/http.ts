@@ -9,6 +9,7 @@ import { KitError, listKits, loadKit } from './kits.js';
 import { detectAsset, getLibrary } from './library.js';
 import { detectVideo, fetchAnimation, validateAnimation } from './mediaBytes.js';
 import { OutlineError, buildTextOutlineOps } from './outlines.js';
+import type { TrashProvider } from './files.js';
 import { renderUnavailableMessage, type RenderProvider, type RenderScale } from './render.js';
 import type { DocumentStore } from './store.js';
 import type { McpHandler } from './mcp/session.js';
@@ -133,6 +134,8 @@ export function createApp(
     dataDir?: string;
     maxAssetBytes?: number;
     render?: RenderProvider;
+    /** OS trash for deleted documents (desktop app); without it they are deleted permanently. */
+    trash?: TrashProvider;
     /** Editor build served at `/` (SPA). */
     editorDir?: string;
     /** Who started the daemon (reported in health). */
@@ -555,6 +558,7 @@ export function createApp(
     store,
     dataDir: ctx.dataDir,
     render: ctx.render,
+    trash: ctx.trash,
     getPort: ctx.getPort,
     maxAssetBytes: ctx.maxAssetBytes ?? MAX_ASSET_BYTES,
   });

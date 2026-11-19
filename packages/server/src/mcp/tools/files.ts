@@ -223,4 +223,75 @@ export function registerFilesTools(ctx: ToolContext): void {
       return [`${lines.length} file(s) moved:`, ...lines].join('\n');
     },
   );
+
+  tool(
+    'forget_file',
+    {
+      title: 'Remove a file from the list',
+      description:
+        'Removes a file from the known files (list_files and the home screen): index entry, recents and thumbnails. If it is open it is closed first (pending changes saved). The file stays on disk; opening it again registers it again. To delete it from disk use delete_file.',
+      example: { path: 'C:/projects/site.mockup.json' },
+      inputSchema: {
+        path: pathField,
+        docId: z.string().optional().describe('Open document, instead of path.'),
+      },
+      annotations: WRITE,
+    },
+    async ({ path: p, docId }) => {
+      const target = path.resolve(resolvePath(p, docId));
+      const known = index().isKnown(target);
+      const wasOpen = known && (await index().get(target))?.open === true;
+      await guard(() => index().forget(target));
+      if (!known) return `${target} was not in the list. Nothing to remove.`;
+      return `${target} removed from the list${wasOpen ? ' (the document was closed first)' : ''}. The file was not deleted.`;
+    },
+  );
+
+  tool(
+    'delete_file',
+    {
+      title: 'Delete a file',
+      description:
+        'Deletes a .mockup.json from disk with the assets/ files only it uses (an asset that another .mockup.json in the same folder mentions is kept; unreferenced files are never touched), and removes it from the list. An open document is closed first. In the desktop app the files go to the Recycle Bin / Trash; in the plain Node daemon they are deleted permanently. Requires confirm: true; dryRun: true only shows what would be removed.',
+      example: { path: 'C:/projects/old.mockup.json', confirm: true },
+      inputSchema: {
+        path: pathField,
+        docId: z.string().optional().describe('Open document, instead of path.'),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe('Must be true to delete (the operation removes files from disk).'),
+        dryRun: z
+          .boolean()
+          .optional()
+          .describe('true: only lists what would be removed, deletes nothing.'),
+      },
+      annotations: DESTRUCTIVE,
+    },
+    async ({ path: p, docId, confirm, dryRun }) => {
+      const target = resolvePath(p, docId);
+      if (!dryRun && confirm !== true)
+        throw new ToolError(
+          'delete_file removes files from disk: pass confirm: true (or dryRun: true to preview what would be removed).',
+        );
+      const r = await guard(() =>
+        index().deleteFile(target, { trash: opts.trash, dryRun: dryRun === true }),
+      );
+      const where =
+        r.mode === 'trash' ? `moved to the ${r.trashName}` : 'deleted permanently (no trash)';
+      const lines = [
+        dryRun
+          ? `Would delete ${r.path}: files ${r.mode === 'trash' ? `go to the ${r.trashName}` : 'are deleted permanently'}${r.open ? '; the open document is closed first' : ''}.`
+          : `${r.path} ${where}${r.open ? ' (the open document was closed first)' : ''}.`,
+        `Assets ${dryRun ? 'to remove' : 'removed'} (used only by this document): ${r.assets.length ? r.assets.join(', ') : '(none)'}`,
+      ];
+      if (r.keptAssets.length)
+        lines.push(
+          `Assets kept (another document in the folder may use them): ${r.keptAssets.join(', ')}`,
+        );
+      if (r.failedAssets.length)
+        lines.push(`Assets that could not be removed: ${r.failedAssets.join(', ')}`);
+      return lines.join('\n');
+    },
+  );
 }
