@@ -229,7 +229,7 @@ export function registerFilesTools(ctx: ToolContext): void {
     {
       title: 'Remove a file from the list',
       description:
-        'Removes a file from the known files (list_files and the home screen): index entry, recents and thumbnails. If it is open it is closed first (pending changes saved). The file stays on disk; opening it again registers it again. To delete it from disk use delete_file.',
+        'Removes a file from the known files (list_files, home screen): index, recents, thumbnails. Closes it first if open (changes saved). The file stays on disk; opening it again registers it again. To delete it from disk use delete_file.',
       example: { path: 'C:/projects/site.mockup.json' },
       inputSchema: {
         path: pathField,
@@ -252,7 +252,7 @@ export function registerFilesTools(ctx: ToolContext): void {
     {
       title: 'Delete a file',
       description:
-        'Deletes a .mockup.json from disk with the assets/ files only it uses (an asset that another .mockup.json in the same folder mentions is kept; unreferenced files are never touched), and removes it from the list. An open document is closed first. In the desktop app the files go to the Recycle Bin / Trash; in the plain Node daemon they are deleted permanently. Requires confirm: true; dryRun: true only shows what would be removed.',
+        'Deletes a .mockup.json and the assets/ files only it uses (kept if another .mockup.json in the folder mentions them), then forgets it; closes it first if open. Desktop: Recycle Bin / Trash; Node daemon: permanent. Needs confirm: true; dryRun: true previews.',
       example: { path: 'C:/projects/old.mockup.json', confirm: true },
       inputSchema: {
         path: pathField,
