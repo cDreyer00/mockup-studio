@@ -64,7 +64,7 @@ export function registerPresentationTools(ctx: ToolContext): void {
     {
       title: 'Start presentation',
       description:
-        'Starts presentation mode in the connected editor window: each visible root frame of the page is a slide, in page order. Returns the slide order; navigate with presentation_goto and end with stop_presentation.',
+        'Presents a page in the focused editor window: each visible root frame is a slide, in page order. Makes docId the active document first (even if presenting then fails). If already presenting, switches page and slide in place. Returns the slide order; then presentation_goto / stop_presentation.',
       example: { pageId: 'pg_ab12cd34', frameId: 'fr_ab12cd34' },
       inputSchema: {
         pageId: z
@@ -151,7 +151,8 @@ export function registerPresentationTools(ctx: ToolContext): void {
           .optional()
           .describe('"next", "previous", "first" or "last" (stays at the edges).'),
       },
-      annotations: IDEMPOTENT,
+      // `step: "next"` moves again on every call: not idempotent.
+      annotations: WRITE,
     },
     async ({ index, frameId, step }) => {
       const given = [index, frameId, step].filter((v) => v !== undefined).length;
