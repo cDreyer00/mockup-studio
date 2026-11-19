@@ -200,3 +200,33 @@ test('MCP start_presentation / presentation_goto / stop_presentation drive the e
   await expect(overlay(page)).toHaveCount(0);
   expect(await mcp.call('stop_presentation', {})).toContain('No presentation was running');
 });
+
+test('leaving the browser full screen ends the presentation and keeps the canvas scroll', async ({
+  page,
+}) => {
+  await deck('present-fullscreen');
+  await gotoEditor(page);
+  await expect(page.locator('[data-testid^="frame-label-"]')).toHaveCount(3);
+
+  // Scroll the canvas away from where it opened.
+  const world = page.getByTestId('canvas-world');
+  const transform = () => world.evaluate((el) => (el as HTMLElement).style.transform);
+  const opened = await transform();
+  const box = (await page.getByTestId('canvas').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(120, 240);
+  await expect.poll(transform).not.toBe(opened);
+  const scrolled = await transform();
+
+  // From a click the browser grants full screen.
+  await page.getByTestId('present-button').click();
+  await expect(overlay(page)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+
+  await page.evaluate(() => document.exitFullscreen());
+  await expect(overlay(page)).toHaveCount(0);
+  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+  await expect.poll(transform).toBe(scrolled);
+  // The focus is back on the Present button.
+  await expect(page.getByTestId('present-button')).toBeFocused();
+});
