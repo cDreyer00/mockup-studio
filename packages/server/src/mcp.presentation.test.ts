@@ -280,6 +280,35 @@ describe('MCP presentation', () => {
     expect(two.isError).toBe(true);
   });
 
+  it('goto rejects negative, fractional and unknown-step arguments and clamps out-of-range indexes', async () => {
+    await connectEditor();
+    await call('start_presentation');
+    for (const args of [
+      { index: -1 },
+      { index: 1.5 },
+      { step: 'sideways' },
+      { index: 'one' },
+    ] as Record<string, unknown>[]) {
+      const res = await call('presentation_goto', args);
+      expect(res.isError, JSON.stringify(args)).toBe(true);
+    }
+    // still on the first slide after the rejected calls
+    const stay = await call('presentation_goto', { index: 0 });
+    expect(textOf(stay)).toContain('slide 1 / 2');
+    const far = await call('presentation_goto', { index: 99 });
+    expect(far.isError).toBeFalsy();
+    expect(textOf(far)).toContain('slide 2 / 2');
+  });
+
+  it('start rejects a frame that is not on the requested page', async () => {
+    await connectEditor();
+    const pageId = daemon.store.get(docId).pages[0]!.id;
+    const res = await call('start_presentation', { pageId: 'pg_empty001', frameId: mobileId });
+    expect(res.isError).toBe(true);
+    const ok = await call('start_presentation', { pageId, frameId: mobileId });
+    expect(ok.isError).toBeFalsy();
+  });
+
   it('stop ends a running presentation and is not an error when none is running', async () => {
     await connectEditor();
     const none = await call('stop_presentation');

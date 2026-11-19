@@ -97,6 +97,34 @@ describe('DaemonClient', () => {
     expect(reg()).toHaveLength(before + 2);
   });
 
+  it('re-registers as presenting after the socket reconnects and keeps presenting', () => {
+    vi.useFakeTimers();
+    try {
+      const { doc } = makeDoc();
+      const first = FakeSocket.last!;
+      first.emit(hello(doc));
+      presentation.start();
+      first.close(); // the daemon went away: the client schedules a reconnect
+      expect(presentation.getState().active).toBe(true);
+      vi.advanceTimersByTime(5000);
+      const second = FakeSocket.last!;
+      expect(second).not.toBe(first);
+      second.onopen?.();
+      const reg = second.sent.filter((m) => m.type === 'editor:register');
+      expect(reg).toHaveLength(1);
+      expect(reg[0]).toMatchObject({ presenting: true });
+      second.emit(hello(doc)); // same document again: the show goes on
+      expect(presentation.getState()).toMatchObject({ active: true, docId: doc.id });
+      presentation.stop();
+      expect(second.sent.filter((m) => m.type === 'editor:register').at(-1)).toMatchObject({
+        presenting: false,
+      });
+    } finally {
+      presentation.stop();
+      vi.useRealTimers();
+    }
+  });
+
   it('runs editor:command and replies with editor:result', async () => {
     const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));

@@ -453,3 +453,116 @@ describe('full screen', () => {
     delete (document as unknown as { fullscreenElement?: unknown }).fullscreenElement;
   });
 });
+
+describe('edge cases (QA)', () => {
+  it('a single-frame deck clamps next/previous/home/end and every goto', () => {
+    const doc = createDocument('One');
+    const only = frame('Only');
+    doc.pages[0]!.frames.push(only);
+    load(doc);
+    presentation.start();
+    for (const type of ['next', 'previous', 'first', 'last'] as const) {
+      presentation.navigate({ type });
+      expect(presentation.getState()).toMatchObject({ index: 0, frameId: only.id });
+    }
+    expect(presentation.goto({ index: 5 }).index).toBe(0);
+    expect(presentation.goto({ index: -3 }).index).toBe(0);
+  });
+
+  it('goto with an out-of-range index clamps instead of throwing', () => {
+    load(makeDeck().doc);
+    presentation.start();
+    expect(presentation.goto({ index: -1 }).index).toBe(0);
+    expect(presentation.goto({ index: 1000 }).index).toBe(2);
+  });
+
+  it('rejects a frame that exists on another page when pageId is given', () => {
+    const { doc, f1 } = makeDeck();
+    const other = frame('Elsewhere');
+    doc.pages.push({ id: 'p2', name: 'Second', frames: [other], background: '' });
+    load(doc);
+    expect(() => presentation.start({ pageId: 'p2', frameId: f1.id })).toThrow(/not a slide/);
+    expect(presentation.getState().active).toBe(false);
+    presentation.start({ pageId: 'p2', frameId: other.id });
+    expect(() => presentation.goto({ frameId: f1.id })).toThrow(/not a slide/);
+  });
+
+  it('rejects a hidden frame as the start frame and a failed start leaves a running one untouched', () => {
+    const { doc, f1, f2 } = makeDeck();
+    f2.hidden = true;
+    load(doc);
+    expect(() => presentation.start({ frameId: f2.id })).toThrow(/not a slide/);
+    presentation.start({ frameId: f1.id });
+    presentation.navigate({ type: 'next' });
+    expect(() => presentation.start({ frameId: 'nope' })).toThrow();
+    expect(presentation.getState()).toMatchObject({ active: true, index: 1 });
+  });
+
+  it('deleting the current (last) frame while presenting moves to the new last one', () => {
+    const { doc, f3 } = makeDeck();
+    load(doc);
+    presentation.start({ frameId: f3.id });
+    edit((d) => {
+      d.pages[0]!.frames.pop();
+    });
+    expect(presentation.getState()).toMatchObject({ active: true, index: 1 });
+    expect(names()).toEqual(['One', 'Two']);
+  });
+
+  it('after every frame is deleted, new frames appear again and the show resumes at the first', () => {
+    const { doc } = makeDeck();
+    load(doc);
+    presentation.start();
+    edit((d) => {
+      d.pages[0]!.frames = [];
+    });
+    expect(usePresentation.getState()).toMatchObject({ active: true, index: -1 });
+    expect(presentation.getState().frameId).toBeNull();
+    presentation.navigate({ type: 'next' });
+    expect(usePresentation.getState().index).toBe(-1);
+    edit((d) => {
+      d.pages[0]!.frames.push(frame('Fresh'));
+    });
+    expect(presentation.getState()).toMatchObject({ index: 0 });
+    expect(names()).toEqual(['Fresh']);
+    presentation.stop();
+    expect(presentation.getState().active).toBe(false);
+  });
+
+  it('switching the editor page while presenting keeps the show on its page; Esc keeps the editor page', () => {
+    const { doc, f1, f2 } = makeDeck();
+    doc.pages.push({ id: 'p2', name: 'Second', frames: [frame('Other')], background: '' });
+    load(doc);
+    presentation.start({ frameId: f1.id });
+    presentation.navigate({ type: 'next' });
+    useUi.setState({ pageId: 'p2' });
+    expect(presentation.getState()).toMatchObject({ active: true, pageId: doc.pages[0]!.id });
+    presentation.stop();
+    expect(useUi.getState().pageId).toBe('p2');
+    // the shown page is not the presented one: the selection is not touched
+    expect(useUi.getState().selection).not.toContain(f2.id);
+  });
+
+  it('restarting on another page via MCP switches slides and resets the index', () => {
+    const { doc } = makeDeck();
+    doc.pages.push({ id: 'p2', name: 'Second', frames: [frame('A'), frame('B')], background: '' });
+    load(doc);
+    presentation.start();
+    presentation.navigate({ type: 'last' });
+    const st = presentation.start({ pageId: 'p2' });
+    expect(st).toMatchObject({ pageId: 'p2', index: 0 });
+    expect(names()).toEqual(['A', 'B']);
+  });
+
+  it('a start frame given as a deep descendant starts at its top-level frame', () => {
+    const { doc, f2 } = makeDeck();
+    const deep = createNodeFromTag('span', { name: 'Deep', text: 'x' });
+    const mid = createNodeFromTag('div', { name: 'Mid', children: [deep] });
+    f2.children.push(mid);
+    load(doc);
+    useUi.setState({ selection: [deep.id] });
+    expect(presentation.start().frameId).toBe(f2.id);
+    presentation.stop();
+    expect(presentation.start({ frameId: deep.id }).frameId).toBe(f2.id);
+  });
+});
