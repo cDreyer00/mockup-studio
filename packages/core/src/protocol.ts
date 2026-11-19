@@ -4,6 +4,7 @@
  */
 import type { Document } from './types.js';
 import type { Op } from './ops.js';
+import type { PresentationState, SlideStep } from './presentation.js';
 
 export type OpSource = 'editor' | 'mcp' | 'system';
 
@@ -201,6 +202,34 @@ export interface RemixResult {
   turnId?: string;
 }
 
+/* ---------- editor window commands (presentation) ---------- */
+
+/** Command the daemon sends to an editor window on behalf of the MCP (presentation mode). */
+export type EditorCommand =
+  | {
+      type: 'presentation:start';
+      docId: string;
+      /** Default: the page shown in the editor. */
+      pageId?: string;
+      /** Slide to start from (a root frame of the page). Default: the selection's frame, or the first. */
+      frameId?: string;
+    }
+  | { type: 'presentation:stop' }
+  | {
+      type: 'presentation:goto';
+      /** 0-based slide index. */
+      index?: number;
+      frameId?: string;
+      step?: SlideStep;
+    };
+
+/** Command for the editor window; it answers with an `editor:result` request carrying the `commandId`. */
+export interface EditorCommandMessage {
+  type: 'editor:command';
+  commandId: string;
+  command: EditorCommand;
+}
+
 export type ServerMessage =
   | HelloEvent
   | DocOpenedEvent
@@ -211,6 +240,7 @@ export type ServerMessage =
   | ActiveChangedEvent
   | AgentFinishedEvent
   | AssistantEventMessage
+  | EditorCommandMessage
   | AckMessage
   | ErrorMessage;
 
@@ -366,6 +396,29 @@ export interface RemixRequest {
   prompt?: string;
 }
 
+/**
+ * Registers the connection as an editor window (it can receive `editor:command`). Sent on connect and
+ * again when the window gets focus: the daemon targets the most recently focused editor. Ack: `{}`.
+ */
+export interface EditorRegisterRequest {
+  type: 'editor:register';
+  reqId: string;
+  /** The window has focus. */
+  focused: boolean;
+}
+
+/** Answer to an `editor:command`. Ack: `{}`. */
+export interface EditorResultRequest {
+  type: 'editor:result';
+  reqId: string;
+  commandId: string;
+  ok: boolean;
+  /** Presentation state after the command (presentation commands). */
+  result?: PresentationState;
+  /** Why the command failed (`ok: false`). */
+  error?: string;
+}
+
 export type ClientMessage =
   | OpApplyRequest
   | SelectionSetRequest
@@ -388,4 +441,6 @@ export type ClientMessage =
   | ScriptSaveRequest
   | ScriptDeleteRequest
   | ScriptGenerateRequest
-  | RemixRequest;
+  | RemixRequest
+  | EditorRegisterRequest
+  | EditorResultRequest;

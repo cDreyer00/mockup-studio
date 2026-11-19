@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './ops.js';
 export * from './ids.js';
 export * from './protocol.js';
+export * from './presentation.js';
 export * from './styles.js';
 export * from './document.js';
 export * from './apply.js';
