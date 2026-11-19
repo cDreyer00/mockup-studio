@@ -24,14 +24,14 @@ npm run icons -w @mockup/desktop                # regenerates build/icon.png and
 
 `window.mockupDesktop` only exists when the page comes from `127.0.0.1`/`localhost`:
 
-| API                                        | IPC channel                                                                                                                                        |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `showOpenDialog()`                         | `desktop:openDialog` (invoke)                                                                                                                      |
-| `showSaveDialog({ title?, defaultPath? })` | `desktop:saveDialog` (invoke); the path comes back ending in `.mockup.json`                                                                        |
-| `onMenu(cb)`                               | `desktop:menu` (main → renderer)                                                                                                                   |
-| `setPresentationFullScreen(on)`            | `desktop:presentationFullScreen` (invoke); resolves with whether the window is full screen afterwards; leaving restores the pre-presentation state |
-| `onLeaveFullScreen(cb)`                    | `desktop:leaveFullScreen` (main → renderer), fired on the window's `leave-full-screen`                                                             |
-| `setDocumentState({ title, path, dirty })` | `desktop:docState` (send); window title with `•` when dirty, `setRepresentedFilename`/`setDocumentEdited`                                          |
+| API                                        | IPC channel                                                                                                                                                                                    |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `showOpenDialog()`                         | `desktop:openDialog` (invoke)                                                                                                                                                                  |
+| `showSaveDialog({ title?, defaultPath? })` | `desktop:saveDialog` (invoke); the path comes back ending in `.mockup.json`                                                                                                                    |
+| `onMenu(cb)`                               | `desktop:menu` (main → renderer)                                                                                                                                                               |
+| `setPresentationFullScreen(on)`            | `desktop:presentationFullScreen` (invoke); resolves with whether the window is full screen afterwards; leaving restores the pre-presentation state; requests from one window run one at a time |
+| `onLeaveFullScreen(cb)`                    | `desktop:leaveFullScreen` (main → renderer), fired on the window's `leave-full-screen` unless it came from a `setPresentationFullScreen(false)`                                                |
+| `setDocumentState({ title, path, dirty })` | `desktop:docState` (send); window title with `•` when dirty, `setRepresentedFilename`/`setDocumentEdited`                                                                                      |
 
 Menu actions: `new`, `open`, `openRecent` (with the path in `arg`), `save`, `saveAs`, `close`, `undo`, `redo`, `zoomIn`, `zoomOut`, `zoomReset`, `zoomFit`, `presentFromStart`, `presentFromCurrent` (View menu, F5 / Shift+F5, display only). The IPC handlers check that the sender frame is from the daemon's origin.
 
