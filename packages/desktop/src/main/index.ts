@@ -340,6 +340,8 @@ function startEmbedded(port: number, files: string[]): Promise<DaemonHandle> {
     openFiles: files,
     writeInfo: true,
     mode: 'desktop',
+    // deleted documents (Home › Delete file…, delete_file) go to the Recycle Bin / Trash
+    trash: (p) => shell.trashItem(p),
     // headless (e.g. opened by the CLI): `mockup stop` quits the app; with a window, the daemon refuses (409)
     onShutdown: startedHeadless ? () => app.quit() : undefined,
   });
