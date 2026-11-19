@@ -39,7 +39,7 @@ describe('runEditorCommand', () => {
     expect(st.slides.map((s) => s.name)).toEqual(['One', 'Two', 'Three']);
   });
 
-  it('start honours frameId, restarts when already presenting', async () => {
+  it('start honours frameId, restarts in place when already presenting', async () => {
     const doc = deck();
     load(doc);
     const [, two, three] = doc.pages[0]!.frames;
@@ -49,7 +49,7 @@ describe('runEditorCommand', () => {
       docId: doc.id,
       frameId: three!.id,
     });
-    expect(st.index).toBe(2);
+    expect(st).toMatchObject({ active: true, index: 2 });
   });
 
   it('start uses the selection when there is no frameId', async () => {

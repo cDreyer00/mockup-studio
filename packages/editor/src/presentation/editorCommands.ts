@@ -38,7 +38,7 @@ export async function runEditorCommand(command: EditorCommand): Promise<Presenta
   switch (command.type) {
     case 'presentation:start': {
       await waitForActiveDoc(command.docId, ACTIVE_DOC_WAIT_MS);
-      if (presentation.getState().active) presentation.stop();
+      // Already presenting: `start` swaps the slides in place (no full screen round trip).
       presentation.start({
         ...(command.pageId !== undefined && { pageId: command.pageId }),
         ...(command.frameId !== undefined && { frameId: command.frameId }),

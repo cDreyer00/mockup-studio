@@ -1,7 +1,8 @@
 /**
  * Presentation mode: the visible root frames of a page are played as slides, full screen, on top of
- * the editor. The canvas stays mounted underneath (zoom and scroll are never touched), the document
- * is only read (the view with expanded components) and follows live edits from the user or the MCP.
+ * the editor. The canvas stays mounted underneath (page, zoom and scroll are never touched), the
+ * document is only read (the view with expanded components) and follows live edits from the user or
+ * the MCP.
  */
 import { create } from 'zustand';
 import {
@@ -102,6 +103,20 @@ let browserFullscreen = false;
 let fullscreenPending: Promise<void> = Promise.resolve();
 let detach: (() => void) | null = null;
 let unsubDoc: (() => void) | null = null;
+/** Element focused before the presentation (e.g. the Present button), focused again on exit. */
+let returnFocus: HTMLElement | null = null;
+
+function saveFocus(): void {
+  if (typeof document === 'undefined') return;
+  const el = document.activeElement;
+  returnFocus = el instanceof HTMLElement && el !== document.body ? el : null;
+}
+
+function restoreFocus(): void {
+  const el = returnFocus;
+  returnFocus = null;
+  if (el?.isConnected) el.focus({ preventScroll: true });
+}
 
 function setFullscreen(on: boolean): void {
   if (usePresentation.getState().active && usePresentation.getState().fullscreen !== on) {
@@ -214,25 +229,19 @@ function stopInternal(restore: boolean): void {
   fxClock.setPlaying(cur.wasPlaying);
   leaveFullscreen();
   ui.hover(null);
+  restoreFocus();
   if (!restore || cur.inComponentEdit) return;
   const last = cur.slides[cur.index]?.id;
   const shown = selectPage(useDoc.getState().doc, useUi.getState().pageId)?.id;
-  if (cur.pageId && shown !== cur.pageId) {
-    // Presented from the MCP a page the editor was not showing: goes to it.
-    ui.setPage(cur.pageId);
-    if (last) {
-      ui.select([last]);
-      ui.focus([last]);
-    }
-  } else if (last && last !== cur.startFrameId) {
-    ui.select([last]);
-  }
+  // Only on the page the editor shows (the MCP can present another one): the page and view stay.
+  if (last && shown === cur.pageId && last !== cur.startFrameId) ui.select([last]);
 }
 
 export const presentation = {
   /**
    * Starts presenting a page. Throws when there is nothing to present. Call it synchronously from
-   * a user gesture so the browser grants full screen.
+   * a user gesture so the browser grants full screen. While presenting it switches to the new page
+   * and slide without leaving full screen.
    */
   start(opts: StartOptions = {}): PresentationState {
     const { doc, activeDocId } = useDoc.getState();
@@ -249,8 +258,15 @@ export const presentation = {
     } else {
       index = startSlideIndex(page, slides, useUi.getState().selection);
     }
-    if (usePresentation.getState().active) stopInternal(true);
+    if (usePresentation.getState().active) {
+      // Restart while presenting: swap the slides in place. Full screen, listeners and what to
+      // restore on exit stay as they are (leaving and re-entering full screen would race).
+      usePresentation.setState({ docId: activeDocId, pageId: page.id, slides, index });
+      ui.hover(null);
+      return presentation.getState();
+    }
 
+    saveFocus();
     const inComponentEdit = selectPage(doc, useUi.getState().pageId)?.id === COMPONENT_EDIT_PAGE_ID;
     usePresentation.setState({
       active: true,

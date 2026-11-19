@@ -150,6 +150,24 @@ describe('presentation.start', () => {
     presentation.stop();
     expect(useFxClock.getState().playing).toBe(false);
   });
+
+  it('restarting while presenting swaps the slides in place and keeps what to restore', () => {
+    const { doc, f3 } = makeDeck();
+    const other = frame('Other');
+    doc.pages.push({ id: 'p2', name: 'Second', frames: [other], background: '' });
+    load(doc);
+    fxClock.setPlaying(false);
+    presentation.start({ from: 'first' });
+    expect(presentation.start({ pageId: 'p2' })).toMatchObject({ active: true, pageId: 'p2' });
+    expect(names()).toEqual(['Other']);
+    expect(presentation.start({ frameId: f3.id })).toMatchObject({
+      pageId: doc.pages[0]!.id,
+      index: 2,
+    });
+    presentation.stop();
+    expect(useFxClock.getState().playing).toBe(false);
+    expect(useUi.getState().selection).toEqual([f3.id]);
+  });
 });
 
 describe('navigation', () => {
@@ -302,15 +320,29 @@ describe('restoring the editor on stop', () => {
     expect(useUi.getState().viewport).toEqual({ x: 0, y: 0, z: 1 });
   });
 
-  it('switches to the presented page when the editor shows another one', () => {
+  it('keeps the page and view when another page was presented (MCP)', () => {
     const { doc } = makeDeck();
     const other = frame('Other');
     doc.pages.push({ id: 'p2', name: 'Second', frames: [other], background: '' });
     load(doc);
+    useUi.setState({ selection: ['keep'] });
     presentation.start({ pageId: 'p2' });
     presentation.stop();
-    expect(useUi.getState()).toMatchObject({ pageId: 'p2', selection: [other.id] });
-    expect(useUi.getState().focusRequest?.nodeIds).toEqual([other.id]);
+    expect(useUi.getState()).toMatchObject({ pageId: null, selection: ['keep'] });
+    expect(useUi.getState().focusRequest).toBeNull();
+    expect(useUi.getState().viewport).toEqual({ x: 0, y: 0, z: 1 });
+  });
+
+  it('gives the focus back to the element focused before (e.g. the Present button)', () => {
+    load(makeDeck().doc);
+    const button = document.createElement('button');
+    document.body.append(button);
+    button.focus();
+    presentation.start();
+    button.blur();
+    presentation.stop();
+    expect(document.activeElement).toBe(button);
+    button.remove();
   });
 
   it('does not touch the selection in component edit mode', () => {
@@ -370,6 +402,18 @@ describe('full screen', () => {
     presentation.start();
     leave();
     expect(presentation.getState().active).toBe(false);
+  });
+
+  it('desktop: restarting while presenting does not leave and re-enter full screen', async () => {
+    const { api } = desktop();
+    const { doc, f3 } = makeDeck();
+    load(doc);
+    presentation.start();
+    await presentation.settled();
+    presentation.start({ frameId: f3.id });
+    await presentation.settled();
+    expect(api.setPresentationFullScreen).toHaveBeenCalledTimes(1);
+    expect(presentation.getState()).toMatchObject({ active: true, index: 2, fullscreen: true });
   });
 
   it('works with an older desktop build without the full screen API', () => {
