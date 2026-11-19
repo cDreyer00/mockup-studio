@@ -18,6 +18,7 @@ import {
   type DaemonHandle,
 } from '@mockup/server';
 import { parseArgs, userArgs, type AppArgs } from './args.js';
+import { planFullScreen } from './fullscreen.js';
 import {
   SESSION_WATCH_MS,
   dataDirOverride,
@@ -202,6 +203,9 @@ function isTrustedSender(frameUrl: string | undefined): boolean {
   }
 }
 
+/** Per window: was it already full screen when the presentation started? (absent = not presenting) */
+const presentationFullScreen = new WeakMap<BrowserWindow, boolean>();
+
 function setupIpc(): void {
   ipcMain.handle('desktop:openDialog', async (e) => {
     if (!isTrustedSender(e.senderFrame?.url)) return null;
@@ -232,6 +236,33 @@ function setupIpc(): void {
       return r.canceled || !r.filePath ? null : normalizeDocumentPath(r.filePath);
     },
   );
+
+  ipcMain.handle('desktop:presentationFullScreen', async (e, on: unknown) => {
+    if (!isTrustedSender(e.senderFrame?.url)) return false;
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win || win.isDestroyed()) return false;
+    const plan = planFullScreen(presentationFullScreen.get(win), !!on, win.isFullScreen());
+    if (plan.remember === undefined) presentationFullScreen.delete(win);
+    else presentationFullScreen.set(win, plan.remember);
+    if (win.isFullScreen() !== plan.target) {
+      // setFullScreen is asynchronous on some platforms: wait for the transition (bounded).
+      await new Promise<void>((resolve) => {
+        const done = (): void => {
+          clearTimeout(timer);
+          win.removeListener('enter-full-screen', done);
+          win.removeListener('leave-full-screen', done);
+          win.removeListener('closed', done);
+          resolve();
+        };
+        const timer = setTimeout(done, 1000);
+        if (plan.target) win.once('enter-full-screen', done);
+        else win.once('leave-full-screen', done);
+        win.once('closed', done);
+        win.setFullScreen(plan.target);
+      });
+    }
+    return !win.isDestroyed() && win.isFullScreen();
+  });
 
   ipcMain.on('desktop:docState', (e, s: { title: string; path: string | null; dirty: boolean }) => {
     if (!isTrustedSender(e.senderFrame?.url)) return;
@@ -267,7 +298,13 @@ function createMainWindow(): BrowserWindow {
     },
   });
   win.once('ready-to-show', () => win.show());
+  win.on('leave-full-screen', () => {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send('desktop:leaveFullScreen');
+    }
+  });
   win.on('closed', () => {
+    presentationFullScreen.delete(win);
     if (mainWindow === win) mainWindow = null;
   });
   win.on('focus', () => refreshMenu());

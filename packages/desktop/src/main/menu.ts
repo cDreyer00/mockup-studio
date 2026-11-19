@@ -14,7 +14,9 @@ export type MenuAction =
   | 'zoomIn'
   | 'zoomOut'
   | 'zoomReset'
-  | 'zoomFit';
+  | 'zoomFit'
+  | 'presentFromStart'
+  | 'presentFromCurrent';
 
 export interface MenuDeps {
   /** Sends the action to the focused window's renderer. */
@@ -90,6 +92,19 @@ export function buildMenuTemplate(d: MenuDeps): MenuItemConstructorOptions[] {
     {
       label: 'View',
       submenu: [
+        {
+          label: 'Present from first frame',
+          accelerator: 'F5',
+          ...displayOnly,
+          click: () => d.send('presentFromStart'),
+        },
+        {
+          label: 'Present from selected frame',
+          accelerator: 'Shift+F5',
+          ...displayOnly,
+          click: () => d.send('presentFromCurrent'),
+        },
+        { type: 'separator' },
         {
           label: 'Zoom in',
           accelerator: 'Shift+Plus',

@@ -16,7 +16,9 @@ export type DesktopMenuAction =
   | 'zoomIn'
   | 'zoomOut'
   | 'zoomReset'
-  | 'zoomFit';
+  | 'zoomFit'
+  | 'presentFromStart'
+  | 'presentFromCurrent';
 
 export interface MockupDesktopApi {
   readonly isDesktop: true;
@@ -25,6 +27,10 @@ export interface MockupDesktopApi {
   showSaveDialog(opts?: { title?: string; defaultPath?: string }): Promise<string | null>;
   onMenu(cb: (action: DesktopMenuAction, arg?: string) => void): () => void;
   setDocumentState(state: { title: string; path: string | null; dirty: boolean }): void;
+  /** Enters/leaves the presentation's full screen; resolves with whether the window is full screen afterwards. */
+  setPresentationFullScreen(on: boolean): Promise<boolean>;
+  /** Fires when the window leaves full screen (e.g. the user pressed Esc / F11). Returns the unsubscribe. */
+  onLeaveFullScreen(cb: () => void): () => void;
 }
 
 const isLocalOrigin =
@@ -46,6 +52,14 @@ if (isLocalOrigin) {
       ipcRenderer.on('desktop:menu', handler);
       return () => {
         ipcRenderer.off('desktop:menu', handler);
+      };
+    },
+    setPresentationFullScreen: (on) => ipcRenderer.invoke('desktop:presentationFullScreen', !!on),
+    onLeaveFullScreen(cb) {
+      const handler = (): void => cb();
+      ipcRenderer.on('desktop:leaveFullScreen', handler);
+      return () => {
+        ipcRenderer.off('desktop:leaveFullScreen', handler);
       };
     },
     setDocumentState(state) {
