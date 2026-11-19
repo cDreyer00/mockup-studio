@@ -88,6 +88,23 @@ export function addRecent(filePath: string, dataDir: string = getDataDir()): voi
   }
 }
 
+/** Removes a path from the recents (resolved; case-insensitive on Windows). */
+export function removeRecent(filePath: string, dataDir: string = getDataDir()): void {
+  const abs = path.resolve(filePath);
+  const same = (p: string): boolean =>
+    process.platform === 'win32'
+      ? path.resolve(p).toLowerCase() === abs.toLowerCase()
+      : path.resolve(p) === abs;
+  const list = readRecent(dataDir);
+  const next = list.filter((p) => !same(p));
+  if (next.length === list.length) return;
+  try {
+    fs.writeFileSync(path.join(dataDir, 'recent.json'), JSON.stringify(next, null, 2), 'utf8');
+  } catch {
+    /* ignored */
+  }
+}
+
 export function readConfig(dataDir: string = getDataDir()): { port?: number } {
   return readJson<{ port?: number }>(path.join(dataDir, 'config.json')) ?? {};
 }

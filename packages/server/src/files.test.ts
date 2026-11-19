@@ -1,7 +1,8 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDocument, createNodeFromTag, serializeDocument } from '@mockup/core';
 import { FileIndex, FilesError, getFileIndex, normalizeFolder, normalizeTags } from './files.js';
 import { DocumentStore } from './store.js';
@@ -122,8 +123,66 @@ describe('FileIndex', () => {
     fs.rmSync(a);
     expect((await idx.get(a))!.missing).toBe(true);
     await idx.forget(a);
-    // still listed through the recents, but outside the index
-    expect((await idx.get(a))!.tags).toEqual([]);
+    // forgotten: gone from the index and from the recents
+    expect((await idx.list()).files).toEqual([]);
+  });
+
+  it('forget removes the file from the list for good: index, recents and open documents', async () => {
+    const a = makeDoc('a', 'x');
+    const b = makeDoc('b', 'y');
+    const idx = getFileIndex(store, dataDir);
+    const info = await store.open(a);
+    await store.open(b);
+    const p = store.get(info.docId).pages[0]!.frames[0]!.children[0]!;
+    store.applyOps(
+      info.docId,
+      [{ type: 'setText', changes: [{ nodeId: p.id, text: 'unsaved' }] }],
+      {
+        source: 'mcp',
+      },
+    );
+    const names = async (): Promise<string[]> => (await idx.list()).files.map((f) => f.name).sort();
+    expect(await names()).toEqual(['a', 'b']);
+
+    await idx.forget(a);
+    // the open document is closed first (pending changes saved), then forgotten
+    expect(store.list().map((d) => d.path)).toEqual([path.resolve(b)]);
+    expect(fs.readFileSync(a, 'utf8')).toContain('unsaved');
+    expect(await names()).toEqual(['b']);
+    const recent = JSON.parse(fs.readFileSync(path.join(dataDir, 'recent.json'), 'utf8'));
+    expect(recent).toEqual([path.resolve(b)]);
+    await idx.flush();
+    const saved = JSON.parse(fs.readFileSync(path.join(dataDir, 'files.json'), 'utf8'));
+    expect(Object.keys(saved.files)).toEqual([path.resolve(b)]);
+    // a fresh index (next daemon start) does not bring it back either
+    expect(
+      (await new FileIndex(new DocumentStore({ dataDir }), dataDir).list()).files,
+    ).toHaveLength(1);
+    expect(idx.isKnown(a)).toBe(false);
+
+    // opening it again explicitly registers it as usual
+    await store.open(a);
+    expect(await names()).toEqual(['a', 'b']);
+    await store.closeAll();
+  });
+
+  it('forget also drops the cached thumbnails of the file', async () => {
+    const a = makeDoc('a', 'x');
+    const b = makeDoc('b', 'x');
+    const idx = new FileIndex(store, dataDir);
+    await idx.add(dir);
+    const thumbs = path.join(dataDir, 'thumbs');
+    fs.mkdirSync(thumbs);
+    const hash = (p: string): string =>
+      createHash('sha1')
+        .update(process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p))
+        .digest('hex');
+    for (const w of [240, 480]) {
+      fs.writeFileSync(path.join(thumbs, `${hash(a)}-${w}.png`), 'x');
+      fs.writeFileSync(path.join(thumbs, `${hash(b)}-${w}.png`), 'x');
+    }
+    await idx.forget(a);
+    expect(fs.readdirSync(thumbs).sort()).toEqual([`${hash(b)}-240.png`, `${hash(b)}-480.png`]);
   });
 
   it('add on a folder registers up to 2 levels', async () => {
@@ -197,5 +256,192 @@ describe('FileIndex', () => {
     await idx.setMeta(a, { tags: ['m'] });
     expect((await idx.get(a))!.tags).toEqual(['m']);
     expect(fs.existsSync(path.join(dataDir, 'files.json'))).toBe(false);
+  });
+});
+
+describe('FileIndex.deleteFile', () => {
+  /** Document in `dir` whose frame uses the given asset paths (img src, background and font). */
+  function docUsing(name: string, assets: { img?: string[]; bg?: string; font?: string }): string {
+    const doc = createDocument(name);
+    const frame = createNodeFromTag('div', {
+      isRoot: true,
+      name: 'Frame',
+      styles: assets.bg ? { 'background-image': `url(assets/${assets.bg})` } : {},
+      position: { x: 0, y: 0 },
+    });
+    for (const src of assets.img ?? []) {
+      const img = createNodeFromTag('img', { name: 'Img' });
+      img.src = `assets/${src}`;
+      frame.children.push(img);
+    }
+    doc.pages[0]!.frames.push(frame);
+    if (assets.font) doc.fonts.push({ family: 'Brand', source: 'file', files: [assets.font] });
+    const file = path.join(dir, `${name}.mockup.json`);
+    fs.writeFileSync(file, serializeDocument(doc), 'utf8');
+    return file;
+  }
+  const asset = (rel: string): string => {
+    const f = path.join(dir, 'assets', ...rel.split('/'));
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, rel);
+    return f;
+  };
+  const listed = async (idx: FileIndex): Promise<string[]> =>
+    (await idx.list()).files.map((f) => f.name).sort();
+
+  it('removes the file and its exclusive assets, keeps shared and unreferenced ones', async () => {
+    const a = docUsing('a', {
+      img: ['only-a.png', 'shared.png'],
+      bg: 'bg-a.png',
+      font: 'fonts/a.woff2',
+    });
+    const b = docUsing('b', { img: ['shared.png', 'only-b.png'] });
+    for (const r of ['only-a.png', 'shared.png', 'bg-a.png', 'fonts/a.woff2', 'only-b.png'])
+      asset(r);
+    asset('orphan.png');
+    const idx = new FileIndex(store, dataDir);
+    await idx.add(dir);
+    fs.writeFileSync(path.join(dataDir, 'recent.json'), JSON.stringify([a, b]));
+
+    const plan = await idx.deleteFile(a, { dryRun: true });
+    expect(plan).toMatchObject({
+      name: 'a',
+      mode: 'permanent',
+      open: false,
+      assets: ['bg-a.png', 'fonts/a.woff2', 'only-a.png'],
+      keptAssets: ['shared.png'],
+    });
+    expect(fs.existsSync(a)).toBe(true);
+
+    const r = await idx.deleteFile(a);
+    expect(r.assets).toEqual(['bg-a.png', 'fonts/a.woff2', 'only-a.png']);
+    expect(r.failedAssets).toEqual([]);
+    expect(fs.existsSync(a)).toBe(false);
+    const left = fs.readdirSync(path.join(dir, 'assets')).sort();
+    // fonts/ became empty and is removed too
+    expect(left).toEqual(['only-b.png', 'orphan.png', 'shared.png']);
+    expect(await listed(idx)).toEqual(['b']);
+    expect(JSON.parse(fs.readFileSync(path.join(dataDir, 'recent.json'), 'utf8'))).toEqual([b]);
+  });
+
+  it('uses the trash provider when given and removes an empty assets folder', async () => {
+    const a = docUsing('a', { img: ['x.png'] });
+    asset('x.png');
+    const idx = new FileIndex(store, dataDir);
+    const trashed: string[] = [];
+    const r = await idx.deleteFile(a, {
+      trash: async (p) => {
+        trashed.push(p);
+        fs.rmSync(p);
+      },
+    });
+    expect(r.mode).toBe('trash');
+    expect(trashed).toEqual([path.resolve(a), path.join(dir, 'assets', 'x.png')]);
+    expect(fs.existsSync(path.join(dir, 'assets'))).toBe(false);
+  });
+
+  it('a failing trash aborts before touching the assets', async () => {
+    const a = docUsing('a', { img: ['x.png'] });
+    asset('x.png');
+    const idx = new FileIndex(store, dataDir);
+    await expect(
+      idx.deleteFile(a, {
+        trash: async () => {
+          throw new Error('no recycle bin');
+        },
+      }),
+    ).rejects.toThrow(/no recycle bin/);
+    expect(fs.existsSync(a)).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'assets', 'x.png'))).toBe(true);
+  });
+
+  it('closes an open document first, with no autosave bringing it back', async () => {
+    const a = docUsing('a', { img: ['x.png'] });
+    asset('x.png');
+    const s = new DocumentStore({ dataDir, autosaveMs: 5 });
+    const idx = getFileIndex(s, dataDir);
+    const info = await s.open(a);
+    const frame = s.get(info.docId).pages[0]!.frames[0]!;
+    s.applyOps(
+      info.docId,
+      [{ type: 'updateStyles', changes: [{ nodeId: frame.id, set: { color: 'red' } }] }],
+      {
+        source: 'mcp',
+      },
+    );
+    expect((await idx.deleteFile(a, { dryRun: true })).open).toBe(true);
+    const r = await idx.deleteFile(a);
+    expect(r.open).toBe(true);
+    expect(s.list()).toEqual([]);
+    await new Promise((res) => setTimeout(res, 50));
+    expect(fs.existsSync(a)).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'assets'))).toBe(false);
+    expect(await listed(idx)).toEqual([]);
+  });
+
+  it('an open sibling with unsaved references keeps the asset', async () => {
+    const a = docUsing('a', { img: ['x.png'] });
+    const b = docUsing('b', {});
+    asset('x.png');
+    const idx = getFileIndex(store, dataDir);
+    const info = await store.open(b);
+    const frame = store.get(info.docId).pages[0]!.frames[0]!;
+    store.applyOps(
+      info.docId,
+      [
+        {
+          type: 'updateStyles',
+          changes: [{ nodeId: frame.id, set: { 'background-image': 'url(assets/x.png)' } }],
+        },
+      ],
+      { source: 'mcp' },
+    );
+    const r = await idx.deleteFile(a);
+    expect(r.assets).toEqual([]);
+    expect(r.keptAssets).toEqual(['x.png']);
+    expect(fs.existsSync(path.join(dir, 'assets', 'x.png'))).toBe(true);
+    await store.closeAll();
+  });
+
+  it('an unreadable sibling keeps every asset', async () => {
+    const a = docUsing('a', { img: ['x.png'] });
+    asset('x.png');
+    fs.mkdirSync(path.join(dir, 'weird.mockup.json'));
+    fs.writeFileSync(path.join(dir, 'broken.mockup.json'), '{ not json');
+    const idx = new FileIndex(store, dataDir);
+    // a broken sibling is still read as text: no mention of x.png, so it goes
+    expect((await idx.deleteFile(a, { dryRun: true })).assets).toEqual(['x.png']);
+    const sibling = path.join(dir, 'broken.mockup.json');
+    const realRead = fs.promises.readFile;
+    const spy = vi.spyOn(fs.promises, 'readFile').mockImplementation(((
+      file: fs.PathLike,
+      ...rest: unknown[]
+    ) => {
+      if (String(file) === sibling) return Promise.reject(new Error('EACCES'));
+      return (realRead as (...a: unknown[]) => Promise<unknown>)(file, ...rest);
+    }) as typeof fs.promises.readFile);
+    try {
+      expect(await idx.deleteFile(a, { dryRun: true })).toMatchObject({
+        assets: [],
+        keptAssets: ['x.png'],
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('errors for missing files, folders and non-.mockup.json paths', async () => {
+    const idx = new FileIndex(store, dataDir);
+    await expect(idx.deleteFile(path.join(dir, 'nope.mockup.json'))).rejects.toThrow(
+      /File not found/,
+    );
+    fs.mkdirSync(path.join(dir, 'folder.mockup.json'));
+    await expect(idx.deleteFile(path.join(dir, 'folder.mockup.json'))).rejects.toThrow(
+      /Not a file/,
+    );
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
+    await expect(idx.deleteFile(path.join(dir, 'notes.txt'))).rejects.toThrow(/mockup\.json/);
+    await expect(idx.deleteFile('relative.mockup.json')).rejects.toThrow(/absolute/);
+    expect(fs.existsSync(path.join(dir, 'notes.txt'))).toBe(true);
   });
 });

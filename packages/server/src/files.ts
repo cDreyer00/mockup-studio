@@ -8,14 +8,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   assetPathOf,
+  collectAssetRefs,
   documentText,
   foldText,
+  mediaAssetRefs,
   parseDocument,
+  serializeDocument,
+  walk,
   type Document,
   type Node,
 } from '@mockup/core';
 import { assetDataUrl } from './assets.js';
-import { DOCUMENT_EXT, readRecent } from './paths.js';
+import { DOCUMENT_EXT, readRecent, removeRecent } from './paths.js';
 import type { RenderProvider } from './render.js';
 import type { DocumentStore } from './store.js';
 
@@ -68,6 +72,33 @@ export interface FileMetaChange {
   favorite?: boolean;
 }
 
+/**
+ * Moves a file to the OS Recycle Bin / Trash (the desktop app injects Electron's
+ * `shell.trashItem`). Without it, `deleteFile` deletes permanently.
+ */
+export type TrashProvider = (absPath: string) => Promise<void>;
+
+/** What `deleteFile` removes (or, with `dryRun`, would remove). */
+export interface DeleteFilePlan {
+  path: string;
+  name: string;
+  /** The document is open: it is closed (pending changes saved) before being deleted. */
+  open: boolean;
+  /** `trash`: moved to the Recycle Bin / Trash (desktop app); `permanent`: deleted for good. */
+  mode: 'trash' | 'permanent';
+  /** Name of the OS trash: "Recycle Bin" on Windows, "Trash" elsewhere. */
+  trashName: string;
+  /** Files in `assets/` (relative) used only by this document: removed with it. */
+  assets: string[];
+  /** Files in `assets/` this document uses that another document in the folder may use: kept. */
+  keptAssets: string[];
+}
+
+export interface DeleteFileResult extends DeleteFilePlan {
+  /** Assets that could not be removed (still on disk). */
+  failedAssets: string[];
+}
+
 /** Error caused by the request (invalid path, missing folder...): the HTTP layer returns the 4xx. */
 export class FilesError extends Error {
   readonly expose = true;
@@ -87,6 +118,12 @@ let tmpCounter = 0;
 const isWin = process.platform === 'win32';
 const sameKey = (a: string, b: string): boolean =>
   isWin ? a.toLowerCase() === b.toLowerCase() : a === b;
+/** Name of a document's thumbnail cache files: `<hash>-<width>.png`. */
+const thumbHash = (key: string): string =>
+  createHash('sha1')
+    .update(isWin ? key.toLowerCase() : key)
+    .digest('hex');
+export const TRASH_NAME = isWin ? 'Recycle Bin' : 'Trash';
 
 /** Normalizes a virtual folder path: forward slashes, no empty parts or `.`/`..`. `''` = root. */
 export function normalizeFolder(input: string): string {
@@ -400,12 +437,193 @@ export class FileIndex {
     return entry!;
   }
 
+  /**
+   * Removes the file from the home screen list for good, without touching it on disk. The list
+   * merges the index, the recents and the open documents, so all three go: an open document is
+   * closed first (pending changes saved), then the index entry, the recents entry and the cached
+   * thumbnails are dropped. Opening the file again (Open file…, `mockup open`, `open_document`)
+   * registers it again as usual.
+   */
   async forget(p: string): Promise<void> {
-    const key = this.find(p);
-    if (key) {
-      delete this.data.files[key];
-      this.cache.delete(key);
-      await this.persist();
+    const abs = path.resolve(p);
+    await this.closeOpen(abs);
+    await this.drop(abs);
+  }
+
+  /** Closes the open documents at the path (saving pending changes). */
+  private async closeOpen(abs: string): Promise<void> {
+    for (const d of this.store.list()) {
+      if (d.path && sameKey(path.resolve(d.path), abs)) await this.store.close(d.docId);
+    }
+  }
+
+  /** Index entry, recents, content cache and thumbnails of a (closed) path. */
+  private async drop(abs: string): Promise<void> {
+    const key = this.find(abs);
+    if (key) delete this.data.files[key];
+    for (const k of [...this.cache.keys()]) if (sameKey(k, abs)) this.cache.delete(k);
+    if (this.dataDir) {
+      removeRecent(abs, this.dataDir);
+      const thumbs = path.join(this.dataDir, 'thumbs');
+      const prefix = `${thumbHash(abs)}-`;
+      let names: string[];
+      try {
+        names = await fs.promises.readdir(thumbs);
+      } catch {
+        names = [];
+      }
+      for (const n of names) {
+        if (n.startsWith(prefix))
+          await fs.promises.rm(path.join(thumbs, n), { force: true }).catch(() => undefined);
+      }
+    }
+    await this.persist();
+  }
+
+  /**
+   * Deletes a `.mockup.json` and the files of its `assets/` folder that only it uses, then forgets
+   * it (index, recents, thumbnails). An open document is closed first (pending changes saved, so a
+   * trashed copy is the latest one and autosave cannot bring the file back).
+   *
+   * Exclusive-asset rule: `assets/` is shared by every document in the same folder, so an asset is
+   * removed only if this document references it (images, `url(assets/...)`, fonts, video/poster,
+   * Lottie/Rive files, repeater data sources, `assets/` attributes) and no other `.mockup.json` in
+   * the folder mentions its path (open documents are checked in memory). If another document in
+   * the folder cannot be read, every asset is kept. Files no document references are never
+   * touched. Folders left empty inside `assets/` (and `assets/` itself) are removed.
+   *
+   * With `trash` (desktop app) the files go to the Recycle Bin / Trash; otherwise they are deleted
+   * for good. `dryRun` only returns the plan.
+   */
+  async deleteFile(
+    p: unknown,
+    opts: { trash?: TrashProvider; dryRun?: boolean } = {},
+  ): Promise<DeleteFileResult> {
+    const abs = FileIndex.requireDocPath(p);
+    let st: fs.Stats;
+    try {
+      st = await fs.promises.lstat(abs);
+    } catch {
+      throw new FilesError(
+        404,
+        `File not found: ${abs}. To only remove it from the list, use Remove from index (forget_file).`,
+      );
+    }
+    if (st.isDirectory())
+      throw new FilesError(400, `Not a file: ${abs}. Only ${DOCUMENT_EXT} files can be deleted.`);
+    const base = {
+      path: abs,
+      name: path.basename(abs).replace(/\.mockup\.json$/i, ''),
+      open: !!this.openDocFor(abs),
+      mode: opts.trash ? ('trash' as const) : ('permanent' as const),
+      trashName: TRASH_NAME,
+    };
+    if (opts.dryRun) return { ...base, ...(await this.exclusiveAssets(abs)), failedAssets: [] };
+
+    await this.closeOpen(abs);
+    // after closing: the saved version is the one whose references count
+    const plan = await this.exclusiveAssets(abs);
+    const remove = async (target: string): Promise<void> => {
+      if (opts.trash) await opts.trash(target);
+      else await fs.promises.rm(target, { force: true });
+    };
+    try {
+      await remove(abs);
+    } catch (e) {
+      throw new FilesError(
+        500,
+        `Could not ${opts.trash ? `move ${abs} to the ${TRASH_NAME}` : `delete ${abs}`}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+    const assetsDir = path.join(path.dirname(abs), 'assets');
+    const failedAssets: string[] = [];
+    for (const rel of plan.assets) {
+      try {
+        await remove(path.join(assetsDir, ...rel.split('/')));
+      } catch {
+        failedAssets.push(rel);
+      }
+    }
+    if (plan.assets.length > 0) await pruneEmptyDirs(assetsDir);
+    await this.drop(abs);
+    return {
+      ...base,
+      assets: plan.assets.filter((a) => !failedAssets.includes(a)),
+      keptAssets: plan.keptAssets,
+      failedAssets,
+    };
+  }
+
+  /** Assets of `abs` split into exclusive (removable) and possibly shared (kept). */
+  private async exclusiveAssets(abs: string): Promise<{ assets: string[]; keptAssets: string[] }> {
+    const dir = path.dirname(abs);
+    const assetsDir = path.join(dir, 'assets');
+    if (!fs.existsSync(assetsDir)) return { assets: [], keptAssets: [] };
+    const doc = await this.readDoc(abs);
+    // unreadable document: its references are unknown, so no asset is removed
+    if (!doc) return { assets: [], keptAssets: [] };
+    const mine: string[] = [];
+    for (const rel of documentAssetPaths(doc)) {
+      try {
+        if ((await fs.promises.lstat(path.join(assetsDir, ...rel.split('/')))).isFile())
+          mine.push(rel);
+      } catch {
+        /* referenced but missing */
+      }
+    }
+    mine.sort();
+    if (mine.length === 0) return { assets: [], keptAssets: [] };
+
+    // every other document in the same folder, as text (open ones from memory: unsaved references)
+    const others: string[] = [];
+    const seen: string[] = [abs];
+    const isSeen = (p: string): boolean => seen.some((x) => sameKey(x, p));
+    for (const d of this.store.list()) {
+      if (!d.path) continue;
+      const other = path.resolve(d.path);
+      if (!sameKey(path.dirname(other), dir) || isSeen(other)) continue;
+      seen.push(other);
+      others.push(serializeDocument(this.store.get(d.docId)));
+    }
+    let unreadable = false;
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      unreadable = true;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() || !e.name.toLowerCase().endsWith(DOCUMENT_EXT)) continue;
+      const other = path.join(dir, e.name);
+      if (isSeen(other)) continue;
+      seen.push(other);
+      try {
+        if ((await fs.promises.stat(other)).size > MAX_READ_BYTES) unreadable = true;
+        else others.push(await fs.promises.readFile(other, 'utf8'));
+      } catch {
+        unreadable = true;
+      }
+    }
+    if (unreadable) return { assets: [], keptAssets: mine };
+    const assets: string[] = [];
+    const keptAssets: string[] = [];
+    for (const rel of mine) {
+      const escaped = JSON.stringify(rel).slice(1, -1);
+      if (others.some((t) => t.includes(rel) || t.includes(escaped))) keptAssets.push(rel);
+      else assets.push(rel);
+    }
+    return { assets, keptAssets };
+  }
+
+  /** Current version of a document: in memory if open, otherwise parsed from disk. */
+  private async readDoc(abs: string): Promise<Document | undefined> {
+    const open = this.openDocFor(abs);
+    if (open) return this.store.get(open.docId);
+    try {
+      if ((await fs.promises.stat(abs)).size > MAX_READ_BYTES) return undefined;
+      return parseDocument(await fs.promises.readFile(abs, 'utf8'));
+    } catch {
+      return undefined;
     }
   }
 
@@ -677,13 +895,7 @@ export class FileIndex {
     }
     const thumbFile =
       this.dataDir && !dirty
-        ? path.join(
-            this.dataDir,
-            'thumbs',
-            `${createHash('sha1')
-              .update(isWin ? key.toLowerCase() : key)
-              .digest('hex')}-${width}.png`,
-          )
+        ? path.join(this.dataDir, 'thumbs', `${thumbHash(key)}-${width}.png`)
         : undefined;
     if (thumbFile && st) {
       try {
@@ -787,6 +999,51 @@ function inlineAssets(root: Node, assetsDir: string): void {
     for (const c of n.children) visit(c);
   };
   visit(root);
+}
+
+/**
+ * Paths relative to `assets/` a document references: image `src` and `url(assets/...)` (repeaters
+ * expanded), fonts, video/poster, Lottie/Rive files, repeater data sources and attributes that
+ * point at `assets/` (e.g. `href`).
+ */
+export function documentAssetPaths(doc: Document): Set<string> {
+  const out = new Set<string>(collectAssetRefs(doc).keys());
+  const add = (v: string | undefined): void => {
+    const rel = assetPathOf(v);
+    if (rel) out.add(rel);
+  };
+  walk(doc, (n) => {
+    add(n.src);
+    for (const r of mediaAssetRefs(n)) add(r);
+    add(n.dataSource?.path);
+    for (const v of Object.values(n.attrs)) if (/^(\.\/)?assets\//.test(v.trim())) add(v);
+  });
+  return out;
+}
+
+/** Removes the empty folders inside `root`, and `root` itself when it ends up empty. */
+async function pruneEmptyDirs(root: string): Promise<void> {
+  const visit = async (dir: string): Promise<boolean> => {
+    let items: fs.Dirent[];
+    try {
+      items = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    let empty = true;
+    for (const it of items) {
+      if (it.isDirectory() && (await visit(path.join(dir, it.name)))) continue;
+      empty = false;
+    }
+    if (!empty) return false;
+    try {
+      await fs.promises.rmdir(dir);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  await visit(root);
 }
 
 const indexes = new WeakMap<DocumentStore, FileIndex>();
