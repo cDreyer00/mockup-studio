@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { z } from 'zod';
 import { searchNodes } from '@mockup/core';
-import { FilesError, getFileIndex, type FileEntry, type FileIndex } from '../../files.js';
+import { FileIndex, FilesError, getFileIndex, type FileEntry } from '../../files.js';
 import { READ, ToolError, WRITE, DESTRUCTIVE, type ToolContext } from '../context.js';
 
 const pathField = z
@@ -238,9 +238,9 @@ export function registerFilesTools(ctx: ToolContext): void {
       annotations: WRITE,
     },
     async ({ path: p, docId }) => {
-      const target = path.resolve(resolvePath(p, docId));
+      const target = await guard(() => FileIndex.requireDocPath(resolvePath(p, docId)));
       const known = index().isKnown(target);
-      const wasOpen = known && (await index().get(target))?.open === true;
+      const wasOpen = index().isOpen(target);
       await guard(() => index().forget(target));
       if (!known) return `${target} was not in the list. Nothing to remove.`;
       return `${target} removed from the list${wasOpen ? ' (the document was closed first)' : ''}. The file was not deleted.`;

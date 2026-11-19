@@ -96,9 +96,9 @@ export function registerFilesRoutes(app: Express, ctx: RouteContext): void {
   app.post(
     '/api/files/forget',
     wrap(async (req, res) => {
-      const p = optStr((req.body as Record<string, unknown> | undefined)?.path);
-      if (!p) throw new RouteError(400, 'Missing required field: path.');
-      await index().forget(p);
+      await index().forget(
+        FileIndex.requireDocPath((req.body as Record<string, unknown> | undefined)?.path),
+      );
       res.json({ ok: true });
     }),
   );

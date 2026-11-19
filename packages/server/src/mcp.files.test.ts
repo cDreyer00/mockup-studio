@@ -369,6 +369,11 @@ describe('files and search (HTTP and MCP)', () => {
     );
     expect((await post('/api/files/delete', { path: 'rel.mockup.json' })).status).toBe(400);
     expect((await post('/api/files/delete', { path: p, dryRun: 'yes' })).status).toBe(400);
+    // forget validates the path the same way
+    expect((await post('/api/files/forget', { path: path.join(ws.dir, 'x.txt') })).status).toBe(
+      400,
+    );
+    expect((await post('/api/files/forget', {})).status).toBe(400);
   });
 
   it('MCP tools: forget_file and delete_file', async () => {
@@ -381,6 +386,9 @@ describe('files and search (HTTP and MCP)', () => {
     expect((await call('list_files')).text).toContain('0 file(s)');
     expect((await call('forget_file', { path: p })).text).toContain('was not in the list');
     expect((await call('forget_file', { path: 'rel.mockup.json' })).isError).toBe(true);
+    r = await call('forget_file', { path: path.join(ws.dir, 'notes.txt') });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('.mockup.json');
 
     const { file } = makeImageDoc(ws.dir);
     const other = path.join(ws.dir, 'other.mockup.json');
