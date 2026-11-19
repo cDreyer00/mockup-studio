@@ -10,9 +10,11 @@ import type {
   AssistantMessage,
   ClientMessage,
   Document,
+  EditorCommandMessage,
   HistoryState,
   Op,
   OpenDocumentInfo,
+  PresentationState,
   RemixKind,
   RemixResult,
   ScriptFileInfo,
@@ -26,6 +28,7 @@ import {
   mainOfSelection,
 } from '../components/editing';
 import { getEntry, getFrameOf } from '../model/tree';
+import { runEditorCommand } from '../presentation/editorCommands';
 import { assistantStore } from '../state/assistantStore';
 import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc, withView } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
@@ -87,6 +90,7 @@ export class DaemonClient {
   private unsubSelection: (() => void) | null = null;
   private selectionTimer: ReturnType<typeof setTimeout> | undefined;
   private selectionSentAt = 0;
+  private offFocus: (() => void) | null = null;
 
   constructor(private readonly url: () => string = defaultSocketUrl) {}
 
@@ -98,6 +102,17 @@ export class DaemonClient {
     this.unsubSelection ??= useUi.subscribe((s, prev) => {
       if (s.selection !== prev.selection) this.scheduleSelectionSync();
     });
+    // The daemon sends editor commands (presentation) to the most recently focused window.
+    if (!this.offFocus && typeof window !== 'undefined') {
+      const onFocus = (): void => this.registerEditor(true);
+      window.addEventListener('focus', onFocus);
+      this.offFocus = () => window.removeEventListener('focus', onFocus);
+    }
+  }
+
+  /** Tells the daemon this connection is an editor window (best effort; only while connected). */
+  private registerEditor(focused: boolean): void {
+    void this.request({ type: 'editor:register', focused }).catch(() => undefined);
   }
 
   disconnect(): void {
@@ -107,6 +122,8 @@ export class DaemonClient {
     this.selectionTimer = undefined;
     this.unsubSelection?.();
     this.unsubSelection = null;
+    this.offFocus?.();
+    this.offFocus = null;
     const ws = this.ws;
     this.ws = null;
     // Without this, `onclose` (which checks `this.ws`) ignores the socket and the pending ones only expire after 15 s.
@@ -142,6 +159,7 @@ export class DaemonClient {
     ws.onopen = () => {
       this.delay = 1000;
       useDoc.setState({ status: 'online' });
+      this.registerEditor(typeof document !== 'undefined' && document.hasFocus());
     };
     ws.onmessage = (ev) => {
       let msg: ServerMessage;
@@ -453,6 +471,9 @@ export class DaemonClient {
       case 'assistant:event':
         assistantStore.applyEvent(msg.docId, msg.event);
         return;
+      case 'editor:command':
+        void this.runCommand(msg);
+        return;
       case 'agent:finished': {
         const doc = s.docs[msg.docId];
         if (!doc) return;
@@ -526,6 +547,17 @@ export class DaemonClient {
       default:
         return;
     }
+  }
+
+  /** Runs a command from the daemon (MCP presentation tools) and answers with its result. */
+  private async runCommand({ commandId, command }: EditorCommandMessage): Promise<void> {
+    let reply: { ok: true; result: PresentationState } | { ok: false; error: string };
+    try {
+      reply = { ok: true, result: await runEditorCommand(command) };
+    } catch (e) {
+      reply = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+    await this.request({ type: 'editor:result', commandId, ...reply }).catch(() => undefined);
   }
 
   /** Fetches a document that is not in the cache (e.g. active switched to a document not yet received). */

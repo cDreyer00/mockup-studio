@@ -1,4 +1,5 @@
 /** When the editor's shortcuts and clipboard should let the browser act. */
+import { usePresentation } from '../presentation/presentationStore';
 import { useUi } from '../state/uiStore';
 
 /** Editable target: input, textarea, select or contentEditable. */
@@ -14,7 +15,11 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   return el.isContentEditable === true || el.contentEditable === 'true';
 }
 
-/** `true` if a modal is open or text is being edited inline. */
+/** `true` if a presentation is running, a modal is open or text is being edited inline. */
 export function isInteractionBlocked(): boolean {
-  return !!document.querySelector('.modal-backdrop') || useUi.getState().editingTextId !== null;
+  return (
+    usePresentation.getState().active ||
+    !!document.querySelector('.modal-backdrop') ||
+    useUi.getState().editingTextId !== null
+  );
 }

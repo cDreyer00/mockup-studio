@@ -2,6 +2,8 @@
 import { useEffect } from 'react';
 import { actions } from '../actions';
 import { canvasApi } from '../canvas/canvasApi';
+import { usePresentation } from '../presentation/presentationStore';
+import { startPresentation } from '../presentation/startPresentation';
 import { isEditableTarget } from '../shortcuts/guards';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import { getDesktop } from './bridge';
@@ -19,6 +21,8 @@ function undoRedo(kind: 'undo' | 'redo'): void {
 
 /** Runs a native menu action. Exported for testing. */
 export function runDesktopMenu(action: DesktopMenuAction, arg?: string): void {
+  // While presenting the editor is out of reach: only the presentation entries act.
+  if (usePresentation.getState().active && !action.startsWith('present')) return;
   switch (action) {
     case 'new':
       return void newDocument();
@@ -43,6 +47,10 @@ export function runDesktopMenu(action: DesktopMenuAction, arg?: string): void {
       return canvasApi.zoomTo(1);
     case 'zoomFit':
       return canvasApi.fitAll();
+    case 'presentFromStart':
+      return startPresentation('first');
+    case 'presentFromCurrent':
+      return startPresentation('selection');
   }
 }
 

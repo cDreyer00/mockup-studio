@@ -10,6 +10,7 @@ import {
   Home,
   Hexagon,
   Image as ImageIcon,
+  MonitorPlay,
   MousePointer2,
   PenTool,
   Pause,
@@ -20,7 +21,7 @@ import {
   Type,
   Undo2,
 } from 'lucide-react';
-import { PREVIEW_STATES } from '@mockup/core';
+import { PREVIEW_STATES, presentationSlides } from '@mockup/core';
 import type { PreviewState } from '@mockup/core';
 import { actions } from '../actions';
 import { daemon } from '../client/daemon';
@@ -41,6 +42,8 @@ import {
 } from '../effects/mediaFlows';
 import { mediaDialogs } from '../effects/mediaStore';
 import { fxClock, useFxClock } from '../fx/clock';
+import { displayedPage } from '../presentation/presentationStore';
+import { startPresentation } from '../presentation/startPresentation';
 import { selectActiveInfo, useDoc } from '../state/docStore';
 import type { ConnectionStatus } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
@@ -386,6 +389,34 @@ function PlayToggle() {
   );
 }
 
+/** Presentation: plays the visible frames of the displayed page as slides. */
+function PresentButton() {
+  const pageId = useUi((s) => s.pageId);
+  const componentEdit = useUi((s) => s.componentEdit);
+  const slideCount = useDoc(
+    (s) => presentationSlides(displayedPage(s.doc, pageId, componentEdit)).length,
+  );
+  const disabled = slideCount === 0;
+  return (
+    <button
+      type="button"
+      className="tb-present"
+      data-testid="present-button"
+      title={
+        disabled
+          ? 'Nothing to present: this page has no visible frames'
+          : 'Present (F5 from the first frame, Shift+F5 from the selected frame)'
+      }
+      aria-label="Present"
+      disabled={disabled}
+      onClick={() => startPresentation('selection')}
+    >
+      <MonitorPlay size={ICON} />
+      <span>Present</span>
+    </button>
+  );
+}
+
 /* ---------------- bar ---------------- */
 
 export function Toolbar() {
@@ -451,6 +482,7 @@ export function Toolbar() {
       <div className="tb-center">
         <DocumentTitle />
       </div>
+      <PresentButton />
       <PreviewStateSelect />
       <ZoomMenu />
       <span className="tb-sep" />

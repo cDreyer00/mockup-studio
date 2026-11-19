@@ -9,6 +9,7 @@ import { saveDocumentAs } from '../desktop/fileFlows';
 import { textToOutlines } from '../vector/vectorActions';
 import { fxClock } from '../fx/clock';
 import { useClipboard } from '../clipboard/useClipboard';
+import { startPresentation } from '../presentation/startPresentation';
 import { getNode, topLevel } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
@@ -100,6 +101,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return canvasApi.fitNodes();
     case 'createComponent':
       return void createComponentFromSelection();
+    case 'present':
+      return startPresentation(cmd.from);
   }
 }
 

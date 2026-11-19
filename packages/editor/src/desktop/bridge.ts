@@ -14,7 +14,9 @@ export type DesktopMenuAction =
   | 'zoomIn'
   | 'zoomOut'
   | 'zoomReset'
-  | 'zoomFit';
+  | 'zoomFit'
+  | 'presentFromStart'
+  | 'presentFromCurrent';
 
 export interface MockupDesktopApi {
   readonly isDesktop: true;
@@ -27,6 +29,13 @@ export interface MockupDesktopApi {
   onMenu(cb: (action: DesktopMenuAction, arg?: string) => void): () => void;
   /** Reports title/state to the window (title and unsaved indicator). */
   setDocumentState(state: { title: string; path: string | null; dirty: boolean }): void;
+  /**
+   * Presentation mode: enters/leaves the window's full screen. Resolves with whether the window is
+   * full screen afterwards. Missing in older desktop builds.
+   */
+  setPresentationFullScreen?(on: boolean): Promise<boolean>;
+  /** The window left full screen (e.g. the user pressed Esc in the desktop app). Missing in older builds. */
+  onLeaveFullScreen?(cb: () => void): () => void;
 }
 
 declare global {

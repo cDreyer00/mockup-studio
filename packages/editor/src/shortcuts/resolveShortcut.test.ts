@@ -121,4 +121,12 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('Alt', { altKey: true }))).toBeNull();
     expect(resolveShortcut(key('ArrowLeft', ctrl))).toBeNull();
   });
+
+  it('F5 presents from the first frame, Shift+F5 from the selection', () => {
+    expect(resolveShortcut(key('F5'))).toEqual({ type: 'present', from: 'first' });
+    expect(resolveShortcut(key('F5', shift))).toEqual({ type: 'present', from: 'selection' });
+    expect(resolveShortcut(key('F5', ctrl))).toBeNull();
+    expect(resolveShortcut(key('F5', { altKey: true }))).toBeNull();
+    expect(resolveShortcut(key('F6'))).toBeNull();
+  });
 });

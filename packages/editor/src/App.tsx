@@ -6,6 +6,7 @@ import { HomeScreen } from './home/HomeScreen';
 import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
 import { ui, useUi } from './state/uiStore';
+import { PresentationView } from './presentation/PresentationView';
 import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
@@ -59,6 +60,7 @@ export function App() {
         <RightDock />
       </div>
       <OverlayHost />
+      <PresentationView />
     </div>
   );
 }

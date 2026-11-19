@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyOp, createNodeFromTag } from '@mockup/core';
 import type { Document, ServerMessage } from '@mockup/core';
+import { presentation } from '../presentation/presentationStore';
 import { makeDoc } from '../test/fixtures';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
@@ -54,6 +55,56 @@ describe('DaemonClient', () => {
     FakeSocket.last!.onopen?.();
   });
   afterEach(() => client.disconnect());
+
+  it('registers as an editor window on connect and again on window focus', () => {
+    const win = new EventTarget();
+    vi.stubGlobal('window', win);
+    const own = new DaemonClient(() => 'ws://test/ws');
+    own.connect();
+    const ws = FakeSocket.last!;
+    ws.onopen?.();
+    const reg = () => ws.sent.filter((m) => m.type === 'editor:register');
+    expect(reg()).toHaveLength(1);
+    expect(reg()[0]).toMatchObject({ focused: expect.any(Boolean) });
+    win.dispatchEvent(new Event('focus'));
+    expect(reg()).toHaveLength(2);
+    expect(reg()[1]).toMatchObject({ focused: true });
+    own.disconnect();
+    win.dispatchEvent(new Event('focus'));
+    expect(reg()).toHaveLength(2);
+    vi.unstubAllGlobals();
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeSocket;
+  });
+
+  it('runs editor:command and replies with editor:result', async () => {
+    const { doc } = makeDoc();
+    FakeSocket.last!.emit(hello(doc));
+    FakeSocket.last!.emit({
+      type: 'editor:command',
+      commandId: 'c1',
+      command: { type: 'presentation:start', docId: doc.id },
+    });
+    const result = () => FakeSocket.last!.sent.filter((m) => m.type === 'editor:result');
+    await vi.waitFor(() => expect(result()).toHaveLength(1));
+    expect(result()[0]).toMatchObject({
+      commandId: 'c1',
+      ok: true,
+      result: { active: true, docId: doc.id },
+    });
+    presentation.stop();
+
+    FakeSocket.last!.emit({
+      type: 'editor:command',
+      commandId: 'c2',
+      command: { type: 'presentation:goto', step: 'next' },
+    });
+    await vi.waitFor(() => expect(result()).toHaveLength(2));
+    expect(result()[1]).toMatchObject({
+      commandId: 'c2',
+      ok: false,
+      error: 'No presentation is running.',
+    });
+  });
 
   it('hello populates the store and doc:changed reuses the structure', () => {
     const { doc, a, b } = makeDoc();

@@ -27,7 +27,9 @@ export type ShortcutCommand =
   | { type: 'zoom100' }
   | { type: 'zoomFit' }
   | { type: 'zoomSelection' }
-  | { type: 'createComponent' };
+  | { type: 'createComponent' }
+  /** Presentation mode: from the first frame (F5) or from the selected frame (Shift+F5). */
+  | { type: 'present'; from: 'first' | 'selection' };
 
 export type KeyInfo = Pick<
   KeyboardEvent,
@@ -110,6 +112,8 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
   if (mod || alt) return null;
 
   switch (e.key) {
+    case 'F5':
+      return { type: 'present', from: shift ? 'selection' : 'first' };
     case 'Delete':
     case 'Backspace':
       return { type: 'delete' };
