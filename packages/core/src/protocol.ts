@@ -397,14 +397,18 @@ export interface RemixRequest {
 }
 
 /**
- * Registers the connection as an editor window (it can receive `editor:command`). Sent on connect and
- * again when the window gets focus: the daemon targets the most recently focused editor. Ack: `{}`.
+ * Registers the connection as an editor window (it can receive `editor:command`). Sent on connect,
+ * when the window gets focus and when a presentation starts or ends: the daemon sends
+ * `presentation:start` to the most recently focused editor and the other presentation commands to
+ * the one presenting. Ack: `{}`.
  */
 export interface EditorRegisterRequest {
   type: 'editor:register';
   reqId: string;
   /** The window has focus. */
   focused: boolean;
+  /** A presentation is running in the window (omitted = unchanged). */
+  presenting?: boolean;
 }
 
 /** Answer to an `editor:command`. Ack: `{}`. */

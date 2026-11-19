@@ -19,17 +19,11 @@ export interface EditorConnection {
 export const NO_EDITOR_MESSAGE =
   'No editor window is connected. Open the Mockup Studio app (or the editor in the browser) and try again.';
 
-/** No editor window is connected (usage error: the caller must open one). */
-export class NoEditorError extends Error {
-  constructor() {
-    super(NO_EDITOR_MESSAGE);
-    this.name = 'NoEditorError';
-  }
-}
-
 export interface EditorChannelOptions {
-  /** How long to wait for the editor's answer (default 5000 ms). */
+  /** How long to wait for the editor's answer (default 8000 ms). */
   timeoutMs?: number;
+  /** How long a timed-out command still updates the presenting window if its answer arrives late (default 60 s). */
+  lateReplyMs?: number;
 }
 
 interface EditorEntry {
@@ -38,62 +32,83 @@ interface EditorEntry {
   seq: number;
   /** Logical time of the last focus report (0 = never focused). */
   focusedAt: number;
+  /** Logical time it started presenting (0 = not presenting). */
+  presentingAt: number;
 }
 
-interface Pending {
+interface Sent {
   conn: EditorConnection;
   type: EditorCommand['type'];
+}
+
+interface Pending extends Sent {
   resolve(state: PresentationState): void;
   reject(err: Error): void;
   timer: NodeJS.Timeout;
 }
 
+/** Editor windows and the commands sent to them (one channel per daemon). */
 export class EditorChannel {
   private readonly editors = new Map<EditorConnection, EditorEntry>();
   private readonly pending = new Map<string, Pending>();
-  private presenter: EditorConnection | null = null;
+  /** Commands that timed out: a late answer still tells which window presents. */
+  private readonly expired = new Map<string, Sent>();
   private seq = 0;
   private clock = 0;
   private readonly timeoutMs: number;
+  private readonly lateReplyMs: number;
 
   constructor(opts: EditorChannelOptions = {}) {
-    this.timeoutMs = opts.timeoutMs ?? 5000;
+    this.timeoutMs = opts.timeoutMs ?? 8000;
+    this.lateReplyMs = opts.lateReplyMs ?? 60_000;
   }
 
-  /** Adds or updates an editor window; `focused` makes it the most recently focused one. */
-  register(conn: EditorConnection, focused: boolean): void {
+  /**
+   * Adds or updates an editor window. `focused` makes it the most recently focused one; `presenting`
+   * (when given) is whether it runs a presentation now (the window reports every change).
+   */
+  register(conn: EditorConnection, focused: boolean, presenting?: boolean): void {
     let entry = this.editors.get(conn);
     if (!entry) {
-      entry = { conn, seq: ++this.seq, focusedAt: 0 };
+      entry = { conn, seq: ++this.seq, focusedAt: 0, presentingAt: 0 };
       this.editors.set(conn, entry);
     }
     // Logical clock (strictly increasing): wall-clock timestamps could tie between quick events.
     if (focused) entry.focusedAt = ++this.clock;
+    if (presenting !== undefined) this.setPresenting(conn, presenting, presenting);
   }
 
   unregister(conn: EditorConnection): void {
     this.editors.delete(conn);
-    if (this.presenter === conn) this.presenter = null;
     for (const [id, p] of this.pending) {
       if (p.conn !== conn) continue;
       clearTimeout(p.timer);
       this.pending.delete(id);
       p.reject(new Error('The editor window was closed before answering.'));
     }
+    for (const [id, p] of this.expired) if (p.conn === conn) this.expired.delete(id);
   }
 
   count(): number {
     return this.editors.size;
   }
 
-  /** An editor window last reported a running presentation (and is still connected). */
+  /** A connected editor window runs a presentation (as last reported). */
   isPresenting(): boolean {
-    return this.presenter !== null && this.editors.has(this.presenter);
+    return this.presenter() !== null;
   }
 
-  /** Window that receives the next command. */
-  private target(): EditorConnection | null {
-    if (this.presenter && this.editors.has(this.presenter)) return this.presenter;
+  /** The window that most recently started presenting. */
+  private presenter(): EditorEntry | null {
+    let best: EditorEntry | null = null;
+    for (const e of this.editors.values()) {
+      if (e.presentingAt > 0 && (!best || e.presentingAt > best.presentingAt)) best = e;
+    }
+    return best;
+  }
+
+  /** The most recently focused window (ties: the most recently registered). */
+  private focused(): EditorEntry | null {
     let best: EditorEntry | null = null;
     for (const e of this.editors.values()) {
       if (
@@ -103,17 +118,34 @@ export class EditorChannel {
       )
         best = e;
     }
-    return best?.conn ?? null;
+    return best;
+  }
+
+  /** Starting goes to the focused window; navigating and stopping to the presenting one. */
+  private target(type: EditorCommand['type']): EditorConnection | null {
+    const entry =
+      type === 'presentation:start' ? this.focused() : (this.presenter() ?? this.focused());
+    return entry?.conn ?? null;
+  }
+
+  /** `restart` = it (re)started presenting just now: it becomes the most recent presenter. */
+  private setPresenting(conn: EditorConnection, on: boolean, restart: boolean): void {
+    const entry = this.editors.get(conn);
+    if (!entry) return;
+    if (!on) entry.presentingAt = 0;
+    else if (restart || entry.presentingAt === 0) entry.presentingAt = ++this.clock;
   }
 
   /** Sends a command to the target editor window and waits for its answer. */
   command(cmd: EditorCommand): Promise<PresentationState> {
-    const conn = this.target();
-    if (!conn) return Promise.reject(new NoEditorError());
+    const conn = this.target(cmd.type);
+    if (!conn) return Promise.reject(new Error(NO_EDITOR_MESSAGE));
     const commandId = randomUUID();
     return new Promise<PresentationState>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(commandId);
+        this.expired.set(commandId, { conn, type: cmd.type });
+        setTimeout(() => this.expired.delete(commandId), this.lateReplyMs).unref();
         reject(new Error('The editor window did not answer in time.'));
       }, this.timeoutMs);
       this.pending.set(commandId, { conn, type: cmd.type, resolve, reject, timer });
@@ -127,20 +159,31 @@ export class EditorChannel {
     });
   }
 
-  /** Settles the pending command with the editor's answer (unknown ids and foreign connections are ignored). */
+  /**
+   * Settles the pending command with the editor's answer (unknown ids and foreign connections are
+   * ignored). A late answer to a timed-out command only updates which window presents.
+   */
   resolve(conn: EditorConnection, msg: EditorResultRequest): void {
+    const late = this.expired.get(msg.commandId);
+    if (late) {
+      if (late.conn !== conn) return;
+      this.expired.delete(msg.commandId);
+      this.track(late, msg);
+      return;
+    }
     const p = this.pending.get(msg.commandId);
     if (!p || p.conn !== conn) return;
     clearTimeout(p.timer);
     this.pending.delete(msg.commandId);
-    // `presentation:stop` answers with the state from before stopping: the window no longer presents.
-    if (p.type === 'presentation:stop') {
-      if (this.presenter === conn) this.presenter = null;
-    } else if (msg.result) {
-      if (msg.result.active) this.presenter = conn;
-      else if (this.presenter === conn) this.presenter = null;
-    }
+    this.track(p, msg);
     if (msg.ok && msg.result) p.resolve(msg.result);
     else p.reject(new Error(msg.error || 'The editor window could not run the command.'));
+  }
+
+  /** Updates the presenting window from a command's answer. */
+  private track({ conn, type }: Sent, msg: EditorResultRequest): void {
+    // `presentation:stop` answers with the state from before stopping: the window no longer presents.
+    if (type === 'presentation:stop') this.setPresenting(conn, false, false);
+    else if (msg.result) this.setPresenting(conn, msg.result.active, type === 'presentation:start');
   }
 }

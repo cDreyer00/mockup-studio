@@ -99,7 +99,9 @@ async function handleMessage(
     case 'editor:register': {
       if (typeof msg.focused !== 'boolean')
         throw new Error('editor:register requires "focused" (boolean).');
-      services.editors?.register(conn, msg.focused);
+      if (msg.presenting !== undefined && typeof msg.presenting !== 'boolean')
+        throw new Error('editor:register "presenting" must be a boolean.');
+      services.editors?.register(conn, msg.focused, msg.presenting);
       return {};
     }
     case 'editor:result': {

@@ -76,6 +76,27 @@ describe('DaemonClient', () => {
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeSocket;
   });
 
+  it('reports to the daemon when a presentation starts and ends', () => {
+    const { doc } = makeDoc();
+    const ws = FakeSocket.last!;
+    ws.emit(hello(doc));
+    const reg = () => ws.sent.filter((m) => m.type === 'editor:register');
+    expect(reg().at(-1)).toMatchObject({ presenting: false });
+    const before = reg().length;
+    presentation.start();
+    expect(reg()).toHaveLength(before + 1);
+    expect(reg().at(-1)).toMatchObject({ presenting: true });
+    presentation.navigate({ type: 'next' }); // not a start / end
+    expect(reg()).toHaveLength(before + 1);
+    presentation.stop();
+    expect(reg()).toHaveLength(before + 2);
+    expect(reg().at(-1)).toMatchObject({ presenting: false });
+    client.disconnect();
+    presentation.start();
+    presentation.stop();
+    expect(reg()).toHaveLength(before + 2);
+  });
+
   it('runs editor:command and replies with editor:result', async () => {
     const { doc } = makeDoc();
     FakeSocket.last!.emit(hello(doc));

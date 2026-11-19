@@ -29,6 +29,7 @@ import {
 } from '../components/editing';
 import { getEntry, getFrameOf } from '../model/tree';
 import { runEditorCommand } from '../presentation/editorCommands';
+import { usePresentation } from '../presentation/presentationStore';
 import { assistantStore } from '../state/assistantStore';
 import { NO_HISTORY, mergeDoc, touchedFrameIds, useDoc, withView } from '../state/docStore';
 import { ui, useUi } from '../state/uiStore';
@@ -59,6 +60,8 @@ export const LONG_REQUEST_TIMEOUT_MS = 120000;
 export const SELECTION_SYNC_MS = 100;
 /** Agent activity older than this is discarded (the badge disappears well before). */
 const AGENT_ACTIVITY_TTL_MS = 10000;
+
+const hasFocus = (): boolean => typeof document !== 'undefined' && document.hasFocus();
 
 function defaultSocketUrl(): string {
   const custom = import.meta.env?.VITE_DAEMON_URL as string | undefined;
@@ -91,6 +94,7 @@ export class DaemonClient {
   private selectionTimer: ReturnType<typeof setTimeout> | undefined;
   private selectionSentAt = 0;
   private offFocus: (() => void) | null = null;
+  private unsubPresentation: (() => void) | null = null;
 
   constructor(private readonly url: () => string = defaultSocketUrl) {}
 
@@ -102,17 +106,22 @@ export class DaemonClient {
     this.unsubSelection ??= useUi.subscribe((s, prev) => {
       if (s.selection !== prev.selection) this.scheduleSelectionSync();
     });
-    // The daemon sends editor commands (presentation) to the most recently focused window.
+    // The daemon sends `presentation:start` to the most recently focused window and the other
+    // presentation commands to the one presenting: report focus and every start / end.
     if (!this.offFocus && typeof window !== 'undefined') {
       const onFocus = (): void => this.registerEditor(true);
       window.addEventListener('focus', onFocus);
       this.offFocus = () => window.removeEventListener('focus', onFocus);
     }
+    this.unsubPresentation ??= usePresentation.subscribe((s, prev) => {
+      if (s.active !== prev.active) this.registerEditor(hasFocus());
+    });
   }
 
   /** Tells the daemon this connection is an editor window (best effort; only while connected). */
   private registerEditor(focused: boolean): void {
-    void this.request({ type: 'editor:register', focused }).catch(() => undefined);
+    const presenting = usePresentation.getState().active;
+    void this.request({ type: 'editor:register', focused, presenting }).catch(() => undefined);
   }
 
   disconnect(): void {
@@ -124,6 +133,8 @@ export class DaemonClient {
     this.unsubSelection = null;
     this.offFocus?.();
     this.offFocus = null;
+    this.unsubPresentation?.();
+    this.unsubPresentation = null;
     const ws = this.ws;
     this.ws = null;
     // Without this, `onclose` (which checks `this.ws`) ignores the socket and the pending ones only expire after 15 s.
@@ -159,7 +170,7 @@ export class DaemonClient {
     ws.onopen = () => {
       this.delay = 1000;
       useDoc.setState({ status: 'online' });
-      this.registerEditor(typeof document !== 'undefined' && document.hasFocus());
+      this.registerEditor(hasFocus());
     };
     ws.onmessage = (ev) => {
       let msg: ServerMessage;

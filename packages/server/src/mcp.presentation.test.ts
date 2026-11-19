@@ -26,6 +26,8 @@ interface FakeEditor {
   sock: WebSocket;
   commands: EditorCommand[];
   focus(): void;
+  /** Reports a presentation started / ended in the window (e.g. the user pressed F5 or Esc). */
+  report(presenting: boolean): void;
   close(): Promise<void>;
 }
 
@@ -109,6 +111,10 @@ describe('MCP presentation', () => {
       sock,
       commands,
       focus: () => send({ type: 'editor:register', focused: true }),
+      report: (presenting) => {
+        if (!presenting) state = NO_PRESENTATION;
+        send({ type: 'editor:register', focused: false, presenting });
+      },
       close: () =>
         new Promise<void>((resolve) => {
           sock.once('close', () => resolve());
@@ -187,6 +193,11 @@ describe('MCP presentation', () => {
       expect(t!.description!.length).toBeLessThanOrEqual(300);
       expect(t!.annotations?.readOnlyHint).toBe(false);
     }
+    // { step: "next" } moves again on every call.
+    const goto = tools.find((x) => x.name === 'presentation_goto');
+    expect(goto!.annotations?.idempotentHint).not.toBe(true);
+    const stop = tools.find((x) => x.name === 'stop_presentation');
+    expect(stop!.annotations?.idempotentHint).toBe(true);
   });
 
   it('without an editor window every tool reports a clear error', async () => {
@@ -307,6 +318,26 @@ describe('MCP presentation', () => {
     await call('presentation_goto', { step: 'next' });
     expect(a.commands).toHaveLength(2);
     expect(b.commands).toHaveLength(0);
+  });
+
+  it('after the user exits, start goes to the focused window and goto follows it', async () => {
+    const a = await connectEditor({ focused: false });
+    const b = await connectEditor({ focused: false });
+    a.focus();
+    await new Promise((r) => setTimeout(r, 50));
+    await call('start_presentation');
+    expect(daemon.services.editors.isPresenting()).toBe(true);
+    a.report(false); // Esc in window a
+    b.focus();
+    for (let i = 0; i < 100 && daemon.services.editors.isPresenting(); i++)
+      await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(daemon.services.editors.isPresenting()).toBe(false);
+    expect(textOf(await call('start_presentation'))).toContain('Presentation started');
+    expect(b.commands).toHaveLength(1);
+    await call('presentation_goto', { step: 'next' });
+    expect(b.commands).toHaveLength(2);
+    expect(a.commands).toHaveLength(1);
   });
 
   it('makes the requested document active before starting', async () => {
