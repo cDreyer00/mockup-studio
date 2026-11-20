@@ -140,22 +140,32 @@ export function resetThumbnails(): void {
 
 /**
  * Thumbnail of a card: starts loading when the element comes near the viewport and cancels when
- * the card unmounts. `src` is the object URL (`undefined` while loading); `failed` when it failed.
+ * the card unmounts. `src` is the object URL (`undefined` while nothing has loaded); `failed` when
+ * it failed and there is no earlier image.
+ *
+ * When the URL changes (the file was saved: new `mtime`) the last image loaded by this card stays
+ * until the new one arrives, and also if the new one fails: saving never blanks the card.
  */
 export function useThumbnail(
   url: string | null,
   ref: RefObject<Element | null>,
 ): { src: string | undefined; failed: boolean } {
-  const [result, setResult] = useState<{ url: string | null; src: string | null } | null>(() =>
-    url && cachedThumbnail(url) ? { url, src: cachedThumbnail(url)! } : null,
-  );
+  const [result, setResult] = useState<{ url: string; src: string | null } | null>(() => {
+    const cached = url ? cachedThumbnail(url) : undefined;
+    return url && cached ? { url, src: cached } : null;
+  });
+  // last image that loaded for this card (any URL), shown while a newer one loads or if it fails
+  const [last, setLast] = useState<string | undefined>(() => result?.src ?? undefined);
 
   useEffect(() => {
     if (!url) return;
     let cancel: (() => void) | null = null;
     const start = (): void => {
       if (cancel) return;
-      cancel = loadThumbnail(url, (src) => setResult({ url, src }));
+      cancel = loadThumbnail(url, (src) => {
+        setResult({ url, src });
+        if (src) setLast(src);
+      });
     };
     const el = ref.current;
     let observer: IntersectionObserver | null = null;
@@ -177,6 +187,9 @@ export function useThumbnail(
     };
   }, [url, ref]);
 
+  if (!url) return { src: undefined, failed: false };
   const current = result && result.url === url ? result : null;
-  return { src: current?.src ?? undefined, failed: current !== null && current.src === null };
+  if (current?.src) return { src: current.src, failed: false };
+  if (last) return { src: last, failed: false };
+  return { src: undefined, failed: current !== null };
 }
