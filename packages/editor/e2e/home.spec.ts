@@ -107,15 +107,25 @@ test('Delete file removes the card, the file and its exclusive asset', async ({ 
 test('open a document from Home, go back: the cards are there at once', async ({ page }) => {
   const a = (await createDoc('home-back-a')).path!;
   const b = (await createDoc('home-back-b')).path!;
+  for (let i = 0; i < 4; i++) await createDoc(`home-back-more-${i}`);
   // slow thumbnails (the desktop renders them one at a time) must not hold up the list
+  let pending = 0;
+  let maxPending = 0;
   await page.route('**/api/files/thumbnail**', async (route) => {
+    maxPending = Math.max(maxPending, ++pending);
     await new Promise((r) => setTimeout(r, 3000));
+    pending--;
     await route.fulfill({ status: 503, body: '{}' }).catch(() => undefined);
   });
   await gotoEditor(page);
   await page.getByTestId('home-button').click();
   await expect(card(page, a)).toBeVisible();
   await expect(card(page, b)).toBeVisible();
+  // a removed <img> keeps its connection busy until the response ends: thumbnails are abortable
+  // fetches, two at a time, so the browser's six connections to the daemon stay free for the API
+  await expect.poll(() => maxPending).toBeGreaterThan(0);
+  await page.waitForTimeout(500);
+  expect(maxPending).toBeLessThanOrEqual(2);
 
   await card(page, a).click();
   await expect(page.getByTestId('home-screen')).toHaveCount(0);
