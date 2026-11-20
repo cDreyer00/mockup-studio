@@ -1,6 +1,6 @@
 /**
  * Mockup Studio desktop main process: embedded daemon (HTTP + WS + MCP), render engine,
- * editor window, native menu and `--headless` mode (no window, used by `mockup mcp`).
+ * editor window, native menu and `--mockup-headless` mode (no window, used by `mockup mcp`).
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -41,6 +41,12 @@ try {
   console.error('[mockup-desktop] error:', e instanceof Error ? e.message : e);
   process.exit(2);
 }
+
+// `--headless` (the windowless flag of older CLIs) is also Chromium's own headless switch: left in
+// place, Chromium runs headless and no window of this instance ever becomes visible (e.g. the app
+// opened while the CLI's instance is running). Dropped before `ready`, Chromium starts normally and
+// child processes no longer inherit it; the app's windowless mode comes from `args.headless`.
+if (app.commandLine.hasSwitch('headless')) app.commandLine.removeSwitch('headless');
 
 /**
  * `--install-cli` / `--uninstall-cli` (install repair): runs the embedded CLI bundle with
@@ -277,7 +283,13 @@ function createMainWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    // Process started hidden (e.g. spawned headless with `windowsHide`: STARTUPINFO SW_HIDE): Windows
+    // turns the process's first ShowWindow into a hide, so the window must be shown again.
+    if (!win.isVisible()) win.show();
+    win.focus();
+  });
   // Registered before any presentation request, so it sees the "leaving by request" flag first.
   win.on('leave-full-screen', () => {
     if (!presentationFullScreen.shouldReportLeave(win)) return;
@@ -317,8 +329,10 @@ function createMainWindow(): BrowserWindow {
   return win;
 }
 
+/** Shows the editor window (creating it if needed), restored and focused. */
 function showWindow(): void {
   if (!baseUrl) return;
+  if (startedHeadless) void app.dock?.show();
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -435,7 +449,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     void (async () => {
       await openFiles(resolveFiles(second.files, cwd));
-      // a repeated `--headless` (e.g. CLI) must not open a window
+      // a repeated windowless launch (e.g. CLI) must not open a window
       if (!second.headless) showWindow();
     })();
   });
@@ -481,7 +495,7 @@ if (!app.requestSingleInstanceLock()) {
     if (startedHeadless) {
       Menu.setApplicationMenu(null);
       app.dock?.hide();
-      log('headless mode: no window');
+      log(`headless mode: no window${args.legacyHeadless ? ' (legacy --headless flag)' : ''}`);
     } else {
       createMainWindow();
     }

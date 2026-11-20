@@ -64,7 +64,7 @@ describe.skipIf(!built || !editorReady)('Headless Electron (integration)', () =>
     delete env.ELECTRON_RUN_AS_NODE;
     child = spawn(
       electronExe,
-      [appDir, '--headless', '--port', String(port), '--data-dir', dataDir],
+      [appDir, '--mockup-headless', '--port', String(port), '--data-dir', dataDir],
       { env, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true },
     );
     child.stderr!.on('data', (d: Buffer) => (stderr += d.toString()));

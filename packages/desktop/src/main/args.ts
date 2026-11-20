@@ -1,6 +1,17 @@
 /** App command-line arguments (pure, testable without Electron). */
+
+/**
+ * Windowless mode (daemon + render only, started by `mockup mcp`). Deliberately not `--headless`:
+ * Chromium reads that as its own headless switch, and then no window of the instance ever shows up.
+ */
+export const HEADLESS_FLAG = '--mockup-headless';
+/** Name used before the rename, still accepted from older CLIs (main also drops Chromium's switch). */
+export const LEGACY_HEADLESS_FLAG = '--headless';
+
 export interface AppArgs {
   headless: boolean;
+  /** Windowless mode was requested with the old `--headless` flag. */
+  legacyHeadless?: boolean;
   port?: number;
   dataDir?: string;
   files: string[];
@@ -20,7 +31,8 @@ export function parseArgs(args: string[]): AppArgs {
   const out: AppArgs = { headless: false, files: [], cliArgs: [] };
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
-    if (a === '--headless') out.headless = true;
+    if (a === HEADLESS_FLAG) out.headless = true;
+    else if (a === LEGACY_HEADLESS_FLAG) out.headless = out.legacyHeadless = true;
     else if (a === '--install-cli' || a === '--uninstall-cli')
       out.cliAction = a.slice(2) as AppArgs['cliAction'];
     else if (a === '--port' || a.startsWith('--port=')) {

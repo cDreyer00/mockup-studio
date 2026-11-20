@@ -79,7 +79,7 @@ describe.skipIf(!built || !editorReady)('Components via real MCP (headless Elect
     delete env.ELECTRON_RUN_AS_NODE;
     child = spawn(
       electronExe,
-      [appDir, '--headless', '--port', String(port), '--data-dir', dataDir],
+      [appDir, '--mockup-headless', '--port', String(port), '--data-dir', dataDir],
       { env, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true },
     );
     child.stderr!.on('data', (d: Buffer) => (stderr += d.toString()));

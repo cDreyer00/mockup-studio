@@ -4,7 +4,7 @@ import { parseArgs, userArgs } from './main/args.js';
 describe('parseArgs', () => {
   it('parses headless, port, data-dir and files', () => {
     expect(
-      parseArgs(['--headless', '--port', '5000', '--data-dir', 'D:\\data', 'a.mockup.json']),
+      parseArgs(['--mockup-headless', '--port', '5000', '--data-dir', 'D:\\data', 'a.mockup.json']),
     ).toEqual({
       headless: true,
       cliArgs: [],
@@ -19,6 +19,20 @@ describe('parseArgs', () => {
     expect(a.port).toBe(0);
     expect(a.headless).toBe(false);
     expect(a.files).toEqual(['x.json']);
+  });
+
+  it('still accepts the legacy --headless flag and marks it', () => {
+    const a = parseArgs(['--headless', '--port', '4747']);
+    expect(a.headless).toBe(true);
+    expect(a.legacyHeadless).toBe(true);
+    expect(parseArgs(['--mockup-headless']).legacyHeadless).toBeUndefined();
+    expect(parseArgs(['x.json']).legacyHeadless).toBeUndefined();
+  });
+
+  it('only the exact flags turn on windowless mode', () => {
+    expect(parseArgs(['--headless=new']).headless).toBe(false);
+    expect(parseArgs(['--mockup-headless=1']).headless).toBe(false);
+    expect(parseArgs([]).headless).toBe(false);
   });
 
   it('rejects an invalid port', () => {
