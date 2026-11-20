@@ -32,7 +32,7 @@
 
 All mutations go through the daemon, which is the single source of truth at runtime. The editor and the MCP server are clients of the same `DocumentStore`. HTTP MCP clients (alternative) talk directly to `/mcp`, without the proxy.
 
-The daemon does not depend on Electron: `startDaemon` takes an optional `RenderProvider`. The desktop app injects the `RenderService` (and the built editor's `editorDir`). Without it (pure Node daemon), screenshot, `get_layout` and the measured SVG are unavailable, and `GET /api/health` returns `render: false`. In `--headless` mode the app opens no window: it is what `mockup mcp` and `mockup serve --render` start.
+The daemon does not depend on Electron: `startDaemon` takes an optional `RenderProvider`. The desktop app injects the `RenderService` (and the built editor's `editorDir`). Without it (pure Node daemon), screenshot, `get_layout` and the measured SVG are unavailable, and `GET /api/health` returns `render: false`. In `--mockup-headless` mode the app opens no window: it is what `mockup mcp` and `mockup serve --render` start.
 
 ## Packages
 
