@@ -90,7 +90,12 @@ if (forceSwiftShader) {
 // The render windows live off-screen (x,y = -20000): Windows' native occlusion tracking reports them
 // as covered, Chromium stops producing frames for them and Page.captureScreenshot hangs. Chromium's own
 // headless mode skipped this, which is why the old `--headless` windowless instance could capture.
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+// appendSwitch replaces an existing value, so keep any `--disable-features` passed on the command line.
+const disabledFeatures = app.commandLine.getSwitchValue('disable-features');
+app.commandLine.appendSwitch(
+  'disable-features',
+  [disabledFeatures, 'CalculateNativeWinOcclusion'].filter(Boolean).join(','),
+);
 // Bundled ffmpeg (extraResources) to export mp4/webm/gif; the server honors MOCKUP_FFMPEG
 if (app.isPackaged) {
   const bundled = path.join(
