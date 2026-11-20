@@ -1,5 +1,5 @@
 /** Home screen: recent, favorites, virtual folders, tags and a grid of file cards. */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   ChevronDown,
@@ -15,11 +15,12 @@ import {
   Tag,
 } from 'lucide-react';
 import { api, thumbnailUrl } from '../client/api';
-import type { DeleteFileResult, FileEntry, FilesResult } from '../client/api';
+import type { DeleteFileResult, FileEntry } from '../client/api';
 import { daemon } from '../client/daemon';
 import { getDesktop } from '../desktop/bridge';
 import { newDocument } from '../desktop/fileFlows';
 import { useDoc } from '../state/docStore';
+import type { DocState } from '../state/docStore';
 import { ui } from '../state/uiStore';
 import { openContextMenu, prompt } from '../ui/overlays';
 import {
@@ -32,10 +33,21 @@ import {
   sameFilter,
 } from './homeLogic';
 import type { FolderNode, HomeFilter } from './homeLogic';
+import { useFilesList } from './filesList';
+import { useThumbnail } from './thumbnails';
 import './home.css';
 
 const FILE_DRAG_TYPE = 'application/x-mockup-file';
-const EMPTY: FilesResult = { files: [], folders: [], tags: [] };
+const NO_FILES: FileEntry[] = [];
+const NO_STRINGS: string[] = [];
+
+/**
+ * What of the open documents matters to the list (open/close, path, saved): edits that only bump
+ * the revision do not reload it.
+ */
+function documentsSignature(s: DocState): string {
+  return s.documents.map((d) => `${d.docId}|${d.path ?? ''}|${d.dirty ? 1 : 0}`).join(';');
+}
 
 function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -101,7 +113,8 @@ function FileCard({
   onFavorite: () => void;
   onDelete: () => void;
 }) {
-  const [thumbFailed, setThumbFailed] = useState(false);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const thumb = useThumbnail(file.missing ? null : thumbnailUrl(file.path, file.mtime), thumbRef);
   return (
     <div
       className={`file-card${file.missing ? ' missing' : ''}`}
@@ -130,8 +143,8 @@ function FileCard({
         onMenu(e.clientX, e.clientY);
       }}
     >
-      <div className="file-thumb">
-        {thumbFailed || file.missing ? (
+      <div className="file-thumb" ref={thumbRef}>
+        {thumb.failed || file.missing ? (
           <div className="file-thumb-fallback" data-testid="file-thumb-fallback">
             <FileText size={28} />
             <strong>{file.name}</strong>
@@ -141,15 +154,9 @@ function FileCard({
                 : `${file.frames} ${file.frames === 1 ? 'frame' : 'frames'}`}
             </span>
           </div>
-        ) : (
-          <img
-            src={thumbnailUrl(file.path, file.mtime)}
-            alt={file.name}
-            loading="lazy"
-            draggable={false}
-            onError={() => setThumbFailed(true)}
-          />
-        )}
+        ) : thumb.src ? (
+          <img src={thumb.src} alt={file.name} draggable={false} />
+        ) : null}
         <button
           type="button"
           className={`file-favorite${file.favorite ? ' on' : ''}`}
@@ -266,42 +273,15 @@ function FolderItem({
 export function HomeScreen() {
   const [filter, setFilter] = useState<HomeFilter>(DEFAULT_FILTER);
   const [search, setSearch] = useState('');
-  const [data, setData] = useState<FilesResult>(EMPTY);
-  const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [version, setVersion] = useState(0);
-  const documents = useDoc((s) => s.documents);
+  const signature = useDoc(documentsSignature);
+  const query = useMemo(() => buildFilesQuery(filter, search), [filter, search]);
+  const { data, error, reload } = useFilesList(query, search, signature);
+  const allFiles = data?.files ?? NO_FILES;
+  const folders = data?.folders ?? NO_STRINGS;
+  const tags = data?.tags ?? NO_STRINGS;
 
-  const reload = useCallback(() => setVersion((v) => v + 1), []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const t = setTimeout(() => {
-      api.files.list(buildFilesQuery(filter, search)).then(
-        (r) => {
-          if (cancelled) return;
-          setData(r);
-          setError(null);
-          setLoaded(true);
-        },
-        (e) => {
-          if (cancelled) return;
-          setError(errorText(e));
-          setLoaded(true);
-        },
-      );
-    }, 120);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [filter, search, version, documents]);
-
-  const files = useMemo(
-    () => arrangeFiles(data.files, filter, search),
-    [data.files, filter, search],
-  );
-  const tree = useMemo(() => buildFolderTree(data.folders), [data.folders]);
+  const files = useMemo(() => arrangeFiles(allFiles, filter, search), [allFiles, filter, search]);
+  const tree = useMemo(() => buildFolderTree(folders), [folders]);
 
   const open = async (f: FileEntry) => {
     try {
@@ -338,7 +318,7 @@ export function HomeScreen() {
           name: 'folder',
           label: 'Folder',
           value: f.folder ?? '',
-          placeholder: data.folders[0] ?? 'Clients/Acme',
+          placeholder: folders[0] ?? 'Clients/Acme',
         },
       ],
       confirmLabel: 'Move',
@@ -495,6 +475,7 @@ export function HomeScreen() {
 
   const nav = (f: HomeFilter, label: string, icon: ReactNode, testId: string) => (
     <button
+      key={testId}
       type="button"
       className={`home-nav-item${sameFilter(filter, f) ? ' active' : ''}`}
       data-testid={testId}
@@ -533,7 +514,7 @@ export function HomeScreen() {
             <FolderPlus size={13} />
           </button>
         </div>
-        {tree.length === 0 && <div className="home-hint">No folders yet.</div>}
+        {data && tree.length === 0 && <div className="home-hint">No folders yet.</div>}
         {tree.map((n) => (
           <FolderItem
             key={n.path}
@@ -548,8 +529,8 @@ export function HomeScreen() {
         <div className="home-section-title">
           <span>Tags</span>
         </div>
-        {data.tags.length === 0 && <div className="home-hint">No tags yet.</div>}
-        {data.tags.map((t) => nav({ kind: 'tag', tag: t }, t, <Tag size={13} />, `home-tag-${t}`))}
+        {data && tags.length === 0 && <div className="home-hint">No tags yet.</div>}
+        {tags.map((t) => nav({ kind: 'tag', tag: t }, t, <Tag size={13} />, `home-tag-${t}`))}
       </aside>
       <main className="home-main">
         <div className="home-header">
@@ -580,8 +561,20 @@ export function HomeScreen() {
             New document
           </button>
         </div>
-        {error && <div className="home-error">{error}</div>}
-        {!error && loaded && files.length === 0 && (
+        {error && (
+          <div className="home-error" data-testid="home-error" role="alert">
+            <span>{error}</span>
+            <button type="button" className="btn" data-testid="home-retry" onClick={reload}>
+              Retry
+            </button>
+          </div>
+        )}
+        {!data && !error && (
+          <div className="home-loading" data-testid="home-loading">
+            Loading files…
+          </div>
+        )}
+        {!error && data && files.length === 0 && (
           <div className="home-empty" data-testid="home-empty">
             {search.trim()
               ? 'No files match your search.'

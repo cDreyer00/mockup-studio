@@ -192,7 +192,7 @@ export const api = {
       request(`/api/library/${enc(hash)}`, { method: 'DELETE' }),
   },
   files: {
-    list: async (q: FilesQuery = {}): Promise<FilesResult> => {
+    list: async (q: FilesQuery = {}, signal?: AbortSignal): Promise<FilesResult> => {
       const r = await request<Partial<FilesResult>>(
         `/api/files${queryString({
           folder: q.folder,
@@ -201,6 +201,7 @@ export const api = {
           favorites: q.favorites,
           recursive: q.recursive,
         })}`,
+        signal ? { signal } : undefined,
       );
       return { files: r.files ?? [], folders: r.folders ?? [], tags: r.tags ?? [] };
     },

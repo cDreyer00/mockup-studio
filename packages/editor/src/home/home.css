@@ -123,12 +123,17 @@
   white-space: nowrap;
 }
 .home-empty,
+.home-loading,
 .home-error {
   padding: 40px 0;
   color: var(--muted);
   text-align: center;
 }
 .home-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   color: var(--danger);
 }
 .home-grid {
