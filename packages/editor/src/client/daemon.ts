@@ -430,6 +430,7 @@ export class DaemonClient {
       case 'hello': {
         const history = msg.history ?? NO_HISTORY;
         useDoc.setState({
+          connectionEpoch: s.connectionEpoch + 1,
           documents: msg.documents,
           activeDocId: msg.activeDocId,
           ...withView(msg.doc),

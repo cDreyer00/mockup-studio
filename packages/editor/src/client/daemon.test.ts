@@ -181,6 +181,17 @@ describe('DaemonClient', () => {
     expect(useDoc.getState().documents[0]!.dirty).toBe(true);
   });
 
+  it('each hello bumps the connection epoch, even with the same documents', () => {
+    const { doc } = makeDoc();
+    FakeSocket.last!.emit(hello(doc));
+    const first = useDoc.getState().connectionEpoch;
+    const documents = useDoc.getState().documents;
+    // the daemon dropped and came back with the same open documents
+    FakeSocket.last!.emit(hello(doc));
+    expect(useDoc.getState().connectionEpoch).toBe(first + 1);
+    expect(useDoc.getState().documents).toEqual(documents);
+  });
+
   it('MCP ops mark agent activity on the frame', () => {
     const { doc, frame } = makeDoc();
     FakeSocket.last!.emit(hello(doc));

@@ -42,11 +42,12 @@ const NO_FILES: FileEntry[] = [];
 const NO_STRINGS: string[] = [];
 
 /**
- * What of the open documents matters to the list (open/close, path, saved): edits that only bump
- * the revision do not reload it.
+ * What reloads the list: each (re)connection to the daemon and, of the open documents, what matters
+ * to it (open/close, path, saved). Edits that only bump the revision do not reload it.
  */
 function documentsSignature(s: DocState): string {
-  return s.documents.map((d) => `${d.docId}|${d.path ?? ''}|${d.dirty ? 1 : 0}`).join(';');
+  const docs = s.documents.map((d) => `${d.docId}|${d.path ?? ''}|${d.dirty ? 1 : 0}`).join(';');
+  return `${s.connectionEpoch}#${docs}`;
 }
 
 function errorText(e: unknown): string {

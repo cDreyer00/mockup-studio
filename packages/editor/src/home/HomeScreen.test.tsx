@@ -168,6 +168,26 @@ describe('HomeScreen', () => {
     );
   });
 
+  it('reloads the list when the connection to the daemon comes back', async () => {
+    let fail = true;
+    const ok = fetch as unknown as (url: string) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        url.startsWith('/api/files') && !url.startsWith('/api/files/') && fail
+          ? Promise.reject(new TypeError('Failed to fetch'))
+          : ok(url),
+      ),
+    );
+    render(<HomeScreen />);
+    expect(await screen.findByTestId('home-error')).toBeTruthy();
+    // reconnected: a new hello with the same (no) open documents, no Retry click
+    fail = false;
+    act(() => useDoc.setState((s) => ({ connectionEpoch: s.connectionEpoch + 1 })));
+    await waitFor(() => expect(screen.getAllByTestId('file-card')).toHaveLength(2));
+    expect(screen.queryByTestId('home-error')).toBeNull();
+  });
+
   it('a failed list shows an error with Retry instead of an empty screen', async () => {
     let fail = true;
     const ok = fetch as unknown as (url: string) => Promise<Response>;

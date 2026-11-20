@@ -15,6 +15,11 @@ export type ConnectionStatus = 'connecting' | 'online' | 'offline';
 
 export interface DocState {
   status: ConnectionStatus;
+  /**
+   * Incremented on each `hello` (every connection or reconnection to the daemon): whoever loads data
+   * over HTTP (e.g. the home screen file list) reloads when it changes.
+   */
+  connectionEpoch: number;
   documents: OpenDocumentInfo[];
   activeDocId: string | null;
   /**
@@ -39,6 +44,7 @@ export const NO_HISTORY: HistoryState = { canUndo: false, canRedo: false };
 
 export const useDoc = create<DocState>(() => ({
   status: 'connecting',
+  connectionEpoch: 0,
   documents: [],
   activeDocId: null,
   doc: null,

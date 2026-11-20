@@ -233,7 +233,8 @@ export class FilesListController {
 
 /**
  * File list of the home screen. `search` changes are debounced; other query changes load at once.
- * `documentsSignature` changes (open/close/save/path of open documents) reload, throttled.
+ * `documentsSignature` changes (reconnection to the daemon; open/close/save/path of open
+ * documents) reload, throttled.
  */
 export function useFilesList(
   query: FilesQuery,
