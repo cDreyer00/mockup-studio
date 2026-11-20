@@ -73,11 +73,11 @@ The desktop app opens the editor in a native window (native menu, open/save dial
 ```bash
 npm run build                          # core, server, cli, editor and desktop
 npm start -w @mockup/desktop           # editor window
-npm start -w @mockup/desktop -- --headless --port 4747   # no window (daemon + render only)
+npm start -w @mockup/desktop -- --mockup-headless --port 4747   # no window (daemon + render only)
 npm start -w @mockup/desktop -- path/to/file.mockup.json   # opens the file
 ```
 
-- **Headless:** `--headless`, `--port N`, `--data-dir D`. A second launch forwards the files to the running instance (and opens the window, if applicable). When the window is closed while MCP agents are connected, the app keeps running without a window.
+- **Headless:** `--mockup-headless`, `--port N`, `--data-dir D` (the old `--headless` still works). A second launch forwards the files to the running instance (and opens the window, if applicable). When the window is closed while MCP agents are connected, the app keeps running without a window.
 - **`mockup mcp` and Electron:** with no daemon running, the CLI starts Electron headless (`MOCKUP_DESKTOP_EXE` variable, the default install at `%LOCALAPPDATA%\Programs\Mockup Studio` or the monorepo package) and screenshots are available. Without Electron, it falls back to the Node daemon (no screenshots). `MOCKUP_NO_ELECTRON=1` forces the Node daemon. If a headless Node daemon (no screenshots) started by the CLI is already running, it is replaced by headless Electron with the same documents open; a `mockup serve` you started yourself is not killed (the CLI warns). `mockup stop` shuts down the discovered daemon (the windowed app refuses: close it from its window). `MOCKUP_DATA_DIR` is only forwarded to the app if you set it. `mockup serve --render` runs headless Electron in the foreground; `mockup serve` (Node) also serves the editor at `http://127.0.0.1:4747/` if the editor has been built.
 - **Render over HTTP:** `GET /render/<docId>/<nodeId>.png?scale=1|2|3&transparent=1`, `.jpg?quality=90` and `.svg`.
 - **Packaging:** `npm run dist` (from the root, after the build) writes to `dist/` the NSIS installer (`MockupStudio-Setup-*.exe`, per user, with folder choice) and the portable build (`MockupStudio-Portable-*.exe`), plus `dist/win-unpacked/`. No code signing.
