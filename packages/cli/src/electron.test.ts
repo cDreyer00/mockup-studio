@@ -22,9 +22,16 @@ describe('locateElectron', () => {
     });
   });
 
-  it('electronArgs builds --headless --port', () => {
+  it('electronArgs builds --mockup-headless --port (dev: after the app path)', () => {
     const l = { exe: 'e', args: ['app'], source: 'dev' as const };
-    expect(electronArgs(l, 5000)).toEqual(['app', '--headless', '--port', '5000']);
+    expect(electronArgs(l, 5000)).toEqual(['app', '--mockup-headless', '--port', '5000']);
+  });
+
+  it("electronArgs for the packaged app passes the files and never Chromium's --headless", () => {
+    const l = { exe: 'Mockup Studio.exe', args: [], source: 'installed' as const };
+    const a = electronArgs(l, 4747, ['D:\\a.mockup.json']);
+    expect(a).toEqual(['--mockup-headless', '--port', '4747', 'D:\\a.mockup.json']);
+    expect(a).not.toContain('--headless');
   });
 });
 

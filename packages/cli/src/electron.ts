@@ -119,8 +119,12 @@ export function electronEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.Proce
   return env;
 }
 
+/**
+ * App options for the windowless instance. `--mockup-headless`, not `--headless`: Chromium treats the
+ * latter as its own headless switch, and the app could never show a window later (second launch).
+ */
 export function electronArgs(l: ElectronLaunch, port: number, files: string[] = []): string[] {
-  return [...l.args, '--headless', '--port', String(port), ...files];
+  return [...l.args, '--mockup-headless', '--port', String(port), ...files];
 }
 
 /**
@@ -147,7 +151,8 @@ export async function spawnElectronHeadless(
   const child: ChildProcess = spawn(l.exe, electronArgs(l, port, files), {
     detached: true,
     stdio: logFd === undefined ? 'ignore' : ['ignore', logFd, logFd],
-    windowsHide: true,
+    // No `windowsHide`: Electron is a GUI app (no console to hide), and SW_HIDE in its STARTUPINFO
+    // would turn the first window it shows later (the app opened again) into a hidden one.
     env: electronEnv(),
   });
   if (logFd !== undefined) {
