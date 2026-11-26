@@ -83,7 +83,8 @@ Without a provider, render calls fail with the message `RENDER_UNAVAILABLE` (MCP
 `packages/editor/render.html` (editor build, served at `/render.html`) mounts only the node's frame, with the same node component and the same base CSS as the canvas (`documentBaseCss`), without selection, artboard shadow or UI.
 
 - `window.__mockupRenderReady` becomes `true` when the page is mounted.
-- `window.__mockupRender.render({ doc, docId, nodeId, transparent? })` renders the node's root frame at 0,0 and returns `RenderBox { frameId, frameWidth, frameHeight, x, y, width, height }`: the node's rectangle relative to the frame, in CSS px. The background is the document page's; with `transparent` the background is transparent.
+- `window.__mockupRender.render({ doc, docId, nodeId, transparent?, state?, time?, build?, times?, columns? })` renders the node's root frame at 0,0 and returns `RenderBox { frameId, frameWidth, frameHeight, x, y, width, height }`: the node's rectangle relative to the frame, in CSS px. The background is the document page's; with `transparent` the background is transparent.
+  `time` (s) seeks effects and node animations; `build` shows the state after that click build; `times` (1 to 12) renders a filmstrip grid of whole frames (`columns`, default up to 4) and returns the box of the whole grid. `measure` is not available after a filmstrip.
 - `window.__mockupRender.measure(nodeId)` returns the `LayoutNode` of the already rendered node.
 - Before responding, `render` waits for fonts (`@font-face` of embedded fonts) and images (`decode`, with a 5 s limit per wait).
 

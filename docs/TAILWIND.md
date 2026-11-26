@@ -127,7 +127,7 @@ simulates the document's minimum `md` width even in a narrower frame.
 | Variant with no equivalent (`group-hover:`, `peer-*:`, `aria-*:`, `data-*:`, `before:`, `[&_svg]:`, `max-md:`, `has-*:`) | `unsupported` (with the reason): stays in `node.classes` and comes back unchanged in the export                                                                                                              |
 | Utility with its own `@media` or a pseudo-element selector (`container`, `placeholder:*`)                                | `unsupported`                                                                                                                                                                                                |
 | Classes for children (`space-y-2`, `space-x-*`, `divide-y`, `*:p-2`)                                                     | The CSS goes to the children (below their own classes); the parent's class is not re-exported. Removing the class (`remove`/`replace`) undoes what it wrote on the children that still have the stored value |
-| `animate-*`                                                                                                              | `animation` is stored, but the `@keyframes` do not exist on the canvas (it does not animate)                                                                                                                 |
+| `animate-*`                                                                                                              | `animation` is stored; with `cssBase: 'tailwind'` the base CSS carries the Tailwind v4 `@keyframes` (`spin`, `ping`, `pulse`, `bounce`), so it animates on the canvas, the render page and the exports       |
 
 `write_html`/`import_component` report the `unknown`/`unsupported` classes in the response.
 
@@ -260,7 +260,7 @@ interface in [EDITOR.md](EDITOR.md) and of the export in [EXPORT.md](EXPORT.md).
   to the same style, it is just less readable.
 - Inline HTML and React do not carry the CSS of classes the model does not represent (`aria-*:`,
   `has-[...]:`, `[&_svg]:`, `group-hover:`); the Tailwind export returns them as they are.
-- `animate-*` does not animate on the canvas; transitions are not simulated in the preview.
+- `animate-*` animates on the canvas only with `cssBase: 'tailwind'` (the base CSS then includes the default `@keyframes` `spin`, `ping`, `pulse`, `bounce`; with the default base they stay undefined); transitions are not simulated in the preview.
 - React export with `styles: 'inline'` and SVG do not carry the states.
 - Custom breakpoints (`--breakpoint-*` in tokens) change the width of `sm` … `2xl`, but
   new names (`--breakpoint-3xl`) only reach the compiler: the node's states recognize only

@@ -466,6 +466,17 @@ so `src="assets/..."` resolves without an import. In SVG the images are only sel
 returns data URLs; without it the original `src` is kept. Embedded fonts (`fonts[]` with
 `source: 'file'`) become `@font-face` with `assets/<file>` (html/tailwind/react) or a data URL (svg).
 
+## Motion
+
+Node animations (`node.animations`) export as real CSS in html, tailwind and react; svg is static and ignores them. `node.slideTransition` is presentation-only and is never exported.
+
+- Each animated element gets `data-mk="<n>"`; the rules target that attribute, so they work the same in classes, inline and Tailwind exports. `@keyframes` are named by a short content hash (`mk-3f9a1c`), emitted once however many elements share them, with a `-b<build>` suffix when the build is > 0.
+- `animation` is comma-separated in composite order, with the fill mode per entry (entrances `backwards`, exits `forwards`, emphasis none), `infinite` for loops and `animation-play-state: paused` for builds > 0.
+- Targets: `self` is the element; `child` is the i-th visible child; `segment` is a split-text span. A text with `split: 'words' | 'chars'` becomes inline-block `span[data-motion-seg]` (characters grouped per word in a `white-space: nowrap` `span[data-motion-word]`), each with `--mi` (its index) so the stagger is `calc(var(--mi) * stagger + delay)`; `split: 'children'` staggers the children.
+- All animation rules are wrapped in `@media (prefers-reduced-motion: no-preference)`: with reduced motion the final design shows and an exit never hides content. Only the inline-block layout of split spans stays outside.
+- Builds > 0: a small dependency-free script (html/tailwind: inline `<script>`; react: a `useEffect` in the root component, removed on unmount) plays the next build on click / ArrowRight / Space / PageDown. Without builds > 0 there is no script.
+- Tailwind `animate-spin|ping|pulse|bounce`: the Tailwind export relies on Tailwind generating the keyframes; html and react inline get them from the base CSS when `cssBase: 'tailwind'`.
+
 ## Known limitations
 
 - Tailwind: the mapping is per declaration. Arbitrary selectors and variants the model does not
