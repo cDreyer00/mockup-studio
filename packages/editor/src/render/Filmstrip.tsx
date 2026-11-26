@@ -28,22 +28,29 @@ export interface FilmstripProps {
   columns: number;
 }
 
-/** Fixed font, immune to the document's CSS (preflight, tokens). */
-const LABEL_STYLE: CSSProperties = {
-  all: 'initial',
-  display: 'block',
-  alignSelf: 'center',
-  font: '500 12px/16px system-ui, -apple-system, "Segoe UI", sans-serif',
-  color: '#ffffff',
-  background: 'rgba(0, 0, 0, 0.6)',
-  padding: '2px 8px',
-  borderRadius: 4,
-  whiteSpace: 'nowrap',
-  letterSpacing: 0,
-  textTransform: 'none',
-};
+/**
+ * Label font, immune to the document's CSS (preflight, tokens). Sized from the frame width (1/40,
+ * 12 to 48 px) so it stays readable when the agent downsizes the image with `maxWidth`.
+ */
+export function labelStyle(frameWidth: number): CSSProperties {
+  const size = Math.round(Math.min(48, Math.max(12, frameWidth / 40)));
+  return {
+    all: 'initial',
+    display: 'block',
+    alignSelf: 'center',
+    font: `500 ${size}px/${Math.round(size * 1.35)}px system-ui, -apple-system, "Segoe UI", sans-serif`,
+    color: '#ffffff',
+    background: 'rgba(0, 0, 0, 0.6)',
+    padding: `${Math.round(size / 6)}px ${Math.round(size / 1.5)}px`,
+    borderRadius: Math.round(size / 3),
+    whiteSpace: 'nowrap',
+    letterSpacing: 0,
+    textTransform: 'none',
+  };
+}
 
 export function Filmstrip({ doc, docId, frame, state, cells, columns }: FilmstripProps) {
+  const label = labelStyle(parseFloat(frame.style.width ?? '') || 1280);
   return (
     <div
       data-filmstrip=""
@@ -66,7 +73,7 @@ export function Filmstrip({ doc, docId, frame, state, cells, columns }: Filmstri
           <div data-filmstrip-cell="" style={{ position: 'relative', overflow: 'hidden' }}>
             {createElement(RenderApp, { doc, docId, frame, state, motion: cell.scope })}
           </div>
-          <div data-filmstrip-label="" style={LABEL_STYLE}>
+          <div data-filmstrip-label="" style={label}>
             {cell.label}
           </div>
         </div>
