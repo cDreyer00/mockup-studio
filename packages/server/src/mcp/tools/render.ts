@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { PREVIEW_STATES, formatGridTracks, type LayoutNode } from '@mockup/core';
+import {
+  PREVIEW_STATES,
+  formatGridTracks,
+  frameMotionTimeline,
+  getFrameOf,
+  type LayoutNode,
+} from '@mockup/core';
 import { renderTargetFor, type RenderTarget } from '../../component-view.js';
 import { renderUnavailableMessage } from '../../render.js';
 import { READ, ToolError, docIdField, type ToolContext } from '../context.js';
@@ -102,13 +108,49 @@ export function registerRenderTools(ctx: ToolContext): void {
           .min(0)
           .optional()
           .describe(
-            'Time (s) of the animations in the frame: effects, particles, Lottie, Rive, Three.js and video. E.g. 1.5. Video with a poster shows the poster when time is not given.',
+            'Seconds on the frame linear motion timeline (node animations, builds back to back; see get_timeline) and on the effects clock (effects, particles, Lottie, Rive, Three.js, video). E.g. 1.5. With no time/build/times you see the design state (animations at rest). With build: seconds into that build.',
           ),
+        build: z
+          .number()
+          .int()
+          .min(0)
+          .max(99)
+          .optional()
+          .describe(
+            'State after this click build of the presentation: 0 = only the automatic build, 1 = after the first click... Later builds have not started. With time: seconds into the build. E.g. 1.',
+          ),
+        times: z
+          .array(z.number().min(0).max(600))
+          .min(1)
+          .max(12)
+          .optional()
+          .describe(
+            'Filmstrip: one cell per instant (s) in a SINGLE image, a cheap way to see a whole animation, e.g. [0, 0.3, 0.6, 1, 1.5]. Relative to build when given. Max 12; replaces time.',
+          ),
+        columns: z
+          .number()
+          .int()
+          .min(1)
+          .max(12)
+          .optional()
+          .describe('Filmstrip columns, 1 to 12 (default: up to 4).'),
         docId: docIdField,
       },
       annotations: READ,
     },
-    async ({ nodeId, scale, format, maxWidth, transparent, state, time, docId }) => {
+    async ({
+      nodeId,
+      scale,
+      format,
+      maxWidth,
+      transparent,
+      state,
+      time,
+      build,
+      times,
+      columns,
+      docId,
+    }) => {
       const render = needRender();
       const id = store.resolveDocId(docId);
       const doc = store.get(id);
@@ -128,6 +170,9 @@ export function registerRenderTools(ctx: ToolContext): void {
           transparent,
           ...(state ? { state } : {}),
           ...(time !== undefined ? { time } : {}),
+          ...(build !== undefined ? { build } : {}),
+          ...(times !== undefined ? { times } : {}),
+          ...(columns !== undefined ? { columns } : {}),
         });
       } catch (e) {
         throw new ToolError(
@@ -135,10 +180,18 @@ export function registerRenderTools(ctx: ToolContext): void {
         );
       }
       const ext = r.mime === 'image/jpeg' ? 'jpg' : 'png';
-      return {
-        images: [{ data: r.data.toString('base64'), mimeType: r.mime }],
-        text: `${target} "${rt.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (image ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` with state "${state}"` : ''}`,
-      };
+      let text = `${target} "${rt.name}": ${Math.round(r.width)}x${Math.round(r.height)} px (image ${r.pixelWidth}x${r.pixelHeight} ${ext}, ${kb(r.data.length)})${state ? ` with state "${state}"` : ''}`;
+      if (time === undefined && build === undefined && times === undefined) {
+        const frame = getFrameOf(rt.doc, rt.nodeId);
+        const tl = frame ? frameMotionTimeline(frame) : undefined;
+        if (tl && tl.items.length > 0) {
+          const n = tl.items.length;
+          const clicks = tl.clicks ? `, ${tl.clicks} click build${tl.clicks === 1 ? '' : 's'}` : '';
+          text += `
+This frame has ${n} animation${n === 1 ? '' : 's'} (${(tl.duration / 1000).toFixed(1)} s${clicks}): pass time, build or times to see them.`;
+        }
+      }
+      return { images: [{ data: r.data.toString('base64'), mimeType: r.mime }], text };
     },
   );
 

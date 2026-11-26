@@ -8,6 +8,8 @@ import {
   exportSvg,
   expandRepeaters,
   exportTailwind,
+  frameMotionTimeline,
+  getFrameOf,
   mediaAssetRefs,
   tailwindThemeCss,
   type Document,
@@ -145,7 +147,7 @@ export function registerExportTools(ctx: ToolContext): void {
           .max(30)
           .optional()
           .describe(
-            'mp4/webm/gif only: duration in seconds, greater than 0 and up to 30 (default 3).',
+            'mp4/webm/gif only: duration in seconds, greater than 0 and up to 30 (default 3; for a frame with animations, its motion timeline + 0.5 s, 1 to 30).',
           ),
         start: z
           .number()
@@ -224,7 +226,6 @@ export function registerExportTools(ctx: ToolContext): void {
           "This daemon's render engine does not capture animated frames, which mp4, webm and gif need. Use the updated Mockup Studio desktop app.",
         );
       const animFps = format === 'gif' ? Math.min(fps ?? 15, 30) : (fps ?? 30);
-      const animDuration = duration ?? 3;
       const extraNotes: string[] = [];
       await fs.promises.mkdir(dir, { recursive: true });
       // Code (html, tailwind, react): the daemon's /cdn links become local copies in assets/cdn/.
@@ -273,6 +274,20 @@ export function registerExportTools(ctx: ToolContext): void {
         if (isAnimated) {
           // components and virtual ids: the render receives the expanded document (or the main component's preview)
           const animTarget = renderTargetFor(doc, ref)!;
+          // Without an explicit duration, a frame with animations records its whole motion timeline.
+          let animDuration = duration ?? 3;
+          let durationNote = '';
+          if (duration === undefined) {
+            const frame = getFrameOf(animTarget.doc, animTarget.nodeId);
+            const tl = frame ? frameMotionTimeline(frame) : undefined;
+            if (tl && tl.items.length > 0) {
+              animDuration = Math.min(
+                30,
+                Math.max(1, Math.round((tl.duration / 1000 + 0.5) * 100) / 100),
+              );
+              durationNote = ` (default: motion timeline ${(tl.duration / 1000).toFixed(1)} s + 0.5 s)`;
+            }
+          }
           const file = path.join(dir, uniq(slug, `.${format}`));
           const replaced = fs.existsSync(file);
           let frames = 0;
@@ -310,7 +325,7 @@ export function registerExportTools(ctx: ToolContext): void {
           const size = (await fs.promises.stat(file)).size;
           written.push({ file, replaced });
           extraNotes.push(
-            `${path.basename(file)}: ${frames} frame(s) at ${animFps} fps, ${animDuration} s, ${Math.max(1, Math.round(size / 1024))} KB`,
+            `${path.basename(file)}: ${frames} frame(s) at ${animFps} fps, ${animDuration} s${durationNote}, ${Math.max(1, Math.round(size / 1024))} KB`,
           );
         } else if (isImage) {
           const rt = renderTargetFor(doc, ref)!;

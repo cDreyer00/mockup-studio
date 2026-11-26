@@ -1,15 +1,17 @@
 import { z } from 'zod';
 import {
   SLIDE_STEPS,
+  expandDocument,
+  findNode,
+  frameMotionTimeline,
   presentationSlides,
   slideIndexOfNode,
   type Document,
-  type EditorCommand,
   type Node,
   type Page,
   type PresentationState,
 } from '@mockup/core';
-import { NO_EDITOR_MESSAGE } from '../../editors.js';
+import { NO_EDITOR_MESSAGE, type PresentationCommand } from '../../editors.js';
 import { ToolError, WRITE, docIdField, type Annotations, type ToolContext } from '../context.js';
 
 const IDEMPOTENT: Annotations = { ...WRITE, idempotentHint: true };
@@ -27,11 +29,17 @@ function currentSlide(state: PresentationState): string {
   return `slide ${state.index + 1} / ${state.slides.length} — "${s.name}" (${s.id})`;
 }
 
+/** ", build 1 / 3" when the current slide has click builds. */
+function buildSuffix(state: PresentationState): string {
+  const builds = state.builds ?? 0;
+  return builds > 0 ? `, build ${state.build ?? 0} / ${builds}` : '';
+}
+
 export function registerPresentationTools(ctx: ToolContext): void {
   const { tool, store, opts } = ctx;
 
   /** Sends a command to the editor window; no editor connected becomes a `ToolError`. */
-  async function send(cmd: EditorCommand): Promise<PresentationState> {
+  async function send(cmd: PresentationCommand): Promise<PresentationState> {
     const editors = opts.services?.editors;
     if (!editors || editors.count() === 0) throw new ToolError(NO_EDITOR_MESSAGE);
     try {
@@ -119,10 +127,19 @@ export function registerPresentationTools(ctx: ToolContext): void {
         lines.push(
           'Not in full screen: the editor presents inside its window because the browser only allows full screen from a user gesture.',
         );
-      lines.push(`Current: ${currentSlide(state)}.`);
+      lines.push(`Current: ${currentSlide(state)}${buildSuffix(state)}.`);
       lines.push('Slides:');
-      for (const s of state.slides)
-        lines.push(`${slideLine(s)}${s.index === state.index ? '  <- current' : ''}`);
+      const expanded = expandDocument(doc);
+      const clickBuilds = (frameId: string): number => {
+        const frame = findNode(expanded, frameId)?.node;
+        return frame ? frameMotionTimeline(frame).clicks : 0;
+      };
+      for (const s of state.slides) {
+        const clicks = clickBuilds(s.id);
+        lines.push(
+          `${slideLine(s)}${clicks > 0 ? ` [${clicks} click build${clicks === 1 ? '' : 's'}]` : ''}${s.index === state.index ? '  <- current' : ''}`,
+        );
+      }
       lines.push('Use presentation_goto to change slide and stop_presentation to end.');
       return lines.join('\n');
     },
@@ -133,7 +150,7 @@ export function registerPresentationTools(ctx: ToolContext): void {
     {
       title: 'Go to slide',
       description:
-        'Navigates the running presentation. Pass exactly one of index (0-based), frameId or step (next, previous, first, last). Fails if no presentation is running (use start_presentation).',
+        'Navigates the running presentation: exactly one of index (0-based), frameId or step; or just build. step "next" plays the next click build before moving to the next slide; "previous" steps back a build. Fails if none is running.',
       example: { step: 'next' },
       inputSchema: {
         index: z
@@ -149,24 +166,39 @@ export function registerPresentationTools(ctx: ToolContext): void {
         step: z
           .enum(SLIDE_STEPS)
           .optional()
-          .describe('"next", "previous", "first" or "last" (stays at the edges).'),
+          .describe(
+            '"next" (plays the next click build, then moves to the next slide), "previous" (steps back a build, then a slide), "first" or "last" (stays at the edges).',
+          ),
+        build: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            'Click builds already played: with index/frameId, on that slide; alone, jumps to that build of the current slide. 0 = only the automatic build. E.g. 1.',
+          ),
       },
       // `step: "next"` moves again on every call: not idempotent.
       annotations: WRITE,
     },
-    async ({ index, frameId, step }) => {
+    async ({ index, frameId, step, build }) => {
       const given = [index, frameId, step].filter((v) => v !== undefined).length;
-      if (given !== 1)
+      if (
+        given > 1 ||
+        (given === 0 && build === undefined) ||
+        (step !== undefined && build !== undefined)
+      )
         throw new ToolError(
-          'Pass exactly one of index, frameId or step. E.g. { step: "next" } or { index: 0 }.',
+          'Pass exactly one of index, frameId or step (build can accompany index or frameId, or be used alone). E.g. { step: "next" }, { index: 0 } or { build: 1 }.',
         );
       const state = await send({
         type: 'presentation:goto',
         ...(index !== undefined ? { index } : {}),
         ...(frameId !== undefined ? { frameId } : {}),
         ...(step !== undefined ? { step } : {}),
+        ...(build !== undefined ? { build } : {}),
       });
-      return `Now at ${currentSlide(state)}.`;
+      return `Now at ${currentSlide(state)}${buildSuffix(state)}.`;
     },
   );
 
