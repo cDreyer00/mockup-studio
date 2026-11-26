@@ -35,9 +35,23 @@ export interface CaptureRequest extends RenderTarget {
   state?: PreviewState;
   /**
    * Time (s) of the animations in the captured frame: effects, particles, video, Lottie, Rive and
-   * Three.js. Default 0 (video with `poster` shows the poster when `time` is not given).
+   * Three.js. Default 0 (video with `poster` shows the poster when `time` is not given). Node
+   * animations (`node.animations`) follow the frame's linear motion timeline at this time; without
+   * `time` and `build` they show the design state (as on the canvas).
    */
   time?: number;
+  /**
+   * Node animations after this build (0 = the automatic one, 1 = first click...): earlier builds
+   * finished, later ones not started; with `time`, that many seconds into the build.
+   */
+  build?: number;
+  /**
+   * Filmstrip: one cell per instant (s, like `time`; relative to `build` when given), laid out in a
+   * single image, left to right, top to bottom (at most 12).
+   */
+  times?: number[];
+  /** Filmstrip columns (default: up to 4). */
+  columns?: number;
 }
 
 /** Capture of N PNG frames of an animated node (to export mp4, webm or gif). */
