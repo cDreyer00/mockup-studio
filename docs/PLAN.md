@@ -251,3 +251,15 @@ Merge of `feature/revisao-fases-paralelas` (phases 5 to 8, already joined from m
 - Exporters: a single React preamble (media helpers, slots' `ReactNode` and `safeUrl`), with the components rendered before the preamble to register the media inside them; `export` uses the expanded tree for render, video and static effects (including inside instances) and for the asset copy.
 - Editor: single left panel with the Layers, Assets, Components and Tokens tabs (only the active one shows its name); files home screen in place of the canvas; screenshot with `state` (state preview) and `time` (animations).
 - Fixed in the merge: unclosed CSS rules inherited from the parallel branch (`.data-error` in `properties.css`, which nested the vector CSS and broke the editor layout in Electron, and `.cv-crop-bar` in `canvas.css`, which hid the grid overlay); duplicated `ExpandOptions` in the core (the repeater's became `RepeaterExpandOptions`).
+
+## Motion design (`feature/motion-design`, 2026-11-26)
+
+Node animations, click builds and slide transitions, in the editor, the MCP, screenshots, exports and presentation mode (see [MOTION.md](MOTION.md)).
+
+- **Core**: `node.animations` (`kind` in/out/emphasis, `preset`, `duration`, `delay`, `easing`, `build`, `iterations`, `alternate`, `split` children/words/chars + `stagger`, `params`, custom `keyframes`) and `frame.slideTransition`; 38 parametric presets plus custom keyframes, named easings with springs, bounce and elastic generated as CSS `linear()`, 11 slide transitions with forward/reverse keyframe plans (push, cover, reveal, wipe, zoom, blur, flip, cube, dip, fade, magic move); the linear timeline of a frame (builds back to back); op `setMotion` with exact inverse, lenient file schema with defaults omitted, component overrides, HTML round trip (`data-motion`) and tree summary markers.
+- **Editor**: `MotionScope` plays everything with the Web Animations API on the compositor (one start time per build, no React render per frame, no per-node timers, loops paused off screen, only loops exist in the design state); Animation and Slide transition sections with a live preset gallery; Motion timeline panel (`M`) with builds, retiming by drag, scrubbing and playback; split text rendered as spans.
+- **Presentation**: transitions per slide (reversed going back), click builds (→ plays the next build, ← undoes it), magic move between layers with the same name, build indicator.
+- **MCP**: `list_motion_presets`, `animate` (cascade, one undo step), `update_animation`, `remove_animations`, `set_animations`, `set_slide_transition`, `get_timeline`, `preview_motion`; `get_screenshot` `time`/`build`/`times` (filmstrip), `presentation_goto` `build`, animated export length from the timeline, `motion` guide.
+- **Export**: HTML, Tailwind and React emit CSS `@keyframes` (deduplicated, reduced motion respected) and a small click-build runtime; Tailwind's `animate-*` keyframes in the Tailwind base CSS.
+
+Pending: magic move matches by layer name only; character split loses kerning/ligatures and text decoration across spans; wipes repaint (clip-path); slide transitions are not exported to code.

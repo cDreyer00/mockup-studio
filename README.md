@@ -10,7 +10,8 @@ When you ask an agent (Claude Code, Codex) for a mockup, it drives the app over 
 - Real HTML and CSS in `*.mockup.json`, with tokens as CSS variables.
 - Full MCP server with 124 tools: everything the editor does, plus screenshots, measurements, images, icons and fonts.
 - Node screenshots rendered by Electron, so the agent can see the result and iterate.
-- Presentation mode: play a page as a slide show, one frame per slide (button, F5, desktop menu or MCP).
+- Motion design: entrance, exit, emphasis and loop animations (38 presets plus custom keyframes, springs and overshoot easings, stagger by child, word or character), click builds, slide transitions (push, cover, cube, flip, magic move…) and a timeline, all at 60 fps on the GPU and fully driven by the MCP too (see [docs/MOTION.md](docs/MOTION.md)).
+- Presentation mode: play a page as a slide show, one frame per slide, with its transitions and builds (button, F5, desktop menu or MCP).
 - Export to html, tailwind, react, svg, png and jpg.
 - Offline, no account, local use.
 
@@ -20,7 +21,7 @@ When you ask an agent (Claude Code, Codex) for a mockup, it drives the app over 
 
 Monorepo with core, daemon, MCP server, visual editor, desktop app (Electron) with render engine and packaging, CLI with `doctor` and `setup`, and agent integrations.
 
-On top of that: tokens and themes, native Tailwind, components, website snapshots, assets and real data, vectors and grid, effects and embeds, AI assistant, scripts and remix. Scope and design notes in [docs/PLAN.md](docs/PLAN.md).
+On top of that: tokens and themes, native Tailwind, components, website snapshots, assets and real data, vectors and grid, effects and embeds, motion design, AI assistant, scripts and remix. Scope and design notes in [docs/PLAN.md](docs/PLAN.md).
 
 ## Installation
 
@@ -51,7 +52,7 @@ Codex: `codex mcp add mockup-studio -- mockup mcp`. Details, HTTP, Cursor, VS Co
 ## Quick start
 
 - Ask the agent: "create a mockup of a landing page for a finance app, with desktop and mobile versions". It creates the frames, checks the screenshots and iterates.
-- Open the editor to view and adjust: the desktop app or `npm run dev` (editor at http://localhost:5173, daemon at `http://127.0.0.1:4747`). Use **File › Open…** or, from the terminal, `mockup open examples/landing.mockup.json`.
+- Open the editor to view and adjust: the desktop app or `npm run dev` (editor at http://localhost:5173, daemon at `http://127.0.0.1:4747`). Use **File › Open…** or, from the terminal, `mockup open examples/landing.mockup.json` (or `examples/motion-deck.mockup.json` and press F5 for an animated deck).
 - CLI commands: `mockup mcp` (stdio for agents), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup install-cli`, `mockup uninstall-cli`, `mockup --version`.
 
 Editor guide, shortcuts and performance measurements in [docs/EDITOR.md](docs/EDITOR.md).
