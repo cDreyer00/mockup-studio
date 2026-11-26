@@ -22,6 +22,8 @@ import { BASE_STATE_CTX, StateCtxContext } from './stateContext';
 import { Overlay } from './Overlay';
 import { PenOverlay } from './PenOverlay';
 import { VectorEditOverlay } from './VectorEditOverlay';
+import { MotionScopeContext } from '../motion/context';
+import { canvasMotion, motionPreview, setCanvasViewport } from '../motion/preview';
 import './canvas.css';
 
 const FIT_PADDING = 60;
@@ -82,6 +84,15 @@ export function Canvas() {
   useEffect(() => {
     const root = rootRef.current;
     return root ? attachInteractions(root) : undefined;
+  }, []);
+
+  // Motion: frames off screen pause their loops; leaving the canvas ends the preview.
+  useLayoutEffect(() => {
+    setCanvasViewport(rootRef.current);
+    return () => {
+      motionPreview.stop();
+      setCanvasViewport(null);
+    };
   }, []);
 
   // Imperative API for the other areas. Layout effect (declared before the initial fit)
@@ -233,9 +244,11 @@ export function Canvas() {
       >
         <DocIdContext.Provider value={docId ?? ''}>
           <StateCtxContext.Provider value={stateCtx}>
-            {page?.frames.map((f) => (
-              <FrameView key={f.id} frame={f} />
-            ))}
+            <MotionScopeContext.Provider value={canvasMotion}>
+              {page?.frames.map((f) => (
+                <FrameView key={f.id} frame={f} />
+              ))}
+            </MotionScopeContext.Provider>
           </StateCtxContext.Provider>
         </DocIdContext.Provider>
       </div>

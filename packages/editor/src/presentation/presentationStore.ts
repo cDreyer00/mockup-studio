@@ -334,6 +334,8 @@ export const presentation = {
       frameId: s.slides[s.index]?.id ?? null,
       slides: s.slides,
       fullscreen: s.fullscreen,
+      build: 0,
+      builds: 0,
     };
   },
 };

@@ -11,10 +11,10 @@ import type {
   ClientMessage,
   Document,
   EditorCommandMessage,
+  EditorCommandResult,
   HistoryState,
   Op,
   OpenDocumentInfo,
-  PresentationState,
   RemixKind,
   RemixResult,
   ScriptFileInfo,
@@ -563,7 +563,7 @@ export class DaemonClient {
 
   /** Runs a command from the daemon (MCP presentation tools) and answers with its result. */
   private async runCommand({ commandId, command }: EditorCommandMessage): Promise<void> {
-    let reply: { ok: true; result: PresentationState } | { ok: false; error: string };
+    let reply: { ok: true; result: EditorCommandResult } | { ok: false; error: string };
     try {
       reply = { ok: true, result: await runEditorCommand(command) };
     } catch (e) {

@@ -7,19 +7,21 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode, RefObject } from 'react';
 import {
   VOID_TAGS,
   baseNodeId,
   expandRepeaterChildren,
   inlineSvgVars,
   resolveStateStyle,
+  textSplitOf,
 } from '@mockup/core';
 import type { Document, Node, Op, StateContext } from '@mockup/core';
 import { daemon } from '../client/daemon';
 import { EffectView } from '../fx/EffectView';
 import { EmbedView } from '../fx/EmbedView';
 import { VideoView } from '../fx/VideoView';
+import { MotionFrameContext, MotionScopeContext, splitTextChildren } from '../motion/context';
 import { useDoc } from '../state/docStore';
 import { nodeScopeVars } from '../tokens/reportCache';
 import { ui, useUi } from '../state/uiStore';
@@ -167,7 +169,15 @@ function svgWithScope(doc: Document, node: Node, svg: string): string {
  * inherited). Since the document's custom properties do not reach inside the image, the markup's `var()`s
  * are replaced with the values from the node's scope (tokens, effective theme and ancestor variables).
  */
-function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
+function SvgView({
+  node,
+  style,
+  domRef,
+}: {
+  node: Node;
+  style: CSSProperties;
+  domRef?: RefObject<HTMLElement | null>;
+}) {
   const svg = node.svg ?? '';
   const renderDoc = useContext(RenderDocContext);
   const withVars = hasVar(svg);
@@ -187,6 +197,7 @@ function SvgView({ node, style }: { node: Node; style: CSSProperties }) {
     style,
     // repeater clones (`id~3`) respond to the template id
     'data-node-id': baseNodeId(node.id),
+    ...(domRef && { ref: domRef }),
   });
 }
 
@@ -284,6 +295,30 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
     [node, editingInside],
   );
   const attrs = useMemo(() => safeAttrs(node, docId), [node, docId]);
+
+  // Motion: animated nodes register their element; the root frame registers the timeline.
+  const motion = useContext(MotionScopeContext);
+  const parentFrame = useContext(MotionFrameContext);
+  const frameId = root ? node.id : parentFrame;
+  const elRef = useRef<HTMLElement | null>(null);
+  const animated = !!motion && !node.hidden && !!node.animations?.length;
+  const media = node.type === 'effect' || node.type === 'video' || node.type === 'embed';
+  useLayoutEffect(() => {
+    if (!animated || !motion) return;
+    return motion.attach(frameId, node, media ? null : elRef.current);
+    // `editing` swaps the text element (inline editor), so the animations follow the new one
+  }, [animated, motion, frameId, node, media, editing]);
+  useLayoutEffect(() => {
+    if (!motion || !root || node.hidden) return;
+    return motion.setFrame(node.id, node, media ? null : elRef.current);
+  }, [motion, root, node, media]);
+  const withFrame = (el: ReactNode): ReactNode =>
+    root && motion ? (
+      <MotionFrameContext.Provider value={node.id}>{el}</MotionFrameContext.Provider>
+    ) : (
+      el
+    );
+
   if (node.hidden) return null;
 
   const tag = resolveTag(node.tag);
@@ -292,12 +327,20 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   if (node.type === 'video') return <VideoView node={node} style={style} docId={docId} />;
   if (node.type === 'embed') return <EmbedView node={node} style={style} docId={docId} />;
 
+  const needsRef = !!motion && (root || animated);
+
   if (node.type === 'svg') {
-    if (!node.svg) return createElement('div', { style, 'data-node-id': realId });
-    return <SvgView node={node} style={style} />;
+    if (!node.svg)
+      return createElement('div', {
+        style,
+        'data-node-id': realId,
+        ...(needsRef && { ref: elRef }),
+      });
+    return <SvgView node={node} style={style} {...(needsRef && { domRef: elRef })} />;
   }
 
   const props: Record<string, unknown> = { ...attrs, style, 'data-node-id': realId };
+  if (needsRef) props.ref = elRef;
   // Dark preview: the root frame takes the document's `dark` theme (DOM only).
   if (root && baseCtx.preview === 'dark' && baseCtx.darkTheme) props['data-theme'] = 'dark';
   if (tag === 'form') props.onSubmit = (e: { preventDefault(): void }) => e.preventDefault();
@@ -322,9 +365,14 @@ export const NodeView = memo(function NodeView({ node, root = false }: NodeViewP
   }
 
   const children: ReactNode[] = [];
-  if (node.type === 'text' && node.text) children.push(node.text);
+  if (node.type === 'text' && node.text) {
+    // word/character animations: one span per segment (also in the design state, same layout)
+    const split = textSplitOf(node);
+    if (split) children.push(...splitTextChildren(node.text, split));
+    else children.push(node.text);
+  }
   for (const child of repeated ?? node.children ?? []) {
     if (!child.hidden) children.push(<NodeView key={child.id} node={child} />);
   }
-  return scoped(createElement(tag, props, ...children));
+  return withFrame(scoped(createElement(tag, props, ...children)));
 });

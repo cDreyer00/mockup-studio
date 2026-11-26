@@ -7,6 +7,8 @@ import { DocIdContext, NodeView, RenderDocContext } from '../canvas/NodeView';
 import { BASE_STATE_CTX, StateCtxContext } from '../canvas/stateContext';
 import { DocumentBase, FontFaces } from '../canvas/FontFaces';
 import { ThemeStyles } from '../canvas/ThemeStyles';
+import { MotionScopeContext } from '../motion/context';
+import type { MotionScope } from '../motion/scope';
 import '../canvas/canvas.css';
 
 export interface RenderAppProps {
@@ -16,6 +18,8 @@ export interface RenderAppProps {
   frame: Node;
   /** State preview (hover, focus, dark...) applied to all nodes. */
   state?: PreviewState;
+  /** Plays the node animations (render page, presentation). Without it: the design state. */
+  motion?: MotionScope;
 }
 
 /** Prepares the frame for render mode: at (0,0), visible and without the canvas's default shadow. */
@@ -32,7 +36,7 @@ export function renderFrameOf(frame: Node): Node {
 }
 
 /** Same tree as the canvas (`NodeView`), tokens on the wrapper and embedded fonts; no label/overlay. */
-export function RenderApp({ doc, docId, frame: received, state }: RenderAppProps) {
+export function RenderApp({ doc, docId, frame: received, state, motion }: RenderAppProps) {
   // Tolerant of unexpanded instances (same object when there are none).
   const frame = useMemo(() => expandNodeTree(doc, received), [doc, received]);
   const stateCtx = useMemo(
@@ -56,7 +60,9 @@ export function RenderApp({ doc, docId, frame: received, state }: RenderAppProps
       <DocIdContext.Provider value={docId}>
         <RenderDocContext.Provider value={doc}>
           <StateCtxContext.Provider value={stateCtx}>
-            <NodeView node={frame} root />
+            <MotionScopeContext.Provider value={motion ?? null}>
+              <NodeView node={frame} root />
+            </MotionScopeContext.Provider>
           </StateCtxContext.Provider>
         </RenderDocContext.Provider>
       </DocIdContext.Provider>
