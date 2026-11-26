@@ -11,10 +11,20 @@ import {
   navigateSlide,
   presentationSlides,
   reconcileSlideIndex,
+  frameMotionTimeline,
   slideIndexOfNode,
   startSlideIndex,
+  transitionPlan,
 } from '@mockup/core';
-import type { Document, Page, PresentationSlide, PresentationState, SlideNav } from '@mockup/core';
+import type {
+  Document,
+  Node,
+  Page,
+  PresentationSlide,
+  PresentationState,
+  SlideNav,
+  TransitionPlan,
+} from '@mockup/core';
 import { getDesktop } from '../desktop/bridge';
 import { fxClock, useFxClock } from '../fx/clock';
 import { useDoc } from '../state/docStore';
@@ -34,7 +44,38 @@ export interface GotoOptions {
   index?: number;
   frameId?: string;
   step?: 'next' | 'previous' | 'first' | 'last';
+  /**
+   * With `index`/`frameId`/`step`: click builds already played on the target slide (default 0).
+   * Alone: that build of the current slide.
+   */
+  build?: number;
 }
+
+/**
+ * What the last navigation asks the view to play. `seq` changes on every navigation (slide or
+ * build); the view reacts to it, so the store never touches the DOM.
+ */
+export interface SlideNavState {
+  seq: number;
+  /** A slide came in (start, slide change, restart): its build 0 plays and it fades or transitions in. */
+  enter: boolean;
+  /** Slide being left, kept mounted while the transition runs (only with a `plan`). */
+  leaving: Node | null;
+  plan: TransitionPlan | null;
+  /** Navigating to an earlier slide. */
+  reverse: boolean;
+  /** Same slide, next build: play it (otherwise builds jump). */
+  animate: boolean;
+}
+
+const NO_NAV: SlideNavState = {
+  seq: 0,
+  enter: true,
+  leaving: null,
+  plan: null,
+  reverse: false,
+  animate: false,
+};
 
 interface PresentationStoreState {
   active: boolean;
@@ -43,6 +84,11 @@ interface PresentationStoreState {
   slides: PresentationSlide[];
   /** Current slide (0-based); -1 with no slides. */
   index: number;
+  /** Click builds played on the current slide (0 = only the automatic build). */
+  build: number;
+  /** Click builds of the current slide. */
+  builds: number;
+  nav: SlideNavState;
   /** Real full screen (browser or desktop window). */
   fullscreen: boolean;
   /** Frame the presentation started on (to restore the selection on exit). */
@@ -59,6 +105,9 @@ const IDLE: PresentationStoreState = {
   pageId: null,
   slides: [],
   index: -1,
+  build: 0,
+  builds: 0,
+  nav: NO_NAV,
   fullscreen: false,
   startFrameId: null,
   inComponentEdit: false,
@@ -90,6 +139,63 @@ export function displayedPage(
   const shown = selectPage(doc, pageId);
   if (shown?.id !== COMPONENT_EDIT_PAGE_ID) return shown;
   return doc?.pages.find((p) => p.id === componentEdit?.fromPageId) ?? doc?.pages[0] ?? null;
+}
+
+/** Click builds of a slide (cached by node: structural sharing keeps unchanged frames identical). */
+const buildsCache = new WeakMap<Node, number>();
+function buildsOf(frame: Node | undefined): number {
+  if (!frame) return 0;
+  let n = buildsCache.get(frame);
+  if (n === undefined) {
+    n = frameMotionTimeline(frame).clicks;
+    buildsCache.set(frame, n);
+  }
+  return n;
+}
+
+const frameOf = (page: Page | undefined, id: string | undefined): Node | undefined =>
+  id === undefined ? undefined : page?.frames.find((f) => f.id === id);
+
+const pageOfState = (s: PresentationStoreState): Page | undefined =>
+  useDoc.getState().doc?.pages.find((p) => p.id === s.pageId);
+
+/** Build number meaning "all builds played". */
+const LAST_BUILD = Number.POSITIVE_INFINITY;
+
+/** Moves to a slide and build (clamped), describing what the view has to play. */
+function go(index: number, wantBuild: number): void {
+  const s = usePresentation.getState();
+  if (!s.active || !s.slides.length) return;
+  const to = Math.min(Math.max(0, Math.trunc(index) || 0), s.slides.length - 1);
+  const page = pageOfState(s);
+  const frame = frameOf(page, s.slides[to]?.id);
+  const builds = buildsOf(frame);
+  const build = Math.min(Math.max(0, Number.isNaN(wantBuild) ? 0 : Math.trunc(wantBuild)), builds);
+  const changed = to !== s.index;
+  if (!changed && build === s.build) return;
+  const reverse = to < s.index;
+  let leaving: Node | null = null;
+  let plan: TransitionPlan | null = null;
+  if (changed) {
+    const from = frameOf(page, s.slides[s.index]?.id);
+    // Going back, the slide being left defines the transition (played time-reversed).
+    const t = reverse ? from?.slideTransition : frame?.slideTransition;
+    plan = from && t ? transitionPlan(t, reverse) : null;
+    if (plan) leaving = from!;
+  }
+  usePresentation.setState({
+    index: to,
+    build,
+    builds,
+    nav: {
+      seq: s.nav.seq + 1,
+      enter: changed,
+      leaving,
+      plan,
+      reverse: changed && reverse,
+      animate: !changed && build === s.build + 1,
+    },
+  });
 }
 
 const sameSlides = (a: PresentationSlide[], b: PresentationSlide[]): boolean =>
@@ -209,10 +315,22 @@ function onDocChange(
     return;
   }
   const slides = presentationSlides(page);
-  if (sameSlides(slides, cur.slides)) return;
+  const sameList = sameSlides(slides, cur.slides);
+  const index = sameList ? cur.index : reconcileSlideIndex(cur.slides, cur.index, slides);
+  const id = slides[index]?.id;
+  const slideChanged = id !== cur.slides[cur.index]?.id;
+  const builds = buildsOf(frameOf(page, id));
+  const build = slideChanged ? 0 : Math.min(cur.build, builds);
+  if (sameList && builds === cur.builds && build === cur.build) return;
   usePresentation.setState({
     slides,
-    index: reconcileSlideIndex(cur.slides, cur.index, slides),
+    index,
+    builds,
+    build,
+    // The current slide changed under us, or its builds shrank: the view re-applies the state.
+    ...((slideChanged || build !== cur.build) && {
+      nav: { ...NO_NAV, seq: cur.nav.seq + 1, enter: slideChanged },
+    }),
   });
 }
 
@@ -261,7 +379,15 @@ export const presentation = {
     if (usePresentation.getState().active) {
       // Restart while presenting: swap the slides in place. Full screen, listeners and what to
       // restore on exit stay as they are (leaving and re-entering full screen would race).
-      usePresentation.setState({ docId: activeDocId, pageId: page.id, slides, index });
+      usePresentation.setState({
+        docId: activeDocId,
+        pageId: page.id,
+        slides,
+        index,
+        build: 0,
+        builds: buildsOf(frameOf(page, slides[index]!.id)),
+        nav: { ...NO_NAV, seq: usePresentation.getState().nav.seq + 1 },
+      });
       ui.hover(null);
       return presentation.getState();
     }
@@ -274,6 +400,9 @@ export const presentation = {
       pageId: page.id,
       slides,
       index,
+      build: 0,
+      builds: buildsOf(frameOf(page, slides[index]!.id)),
+      nav: { ...NO_NAV, seq: usePresentation.getState().nav.seq + 1 },
       fullscreen: false,
       startFrameId: slides[index]!.id,
       inComponentEdit,
@@ -287,14 +416,28 @@ export const presentation = {
     return presentation.getState();
   },
 
+  /**
+   * `next` plays the next click build before moving on; `previous` undoes one build (instantly)
+   * before going back, landing on the previous slide with all its builds played.
+   */
   navigate(nav: SlideNav): void {
     const s = usePresentation.getState();
     if (!s.active) return;
-    const index = navigateSlide(s.index, s.slides.length, nav);
-    if (index !== s.index) usePresentation.setState({ index });
+    switch (nav.type) {
+      case 'next':
+        if (s.build < s.builds) go(s.index, s.build + 1);
+        else if (s.index < s.slides.length - 1) go(s.index + 1, 0);
+        return;
+      case 'previous':
+        if (s.build > 0) go(s.index, s.build - 1);
+        else if (s.index > 0) go(s.index - 1, LAST_BUILD);
+        return;
+      default:
+        go(navigateSlide(s.index, s.slides.length, nav), 0);
+    }
   },
 
-  /** Jumps to a slide by index, frame id (or a node inside it) or named step. Throws when it makes no sense. */
+  /** Jumps to a slide (and build) by index, frame id (or a node inside it) or named step. Throws when it makes no sense. */
   goto(opts: GotoOptions): PresentationState {
     const s = usePresentation.getState();
     if (!s.active) throw new Error('No presentation is running.');
@@ -302,13 +445,20 @@ export const presentation = {
       const page = useDoc.getState().doc?.pages.find((p) => p.id === s.pageId);
       const index = slideIndexOfNode(page, s.slides, opts.frameId);
       if (index < 0) throw new Error(`Frame "${opts.frameId}" is not a slide of the presentation.`);
-      presentation.navigate({ type: 'goto', index });
+      go(index, opts.build ?? 0);
     } else if (opts.index !== undefined) {
-      presentation.navigate({ type: 'goto', index: opts.index });
+      const index = navigateSlide(s.index, s.slides.length, { type: 'goto', index: opts.index });
+      go(index, opts.build ?? 0);
     } else if (opts.step !== undefined) {
-      presentation.navigate({ type: opts.step });
+      if (opts.build !== undefined && opts.step !== 'next' && opts.step !== 'previous') {
+        go(navigateSlide(s.index, s.slides.length, { type: opts.step }), opts.build);
+      } else {
+        presentation.navigate({ type: opts.step });
+      }
+    } else if (opts.build !== undefined) {
+      go(s.index, opts.build);
     } else {
-      throw new Error('Provide index, frameId or step.');
+      throw new Error('Provide index, frameId, step or build.');
     }
     return presentation.getState();
   },
@@ -334,8 +484,8 @@ export const presentation = {
       frameId: s.slides[s.index]?.id ?? null,
       slides: s.slides,
       fullscreen: s.fullscreen,
-      build: 0,
-      builds: 0,
+      build: s.build,
+      builds: s.builds,
     };
   },
 };

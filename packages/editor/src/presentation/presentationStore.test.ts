@@ -199,7 +199,7 @@ describe('navigation', () => {
     expect(presentation.goto({ step: 'first' }).index).toBe(0);
     expect(presentation.goto({ index: 99 }).index).toBe(2);
     expect(() => presentation.goto({ frameId: 'nope' })).toThrow(/not a slide/);
-    expect(() => presentation.goto({})).toThrow(/index, frameId or step/);
+    expect(() => presentation.goto({})).toThrow(/index, frameId, step or build/);
   });
 
   it('navigating while inactive is a no-op', () => {

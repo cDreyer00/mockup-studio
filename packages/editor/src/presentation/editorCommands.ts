@@ -61,11 +61,12 @@ export async function runEditorCommand(command: EditorCommand): Promise<EditorCo
       return presentation.getState();
     }
     case 'presentation:goto': {
-      const { index, frameId, step } = command;
+      const { index, frameId, step, build } = command;
       return presentation.goto({
         ...(index !== undefined && { index }),
         ...(frameId !== undefined && { frameId }),
         ...(step !== undefined && { step }),
+        ...(build !== undefined && { build }),
       });
     }
     case 'motion:preview': {

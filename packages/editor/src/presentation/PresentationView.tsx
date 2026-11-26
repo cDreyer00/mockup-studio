@@ -5,12 +5,19 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { resolveEasing } from '@mockup/core';
 import type { Document, Node, PreviewState, SlideNav } from '@mockup/core';
+import { MotionScope } from '../motion/scope';
 import { RenderApp, renderFrameOf } from '../render/RenderApp';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
+import { fitSlide } from './fit';
+import type { Size } from './fit';
+import { magicPairs, startMagic } from './magic';
 import { presentation, usePresentation } from './presentationStore';
+import { fadeIn, prefersReducedMotion, runTransition } from './transition';
+import type { TransitionHandle } from './transition';
 import './presentation.css';
 
 /** Controls and cursor hide after this long without mouse movement. */
@@ -46,11 +53,6 @@ export function presentationKey(
   }
 }
 
-interface Size {
-  w: number;
-  h: number;
-}
-
 /** The slide at its natural size, scaled to fit the stage keeping the aspect ratio, centered. */
 function Slide({
   doc,
@@ -58,12 +60,14 @@ function Slide({
   frame,
   state,
   stage,
+  motion,
 }: {
   doc: Document;
   docId: string;
   frame: Node;
   state: PreviewState | null;
   stage: Size;
+  motion: MotionScope;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>({ w: 0, h: 0 });
@@ -88,11 +92,10 @@ function Slide({
   }, [rendered, frame.id]);
 
   const fits = size.w > 0 && size.h > 0 && stage.w > 0 && stage.h > 0;
-  const scale = fits ? Math.min(stage.w / size.w, stage.h / size.h) : 1;
-  const style: CSSProperties = fits
-    ? {
-        transform: `translate(${(stage.w - size.w * scale) / 2}px, ${(stage.h - size.h * scale) / 2}px) scale(${scale})`,
-      }
+  const fit = fits ? fitSlide(size, stage) : null;
+  const scale = fit ? fit.scale : 1;
+  const style: CSSProperties = fit
+    ? { transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})` }
     : { visibility: 'hidden' };
   return (
     <div
@@ -103,7 +106,13 @@ function Slide({
       data-scale={fits ? scale : undefined}
       style={style}
     >
-      <RenderApp doc={doc} docId={docId} frame={rendered} {...(state && { state })} />
+      <RenderApp
+        doc={doc}
+        docId={docId}
+        frame={rendered}
+        motion={motion}
+        {...(state && { state })}
+      />
     </div>
   );
 }
@@ -142,14 +151,26 @@ function usePresentationInput(onActivity: () => void): void {
   }, [onActivity]);
 }
 
+function findFrame(doc: Document | null, pageId: string | null, id: string | undefined) {
+  return id ? doc?.pages.find((p) => p.id === pageId)?.frames.find((f) => f.id === id) : undefined;
+}
+
 function Presenting() {
   const doc = useDoc((s) => s.doc);
   const previewState = useUi((s) => s.previewState);
-  const { docId, pageId, slides, index } = usePresentation();
+  const { docId, pageId, slides, index, build, builds, nav } = usePresentation();
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<Size>({ w: 0, h: 0 });
   const [idle, setIdle] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // One motion scope per presentation (disposed on exit).
+  const [scope] = useState(() => new MotionScope());
+  useEffect(() => () => scope.dispose(), [scope]);
+  // The slot of each mounted slide, by frame id; the transition in flight; the last one finished.
+  const slots = useRef(new Map<string, HTMLDivElement>());
+  const run = useRef<TransitionHandle | null>(null);
+  const fade = useRef<Animation | null>(null);
+  const [doneSeq, setDoneSeq] = useState(-1);
 
   const wake = useMemo(
     () => () => {
@@ -177,10 +198,99 @@ function Presenting() {
   }, []);
 
   const frameId = slides[index]?.id;
-  const frame = frameId
-    ? doc?.pages.find((p) => p.id === pageId)?.frames.find((f) => f.id === frameId)
-    : undefined;
+  const frame = findFrame(doc, pageId, frameId);
+  const leaving = nav.leaving && doneSeq !== nav.seq ? nav.leaving : null;
   const total = slides.length;
+
+  // Every navigation: finish what was running, then play the builds and the transition.
+  useLayoutEffect(() => {
+    run.current?.finish();
+    run.current = null;
+    fade.current?.cancel();
+    fade.current = null;
+    if (!frameId) return;
+    const stageEl = stageRef.current;
+    const incoming = slots.current.get(frameId);
+    if (nav.enter) {
+      // Fresh state for the slide that comes in: build 0 plays while it appears (builds already
+      // played when arriving from the right or jumping are shown finished).
+      scope.setMode(frameId, { type: 'rest' });
+      scope.setMode(frameId, {
+        type: 'builds',
+        clicks: build,
+        animate: build === 0 && !nav.reverse,
+      });
+    } else {
+      scope.setMode(frameId, { type: 'builds', clicks: build, animate: nav.animate });
+    }
+    if (!nav.enter || !incoming || !stageEl) return;
+    const out = nav.leaving ? slots.current.get(nav.leaving.id) : undefined;
+    if (nav.plan && out && !prefersReducedMotion()) {
+      const plan = nav.plan;
+      const outId = out.dataset.frameId!;
+      const handle = runTransition({
+        plan,
+        stage: stageEl,
+        incoming,
+        outgoing: out,
+        magic: () =>
+          startMagic({
+            stage: stageEl,
+            stageSize: { w: stageEl.clientWidth, h: stageEl.clientHeight },
+            incomingSlot: incoming,
+            outgoingSlot: out,
+            incomingFrameId: frameId,
+            outgoingFrameId: outId,
+            pairs: nav.leaving && frame ? magicPairs(nav.leaving, frame) : [],
+            duration: plan.duration,
+            easing: resolveEasing(plan.easing),
+          }),
+        onDone: () => {
+          run.current = null;
+          setDoneSeq(nav.seq);
+        },
+      });
+      if (handle) {
+        run.current = handle;
+        return;
+      }
+    }
+    if (nav.leaving) setDoneSeq(nav.seq);
+    if (!nav.plan && !prefersReducedMotion()) fade.current = fadeIn(incoming);
+    // The navigation (not the doc) is what restarts this.
+  }, [nav.seq, scope]);
+  useEffect(
+    () => () => {
+      run.current?.finish();
+      fade.current?.cancel();
+    },
+    [],
+  );
+
+  const setSlot = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) slots.current.set(id, el);
+    else slots.current.delete(id);
+  };
+  const renderSlot = (f: Node) => (
+    <div key={f.id} ref={setSlot(f.id)} className="pres-slot" data-frame-id={f.id}>
+      <ErrorBoundary
+        fallback={(error) => (
+          <div className="pres-message" role="alert">
+            This slide could not be rendered: {error.message}
+          </div>
+        )}
+      >
+        <Slide
+          doc={doc!}
+          docId={docId!}
+          frame={f}
+          state={previewState}
+          stage={stage}
+          motion={scope}
+        />
+      </ErrorBoundary>
+    </div>
+  );
 
   return (
     <div
@@ -197,23 +307,10 @@ function Presenting() {
         onClick={() => presentation.navigate({ type: 'next' })}
       >
         {doc && docId && frame ? (
-          <ErrorBoundary
-            key={frame.id}
-            fallback={(error) => (
-              <div className="pres-message" role="alert">
-                This slide could not be rendered: {error.message}
-              </div>
-            )}
-          >
-            <Slide
-              key={frame.id}
-              doc={doc}
-              docId={docId}
-              frame={frame}
-              state={previewState}
-              stage={stage}
-            />
-          </ErrorBoundary>
+          <>
+            {leaving && renderSlot(leaving)}
+            {renderSlot(frame)}
+          </>
         ) : (
           <div className="pres-message" data-testid="presentation-empty">
             This page has no visible frames.
@@ -231,13 +328,19 @@ function Presenting() {
           data-testid="presentation-prev"
           aria-label="Previous slide"
           title="Previous slide"
-          disabled={index <= 0}
+          disabled={index <= 0 && build <= 0}
           onClick={() => presentation.navigate({ type: 'previous' })}
         >
           <ChevronLeft size={ICON} />
         </button>
         <span className="pres-counter" data-testid="presentation-counter" aria-live="polite">
           {index + 1} / {total}
+          {builds > 0 && (
+            <span className="pres-builds" data-testid="presentation-builds">
+              {' '}
+              · {build}/{builds}
+            </span>
+          )}
         </span>
         <button
           type="button"
@@ -245,7 +348,7 @@ function Presenting() {
           data-testid="presentation-next"
           aria-label="Next slide"
           title="Next slide"
-          disabled={index >= total - 1}
+          disabled={index >= total - 1 && build >= builds}
           onClick={() => presentation.navigate({ type: 'next' })}
         >
           <ChevronRight size={ICON} />

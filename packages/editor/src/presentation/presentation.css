@@ -26,25 +26,27 @@
   height: 0;
   transform-origin: 0 0;
   pointer-events: none;
-  animation: pres-fade 200ms ease-out;
+}
+/* Full-stage layer of one slide: the transition animates it, the fitted slide lives inside. */
+.pres-slot {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+/* Magic move ghosts, above both slots. */
+.pres-ghost-slot {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  overflow: hidden;
 }
 /* Links, inputs and videos in the design must not react while presenting. */
 .pres-slide,
 .pres-slide * {
   pointer-events: none !important;
 }
-@keyframes pres-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .pres-slide {
-    animation: none;
-  }
   .pres-controls {
     transition: none;
   }
