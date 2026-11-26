@@ -1,0 +1,974 @@
+{
+  "version": 1,
+  "id": "doc_bwftsh53",
+  "name": "Motion deck",
+  "tokens": {},
+  "fonts": [],
+  "meta": {
+    "createdAt": "2026-11-26T23:22:46.071Z",
+    "updatedAt": "2026-11-26T23:22:46.071Z"
+  },
+  "pages": [
+    {
+      "id": "pg_la0tsx1c",
+      "name": "Deck",
+      "background": "#05060a",
+      "frames": [
+        {
+          "id": "fr_dbbrpelo",
+          "type": "frame",
+          "name": "Hero",
+          "tag": "div",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "align-items": "flex-start",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "radial-gradient(120% 90% at 80% 10%, #3b2a8f 0%, #141024 45%, #0b0b12 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_lxgmjlqk",
+              "type": "element",
+              "name": "Glow A",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "border-radius": "50%",
+                "filter": "blur(60px)",
+                "opacity": "0.55",
+                "width": "520px",
+                "height": "520px",
+                "right": "-120px",
+                "top": "-160px",
+                "background": "#7c3aed"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade",
+                  "duration": 1200
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "breathe",
+                  "params": {
+                    "amount": 1.12
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_ymd2tbrg",
+              "type": "element",
+              "name": "Glow B",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "border-radius": "50%",
+                "filter": "blur(60px)",
+                "opacity": "0.55",
+                "width": "380px",
+                "height": "380px",
+                "left": "-100px",
+                "bottom": "-140px",
+                "background": "#06b6d4"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade",
+                  "duration": 1200,
+                  "delay": 200
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "duration": 5000,
+                  "params": {
+                    "amount": 24
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_ilfqaptz",
+              "type": "text",
+              "name": "Kicker",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "font-size": "18px",
+                "letter-spacing": "0.32em",
+                "text-transform": "uppercase",
+                "color": "#a5b4fc",
+                "margin": "0"
+              },
+              "text": "Mockup Studio · Motion",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-down",
+                  "delay": 100
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_jea6ykfe",
+              "type": "text",
+              "name": "Title",
+              "tag": "h1",
+              "attrs": {},
+              "style": {
+                "font-size": "104px",
+                "line-height": "1.02",
+                "font-weight": "800",
+                "margin": "0",
+                "letter-spacing": "-0.03em"
+              },
+              "text": "Slides that move.",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "rise",
+                  "delay": 250,
+                  "split": "chars",
+                  "stagger": 35
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_r1nu5lf0",
+              "type": "text",
+              "name": "Subtitle",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "font-size": "26px",
+                "line-height": "1.4",
+                "color": "#cbd5e1",
+                "margin": "0",
+                "max-width": "820px"
+              },
+              "text": "Entrances, builds, springs and transitions, designed visually or by your agent.",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 1000
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_4m7jvaji",
+              "type": "text",
+              "name": "Badge",
+              "tag": "span",
+              "attrs": {},
+              "style": {
+                "align-self": "flex-start",
+                "padding": "10px 22px",
+                "border-radius": "999px",
+                "background": "#facc15",
+                "color": "#111",
+                "font-weight": "700",
+                "font-size": "20px"
+              },
+              "text": "New",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 1350
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "delay": 1900
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_6hkcsema",
+          "type": "frame",
+          "name": "Features",
+          "tag": "div",
+          "position": {
+            "x": 1400,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "align-items": "flex-start",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "linear-gradient(160deg, #0e1320 0%, #101a2e 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "slideTransition": {
+            "preset": "push"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_tzixuxu3",
+              "type": "text",
+              "name": "Features title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "font-size": "64px",
+                "font-weight": "750",
+                "margin": "0",
+                "letter-spacing": "-0.02em"
+              },
+              "text": "Everything moves on the GPU",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up"
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_ul0uvwpf",
+              "type": "element",
+              "name": "Cards",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "gap": "28px"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 250,
+                  "split": "children",
+                  "stagger": 120
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "el_o1rjwe92",
+                  "type": "element",
+                  "name": "Card presets",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "padding": "32px",
+                    "border-radius": "24px",
+                    "background": "rgba(255, 255, 255, 0.06)",
+                    "border": "1px solid rgba(255, 255, 255, 0.12)",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_fs106avx",
+                      "type": "text",
+                      "name": "Icon",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "36px",
+                        "color": "#7dd3fc"
+                      },
+                      "text": "✦",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_q6xln3q3",
+                      "type": "text",
+                      "name": "40 presets",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "40 presets",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_vmurpnfx",
+                      "type": "text",
+                      "name": "Fades, flies, pops, flips, wipes…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "color": "#cbd5e1",
+                        "line-height": "1.4"
+                      },
+                      "text": "Fades, flies, pops, flips, wipes and loops.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_y7jobes5",
+                  "type": "element",
+                  "name": "Card springs",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "padding": "32px",
+                    "border-radius": "24px",
+                    "background": "rgba(255, 255, 255, 0.06)",
+                    "border": "1px solid rgba(255, 255, 255, 0.12)",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "animations": [
+                    {
+                      "kind": "emphasis",
+                      "preset": "glow",
+                      "delay": 1200,
+                      "params": {
+                        "color": "rgba(125, 211, 252, 0.7)"
+                      }
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_5dj2ocw5",
+                      "type": "text",
+                      "name": "Icon",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "36px",
+                        "color": "#7dd3fc"
+                      },
+                      "text": "≈",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_tjjm6xz4",
+                      "type": "text",
+                      "name": "Springs",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "Springs",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_isznrsdz",
+                      "type": "text",
+                      "name": "Overshoot and bounce, as CSS lin…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "color": "#cbd5e1",
+                        "line-height": "1.4"
+                      },
+                      "text": "Overshoot and bounce, as CSS linear() curves.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_pk7o3vq4",
+                  "type": "element",
+                  "name": "Card builds",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "padding": "32px",
+                    "border-radius": "24px",
+                    "background": "rgba(255, 255, 255, 0.06)",
+                    "border": "1px solid rgba(255, 255, 255, 0.12)",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_k7s45woa",
+                      "type": "text",
+                      "name": "Icon",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "36px",
+                        "color": "#7dd3fc"
+                      },
+                      "text": "▶",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_26nj3vek",
+                      "type": "text",
+                      "name": "Builds",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "Builds",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_c7vcs7ij",
+                      "type": "text",
+                      "name": "One click per build, in any orde…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "color": "#cbd5e1",
+                        "line-height": "1.4"
+                      },
+                      "text": "One click per build, in any order.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fr_bhakjhpo",
+          "type": "frame",
+          "name": "Builds",
+          "tag": "div",
+          "position": {
+            "x": 2800,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "align-items": "flex-start",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "linear-gradient(200deg, #1b1027 0%, #0d0b15 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "slideTransition": {
+            "preset": "cover",
+            "direction": "up"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_4e87ivqj",
+              "type": "text",
+              "name": "Builds title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "font-size": "64px",
+                "font-weight": "750",
+                "margin": "0",
+                "letter-spacing": "-0.02em"
+              },
+              "text": "Click to build",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "blur"
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_gfw7zq54",
+              "type": "element",
+              "name": "Points",
+              "tag": "ul",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "22px",
+                "margin": "0",
+                "padding": "0 0 0 28px",
+                "font-size": "40px"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "tx_b9xx8b2g",
+                  "type": "text",
+                  "name": "Point 1",
+                  "tag": "li",
+                  "attrs": {},
+                  "style": {},
+                  "text": "Plan the story",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "fade-left",
+                      "build": 1
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "tx_cq4f7dk5",
+                  "type": "text",
+                  "name": "Point 2",
+                  "tag": "li",
+                  "attrs": {},
+                  "style": {},
+                  "text": "Reveal one idea at a time",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "fade-left",
+                      "build": 2
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "tx_tfqo2j5n",
+                  "type": "text",
+                  "name": "Point 3",
+                  "tag": "li",
+                  "attrs": {},
+                  "style": {},
+                  "text": "Land the point",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "fade-left",
+                      "build": 3
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "tx_8fqj2e1h",
+              "type": "text",
+              "name": "Score",
+              "tag": "span",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "right": "120px",
+                "bottom": "96px",
+                "font-size": "140px",
+                "font-weight": "900",
+                "color": "#f472b6"
+              },
+              "text": "3×",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "drop",
+                  "delay": 300,
+                  "build": 3
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "tada",
+                  "build": 4
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_iirvat01",
+          "type": "frame",
+          "name": "Magic A",
+          "tag": "div",
+          "position": {
+            "x": 4200,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "flex-end",
+            "align-items": "flex-start",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "linear-gradient(135deg, #07141c 0%, #0b2533 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "slideTransition": {
+            "preset": "flip"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_124t62im",
+              "type": "text",
+              "name": "Logo",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "border-radius": "28px",
+                "background": "linear-gradient(135deg, #22d3ee, #6366f1)",
+                "color": "#fff",
+                "width": "96px",
+                "height": "96px",
+                "font-size": "48px"
+              },
+              "text": "★",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_f7avrxrz",
+              "type": "text",
+              "name": "Headline",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "font-size": "64px",
+                "font-weight": "750",
+                "margin": "0",
+                "letter-spacing": "-0.02em"
+              },
+              "text": "Magic move",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_nabwpfvx",
+              "type": "text",
+              "name": "Hint",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "font-size": "26px",
+                "line-height": "1.4",
+                "color": "#cbd5e1",
+                "margin": "0",
+                "max-width": "820px"
+              },
+              "text": "Layers with the same name glide to their new place.",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 400
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_kwfkmy8e",
+          "type": "frame",
+          "name": "Magic B",
+          "tag": "div",
+          "position": {
+            "x": 5600,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "align-items": "center",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "linear-gradient(135deg, #0b2533 0%, #123a3a 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "slideTransition": {
+            "preset": "magic"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_wr7xqfyj",
+              "type": "text",
+              "name": "Logo",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "border-radius": "64px",
+                "background": "linear-gradient(135deg, #22d3ee, #6366f1)",
+                "color": "#fff",
+                "width": "260px",
+                "height": "260px",
+                "font-size": "140px"
+              },
+              "text": "★",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_qjto9js9",
+              "type": "text",
+              "name": "Headline",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "text-align": "center",
+                "font-size": "64px",
+                "font-weight": "750",
+                "margin": "0",
+                "letter-spacing": "-0.02em"
+              },
+              "text": "Magic move",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_o8ylgjme",
+          "type": "frame",
+          "name": "Thanks",
+          "tag": "div",
+          "position": {
+            "x": 7000,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "align-items": "center",
+            "gap": "28px",
+            "padding": "96px",
+            "background": "radial-gradient(90% 80% at 50% 50%, #2a1f5c 0%, #0b0b12 100%)",
+            "color": "#f8fafc",
+            "font-family": "system-ui, -apple-system, \"Segoe UI\", sans-serif",
+            "position": "relative",
+            "overflow": "hidden"
+          },
+          "slideTransition": {
+            "preset": "zoom"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_ipwfyf1k",
+              "type": "element",
+              "name": "Ring",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "width": "200px",
+                "height": "200px",
+                "border-radius": "50%",
+                "border": "3px solid rgba(165, 180, 252, 0.6)"
+              },
+              "animations": [
+                {
+                  "kind": "emphasis",
+                  "preset": "ping",
+                  "params": {
+                    "amount": 2.4
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_vd4x13d7",
+              "type": "text",
+              "name": "Thanks title",
+              "tag": "h1",
+              "attrs": {},
+              "style": {
+                "font-size": "104px",
+                "line-height": "1.02",
+                "font-weight": "800",
+                "margin": "0",
+                "letter-spacing": "-0.03em",
+                "text-align": "center"
+              },
+              "text": "Thank you!",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "split": "words",
+                  "stagger": 140
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_zxyh5g87",
+              "type": "text",
+              "name": "Spinner",
+              "tag": "span",
+              "attrs": {},
+              "style": {
+                "font-size": "56px",
+                "color": "#facc15"
+              },
+              "text": "✺",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 500
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "spin",
+                  "duration": 6000,
+                  "delay": 1300
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
