@@ -159,9 +159,19 @@ export interface SlidePart {
   reverse: boolean;
 }
 
+/** Size (px) of the slides on screen: the 3D presets need real depths. */
+export interface StageSize {
+  width: number;
+  height: number;
+}
+
+const DEFAULT_STAGE: StageSize = { width: 1280, height: 720 };
+
 export interface TransitionPlan {
   preset: string;
   duration: number;
+  /** Resolved direction (`left` for presets without one). */
+  direction: TransitionDirection;
   /** Named or CSS easing of both parts. */
   easing: string;
   incoming: SlidePart;
@@ -170,7 +180,7 @@ export interface TransitionPlan {
   top: 'incoming' | 'outgoing';
   /** Perspective (px) of the stage for 3D presets. */
   perspective?: number;
-  /** Slots hide their back face (flip). */
+  /** Slots hide their back face (flip, cube). */
   backface?: boolean;
   /** `magic`: the presentation morphs layers matched by name; the parts crossfade the rest. */
   magic?: boolean;
@@ -204,7 +214,7 @@ interface Forward {
 
 const STILL: AnimationKeyframe[] = [{ opacity: '1' }, { opacity: '1' }];
 
-function forward(t: ResolvedTransition): Forward {
+function forward(t: ResolvedTransition, stage: StageSize): Forward {
   const v = vec(t.direction);
   switch (t.preset) {
     case 'dip':
@@ -307,36 +317,21 @@ function forward(t: ResolvedTransition): Forward {
       };
     }
     case 'cube': {
+      // A real cube: both slides are faces turning around the cube's center axis, half a slide
+      // behind the screen; the faces turned away from the camera are hidden.
       const horizontal = v.x !== 0;
       const axis = horizontal ? 'rotateY' : 'rotateX';
-      // the shared edge is the outgoing slide's leading edge
-      const turn = horizontal ? 90 * v.x : -90 * v.y;
-      const lead = horizontal ? (v.x < 0 ? '100% 50%' : '0% 50%') : v.y < 0 ? '50% 100%' : '50% 0%';
-      const trail = horizontal
-        ? v.x < 0
-          ? '0% 50%'
-          : '100% 50%'
-        : v.y < 0
-          ? '50% 0%'
-          : '50% 100%';
+      const d = Math.round((horizontal ? stage.width : stage.height) / 2);
+      const face = (deg: number): string =>
+        `translateZ(-${d}px) ${axis}(${deg}deg) translateZ(${d}px)`;
+      // content moving left/up: the incoming face comes from the right/bottom of the cube
+      const from = horizontal ? -90 * v.x : 90 * v.y;
       return {
-        incoming: [
-          { transform: `${tr(-v.x, -v.y)} ${axis}(${-turn}deg)` },
-          {
-            offset: 0.5,
-            transform: `${tr(-v.x / 2, -v.y / 2)} ${axis}(${-turn / 2}deg) scale(0.86)`,
-          },
-          { transform: `${tr(0, 0)} ${axis}(0deg)` },
-        ],
-        outgoing: [
-          { transform: `${tr(0, 0)} ${axis}(0deg)` },
-          { offset: 0.5, transform: `${tr(v.x / 2, v.y / 2)} ${axis}(${turn / 2}deg) scale(0.86)` },
-          { transform: `${tr(v.x, v.y)} ${axis}(${turn}deg)` },
-        ],
-        incomingOrigin: trail,
-        outgoingOrigin: lead,
+        incoming: [{ transform: face(from) }, { transform: face(0) }],
+        outgoing: [{ transform: face(0) }, { transform: face(-from) }],
         top: 'incoming',
-        perspective: 2000,
+        perspective: Math.round(d * 3.4),
+        backface: true,
       };
     }
     case 'magic':
@@ -353,15 +348,21 @@ function forward(t: ResolvedTransition): Forward {
 /**
  * Keyframes of both slides for a transition. `reverse` (navigating back) plays the forward transition
  * time-reversed: the slide that is leaving takes the keyframes the incoming slide had, backwards.
+ * `stage` is the size of the slides on screen (`cube` turns around an axis half a slide deep).
  */
-export function transitionPlan(t: SlideTransition, reverse = false): TransitionPlan | null {
+export function transitionPlan(
+  t: SlideTransition,
+  reverse = false,
+  stage: StageSize = DEFAULT_STAGE,
+): TransitionPlan | null {
   const r = resolveTransition(t);
   if (!r) return null;
-  const f = forward(r);
+  const f = forward(r, stage);
   const base = {
     preset: r.preset,
     duration: r.duration,
     easing: r.easing,
+    direction: r.direction,
     ...(f.perspective !== undefined && { perspective: f.perspective }),
     ...(f.backface && { backface: true }),
     ...(r.preset === 'magic' && { magic: true }),

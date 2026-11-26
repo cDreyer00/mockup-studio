@@ -270,3 +270,38 @@ describe('slide transitions', () => {
     expect(rev.incoming.keyframes).toEqual(fwd.outgoing.keyframes);
   });
 });
+
+describe('cube transition', () => {
+  it('turns both slides around one axis half a slide deep, hiding the back faces', () => {
+    const plan = transitionPlan({ preset: 'cube', direction: 'left' }, false, {
+      width: 1000,
+      height: 500,
+    })!;
+    expect(plan.backface).toBe(true);
+    expect(plan.perspective).toBe(1700);
+    expect(plan.incoming.keyframes.map((k) => k.transform)).toEqual([
+      'translateZ(-500px) rotateY(90deg) translateZ(500px)',
+      'translateZ(-500px) rotateY(0deg) translateZ(500px)',
+    ]);
+    expect(plan.outgoing.keyframes.at(-1)!.transform).toBe(
+      'translateZ(-500px) rotateY(-90deg) translateZ(500px)',
+    );
+  });
+
+  it('uses the slide height and rotateX vertically; going back swaps and reverses', () => {
+    const up = transitionPlan({ preset: 'cube', direction: 'up' }, false, {
+      width: 1000,
+      height: 500,
+    })!;
+    expect(up.incoming.keyframes[0]!.transform).toBe(
+      'translateZ(-250px) rotateX(-90deg) translateZ(250px)',
+    );
+    const back = transitionPlan({ preset: 'cube', direction: 'up' }, true, {
+      width: 1000,
+      height: 500,
+    })!;
+    expect(back.incoming.keyframes).toEqual(up.outgoing.keyframes);
+    expect(back.incoming.reverse).toBe(true);
+    expect(back.direction).toBe('up');
+  });
+});
