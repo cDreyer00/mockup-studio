@@ -221,7 +221,38 @@ export type EditorCommand =
       index?: number;
       frameId?: string;
       step?: SlideStep;
+      /**
+       * With `index`/`frameId`: click builds already played on the target slide (default 0; clamped).
+       * Alone: jumps to that build of the current slide.
+       */
+      build?: number;
+    }
+  | {
+      /** Motion preview on the editor canvas (the timeline's play / scrub / stop). */
+      type: 'motion:preview';
+      docId: string;
+      /** Root frame to preview, or any node inside it (default: the selection's frame or the first). */
+      frameId?: string;
+      /** `play` from `time`, `seek` (paused at `time`) or `stop` (back to the design state). */
+      action: 'play' | 'seek' | 'stop';
+      /** Position on the frame's linear timeline, in ms (default 0). */
+      time?: number;
     };
+
+/** Motion preview state of the editor canvas (answer to `motion:preview`). */
+export interface MotionPreviewState {
+  /** Frame being previewed (null when stopped). */
+  frameId: string | null;
+  /** `rest` = design state (nothing previewed). */
+  mode: 'rest' | 'seek' | 'play';
+  /** Playhead on the frame's linear timeline (ms). */
+  time: number;
+  /** Linear duration of the frame's timeline (ms; loops excluded). */
+  duration: number;
+}
+
+/** Answer of an editor window to an `editor:command`. */
+export type EditorCommandResult = PresentationState | MotionPreviewState;
 
 /** Command for the editor window; it answers with an `editor:result` request carrying the `commandId`. */
 export interface EditorCommandMessage {
@@ -417,8 +448,8 @@ export interface EditorResultRequest {
   reqId: string;
   commandId: string;
   ok: boolean;
-  /** Presentation state after the command (presentation commands). */
-  result?: PresentationState;
+  /** Presentation state (presentation commands) or motion preview state (`motion:preview`). */
+  result?: EditorCommandResult;
   /** Why the command failed (`ok: false`). */
   error?: string;
 }

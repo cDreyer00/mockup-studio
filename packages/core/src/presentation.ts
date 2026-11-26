@@ -26,6 +26,13 @@ export interface PresentationState {
   slides: PresentationSlide[];
   /** Real full screen (the browser only grants it from a user gesture). */
   fullscreen: boolean;
+  /**
+   * Click builds already played on the current slide: 0 = only the automatic build (animations
+   * with `build: 0`), up to `builds`.
+   */
+  build: number;
+  /** Click builds of the current slide (distinct `build` values above 0 of its animations). */
+  builds: number;
 }
 
 /** Inactive state (nothing being presented). */
@@ -37,6 +44,8 @@ export const NO_PRESENTATION: PresentationState = {
   frameId: null,
   slides: [],
   fullscreen: false,
+  build: 0,
+  builds: 0,
 };
 
 /** Slide navigation (keyboard, controls, MCP). */
