@@ -5,8 +5,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { resolveEasing } from '@mockup/core';
-import type { Document, Node, PreviewState, SlideNav } from '@mockup/core';
+import { resolveEasing, transitionPlan } from '@mockup/core';
+import type { Document, Node, PreviewState, SlideNav, TransitionPlan } from '@mockup/core';
 import { MotionScope } from '../motion/scope';
 import { RenderApp, renderFrameOf } from '../render/RenderApp';
 import { useDoc } from '../state/docStore';
@@ -19,6 +19,33 @@ import { presentation, usePresentation } from './presentationStore';
 import { fadeIn, prefersReducedMotion, runTransition } from './transition';
 import type { TransitionHandle } from './transition';
 import './presentation.css';
+
+/**
+ * 3D presets turn around an axis that depends on the slide's size on screen: rebuild the plan with
+ * the fitted size of the incoming slide. Computed from its natural size and the stage (layout
+ * sizes ignore transforms), since the new slot may not be scaled yet when the transition starts.
+ */
+function sizedPlan(
+  plan: TransitionPlan,
+  slot: HTMLElement,
+  stage: HTMLElement,
+  reverse: boolean,
+): TransitionPlan {
+  if (plan.preset !== 'cube') return plan;
+  const id = slot.dataset.frameId;
+  const el = id ? slot.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`) : null;
+  const w = el?.offsetWidth ?? 0;
+  const h = el?.offsetHeight ?? 0;
+  if (w <= 0 || h <= 0 || stage.clientWidth <= 0 || stage.clientHeight <= 0) return plan;
+  const { scale } = fitSlide({ w, h }, { w: stage.clientWidth, h: stage.clientHeight });
+  const t = {
+    preset: plan.preset,
+    duration: plan.duration,
+    easing: plan.easing,
+    direction: plan.direction,
+  };
+  return transitionPlan(t, reverse, { width: w * scale, height: h * scale }) ?? plan;
+}
 
 /** Controls and cursor hide after this long without mouse movement. */
 export const IDLE_MS = 2000;
@@ -226,7 +253,7 @@ function Presenting() {
     if (!nav.enter || !incoming || !stageEl) return;
     const out = nav.leaving ? slots.current.get(nav.leaving.id) : undefined;
     if (nav.plan && out && !prefersReducedMotion()) {
-      const plan = nav.plan;
+      const plan = sizedPlan(nav.plan, incoming, stageEl, nav.reverse);
       const outId = out.dataset.frameId!;
       const handle = runTransition({
         plan,
