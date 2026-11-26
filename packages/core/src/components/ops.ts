@@ -26,6 +26,7 @@ import {
   EMPTY_VARIANT_MESSAGE,
   hasVariantCondition,
 } from '../schema.js';
+import { normalizeAnimations, normalizeTransition } from '../motion/normalize.js';
 import { VectorSchema } from '../vector/schema.js';
 import { normalizeStateKey } from '../states.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from '../styles.js';
@@ -148,9 +149,21 @@ export function assertComponentInsertion(
   }
 }
 
+/** Validates `animations`/`slideTransition` of a node entering the document (throws on invalid input). */
+export function normalizeNodeMotion(node: Node): void {
+  if (node.animations !== undefined) {
+    const list = normalizeAnimations(node.animations, `animations of "${node.id}"`);
+    if (list) node.animations = list;
+    else delete node.animations;
+  }
+  if (node.slideTransition !== undefined)
+    node.slideTransition = normalizeTransition(node.slideTransition, `transition of "${node.id}"`);
+}
+
 function normalizeTree(node: Node): Node {
   node.attrs = { ...(node.attrs ?? {}) };
   node.style = normalizeStyles(node.style ?? {});
+  normalizeNodeMotion(node);
   node.children = node.children ?? [];
   node.locked = node.locked ?? false;
   node.hidden = node.hidden ?? false;
@@ -302,6 +315,9 @@ export function normalizeOverride(ov: NodeOverride, where = 'override'): NodeOve
     const st = normalizeStatesStrict(ov.states, where);
     if (Object.keys(st).length > 0) out.states = st;
   }
+  // `[]` is kept: "this instance has no animations".
+  if (ov.animations !== undefined)
+    out.animations = normalizeAnimations(ov.animations, `animations in ${where}`) ?? [];
   if (ov.src !== undefined) out.src = ov.src;
   if (ov.svg !== undefined) {
     const svg = sanitizeSvg(ov.svg);

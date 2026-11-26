@@ -12,9 +12,10 @@ import {
   mediaRefProblem,
 } from './media.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
+import { normalizeAnimation, normalizeTransition } from './motion/normalize.js';
 import { sanitizeSvg } from './svg.js';
 import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
-import type { MediaParamValue, Node, VideoSpec } from './types.js';
+import type { MediaParamValue, Node, NodeAnimation, VideoSpec } from './types.js';
 
 /* ====================================================================== */
 /* CSS: minimal rule parser + simple selector resolver                     */
@@ -248,10 +249,48 @@ export function isUnsafeUrl(value: string): boolean {
   return v.startsWith('javascript:') || (v.startsWith('data:') && !v.startsWith('data:image/'));
 }
 
+/** Attributes with which `nodesToHtml` writes animations and the slide transition (JSON). */
+const MOTION_ATTR = 'data-motion';
+const MOTION_TRANSITION_ATTR = 'data-motion-transition';
+
+/** Reads `data-motion` / `data-motion-transition` into the node; invalid JSON or values are ignored. */
+function applyMotionAttrs(el: Element, node: Node): void {
+  const rawList = el.attribs[MOTION_ATTR];
+  if (rawList) {
+    try {
+      const parsed = JSON.parse(rawList) as unknown;
+      if (Array.isArray(parsed)) {
+        const list: NodeAnimation[] = [];
+        for (const a of parsed) {
+          try {
+            const n = normalizeAnimation(a);
+            if ((n.split === 'words' || n.split === 'chars') && node.type !== 'text') continue;
+            list.push(n);
+          } catch {
+            /* ignored */
+          }
+        }
+        if (list.length > 0) node.animations = list;
+      }
+    } catch {
+      /* ignored */
+    }
+  }
+  const rawTransition = el.attribs[MOTION_TRANSITION_ATTR];
+  if (rawTransition) {
+    try {
+      node.slideTransition = normalizeTransition(JSON.parse(rawTransition) as unknown);
+    } catch {
+      /* ignored */
+    }
+  }
+}
+
 function elementAttrs(el: Element, omit: string[] = []): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const [k, v] of Object.entries(el.attribs)) {
     if (k === 'class' || k === 'style' || k === 'id' || k === 'data-name') continue;
+    if (k === MOTION_ATTR || k === MOTION_TRANSITION_ATTR) continue;
     if (/^on/i.test(k) || !ATTR_NAME_RE.test(k)) continue;
     if (omit.includes(k)) continue;
     const lower = k.toLowerCase();
@@ -288,7 +327,11 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
       else if (name === 'video') {
         const video = convertVideo(c, ctx);
         if (video) out.push(video);
-      } else out.push(convertMediaDiv(c, ctx) ?? convertElement(c, ctx));
+      } else {
+        const node = convertMediaDiv(c, ctx) ?? convertElement(c, ctx);
+        applyMotionAttrs(c, node);
+        out.push(node);
+      }
     } else if (DomUtils.isText(c)) {
       const text = cleanText(c.data);
       if (text) {
@@ -499,6 +542,15 @@ export function nodesToHtml(
     return `class="${cls}"`;
   };
 
+  const motionAttrs = (node: Node): string => {
+    const parts: string[] = [];
+    if (node.animations && node.animations.length > 0)
+      parts.push(`${MOTION_ATTR}="${escapeAttr(JSON.stringify(node.animations))}"`);
+    if (node.slideTransition)
+      parts.push(`${MOTION_TRANSITION_ATTR}="${escapeAttr(JSON.stringify(node.slideTransition))}"`);
+    return parts.join(' ');
+  };
+
   const attrString = (node: Node, extra: string): string => {
     const parts: string[] = [];
     if (node.type === 'image' || node.tag === 'img') {
@@ -516,7 +568,7 @@ export function nodesToHtml(
 
   const render = (node: Node, depth: number): void => {
     if (node.hidden) return;
-    const extra = styleAttr(node);
+    const extra = [styleAttr(node), motionAttrs(node)].filter(Boolean).join(' ');
 
     if (node.type === 'svg') {
       const markup = node.svg ?? '<svg></svg>';

@@ -1,6 +1,7 @@
 import { getComponent } from './components/expand.js';
 import { sortStateKeys } from './states.js';
 import { isGridContainer, parseGridPlacement, trackCount } from './grid.js';
+import { getSlideTransition } from './motion/transitions.js';
 import type { Document, Node } from './types.js';
 
 const TEXT_MAX = 40;
@@ -114,6 +115,23 @@ function tailwindTokens(node: Node): string[] {
   return out;
 }
 
+/** Motion markers: `motion:in fade-up+b1,emphasis float` (`+bN` = build N) and `transition:push-left`. */
+function motionTokens(node: Node): string[] {
+  const out: string[] = [];
+  if (node.animations && node.animations.length > 0) {
+    const list = node.animations.map(
+      (a) => `${a.kind} ${a.preset}${a.build ? `+b${a.build}` : ''}`,
+    );
+    out.push(`motion:${list.join(',')}`);
+  }
+  const t = node.slideTransition;
+  if (t) {
+    const dir = getSlideTransition(t.preset)?.directional ? `-${t.direction ?? 'left'}` : '';
+    out.push(`transition:${t.preset}${dir}`);
+  }
+  return out;
+}
+
 /**
  * Instance (or expanded root): `◆Name` of the component (the id without `doc`) and the instance's props,
  * e.g. `◆Button variant=outline label="Save"` (strings and colors in quotes).
@@ -147,7 +165,12 @@ export function summarizeNode(node: Node, doc?: Document): string {
     const font = [s['font-size'], s['font-weight']].filter(Boolean).join('/');
     if (font) parts.push(font);
     if (s.color) parts.push(`color:${s.color}`);
-    parts.push(...placementTokens(node), ...tailwindTokens(node), ...flags(node));
+    parts.push(
+      ...placementTokens(node),
+      ...tailwindTokens(node),
+      ...motionTokens(node),
+      ...flags(node),
+    );
     return parts.join(' ');
   }
 
@@ -162,7 +185,7 @@ export function summarizeNode(node: Node, doc?: Document): string {
     const size = sizeToken(s);
     if (size) parts.push(size);
     if (s.position === 'absolute') parts.push('abs');
-    parts.push(...tailwindTokens(node), ...flags(node));
+    parts.push(...tailwindTokens(node), ...motionTokens(node), ...flags(node));
     return parts.join(' ');
   }
 
@@ -170,7 +193,12 @@ export function summarizeNode(node: Node, doc?: Document): string {
     if (node.src) parts.push(`src:${shortSrc(node.src)}`);
     const size = sizeToken(s);
     if (size) parts.push(size);
-    parts.push(...placementTokens(node), ...tailwindTokens(node), ...flags(node));
+    parts.push(
+      ...placementTokens(node),
+      ...tailwindTokens(node),
+      ...motionTokens(node),
+      ...flags(node),
+    );
     return parts.join(' ');
   }
 
@@ -197,7 +225,7 @@ export function summarizeNode(node: Node, doc?: Document): string {
   if (s.color) parts.push(`color:${s.color}`);
   if (s['border-radius']) parts.push(`radius:${shorten(s['border-radius'])}`);
   if (s.border) parts.push(`border:${shorten(s.border)}`);
-  parts.push(...tailwindTokens(node), ...flags(node));
+  parts.push(...tailwindTokens(node), ...motionTokens(node), ...flags(node));
   return parts.join(' ');
 }
 

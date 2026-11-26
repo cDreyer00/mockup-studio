@@ -29,6 +29,8 @@ const RawOverrideSchema = z.object({
   hidden: z.boolean().optional(),
   classes: z.string().optional(),
   states: z.record(z.string(), strMap).optional(),
+  // Validated in the handler (`normalizeAnimations`); `[]` = no animations in the instance.
+  animations: z.array(z.unknown()).optional(),
   src: z.string().optional(),
   svg: z.string().optional(),
   props: z.record(z.string(), PropValueSchema).optional(),
@@ -226,6 +228,17 @@ export const OpSchema: z.ZodType<Op, unknown> = z.discriminatedUnion('type', [
       }),
     ),
   }),
+  z.object({
+    type: z.literal('setMotion'),
+    // Light: the real validation is `normalizeAnimations`/`normalizeTransition` inside the op.
+    changes: z.array(
+      z.object({
+        nodeId: id,
+        animations: z.array(z.unknown()).nullable().optional(),
+        transition: z.unknown().nullable().optional(),
+      }),
+    ),
+  }),
 ]) as unknown as z.ZodType<Op, unknown>;
 
 export const OpsSchema = z.array(OpSchema);
@@ -265,6 +278,7 @@ const OP_TYPES = [
   'setData',
   'setVector',
   'setMedia',
+  'setMotion',
 ];
 
 /**

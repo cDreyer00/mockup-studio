@@ -17,6 +17,8 @@ import type {
   DataSource,
   EffectSpec,
   EmbedSpec,
+  NodeAnimation,
+  SlideTransition,
   Vector,
   VideoSpec,
 } from './types.js';
@@ -294,6 +296,20 @@ export interface SetMediaOp {
   changes: { nodeId: string; effect?: EffectSpec; video?: VideoSpec; embed?: EmbedSpec }[];
 }
 
+/**
+ * Sets the motion of nodes: `animations` replaces the node's whole animation list (`null` or `[]`
+ * removes it) and `transition` the slide transition of a root frame (`null` removes it). At least
+ * one of the two per change; both are normalized (`normalizeAnimations`, `normalizeTransition`).
+ */
+export interface SetMotionOp {
+  type: 'setMotion';
+  changes: {
+    nodeId: string;
+    animations?: NodeAnimation[] | null;
+    transition?: SlideTransition | null;
+  }[];
+}
+
 export type Op =
   | CreateNodeOp
   | DeleteNodesOp
@@ -328,7 +344,8 @@ export type Op =
   | SetInstanceOverridesOp
   | SetDataOp
   | SetVectorOp
-  | SetMediaOp;
+  | SetMediaOp
+  | SetMotionOp;
 
 export type OpType = Op['type'];
 

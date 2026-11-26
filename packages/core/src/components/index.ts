@@ -5,6 +5,7 @@ export {
   assertFreshNodeIds,
   assertInstanceChildren,
   documentNodeIds,
+  normalizeNodeMotion,
   normalizeOverride,
   normalizeOverridesMap,
   normalizePropValue,

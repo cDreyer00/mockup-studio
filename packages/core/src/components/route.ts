@@ -166,6 +166,7 @@ function targetIds(op: Op): string[] | null {
     case 'setData':
     case 'setVector':
     case 'setMedia':
+    case 'setMotion':
       return op.changes.map((c) => c.nodeId);
     default:
       return null;
@@ -224,6 +225,10 @@ function applyInComponent(doc: Document, componentId: string, op: Op, apply: App
       break;
     case 'moveNodes':
       if (op.nodeIds.includes(rootId)) fail(`${rootMsg} cannot be moved`);
+      break;
+    case 'setMotion':
+      if (op.changes.some((ch) => ch.transition !== undefined))
+        fail(`Slide transitions only apply to root frames (slides); ${rootMsg} is not one`);
       break;
     case 'setPosition':
       if (op.changes.some((ch) => ch.nodeId === rootId)) {
@@ -306,8 +311,8 @@ function isEmptyOverride(ov: NodeOverride): boolean {
   return Object.entries(ov).every(
     ([k, v]) =>
       v === undefined ||
-      // `data: []` is a value (a repeater with no items), not an absence
-      (k !== 'data' && Array.isArray(v) && v.length === 0) ||
+      // `data: []` (repeater with no items) and `animations: []` (none) are values, not absences
+      (k !== 'data' && k !== 'animations' && Array.isArray(v) && v.length === 0) ||
       (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0),
   );
 }
@@ -445,6 +450,25 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
         if (node.type !== field)
           fail(`Node "${ch.nodeId}" is ${node.type}; ${field} only applies to ${field} nodes`);
         Object.assign(edit(path), normalizeOverride({ [field]: ch[field] }, `"${ch.nodeId}"`));
+      }
+      break;
+    case 'setMotion':
+      for (const ch of op.changes) {
+        const { node, path } = target(ch.nodeId);
+        if (ch.animations === undefined && ch.transition === undefined)
+          fail(`setMotion on "${ch.nodeId}": provide animations and/or transition`);
+        if (ch.transition !== undefined)
+          fail(`Slide transitions only apply to root frames (slides); "${ch.nodeId}" is not one`);
+        if (ch.animations === undefined) continue;
+        const list = normalizeOverride(
+          { animations: ch.animations ?? [] },
+          `setMotion on "${ch.nodeId}"`,
+        ).animations!;
+        if (list.some((a) => a.split === 'words' || a.split === 'chars') && node.type !== 'text')
+          fail(
+            `setMotion on "${ch.nodeId}": split "words" and "chars" only apply to text nodes (this one is ${node.type})`,
+          );
+        edit(path).animations = list;
       }
       break;
     case 'setData':

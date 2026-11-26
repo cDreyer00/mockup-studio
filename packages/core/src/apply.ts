@@ -1,4 +1,5 @@
 import { deepClone } from './clone.js';
+import { normalizeAnimations, normalizeTransition } from './motion/normalize.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
 import { effectKinds, getEffect } from './effects/catalog.js';
@@ -10,7 +11,14 @@ import {
   nodeTagProblem,
   normalizeTag,
 } from './tags.js';
-import type { ApplyResult, DuplicateNodesOp, Op, SetMediaOp, StyleChange } from './ops.js';
+import type {
+  ApplyResult,
+  DuplicateNodesOp,
+  Op,
+  SetMediaOp,
+  SetMotionOp,
+  StyleChange,
+} from './ops.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
 import { normalizeTokenNames } from './schema.js';
 import {
@@ -36,6 +44,7 @@ import { componentNodeIds } from './components/expand.js';
 import {
   assertComponentInsertion,
   doAddComponent,
+  normalizeNodeMotion,
   doDeleteComponent,
   doReplaceNode,
   doSetInstanceOverrides,
@@ -92,6 +101,7 @@ function assertCanHaveChildren(parent: Node): void {
 function normalizeTree(node: Node): Node {
   node.attrs = { ...(node.attrs ?? {}) };
   node.style = normalizeStyles(node.style ?? {});
+  normalizeNodeMotion(node);
   node.children = node.children ?? [];
   node.locked = node.locked ?? false;
   node.hidden = node.hidden ?? false;
@@ -895,6 +905,40 @@ function doSetMedia(d: Document, op: Extract<Op, { type: 'setMedia' }>): Applied
   return { inverse: [{ type: 'setMedia', changes: prev.reverse() }] };
 }
 
+function doSetMotion(d: Document, op: Extract<Op, { type: 'setMotion' }>): Applied {
+  const prev: SetMotionOp['changes'] = [];
+  for (const c of op.changes) {
+    const p = findNode(d, c.nodeId);
+    if (!p) fail(`Node not found: "${c.nodeId}"`);
+    const n = p.node;
+    if (c.animations === undefined && c.transition === undefined)
+      fail(`setMotion on "${c.nodeId}": provide animations and/or transition`);
+    const before: SetMotionOp['changes'][number] = { nodeId: c.nodeId };
+    if (c.animations !== undefined) {
+      let next: Node['animations'];
+      if (c.animations !== null) {
+        next = normalizeAnimations(c.animations, `setMotion on "${c.nodeId}"`);
+        if (next?.some((a) => a.split === 'words' || a.split === 'chars') && n.type !== 'text')
+          fail(
+            `setMotion on "${c.nodeId}": split "words" and "chars" only apply to text nodes (this one is ${n.type})`,
+          );
+      }
+      before.animations = n.animations ? deepClone(n.animations) : null;
+      if (next) n.animations = next;
+      else delete n.animations;
+    }
+    if (c.transition !== undefined) {
+      if (!p.page.frames.includes(n))
+        fail(`Slide transitions only apply to root frames (slides); "${c.nodeId}" is not one`);
+      before.transition = n.slideTransition ? deepClone(n.slideTransition) : null;
+      if (c.transition === null) delete n.slideTransition;
+      else n.slideTransition = normalizeTransition(c.transition, `setMotion on "${c.nodeId}"`);
+    }
+    prev.push(before);
+  }
+  return { inverse: [{ type: 'setMotion', changes: prev.reverse() }] };
+}
+
 /* ---------------- Public API ---------------- */
 
 /* ---------------- setData ---------------- */
@@ -1036,6 +1080,9 @@ export function applyOp(doc: Document, rawOp: Op): ApplyResult {
       break;
     case 'setMedia':
       applied = doSetMedia(d, op);
+      break;
+    case 'setMotion':
+      applied = doSetMotion(d, op);
       break;
     default:
       return fail(`Unknown operation: "${String((op as { type?: unknown }).type)}"`);

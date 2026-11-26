@@ -399,6 +399,10 @@ export function applyOverride(n: Node, ov: NodeOverride): void {
   if (ov.hidden !== undefined) n.hidden = ov.hidden;
   if (ov.classes !== undefined) n.classes = ov.classes;
   if (ov.states) n.states = mergeStates(n.states, ov.states);
+  if (ov.animations !== undefined) {
+    if (ov.animations.length > 0) n.animations = structuredClone(ov.animations);
+    else delete n.animations;
+  }
   if (ov.src !== undefined && n.type === 'image') n.src = ov.src;
   if (n.type === 'svg') {
     if (ov.vector) {

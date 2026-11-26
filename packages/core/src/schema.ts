@@ -4,6 +4,7 @@ import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
 import { sanitizeSvg } from './svg.js';
 import { normalizeStateKey } from './states.js';
+import { normalizeAnimation, normalizeTransition } from './motion/normalize.js';
 import {
   BLOCKED_TAGS,
   TAG_RE,
@@ -19,9 +20,11 @@ import type {
   Document,
   FontRef,
   Node,
+  NodeAnimation,
   NodeOverride,
   Page,
   PropDef,
+  SlideTransition,
   Theme,
   TokenMeta,
 } from './types.js';
@@ -249,14 +252,73 @@ const PropsMapSchema = z
   .transform((p) => (Object.keys(p).length > 0 ? p : undefined))
   .optional();
 
+/** Lenient read of animations: invalid ones are dropped; an empty result is `undefined`. */
+function parseAnimationsLoose(input: unknown): NodeAnimation[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  const out: NodeAnimation[] = [];
+  for (const a of input) {
+    try {
+      out.push(normalizeAnimation(a));
+    } catch {
+      /* dropped */
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/** Same as `parseAnimationsLoose`, but `[]` is kept (override: "this instance has no animations"). */
+function parseOverrideAnimationsLoose(input: unknown): NodeAnimation[] | undefined {
+  if (Array.isArray(input) && input.length === 0) return [];
+  return parseAnimationsLoose(input);
+}
+
+/** Lenient read of a slide transition: invalid → `undefined`. */
+function parseTransitionLoose(input: unknown): SlideTransition | undefined {
+  if (input === undefined || input === null) return undefined;
+  try {
+    return normalizeTransition(input);
+  } catch {
+    return undefined;
+  }
+}
+
+const ANIMATION_KEYS = [
+  'kind',
+  'preset',
+  'duration',
+  'delay',
+  'easing',
+  'build',
+  'iterations',
+  'alternate',
+  'split',
+  'stagger',
+  'params',
+  'keyframes',
+] as const;
+
+function orderAnimation(a: NodeAnimation): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of ANIMATION_KEYS) if (a[k] !== undefined) out[k] = a[k];
+  return out;
+}
+
+function orderTransition(t: SlideTransition): Record<string, unknown> {
+  const out: Record<string, unknown> = { preset: t.preset };
+  if (t.duration !== undefined) out.duration = t.duration;
+  if (t.easing !== undefined) out.easing = t.easing;
+  if (t.direction !== undefined) out.direction = t.direction;
+  return out;
+}
+
 /** Removes empty fields from an object (without throwing). */
 function dropEmpty<T extends object>(o: T): T {
   const out = { ...o } as Record<string, unknown>;
   for (const [k, v] of Object.entries(out)) {
     if (
       v === undefined ||
-      // `data: []` is a value (repeater with no items), not absence
-      (k !== 'data' && Array.isArray(v) && v.length === 0) ||
+      // `data: []` (repeater with no items) and `animations: []` (override: none) are values, not absence
+      (k !== 'data' && k !== 'animations' && Array.isArray(v) && v.length === 0) ||
       (v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
     ) {
       delete out[k];
@@ -288,6 +350,7 @@ export const NodeOverrideSchema: z.ZodType<NodeOverride, unknown> = z
     hidden: z.boolean().optional(),
     classes: ClassesSchema,
     states: StatesSchema,
+    animations: z.unknown().optional().transform(parseOverrideAnimationsLoose),
     src: z.string().optional(),
     svg: z
       .string()
@@ -407,6 +470,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       position: PositionSchema.optional(),
       classes: ClassesSchema,
       states: StatesSchema,
+      animations: z.unknown().optional().transform(parseAnimationsLoose),
+      slideTransition: z.unknown().optional().transform(parseTransitionLoose),
       componentId: z.string().min(1).optional(),
       props: PropsMapSchema,
       overrides: NodeOverridesMapSchema,
@@ -417,6 +482,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       // Optional fields emptied by normalization do not appear as `undefined` in the object.
       if (n.classes === undefined) delete n.classes;
       if (n.states === undefined) delete n.states;
+      if (n.animations === undefined) delete n.animations;
+      if (n.slideTransition === undefined) delete n.slideTransition;
       if (n.componentId === undefined) delete n.componentId;
       if (n.props === undefined) delete n.props;
       if (n.overrides === undefined) delete n.overrides;
@@ -627,6 +694,7 @@ const OVERRIDE_KEYS = [
   'hidden',
   'classes',
   'states',
+  'animations',
   'src',
   'svg',
   'props',
@@ -642,7 +710,10 @@ function orderOverrides(map: Record<string, NodeOverride>): Record<string, unkno
   const out: Record<string, unknown> = {};
   for (const [path, ov] of Object.entries(map)) {
     const o: Record<string, unknown> = {};
-    for (const k of OVERRIDE_KEYS) if (ov[k] !== undefined) o[k] = ov[k];
+    for (const k of OVERRIDE_KEYS) {
+      if (ov[k] === undefined) continue;
+      o[k] = k === 'animations' ? ov.animations!.map(orderAnimation) : ov[k];
+    }
     out[path] = o;
   }
   return out;
@@ -663,6 +734,9 @@ function orderNode(n: Node): Record<string, unknown> {
   if (n.embed !== undefined) out.embed = n.embed;
   if (n.classes !== undefined) out.classes = n.classes;
   if (n.states !== undefined && Object.keys(n.states).length > 0) out.states = n.states;
+  if (n.animations !== undefined && n.animations.length > 0)
+    out.animations = n.animations.map(orderAnimation);
+  if (n.slideTransition !== undefined) out.slideTransition = orderTransition(n.slideTransition);
   if (n.props !== undefined && Object.keys(n.props).length > 0) out.props = n.props;
   if (n.overrides !== undefined && Object.keys(n.overrides).length > 0) {
     out.overrides = orderOverrides(n.overrides);
