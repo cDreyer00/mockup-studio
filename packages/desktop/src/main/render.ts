@@ -13,6 +13,7 @@ import {
   LruCache,
   assertSize,
   assertViewport,
+  assertMotionRequest,
   assetFingerprints,
   cacheKey,
   declaredSize,
@@ -151,7 +152,7 @@ export class RenderService implements RenderProvider {
    */
   private async prepare(
     win: BrowserWindow,
-    t: RenderTarget & { time?: number },
+    t: RenderTarget & { time?: number; build?: number; times?: number[]; columns?: number },
     scale: number,
     transparent: boolean,
     state?: PreviewState,
@@ -166,6 +167,9 @@ export class RenderService implements RenderProvider {
       transparent,
       state,
       ...(t.time !== undefined && { time: t.time }),
+      ...(t.build !== undefined && { build: t.build }),
+      ...(t.times !== undefined && { times: t.times }),
+      ...(t.columns !== undefined && { columns: t.columns }),
     })})`;
     let box!: RenderBox;
     for (let i = 0; i < 3; i++) {
@@ -194,6 +198,7 @@ export class RenderService implements RenderProvider {
   }
 
   async capture(req: CaptureRequest): Promise<CaptureResult> {
+    assertMotionRequest(req);
     const scale = req.scale ?? 1;
     const format = req.format ?? 'png';
     // JPG has no alpha: ignores `transparent`
@@ -209,6 +214,9 @@ export class RenderService implements RenderProvider {
       maxWidth: req.maxWidth,
       transparent,
       time: req.time,
+      build: req.build,
+      times: req.times,
+      columns: req.columns,
       assets: assetFingerprints(req.assetsDir, referencedAssets(req.doc, req.nodeId)),
     });
     const hit = this.cache.get(key);

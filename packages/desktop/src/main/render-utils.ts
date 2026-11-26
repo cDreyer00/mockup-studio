@@ -53,6 +53,40 @@ export function declaredSize(frame: Node | undefined): { width?: number; height?
   return { width: px(styles.width), height: px(styles.height) };
 }
 
+/** Limits of the filmstrip (same as the render page). */
+export const MAX_FILMSTRIP_CELLS = 12;
+export const MAX_FILMSTRIP_COLUMNS = 12;
+
+/** Validates `time`, `build`, `times` and `columns` of a capture before using the render window. */
+export function assertMotionRequest(r: {
+  time?: number;
+  build?: number;
+  times?: number[];
+  columns?: number;
+}): void {
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  if (r.time !== undefined && !num(r.time))
+    throw new Error(`time must be a number >= 0 (seconds), got ${String(r.time)}.`);
+  if (r.build !== undefined && !(Number.isInteger(r.build) && r.build >= 0))
+    throw new Error(`build must be an integer >= 0, got ${String(r.build)}.`);
+  if (r.times !== undefined) {
+    if (!Array.isArray(r.times) || r.times.length < 1 || r.times.length > MAX_FILMSTRIP_CELLS)
+      throw new Error(
+        `times must have 1 to ${MAX_FILMSTRIP_CELLS} instants, got ${Array.isArray(r.times) ? r.times.length : 0}.`,
+      );
+    if (!r.times.every(num))
+      throw new Error(`times must be numbers >= 0 (seconds), got ${JSON.stringify(r.times)}.`);
+  }
+  if (r.columns !== undefined) {
+    if (r.times === undefined)
+      throw new Error('columns only applies together with times (filmstrip).');
+    if (!(Number.isInteger(r.columns) && r.columns >= 1 && r.columns <= MAX_FILMSTRIP_COLUMNS))
+      throw new Error(
+        `columns must be an integer from 1 to ${MAX_FILMSTRIP_COLUMNS}, got ${String(r.columns)}.`,
+      );
+  }
+}
+
 export interface CacheKeyInput {
   doc: Document;
   docId: string;
@@ -64,6 +98,12 @@ export interface CacheKeyInput {
   transparent: boolean;
   /** Animation time (s); absent ≠ 0 (without a time a video with a poster shows the poster). */
   time?: number;
+  /** Node animations after this click build. */
+  build?: number;
+  /** Filmstrip instants (s). */
+  times?: number[];
+  /** Filmstrip columns. */
+  columns?: number;
   /** Fingerprint of the referenced files (see `assetFingerprints`). */
   assets?: string[];
 }
@@ -86,6 +126,9 @@ export function cacheKey(i: CacheKeyInput): string {
         maxWidth: i.maxWidth ?? null,
         transparent: i.transparent,
         time: i.time ?? null,
+        build: i.build ?? null,
+        times: i.times ?? null,
+        columns: i.times ? (i.columns ?? null) : null,
         assets: i.assets ?? [],
       }),
     )

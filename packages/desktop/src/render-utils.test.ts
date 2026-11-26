@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LruCache,
   MAX_SIDE_PX,
+  assertMotionRequest,
   assertSize,
   cacheKey,
   declaredSize,
@@ -68,6 +69,38 @@ describe('render-utils', () => {
     const doc5 = structuredClone(doc4);
     doc5.themes![0]!.overrides['--x'] = '3';
     expect(cacheKey({ ...base, doc: doc5 })).not.toBe(k4);
+  });
+
+  it('cacheKey changes with build, times and columns (columns only with times)', () => {
+    const { doc, frame } = sampleDoc();
+    const base = { doc, docId: 'd', nodeId: frame.id, scale: 1, format: 'png', transparent: false };
+    const k = cacheKey(base);
+    expect(cacheKey({ ...base, build: 0 })).not.toBe(k);
+    expect(cacheKey({ ...base, build: 1 })).not.toBe(cacheKey({ ...base, build: 0 }));
+    const f = cacheKey({ ...base, times: [0, 1] });
+    expect(f).not.toBe(k);
+    expect(cacheKey({ ...base, times: [0, 2] })).not.toBe(f);
+    expect(cacheKey({ ...base, times: [0, 1], build: 1 })).not.toBe(f);
+    expect(cacheKey({ ...base, times: [0, 1], columns: 1 })).not.toBe(f);
+    expect(cacheKey({ ...base, columns: 3 })).toBe(k);
+  });
+
+  it('assertMotionRequest validates time, build, times and columns', () => {
+    expect(() => assertMotionRequest({})).not.toThrow();
+    expect(() =>
+      assertMotionRequest({ time: 0, build: 2, times: [0, 0.5, 1], columns: 3 }),
+    ).not.toThrow();
+    expect(() => assertMotionRequest({ time: -1 })).toThrow(/time/);
+    expect(() => assertMotionRequest({ build: 0.5 })).toThrow(/build/);
+    expect(() => assertMotionRequest({ times: [] })).toThrow(/1 to 12/);
+    expect(() => assertMotionRequest({ times: Array.from({ length: 13 }, (_, i) => i) })).toThrow(
+      /1 to 12/,
+    );
+    expect(() => assertMotionRequest({ times: [0, -1] })).toThrow(/>= 0/);
+    expect(() => assertMotionRequest({ times: [Number.NaN] })).toThrow(/>= 0/);
+    expect(() => assertMotionRequest({ times: [0], columns: 0 })).toThrow(/columns/);
+    expect(() => assertMotionRequest({ times: [0], columns: 13 })).toThrow(/columns/);
+    expect(() => assertMotionRequest({ columns: 2 })).toThrow(/together with times/);
   });
 
   it('LruCache drops the least recently used', () => {
