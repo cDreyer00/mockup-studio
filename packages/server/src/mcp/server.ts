@@ -46,6 +46,7 @@ import { registerExportTools } from './tools/export.js';
 import { registerFontTools } from './tools/fonts.js';
 import { registerGridTools } from './tools/grid.js';
 import { registerImageTools } from './tools/images.js';
+import { registerMotionTools } from './tools/motion.js';
 import { registerPresentationTools } from './tools/presentation.js';
 import { registerRemixTools } from './tools/remix.js';
 import { registerRenderTools } from './tools/render.js';
@@ -82,6 +83,7 @@ export const SERVER_INSTRUCTIONS = [
   "For HTML with Tailwind classes (shadcn/ui, Tailwind UI): write_html/import_component, set_classes, get_screenshot(state) and get_guide('tailwind').",
   "Reusable components (shadcn-like: Button, Card, Navbar...): insert_component, list_components and get_guide('components').",
   "Define the design system (set_tokens, create_theme; get_guide('tokens')) before designing, and prefer write_html (HTML + CSS at once) over many create_node calls.",
+  "Animations, click builds and slide transitions: animate, set_slide_transition, get_timeline, get_screenshot(times) and get_guide('motion').",
   'Always check the result with get_screenshot and fix it (update_styles, set_text, undo) before moving on.',
   'docId is optional (the active document is used), except in close_document.',
   'When you finish a set of edits, call finish_working.',
@@ -1372,6 +1374,7 @@ ${summaryOf(r.doc, nodeIds)}`;
   registerVectorTools(ctx);
   registerGridTools(ctx);
   registerEffectTools(ctx);
+  registerMotionTools(ctx);
   registerEmbedTools(ctx);
 
   /* ---------- resources ---------- */

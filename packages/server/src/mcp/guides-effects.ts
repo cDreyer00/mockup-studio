@@ -27,7 +27,7 @@ export const EFFECTS_GUIDE = `# Effects, video, embeds and animated export
 - Runs isolated in a sandboxed iframe, with no access to the document (the sandbox does not block the network). Parameters arrive in \`params\`.
 
 ## Animated export
-- \`export(nodeIds, format: 'mp4' | 'webm' | 'gif', fps?, duration?, start?, maxWidth?, scale?)\`: renders the frames and encodes them with ffmpeg. Defaults: 30 fps (gif 15, max 30), 3 s, \`start\` 0; duration up to 30 s. Requires render and ffmpeg (\`MOCKUP_FFMPEG\` or the bundled ffmpeg).
+- \`export(nodeIds, format: 'mp4' | 'webm' | 'gif', fps?, duration?, start?, maxWidth?, scale?)\`: renders the frames and encodes them with ffmpeg. Defaults: 30 fps (gif 15, max 30), 3 s (a frame with animations: its motion timeline + 0.5 s; see \`get_guide('motion')\`), \`start\` 0; duration up to 30 s. Requires render and ffmpeg (\`MOCKUP_FFMPEG\` or the bundled ffmpeg).
 - mp4 is the most compatible, webm is smaller, gif suits a README (use \`maxWidth\` to shrink it).
 - \`export(format: 'react', effects: 'live' | 'static')\`: with \`live\` (default) the component recreates the animated effects; with \`static\` it writes a PNG of each effect to \`assets/effects/\` (requires render).
 `;

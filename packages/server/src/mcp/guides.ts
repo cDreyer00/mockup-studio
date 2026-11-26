@@ -1,4 +1,5 @@
 import { ASSISTANT_GUIDE } from './guide-assistant.js';
+import { MOTION_GUIDE } from './guide-motion.js';
 import { SCRIPTS_GUIDE } from './guide-scripts.js';
 import { IMPORT_GUIDE, IMPORT_GUIDE_INFO } from '../snapshot/guide.js';
 import { EFFECTS_GUIDE } from './guides-effects.js';
@@ -16,6 +17,7 @@ export const GUIDE_TOPICS = [
   'components',
   'export',
   'effects',
+  'motion',
   'troubleshooting',
   'setup',
   'assistant',
@@ -74,6 +76,11 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
     description:
       'add_effect as a background, presets, screenshot with time, video, Lottie/Rive/YouTube, Three.js and mp4/webm/gif export.',
   },
+  motion: {
+    title: 'Guide: motion, animations and slide transitions',
+    description:
+      'animate, builds (click order), split + stagger, easings, loops, slide transitions, get_timeline, filmstrip screenshots and preview_motion.',
+  },
   troubleshooting: {
     title: 'Guide: troubleshooting',
     description:
@@ -120,6 +127,7 @@ export const GUIDE_INFO: Record<GuideTopic, { title: string; description: string
 export const GUIDES: Record<GuideTopic, string> = {
   assistant: ASSISTANT_GUIDE,
   scripts: SCRIPTS_GUIDE,
+  motion: MOTION_GUIDE,
   'getting-started': `# Getting started with Mockup Studio
 
 The document is a tree of real HTML/CSS nodes: pages > frames (artboards) > elements.
@@ -143,12 +151,13 @@ Every node has a stable id (e.g. \`fr_ab12cd34\`, \`el_...\`, \`tx_...\`).
 - HTML with Tailwind classes (shadcn/ui, Tailwind UI): \`write_html\` detects it on its own and \`import_component\` creates the shadcn tokens; see \`get_guide('tailwind')\`.
 - Reusable components (Button, Card, Navbar...): \`insert_component('shadcn-like/Button', parentId, props)\`; see \`get_guide('components')\`.
 - Effects, video and embeds: \`add_effect\`, \`insert_video\`, \`insert_embed\`, \`insert_three\` (see \`get_guide('effects')\`).
+- Animations, click builds and slide transitions: \`animate\`, \`set_slide_transition\`, \`get_timeline\`, \`preview_motion\` (see \`get_guide('motion')\`).
 - Images, icons and fonts: \`insert_image\`, \`insert_icon\` (\`search_icons\`; Lucide and Heroicons kits, names \`kit/name\`), \`add_font\` (\`list_fonts\`).
 - \`docId\` is optional (the active document is used), except in \`close_document\`.
 
 ## Guides
 
-\`design-system\`, \`tokens\`, \`layout\`, \`grid\`, \`vectors\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`effects\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
+\`design-system\`, \`tokens\`, \`layout\`, \`grid\`, \`vectors\`, \`responsive\`, \`screenshot-loop\`, \`tailwind\`, \`components\`, \`export\`, \`effects\`, \`motion\`, \`troubleshooting\`, \`setup\`, \`assistant\`, \`scripts\`, \`import\`, \`assets\`, \`data\` — use \`get_guide(topic)\`.
 `,
   'design-system': `# Design system and tokens
 
