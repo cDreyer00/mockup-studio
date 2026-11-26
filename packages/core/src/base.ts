@@ -74,6 +74,21 @@ export const TAILWIND_PREFLIGHT: [string[], string][] = [
   [['[hidden]:where(:not([hidden="until-found"]))'], 'display:none !important'],
 ];
 
+/**
+ * Tailwind v4 default `@keyframes` (`spin`, `ping`, `pulse`, `bounce`, exact definitions from
+ * `tailwindcss/theme.css`). Tailwind's `animate-*` utilities store `animation: spin 1s linear infinite`
+ * and the like in the node style; without these rules the canvas, the render page and the HTML/React
+ * `inline` exports would not animate. They are part of the base when `cssBase === 'tailwind'`
+ * (keyframe names are global, so they are not scoped). The Tailwind export itself does not need
+ * them: Tailwind generates the `@keyframes` for the `animate-*` classes it finds.
+ */
+export const TAILWIND_KEYFRAMES = [
+  '@keyframes spin{to{transform:rotate(360deg)}}',
+  '@keyframes ping{75%,100%{transform:scale(2);opacity:0}}',
+  '@keyframes pulse{50%{opacity:.5}}',
+  '@keyframes bounce{0%,100%{transform:translateY(-25%);animation-timing-function:cubic-bezier(0.8,0,1,1)}50%{transform:none;animation-timing-function:cubic-bezier(0,0,0.2,1)}}',
+].join('\n');
+
 export interface DocumentBaseOptions {
   /** Includes the Tailwind preflight (documents with `cssBase: 'tailwind'`). */
   preflight?: boolean;
@@ -98,6 +113,7 @@ export function documentBaseCss(
     return [
       ...TAILWIND_PREFLIGHT.map(([sels, decls]) => `${sels.map(scoped).join(',')}{${decls}}`),
       `${root}{${TAILWIND_ROOT_DECLARATIONS}}`,
+      TAILWIND_KEYFRAMES,
     ].join('\n');
   }
   return [

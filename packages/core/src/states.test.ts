@@ -322,7 +322,10 @@ describe('documentBaseCss with preflight', () => {
     expect(css).toContain('.cv-world h1,.cv-world h2');
     expect(css).toContain('.cv-world img,.cv-world svg');
     expect(css).toContain('.cv-frame{font-family:');
-    const rules = css.split('\n').slice(0, -1);
+    const rules = css
+      .split(String.fromCharCode(10))
+      .filter((l) => !l.startsWith('@keyframes'))
+      .slice(0, -1);
     for (const rule of rules) expect(rule.startsWith('.cv-world ')).toBe(true);
     expect(css).not.toMatch(/(^|\n)(\*|body|h1|button)[,{]/);
   });
