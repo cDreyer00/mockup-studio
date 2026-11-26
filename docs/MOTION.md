@@ -136,9 +136,32 @@ Tools (see [MCP.md](MCP.md)): `list_motion_presets`, `animate` (several nodes, `
 
 ## Performance
 
-Stress scenario: `packages/editor/e2e/motion-perf.spec.ts` (12 slides × ~18 animated layers: character-split titles, staggered cards with springs and blur, loops, three click builds per slide, a different transition on each slide).
+Stress scenario: `packages/editor/e2e/motion-perf.spec.ts` (12 slides × ~18 animated layers: character-split titles, staggered cards with springs and blur, loops, three click builds per slide, a different transition on each slide: push, cube, zoom, magic, cover, blur). It runs with the e2e suite (`npm run test:e2e`) and writes `motion-perf.json` to the e2e folder.
 
-Results: _measured below once the scenario runs._
+Measured on 2026-11-26 (Windows 11, Playwright 1.65 headless Chromium, 1440×900 viewport). Frame times are the intervals between `requestAnimationFrame` callbacks, so they show any work that blocks the main thread; "long" = frames over 25 ms.
+
+| Document                 | Value                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| Layers / animated layers | 252 / 216                                                                    |
+| Animations               | 288 (60 infinite loops), 12 slide transitions                                |
+| `.mockup.json` size      | 177.6 KB, of which 56 KB of motion (199 bytes per animation, pretty-printed) |
+| Slide 1 timeline         | 4.58 s linear, 4 click builds, 35 animations                                 |
+
+| Scenario                                                              | fps  | p50 / p95 / max frame | Long frames | Main thread busy |
+| --------------------------------------------------------------------- | ---- | --------------------- | ----------- | ---------------- |
+| Canvas, all 12 slides in view, 60 loops running (design state)        | 60   | 16.7 / 16.8 / 16.8 ms | 0           | 0.7%             |
+| Same, loops paused (Shift+Space)                                      | 60.5 | 16.7 / 16.7 / 16.8 ms | 0           | 0.8%             |
+| Panning across the deck while the loops run                           | 60   | 16.7 / 16.8 / 16.8 ms | 0           | —                |
+| Timeline preview of slide 1 (107 live Web Animations)                 | 60   | 16.7 / 16.7 / 16.8 ms | 0           | —                |
+| Presentation: 12 clicks through builds and transitions (cube, magic…) | 60.1 | 16.7 / 16.8 / 16.8 ms | 0           | —                |
+
+| MCP (end to end, HTTP)                               | Time |
+| ---------------------------------------------------- | ---- |
+| `write_html` of a slide with 18 animated layers      | 6 ms |
+| `set_slide_transition`                               | 2 ms |
+| `animate` on 12 nodes with `cascade` (one undo step) | 9 ms |
+
+Running loops cost nothing measurable on the main thread (0.7% busy with 60 loops vs 0.8% paused: Chromium runs them on the compositor). The existing editor measurement (`perf.spec.ts`, 300 nodes) is unchanged by this work: MCP → DOM latency 48 ms on this branch vs 47 ms on the base commit, dragging p95 16.8 ms on both.
 
 ## Limitations
 
