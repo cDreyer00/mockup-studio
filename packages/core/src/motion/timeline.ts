@@ -245,7 +245,7 @@ export function formatMotionTimeline(timeline: MotionTimeline, frameName?: strin
   lines.push(
     tr
       ? `Slide transition: ${tr.preset}${dir}, ${tr.duration}ms, ${tr.easing}.`
-      : 'Slide transition: none (cut).',
+      : 'Slide transition: none (the slide fades in quickly).',
   );
   for (const b of timeline.builds) {
     const label =
