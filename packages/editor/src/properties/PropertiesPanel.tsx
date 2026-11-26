@@ -4,6 +4,8 @@ import { getComponent } from '@mockup/core';
 import { ComponentSection } from '../components/ComponentSection';
 import { InstanceSection } from '../components/InstanceSection';
 import { isMainRoot } from '../components/model';
+import { MotionSection } from '../motion/MotionSection';
+import { TransitionSection } from '../motion/TransitionSection';
 import { canHaveChildren } from '../model/tree';
 import { useDoc } from '../state/docStore';
 import { useUi } from '../state/uiStore';
@@ -77,6 +79,8 @@ export function PropertiesPanel() {
         <AppearanceSection nodes={nodes} />
         <EffectSection nodes={nodes} />
         <EffectsSection nodes={nodes} />
+        <MotionSection nodes={nodes} />
+        {ctxs.every((c) => c.isRoot) && <TransitionSection frames={nodes} />}
         <ClassesSection ctxs={ctxs} />
         <AttrsSection ctxs={ctxs} />
         {nodes.length === 1 && <CssSection node={nodes[0]!} />}
