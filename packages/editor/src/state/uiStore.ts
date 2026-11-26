@@ -85,6 +85,18 @@ export interface UiState {
   componentEdit: ComponentEdit | null;
   /** Home screen (files) shown in place of the canvas. */
   homeOpen: boolean;
+  /** Motion timeline panel (bottom of the canvas area) open. */
+  motionOpen: boolean;
+  /** Height (px) of the motion timeline panel. */
+  motionHeight: number;
+  /** Animation selected in the timeline (highlighted in the Animation section). */
+  motionSelection: MotionSelection | null;
+}
+
+/** An animation of a node: `index` in `node.animations`. */
+export interface MotionSelection {
+  nodeId: string;
+  index: number;
 }
 
 export const useUi = create<UiState>(() => ({
@@ -109,6 +121,9 @@ export const useUi = create<UiState>(() => ({
   editingComponentId: null,
   componentEdit: null,
   homeOpen: false,
+  motionOpen: false,
+  motionHeight: 220,
+  motionSelection: null,
 }));
 
 /** The synthetic frame of edit mode never enters the selection. */
@@ -205,6 +220,18 @@ export const ui = {
   /** Enters (id) or leaves (null) point editing of an SVG node. */
   editVector(id: string | null): void {
     if (useUi.getState().editingVectorId !== id) useUi.setState({ editingVectorId: id });
+  },
+  setMotionOpen(motionOpen: boolean): void {
+    if (useUi.getState().motionOpen !== motionOpen) useUi.setState({ motionOpen });
+  },
+  toggleMotion(): void {
+    useUi.setState({ motionOpen: !useUi.getState().motionOpen });
+  },
+  setMotionHeight(h: number): void {
+    useUi.setState({ motionHeight: Math.round(Math.min(Math.max(h, 120), 640)) });
+  },
+  selectMotion(motionSelection: MotionSelection | null): void {
+    useUi.setState({ motionSelection });
   },
   toast(text: string, kind: 'info' | 'error' = 'info'): void {
     useUi.setState({ toast: { text, kind, at: Date.now() } });

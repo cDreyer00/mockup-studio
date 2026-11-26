@@ -7,6 +7,7 @@ import { useShortcuts } from './shortcuts/useShortcuts';
 import { selectActiveInfo, useDoc } from './state/docStore';
 import { ui, useUi } from './state/uiStore';
 import { PresentationView } from './presentation/PresentationView';
+import { TimelinePanel } from './motion/TimelinePanel';
 import { LeftDock } from './tokens/LeftDock';
 import { Toolbar } from './toolbar/Toolbar';
 import { OverlayHost } from './ui/overlays';
@@ -24,6 +25,7 @@ export function App() {
   const rightTab = useUi((s) => s.rightTab);
   const activeDocId = useDoc((s) => s.activeDocId);
   const homeOpen = useUi((s) => s.homeOpen);
+  const motionOpen = useUi((s) => s.motionOpen);
   useShortcuts();
   useDesktop();
 
@@ -47,7 +49,10 @@ export function App() {
         {showHome ? (
           <HomeScreen />
         ) : hasDoc ? (
-          <Canvas />
+          <div className="cv-stack">
+            <Canvas />
+            {motionOpen && <TimelinePanel />}
+          </div>
         ) : (
           <div className="canvas-empty">
             {status === 'offline'

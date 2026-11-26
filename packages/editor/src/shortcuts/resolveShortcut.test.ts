@@ -114,6 +114,12 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('k', { altKey: true }))).toBeNull();
   });
 
+  it('M toggles the motion timeline (plain key only)', () => {
+    expect(resolveShortcut(key('m', {}, 'KeyM'))).toEqual({ type: 'toggleMotion' });
+    expect(resolveShortcut(key('M', shift, 'KeyM'))).toBeNull();
+    expect(resolveShortcut(key('m', ctrl, 'KeyM'))).toBeNull();
+  });
+
   it('ignores unmapped combinations', () => {
     expect(resolveShortcut(key('v', { altKey: true }))).toBeNull();
     expect(resolveShortcut(key('v', ctrl))).toBeNull();

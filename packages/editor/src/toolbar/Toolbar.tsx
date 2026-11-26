@@ -11,6 +11,7 @@ import {
   Hexagon,
   Image as ImageIcon,
   MonitorPlay,
+  Waypoints,
   MousePointer2,
   PenTool,
   Pause,
@@ -389,6 +390,21 @@ function PlayToggle() {
   );
 }
 
+/** Shows / hides the motion timeline panel. */
+function MotionToggle() {
+  const open = useUi((s) => s.motionOpen);
+  return (
+    <IconButton
+      title="Motion timeline (M)"
+      active={open}
+      data-testid="motion-toggle"
+      onClick={() => ui.toggleMotion()}
+    >
+      <Waypoints size={ICON} />
+    </IconButton>
+  );
+}
+
 /** Presentation: plays the visible frames of the displayed page as slides. */
 function PresentButton() {
   const pageId = useUi((s) => s.pageId);
@@ -460,6 +476,7 @@ export function Toolbar() {
         <EffectsButton />
         <MediaMenu />
         <PlayToggle />
+        <MotionToggle />
       </div>
       <span className="tb-sep" />
       <IconButton

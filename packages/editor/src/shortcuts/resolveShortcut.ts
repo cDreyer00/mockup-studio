@@ -28,6 +28,8 @@ export type ShortcutCommand =
   | { type: 'zoomFit' }
   | { type: 'zoomSelection' }
   | { type: 'createComponent' }
+  /** Shows / hides the motion timeline panel. */
+  | { type: 'toggleMotion' }
   /** Presentation mode: from the first frame (F5) or from the selected frame (Shift+F5). */
   | { type: 'present'; from: 'first' | 'selection' };
 
@@ -146,6 +148,7 @@ export function resolveShortcut(e: KeyInfo): ShortcutCommand | null {
   if (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract')
     return { type: 'zoomOut' };
 
+  if (letterOf(e) === 'm') return { type: 'toggleMotion' };
   const tool = TOOL_KEYS[letterOf(e)];
   return tool ? { type: 'tool', tool } : null;
 }

@@ -101,6 +101,8 @@ export function runShortcut(cmd: ShortcutCommand): void {
       return canvasApi.fitNodes();
     case 'createComponent':
       return void createComponentFromSelection();
+    case 'toggleMotion':
+      return ui.toggleMotion();
     case 'present':
       return startPresentation(cmd.from);
   }
