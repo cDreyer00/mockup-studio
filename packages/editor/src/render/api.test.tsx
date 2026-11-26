@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { NodeAnimation } from '@mockup/core';
+import { useFxClock } from '../fx/clock';
 import { installRenderApi } from './api';
 import { makeDoc } from '../test/fixtures';
 import type { MockupRenderApi } from './api';
@@ -78,5 +80,153 @@ describe('render page', () => {
     await api.render({ doc, docId: doc.id, nodeId: frame.id });
     a.hidden = true;
     expect(() => api.measure(a.id)).toThrow(/hidden/);
+  });
+
+  describe('motion', () => {
+    const anims: { target: Element; currentTime: number | null }[] = [];
+
+    beforeEach(() => {
+      anims.length = 0;
+      (HTMLElement.prototype as unknown as { animate: unknown }).animate = function (
+        this: Element,
+      ) {
+        const a = {
+          target: this,
+          currentTime: 0 as number | null,
+          startTime: null,
+          pause() {},
+          play() {},
+          cancel() {},
+          persist() {},
+        };
+        anims.push(a);
+        return a;
+      };
+    });
+    afterEach(() => {
+      delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+      vi.restoreAllMocks();
+    });
+
+    const animated = (animations: NodeAnimation[]) => {
+      const made = makeDoc();
+      made.b.animations = animations;
+      return made;
+    };
+    const lastTime = () => anims[anims.length - 1]?.currentTime;
+
+    it('without time or build the design state has no Web Animations and the clock is at 0', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade' }]);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id });
+      expect(anims).toHaveLength(0);
+      expect(useFxClock.getState().manual).toBe(0);
+    });
+
+    it('time seeks the animations and drives the effects clock', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade' }]);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, time: 0.4 });
+      expect(anims.length).toBeGreaterThan(0);
+      expect(lastTime()).toBe(400);
+      expect(useFxClock.getState().manual).toBeCloseTo(0.4);
+      // back to the design state on the next render without time
+      await api.render({ doc, docId: doc.id, nodeId: frame.id });
+      expect(useFxClock.getState().manual).toBe(0);
+    });
+
+    it('build seeks to the state after that click build; the clock follows the linear time', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade', build: 1, duration: 600 }]);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 0 });
+      expect(lastTime()).toBe(0);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1 });
+      expect(lastTime()).toBe(600);
+      expect(useFxClock.getState().manual).toBeCloseTo(0.6);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1, time: 0.2 });
+      expect(lastTime()).toBe(200);
+    });
+
+    it('setTime seeks the node animations too', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade' }]);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id });
+      await api.setTime(0.25);
+      expect(lastTime()).toBe(250);
+      expect(useFxClock.getState().manual).toBeCloseTo(0.25);
+    });
+
+    it('validates time, build, times and columns', async () => {
+      const { doc, frame } = makeDoc();
+      const base = { doc, docId: doc.id, nodeId: frame.id };
+      await expect(api.render({ ...base, time: -1 })).rejects.toThrow(/time/);
+      await expect(api.render({ ...base, build: 1.5 })).rejects.toThrow(/build/);
+      await expect(api.render({ ...base, times: [] })).rejects.toThrow(/times/);
+      await expect(api.render({ ...base, times: [0, Number.NaN] })).rejects.toThrow(/times/);
+      await expect(
+        api.render({ ...base, times: Array.from({ length: 13 }, (_, i) => i) }),
+      ).rejects.toThrow(/times/);
+      await expect(api.render({ ...base, times: [0], columns: 0 })).rejects.toThrow(/columns/);
+    });
+
+    it('filmstrip renders one labelled cell per time and a box covering the grid', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade' }]);
+      const rect = (w: number, h: number) =>
+        ({ width: w, height: h, left: 0, top: 0, right: w, bottom: h, x: 0, y: 0 }) as DOMRect;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.dataset.filmstrip !== undefined ? rect(1000, 400) : rect(400, 300);
+      });
+      const box = await api.render({
+        doc,
+        docId: doc.id,
+        nodeId: frame.id,
+        times: [0, 0.4, 1],
+        columns: 2,
+      });
+      const cells = document.querySelectorAll<HTMLElement>('[data-filmstrip-cell]');
+      expect(cells).toHaveLength(3);
+      expect(cells[0]!.style.width).toBe('400px');
+      expect(cells[0]!.style.height).toBe('300px');
+      expect(
+        Array.from(document.querySelectorAll('[data-filmstrip-label]')).map((l) => l.textContent),
+      ).toEqual(['0.00 s', '0.40 s', '1.00 s']);
+      const grid = document.querySelector<HTMLElement>('[data-filmstrip]')!;
+      expect(grid.style.gridTemplateColumns).toBe('repeat(2, max-content)');
+      expect(box).toMatchObject({
+        frameId: frame.id,
+        frameWidth: 1000,
+        frameHeight: 400,
+        x: 0,
+        y: 0,
+        width: 1000,
+        height: 400,
+      });
+      expect(() => api.measure(frame.id)).toThrow(/filmstrip/);
+      // each cell has its own seek
+      expect(anims.map((a) => a.currentTime).sort((x, y) => x! - y!)).toEqual([0, 400, 1000]);
+    });
+
+    it('filmstrip labels are relative to the build and a later single render drops the cells', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade', build: 1 }]);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1, times: [0.4] });
+      expect(document.querySelector('[data-filmstrip-label]')?.textContent).toBe(
+        'build 1 + 0.40 s',
+      );
+      await api.render({ doc, docId: doc.id, nodeId: frame.id });
+      expect(document.querySelector('[data-filmstrip]')).toBeNull();
+      expect(api.measure(frame.id).id).toBe(frame.id);
+    });
+
+    it('measure collects the characters of split text spans', async () => {
+      const { doc, frame, b } = animated([{ kind: 'in', preset: 'fade', split: 'words' }]);
+      b.text = 'hello world';
+      let n = 0;
+      vi.spyOn(Range.prototype, 'getClientRects').mockImplementation(
+        () => [{ left: n++ * 10, top: 0, width: 10, height: 16 }] as unknown as DOMRectList,
+      );
+      await api.render({ doc, docId: doc.id, nodeId: frame.id });
+      expect(document.querySelectorAll('[data-motion-seg]').length).toBeGreaterThan(0);
+      const joined = (api.measure(b.id).lines ?? []).map((l) => l.text).join('');
+      expect(joined).toContain('hello');
+      expect(joined).toContain('world');
+    });
   });
 });
