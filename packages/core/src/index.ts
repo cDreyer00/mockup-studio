@@ -37,3 +37,4 @@ export * from './grid.js';
 export * from './media.js';
 export * from './effects/catalog.js';
 export * from './effects/runtime.js';
+export * from './motion/index.js';

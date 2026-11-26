@@ -70,6 +70,75 @@ export interface Position {
   y: number;
 }
 
+/* ---------------- Motion (see motion/ and docs/MOTION.md) ---------------- */
+
+/**
+ * What an animation does: `in` = entrance (the node stays hidden until it plays), `out` = exit (the
+ * node stays hidden after it plays), `emphasis` = plays and returns to rest (loops use `iterations`).
+ */
+export type AnimationKind = 'in' | 'out' | 'emphasis';
+
+/** What a node animation moves: the node (default), each child, or each word/character of a text. */
+export type AnimationSplit = 'children' | 'words' | 'chars';
+
+/**
+ * Keyframe of a custom animation (`preset: 'custom'`), in the Web Animations format: CSS declarations
+ * in kebab-case, plus `offset` (0 to 1; missing = evenly spaced) and `easing` (to the next keyframe).
+ */
+export interface AnimationKeyframe {
+  offset?: number;
+  easing?: string;
+  [property: string]: string | number | undefined;
+}
+
+/**
+ * Animation of a node. Times in milliseconds. Fields equal to the preset's defaults are omitted
+ * in the file (`normalizeAnimation`).
+ */
+export interface NodeAnimation {
+  kind: AnimationKind;
+  /** Preset from the catalog (`MOTION_PRESETS`, MCP `list_motion_presets`) or `custom` with `keyframes`. */
+  preset: string;
+  /** One iteration, in ms (default: the preset's). */
+  duration?: number;
+  /** Wait after the start of its build, in ms (default 0). */
+  delay?: number;
+  /** Named easing (`spring`, `back-out`, `smooth-out`...) or CSS easing (default: the preset's). */
+  easing?: string;
+  /**
+   * Build: 0 (default) = plays when the frame/slide appears; 1, 2... = plays on the 1st, 2nd...
+   * click (next) of a presentation. Builds play in increasing order.
+   */
+  build?: number;
+  /** Number of plays (default 1; loops default to `infinite`). */
+  iterations?: number | 'infinite';
+  /** Alternates the direction on every other iteration (yoyo). */
+  alternate?: boolean;
+  /** Animates each child, word or character instead of the node itself, `stagger` ms apart. */
+  split?: AnimationSplit;
+  /** Gap between consecutive split targets, in ms (default: 80 children, 60 words, 30 chars). */
+  stagger?: number;
+  /** Preset parameters, e.g. `{ "distance": 40 }` (see the catalog; defaults omitted). */
+  params?: Record<string, number | string>;
+  /** Custom keyframes (`preset: 'custom'` only). */
+  keyframes?: AnimationKeyframe[];
+}
+
+export type TransitionDirection = 'left' | 'right' | 'up' | 'down';
+
+/**
+ * Transition with which a root frame (slide) enters in a presentation; going back plays it in
+ * reverse. Times in milliseconds; defaults omitted in the file.
+ */
+export interface SlideTransition {
+  /** `fade`, `push`, `cover`, `reveal`, `wipe`, `zoom`, `blur`, `flip`, `cube`, `magic`... (`SLIDE_TRANSITIONS`). */
+  preset: string;
+  duration?: number;
+  easing?: string;
+  /** Directional presets only (push, cover, reveal, wipe, flip, cube); default `left`. */
+  direction?: TransitionDirection;
+}
+
 export interface Node {
   id: string;
   type: NodeType;
@@ -98,6 +167,10 @@ export interface Node {
   video?: VideoSpec;
   /** Embed: Lottie, Rive, YouTube, Three.js or iframe (type 'embed'). */
   embed?: EmbedSpec;
+  /** Animations (entrance, exit, emphasis, loops) in build order. Absent when empty. */
+  animations?: NodeAnimation[];
+  /** Root frames: transition with which the slide enters in a presentation. */
+  slideTransition?: SlideTransition;
   children: Node[];
   locked: boolean;
   hidden: boolean;
@@ -198,6 +271,8 @@ export interface NodeOverride {
   data?: unknown[];
   /** Repeater data source (repeater node only). */
   dataSource?: DataSource;
+  /** Whole animation list (replaces the main component's; `[]` removes them in the instance). */
+  animations?: NodeAnimation[];
 }
 
 /** Variant: when the props match `when`, applies `overrides` (key `''` = root node). */
