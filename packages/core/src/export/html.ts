@@ -6,6 +6,7 @@ import { breakpointsOf } from '../states.js';
 import { themeRulesCss } from '../tokens.js';
 import type { Document } from '../types.js';
 import { mediaScripts, newMediaCollector } from './media.js';
+import { MotionCollector, buildRuntimeScript } from './motion.js';
 import {
   ClassNamer,
   cssBody,
@@ -44,6 +45,11 @@ export interface HtmlExportOptions {
  * stays in `style=""`; nodes with states get a class only for the state rules, which
  * are emitted with `!important` (inline `style` would otherwise win the cascade).
  *
+ * Node animations (`node.animations`) become real CSS: `@keyframes` + `animation` rules inside
+ * `@media (prefers-reduced-motion: no-preference)` (see `./motion.ts`), split texts become
+ * `span[data-motion-seg]` and, with builds > 0, a tiny inline `<script>` plays one build per click /
+ * ArrowRight / Space / PageDown. `slideTransition` is presentation only and is not exported.
+ *
  * Media nodes: effects become `<canvas data-mockup-effect='{json}'>` with the catalog's fallback
  * background (visible without JS) and ONE `<script>` at the end of the body with the runtime and auto-mount;
  * video becomes `<video>`, YouTube/iframe become `<iframe>`, Lottie/Rive/Three.js load the
@@ -60,8 +66,10 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
   const breakpoints = breakpointsOf(doc);
   const rules: string[] = [];
   const media = newMediaCollector();
+  const motion = new MotionCollector();
   const markup = renderHtmlTree(roots, {
     media,
+    motion,
     readAsset: options.readAsset,
     styleOf: (node) => {
       const hasStyle = Object.keys(node.style).length > 0;
@@ -92,8 +100,12 @@ export function exportHtml(source: Document, options: HtmlExportOptions = {}): s
   const faces = fontFaceCss(doc, (f) => `assets/${f}`, 'swap');
   if (faces) css.push(indentLines(faces, 1));
   if (rules.length > 0) css.push(indentLines(rules.join('\n'), 1));
+  const motionCss = motion.css();
+  if (motionCss) css.push(indentLines(motionCss, 1));
   const style = escapeCssText(css.join('\n'));
-  const scripts = mediaScripts(media);
+  const scripts = [mediaScripts(media), motion.hasBuilds ? buildRuntimeScript() : '']
+    .filter(Boolean)
+    .join('\n');
 
   if (options.fragment) {
     return `<style>\n${style}\n</style>\n${markup}\n${scripts ? scripts + '\n' : ''}`;

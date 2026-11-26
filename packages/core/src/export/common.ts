@@ -16,6 +16,8 @@ import {
   renderMediaAttrs,
   type MediaCollector,
 } from './media.js';
+import { MOTION_ATTR, splitParts } from './motion.js';
+import type { MotionCollector } from './motion.js';
 
 /** Document base (the same as the canvas and the render): see `documentBaseCss`. */
 export const BASE_CSS = documentBaseCss();
@@ -253,6 +255,8 @@ export interface HtmlRenderOptions {
   media?: MediaCollector;
   /** Reads files from `assets/` to embed the JSON of small Lottie animations in the HTML. */
   readAsset?: (ref: string) => string | Uint8Array | undefined;
+  /** Node animations: adds `data-mk` to the animated elements and renders split texts as spans. */
+  motion?: MotionCollector;
 }
 
 /** Node text: `\n` stays literal (CSS decides whether it becomes a break); only escapes. */
@@ -260,9 +264,10 @@ function renderText(text: string): string {
   return escapeHtmlText(text);
 }
 
-function injectIntoSvg(markup: string, attrs: HtmlStyleAttrs, xhtml: boolean): string {
+function injectIntoSvg(markup: string, attrs: HtmlStyleAttrs, xhtml: boolean, mk?: number): string {
   let out = markup;
   const extra: string[] = [];
+  if (mk !== undefined) extra.push(`${MOTION_ATTR}="${mk}"`);
   if (xhtml && !/^\s*<svg[^>]*\sxmlns=/i.test(out)) {
     extra.push('xmlns="http://www.w3.org/2000/svg"');
   }
@@ -270,6 +275,19 @@ function injectIntoSvg(markup: string, attrs: HtmlStyleAttrs, xhtml: boolean): s
   if (attrs.style) extra.push(`style="${escapeHtmlAttr(attrs.style)}"`);
   if (extra.length > 0) out = out.replace(/^(\s*<svg)/i, `$1 ${extra.join(' ')}`);
   return out;
+}
+
+/** Inline markup of a split text (see `splitParts`). */
+function renderSplit(text: string, mode: 'words' | 'chars'): string {
+  const seg = (t: string, i: number): string =>
+    `<span data-motion-seg style="--mi: ${i}">${renderText(t)}</span>`;
+  return splitParts(text, mode)
+    .map((p) => {
+      if (p.type === 'text') return renderText(p.text);
+      if (p.type === 'seg') return seg(p.text, p.index);
+      return `<span data-motion-word>${p.segs.map((s) => seg(s.text, s.index)).join('')}</span>`;
+    })
+    .join('');
 }
 
 /** Renders the trees as HTML (one line per tag; text on the element's line). */
@@ -280,15 +298,18 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
 
   const render = (node: Node, depth: number, isRoot: boolean): void => {
     const sa = opts.styleOf(node, isRoot);
+    opts.motion?.register(node);
+    const mk = opts.motion?.keyOf(node);
 
     if (node.type === 'svg') {
       const markup = scopeSvgIds(sanitizeSvg(node.svg ?? '') || '<svg></svg>', node.id);
-      lines.push(pad(depth) + injectIntoSvg(markup, sa, xhtml));
+      lines.push(pad(depth) + injectIntoSvg(markup, sa, xhtml, mk));
       return;
     }
 
     const parts: string[] = [];
     if (sa.cls) parts.push(`class="${escapeHtmlAttr(sa.cls)}"`);
+    if (mk !== undefined) parts.push(`${MOTION_ATTR}="${mk}"`);
     if (node.type === 'effect' || node.type === 'video' || node.type === 'embed') {
       const m = mediaElement(node, {
         mode: opts.mediaMode ?? 'live',
@@ -326,6 +347,18 @@ export function renderHtmlTree(roots: Node[], opts: HtmlRenderOptions): string {
       return;
     }
     const text = node.text ?? '';
+    const split = text !== '' ? opts.motion?.splitOf(node) : null;
+    if (split) {
+      // split text: one inline-block span per word/character (same structure as the editor)
+      if (node.children.length === 0) {
+        lines.push(`${pad(depth)}${open}>${renderSplit(text, split)}</${node.tag}>`);
+        return;
+      }
+      lines.push(`${pad(depth)}${open}>${renderSplit(text, split)}`);
+      for (const c of node.children) render(c, depth + 1, false);
+      lines.push(`${pad(depth)}</${node.tag}>`);
+      return;
+    }
     if (node.children.length === 0) {
       lines.push(`${pad(depth)}${open}>${renderText(text)}</${node.tag}>`);
       return;

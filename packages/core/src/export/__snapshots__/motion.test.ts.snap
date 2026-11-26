@@ -1,0 +1,572 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`motion export: html > snapshot 1`] = `
+"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motion</title>
+  <style>
+  *,*::before,*::after{box-sizing:border-box;margin:0}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}
+  .screen {
+    width: 400px;
+    min-height: 300px;
+  }
+  .title {
+    font-size: 32px;
+  }
+  .badge {
+    width: 40px;
+    height: 40px;
+  }
+  .item {
+    padding: 4px;
+  }
+  .item-2 {
+    padding: 4px;
+  }
+  .item-3 {
+    padding: 4px;
+  }
+  .custom {
+    width: 10px;
+    height: 10px;
+  }
+  [data-motion-seg] {
+    display: inline-block;
+  }
+  [data-motion-word] {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes mk-883ffc {
+      0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+      100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+    }
+    @keyframes mk-4b23bf {
+      0% { translate: 0px 0px; }
+      50% { translate: 0px -10px; }
+      100% { translate: 0px 0px; }
+    }
+    @keyframes mk-883ffc-b1 {
+      0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+      100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+    }
+    @keyframes mk-9a813f-b2 {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes mk-37a9dd {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.2); }
+    }
+    [data-mk="1"] [data-motion-seg] {
+      animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) calc(var(--mi) * 30ms + 0ms) 1 normal backwards;
+    }
+    [data-mk="2"] {
+      animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards, mk-4b23bf 3000ms ease-in-out 0ms infinite normal none;
+    }
+    [data-mk="3"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="4"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 100ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="5"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 200ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="6"] {
+      animation: mk-9a813f-b2 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal forwards;
+      animation-play-state: paused;
+    }
+    [data-mk="7"] {
+      animation: mk-37a9dd 800ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal none;
+    }
+  }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <h1 class="title" data-mk="1"><span data-motion-word><span data-motion-seg style="--mi: 0">H</span><span data-motion-seg style="--mi: 1">e</span><span data-motion-seg style="--mi: 2">l</span><span data-motion-seg style="--mi: 3">l</span><span data-motion-seg style="--mi: 4">o</span></span> <span data-motion-word><span data-motion-seg style="--mi: 5">b</span><span data-motion-seg style="--mi: 6">i</span><span data-motion-seg style="--mi: 7">g</span></span> <span data-motion-word><span data-motion-seg style="--mi: 8">w</span><span data-motion-seg style="--mi: 9">o</span><span data-motion-seg style="--mi: 10">r</span><span data-motion-seg style="--mi: 11">l</span><span data-motion-seg style="--mi: 12">d</span></span></h1>
+    <div class="badge" data-mk="2"></div>
+    <ul data-mk="6">
+      <li class="item" data-mk="3">One</li>
+      <li class="item-2" data-mk="4">Two</li>
+      <li class="item-3" data-mk="5">Three</li>
+    </ul>
+    <div class="custom" data-mk="7"></div>
+  </div>
+<script>
+// Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds).
+(function () {
+  var step = 0, list = null;
+  function anims(b) {
+    return document.getAnimations().filter(function (a) {
+      return a.animationName && a.animationName.slice(-('-b' + b).length) === '-b' + b;
+    });
+  }
+  function builds() {
+    var seen = {};
+    document.getAnimations().forEach(function (a) {
+      var m = /-b(\\d+)$/.exec(a.animationName || "");
+      if (m) seen[m[1]] = 1;
+    });
+    return Object.keys(seen).map(Number).sort(function (x, y) { return x - y; });
+  }
+  function go(dir) {
+    list = list || builds();
+    if (dir > 0 && step < list.length) anims(list[step++]).forEach(function (a) { a.play(); });
+    else if (dir < 0 && step > 0) anims(list[--step]).forEach(function (a) { a.pause(); a.currentTime = 0; });
+  }
+  function onClick(e) {
+    if (!e.target.closest || !e.target.closest('a, button, input, select, textarea')) go(1);
+  }
+  function onKey(e) {
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+  }
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
+})();
+</script>
+</body>
+</html>
+"
+`;
+
+exports[`motion export: react > inline > snapshot 1`] = `
+{
+  "code": "import { useEffect, type CSSProperties } from 'react';
+
+/** Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds). */
+function installBuilds(): () => void {
+  let step = 0;
+  let list: number[] | null = null;
+  const anims = (b: number): Animation[] =>
+    document.getAnimations().filter((a) => (a as CSSAnimation).animationName?.endsWith(\`-b\${b}\`));
+  const builds = (): number[] => {
+    const seen = new Set<number>();
+    for (const a of document.getAnimations()) {
+      const m = /-b(\\d+)$/.exec((a as CSSAnimation).animationName ?? "");
+      if (m) seen.add(Number(m[1]));
+    }
+    return [...seen].sort((x, y) => x - y);
+  };
+  const go = (dir: number): void => {
+    list = list ?? builds();
+    if (dir > 0 && step < list.length) anims(list[step++]).forEach((a) => a.play());
+    else if (dir < 0 && step > 0) {
+      anims(list[--step]).forEach((a) => {
+        a.pause();
+        a.currentTime = 0;
+      });
+    }
+  };
+  const onClick = (e: MouseEvent): void => {
+    if (!(e.target as Element).closest?.('a, button, input, select, textarea')) go(1);
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if ((e.target as Element).closest?.('input, select, textarea')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      go(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      go(-1);
+    }
+  };
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
+  return () => {
+    document.removeEventListener('click', onClick);
+    document.removeEventListener('keydown', onKey);
+  };
+}
+
+export function Screen() {
+  useEffect(() => installBuilds(), []);
+
+  return (
+    <div style={{ width: '400px', minHeight: '300px' }}>
+      <h1 style={{ fontSize: '32px' }} data-mk="1">
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '0' } as CSSProperties}>H</span>
+          <span data-motion-seg="" style={{ '--mi': '1' } as CSSProperties}>e</span>
+          <span data-motion-seg="" style={{ '--mi': '2' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '3' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '4' } as CSSProperties}>o</span>
+        </span>
+        {' '}
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '5' } as CSSProperties}>b</span>
+          <span data-motion-seg="" style={{ '--mi': '6' } as CSSProperties}>i</span>
+          <span data-motion-seg="" style={{ '--mi': '7' } as CSSProperties}>g</span>
+        </span>
+        {' '}
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '8' } as CSSProperties}>w</span>
+          <span data-motion-seg="" style={{ '--mi': '9' } as CSSProperties}>o</span>
+          <span data-motion-seg="" style={{ '--mi': '10' } as CSSProperties}>r</span>
+          <span data-motion-seg="" style={{ '--mi': '11' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '12' } as CSSProperties}>d</span>
+        </span>
+      </h1>
+      <div style={{ width: '40px', height: '40px' }} data-mk="2" />
+      <ul data-mk="6">
+        <li style={{ padding: '4px' }} data-mk="3">One</li>
+        <li style={{ padding: '4px' }} data-mk="4">Two</li>
+        <li style={{ padding: '4px' }} data-mk="5">Three</li>
+      </ul>
+      <div style={{ width: '10px', height: '10px' }} data-mk="7" />
+    </div>
+  );
+}
+
+export default Screen;
+",
+  "componentName": "Screen",
+  "css": "*,*::before,*::after{box-sizing:border-box;margin:0}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-size:16px;line-height:normal;color:#000;font-weight:400;font-style:normal;letter-spacing:normal;text-align:left;-webkit-font-smoothing:auto;color-scheme:light}
+[data-motion-seg] {
+  display: inline-block;
+}
+[data-motion-word] {
+  display: inline-block;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mk-883ffc {
+    0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+    100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+  }
+  @keyframes mk-4b23bf {
+    0% { translate: 0px 0px; }
+    50% { translate: 0px -10px; }
+    100% { translate: 0px 0px; }
+  }
+  @keyframes mk-883ffc-b1 {
+    0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+    100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+  }
+  @keyframes mk-9a813f-b2 {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes mk-37a9dd {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.2); }
+  }
+  [data-mk="1"] [data-motion-seg] {
+    animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) calc(var(--mi) * 30ms + 0ms) 1 normal backwards;
+  }
+  [data-mk="2"] {
+    animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards, mk-4b23bf 3000ms ease-in-out 0ms infinite normal none;
+  }
+  [data-mk="3"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="4"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 100ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="5"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 200ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="6"] {
+    animation: mk-9a813f-b2 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal forwards;
+    animation-play-state: paused;
+  }
+  [data-mk="7"] {
+    animation: mk-37a9dd 800ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal none;
+  }
+}
+",
+}
+`;
+
+exports[`motion export: react > tailwind > snapshot 1`] = `
+{
+  "code": "import { useEffect, type CSSProperties } from 'react';
+
+/** Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds). */
+function installBuilds(): () => void {
+  let step = 0;
+  let list: number[] | null = null;
+  const anims = (b: number): Animation[] =>
+    document.getAnimations().filter((a) => (a as CSSAnimation).animationName?.endsWith(\`-b\${b}\`));
+  const builds = (): number[] => {
+    const seen = new Set<number>();
+    for (const a of document.getAnimations()) {
+      const m = /-b(\\d+)$/.exec((a as CSSAnimation).animationName ?? "");
+      if (m) seen.add(Number(m[1]));
+    }
+    return [...seen].sort((x, y) => x - y);
+  };
+  const go = (dir: number): void => {
+    list = list ?? builds();
+    if (dir > 0 && step < list.length) anims(list[step++]).forEach((a) => a.play());
+    else if (dir < 0 && step > 0) {
+      anims(list[--step]).forEach((a) => {
+        a.pause();
+        a.currentTime = 0;
+      });
+    }
+  };
+  const onClick = (e: MouseEvent): void => {
+    if (!(e.target as Element).closest?.('a, button, input, select, textarea')) go(1);
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if ((e.target as Element).closest?.('input, select, textarea')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      go(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      go(-1);
+    }
+  };
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
+  return () => {
+    document.removeEventListener('click', onClick);
+    document.removeEventListener('keydown', onKey);
+  };
+}
+
+export function Screen() {
+  useEffect(() => installBuilds(), []);
+
+  return (
+    <div className="w-[400px] min-h-75">
+      <h1 className="text-[32px]" data-mk="1">
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '0' } as CSSProperties}>H</span>
+          <span data-motion-seg="" style={{ '--mi': '1' } as CSSProperties}>e</span>
+          <span data-motion-seg="" style={{ '--mi': '2' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '3' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '4' } as CSSProperties}>o</span>
+        </span>
+        {' '}
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '5' } as CSSProperties}>b</span>
+          <span data-motion-seg="" style={{ '--mi': '6' } as CSSProperties}>i</span>
+          <span data-motion-seg="" style={{ '--mi': '7' } as CSSProperties}>g</span>
+        </span>
+        {' '}
+        <span data-motion-word="">
+          <span data-motion-seg="" style={{ '--mi': '8' } as CSSProperties}>w</span>
+          <span data-motion-seg="" style={{ '--mi': '9' } as CSSProperties}>o</span>
+          <span data-motion-seg="" style={{ '--mi': '10' } as CSSProperties}>r</span>
+          <span data-motion-seg="" style={{ '--mi': '11' } as CSSProperties}>l</span>
+          <span data-motion-seg="" style={{ '--mi': '12' } as CSSProperties}>d</span>
+        </span>
+      </h1>
+      <div className="size-10" data-mk="2" />
+      <ul data-mk="6">
+        <li className="p-1" data-mk="3">One</li>
+        <li className="p-1" data-mk="4">Two</li>
+        <li className="p-1" data-mk="5">Three</li>
+      </ul>
+      <div className="size-2.5" data-mk="7" />
+    </div>
+  );
+}
+
+export default Screen;
+",
+  "componentName": "Screen",
+  "css": "@import "tailwindcss";
+
+@layer base {
+  body { font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size:16px; line-height:normal; color:#000; font-weight:400; font-style:normal; letter-spacing:normal; text-align:left; -webkit-font-smoothing:auto; color-scheme:light; }
+}
+[data-motion-seg] {
+  display: inline-block;
+}
+[data-motion-word] {
+  display: inline-block;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mk-883ffc {
+    0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+    100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+  }
+  @keyframes mk-4b23bf {
+    0% { translate: 0px 0px; }
+    50% { translate: 0px -10px; }
+    100% { translate: 0px 0px; }
+  }
+  @keyframes mk-883ffc-b1 {
+    0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+    100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+  }
+  @keyframes mk-9a813f-b2 {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes mk-37a9dd {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.2); }
+  }
+  [data-mk="1"] [data-motion-seg] {
+    animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) calc(var(--mi) * 30ms + 0ms) 1 normal backwards;
+  }
+  [data-mk="2"] {
+    animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards, mk-4b23bf 3000ms ease-in-out 0ms infinite normal none;
+  }
+  [data-mk="3"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="4"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 100ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="5"] {
+    animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 200ms 1 normal backwards;
+    animation-play-state: paused;
+  }
+  [data-mk="6"] {
+    animation: mk-9a813f-b2 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal forwards;
+    animation-play-state: paused;
+  }
+  [data-mk="7"] {
+    animation: mk-37a9dd 800ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal none;
+  }
+}
+",
+}
+`;
+
+exports[`motion export: tailwind > snapshot 1`] = `
+"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motion</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+  @layer base {
+    body { font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size:16px; line-height:normal; color:#000; font-weight:400; font-style:normal; letter-spacing:normal; text-align:left; -webkit-font-smoothing:auto; color-scheme:light; }
+  }
+  </style>
+  <style>
+  [data-motion-seg] {
+    display: inline-block;
+  }
+  [data-motion-word] {
+    display: inline-block;
+    white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes mk-883ffc {
+      0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+      100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+    }
+    @keyframes mk-4b23bf {
+      0% { translate: 0px 0px; }
+      50% { translate: 0px -10px; }
+      100% { translate: 0px 0px; }
+    }
+    @keyframes mk-883ffc-b1 {
+      0% { transform: translate3d(0px, 24px, 0px); opacity: 0; }
+      100% { transform: translate3d(0px, 0px, 0px); opacity: 1; }
+    }
+    @keyframes mk-9a813f-b2 {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes mk-37a9dd {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.2); }
+    }
+    [data-mk="1"] [data-motion-seg] {
+      animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) calc(var(--mi) * 30ms + 0ms) 1 normal backwards;
+    }
+    [data-mk="2"] {
+      animation: mk-883ffc 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards, mk-4b23bf 3000ms ease-in-out 0ms infinite normal none;
+    }
+    [data-mk="3"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 0ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="4"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 100ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="5"] {
+      animation: mk-883ffc-b1 600ms cubic-bezier(0.05, 0.7, 0.1, 1) 200ms 1 normal backwards;
+      animation-play-state: paused;
+    }
+    [data-mk="6"] {
+      animation: mk-9a813f-b2 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal forwards;
+      animation-play-state: paused;
+    }
+    [data-mk="7"] {
+      animation: mk-37a9dd 800ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 normal none;
+    }
+  }
+  </style>
+</head>
+<body>
+  <div class="w-[400px] min-h-75">
+    <h1 class="text-[32px]" data-mk="1"><span data-motion-word><span data-motion-seg style="--mi: 0">H</span><span data-motion-seg style="--mi: 1">e</span><span data-motion-seg style="--mi: 2">l</span><span data-motion-seg style="--mi: 3">l</span><span data-motion-seg style="--mi: 4">o</span></span> <span data-motion-word><span data-motion-seg style="--mi: 5">b</span><span data-motion-seg style="--mi: 6">i</span><span data-motion-seg style="--mi: 7">g</span></span> <span data-motion-word><span data-motion-seg style="--mi: 8">w</span><span data-motion-seg style="--mi: 9">o</span><span data-motion-seg style="--mi: 10">r</span><span data-motion-seg style="--mi: 11">l</span><span data-motion-seg style="--mi: 12">d</span></span></h1>
+    <div class="size-10" data-mk="2"></div>
+    <ul data-mk="6">
+      <li class="p-1" data-mk="3">One</li>
+      <li class="p-1" data-mk="4">Two</li>
+      <li class="p-1" data-mk="5">Three</li>
+    </ul>
+    <div class="size-2.5" data-mk="7"></div>
+  </div>
+<script>
+// Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds).
+(function () {
+  var step = 0, list = null;
+  function anims(b) {
+    return document.getAnimations().filter(function (a) {
+      return a.animationName && a.animationName.slice(-('-b' + b).length) === '-b' + b;
+    });
+  }
+  function builds() {
+    var seen = {};
+    document.getAnimations().forEach(function (a) {
+      var m = /-b(\\d+)$/.exec(a.animationName || "");
+      if (m) seen[m[1]] = 1;
+    });
+    return Object.keys(seen).map(Number).sort(function (x, y) { return x - y; });
+  }
+  function go(dir) {
+    list = list || builds();
+    if (dir > 0 && step < list.length) anims(list[step++]).forEach(function (a) { a.play(); });
+    else if (dir < 0 && step > 0) anims(list[--step]).forEach(function (a) { a.pause(); a.currentTime = 0; });
+  }
+  function onClick(e) {
+    if (!e.target.closest || !e.target.closest('a, button, input, select, textarea')) go(1);
+  }
+  function onKey(e) {
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+  }
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onKey);
+})();
+</script>
+</body>
+</html>
+"
+`;

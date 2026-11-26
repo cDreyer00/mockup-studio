@@ -7,6 +7,7 @@ import { themeRulesCss, themeVariantsCss } from '../tokens.js';
 import type { Document, Node } from '../types.js';
 import type { TailwindEngine } from '../tailwind/engine.js';
 import { mediaScripts, newMediaCollector } from './media.js';
+import { MotionCollector, buildRuntimeScript } from './motion.js';
 import {
   cleanTokens,
   escapeHtmlText,
@@ -1285,14 +1286,23 @@ export function exportTailwind(source: Document, options: TailwindExportOptions 
   const tokens = cleanTokens(doc.tokens);
   const neutralLeading = neutralLeadingSizes(doc);
   const media = newMediaCollector();
+  const motion = new MotionCollector();
   const markup = renderHtmlTree(roots, {
     styleOf: (node) => tailwindAttrs(node, tokens, { engine: options.tailwind, neutralLeading }),
     media,
+    motion,
     readAsset: options.readAsset,
   });
-  const scripts = mediaScripts(media);
+  const scripts = [mediaScripts(media), motion.hasBuilds ? buildRuntimeScript() : '']
+    .filter(Boolean)
+    .join('\n');
+  // motion CSS (plain CSS: classes cannot express `@keyframes`) goes in its own `<style>`
+  const motionCss = escapeCssText(motion.css());
   // media nodes: the scripts (effects runtime, CDNs) also go in the fragment, right after the markup
-  if (options.fragment) return markup + '\n' + (scripts ? scripts + '\n' : '');
+  if (options.fragment) {
+    const style = motionCss ? `<style>\n${motionCss}\n</style>\n` : '';
+    return style + markup + '\n' + (scripts ? scripts + '\n' : '');
+  }
 
   const head = [
     '  <meta charset="utf-8">',
@@ -1306,6 +1316,7 @@ export function exportTailwind(source: Document, options: TailwindExportOptions 
   if (theme) {
     head.push('  <style type="text/tailwindcss">', indentLines(theme, 1), '  </style>');
   }
+  if (motionCss) head.push('  <style>', indentLines(motionCss, 1), '  </style>');
   return [
     '<!doctype html>',
     '<html lang="en">',

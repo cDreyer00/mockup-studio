@@ -22,6 +22,13 @@ import {
 } from './common.js';
 import { neutralLeadingSizes, tailwindNodeParts, tailwindThemeCss } from './tailwind.js';
 import { createComponentSupport } from './reactComponents.js';
+import {
+  MOTION_ATTR,
+  MotionCollector,
+  buildRuntimeFunction,
+  hasMotion,
+  splitParts,
+} from './motion.js';
 import type { ComponentSupport, ScopeHooks } from './reactComponents.js';
 import {
   mediaElement,
@@ -700,6 +707,8 @@ export interface RenderCtx {
   /** Present while rendering the body of a main component (props, variants and slots). */
   scope?: ScopeHooks;
   media: ReactMedia;
+  /** Node animations (CSS `@keyframes`, `data-mk` attributes, build runtime). */
+  motion: MotionCollector;
 }
 
 /** What media nodes require in the file: helpers, imports and extra files. */
@@ -767,6 +776,9 @@ export function renderNode(
     ? preservesNewlines(node.style['white-space'])
     : inheritedPre;
   const props: string[] = [...extraProps, ...styleProps(node, ctx, isRoot)];
+  ctx.motion.register(node);
+  const mk = ctx.motion.keyOf(node);
+  if (mk !== undefined) props.push(`${MOTION_ATTR}="${mk}"`);
 
   if (node.type === 'svg') {
     return svgToJsx(scopeSvgIds(sanitizeSvg(node.svg ?? ''), node.id), depth, props, ctx.usage);
@@ -800,13 +812,32 @@ export function renderNode(
 
   const kids: string[][] = [];
   if (slot.text) kids.push([`{item.${slot.text.field}}`].map((l) => pad(depth + 1) + l));
-  else if (node.text !== undefined && node.text !== '') {
+  else if (node.text !== undefined && node.text !== '' && !ctx.scope && ctx.motion.splitOf(node)) {
+    kids.push(splitJsx(node.text, ctx.motion.splitOf(node)!, depth + 1, ctx.usage));
+  } else if (node.text !== undefined && node.text !== '') {
     const lines = ctx.scope?.textChildren(node, pre) ?? textChildren(node.text, pre);
     kids.push(lines.map((l) => pad(depth + 1) + l));
   }
   const slotKids = ctx.scope?.slotChildren(node, depth + 1, ctx, pre);
   kids.push(...(slotKids ?? renderChildren(node.children, depth + 1, ctx, pre, node)));
   return emitElement(node.tag, props, kids, depth);
+}
+
+/** JSX of a split text: the same span structure as the editor (see `splitParts`). */
+function splitJsx(text: string, mode: 'words' | 'chars', depth: number, usage: Usage): string[] {
+  const seg = (t: string, i: number): string =>
+    `<span data-motion-seg="" ${styleProp({ '--mi': String(i) }, usage)}>${jsxTextSegment(t)}</span>`;
+  const out: string[] = [];
+  for (const p of splitParts(text, mode)) {
+    if (p.type === 'text') out.push(...textChildren(p.text, true).map((l) => pad(depth) + l));
+    else if (p.type === 'seg') out.push(pad(depth) + seg(p.text, p.index));
+    else {
+      out.push(`${pad(depth)}<span data-motion-word="">`);
+      for (const s of p.segs) out.push(pad(depth + 1) + seg(s.text, s.index));
+      out.push(`${pad(depth)}</span>`);
+    }
+  }
+  return out;
 }
 
 /* ---------------- Media (effect, video, embed) ---------------- */
@@ -942,6 +973,7 @@ export function renderChildren(
 ): string[][] {
   const out: string[][] = [];
   let i = 0;
+  // animated nodes keep their own element (`data-mk` is per element): no `map` extraction
   while (i < children.length) {
     let j = i + 1;
     if (ctx.extractRepeats && !ctx.slots) {
@@ -949,7 +981,8 @@ export function renderChildren(
       while (j < children.length && signature(children[j]) === sig) j++;
     }
     const run = children.slice(i, j);
-    const plan = run.length >= 2 ? planRun(run, ctx.assetsBase) : null;
+    const animated = (parent.animations?.length ?? 0) > 0 || run.some(hasMotion);
+    const plan = run.length >= 2 && !animated ? planRun(run, ctx.assetsBase) : null;
     if (plan) {
       const arrayName = uniqueName(
         `${camelCaseOr(commonName(run, parent.name), 'items')}Items`,
@@ -1032,6 +1065,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
       'CSSProperties',
       'ReactNode',
       'safeUrl',
+      'installBuilds',
       ...REACT_MEDIA_NAMES,
     ]),
     media: {
@@ -1042,6 +1076,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
       files: [],
       threeCount: 0,
     },
+    motion: new MotionCollector(),
   };
   ctx.components = createComponentSupport(doc, ctx);
 
@@ -1051,19 +1086,24 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
   const code = mediaPreamble(ctx.media, usage.reactNode ? ['ReactNode'] : []);
   const { files } = ctx.media;
   if (code.length === 0) {
-    const imports = [
+    const types = [
       usage.cssProperties ? 'CSSProperties' : '',
       usage.reactNode ? 'ReactNode' : '',
-    ];
-    if (imports.some(Boolean)) {
-      code.push(`import type { ${imports.filter(Boolean).join(', ')} } from 'react';`, '');
+    ].filter(Boolean);
+    if (ctx.motion.hasBuilds) {
+      const named = ['useEffect', ...types.map((t) => `type ${t}`)];
+      code.push(`import { ${named.join(', ')} } from 'react';`, '');
+    } else if (types.length > 0) {
+      code.push(`import type { ${types.join(', ')} } from 'react';`, '');
     }
   }
   if (usage.safeUrl) code.push(...SAFE_URL_HELPER, '');
+  if (ctx.motion.hasBuilds) code.push(...buildRuntimeFunction(), '');
   for (const a of ctx.arrays) code.push(a, '');
   for (const g of generated) code.push(g, '');
   code.push(
     `export function ${componentName}() {`,
+    ...(ctx.motion.hasBuilds ? ['  useEffect(() => installBuilds(), []);', ''] : []),
     '  return (',
     ...body,
     '  );',
@@ -1079,5 +1119,7 @@ export function exportReact(doc: Document, options: ReactExportOptions): ReactEx
     const faces = fontFaceCss(doc, (f) => `${ctx.assetsBase}${f}`, 'swap');
     css = `${documentBaseCssFor(doc)}\n${faces ? faces + '\n' : ''}`;
   }
+  const motionCss = ctx.motion.css();
+  if (motionCss) css = `${css}${css.endsWith('\n') ? '' : '\n'}${motionCss}\n`;
   return { componentName, code: code.join('\n'), css, ...(files.length > 0 ? { files } : {}) };
 }
