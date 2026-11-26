@@ -39,9 +39,14 @@ const IDLE: MotionPreviewStore = {
   ended: false,
 };
 
-export const useMotionPreview = create<MotionPreviewStore>(() => IDLE);
-
 let endTimer: ReturnType<typeof setTimeout> | undefined;
+/** Last scrub position (not in the store); `null` = use the store time. */
+let scrubTime: number | null = null;
+
+export const useMotionPreview = create<MotionPreviewStore>(() => IDLE);
+useMotionPreview.subscribe(() => {
+  scrubTime = null;
+});
 
 const durationOf = (frameId: string): number => canvasMotion.timeline(frameId)?.duration ?? 0;
 
@@ -84,6 +89,21 @@ export const motionPreview = {
     useMotionPreview.setState({ frameId, mode: 'seek', time: t, duration, ended: t >= duration });
   },
 
+  /**
+   * Scrubbing (pointer move on the timeline): positions the frame without touching the store, so
+   * nothing re-renders per move; call `seek` when the drag ends to commit the position.
+   */
+  scrub(frameId: string, time: number): void {
+    const s = useMotionPreview.getState();
+    if (s.frameId !== frameId || s.mode !== 'seek') {
+      motionPreview.seek(frameId, time);
+      return;
+    }
+    const t = Math.min(Math.max(0, time), Math.max(durationOf(frameId), 0));
+    scrubTime = t;
+    canvasMotion.setMode(frameId, { type: 'seek', at: { time: t } });
+  },
+
   /** Pauses where the playhead is. */
   pause(): void {
     const s = useMotionPreview.getState();
@@ -105,7 +125,7 @@ export const motionPreview = {
     if (!s.frameId) return 0;
     if (s.mode === 'play')
       return Math.min(canvasMotion.linearTime(s.frameId), durationOf(s.frameId));
-    return s.time;
+    return scrubTime ?? s.time;
   },
 
   getState(): MotionPreviewState {
