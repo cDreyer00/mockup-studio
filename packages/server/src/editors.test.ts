@@ -239,4 +239,26 @@ describe('EditorChannel', () => {
     await expect(q).resolves.toEqual(active);
     expect(ch.isPresenting()).toBe(false);
   });
+
+  it('sends motion:preview to the focused window and does not touch the presenting one', async () => {
+    const ch = new EditorChannel();
+    const a = fakeConn();
+    const b = fakeConn();
+    ch.register(a, false, true); // a presents
+    ch.register(b, true); // b is focused
+    const preview = { frameId: 'fr_1', mode: 'play', time: 0, duration: 1200 } as const;
+    const p = ch.command({ type: 'motion:preview', docId: 'doc_1', action: 'play' });
+    expect(a.sent).toHaveLength(0);
+    expect(b.sent).toHaveLength(1);
+    ch.resolve(b, {
+      type: 'editor:result',
+      reqId: 'r',
+      commandId: commandIdOf(b),
+      ok: true,
+      result: preview,
+    });
+    await expect(p).resolves.toEqual(preview);
+    // a motion answer has no `active`: nobody changes presenting state
+    expect(ch.isPresenting()).toBe(true);
+  });
 });

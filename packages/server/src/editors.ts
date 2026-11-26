@@ -6,10 +6,20 @@
 import { randomUUID } from 'node:crypto';
 import type {
   EditorCommand,
+  EditorCommandResult,
   EditorResultRequest,
+  MotionPreviewState,
   PresentationState,
   ServerMessage,
 } from '@mockup/core';
+
+/** Commands answered with a `PresentationState`. */
+export type PresentationCommand = Exclude<EditorCommand, { type: 'motion:preview' }>;
+/** Commands answered with a `MotionPreviewState`. */
+export type MotionCommand = Extract<EditorCommand, { type: 'motion:preview' }>;
+
+/** An answer that is a presentation state (the only kind that updates the presenting window). */
+const isPresentationState = (r: EditorCommandResult): r is PresentationState => 'active' in r;
 
 /** Something the daemon can send messages to (ws.ts adapts a WebSocket). */
 export interface EditorConnection {
@@ -42,7 +52,7 @@ interface Sent {
 }
 
 interface Pending extends Sent {
-  resolve(state: PresentationState): void;
+  resolve(state: EditorCommandResult): void;
   reject(err: Error): void;
   timer: NodeJS.Timeout;
 }
@@ -121,10 +131,13 @@ export class EditorChannel {
     return best;
   }
 
-  /** Starting goes to the focused window; navigating and stopping to the presenting one. */
+  /** Starting and motion previews go to the focused window; navigating and stopping to the presenting one. */
   private target(type: EditorCommand['type']): EditorConnection | null {
+    // Starting a presentation and previewing motion go to the focused window.
     const entry =
-      type === 'presentation:start' ? this.focused() : (this.presenter() ?? this.focused());
+      type === 'presentation:start' || type === 'motion:preview'
+        ? this.focused()
+        : (this.presenter() ?? this.focused());
     return entry?.conn ?? null;
   }
 
@@ -137,11 +150,14 @@ export class EditorChannel {
   }
 
   /** Sends a command to the target editor window and waits for its answer. */
-  command(cmd: EditorCommand): Promise<PresentationState> {
+  command(cmd: PresentationCommand): Promise<PresentationState>;
+  command(cmd: MotionCommand): Promise<MotionPreviewState>;
+  command(cmd: EditorCommand): Promise<EditorCommandResult>;
+  command(cmd: EditorCommand): Promise<EditorCommandResult> {
     const conn = this.target(cmd.type);
     if (!conn) return Promise.reject(new Error(NO_EDITOR_MESSAGE));
     const commandId = randomUUID();
-    return new Promise<PresentationState>((resolve, reject) => {
+    return new Promise<EditorCommandResult>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(commandId);
         this.expired.set(commandId, { conn, type: cmd.type });
@@ -184,6 +200,7 @@ export class EditorChannel {
   private track({ conn, type }: Sent, msg: EditorResultRequest): void {
     // `presentation:stop` answers with the state from before stopping: the window no longer presents.
     if (type === 'presentation:stop') this.setPresenting(conn, false, false);
-    else if (msg.result) this.setPresenting(conn, msg.result.active, type === 'presentation:start');
+    else if (msg.result && isPresentationState(msg.result))
+      this.setPresenting(conn, msg.result.active, type === 'presentation:start');
   }
 }
