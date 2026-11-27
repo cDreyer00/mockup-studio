@@ -83,7 +83,7 @@ describe('render page', () => {
   });
 
   describe('motion', () => {
-    const anims: { target: Element; currentTime: number | null }[] = [];
+    const anims: { target: Element; currentTime: number | null; cancelled: boolean }[] = [];
 
     beforeEach(() => {
       anims.length = 0;
@@ -94,9 +94,12 @@ describe('render page', () => {
           target: this,
           currentTime: 0 as number | null,
           startTime: null,
+          cancelled: false,
           pause() {},
           play() {},
-          cancel() {},
+          cancel() {
+            a.cancelled = true;
+          },
           persist() {},
         };
         anims.push(a);
@@ -131,6 +134,24 @@ describe('render page', () => {
       // back to the design state on the next render without time
       await api.render({ doc, docId: doc.id, nodeId: frame.id });
       expect(useFxClock.getState().manual).toBe(0);
+    });
+
+    // Each capture receives a freshly deserialized document: same frame, new node objects.
+    it('keeps seeking when the same frame is captured again from a new document object', async () => {
+      const { doc, frame } = animated([{ kind: 'in', preset: 'fade', build: 1, duration: 600 }]);
+      const alive = () => anims.filter((a) => !a.cancelled).map((a) => a.currentTime);
+      const capture = (at: { time?: number; build?: number }) =>
+        api.render({ doc: structuredClone(doc), docId: doc.id, nodeId: frame.id, ...at });
+      await capture({});
+      expect(alive()).toEqual([]);
+      await capture({ build: 0 });
+      expect(alive()).toEqual([0]);
+      await capture({ time: 0.25 });
+      expect(alive()).toEqual([250]);
+      await capture({ build: 1 });
+      expect(alive()).toEqual([600]);
+      await capture({});
+      expect(alive()).toEqual([]);
     });
 
     it('build seeks to the state after that click build; the clock follows the linear time', async () => {

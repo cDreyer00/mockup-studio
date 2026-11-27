@@ -208,6 +208,56 @@ describe('view', () => {
     expect(slots()).toBe(1);
   });
 
+  it('a live edit keeps the builds; changing slide and leaving cancel every animation', async () => {
+    const made: { id: string; cancelled: boolean; currentTime: number; running: boolean }[] = [];
+    proto.animate = function (this: HTMLElement) {
+      const a = {
+        id: this.dataset.nodeId ?? '',
+        cancelled: false,
+        currentTime: 0,
+        running: false,
+        finished: new Promise(() => undefined),
+        cancel() {
+          a.cancelled = true;
+        },
+        finish() {},
+        pause() {
+          a.running = false;
+        },
+        play() {
+          a.running = true;
+        },
+        persist() {},
+      };
+      made.push(a);
+      return a;
+    };
+    const doc = deck();
+    const [one, two] = doc.pages[0]!.frames as [Node, Node];
+    delete two.slideTransition;
+    const alive = () => made.filter((a) => !a.cancelled && a.id);
+    load(doc);
+    const { unmount } = render(<PresentationView />);
+    act(() => void presentation.start());
+    expect(alive().map((a) => a.running)).toEqual([false, false]);
+    // an edit through the MCP: new node objects, same slide, build 0
+    const next = structuredClone(doc);
+    await act(async () => useDoc.setState({ doc: next, rawDoc: next }));
+    expect(alive().map((a) => [a.id, a.running, a.currentTime])).toEqual(
+      one.children.map((c) => [c.id, false, 0]),
+    );
+    act(() => void presentation.navigate({ type: 'next' }));
+    expect(alive().map((a) => a.running)).toEqual([true, false]);
+    // slide 2 has no animations: nothing of slide 1 stays alive
+    await act(async () => void presentation.goto({ index: 1 }));
+    expect(alive()).toEqual([]);
+    await act(async () => void presentation.goto({ index: 0 }));
+    expect(alive()).toHaveLength(2);
+    act(() => void presentation.stop());
+    unmount();
+    expect(alive()).toEqual([]);
+  });
+
   it('cuts instantly without Web Animations', () => {
     proto.animate = undefined;
     load(deck());

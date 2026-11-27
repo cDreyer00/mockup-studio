@@ -261,3 +261,94 @@ describe('MotionScope', () => {
     expect(live()).toHaveLength(0);
   });
 });
+
+/** Registers an existing DOM tree; returns the cleanups in React's order (children, then frame). */
+function register(
+  scope: MotionScope,
+  frame: Node,
+  nodes: Node[],
+  els: Map<string, HTMLElement>,
+): () => void {
+  const undo = nodes.map((n) => scope.attach(frame.id, n, els.get(n.id)!));
+  undo.push(scope.setFrame(frame.id, frame, els.get(frame.id)!));
+  return () => undo.forEach((u) => u());
+}
+
+function dom(frame: Node): Map<string, HTMLElement> {
+  const els = new Map<string, HTMLElement>();
+  const make = (n: Node, parent: HTMLElement | null): void => {
+    const el = document.createElement('div');
+    el.dataset.nodeId = n.id;
+    parent?.appendChild(el);
+    els.set(n.id, el);
+    n.children.forEach((c) => make(c, el));
+  };
+  make(frame, null);
+  document.body.appendChild(els.get(frame.id)!);
+  return els;
+}
+
+const loopNode = node('el_loop', [{ kind: 'emphasis', preset: 'float' }]);
+const clickNode = node('el_click', [{ kind: 'in', preset: 'fade', build: 1 }]);
+const lifeFrame: Node = {
+  ...node('fr_life', []),
+  type: 'frame',
+  children: [loopNode, clickNode],
+};
+
+describe('MotionScope: document changes while a frame is not at rest', () => {
+  // A new document gives new node objects: React runs every cleanup before the new effects.
+  const recommit = (scope: MotionScope, undo: () => void, els: Map<string, HTMLElement>) => {
+    const next = structuredClone(lifeFrame);
+    undo();
+    return register(scope, next, next.children, els);
+  };
+
+  it('keeps a seek: the new animations are paused at the same instant', async () => {
+    const scope = new MotionScope();
+    const els = dom(lifeFrame);
+    const undo = register(scope, lifeFrame, lifeFrame.children, els);
+    scope.setMode(lifeFrame.id, { type: 'seek', at: { time: 0 } });
+    recommit(scope, undo, els);
+    await Promise.resolve();
+    expect(scope.getMode(lifeFrame.id)).toEqual({ type: 'seek', at: { time: 0 } });
+    expect(live()).toHaveLength(2);
+    expect(live().map((a) => [a.paused, a.currentTime])).toEqual([
+      [true, 0],
+      [true, 0],
+    ]);
+    expect(scope.liveCount()).toBe(2);
+    scope.dispose();
+  });
+
+  it('keeps the presentation builds: a click build not played stays unplayed', async () => {
+    const scope = new MotionScope();
+    const els = dom(lifeFrame);
+    const undo = register(scope, lifeFrame, lifeFrame.children, els);
+    now = 2000;
+    scope.setMode(lifeFrame.id, { type: 'builds', clicks: 0, animate: true });
+    now = 2500;
+    recommit(scope, undo, els);
+    await Promise.resolve();
+    expect(scope.getMode(lifeFrame.id).type).toBe('builds');
+    const click = live().find((a) => (a.target as HTMLElement).dataset.nodeId === 'el_click')!;
+    expect([click.paused, click.currentTime]).toEqual([true, 0]);
+    const loop = live().find((a) => (a.target as HTMLElement).dataset.nodeId === 'el_loop')!;
+    // build 0 keeps the start it had before the edit
+    expect(loop.startTime).toBe(2000);
+    scope.dispose();
+  });
+
+  it('keeps a play on its origin', async () => {
+    const scope = new MotionScope();
+    const els = dom(lifeFrame);
+    const undo = register(scope, lifeFrame, lifeFrame.children, els);
+    now = 4000;
+    scope.setMode(lifeFrame.id, { type: 'play', from: 0 });
+    now = 4200;
+    recommit(scope, undo, els);
+    await Promise.resolve();
+    expect(scope.linearTime(lifeFrame.id)).toBe(200);
+    scope.dispose();
+  });
+});

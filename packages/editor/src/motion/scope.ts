@@ -158,7 +158,7 @@ export class MotionScope {
       if (!cur || cur.el !== el) return;
       if (el) this.io?.unobserve(el);
       cur.el = null;
-      if (cur.nodes.size === 0) this.frames.delete(frameId);
+      this.prune(frameId);
     };
   }
 
@@ -183,7 +183,19 @@ export class MotionScope {
     if (!f || !entry || entry.node !== node || entry.el !== el) return;
     this.cancel(entry);
     f.nodes.delete(node.id);
-    if (f.nodes.size === 0 && !f.el) this.frames.delete(frameId);
+    this.prune(frameId);
+  }
+
+  /**
+   * Forgets a frame (and its mode) that has no element and no nodes left, once the current commit
+   * is over: on a document change React runs every cleanup before the new effects, so the frame and
+   * its nodes leave and come back in the same tick and must find their mode again.
+   */
+  private prune(frameId: string): void {
+    queueMicrotask(() => {
+      const f = this.frames.get(frameId);
+      if (f && !f.el && f.nodes.size === 0) this.frames.delete(frameId);
+    });
   }
 
   /** Called with the frame id whenever a registered frame's timeline changes (document edits). */

@@ -141,6 +141,18 @@ describe.skipIf(!built || !editorReady)('node animations in screenshots (integra
     expect(inkOf(b1), stderr).toBeGreaterThan(500);
   }, 120000);
 
+  // The render window keeps the page between captures: the seek must survive a new document.
+  it('seeks again on a frame that was already captured', async () => {
+    for (const [frame, hidden] of [
+      [autoFrame, { time: 0.001 }],
+      [clickFrame, { build: 0, time: 0 }],
+    ] as const) {
+      const design = await shot(frame, { scale: 1, maxWidth: FRAME_W });
+      expect(inkOf(design), stderr).toBeGreaterThan(500);
+      expect(inkOf(await shot(frame, hidden)), stderr).toBe(0);
+    }
+  }, 120000);
+
   it('filmstrip: 3 cells in one image, first empty and last visible', async () => {
     const png = await shot(autoFrame, { times: [0, 0.2, 2], columns: 3 });
     const { width, height } = pngSize(png);
