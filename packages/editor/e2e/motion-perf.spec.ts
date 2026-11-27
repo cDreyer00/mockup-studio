@@ -13,6 +13,10 @@ import { E2E_DIR, Mcp, api, createDoc, getDoc, gotoEditor } from './helpers';
  * the presentation, main-thread busy time from Chromium's metrics, MCP latency and file size. The
  * numbers go to the console, the test annotations and `<e2e dir>/motion-perf.json`; the limits are
  * loose (they catch gross regressions).
+ *
+ * The scenario runs twice: as is, and with the paint-heavy presets (every card enters with `blur`,
+ * the loops on the cards are `glow`). The frame times are rAF intervals of a headless browser: they
+ * show main-thread blocking, not the compositor or raster cost of those filters.
  */
 
 const FRAMES = 12;
@@ -28,12 +32,18 @@ const TRANSITIONS = [
 
 const attr = (v: unknown): string => JSON.stringify(v).replace(/'/g, '&#39;');
 
-function slideHtml(f: number): string {
+const VARIANTS = [
+  { name: 'base', title: 'motion stress', loop: 'float', allBlur: false },
+  { name: 'filters', title: 'motion stress with blur and glow', loop: 'glow', allBlur: true },
+] as const;
+type Variant = (typeof VARIANTS)[number];
+
+function slideHtml(f: number, variant: Variant): string {
   const cards = Array.from({ length: CARDS }, (_, i) => {
     const motion: unknown[] = [
-      { kind: 'in', preset: i % 4 === 1 ? 'blur' : 'pop', delay: 500 + i * 60 },
+      { kind: 'in', preset: variant.allBlur || i % 4 === 1 ? 'blur' : 'pop', delay: 500 + i * 60 },
     ];
-    if (i % 3 === 0) motion.push({ kind: 'emphasis', preset: 'float', delay: 1600 });
+    if (i % 3 === 0) motion.push({ kind: 'emphasis', preset: variant.loop, delay: 1600 });
     return `<div class="card" data-name="card-${f}-${i}" data-motion='${attr(motion)}'></div>`;
   }).join('');
   const bullets = [1, 2, 3]
@@ -158,7 +168,7 @@ function count(doc: Document): {
     if (n.animations?.length) {
       animated++;
       animations += n.animations.length;
-      loops += n.animations.filter((a) => ['float', 'spin'].includes(a.preset)).length;
+      loops += n.animations.filter((a) => ['float', 'glow', 'spin'].includes(a.preset)).length;
     }
     n.children.forEach(walk);
   };
@@ -166,11 +176,9 @@ function count(doc: Document): {
   return { nodes, animated, animations, loops };
 }
 
-test('motion stress: hundreds of animations stay fluid on the canvas and in the presentation', async ({
-  page,
-}) => {
+async function stress(page: Page, variant: Variant): Promise<void> {
   test.setTimeout(300_000);
-  const info = await createDoc('motion-stress');
+  const info = await createDoc(`motion-stress-${variant.name}`);
   const mcp = await new Mcp().init();
   const result: Record<string, unknown> = {};
 
@@ -198,7 +206,7 @@ test('motion stress: hundreds of animations stay fluid on the canvas and in the 
       },
     });
     const t0 = performance.now();
-    await mcp.call('write_html', { parentId: frameId, html: slideHtml(f), css: CSS });
+    await mcp.call('write_html', { parentId: frameId, html: slideHtml(f, variant), css: CSS });
     writes.push(performance.now() - t0);
   }
   let doc = await getDoc(info.docId);
@@ -316,12 +324,18 @@ test('motion stress: hundreds of animations stay fluid on the canvas and in the 
   await mcp.call('stop_presentation', {});
 
   const summary = JSON.stringify(result, null, 2);
-  console.log(`[motion-perf] ${summary}`);
-  fs.writeFileSync(path.join(E2E_DIR, 'motion-perf.json'), summary);
+  console.log(`[motion-perf ${variant.name}] ${summary}`);
+  fs.writeFileSync(path.join(E2E_DIR, `motion-perf-${variant.name}.json`), summary);
   test.info().annotations.push({ type: 'motion-perf', description: JSON.stringify(result) });
 
   const frames = (k: string): Stats => (result[k] as { frames: Stats }).frames;
   for (const k of ['canvasIdle', 'canvasPan', 'preview', 'presentation']) {
     expect(frames(k).p95, `${k} p95 frame time`).toBeLessThan(50);
   }
-});
+}
+
+for (const variant of VARIANTS) {
+  test(`${variant.title}: hundreds of animations stay fluid on the canvas and in the presentation`, async ({
+    page,
+  }) => stress(page, variant));
+}
