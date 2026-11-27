@@ -121,6 +121,7 @@ let warned = false;
 
 export class MotionScope {
   private frames = new Map<string, FrameEntry>();
+  private timelineListeners = new Set<(frameId: string) => void>();
   private io: IntersectionObserver | null = null;
   private unsubClock: (() => void) | null = null;
   private readonly loopsInRest: boolean;
@@ -151,6 +152,7 @@ export class MotionScope {
     // media nodes waiting for the frame element
     for (const n of f.nodes.values()) if (!n.el || !n.el.isConnected) this.rebuild(f, n);
     if (changed && f.mode.type !== 'rest') this.applyFrame(f);
+    if (changed) for (const cb of this.timelineListeners) cb(frameId);
     return () => {
       const cur = this.frames.get(frameId);
       if (!cur || cur.el !== el) return;
@@ -182,6 +184,12 @@ export class MotionScope {
     this.cancel(entry);
     f.nodes.delete(node.id);
     if (f.nodes.size === 0 && !f.el) this.frames.delete(frameId);
+  }
+
+  /** Called with the frame id whenever a registered frame's timeline changes (document edits). */
+  onTimeline(cb: (frameId: string) => void): () => void {
+    this.timelineListeners.add(cb);
+    return () => this.timelineListeners.delete(cb);
   }
 
   /* ---------------- modes ---------------- */
@@ -228,6 +236,7 @@ export class MotionScope {
   dispose(): void {
     for (const f of this.frames.values()) for (const n of f.nodes.values()) this.cancel(n);
     this.frames.clear();
+    this.timelineListeners.clear();
     this.io?.disconnect();
     this.io = null;
     this.unsubClock?.();

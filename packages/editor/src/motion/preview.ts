@@ -55,10 +55,22 @@ function leaveOther(frameId: string): void {
   if (prev && prev !== frameId) canvasMotion.setMode(prev, { type: 'rest' });
 }
 
+/** (Re)arms the end of a play for the frame's current duration and playhead. */
+function scheduleEnd(frameId: string): void {
+  clearTimeout(endTimer);
+  const left = durationOf(frameId) - canvasMotion.linearTime(frameId);
+  endTimer = setTimeout(onEnd, Math.max(0, left) + 30);
+}
+
 function onEnd(): void {
   const s = useMotionPreview.getState();
   if (s.mode !== 'play' || !s.frameId) return;
   const duration = durationOf(s.frameId);
+  // the timeline grew since the timer was set: not the end yet
+  if (canvasMotion.linearTime(s.frameId) < duration) {
+    scheduleEnd(s.frameId);
+    return;
+  }
   if (canvasMotion.timeline(s.frameId)?.loops) {
     useMotionPreview.setState({ ended: true, time: duration, duration });
     return;
@@ -66,6 +78,24 @@ function onEnd(): void {
   canvasMotion.setMode(s.frameId, { type: 'seek', at: { time: duration } });
   useMotionPreview.setState({ mode: 'seek', time: duration, duration, ended: true });
 }
+
+// Edits while previewing change the duration: the end of a play follows it, the store too.
+canvasMotion.onTimeline((frameId) => {
+  const s = useMotionPreview.getState();
+  if (s.frameId !== frameId || s.mode === 'rest') return;
+  const duration = durationOf(frameId);
+  if (s.mode === 'play') {
+    const before = canvasMotion.linearTime(frameId) < duration;
+    if (!s.ended || before) scheduleEnd(frameId);
+    if (duration !== s.duration || (s.ended && before))
+      useMotionPreview.setState({ duration, ended: s.ended && !before });
+    return;
+  }
+  if (duration === s.duration) return;
+  // seek: keep a scrub position (any store change forgets it)
+  const time = Math.min(scrubTime ?? s.time, duration);
+  useMotionPreview.setState({ duration, time, ended: time >= duration });
+});
 
 export const motionPreview = {
   /** Plays the frame's linear timeline from `from` ms (from the start when already at the end). */
@@ -75,8 +105,7 @@ export const motionPreview = {
     const start = from >= duration ? 0 : Math.max(0, from);
     canvasMotion.setMode(frameId, { type: 'play', from: start });
     useMotionPreview.setState({ frameId, mode: 'play', time: start, duration, ended: false });
-    clearTimeout(endTimer);
-    endTimer = setTimeout(onEnd, Math.max(0, duration - start) + 30);
+    scheduleEnd(frameId);
   },
 
   /** Pauses the frame at `time` ms of its linear timeline. */
