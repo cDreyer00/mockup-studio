@@ -1,0 +1,1066 @@
+{
+  "version": 1,
+  "id": "doc_2edfvnc9",
+  "name": "Micro-interactions",
+  "tokens": {},
+  "fonts": [],
+  "meta": {
+    "createdAt": "2026-11-27T01:00:45.839Z",
+    "updatedAt": "2026-11-27T01:00:45.933Z"
+  },
+  "components": [
+    {
+      "id": "cp_fgrh84nu",
+      "name": "Tag",
+      "props": [],
+      "variants": [],
+      "root": {
+        "id": "el_c9lc27s6",
+        "type": "element",
+        "name": "Tag",
+        "tag": "div",
+        "attrs": {},
+        "style": {
+          "padding": "12px 22px",
+          "border-radius": "999px",
+          "background": "#e0e7ff",
+          "color": "#3730a3",
+          "font-size": "18px",
+          "font-weight": "700"
+        },
+        "locked": false,
+        "hidden": false,
+        "children": [
+          {
+            "id": "tx_uw266c2l",
+            "type": "text",
+            "name": "Tag label",
+            "tag": "span",
+            "attrs": {},
+            "style": {},
+            "text": "Design",
+            "locked": false,
+            "hidden": false,
+            "children": []
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "id": "pg_zd2229vb",
+      "name": "Page 1",
+      "background": "#1e1e1e",
+      "frames": [
+        {
+          "id": "fr_t6clp0vi",
+          "type": "frame",
+          "name": "Buttons",
+          "tag": "div",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "640px",
+            "height": "480px",
+            "background": "#f4f5fb",
+            "display": "flex",
+            "flex-direction": "column",
+            "gap": "28px",
+            "padding": "40px",
+            "box-sizing": "border-box",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "#1f2433"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_b1s7c9dq",
+              "type": "text",
+              "name": "Title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "32px"
+              },
+              "text": "Buttons",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "duration": 450
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_rooxw3sj",
+              "type": "text",
+              "name": "Hint",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "margin": "-18px 0 0",
+                "font-size": "16px",
+                "color": "#6b7280"
+              },
+              "text": "Click: error shake · click again: success",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "duration": 450,
+                  "delay": 80
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_gw946vim",
+              "type": "element",
+              "name": "Grid",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-wrap": "wrap",
+                "gap": "24px"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "tx_h9chui9w",
+                  "type": "text",
+                  "name": "Attention button",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "gap": "10px",
+                    "width": "260px",
+                    "height": "60px",
+                    "border-radius": "14px",
+                    "background": "#6366f1",
+                    "color": "#fff",
+                    "font-size": "20px",
+                    "font-weight": "700",
+                    "box-shadow": "0 10px 24px rgba(99,102,241,0.35)"
+                  },
+                  "text": "Upgrade plan",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 150,
+                      "easing": "back-out"
+                    },
+                    {
+                      "kind": "emphasis",
+                      "preset": "pulse",
+                      "duration": 1600,
+                      "delay": 900,
+                      "iterations": "infinite",
+                      "params": {
+                        "amount": 1.05
+                      }
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "el_cy5igh3t",
+                  "type": "element",
+                  "name": "Loading button",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "gap": "12px",
+                    "width": "260px",
+                    "height": "60px",
+                    "border-radius": "14px",
+                    "background": "#4b5563",
+                    "color": "#fff",
+                    "font-size": "20px",
+                    "font-weight": "700"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 230,
+                      "easing": "back-out"
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_s4zkwgfw",
+                      "type": "element",
+                      "name": "Spinner",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "22px",
+                        "height": "22px",
+                        "border-radius": "50%",
+                        "border": "3px solid rgba(255,255,255,0.3)",
+                        "border-top-color": "#fff"
+                      },
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "spin",
+                          "duration": 800
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_hvn1qgs8",
+                      "type": "text",
+                      "name": "Saving…",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {},
+                      "text": "Saving…",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "tx_dbx77qiq",
+                  "type": "text",
+                  "name": "Error button",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "gap": "10px",
+                    "width": "260px",
+                    "height": "60px",
+                    "border-radius": "14px",
+                    "background": "#ef4444",
+                    "color": "#fff",
+                    "font-size": "20px",
+                    "font-weight": "700"
+                  },
+                  "text": "✕ Wrong password",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 310,
+                      "easing": "back-out"
+                    },
+                    {
+                      "kind": "emphasis",
+                      "preset": "shake",
+                      "build": 1
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "tx_hbaqx8g8",
+                  "type": "text",
+                  "name": "Success button",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "gap": "10px",
+                    "width": "260px",
+                    "height": "60px",
+                    "border-radius": "14px",
+                    "background": "#10b981",
+                    "color": "#fff",
+                    "font-size": "20px",
+                    "font-weight": "700"
+                  },
+                  "text": "✓ Payment sent",
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 390,
+                      "easing": "back-out"
+                    },
+                    {
+                      "kind": "emphasis",
+                      "preset": "tada",
+                      "build": 2
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fr_tlemhghg",
+          "type": "frame",
+          "name": "Toggles and progress",
+          "tag": "div",
+          "position": {
+            "x": 700,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "640px",
+            "height": "480px",
+            "background": "#f4f5fb",
+            "display": "flex",
+            "flex-direction": "column",
+            "gap": "28px",
+            "padding": "40px",
+            "box-sizing": "border-box",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "#1f2433"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_dyeh4rk1",
+              "type": "text",
+              "name": "Title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "32px"
+              },
+              "text": "Toggles and progress",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_ti9e3m30",
+              "type": "element",
+              "name": "Rows",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "16px"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-left",
+                  "easing": "spring",
+                  "split": "children",
+                  "stagger": 110
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "el_u66xzmno",
+                  "type": "element",
+                  "name": "Alerts row",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "space-between",
+                    "padding": "20px 24px",
+                    "border-radius": "16px",
+                    "background": "#fff",
+                    "box-shadow": "0 4px 16px rgba(31,36,51,0.08)"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_auvjsgj7",
+                      "type": "text",
+                      "name": "Push alerts",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "font-weight": "600"
+                      },
+                      "text": "Push alerts",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "el_sac87ntp",
+                      "type": "element",
+                      "name": "Alerts track",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "position": "relative",
+                        "width": "68px",
+                        "height": "38px",
+                        "border-radius": "19px",
+                        "background": "#22c55e"
+                      },
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "custom",
+                          "duration": 300,
+                          "easing": "ease-out",
+                          "build": 1,
+                          "keyframes": [
+                            {
+                              "background-color": "#cbd5e1"
+                            },
+                            {
+                              "background-color": "#22c55e"
+                            }
+                          ]
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": [
+                        {
+                          "id": "el_3cjonvxu",
+                          "type": "element",
+                          "name": "Alerts knob",
+                          "tag": "div",
+                          "attrs": {},
+                          "style": {
+                            "position": "absolute",
+                            "top": "4px",
+                            "left": "34px",
+                            "width": "30px",
+                            "height": "30px",
+                            "border-radius": "15px",
+                            "background": "#fff",
+                            "box-shadow": "0 2px 6px rgba(0,0,0,0.25)"
+                          },
+                          "animations": [
+                            {
+                              "kind": "in",
+                              "preset": "custom",
+                              "duration": 550,
+                              "easing": "spring-bouncy",
+                              "build": 1,
+                              "keyframes": [
+                                {
+                                  "transform": "translateX(-30px)"
+                                },
+                                {
+                                  "transform": "translateX(0px)"
+                                }
+                              ]
+                            }
+                          ],
+                          "locked": false,
+                          "hidden": false,
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "el_9u73o4kl",
+                  "type": "element",
+                  "name": "Sync row",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "space-between",
+                    "padding": "20px 24px",
+                    "border-radius": "16px",
+                    "background": "#fff",
+                    "box-shadow": "0 4px 16px rgba(31,36,51,0.08)"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_afalrifo",
+                      "type": "text",
+                      "name": "Background sync",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "font-weight": "600"
+                      },
+                      "text": "Background sync",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "el_rknor3n8",
+                      "type": "element",
+                      "name": "Sync track",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "position": "relative",
+                        "width": "68px",
+                        "height": "38px",
+                        "border-radius": "19px",
+                        "background": "#22c55e"
+                      },
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "custom",
+                          "duration": 300,
+                          "easing": "ease-out",
+                          "build": 2,
+                          "keyframes": [
+                            {
+                              "background-color": "#cbd5e1"
+                            },
+                            {
+                              "background-color": "#22c55e"
+                            }
+                          ]
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": [
+                        {
+                          "id": "el_npasu7wp",
+                          "type": "element",
+                          "name": "Sync knob",
+                          "tag": "div",
+                          "attrs": {},
+                          "style": {
+                            "position": "absolute",
+                            "top": "4px",
+                            "left": "34px",
+                            "width": "30px",
+                            "height": "30px",
+                            "border-radius": "15px",
+                            "background": "#fff",
+                            "box-shadow": "0 2px 6px rgba(0,0,0,0.25)"
+                          },
+                          "animations": [
+                            {
+                              "kind": "in",
+                              "preset": "custom",
+                              "duration": 550,
+                              "easing": "spring-bouncy",
+                              "build": 2,
+                              "keyframes": [
+                                {
+                                  "transform": "translateX(-30px)"
+                                },
+                                {
+                                  "transform": "translateX(0px)"
+                                }
+                              ]
+                            }
+                          ],
+                          "locked": false,
+                          "hidden": false,
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "el_mojyc1lz",
+              "type": "element",
+              "name": "Progress card",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "flex-direction": "column",
+                "gap": "12px",
+                "padding": "20px 24px",
+                "border-radius": "16px",
+                "background": "#fff",
+                "box-shadow": "0 4px 16px rgba(31,36,51,0.08)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 250
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "tx_n5zuk4q5",
+                  "type": "text",
+                  "name": "Uploading mockups",
+                  "tag": "span",
+                  "attrs": {},
+                  "style": {
+                    "font-size": "18px",
+                    "font-weight": "600"
+                  },
+                  "text": "Uploading mockups",
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "el_s4cq8tyo",
+                  "type": "element",
+                  "name": "Progress track",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "height": "14px",
+                    "border-radius": "7px",
+                    "background": "#e5e7eb",
+                    "overflow": "hidden"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_ykihbuvo",
+                      "type": "element",
+                      "name": "Progress fill",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "100%",
+                        "height": "14px",
+                        "border-radius": "7px",
+                        "background": "linear-gradient(90deg,#6366f1,#ec4899)",
+                        "transform-origin": "left center"
+                      },
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "custom",
+                          "duration": 1400,
+                          "build": 3,
+                          "keyframes": [
+                            {
+                              "transform": "scaleX(0)"
+                            },
+                            {
+                              "transform": "scaleX(1)"
+                            }
+                          ]
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "tx_h7j2g76z",
+              "type": "text",
+              "name": "Done chip",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "align-self": "flex-start",
+                "padding": "10px 18px",
+                "border-radius": "999px",
+                "background": "#dcfce7",
+                "color": "#166534",
+                "font-weight": "700"
+              },
+              "text": "All files synced",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 1300,
+                  "easing": "spring-wobbly",
+                  "build": 3
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_eq0x0q9z",
+          "type": "frame",
+          "name": "Cards and badges",
+          "tag": "div",
+          "position": {
+            "x": 1400,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "640px",
+            "height": "480px",
+            "background": "#f4f5fb",
+            "display": "flex",
+            "flex-direction": "column",
+            "gap": "28px",
+            "padding": "40px",
+            "box-sizing": "border-box",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "#1f2433"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_gaal2ldt",
+              "type": "text",
+              "name": "Title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "32px"
+              },
+              "text": "Cards and badges",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_rp7t8im8",
+              "type": "element",
+              "name": "Toast",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "align-items": "center",
+                "gap": "16px",
+                "padding": "18px 22px",
+                "border-radius": "18px",
+                "background": "#fff",
+                "box-shadow": "0 12px 32px rgba(31,36,51,0.14)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "slide-left",
+                  "duration": 800,
+                  "easing": "spring"
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "tx_vdpfp5ld",
+                  "type": "text",
+                  "name": "Heart",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "52px",
+                    "height": "52px",
+                    "border-radius": "26px",
+                    "display": "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    "background": "#fce7f3",
+                    "color": "#db2777",
+                    "font-size": "28px"
+                  },
+                  "text": "♥",
+                  "animations": [
+                    {
+                      "kind": "emphasis",
+                      "preset": "heartbeat",
+                      "delay": 800,
+                      "iterations": "infinite"
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "el_eoefs1zf",
+                  "type": "element",
+                  "name": "Div",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_qsm04the",
+                      "type": "text",
+                      "name": "Maya liked your mockup",
+                      "tag": "strong",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "18px"
+                      },
+                      "text": "Maya liked your mockup",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_p38std0h",
+                      "type": "text",
+                      "name": "just now",
+                      "tag": "span",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "15px",
+                        "color": "#6b7280"
+                      },
+                      "text": "just now",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_1snjhi83",
+                  "type": "element",
+                  "name": "Dot wrap",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "position": "relative",
+                    "width": "16px",
+                    "height": "16px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_qzzfcrm4",
+                      "type": "element",
+                      "name": "Dot ping",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "position": "absolute",
+                        "inset": "0",
+                        "border-radius": "8px",
+                        "background": "#6366f1"
+                      },
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "ping",
+                          "params": {
+                            "amount": 2.6
+                          }
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "el_y7xjhbg5",
+                      "type": "element",
+                      "name": "Dot",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "position": "absolute",
+                        "inset": "0",
+                        "border-radius": "8px",
+                        "background": "#6366f1"
+                      },
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "el_1z4q11dl",
+              "type": "element",
+              "name": "Tags",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "gap": "16px"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "in_o9f4j3x6",
+                  "type": "instance",
+                  "name": "Tag",
+                  "tag": "div",
+                  "componentId": "cp_fgrh84nu",
+                  "attrs": {},
+                  "style": {},
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 600
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "in_zil09hi5",
+                  "type": "instance",
+                  "name": "Tag",
+                  "tag": "div",
+                  "componentId": "cp_fgrh84nu",
+                  "attrs": {},
+                  "style": {},
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 720
+                    },
+                    {
+                      "kind": "emphasis",
+                      "preset": "wiggle",
+                      "build": 1
+                    }
+                  ],
+                  "overrides": {
+                    "tx_uw266c2l": {
+                      "text": "Motion"
+                    }
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                },
+                {
+                  "id": "in_k0nseo43",
+                  "type": "instance",
+                  "name": "Tag",
+                  "tag": "div",
+                  "componentId": "cp_fgrh84nu",
+                  "attrs": {},
+                  "style": {},
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "pop",
+                      "delay": 840
+                    }
+                  ],
+                  "overrides": {
+                    "tx_uw266c2l": {
+                      "text": "Export"
+                    }
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "tx_5b9hqfn7",
+              "type": "text",
+              "name": "Floating card",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "align-self": "center",
+                "margin-top": "36px",
+                "width": "300px",
+                "height": "110px",
+                "border-radius": "20px",
+                "background": "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                "color": "#fff",
+                "display": "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "font-size": "22px",
+                "font-weight": "700",
+                "box-shadow": "0 20px 40px rgba(99,102,241,0.35)"
+              },
+              "text": "Hovering card",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "flip-up",
+                  "delay": 400
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "delay": 1200
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "jump",
+                  "build": 1
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

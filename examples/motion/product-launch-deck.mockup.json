@@ -1,0 +1,1821 @@
+{
+  "version": 1,
+  "id": "doc_2xv59pa8",
+  "name": "Nimbus launch deck",
+  "tokens": {
+    "--bg": "#0b1020",
+    "--panel": "#161d36",
+    "--ink": "#f8fafc",
+    "--muted": "#9aa7c7",
+    "--violet": "#8b5cf6",
+    "--cyan": "#22d3ee",
+    "--pink": "#f472b6",
+    "--amber": "#fbbf24"
+  },
+  "fonts": [],
+  "meta": {
+    "createdAt": "2026-11-27T00:59:38.032Z",
+    "updatedAt": "2026-11-27T00:59:38.163Z"
+  },
+  "pages": [
+    {
+      "id": "pg_e7kjcb53",
+      "name": "Page 1",
+      "background": "#1e1e1e",
+      "frames": [
+        {
+          "id": "fr_ohyq1plq",
+          "type": "frame",
+          "name": "1 · Title",
+          "tag": "div",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "radial-gradient(circle at 80% 20%, #2a1e5c 0%, #0b1020 58%)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "80px 96px",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)"
+          },
+          "slideTransition": {
+            "preset": "fade"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_yweef57z",
+              "type": "element",
+              "name": "Orb",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "right": "110px",
+                "top": "150px",
+                "width": "360px",
+                "height": "360px",
+                "border-radius": "50%",
+                "background": "radial-gradient(circle at 32% 30%, #a5f3fc 0%, #22d3ee 22%, #8b5cf6 62%, #3b1d82 100%)",
+                "box-shadow": "0 40px 120px rgba(139,92,246,0.45)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "duration": 900,
+                  "delay": 250,
+                  "easing": "spring-wobbly",
+                  "params": {
+                    "scale": 0.2
+                  }
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "duration": 4200,
+                  "delay": 1150,
+                  "params": {
+                    "amount": 18
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_4dc808aj",
+              "type": "text",
+              "name": "Eyebrow",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "align-self": "flex-start",
+                "padding": "8px 18px",
+                "border-radius": "999px",
+                "background": "rgba(34,211,238,0.12)",
+                "color": "var(--cyan)",
+                "font-size": "18px",
+                "font-weight": "700",
+                "letter-spacing": "3px"
+              },
+              "text": "PRODUCT LAUNCH",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-down",
+                  "duration": 500
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_u6owleol",
+              "type": "text",
+              "name": "Headline",
+              "tag": "h1",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "max-width": "700px",
+                "font-size": "92px",
+                "line-height": "1.02",
+                "font-weight": "800"
+              },
+              "text": "Ideas that move with you",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "rise",
+                  "duration": 800,
+                  "delay": 150,
+                  "easing": "spring",
+                  "split": "words",
+                  "stagger": 90
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_w3v3vlns",
+              "type": "text",
+              "name": "Subtitle",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "max-width": "560px",
+                "font-size": "28px",
+                "line-height": "1.4",
+                "color": "var(--muted)"
+              },
+              "text": "Nimbus turns rough notes into living slides, in seconds.",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 650
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_bgy77etx",
+              "type": "text",
+              "name": "CTA",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "align-self": "flex-start",
+                "margin-top": "16px",
+                "padding": "18px 36px",
+                "border-radius": "999px",
+                "background": "linear-gradient(90deg,#8b5cf6,#f472b6)",
+                "font-size": "24px",
+                "font-weight": "700",
+                "box-shadow": "0 16px 40px rgba(244,114,182,0.35)"
+              },
+              "text": "See it move →",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 950,
+                  "easing": "back-out"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "rubber",
+                  "build": 1
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_u4chrh0t",
+          "type": "frame",
+          "name": "2 · Features",
+          "tag": "div",
+          "position": {
+            "x": 1360,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "var(--bg)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "80px 96px",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)"
+          },
+          "slideTransition": {
+            "preset": "push"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_m80fc0z6",
+              "type": "text",
+              "name": "Heading",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "56px"
+              },
+              "text": "Three things it does well",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-right"
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_4h8vebv9",
+              "type": "element",
+              "name": "Cards",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "gap": "28px",
+                "margin-top": "16px"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "el_0fxxijtw",
+                  "type": "element",
+                  "name": "Card draft",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "18px",
+                    "padding": "36px",
+                    "border-radius": "24px",
+                    "background": "var(--panel)",
+                    "border": "1px solid rgba(255,255,255,0.08)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "rise",
+                      "delay": 200,
+                      "easing": "spring-bouncy"
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_juxdwc8o",
+                      "type": "text",
+                      "name": "Card draft icon",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "64px",
+                        "height": "64px",
+                        "border-radius": "18px",
+                        "display": "flex",
+                        "align-items": "center",
+                        "justify-content": "center",
+                        "background": "var(--cyan)",
+                        "font-size": "30px",
+                        "color": "#0b1020"
+                      },
+                      "text": "✎",
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "spin-in",
+                          "delay": 520,
+                          "easing": "back-out"
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_gybj8d7s",
+                      "type": "text",
+                      "name": "Draft",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "Draft",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_7d7c0hd8",
+                      "type": "text",
+                      "name": "Paste notes. Get a structured st…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Paste notes. Get a structured story with a slide for each idea.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_ql8x6g8l",
+                  "type": "element",
+                  "name": "Card design",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "18px",
+                    "padding": "36px",
+                    "border-radius": "24px",
+                    "background": "var(--panel)",
+                    "border": "1px solid rgba(255,255,255,0.08)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "rise",
+                      "delay": 340,
+                      "easing": "spring-bouncy"
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_iedczie9",
+                      "type": "text",
+                      "name": "Card design icon",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "64px",
+                        "height": "64px",
+                        "border-radius": "18px",
+                        "display": "flex",
+                        "align-items": "center",
+                        "justify-content": "center",
+                        "background": "var(--violet)",
+                        "font-size": "30px",
+                        "color": "#0b1020"
+                      },
+                      "text": "◆",
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "spin-in",
+                          "delay": 660,
+                          "easing": "back-out"
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_2uq7qlwr",
+                      "type": "text",
+                      "name": "Design",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "Design",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_zp8yv2jc",
+                      "type": "text",
+                      "name": "Layouts, color and type follow y…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Layouts, color and type follow your tokens on every slide.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_oi2q9f99",
+                  "type": "element",
+                  "name": "Card motion",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "18px",
+                    "padding": "36px",
+                    "border-radius": "24px",
+                    "background": "var(--panel)",
+                    "border": "1px solid rgba(255,255,255,0.08)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "rise",
+                      "delay": 480,
+                      "easing": "spring-bouncy"
+                    },
+                    {
+                      "kind": "emphasis",
+                      "preset": "pulse",
+                      "build": 1,
+                      "params": {
+                        "amount": 1.08
+                      }
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_04diabms",
+                      "type": "text",
+                      "name": "Card motion icon",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "64px",
+                        "height": "64px",
+                        "border-radius": "18px",
+                        "display": "flex",
+                        "align-items": "center",
+                        "justify-content": "center",
+                        "background": "var(--pink)",
+                        "font-size": "30px",
+                        "color": "#0b1020"
+                      },
+                      "text": "▶",
+                      "animations": [
+                        {
+                          "kind": "in",
+                          "preset": "spin-in",
+                          "delay": 800,
+                          "easing": "back-out"
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_1z05k0fi",
+                      "type": "text",
+                      "name": "Animate",
+                      "tag": "h3",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "30px"
+                      },
+                      "text": "Animate",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_v2wfpwnj",
+                      "type": "text",
+                      "name": "Entrances, cascades and transiti…",
+                      "tag": "p",
+                      "attrs": {},
+                      "style": {
+                        "margin": "0",
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Entrances, cascades and transitions that play as you present.",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "tx_g3h21mu0",
+              "type": "text",
+              "name": "Note",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "22px",
+                "color": "var(--amber)"
+              },
+              "text": "★ Animate is the one people remember.",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 200,
+                  "build": 1
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_k3p81yds",
+          "type": "frame",
+          "name": "3 · Numbers",
+          "tag": "div",
+          "position": {
+            "x": 2720,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "linear-gradient(135deg,#0b1020 0%,#14213d 100%)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "80px 96px",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)",
+            "align-items": "center"
+          },
+          "slideTransition": {
+            "preset": "cover",
+            "direction": "up"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_1w5w9hpk",
+              "type": "text",
+              "name": "Heading",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0 0 24px",
+                "font-size": "56px"
+              },
+              "text": "Early numbers",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "duration": 500,
+                  "easing": "back-out",
+                  "split": "chars",
+                  "stagger": 28
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_14y8kdqb",
+              "type": "element",
+              "name": "Stats",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "gap": "36px"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "el_fyfjahnd",
+                  "type": "element",
+                  "name": "Stat speed",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "320px",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "align-items": "center",
+                    "gap": "8px",
+                    "padding": "44px 24px",
+                    "border-radius": "28px",
+                    "background": "var(--panel)",
+                    "border-bottom": "6px solid var(--cyan)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "drop",
+                      "duration": 800,
+                      "build": 1
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_4vytota6",
+                      "type": "text",
+                      "name": "Stat speed value",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "88px",
+                        "font-weight": "800",
+                        "color": "var(--cyan)"
+                      },
+                      "text": "8×",
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "tada",
+                          "delay": 700,
+                          "build": 1
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_35x7adgb",
+                      "type": "text",
+                      "name": "faster first draft",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "22px",
+                        "color": "var(--muted)"
+                      },
+                      "text": "faster first draft",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_znmd68c4",
+                  "type": "element",
+                  "name": "Stat teams",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "320px",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "align-items": "center",
+                    "gap": "8px",
+                    "padding": "44px 24px",
+                    "border-radius": "28px",
+                    "background": "var(--panel)",
+                    "border-bottom": "6px solid var(--violet)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "drop",
+                      "duration": 800,
+                      "build": 2
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_j4cmak1i",
+                      "type": "text",
+                      "name": "Stat teams value",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "88px",
+                        "font-weight": "800",
+                        "color": "var(--violet)"
+                      },
+                      "text": "120",
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "tada",
+                          "delay": 700,
+                          "build": 2
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_dwro05qj",
+                      "type": "text",
+                      "name": "teams in the beta",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "22px",
+                        "color": "var(--muted)"
+                      },
+                      "text": "teams in the beta",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_1wovopg0",
+                  "type": "element",
+                  "name": "Stat rating",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "width": "320px",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "align-items": "center",
+                    "gap": "8px",
+                    "padding": "44px 24px",
+                    "border-radius": "28px",
+                    "background": "var(--panel)",
+                    "border-bottom": "6px solid var(--pink)"
+                  },
+                  "animations": [
+                    {
+                      "kind": "in",
+                      "preset": "drop",
+                      "duration": 800,
+                      "build": 3
+                    }
+                  ],
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "tx_6fuoq7vi",
+                      "type": "text",
+                      "name": "Stat rating value",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "88px",
+                        "font-weight": "800",
+                        "color": "var(--pink)"
+                      },
+                      "text": "4.9",
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "tada",
+                          "delay": 700,
+                          "build": 3
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_vi28zdn3",
+                      "type": "text",
+                      "name": "average rating",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "22px",
+                        "color": "var(--muted)"
+                      },
+                      "text": "average rating",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "tx_1saajkgi",
+              "type": "text",
+              "name": "Caption",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "margin": "24px 0 0",
+                "font-size": "20px",
+                "color": "var(--muted)"
+              },
+              "text": "Click to reveal each number",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade",
+                  "delay": 500
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_do6k0465",
+          "type": "frame",
+          "name": "4 · Magic move A",
+          "tag": "div",
+          "position": {
+            "x": 4080,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "var(--bg)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "0",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)"
+          },
+          "slideTransition": {
+            "preset": "zoom"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_ruun3uye",
+              "type": "element",
+              "name": "Logo",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "96px",
+                "width": "120px",
+                "height": "120px",
+                "border-radius": "32px",
+                "background": "linear-gradient(135deg,#22d3ee,#8b5cf6)"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_81pe9fem",
+              "type": "text",
+              "name": "Title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "260px",
+                "margin": "0",
+                "font-size": "72px",
+                "font-weight": "800"
+              },
+              "text": "One mark",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_5wi05ziq",
+              "type": "element",
+              "name": "Bar",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "380px",
+                "width": "640px",
+                "height": "14px",
+                "border-radius": "7px",
+                "background": "var(--pink)"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_hqqhb4m1",
+              "type": "text",
+              "name": "Intro",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "430px",
+                "width": "480px",
+                "margin": "0",
+                "font-size": "26px",
+                "line-height": "1.5",
+                "color": "var(--muted)"
+              },
+              "text": "Layers with the same name travel between slides.",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_w0jgp5v0",
+          "type": "frame",
+          "name": "5 · Magic move B",
+          "tag": "div",
+          "position": {
+            "x": 5440,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "var(--bg)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "0",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)"
+          },
+          "slideTransition": {
+            "preset": "magic",
+            "duration": 900,
+            "easing": "spring-soft"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_c23xwhsa",
+              "type": "element",
+              "name": "Logo",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "760px",
+                "top": "180px",
+                "width": "360px",
+                "height": "360px",
+                "border-radius": "180px",
+                "background": "linear-gradient(135deg,#22d3ee,#8b5cf6)"
+              },
+              "animations": [
+                {
+                  "kind": "emphasis",
+                  "preset": "breathe",
+                  "delay": 200
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_u6p2o6ww",
+              "type": "text",
+              "name": "Title",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "150px",
+                "margin": "0",
+                "font-size": "56px",
+                "font-weight": "800"
+              },
+              "text": "Every shape",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_dchepaku",
+              "type": "element",
+              "name": "Bar",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "250px",
+                "width": "240px",
+                "height": "14px",
+                "border-radius": "7px",
+                "background": "var(--pink)"
+              },
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_6i1r37ys",
+              "type": "text",
+              "name": "Detail",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "96px",
+                "top": "300px",
+                "width": "480px",
+                "margin": "0",
+                "font-size": "26px",
+                "line-height": "1.5",
+                "color": "var(--muted)"
+              },
+              "text": "Size, position and corners morph. Everything else fades in.",
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "fr_qwf9ottm",
+          "type": "frame",
+          "name": "6 · Roadmap",
+          "tag": "div",
+          "position": {
+            "x": 6800,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "var(--bg)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "80px 96px",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)"
+          },
+          "slideTransition": {
+            "preset": "cube"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "tx_wr2euwxu",
+              "type": "text",
+              "name": "Heading",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0 0 40px",
+                "font-size": "56px"
+              },
+              "text": "What comes next",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up"
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_6j9jsozj",
+              "type": "element",
+              "name": "Line",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "height": "6px",
+                "border-radius": "3px",
+                "background": "linear-gradient(90deg,#22d3ee,#8b5cf6,#f472b6)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "wipe-right",
+                  "duration": 1100,
+                  "delay": 250
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_pkqwcuk2",
+              "type": "element",
+              "name": "Steps",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "display": "flex",
+                "gap": "32px",
+                "margin-top": "-40px"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 450,
+                  "split": "children",
+                  "stagger": 220
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": [
+                {
+                  "id": "el_k74d1w3m",
+                  "type": "element",
+                  "name": "Step spring",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_dujhb7bg",
+                      "type": "element",
+                      "name": "Step spring dot",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "36px",
+                        "height": "36px",
+                        "border-radius": "18px",
+                        "background": "var(--cyan)",
+                        "box-shadow": "0 0 0 8px rgba(255,255,255,0.06)"
+                      },
+                      "animations": [
+                        {
+                          "kind": "emphasis",
+                          "preset": "ping",
+                          "build": 1,
+                          "iterations": 3
+                        }
+                      ],
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_w4dfw5cl",
+                      "type": "text",
+                      "name": "Spring",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "30px",
+                        "font-weight": "700"
+                      },
+                      "text": "Spring",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_ymllwj62",
+                      "type": "text",
+                      "name": "Public beta opens",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Public beta opens",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_9nfnbdb8",
+                  "type": "element",
+                  "name": "Step summer",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_ovbhln9i",
+                      "type": "element",
+                      "name": "Step summer dot",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "36px",
+                        "height": "36px",
+                        "border-radius": "18px",
+                        "background": "var(--violet)",
+                        "box-shadow": "0 0 0 8px rgba(255,255,255,0.06)"
+                      },
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_jo3tu8pd",
+                      "type": "text",
+                      "name": "Summer",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "30px",
+                        "font-weight": "700"
+                      },
+                      "text": "Summer",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_0zcs797q",
+                      "type": "text",
+                      "name": "Shared team themes",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Shared team themes",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_i35upque",
+                  "type": "element",
+                  "name": "Step autumn",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_i0fk2fig",
+                      "type": "element",
+                      "name": "Step autumn dot",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "36px",
+                        "height": "36px",
+                        "border-radius": "18px",
+                        "background": "var(--pink)",
+                        "box-shadow": "0 0 0 8px rgba(255,255,255,0.06)"
+                      },
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_dtkfvjtn",
+                      "type": "text",
+                      "name": "Autumn",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "30px",
+                        "font-weight": "700"
+                      },
+                      "text": "Autumn",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_nqsyahz5",
+                      "type": "text",
+                      "name": "Live co-presenting",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Live co-presenting",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "el_bbrqftad",
+                  "type": "element",
+                  "name": "Step winter",
+                  "tag": "div",
+                  "attrs": {},
+                  "style": {
+                    "flex": "1",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "gap": "12px"
+                  },
+                  "locked": false,
+                  "hidden": false,
+                  "children": [
+                    {
+                      "id": "el_fls953zh",
+                      "type": "element",
+                      "name": "Step winter dot",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "width": "36px",
+                        "height": "36px",
+                        "border-radius": "18px",
+                        "background": "var(--amber)",
+                        "box-shadow": "0 0 0 8px rgba(255,255,255,0.06)"
+                      },
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_j062p1wc",
+                      "type": "text",
+                      "name": "Winter",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "30px",
+                        "font-weight": "700"
+                      },
+                      "text": "Winter",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    },
+                    {
+                      "id": "tx_6bpr0dtv",
+                      "type": "text",
+                      "name": "Offline desktop app",
+                      "tag": "div",
+                      "attrs": {},
+                      "style": {
+                        "font-size": "20px",
+                        "line-height": "1.5",
+                        "color": "var(--muted)"
+                      },
+                      "text": "Offline desktop app",
+                      "locked": false,
+                      "hidden": false,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fr_dqpb3ej1",
+          "type": "frame",
+          "name": "7 · Thanks",
+          "tag": "div",
+          "position": {
+            "x": 8160,
+            "y": 0
+          },
+          "attrs": {},
+          "style": {
+            "width": "1280px",
+            "height": "720px",
+            "background": "radial-gradient(circle at 50% 60%, #3b1d82 0%, #0b1020 62%)",
+            "position": "relative",
+            "overflow": "hidden",
+            "display": "flex",
+            "flex-direction": "column",
+            "justify-content": "center",
+            "padding": "80px 96px",
+            "box-sizing": "border-box",
+            "gap": "24px",
+            "font-family": "'Segoe UI', system-ui, sans-serif",
+            "color": "var(--ink)",
+            "align-items": "center"
+          },
+          "slideTransition": {
+            "preset": "blur"
+          },
+          "locked": false,
+          "hidden": false,
+          "children": [
+            {
+              "id": "el_vr0ydqqj",
+              "type": "element",
+              "name": "Confetti 1",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "180px",
+                "top": "140px",
+                "width": "44px",
+                "height": "44px",
+                "border-radius": "11px",
+                "background": "var(--cyan)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 500,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "spin",
+                  "duration": 6000
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_09hdrq9v",
+              "type": "element",
+              "name": "Confetti 2",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "1040px",
+                "top": "130px",
+                "width": "30px",
+                "height": "30px",
+                "border-radius": "7.5px",
+                "background": "var(--amber)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 580,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "spin",
+                  "duration": 6000
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_6dm9t4df",
+              "type": "element",
+              "name": "Confetti 3",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "250px",
+                "top": "540px",
+                "width": "28px",
+                "height": "28px",
+                "border-radius": "7px",
+                "background": "var(--pink)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 660,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "spin",
+                  "duration": 6000
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_sw84ev4n",
+              "type": "element",
+              "name": "Confetti 4",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "980px",
+                "top": "520px",
+                "width": "52px",
+                "height": "52px",
+                "border-radius": "13px",
+                "background": "var(--violet)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 740,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "duration": 2600,
+                  "params": {
+                    "amount": 16
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_j3o3pinx",
+              "type": "element",
+              "name": "Confetti 5",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "640px",
+                "top": "90px",
+                "width": "22px",
+                "height": "22px",
+                "border-radius": "5.5px",
+                "background": "var(--pink)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 820,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "duration": 2600,
+                  "params": {
+                    "amount": 16
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "el_49n0xs50",
+              "type": "element",
+              "name": "Confetti 6",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "position": "absolute",
+                "left": "620px",
+                "top": "600px",
+                "width": "34px",
+                "height": "34px",
+                "border-radius": "8.5px",
+                "background": "var(--cyan)"
+              },
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "spin-in",
+                  "delay": 900,
+                  "easing": "spring-bouncy"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "float",
+                  "duration": 2600,
+                  "params": {
+                    "amount": 16
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_siimaxee",
+              "type": "text",
+              "name": "Thanks",
+              "tag": "h2",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "130px",
+                "font-weight": "800"
+              },
+              "text": "Thank you",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "zoom-in",
+                  "duration": 700,
+                  "easing": "elastic",
+                  "split": "chars",
+                  "stagger": 45,
+                  "params": {
+                    "scale": 0.3
+                  }
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_xq9uwyuw",
+              "type": "text",
+              "name": "Questions",
+              "tag": "p",
+              "attrs": {},
+              "style": {
+                "margin": "0",
+                "font-size": "30px",
+                "color": "var(--muted)"
+              },
+              "text": "Questions?",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "fade-up",
+                  "delay": 900
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            },
+            {
+              "id": "tx_mmajwqfr",
+              "type": "text",
+              "name": "Button",
+              "tag": "div",
+              "attrs": {},
+              "style": {
+                "margin-top": "24px",
+                "padding": "18px 40px",
+                "border-radius": "999px",
+                "background": "var(--ink)",
+                "color": "#0b1020",
+                "font-size": "24px",
+                "font-weight": "700"
+              },
+              "text": "Join the beta",
+              "animations": [
+                {
+                  "kind": "in",
+                  "preset": "pop",
+                  "delay": 1100,
+                  "easing": "back-out"
+                },
+                {
+                  "kind": "emphasis",
+                  "preset": "heartbeat",
+                  "build": 1,
+                  "iterations": 2
+                }
+              ],
+              "locked": false,
+              "hidden": false,
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

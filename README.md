@@ -52,7 +52,7 @@ Codex: `codex mcp add mockup-studio -- mockup mcp`. Details, HTTP, Cursor, VS Co
 ## Quick start
 
 - Ask the agent: "create a mockup of a landing page for a finance app, with desktop and mobile versions". It creates the frames, checks the screenshots and iterates.
-- Open the editor to view and adjust: the desktop app or `npm run dev` (editor at http://localhost:5173, daemon at `http://127.0.0.1:4747`). Use **File › Open…** or, from the terminal, `mockup open examples/landing.mockup.json` (or `examples/motion-deck.mockup.json` and press F5 for an animated deck).
+- Open the editor to view and adjust: the desktop app or `npm run dev` (editor at http://localhost:5173, daemon at `http://127.0.0.1:4747`). Use **File › Open…** or, from the terminal, `mockup open examples/landing.mockup.json` (or `examples/motion/product-launch-deck.mockup.json` and press F5 for an animated deck; more in [docs/MOTION.md](docs/MOTION.md#examples)).
 - CLI commands: `mockup mcp` (stdio for agents), `mockup serve [--port N] [--render]`, `mockup open`, `mockup new`, `mockup stop`, `mockup doctor`, `mockup setup`, `mockup install-cli`, `mockup uninstall-cli`, `mockup --version`.
 
 Editor guide, shortcuts and performance measurements in [docs/EDITOR.md](docs/EDITOR.md).

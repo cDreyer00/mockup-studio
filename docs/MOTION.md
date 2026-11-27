@@ -134,6 +134,17 @@ Tools (see [MCP.md](MCP.md)): `list_motion_presets`, `animate` (several nodes, `
 - `export` `mp4` / `webm` / `gif` record the linear timeline (default duration: the frame's timeline + 0.5 s when it has animations).
 - `export` `html` / `tailwind` / `react` emit real CSS animations (`@keyframes` deduplicated, `prefers-reduced-motion` respected) and a tiny script that plays click builds (see [EXPORT.md](EXPORT.md#motion)). Slide transitions are presentation-only.
 
+## Examples
+
+Documents to open (`mockup open <file>`) and play: F5 presents, `get_screenshot` with `times` shows a filmstrip.
+
+| File                                              | What it shows                                                                                                              |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `examples/motion/product-launch-deck.mockup.json` | 7 slides: transitions (push, cover, zoom, magic, cube, blur), click builds, split titles, cascades, springs and overshoot. |
+| `examples/motion/micro-interactions.mockup.json`  | Buttons, toggles, progress, a toast and badges: emphasis and loops, custom keyframes on clicks, component instances.       |
+| `examples/motion/landing-entrance.mockup.json`    | A landing page whose sections enter in sequence when it appears, with a few gentle loops.                                  |
+| `examples/motion-deck.mockup.json`                | A shorter 6-slide deck.                                                                                                    |
+
 ## Performance
 
 Stress scenario: `packages/editor/e2e/motion-perf.spec.ts` (12 slides × ~18 animated layers: character-split titles, staggered cards with springs and blur, loops, three click builds per slide, a different transition on each slide: push, cube, zoom, magic, cover, blur). It runs with the e2e suite (`npm run test:e2e`) and writes `motion-perf.json` to the e2e folder.
