@@ -117,7 +117,7 @@ export function registerRenderTools(ctx: ToolContext): void {
           .max(99)
           .optional()
           .describe(
-            'State after this click build of the presentation: 0 = only the automatic build, 1 = after the first click... Later builds have not started. With time: seconds into the build. E.g. 1.',
+            'State after this many CLICKS of the presentation (like presentation_goto build): 0 = only the automatic build, 1 = after the first click... Counts clicks in play order, not build numbers (builds 0, 2, 5: build 1 here = after build 2). Later builds have not started. With time: seconds into the build. E.g. 1.',
           ),
         times: z
           .array(z.number().min(0).max(600))

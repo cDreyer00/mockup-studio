@@ -130,7 +130,7 @@ Tools (see [MCP.md](MCP.md)): `list_motion_presets`, `animate` (several nodes, `
 
 ## Screenshot and export
 
-- `get_screenshot`: without `time`/`build` the node animations show the design state (as on the canvas). `time` (s) renders the frame's linear timeline at that instant (and the effects clock); `build` renders the state after that click build (with `time`, seconds into it); `times` returns a filmstrip, one cell per instant, in a single image. The render page seeks a `MotionScope` and waits for the frame like for effects (see [EFFECTS.md](EFFECTS.md#how-the-render-captures)).
+- `get_screenshot`: without `time`/`build` the node animations show the design state (as on the canvas). `time` (s) renders the frame's linear timeline at that instant (and the effects clock); `build` renders the state after that many clicks (with `time`, seconds into the build it reaches), counted in play order like `presentation_goto` `build`, so sparse build numbers (0, 2, 5) still give 1 = after the first click; `times` returns a filmstrip, one cell per instant, in a single image. The render page seeks a `MotionScope` and waits for the frame like for effects (see [EFFECTS.md](EFFECTS.md#how-the-render-captures)).
 - `export` `mp4` / `webm` / `gif` record the linear timeline (default duration: the frame's timeline + 0.5 s when it has animations).
 - `export` `html` / `tailwind` / `react` emit real CSS animations (`@keyframes` deduplicated, `prefers-reduced-motion` respected) and a tiny script that plays click builds (see [EXPORT.md](EXPORT.md#motion)). Slide transitions are presentation-only.
 

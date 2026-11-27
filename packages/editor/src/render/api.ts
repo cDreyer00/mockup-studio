@@ -17,7 +17,7 @@ import type {
   PreviewState,
   RenderBox,
 } from '@mockup/core';
-import { expandDocument, frameMotionTimeline, linearTimeAt } from '@mockup/core';
+import { buildOfClick, expandDocument, frameMotionTimeline, linearTimeAt } from '@mockup/core';
 import type { MotionAt } from '@mockup/core';
 import { fxClock } from '../fx/clock';
 import { fxRenderInfo, fxSettled } from '../fx/ready';
@@ -47,7 +47,10 @@ export interface RenderPayload {
    * animations in the design state.
    */
   time?: number;
-  /** State after this build (earlier ones finished, later ones not started); with `time`, seconds into it. */
+  /**
+   * State after this many CLICKS (0 = only the automatic build; counted in play order, not by build
+   * number): earlier builds finished, later ones not started; with `time`, seconds into it.
+   */
   build?: number;
   /**
    * Filmstrip: one cell per instant (1 to 12, s, relative to `build` when given), in a single grid.
@@ -243,9 +246,20 @@ function checkMotionFields({ time, build, times, columns }: RenderPayload): void
     );
 }
 
-/** Motion instant (ms) of a capture; `undefined` = design state. */
-function motionAt(time: number | undefined, build: number | undefined): MotionAt | undefined {
-  if (build !== undefined) return time !== undefined ? { build, time: time * 1000 } : { build };
+/**
+ * Motion instant (ms) of a capture; `undefined` = design state. `clicks` is the payload's `build`:
+ * a CLICK count (like `presentation_goto`), turned into the build number it reaches, so sparse build
+ * numbers (e.g. 0, 2, 5) still mean 1 = after the first click.
+ */
+function motionAt(
+  frame: Node,
+  time: number | undefined,
+  clicks: number | undefined,
+): MotionAt | undefined {
+  if (clicks !== undefined) {
+    const build = buildOfClick(frameMotionTimeline(frame), clicks);
+    return time !== undefined ? { build, time: time * 1000 } : { build };
+  }
   return time !== undefined ? { time: time * 1000 } : undefined;
 }
 
@@ -300,7 +314,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
     const cells: FilmstripCell[] = times.map((t) => {
       const s = new MotionScope();
       cellScopes.push(s);
-      s.setMode(frame.id, { type: 'seek', at: motionAt(t, build)! });
+      s.setMode(frame.id, { type: 'seek', at: motionAt(frame, t, build)! });
       return {
         scope: s,
         label: build !== undefined ? `build ${build} + ${fmtSeconds(t)}` : fmtSeconds(t),
@@ -309,7 +323,9 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
 
     // The effects clock holds one time: the first cell's.
     fxRenderInfo.explicitTime = true;
-    fxClock.setManual(linearTimeAt(frameMotionTimeline(frame), motionAt(times[0]!, build)!) / 1000);
+    fxClock.setManual(
+      linearTimeAt(frameMotionTimeline(frame), motionAt(frame, times[0]!, build)!) / 1000,
+    );
 
     root ??= createRoot(container);
     flushSync(() =>
@@ -374,7 +390,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
         });
 
       // Node animations: design state without time/build, else seeked at the instant.
-      const at = motionAt(time, build);
+      const at = motionAt(frame, time, build);
       filmstrip = false;
       disposeCells();
       scope.resetAll();

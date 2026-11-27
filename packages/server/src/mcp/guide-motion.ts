@@ -7,7 +7,7 @@ Every node can have a list of animations; root frames can have a slide transitio
 
 - **kind**: \`in\` (entrance: hidden until it plays), \`out\` (exit: hidden afterwards), \`emphasis\` (plays and returns to rest; loops are emphasis with \`iterations: "infinite"\`).
 - **Design state vs timeline**: with no animation playing the canvas shows the design state (everything at rest, as you styled it). Animations only exist on the timeline, a presentation, the canvas preview and animated exports.
-- **build**: the click order. \`build: 0\` (default) plays when the slide/frame appears; \`1, 2, ...\` play on the 1st, 2nd... click of a presentation (\`presentation_goto step "next"\` plays the next build before moving on).
+- **build**: the click order. \`build: 0\` (default) plays when the slide/frame appears; \`1, 2, ...\` play on the 1st, 2nd... click of a presentation (\`presentation_goto step "next"\` plays the next build before moving on). Only the order counts: builds 0, 2, 5 play on appear, 1st click, 2nd click, and \`get_screenshot build\` / \`presentation_goto build\` count clicks.
 - **Linear timeline**: builds laid back to back (build 0, then 1...). \`get_screenshot time\`, the editor timeline and the animated export use it. \`get_timeline\` prints it.
 - **delay / cascade**: \`delay\` waits inside the build. \`cascade\` (animate only) adds that many ms to the delay of each successive node: node i waits delay + i x cascade.
 - **split**: \`children\`, \`words\` or \`chars\` animates each part of ONE node, \`stagger\` ms apart (defaults 80 / 60 / 30). words/chars need a text node.

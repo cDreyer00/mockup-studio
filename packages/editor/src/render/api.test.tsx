@@ -144,6 +144,34 @@ describe('render page', () => {
       expect(lastTime()).toBe(200);
     });
 
+    it('build counts clicks, not build numbers, when they are sparse', async () => {
+      // builds 0, 2, 5: build 1 = after the first click = build 2 finished, build 5 not started
+      const { doc, frame } = animated([
+        { kind: 'in', preset: 'fade', build: 2, duration: 600 },
+        { kind: 'in', preset: 'fade', build: 5, duration: 400, delay: 0 },
+      ]);
+      const timesOf = () => anims.map((a) => a.currentTime);
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1 });
+      expect(timesOf()).toEqual([600, 0]);
+      expect(useFxClock.getState().manual).toBeCloseTo(0.6);
+      anims.length = 0;
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1, time: 0.3 });
+      expect(timesOf()).toEqual([300, 0]);
+      anims.length = 0;
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 2 });
+      expect(timesOf()).toEqual([600, 400]);
+      expect(useFxClock.getState().manual).toBeCloseTo(1);
+      // past the last click: everything played
+      anims.length = 0;
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 9 });
+      expect(timesOf()).toEqual([600, 400]);
+      // the filmstrip reads build the same way
+      anims.length = 0;
+      await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1, times: [0.1] });
+      expect(timesOf()).toEqual([100, 0]);
+      expect(useFxClock.getState().manual).toBeCloseTo(0.1);
+    });
+
     it('setTime seeks the node animations too', async () => {
       const { doc, frame } = animated([{ kind: 'in', preset: 'fade' }]);
       await api.render({ doc, docId: doc.id, nodeId: frame.id });

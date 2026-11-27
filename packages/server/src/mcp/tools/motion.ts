@@ -50,7 +50,7 @@ const buildField = z
   .number()
   .int()
   .describe(
-    'Click order: 0 (default) plays when the slide/frame appears; 1, 2... play on the 1st, 2nd... click of a presentation. 0 to 99.',
+    'Click order: 0 (default) plays when the slide/frame appears; 1, 2... play on the 1st, 2nd... click of a presentation. Only the order counts: gaps collapse (builds 0, 2, 5 play on appear, 1st click, 2nd click). 0 to 99.',
   );
 const iterationsField = z
   .union([z.number().int(), z.literal('infinite')])
@@ -685,7 +685,7 @@ export function registerMotionTools(ctx: ToolContext): void {
         lines.push('No animations yet: use animate(nodeIds, preset) to add some.');
       lines.push(
         '',
-        'See it: get_screenshot with time (s on this linear timeline), build (state after a click build) or times (filmstrip in one image); preview_motion plays it on the canvas; start_presentation runs the click builds and slide transitions.',
+        'See it: get_screenshot with time (s on this linear timeline), build (state after that many clicks, see "click N" above) or times (filmstrip in one image); preview_motion plays it on the canvas; start_presentation runs the click builds and slide transitions.',
       );
       return lines.join('\n');
     },
