@@ -642,6 +642,9 @@ function expandInst(ctx: Ctx, inst: Node, rootId: string, slotChild: (n: Node) =
   root.hidden = inst.hidden || root.hidden;
   if (inst.position) root.position = { ...inst.position };
   else delete root.position;
+  // Motion set on the instance itself replaces that of the main component's root.
+  if (inst.animations) root.animations = inst.animations;
+  if (inst.slideTransition) root.slideTransition = inst.slideTransition;
   root.componentId = def.id;
   if (inst.props && Object.keys(inst.props).length > 0) root.props = { ...inst.props };
   else delete root.props;

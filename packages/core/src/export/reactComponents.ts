@@ -704,6 +704,7 @@ export function createComponentSupport(doc: Document, base: RenderCtx): Componen
     const def = getComponent(doc, node.componentId);
     if (!def) return null;
     if (Object.keys(node.overrides ?? {}).length > 0) return null;
+    if (node.animations) return null; // motion of this instance only: the component has its own
     if (Object.keys(node.attrs).length > 0) return null;
     if (node.classes) return null;
     if (node.states && Object.keys(node.states).length > 0) return null;

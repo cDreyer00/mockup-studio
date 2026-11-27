@@ -362,3 +362,33 @@ describe('motion export: build runtime', () => {
     expect(page.states()).toEqual(['running', 'paused']);
   });
 });
+
+describe('motion export: instances', () => {
+  it('react: an instance with its own animations is emitted expanded, with them', () => {
+    const doc = plain();
+    doc.components = [
+      {
+        id: 'cp_chip',
+        name: 'Chip',
+        props: [],
+        variants: [],
+        root: el({ tag: 'div', id: 'el_chip0001', name: 'Chip', style: { width: '40px' } }),
+      },
+    ];
+    const instance = (id: string, animations?: NodeAnimation[]): Node => ({
+      ...el({ tag: 'div', id, name: 'Chip', animations }),
+      type: 'instance',
+      componentId: 'cp_chip',
+    });
+    doc.pages[0].frames[0].children = [
+      instance('in_plain001'),
+      instance('in_moving01', [{ kind: 'in', preset: 'pop' }]),
+    ];
+    const out = exportReact(doc, { nodeId: 'fr_plain0001' });
+    expect(out.code.match(/<Chip \/>/g)).toHaveLength(1);
+    expect(out.code.match(/data-mk=/g)).toHaveLength(1);
+    expect(out.css).toContain('animation: mk-');
+    expect(compile(out.code)).toEqual([]);
+    expect(exportHtml(doc)).toContain('animation: mk-');
+  }, 30_000);
+});

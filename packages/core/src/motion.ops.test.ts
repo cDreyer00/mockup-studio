@@ -378,6 +378,49 @@ describe('components', () => {
     ).toThrow(/only apply to root frames/);
   });
 
+  it('animations and the slide transition set on an instance itself reach the expanded view', () => {
+    const doc = fixture();
+    // an instance used as a slide (root frame)
+    doc.pages[0]!.frames.push({
+      ...structuredClone(node(doc, 'in_b')),
+      id: 'in_slide',
+      position: { x: 0, y: 700 },
+    });
+    const r = applyOp(doc, {
+      type: 'setMotion',
+      changes: [
+        { nodeId: 'in_a', animations: [FLOAT] },
+        { nodeId: 'in_slide', transition: PUSH },
+      ],
+    });
+    expect(view(r.doc, 'in_a').animations).toEqual([FLOAT]);
+    expect(view(r.doc, 'in_b').animations).toBeUndefined();
+    // the layers of the component keep their own animations
+    expect(view(r.doc, 'in_a/tx_title01').animations).toEqual([FADE_UP]);
+    expect(view(r.doc, 'in_slide').slideTransition).toEqual(PUSH);
+    const reparsed = parseDocument(serializeDocument(r.doc));
+    expect(view(reparsed, 'in_a').animations).toEqual([FLOAT]);
+    expect(view(reparsed, 'in_slide').slideTransition).toEqual(PUSH);
+    const undone = r.inverse.reduce((d, op) => applyOp(d, op).doc, r.doc);
+    expect(strip(undone)).toEqual(strip(doc));
+  });
+
+  it('an instance without its own animations keeps those of the main component root', () => {
+    let doc = fixture();
+    doc = applyOp(doc, {
+      type: 'setMotion',
+      changes: [{ nodeId: 'el_card', animations: [FLOAT] }],
+    }).doc;
+    expect(view(doc, 'in_a').animations).toEqual([FLOAT]);
+    // its own list replaces the main one in that instance only
+    doc = applyOp(doc, {
+      type: 'setMotion',
+      changes: [{ nodeId: 'in_a', animations: [FADE_UP] }],
+    }).doc;
+    expect(view(doc, 'in_a').animations).toEqual([FADE_UP]);
+    expect(view(doc, 'in_b').animations).toEqual([FLOAT]);
+  });
+
   it('setMotion on a main component node edits the component', () => {
     const doc = fixture();
     const r = applyOp(doc, {
