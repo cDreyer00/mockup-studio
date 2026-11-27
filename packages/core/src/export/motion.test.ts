@@ -9,6 +9,7 @@ import { createDocument, createNode } from '../document.js';
 import { documentBaseCss } from '../base.js';
 import type { Document, Node, NodeAnimation } from '../types.js';
 import { exportHtml } from './html.js';
+import { buildRuntimeFunction, buildRuntimeScript } from './motion.js';
 import { exportReact } from './react.js';
 import { exportSvg } from './svg.js';
 import { exportTailwind } from './tailwind.js';
@@ -293,5 +294,71 @@ describe('motion export: svg and base', () => {
     for (const n of ['spin', 'ping', 'pulse', 'bounce']) expect(css).toContain(`@keyframes ${n}`);
     expect(documentBaseCss()).not.toContain('@keyframes');
     expectParses(css);
+  });
+});
+
+describe('motion export: build runtime', () => {
+  /** A document whose finished animations leave `getAnimations()`, as CSS animations do. */
+  function fakePage() {
+    const anim = (animationName: string) => ({
+      animationName,
+      state: 'paused' as 'paused' | 'running' | 'finished',
+      currentTime: 0,
+      play() {
+        this.state = 'running';
+      },
+      pause() {
+        this.state = 'paused';
+      },
+    });
+    const anims = [anim('mk-aaaaaa-b2'), anim('mk-bbbbbb-b5')];
+    const handlers = new Map<string, (e: unknown) => void>();
+    const document = {
+      getAnimations: () => anims.filter((a) => a.state !== 'finished'),
+      addEventListener: (type: string, fn: (e: unknown) => void) => handlers.set(type, fn),
+      removeEventListener: (type: string) => handlers.delete(type),
+    };
+    const press = (key: string) =>
+      handlers.get('keydown')!({ key, target: {}, preventDefault() {} });
+    const finish = () => {
+      for (const a of anims) if (a.state === 'running') a.state = 'finished';
+    };
+    const states = () => anims.map((a) => a.state);
+    return { document, press, finish, states };
+  }
+
+  const runtimes: [string, (document: unknown) => void][] = [
+    [
+      'html',
+      (document) => {
+        const body = buildRuntimeScript().replace(/<\/?script>/g, '');
+        new Function('document', body)(document);
+      },
+    ],
+    [
+      'react',
+      (document) => {
+        const js = ts.transpileModule(buildRuntimeFunction().join('\n'), {
+          compilerOptions: { target: ts.ScriptTarget.ES2022 },
+        }).outputText;
+        new Function('document', `${js}\ninstallBuilds();`)(document);
+      },
+    ],
+  ];
+
+  it.each(runtimes)('%s: rewinds builds that already finished, then replays them', (_, run) => {
+    const page = fakePage();
+    run(page.document);
+    for (let i = 0; i < 2; i++) {
+      page.press('ArrowRight');
+      page.finish();
+    }
+    expect(page.states()).toEqual(['finished', 'finished']);
+    page.press('ArrowLeft');
+    expect(page.states()).toEqual(['finished', 'paused']);
+    page.press('ArrowLeft');
+    expect(page.states()).toEqual(['paused', 'paused']);
+    page.press('ArrowRight');
+    expect(page.states()).toEqual(['running', 'paused']);
   });
 });

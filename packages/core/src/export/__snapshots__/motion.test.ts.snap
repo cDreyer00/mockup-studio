@@ -107,23 +107,18 @@ body{font-family:system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;font-s
 // Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds).
 (function () {
   var step = 0, list = null;
-  function anims(b) {
-    return document.getAnimations().filter(function (a) {
-      return a.animationName && a.animationName.slice(-('-b' + b).length) === '-b' + b;
-    });
-  }
   function builds() {
     var seen = {};
     document.getAnimations().forEach(function (a) {
       var m = /-b(\\d+)$/.exec(a.animationName || "");
-      if (m) seen[m[1]] = 1;
+      if (m) (seen[m[1]] || (seen[m[1]] = [])).push(a);
     });
-    return Object.keys(seen).map(Number).sort(function (x, y) { return x - y; });
+    return Object.keys(seen).sort(function (x, y) { return x - y; }).map(function (b) { return seen[b]; });
   }
   function go(dir) {
     list = list || builds();
-    if (dir > 0 && step < list.length) anims(list[step++]).forEach(function (a) { a.play(); });
-    else if (dir < 0 && step > 0) anims(list[--step]).forEach(function (a) { a.pause(); a.currentTime = 0; });
+    if (dir > 0 && step < list.length) list[step++].forEach(function (a) { a.play(); });
+    else if (dir < 0 && step > 0) list[--step].forEach(function (a) { a.pause(); a.currentTime = 0; });
   }
   function onClick(e) {
     if (!e.target.closest || !e.target.closest('a, button, input, select, textarea')) go(1);
@@ -149,22 +144,21 @@ exports[`motion export: react > inline > snapshot 1`] = `
 /** Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds). */
 function installBuilds(): () => void {
   let step = 0;
-  let list: number[] | null = null;
-  const anims = (b: number): Animation[] =>
-    document.getAnimations().filter((a) => (a as CSSAnimation).animationName?.endsWith(\`-b\${b}\`));
-  const builds = (): number[] => {
-    const seen = new Set<number>();
+  let list: Animation[][] | null = null;
+  // collected on the first step: a finished animation leaves getAnimations()
+  const builds = (): Animation[][] => {
+    const seen = new Map<number, Animation[]>();
     for (const a of document.getAnimations()) {
       const m = /-b(\\d+)$/.exec((a as CSSAnimation).animationName ?? "");
-      if (m) seen.add(Number(m[1]));
+      if (m) seen.set(Number(m[1]), [...(seen.get(Number(m[1])) ?? []), a]);
     }
-    return [...seen].sort((x, y) => x - y);
+    return [...seen].sort(([x], [y]) => x - y).map(([, anims]) => anims);
   };
   const go = (dir: number): void => {
     list = list ?? builds();
-    if (dir > 0 && step < list.length) anims(list[step++]).forEach((a) => a.play());
+    if (dir > 0 && step < list.length) list[step++].forEach((a) => a.play());
     else if (dir < 0 && step > 0) {
-      anims(list[--step]).forEach((a) => {
+      list[--step].forEach((a) => {
         a.pause();
         a.currentTime = 0;
       });
@@ -302,22 +296,21 @@ exports[`motion export: react > tailwind > snapshot 1`] = `
 /** Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds). */
 function installBuilds(): () => void {
   let step = 0;
-  let list: number[] | null = null;
-  const anims = (b: number): Animation[] =>
-    document.getAnimations().filter((a) => (a as CSSAnimation).animationName?.endsWith(\`-b\${b}\`));
-  const builds = (): number[] => {
-    const seen = new Set<number>();
+  let list: Animation[][] | null = null;
+  // collected on the first step: a finished animation leaves getAnimations()
+  const builds = (): Animation[][] => {
+    const seen = new Map<number, Animation[]>();
     for (const a of document.getAnimations()) {
       const m = /-b(\\d+)$/.exec((a as CSSAnimation).animationName ?? "");
-      if (m) seen.add(Number(m[1]));
+      if (m) seen.set(Number(m[1]), [...(seen.get(Number(m[1])) ?? []), a]);
     }
-    return [...seen].sort((x, y) => x - y);
+    return [...seen].sort(([x], [y]) => x - y).map(([, anims]) => anims);
   };
   const go = (dir: number): void => {
     list = list ?? builds();
-    if (dir > 0 && step < list.length) anims(list[step++]).forEach((a) => a.play());
+    if (dir > 0 && step < list.length) list[step++].forEach((a) => a.play());
     else if (dir < 0 && step > 0) {
-      anims(list[--step]).forEach((a) => {
+      list[--step].forEach((a) => {
         a.pause();
         a.currentTime = 0;
       });
@@ -536,23 +529,18 @@ exports[`motion export: tailwind > snapshot 1`] = `
 // Builds: click / ArrowRight / Space / PageDown plays the next build (ArrowLeft / PageUp rewinds).
 (function () {
   var step = 0, list = null;
-  function anims(b) {
-    return document.getAnimations().filter(function (a) {
-      return a.animationName && a.animationName.slice(-('-b' + b).length) === '-b' + b;
-    });
-  }
   function builds() {
     var seen = {};
     document.getAnimations().forEach(function (a) {
       var m = /-b(\\d+)$/.exec(a.animationName || "");
-      if (m) seen[m[1]] = 1;
+      if (m) (seen[m[1]] || (seen[m[1]] = [])).push(a);
     });
-    return Object.keys(seen).map(Number).sort(function (x, y) { return x - y; });
+    return Object.keys(seen).sort(function (x, y) { return x - y; }).map(function (b) { return seen[b]; });
   }
   function go(dir) {
     list = list || builds();
-    if (dir > 0 && step < list.length) anims(list[step++]).forEach(function (a) { a.play(); });
-    else if (dir < 0 && step > 0) anims(list[--step]).forEach(function (a) { a.pause(); a.currentTime = 0; });
+    if (dir > 0 && step < list.length) list[step++].forEach(function (a) { a.play(); });
+    else if (dir < 0 && step > 0) list[--step].forEach(function (a) { a.pause(); a.currentTime = 0; });
   }
   function onClick(e) {
     if (!e.target.closest || !e.target.closest('a, button, input, select, textarea')) go(1);
