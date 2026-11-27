@@ -36,7 +36,7 @@ animate({ nodeIds: ["tx_b3"], preset: "fade-right", build: 3 })
 
 Floating badge loop:
 \`\`\`
-animate({ nodeIds: ["el_badge"], preset: "float", params: { distance: 10 } })
+animate({ nodeIds: ["el_badge"], preset: "float", params: { amount: 10 } })
 \`\`\`
 
 Full sequence on one node (entrance, then a click emphasis):

@@ -14,6 +14,7 @@ import {
 } from '@mockup/core';
 import { startDaemon, type DaemonHandle } from './index.js';
 import { locateFfmpeg } from './encode.js';
+import { MOTION_GUIDE } from './mcp/guide-motion.js';
 import type { CaptureRequest, CaptureResult, FramesRequest, RenderProvider } from './render.js';
 import { makeWorkspace } from './test-utils.js';
 
@@ -156,6 +157,35 @@ describe('MCP motion', () => {
     for (const s of sockets.splice(0)) s.terminate();
     await daemon.close();
     ws.cleanup();
+  });
+
+  it('every recipe of the motion guide runs as written', async () => {
+    // the code blocks are plain calls with object literals
+    const code = MOTION_GUIDE.split('```')
+      .filter((_, i) => i % 2 === 1)
+      .join(';\n');
+    const calls: [string, Record<string, unknown>][] = [];
+    const tools = ['animate', 'set_animations', 'set_slide_transition'];
+    const record = tools.map((t) => (args: Record<string, unknown>) => void calls.push([t, args]));
+    new Function(...tools, code)(...record);
+    expect(calls.length).toBeGreaterThan(5);
+
+    const created = await ok('create_node', { parentId: ws.frameId, tag: 'p', text: 'Title' });
+    const text = /Node created: (\S+)/.exec(created)![1]!;
+    // the guide's ids → nodes of this document (text for tx_..., a card for the others)
+    const ids = new Map<string, string>([['pg_deck', doc().pages[0]!.id]]);
+    let next = 0;
+    const real = (id: string): string => {
+      if (!ids.has(id)) ids.set(id, id.startsWith('tx_') ? text : cards[next++ % cards.length]!);
+      return ids.get(id)!;
+    };
+    for (const [tool, args] of calls) {
+      const a = { ...args };
+      if (a.nodeIds) a.nodeIds = (a.nodeIds as string[]).map(real);
+      if (a.nodeId) a.nodeId = real(a.nodeId as string);
+      if (a.pageId) a.pageId = real(a.pageId as string);
+      await ok(tool, a);
+    }
   });
 
   it('list_motion_presets lists presets, easings and transitions', async () => {
