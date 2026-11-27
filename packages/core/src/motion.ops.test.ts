@@ -374,6 +374,23 @@ describe('html round trip', () => {
     expect(text.attrs).toEqual({});
   });
 
+  it('keeps animations on video, image and svg nodes', () => {
+    const nodes = htmlToNodes(
+      '<video src="https://example.com/a.mp4"></video>' +
+        '<img src="https://example.com/a.png" alt="a">' +
+        '<svg viewBox="0 0 10 10"><path d="M0 0L10 10"/></svg>',
+    );
+    expect(nodes.map((x) => x.type)).toEqual(['video', 'image', 'svg']);
+    const anims: NodeAnimation[] = [FADE_UP, { ...FLOAT, build: 1 }];
+    for (const x of nodes) x.animations = anims;
+    const back = nodes.flatMap((x) => htmlToNodes(nodesToHtml(x, { indent: false }).html));
+    expect(back.map((x) => x.type)).toEqual(['video', 'image', 'svg']);
+    for (const x of back) {
+      expect(x.animations).toEqual(anims);
+      expect(x.attrs['data-motion']).toBeUndefined();
+    }
+  });
+
   it('ignores invalid JSON and invalid values', () => {
     const [a, b, c] = htmlToNodes(
       `<div data-motion="not json"></div>` +

@@ -326,7 +326,10 @@ function convertChildren(children: AnyNode[], ctx: Ctx): Node[] {
       if (UNWRAP_TAGS.has(name)) out.push(...convertChildren(c.children, ctx));
       else if (name === 'video') {
         const video = convertVideo(c, ctx);
-        if (video) out.push(video);
+        if (video) {
+          applyMotionAttrs(c, video);
+          out.push(video);
+        }
       } else {
         const node = convertMediaDiv(c, ctx) ?? convertElement(c, ctx);
         applyMotionAttrs(c, node);
