@@ -161,7 +161,7 @@ Measured on 2026-11-26 (Windows 11, Playwright 1.65 headless Chromium, 1440×900
 | `set_slide_transition`                               | 2 ms |
 | `animate` on 12 nodes with `cascade` (one undo step) | 9 ms |
 
-A second run of the same scenario gave the same numbers except one 33 ms frame (one dropped frame) out of 540 during the presentation clicks; `write_html` took 9 ms there. Running loops cost nothing measurable on the main thread (0.7% busy with 60 loops vs 0.8% paused: Chromium runs them on the compositor). The existing editor measurement (`perf.spec.ts`, 300 nodes) is unchanged by this work: MCP → DOM latency 48 ms on this branch vs 47 ms on the base commit, dragging p95 16.8 ms on both.
+Three runs of the same scenario gave the same frame numbers, except one 33 ms frame (one dropped frame) out of 540 during the presentation clicks in one of them; the MCP times varied by a few ms (`write_html` 5–9 ms, `set_slide_transition` 2–3 ms). Running loops cost nothing measurable on the main thread (0.7% busy with 60 loops vs 0.8% paused: Chromium runs them on the compositor). The existing editor measurement (`perf.spec.ts`, 300 nodes) is unchanged by this work: MCP → DOM latency 48 ms on this branch vs 47 ms on the base commit, dragging p95 16.8 ms on both.
 
 ## Limitations
 
