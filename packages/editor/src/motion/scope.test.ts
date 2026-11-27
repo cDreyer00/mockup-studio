@@ -352,3 +352,186 @@ describe('MotionScope: document changes while a frame is not at rest', () => {
     scope.dispose();
   });
 });
+
+describe('MotionScope: no leaked animations', () => {
+  it('unmounting the frame cancels everything and forgets its mode', async () => {
+    const scope = new MotionScope({ loopsInRest: true });
+    const els = dom(lifeFrame);
+    const undo = register(scope, lifeFrame, lifeFrame.children, els);
+    scope.setMode(lifeFrame.id, { type: 'seek', at: { time: 100 } });
+    expect(scope.liveCount()).toBe(2);
+    undo();
+    expect(scope.liveCount()).toBe(0);
+    expect(live()).toHaveLength(0);
+    await Promise.resolve();
+    expect(scope.getMode(lifeFrame.id)).toEqual({ type: 'rest' });
+    expect(scope.timeline(lifeFrame.id)).toBeNull();
+    scope.dispose();
+  });
+
+  it('a mode change reuses the animations; rest leaves only the loops (none off the canvas)', () => {
+    for (const loopsInRest of [true, false]) {
+      created = [];
+      const scope = new MotionScope({ loopsInRest });
+      const els = dom(lifeFrame);
+      const undo = register(scope, lifeFrame, lifeFrame.children, els);
+      scope.setMode(lifeFrame.id, { type: 'seek', at: { time: 0 } });
+      const after = created.length;
+      for (let t = 1; t <= 20; t++) {
+        scope.setMode(lifeFrame.id, { type: 'seek', at: { time: t * 10 } });
+        scope.setMode(lifeFrame.id, { type: 'play', from: t });
+        scope.setMode(lifeFrame.id, { type: 'builds', clicks: t % 2, animate: true });
+      }
+      expect(created).toHaveLength(after);
+      expect(scope.liveCount()).toBe(2);
+      scope.setMode(lifeFrame.id, { type: 'rest' });
+      expect(scope.liveCount()).toBe(loopsInRest ? 1 : 0);
+      expect(live()).toHaveLength(loopsInRest ? 1 : 0);
+      undo();
+      expect(scope.liveCount()).toBe(0);
+      expect(live()).toHaveLength(0);
+      scope.dispose();
+    }
+  });
+
+  it('slide change: the slide that leaves takes its animations with it', async () => {
+    const other: Node = {
+      ...node('fr_next', []),
+      type: 'frame',
+      children: [node('el_next', [{ kind: 'in', preset: 'pop' }])],
+    };
+    const scope = new MotionScope();
+    const first = register(scope, lifeFrame, lifeFrame.children, dom(lifeFrame));
+    scope.setMode(lifeFrame.id, { type: 'builds', clicks: 1, animate: true });
+    // both slides are mounted during the transition
+    const second = register(scope, other, other.children, dom(other));
+    scope.setMode(other.id, { type: 'builds', clicks: 0, animate: true });
+    expect(scope.liveCount()).toBe(3);
+    first();
+    await Promise.resolve();
+    expect(scope.liveCount()).toBe(1);
+    expect(live().map((a) => (a.target as HTMLElement).dataset.nodeId)).toEqual(['el_next']);
+    second();
+    expect(scope.liveCount()).toBe(0);
+    expect(live()).toHaveLength(0);
+    scope.dispose();
+  });
+
+  it('repeated edits do not accumulate animations; dispose cancels the rest', () => {
+    const scope = new MotionScope({ loopsInRest: true });
+    const els = dom(lifeFrame);
+    let undo = register(scope, lifeFrame, lifeFrame.children, els);
+    for (let i = 0; i < 30; i++) {
+      const next = structuredClone(lifeFrame);
+      undo();
+      undo = register(scope, next, next.children, els);
+    }
+    expect(scope.liveCount()).toBe(1);
+    expect(live()).toHaveLength(1);
+    scope.dispose();
+    expect(scope.liveCount()).toBe(0);
+    expect(live()).toHaveLength(0);
+  });
+});
+
+describe('MotionScope: loops pause off screen', () => {
+  class FakeObserver {
+    static all: FakeObserver[] = [];
+    observed = new Set<Element>();
+    disconnected = false;
+    constructor(
+      private cb: IntersectionObserverCallback,
+      readonly options?: IntersectionObserverInit,
+    ) {
+      FakeObserver.all.push(this);
+    }
+    observe(el: Element): void {
+      this.observed.add(el);
+    }
+    unobserve(el: Element): void {
+      this.observed.delete(el);
+    }
+    disconnect(): void {
+      this.observed.clear();
+      this.disconnected = true;
+    }
+    emit(el: Element, isIntersecting: boolean): void {
+      this.cb(
+        [{ target: el, isIntersecting } as IntersectionObserverEntry],
+        this as unknown as IntersectionObserver,
+      );
+    }
+  }
+
+  const viewport = document.createElement('div');
+  beforeEach(() => {
+    FakeObserver.all = [];
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const canvas = () => new MotionScope({ loopsInRest: true, viewport: () => viewport });
+
+  it('observes the frame against the viewport and toggles its loops', () => {
+    const scope = canvas();
+    const els = dom(lifeFrame);
+    register(scope, lifeFrame, lifeFrame.children, els);
+    const io = FakeObserver.all[0]!;
+    const el = els.get(lifeFrame.id)!;
+    expect(io.options).toMatchObject({ root: viewport, rootMargin: '25%' });
+    expect([...io.observed]).toEqual([el]);
+    const loop = live()[0]!;
+    expect(loop.paused).toBe(false);
+    io.emit(el, false);
+    expect(loop.paused).toBe(true);
+    // the same animation resumes: nothing is recreated
+    io.emit(el, true);
+    expect(loop.paused).toBe(false);
+    expect(loop.startTime).not.toBeNull();
+    expect(created).toHaveLength(1);
+    scope.dispose();
+    expect(io.disconnected).toBe(true);
+  });
+
+  it('a frame off screen stays paused through the effects clock and document changes', async () => {
+    const scope = canvas();
+    const els = dom(lifeFrame);
+    let undo = register(scope, lifeFrame, lifeFrame.children, els);
+    const io = FakeObserver.all[0]!;
+    const el = els.get(lifeFrame.id)!;
+    io.emit(el, false);
+    fxClock.setPlaying(false);
+    fxClock.setPlaying(true);
+    expect(live()[0]!.paused).toBe(true);
+    const next = structuredClone(lifeFrame);
+    undo();
+    undo = register(scope, next, next.children, els);
+    await Promise.resolve();
+    expect(live()).toHaveLength(1);
+    expect(live()[0]!.paused).toBe(true);
+    io.emit(el, true);
+    expect(live()[0]!.paused).toBe(false);
+    // visible again but the effects are paused: stays paused
+    fxClock.setPlaying(false);
+    io.emit(el, false);
+    io.emit(el, true);
+    expect(live()[0]!.paused).toBe(true);
+    undo();
+    expect(io.observed.size).toBe(0);
+    scope.dispose();
+  });
+
+  it('visibility does not touch a frame that is being previewed', () => {
+    const scope = canvas();
+    const els = dom(lifeFrame);
+    register(scope, lifeFrame, lifeFrame.children, els);
+    scope.setMode(lifeFrame.id, { type: 'play', from: 0 });
+    FakeObserver.all[0]!.emit(els.get(lifeFrame.id)!, false);
+    expect(live().map((a) => a.paused)).toEqual([false, false]);
+    // back to rest while off screen: the loop comes back paused
+    scope.setMode(lifeFrame.id, { type: 'rest' });
+    expect(live()).toHaveLength(1);
+    expect(live()[0]!.paused).toBe(true);
+    scope.dispose();
+  });
+});
