@@ -236,7 +236,7 @@ describe('render page', () => {
       const { doc, frame } = animated([{ kind: 'in', preset: 'fade', build: 1 }]);
       await api.render({ doc, docId: doc.id, nodeId: frame.id, build: 1, times: [0.4] });
       expect(document.querySelector('[data-filmstrip-label]')?.textContent).toBe(
-        'build 1 + 0.40 s',
+        'click 1 + 0.40 s',
       );
       await api.render({ doc, docId: doc.id, nodeId: frame.id });
       expect(document.querySelector('[data-filmstrip]')).toBeNull();

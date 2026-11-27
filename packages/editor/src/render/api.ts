@@ -317,7 +317,7 @@ export function installRenderApi(container: HTMLElement): MockupRenderApi {
       s.setMode(frame.id, { type: 'seek', at: motionAt(frame, t, build)! });
       return {
         scope: s,
-        label: build !== undefined ? `build ${build} + ${fmtSeconds(t)}` : fmtSeconds(t),
+        label: build !== undefined ? `click ${build} + ${fmtSeconds(t)}` : fmtSeconds(t),
       };
     });
 
