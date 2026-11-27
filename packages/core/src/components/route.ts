@@ -13,6 +13,7 @@
  */
 import { deepClone } from '../clone.js';
 import type { ApplyResult, Op, StyleChange } from '../ops.js';
+import { textSplitProblem } from '../motion/normalize.js';
 import { normalizeStyles } from '../styles.js';
 import { vectorToSvg } from '../vector/svg.js';
 import type { Document, Node, NodeOverride, PropValue } from '../types.js';
@@ -464,10 +465,8 @@ function virtualToOverrides(doc: Document, instanceId: string, op: Op): Op {
           { animations: ch.animations ?? [] },
           `setMotion on "${ch.nodeId}"`,
         ).animations!;
-        if (list.some((a) => a.split === 'words' || a.split === 'chars') && node.type !== 'text')
-          fail(
-            `setMotion on "${ch.nodeId}": split "words" and "chars" only apply to text nodes (this one is ${node.type})`,
-          );
+        const problem = textSplitProblem(list, node.type, `setMotion on "${ch.nodeId}"`);
+        if (problem) fail(problem);
         edit(path).animations = list;
       }
       break;

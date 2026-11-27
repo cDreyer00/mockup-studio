@@ -39,6 +39,33 @@ function fail(msg: string): never {
   throw new Error(msg);
 }
 
+/** `"words"` and `"chars"` cut the text of a text node; on any other node they have no targets. */
+export function isTextSplit(split: AnimationSplit | undefined): boolean {
+  return split === 'words' || split === 'chars';
+}
+
+/**
+ * Error for a list with a text split on a node that is not text (`null` when it fits). Strict paths
+ * (`setMotion`, `createNode`, instance overrides) throw it; lenient readers use `dropTextSplit`.
+ */
+export function textSplitProblem(
+  list: readonly NodeAnimation[] | undefined,
+  nodeType: string,
+  where: string,
+): string | null {
+  if (nodeType === 'text' || !list?.some((a) => isTextSplit(a.split))) return null;
+  return `${where}: split "words" and "chars" only apply to text nodes (this one is ${nodeType})`;
+}
+
+/** Lenient fix for a node that is not text: drops a text split (and its stagger), keeps the animation. */
+export function dropTextSplit(a: NodeAnimation): NodeAnimation {
+  if (!isTextSplit(a.split)) return a;
+  const out = { ...a };
+  delete out.split;
+  delete out.stagger;
+  return out;
+}
+
 const UNSAFE_VALUE = /[;{}<>]|\/\*|\\/;
 
 function ms(v: unknown, field: string, where: string, min: number): number {

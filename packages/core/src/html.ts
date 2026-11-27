@@ -12,7 +12,7 @@ import {
   mediaRefProblem,
 } from './media.js';
 import { cssValueProblem, isValidCssPropertyName, normalizeStyles, toKebabCase } from './styles.js';
-import { normalizeAnimation, normalizeTransition } from './motion/normalize.js';
+import { dropTextSplit, normalizeAnimation, normalizeTransition } from './motion/normalize.js';
 import { sanitizeSvg } from './svg.js';
 import { ATTR_NAME_RE, BLOCKED_TAGS, TAG_RE, VOID_TAGS } from './tags.js';
 import type { MediaParamValue, Node, NodeAnimation, VideoSpec } from './types.js';
@@ -264,8 +264,7 @@ function applyMotionAttrs(el: Element, node: Node): void {
         for (const a of parsed) {
           try {
             const n = normalizeAnimation(a);
-            if ((n.split === 'words' || n.split === 'chars') && node.type !== 'text') continue;
-            list.push(n);
+            list.push(node.type === 'text' ? n : dropTextSplit(n));
           } catch {
             /* ignored */
           }

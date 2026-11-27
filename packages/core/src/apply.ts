@@ -1,5 +1,5 @@
 import { deepClone } from './clone.js';
-import { normalizeAnimations, normalizeTransition } from './motion/normalize.js';
+import { normalizeAnimations, normalizeTransition, textSplitProblem } from './motion/normalize.js';
 import { cloneNodeWithNewIds, collectIds, findNode, findPage, walk } from './document.js';
 import { parseOp } from './ops.schema.js';
 import { effectKinds, getEffect } from './effects/catalog.js';
@@ -918,10 +918,8 @@ function doSetMotion(d: Document, op: Extract<Op, { type: 'setMotion' }>): Appli
       let next: Node['animations'];
       if (c.animations !== null) {
         next = normalizeAnimations(c.animations, `setMotion on "${c.nodeId}"`);
-        if (next?.some((a) => a.split === 'words' || a.split === 'chars') && n.type !== 'text')
-          fail(
-            `setMotion on "${c.nodeId}": split "words" and "chars" only apply to text nodes (this one is ${n.type})`,
-          );
+        const problem = textSplitProblem(next, n.type, `setMotion on "${c.nodeId}"`);
+        if (problem) fail(problem);
       }
       before.animations = n.animations ? deepClone(n.animations) : null;
       if (next) n.animations = next;

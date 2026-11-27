@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyOp } from './apply.js';
 import { expandDocument, getComponent } from './components/expand.js';
+import { normalizeNodeMotion } from './components/ops.js';
 import { findNode } from './document.js';
 import { History } from './history.js';
 import { htmlToNodes, nodesToHtml } from './html.js';
@@ -217,6 +218,27 @@ describe('setMotion', () => {
     });
     expect(node(ok.doc, 'el_new').animations).toEqual([FADE_UP]);
   });
+
+  it('a text split on a created non-text node is dropped on read and rejected unparsed', () => {
+    const words = { kind: 'in', preset: 'fade', split: 'words', stagger: 40 } as const;
+    const r = applyOp(fixture(), {
+      type: 'createNode',
+      parentId: 'fr_1',
+      node: n('el_split', 'element', 'div', { animations: [words, FLOAT] }) as Node,
+    });
+    expect(node(r.doc, 'el_split').animations).toEqual([{ kind: 'in', preset: 'fade' }, FLOAT]);
+    const t = applyOp(fixture(), {
+      type: 'createNode',
+      parentId: 'fr_1',
+      node: n('tx_split', 'text', 'p', { text: 'a b', animations: [words] }) as Node,
+    });
+    expect(node(t.doc, 'tx_split').animations).toEqual([words]);
+    // straight to the normalizer (no lenient parse first): same rule as setMotion
+    const raw = n('el_raw', 'element', 'div', { animations: [words] }) as Node;
+    expect(() => normalizeNodeMotion(raw)).toThrow(/split "words" and "chars" only apply to text/);
+    const ok = n('el_kids', 'element', 'div', { animations: [{ ...words, split: 'children' }] });
+    expect(() => normalizeNodeMotion(ok as Node)).not.toThrow();
+  });
 });
 
 describe('file round trip', () => {
@@ -289,6 +311,20 @@ describe('file round trip', () => {
     expect(node(doc, 'el_a').animations).toEqual([FADE_UP]);
     expect(node(doc, 'tx_a')).not.toHaveProperty('animations');
     expect(node(doc, 'fr_1')).not.toHaveProperty('slideTransition');
+  });
+
+  it('reads a text split on a non-text node as a whole-node animation', () => {
+    const raw = JSON.parse(serializeDocument(fixture())) as {
+      pages: { frames: Record<string, unknown>[] }[];
+    };
+    const kids = raw.pages[0]!.frames[0]!.children as Record<string, unknown>[];
+    kids[0]!.animations = [{ kind: 'in', preset: 'fade', split: 'chars', stagger: 10 }];
+    kids[1]!.animations = [{ kind: 'in', preset: 'fade', split: 'chars', stagger: 10 }];
+    const doc = parseDocument(raw);
+    expect(node(doc, 'el_a').animations).toEqual([{ kind: 'in', preset: 'fade' }]);
+    expect(node(doc, 'tx_a').animations).toEqual([
+      { kind: 'in', preset: 'fade', split: 'chars', stagger: 10 },
+    ]);
   });
 });
 
@@ -402,6 +438,13 @@ describe('html round trip', () => {
     expect(b!.slideTransition).toBeUndefined();
     expect(c!.slideTransition).toBeUndefined();
     expect(b!.attrs).toEqual({});
+  });
+
+  it('drops a text split on a non-text element but keeps the animation', () => {
+    const [div] = htmlToNodes(
+      `<div data-motion='[{"kind":"in","preset":"fade","split":"words"}]'><p>a</p><p>b</p></div>`,
+    );
+    expect(div!.animations).toEqual([{ kind: 'in', preset: 'fade' }]);
   });
 });
 

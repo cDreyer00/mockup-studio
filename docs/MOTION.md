@@ -10,19 +10,19 @@ Animations live on the node (`node.animations`, a list) and slide transitions on
 { "kind": "in", "preset": "fade-up" }
 ```
 
-| Field        | Description                                                                                                                                                    |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kind`       | `in` (entrance: hidden until it plays), `out` (exit: hidden after it plays) or `emphasis` (plays and returns; loops are emphasis with `iterations: infinite`). |
-| `preset`     | A catalog preset (below) or `custom` with `keyframes`.                                                                                                         |
-| `duration`   | One iteration (default: the preset's; exits default to 75% of it).                                                                                             |
-| `delay`      | Wait after the start of its build.                                                                                                                             |
-| `easing`     | Named easing (below) or any CSS easing (`cubic-bezier()`, `steps()`, `linear()`); `spring(0.4)` = spring with that bounce.                                     |
-| `build`      | 0 (default) plays when the frame/slide appears; 1, 2… play on the 1st, 2nd… click of a presentation. Distinct values play in increasing order.                 |
-| `iterations` | Number of plays or `infinite`.                                                                                                                                 |
-| `alternate`  | Alternates direction on every other iteration.                                                                                                                 |
-| `split`      | `children`, `words` or `chars`: animates each child / word / character instead of the node, `stagger` ms apart (default 80, 60, 30).                           |
-| `params`     | Preset parameters (distance, scale, angle, blur, amount, color).                                                                                               |
-| `keyframes`  | `custom` only: Web Animations keyframes (CSS declarations per `offset`, optional per-keyframe `easing`).                                                       |
+| Field        | Description                                                                                                                                                                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`       | `in` (entrance: hidden until it plays), `out` (exit: hidden after it plays) or `emphasis` (plays and returns; loops are emphasis with `iterations: infinite`).                                                                                              |
+| `preset`     | A catalog preset (below) or `custom` with `keyframes`.                                                                                                                                                                                                      |
+| `duration`   | One iteration (default: the preset's; exits default to 75% of it).                                                                                                                                                                                          |
+| `delay`      | Wait after the start of its build.                                                                                                                                                                                                                          |
+| `easing`     | Named easing (below) or any CSS easing (`cubic-bezier()`, `steps()`, `linear()`); `spring(0.4)` = spring with that bounce.                                                                                                                                  |
+| `build`      | 0 (default) plays when the frame/slide appears; 1, 2… play on the 1st, 2nd… click of a presentation. Distinct values play in increasing order.                                                                                                              |
+| `iterations` | Number of plays or `infinite`.                                                                                                                                                                                                                              |
+| `alternate`  | Alternates direction on every other iteration.                                                                                                                                                                                                              |
+| `split`      | `children`, `words` or `chars`: animates each child / word / character instead of the node, `stagger` ms apart (default 80, 60, 30). `words`/`chars` only on text nodes: edits reject them elsewhere, files and HTML drop the split and keep the animation. |
+| `params`     | Preset parameters (distance, scale, angle, blur, amount, color).                                                                                                                                                                                            |
+| `keyframes`  | `custom` only: Web Animations keyframes (CSS declarations per `offset`, optional per-keyframe `easing`).                                                                                                                                                    |
 
 `slideTransition`: `{ preset, duration?, easing?, direction? }` (`direction` = `left` \| `right` \| `up` \| `down` for directional presets; default `left`). It describes how the slide **enters**; going back plays the transition of the slide being left, time-reversed (push left returns as push right, cover returns as reveal).
 

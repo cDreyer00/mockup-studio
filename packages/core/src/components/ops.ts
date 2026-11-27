@@ -26,7 +26,7 @@ import {
   EMPTY_VARIANT_MESSAGE,
   hasVariantCondition,
 } from '../schema.js';
-import { normalizeAnimations, normalizeTransition } from '../motion/normalize.js';
+import { normalizeAnimations, normalizeTransition, textSplitProblem } from '../motion/normalize.js';
 import { VectorSchema } from '../vector/schema.js';
 import { normalizeStateKey } from '../states.js';
 import { isValidCssPropertyName, normalizeStyles, toKebabCase } from '../styles.js';
@@ -152,7 +152,10 @@ export function assertComponentInsertion(
 /** Validates `animations`/`slideTransition` of a node entering the document (throws on invalid input). */
 export function normalizeNodeMotion(node: Node): void {
   if (node.animations !== undefined) {
-    const list = normalizeAnimations(node.animations, `animations of "${node.id}"`);
+    const where = `animations of "${node.id}"`;
+    const list = normalizeAnimations(node.animations, where);
+    const problem = textSplitProblem(list, node.type, where);
+    if (problem) fail(problem);
     if (list) node.animations = list;
     else delete node.animations;
   }

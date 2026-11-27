@@ -7,6 +7,7 @@
  */
 import type { AnimationKind, AnimationSplit, Node } from '../types.js';
 import { animationDefaults, animationEnd, motionTargetCount } from './compile.js';
+import { isTextSplit } from './normalize.js';
 import { getSlideTransition, resolveTransition } from './transitions.js';
 import type { ResolvedTransition } from './transitions.js';
 
@@ -150,7 +151,7 @@ export function frameMotionTimeline(frame: Node): MotionTimeline {
       builds[click.get(d.build)!]!.items++;
       if (a.kind === 'in') kinds.in.push(d.build);
       if (a.kind === 'out') kinds.out.push(d.build);
-      if ((a.split === 'words' || a.split === 'chars') && (node.type !== 'text' || !node.text))
+      if (isTextSplit(a.split) && (node.type !== 'text' || !node.text))
         warnings.push(
           `"${node.name}" (${node.id}): split "${a.split}" only works on a text node with text.`,
         );

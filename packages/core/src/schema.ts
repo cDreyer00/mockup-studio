@@ -4,7 +4,7 @@ import { dropUnsafeStyles, cssValueProblem } from './styles.js';
 import { EffectSpecSchema, EmbedSpecSchema, VideoSpecSchema } from './media.js';
 import { sanitizeSvg } from './svg.js';
 import { normalizeStateKey } from './states.js';
-import { normalizeAnimation, normalizeTransition } from './motion/normalize.js';
+import { dropTextSplit, normalizeAnimation, normalizeTransition } from './motion/normalize.js';
 import {
   BLOCKED_TAGS,
   TAG_RE,
@@ -483,6 +483,8 @@ export const NodeSchema: z.ZodType<Node, unknown> = z.lazy(() =>
       if (n.classes === undefined) delete n.classes;
       if (n.states === undefined) delete n.states;
       if (n.animations === undefined) delete n.animations;
+      // "words"/"chars" only split text: elsewhere the split goes, the animation stays.
+      else if (n.type !== 'text') n.animations = n.animations.map(dropTextSplit);
       if (n.slideTransition === undefined) delete n.slideTransition;
       if (n.componentId === undefined) delete n.componentId;
       if (n.props === undefined) delete n.props;
