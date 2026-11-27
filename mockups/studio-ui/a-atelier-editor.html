@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mockup Studio · Direction A "Atelier" · Editor</title>
+    <style>
+      /* ===== Direction A · "Atelier" — shared tokens and components ===== */
+      :root {
+        --canvas: #161618;
+        --dot: #2a2a2e;
+        --island: #202023;
+        --island-2: #28282c;
+        --island-3: #313136;
+        --line: rgba(255, 255, 255, 0.065);
+        --line-2: rgba(255, 255, 255, 0.11);
+        --text: #ededf0;
+        --dim: #b3b3bb;
+        --muted: #76767f;
+        --faint: #55555c;
+        --accent: #ff6a3d;
+        --accent-2: #ff8a63;
+        --accent-soft: rgba(255, 106, 61, 0.14);
+        --accent-line: rgba(255, 106, 61, 0.45);
+        --agent: #b4a2ff;
+        --agent-soft: rgba(180, 162, 255, 0.14);
+        --ok: #5ad19a;
+        --warn: #f5c255;
+        --r-island: 14px;
+        --r-ctl: 8px;
+        --r-sm: 6px;
+        --font: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+        --display: 'Inter Tight', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+        --shadow:
+          0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -8px rgba(0, 0, 0, 0.55),
+          0 2px 6px rgba(0, 0, 0, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #0d0d0e;
+      }
+      body {
+        width: 1600px;
+        height: 1000px;
+        overflow: hidden;
+        position: relative;
+        font: 12.5px/1.4 var(--font);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+        letter-spacing: -0.003em;
+      }
+      .i {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+      .i.xs {
+        width: 12px;
+        height: 12px;
+      }
+      .i.lg {
+        width: 18px;
+        height: 18px;
+      }
+      .mono {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0;
+      }
+      .canvas {
+        position: absolute;
+        inset: 0;
+        background-color: var(--canvas);
+        background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+        background-size: 20px 20px;
+        overflow: hidden;
+      }
+      .island {
+        position: absolute;
+        background: var(--island);
+        border: 1px solid var(--line);
+        border-radius: var(--r-island);
+        box-shadow: var(--shadow);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .btn {
+        height: 30px;
+        padding: 0 12px;
+        border-radius: var(--r-ctl);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--line-2);
+        background: var(--island-2);
+        color: var(--text);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--dim);
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: transparent;
+        color: #1a0d07;
+        font-weight: 600;
+      }
+      .ibtn {
+        width: 30px;
+        height: 30px;
+        border-radius: var(--r-ctl);
+        display: inline-grid;
+        place-items: center;
+        color: var(--dim);
+        flex: none;
+      }
+      .ibtn.on {
+        background: var(--accent);
+        color: #1a0d07;
+      }
+      .ibtn.soft {
+        background: var(--island-2);
+      }
+      .kbd {
+        font: 500 10.5px/1 var(--mono);
+        color: var(--muted);
+        border: 1px solid var(--line-2);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 3px 5px;
+      }
+      .seg {
+        display: flex;
+        background: #18181b;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 2px;
+      }
+      .seg > span {
+        flex: 1;
+        height: 26px;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .seg > span.on {
+        background: var(--island-3);
+        color: var(--text);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+      .label {
+        font: 600 10.5px/1 var(--font);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        background: var(--island-2);
+        border: 1px solid var(--line);
+        color: var(--dim);
+        font-size: 11.5px;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 0 3px rgba(90, 209, 154, 0.15);
+        flex: none;
+      }
+      .logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: var(--accent);
+        display: grid;
+        place-items: center;
+        position: relative;
+        overflow: hidden;
+        flex: none;
+      }
+      .logo::before {
+        content: '';
+        position: absolute;
+        width: 13px;
+        height: 13px;
+        border: 2.5px solid #1a0d07;
+        border-radius: 3px;
+        transform: translate(-2px, -2px);
+      }
+      .logo::after {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #1a0d07;
+        border-radius: 50%;
+        transform: translate(5px, 5px);
+      }
+      /* top bar */
+      .top-l {
+        left: 12px;
+        top: 12px;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 8px 0 9px;
+      }
+      .top-r {
+        right: 12px;
+        top: 12px;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+      }
+      .crumb {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .crumb b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .sep-v {
+        width: 1px;
+        height: 20px;
+        background: var(--line-2);
+        margin: 0 4px;
+        flex: none;
+      }
+      /* side panels */
+      .left {
+        left: 12px;
+        top: 70px;
+        bottom: 12px;
+        width: 268px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .right {
+        right: 12px;
+        top: 70px;
+        bottom: 12px;
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .ph {
+        padding: 10px 10px 8px;
+      }
+      .search {
+        height: 30px;
+        border-radius: var(--r-ctl);
+        background: #18181b;
+        border: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 9px;
+        color: var(--muted);
+      }
+      .sec-h {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px 6px;
+      }
+      .tree {
+        padding: 0 6px;
+      }
+      .tr {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 7px;
+        padding-right: 8px;
+        color: var(--dim);
+        position: relative;
+        white-space: nowrap;
+      }
+      .tr .i {
+        color: var(--muted);
+      }
+      .tr .tag {
+        font: 10.5px var(--mono);
+        color: var(--faint);
+      }
+      .tr.sel {
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+      .tr.sel .i {
+        color: var(--accent);
+      }
+      .tr.sel::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+      .tr.agent {
+        background: var(--agent-soft);
+        color: var(--text);
+      }
+      .tr.agent .i {
+        color: var(--agent);
+      }
+      .tr .chev {
+        width: 12px;
+        height: 12px;
+        color: var(--faint);
+      }
+      .tr .end {
+        margin-left: auto;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .page {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+        border-radius: 7px;
+        color: var(--dim);
+      }
+      .page.on {
+        background: var(--island-2);
+        color: var(--text);
+      }
+      .page .n {
+        margin-left: auto;
+        font: 10.5px var(--mono);
+        color: var(--faint);
+      }
+      /* inspector */
+      .card {
+        margin: 0 8px 8px;
+        border-radius: 11px;
+        background: #1b1b1e;
+        border: 1px solid var(--line);
+        padding: 10px 10px 11px;
+      }
+      .card-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 9px;
+      }
+      .card-h h4 {
+        font: 600 12px/1 var(--font);
+        color: var(--text);
+        flex: 1;
+      }
+      .card-h .i {
+        color: var(--muted);
+      }
+      .f {
+        height: 28px;
+        border-radius: 7px;
+        background: var(--island-2);
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 8px;
+        color: var(--text);
+        min-width: 0;
+        white-space: nowrap;
+      }
+      .f .k {
+        color: var(--muted);
+        font: 500 10.5px var(--mono);
+        width: 10px;
+      }
+      .f .u {
+        margin-left: auto;
+        color: var(--faint);
+        font-size: 11px;
+      }
+      .f.focus {
+        border-color: var(--accent-line);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      .g2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .g3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+      }
+      .fl {
+        display: grid;
+        grid-template-columns: 70px 1fr;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .fl > .l {
+        color: var(--muted);
+      }
+      .token {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 22px;
+        padding: 0 8px 0 4px;
+        border-radius: 6px;
+        background: rgba(180, 162, 255, 0.1);
+        border: 1px solid rgba(180, 162, 255, 0.25);
+        color: #d8cfff;
+        font: 500 11px var(--mono);
+        white-space: nowrap;
+      }
+      .sw {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+        flex: none;
+      }
+      /* dock */
+      .dock {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 16px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 8px;
+        border-radius: 16px;
+      }
+      .ask {
+        width: 330px;
+        height: 36px;
+        border-radius: 11px;
+        background: #18181b;
+        border: 1px solid var(--line-2);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 5px 0 11px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .ask > .i {
+        color: var(--agent);
+      }
+      .ask .send {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: var(--island-3);
+        display: grid;
+        place-items: center;
+        color: var(--dim);
+        margin-left: auto;
+      }
+      .zoom {
+        right: 324px;
+        bottom: 16px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 5px;
+        border-radius: 12px;
+      }
+      /* canvas frames */
+      .flabel {
+        position: absolute;
+        font: 500 11px var(--font);
+        color: var(--muted);
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .flabel .i {
+        width: 12px;
+        height: 12px;
+      }
+      .frame {
+        position: absolute;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 30px 60px -20px rgba(0, 0, 0, 0.6);
+      }
+      .selbox {
+        position: absolute;
+        border: 1.5px solid var(--accent);
+        pointer-events: none;
+      }
+      .selbox > i {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #fff;
+        border: 1.5px solid var(--accent);
+        border-radius: 2px;
+      }
+      .selbox > i:nth-child(1) {
+        left: -5px;
+        top: -5px;
+      }
+      .selbox > i:nth-child(2) {
+        right: -5px;
+        top: -5px;
+      }
+      .selbox > i:nth-child(3) {
+        left: -5px;
+        bottom: -5px;
+      }
+      .selbox > i:nth-child(4) {
+        right: -5px;
+        bottom: -5px;
+      }
+      .selbox .size {
+        position: absolute;
+        left: 50%;
+        bottom: -26px;
+        transform: translateX(-50%);
+        background: var(--accent);
+        color: #1a0d07;
+        font: 600 10.5px var(--mono);
+        padding: 3px 7px;
+        border-radius: 6px;
+        white-space: nowrap;
+      }
+      .agentbox {
+        position: absolute;
+        border: 1.5px dashed var(--agent);
+        border-radius: 4px;
+        background: rgba(180, 162, 255, 0.06);
+      }
+      .cursor {
+        position: absolute;
+        display: flex;
+        align-items: flex-start;
+        gap: 2px;
+      }
+      .cursor svg.ptr {
+        width: 18px;
+        height: 18px;
+        fill: var(--agent);
+        stroke: #161618;
+        stroke-width: 1.2;
+      }
+      .cursor .who {
+        margin-top: 14px;
+        background: var(--agent);
+        color: #1b1433;
+        font: 600 11px var(--font);
+        padding: 4px 8px;
+        border-radius: 7px 7px 7px 2px;
+        white-space: nowrap;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .cursor .who span {
+        font-weight: 500;
+        opacity: 0.75;
+      }
+      /* sample design ("Lumen" landing, light) */
+      .lm {
+        font-family: var(--font);
+        color: #14151a;
+        background: #fbfaf7;
+        width: 100%;
+        height: 100%;
+      }
+      .lm-nav {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 26px;
+        height: 40px;
+        border-bottom: 1px solid #ecebe6;
+      }
+      .lm-logo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font: 700 12px var(--display);
+        letter-spacing: -0.02em;
+      }
+      .lm-logo i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: conic-gradient(#2346ff, #7c8cff, #2346ff);
+      }
+      .lm-nav nav {
+        display: flex;
+        gap: 16px;
+        margin-left: auto;
+        font-size: 8.5px;
+        color: #5c5e66;
+      }
+      .lm-btn {
+        font: 600 8px var(--font);
+        padding: 5px 9px;
+        border-radius: 6px;
+        background: #14151a;
+        color: #fff;
+      }
+      .lm-btn.alt {
+        background: #fff;
+        color: #14151a;
+        box-shadow: inset 0 0 0 1px #dcdad3;
+      }
+      .lm-hero {
+        text-align: center;
+        padding: 34px 60px 0;
+      }
+      .lm-eyebrow {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font: 600 7.5px var(--font);
+        color: #2346ff;
+        background: #eaeeff;
+        padding: 3px 8px;
+        border-radius: 99px;
+      }
+      .lm-hero h1 {
+        font: 700 30px/1.05 var(--display);
+        letter-spacing: -0.035em;
+        margin: 10px auto 8px;
+        max-width: 420px;
+      }
+      .lm-hero p {
+        font-size: 9.5px;
+        color: #5c5e66;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+      .lm-cta {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 12px;
+      }
+      .lm-shot {
+        margin: 22px 40px 0;
+        height: 150px;
+        border-radius: 10px 10px 0 0;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px #ecebe6,
+          0 20px 40px -20px rgba(20, 21, 26, 0.25);
+        padding: 12px;
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 12px;
+      }
+      .lm-side {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .lm-side b {
+        height: 6px;
+        border-radius: 3px;
+        background: #efeee9;
+      }
+      .lm-side b:first-child {
+        background: #dfe5ff;
+        width: 70%;
+      }
+      .lm-main {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 10px;
+      }
+      .lm-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .lm-kpi {
+        border-radius: 7px;
+        box-shadow: inset 0 0 0 1px #ecebe6;
+        padding: 7px;
+      }
+      .lm-kpi small {
+        display: block;
+        font-size: 6.5px;
+        color: #8a8c93;
+      }
+      .lm-kpi strong {
+        font: 700 12px var(--display);
+        letter-spacing: -0.02em;
+      }
+      .lm-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 5px;
+        padding: 0 4px;
+        border-bottom: 1px solid #ecebe6;
+      }
+      .lm-chart i {
+        flex: 1;
+        border-radius: 3px 3px 0 0;
+        background: #dfe5ff;
+      }
+      .lm-chart i.hi {
+        background: #2346ff;
+      }
+      .lm-feats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 22px 40px;
+      }
+      .lm-feat {
+        padding: 12px;
+        border-radius: 9px;
+        background: #fff;
+        box-shadow: 0 0 0 1px #ecebe6;
+      }
+      .lm-feat .ic {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: #eaeeff;
+        margin-bottom: 8px;
+      }
+      .lm-feat h5 {
+        font: 600 9.5px var(--display);
+        margin-bottom: 3px;
+      }
+      .lm-feat p {
+        font-size: 7.5px;
+        color: #6c6e75;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-cursor" viewBox="0 0 24 24">
+          <path d="M4.5 3.5l6.8 17 2.4-7.3 7.3-2.4z" />
+        </symbol>
+        <symbol id="i-hand" viewBox="0 0 24 24">
+          <path
+            d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"
+          />
+        </symbol>
+        <symbol id="i-frame" viewBox="0 0 24 24">
+          <path d="M22 6H2M22 18H2M6 2v20M18 2v20" />
+        </symbol>
+        <symbol id="i-square" viewBox="0 0 24 24">
+          <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+        </symbol>
+        <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16" /></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="9" cy="9" r="2" />
+          <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+        </symbol>
+        <symbol id="i-pen" viewBox="0 0 24 24">
+          <path d="M12 19l7-7 3 3-7 7z" />
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z" />
+          <path d="M2 2l7.6 7.6" />
+          <circle cx="11" cy="11" r="2" />
+        </symbol>
+        <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24">
+          <path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z" />
+          <path d="M19 14v6M16 17h6" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5l12 7.5-12 7.5z" /></symbol>
+        <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+        <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+        <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+        <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24">
+          <path d="m12 2.5 9.5 4.8L12 12 2.5 7.3z" />
+          <path d="m2.5 16.7 9.5 4.8 9.5-4.8" />
+          <path d="m2.5 12 9.5 4.8 9.5-4.8" />
+        </symbol>
+        <symbol id="i-component" viewBox="0 0 24 24">
+          <path
+            d="M12 2.5l3.5 3.5L12 9.5 8.5 6zM12 14.5l3.5 3.5-3.5 3.5L8.5 18zM6 8.5 9.5 12 6 15.5 2.5 12zM18 8.5l3.5 3.5-3.5 3.5-3.5-3.5z"
+          />
+        </symbol>
+        <symbol id="i-palette" viewBox="0 0 24 24">
+          <path
+            d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"
+          />
+          <circle cx="7.5" cy="11" r="1" />
+          <circle cx="10" cy="7" r="1" />
+          <circle cx="15" cy="7.5" r="1" />
+        </symbol>
+        <symbol id="i-sliders" viewBox="0 0 24 24">
+          <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+          <circle cx="15" cy="6" r="2" />
+          <circle cx="9" cy="12" r="2" />
+          <circle cx="17" cy="18" r="2" />
+        </symbol>
+        <symbol id="i-bot" viewBox="0 0 24 24">
+          <rect x="4" y="8" width="16" height="12" rx="3" />
+          <path d="M12 8V4.5M9 13.5v2M15 13.5v2" />
+        </symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6" /></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24">
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </symbol>
+        <symbol id="i-undo" viewBox="0 0 24 24">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+        </symbol>
+        <symbol id="i-redo" viewBox="0 0 24 24">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9a5 5 0 0 0 0 10h3" />
+        </symbol>
+        <symbol id="i-home" viewBox="0 0 24 24">
+          <path d="M3.5 10.5 12 3.5l8.5 7V20.5h-17z" />
+          <path d="M9.5 20.5v-6h5v6" />
+        </symbol>
+        <symbol id="i-folder" viewBox="0 0 24 24">
+          <path d="M3 6.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </symbol>
+        <symbol id="i-star" viewBox="0 0 24 24">
+          <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+        </symbol>
+        <symbol id="i-tag" viewBox="0 0 24 24">
+          <path d="M3.5 12V3.5H12l8.5 8.5-8.5 8.5z" />
+          <circle cx="8" cy="8" r="1.4" />
+        </symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7.5V12l3 2" />
+        </symbol>
+        <symbol id="i-grid" viewBox="0 0 24 24">
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+        </symbol>
+        <symbol id="i-list" viewBox="0 0 24 24">
+          <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" />
+        </symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+        <symbol id="i-more" viewBox="0 0 24 24">
+          <circle cx="5" cy="12" r="1" />
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="19" cy="12" r="1" />
+        </symbol>
+        <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" /></symbol>
+        <symbol id="i-arrow-down" viewBox="0 0 24 24">
+          <path d="M12 5v14M5.5 12.5 12 19l6.5-6.5" />
+        </symbol>
+        <symbol id="i-arrow-right" viewBox="0 0 24 24">
+          <path d="M5 12h14M12.5 5.5 19 12l-6.5 6.5" />
+        </symbol>
+        <symbol id="i-download" viewBox="0 0 24 24">
+          <path d="M12 3.5v12M7 10.5l5 5 5-5M5 20.5h14" />
+        </symbol>
+        <symbol id="i-link" viewBox="0 0 24 24">
+          <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+          <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+        </symbol>
+        <symbol id="i-monitor" viewBox="0 0 24 24">
+          <rect x="2.5" y="4" width="19" height="13" rx="2" />
+          <path d="M8 21h8M12 17v4" />
+        </symbol>
+        <symbol id="i-phone" viewBox="0 0 24 24">
+          <rect x="7" y="2.5" width="10" height="19" rx="2" />
+          <path d="M11 18h2" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7" /></symbol>
+        <symbol id="i-plug" viewBox="0 0 24 24">
+          <path d="M9 2.5v5M15 2.5v5M6 7.5h12v4a6 6 0 0 1-12 0zM12 17.5v4" />
+        </symbol>
+        <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4.5 17 6-5-6-5M12.5 19h7" /></symbol>
+        <symbol id="i-camera" viewBox="0 0 24 24">
+          <path
+            d="M4 7.5h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"
+          />
+          <circle cx="12" cy="13" r="3.5" />
+        </symbol>
+        <symbol id="i-wand" viewBox="0 0 24 24">
+          <path
+            d="m3 21 12-12M14 4l1-2 1 2 2 1-2 1-1 2-1-2-2-1zM19 10l.7-1.3L21 8l-1.3-.7L19 6l-.7 1.3L17 8l1.3.7z"
+          />
+          <path d="m13 7 4 4" />
+        </symbol>
+        <symbol id="i-maximize" viewBox="0 0 24 24">
+          <path d="M8 3.5H3.5V8M16 3.5h4.5V8M20.5 16v4.5H16M3.5 16v4.5H8" />
+        </symbol>
+        <symbol id="i-message" viewBox="0 0 24 24">
+          <path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 20.5l1.1-4.4A8.5 8.5 0 1 1 20.5 12z" />
+        </symbol>
+        <symbol id="i-mail" viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="m3.5 6.5 8.5 6.5 8.5-6.5" />
+        </symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24">
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+        </symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2.5 4 14h7l-1 7.5L19 10h-7z" /></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24">
+          <path d="M12 21.5s8-3.5 8-10V5.5l-8-3-8 3v6c0 6.5 8 10 8 10z" />
+        </symbol>
+        <symbol id="i-history" viewBox="0 0 24 24">
+          <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5" />
+          <path d="M3.5 3.5v5h5M12 7.5V12l3 2" />
+        </symbol>
+      </defs>
+    </svg>
+    <div class="canvas">
+      <!-- Desktop frame -->
+      <div class="flabel" style="left: 330px; top: 128px">
+        <svg class="i"><use href="#i-monitor" /></svg>Desktop · 1440
+      </div>
+      <div
+        class="frame"
+        style="left: 330px; top: 148px; width: 640px; height: 520px; border-radius: 4px"
+      >
+        <div class="lm">
+          <div class="lm-nav">
+            <div class="lm-logo"><i></i>Lumen</div>
+            <nav>
+              <span>Product</span><span>Pricing</span><span>Customers</span><span>Docs</span>
+            </nav>
+            <span class="lm-btn">Start free</span>
+          </div>
+          <div class="lm-hero">
+            <span class="lm-eyebrow">● New · Shared dashboards</span>
+            <h1>Analytics your whole team can actually read</h1>
+            <p>
+              Connect your data once. Lumen turns it into plain-language dashboards everyone
+              understands.
+            </p>
+            <div class="lm-cta">
+              <span class="lm-btn">Start free</span><span class="lm-btn alt">Book a demo</span>
+            </div>
+          </div>
+          <div class="lm-shot">
+            <div class="lm-side">
+              <b></b><b></b><b style="width: 80%"></b><b></b><b style="width: 60%"></b><b></b>
+            </div>
+            <div class="lm-main">
+              <div class="lm-kpis">
+                <div class="lm-kpi"><small>Active users</small><strong>12,480</strong></div>
+                <div class="lm-kpi"><small>Conversion</small><strong>4.2%</strong></div>
+                <div class="lm-kpi"><small>MRR</small><strong>$38.1k</strong></div>
+              </div>
+              <div class="lm-chart">
+                <i style="height: 30%"></i><i style="height: 45%"></i><i style="height: 38%"></i
+                ><i style="height: 60%"></i><i style="height: 52%"></i><i style="height: 70%"></i
+                ><i class="hi" style="height: 88%"></i><i style="height: 64%"></i
+                ><i style="height: 74%"></i>
+              </div>
+            </div>
+          </div>
+          <div class="lm-feats">
+            <div class="lm-feat">
+              <div class="ic"></div>
+              <h5>Plain-language metrics</h5>
+              <p>Every chart comes with a sentence that explains what changed.</p>
+            </div>
+            <div class="lm-feat">
+              <div class="ic"></div>
+              <h5>One-click sharing</h5>
+              <p>Send a live view to anyone, no seat required.</p>
+            </div>
+            <div class="lm-feat">
+              <div class="ic"></div>
+              <h5>Private by default</h5>
+              <p>Your data stays in your warehouse. We only read.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- selection on Hero -->
+      <div class="selbox" style="left: 330px; top: 188px; width: 640px; height: 180px">
+        <i></i><i></i><i></i><i></i><span class="size">1440 × 405 · Hero</span>
+      </div>
+
+      <!-- agent working on Features -->
+      <div class="agentbox" style="left: 366px; top: 568px; width: 568px; height: 84px"></div>
+      <div class="cursor" style="left: 880px; top: 628px">
+        <svg class="ptr" viewBox="0 0 24 24"><path d="M4 3l7 17 2.5-7.5L21 10z" /></svg>
+        <div class="who">
+          <svg class="i xs"><use href="#i-sparkles" /></svg>Claude
+          <span>· evening out card spacing</span>
+        </div>
+      </div>
+
+      <!-- Mobile frame -->
+      <div class="flabel" style="left: 1010px; top: 128px">
+        <svg class="i"><use href="#i-phone" /></svg>Mobile · 390
+      </div>
+      <div
+        class="frame"
+        style="left: 1010px; top: 148px; width: 220px; height: 470px; border-radius: 14px"
+      >
+        <div class="lm">
+          <div class="lm-nav" style="padding: 0 14px; height: 36px">
+            <div class="lm-logo"><i></i>Lumen</div>
+            <span class="lm-btn" style="margin-left: auto">Menu</span>
+          </div>
+          <div class="lm-hero" style="padding: 22px 16px 0">
+            <span class="lm-eyebrow">● Shared dashboards</span>
+            <h1 style="font-size: 21px">Analytics your whole team can actually read</h1>
+            <p style="font-size: 8.5px">
+              Connect your data once. Lumen turns it into plain-language dashboards.
+            </p>
+            <div class="lm-cta" style="flex-direction: column">
+              <span class="lm-btn" style="padding: 7px">Start free</span
+              ><span class="lm-btn alt" style="padding: 7px">Book a demo</span>
+            </div>
+          </div>
+          <div
+            class="lm-shot"
+            style="margin: 16px 14px 0; height: 120px; grid-template-columns: 1fr; padding: 9px"
+          >
+            <div class="lm-main">
+              <div class="lm-kpis" style="grid-template-columns: 1fr 1fr">
+                <div class="lm-kpi"><small>Users</small><strong>12,480</strong></div>
+                <div class="lm-kpi"><small>MRR</small><strong>$38k</strong></div>
+              </div>
+              <div class="lm-chart">
+                <i style="height: 30%"></i><i style="height: 50%"></i><i style="height: 42%"></i
+                ><i style="height: 70%"></i><i class="hi" style="height: 88%"></i
+                ><i style="height: 64%"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- top left: identity + document -->
+    <div class="island top-l">
+      <div class="logo"></div>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-home" /></svg
+      ></span>
+      <div class="sep-v"></div>
+      <div class="crumb">
+        <span>Lumen</span><svg class="i xs"><use href="#i-right" /></svg><b>Marketing site</b
+        ><svg class="i xs"><use href="#i-down" /></svg>
+      </div>
+      <span class="pill" style="margin-left: 6px"
+        ><svg class="i xs" style="color: var(--ok)"><use href="#i-check" /></svg>Saved</span
+      >
+    </div>
+
+    <!-- top right: agents, present, export -->
+    <div class="island top-r">
+      <span class="pill"><span class="dot"></span>MCP · 127.0.0.1:4747</span>
+      <span
+        class="pill"
+        style="
+          color: #d8cfff;
+          background: var(--agent-soft);
+          border-color: rgba(180, 162, 255, 0.25);
+        "
+        ><svg class="i xs"><use href="#i-sparkles" /></svg>Claude is editing</span
+      >
+      <div class="sep-v"></div>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-undo" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-redo" /></svg
+      ></span>
+      <span class="btn ghost"
+        ><svg class="i"><use href="#i-play" /></svg>Present</span
+      >
+      <span class="btn primary"
+        ><svg class="i"><use href="#i-download" /></svg>Export</span
+      >
+    </div>
+
+    <!-- left island -->
+    <div class="island left">
+      <div class="ph">
+        <div class="seg">
+          <span class="on"
+            ><svg class="i sm"><use href="#i-layers" /></svg>Layers</span
+          >
+          <span
+            ><svg class="i sm"><use href="#i-image" /></svg
+          ></span>
+          <span
+            ><svg class="i sm"><use href="#i-component" /></svg
+          ></span>
+          <span
+            ><svg class="i sm"><use href="#i-palette" /></svg
+          ></span>
+        </div>
+      </div>
+      <div style="padding: 0 10px 4px">
+        <div class="search">
+          <svg class="i sm"><use href="#i-search" /></svg><span class="grow">Find layers</span
+          ><span class="kbd">Ctrl F</span>
+        </div>
+      </div>
+
+      <div class="sec-h">
+        <span class="label">Pages</span
+        ><span class="ibtn" style="width: 22px; height: 22px"
+          ><svg class="i sm"><use href="#i-plus" /></svg
+        ></span>
+      </div>
+      <div style="padding: 0 6px">
+        <div class="page on">
+          <svg class="i sm" style="color: var(--accent)"><use href="#i-frame" /></svg>Landing<span
+            class="n"
+            >2 frames</span
+          >
+        </div>
+        <div class="page">
+          <svg class="i sm"><use href="#i-frame" /></svg>Pricing<span class="n">3</span>
+        </div>
+        <div class="page">
+          <svg class="i sm"><use href="#i-component" /></svg>Components<span class="n">14</span>
+        </div>
+      </div>
+
+      <div class="sec-h" style="margin-top: 6px">
+        <span class="label">Layers</span><span class="mono" style="color: var(--faint)">41</span>
+      </div>
+      <div class="tree">
+        <div class="tr" style="padding-left: 6px">
+          <svg class="i chev"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-frame" /></svg>Desktop 1440
+        </div>
+        <div class="tr" style="padding-left: 22px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-list" /></svg>Navbar <span class="tag">header</span>
+        </div>
+        <div class="tr sel" style="padding-left: 22px">
+          <svg class="i chev"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-square" /></svg>Hero <span class="tag">section</span
+          ><span class="end"
+            ><svg class="i xs"><use href="#i-eye" /></svg
+          ></span>
+        </div>
+        <div class="tr" style="padding-left: 38px">
+          <svg class="i chev" style="opacity: 0"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-square" /></svg>Eyebrow <span class="tag">span</span>
+        </div>
+        <div class="tr" style="padding-left: 38px">
+          <svg class="i chev" style="opacity: 0"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-type" /></svg>Headline <span class="tag">h1</span>
+        </div>
+        <div class="tr" style="padding-left: 38px">
+          <svg class="i chev" style="opacity: 0"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-type" /></svg>Lede <span class="tag">p</span>
+        </div>
+        <div class="tr" style="padding-left: 38px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-component" /></svg>Actions
+          <span class="tag">ButtonGroup</span>
+        </div>
+        <div class="tr" style="padding-left: 22px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-image" /></svg>Product shot <span class="tag">div</span>
+        </div>
+        <div class="tr agent" style="padding-left: 22px">
+          <svg class="i chev"><use href="#i-down" /></svg
+          ><svg class="i sm"><use href="#i-grid" /></svg>Features <span class="tag">section</span
+          ><span class="end"
+            ><svg class="i xs" style="color: var(--agent)"><use href="#i-sparkles" /></svg
+          ></span>
+        </div>
+        <div class="tr" style="padding-left: 38px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-component" /></svg>Feature card
+          <span class="tag">×3</span>
+        </div>
+        <div class="tr" style="padding-left: 22px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-list" /></svg>Footer <span class="tag">footer</span
+          ><span class="end"
+            ><svg class="i xs"><use href="#i-lock" /></svg
+          ></span>
+        </div>
+        <div class="tr" style="padding-left: 6px">
+          <svg class="i chev"><use href="#i-right" /></svg
+          ><svg class="i sm"><use href="#i-frame" /></svg>Mobile 390
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding: 10px; border-top: 1px solid var(--line)">
+        <div class="row" style="color: var(--muted)">
+          <svg class="i sm"><use href="#i-history" /></svg
+          ><span class="grow"
+            >Last change by <b style="color: #d8cfff; font-weight: 500">Claude</b> · 4s ago</span
+          ><span class="mono">#218</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- right island: inspector -->
+    <div class="island right">
+      <div class="ph">
+        <div class="seg">
+          <span class="on"
+            ><svg class="i sm"><use href="#i-sliders" /></svg>Design</span
+          >
+          <span
+            ><svg class="i sm"><use href="#i-sparkles" /></svg>Agent</span
+          >
+          <span
+            ><svg class="i sm"><use href="#i-code" /></svg>Code</span
+          >
+        </div>
+      </div>
+      <div style="padding: 6px 16px 12px; display: flex; align-items: center; gap: 10px">
+        <div
+          style="
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: var(--accent-soft);
+            display: grid;
+            place-items: center;
+            color: var(--accent);
+          "
+        >
+          <svg class="i"><use href="#i-square" /></svg>
+        </div>
+        <div class="grow">
+          <div style="font: 600 14px/1.2 var(--display); letter-spacing: -0.01em">Hero</div>
+          <div class="mono" style="color: var(--muted)">&lt;section&gt; · in Desktop 1440</div>
+        </div>
+        <span class="ibtn soft" style="width: 28px; height: 28px"
+          ><svg class="i sm"><use href="#i-more" /></svg
+        ></span>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <svg class="i sm"><use href="#i-frame" /></svg>
+          <h4>Frame</h4>
+          <span class="mono" style="color: var(--faint)">fill × hug</span>
+        </div>
+        <div class="g2">
+          <div class="f"><span class="k">W</span>Fill<span class="u">1440</span></div>
+          <div class="f"><span class="k">H</span>Hug<span class="u">405</span></div>
+          <div class="f"><span class="k">X</span>0</div>
+          <div class="f"><span class="k">Y</span>64</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <svg class="i sm"><use href="#i-grid" /></svg>
+          <h4>Auto layout</h4>
+          <svg class="i sm"><use href="#i-minus" /></svg>
+        </div>
+        <div class="seg" style="margin-bottom: 8px">
+          <span>Flow</span><span class="on">Stack</span><span>Grid</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 72px 1fr; gap: 10px">
+          <div
+            style="
+              width: 72px;
+              height: 72px;
+              border-radius: 9px;
+              background: var(--island-2);
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              grid-template-rows: repeat(3, 1fr);
+              place-items: center;
+              padding: 8px;
+            "
+          >
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+            <i
+              style="
+                width: 18px;
+                height: 5px;
+                border-radius: 2px;
+                background: var(--accent);
+                box-shadow:
+                  0 6px 0 var(--accent-2),
+                  0 12px 0 var(--accent);
+              "
+            ></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i
+            ><i></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+            <i style="width: 4px; height: 4px; border-radius: 50%; background: var(--faint)"></i>
+          </div>
+          <div style="display: grid; gap: 6px">
+            <div class="seg" style="padding: 2px">
+              <span class="on" style="height: 22px"
+                ><svg class="i sm"><use href="#i-arrow-down" /></svg></span
+              ><span style="height: 22px"
+                ><svg class="i sm"><use href="#i-arrow-right" /></svg></span
+              ><span style="height: 22px; font-size: 11px">Wrap</span>
+            </div>
+            <div class="f focus">
+              <svg class="i xs" style="color: var(--muted)"><use href="#i-minus" /></svg>Gap<span
+                class="token"
+                style="margin-left: auto; height: 20px"
+                >space-6 · 24</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="g2" style="margin-top: 6px">
+          <div class="f"><span class="k">↕</span>96</div>
+          <div class="f"><span class="k">↔</span>64</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <svg class="i sm"><use href="#i-type" /></svg>
+          <h4>Text</h4>
+          <span class="token" style="height: 20px">display/xl</span>
+        </div>
+        <div class="f" style="margin-bottom: 6px">
+          <span style="font-family: var(--display); font-weight: 600">Inter Tight</span
+          ><span class="u">Bold</span
+          ><svg class="i xs" style="color: var(--muted)"><use href="#i-down" /></svg>
+        </div>
+        <div class="g3">
+          <div class="f">64<span class="u">px</span></div>
+          <div class="f">1.05<span class="u">lh</span></div>
+          <div class="f">-3.5<span class="u">%</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <svg class="i sm"><use href="#i-palette" /></svg>
+          <h4>Fill &amp; stroke</h4>
+          <svg class="i sm"><use href="#i-plus" /></svg>
+        </div>
+        <div class="fl" style="margin-top: 0">
+          <span class="l">Fill</span
+          ><span class="token"
+            ><span class="sw" style="background: #fbfaf7"></span>surface/base</span
+          >
+        </div>
+        <div class="fl">
+          <span class="l">Stroke</span>
+          <div class="f" style="color: var(--faint)">None</div>
+        </div>
+        <div class="fl">
+          <span class="l">Radius</span>
+          <div class="f">0<span class="u">px</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 10px">
+        <div class="card-h" style="margin-bottom: 0">
+          <svg class="i sm"><use href="#i-zap" /></svg>
+          <h4>Effects &amp; states</h4>
+          <span class="pill" style="height: 20px; font-size: 10.5px">hover</span
+          ><svg class="i sm"><use href="#i-plus" /></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- bottom dock: tools + ask the agent -->
+    <div class="island dock">
+      <span class="ibtn on"
+        ><svg class="i"><use href="#i-cursor" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-hand" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-frame" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-square" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-type" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-image" /></svg
+      ></span>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-pen" /></svg
+      ></span>
+      <span class="ibtn" style="width: 22px"
+        ><svg class="i xs"><use href="#i-down" /></svg
+      ></span>
+      <div class="sep-v"></div>
+      <span class="ibtn"
+        ><svg class="i"><use href="#i-wand" /></svg
+      ></span>
+      <div class="sep-v"></div>
+      <div class="ask">
+        <svg class="i"><use href="#i-sparkles" /></svg
+        ><span class="grow"
+          >Ask the agent about <b style="color: var(--dim); font-weight: 500">Hero</b>…</span
+        ><span class="kbd">Ctrl K</span
+        ><span class="send"
+          ><svg class="i sm"><use href="#i-up" /></svg
+        ></span>
+      </div>
+    </div>
+
+    <!-- zoom -->
+    <div class="island zoom">
+      <span class="ibtn" style="width: 28px; height: 28px"
+        ><svg class="i sm"><use href="#i-minus" /></svg
+      ></span>
+      <span class="mono" style="width: 38px; text-align: center; color: var(--dim)">44%</span>
+      <span class="ibtn" style="width: 28px; height: 28px"
+        ><svg class="i sm"><use href="#i-plus" /></svg
+      ></span>
+      <span class="ibtn" style="width: 28px; height: 28px"
+        ><svg class="i sm"><use href="#i-maximize" /></svg
+      ></span>
+    </div>
+  </body>
+</html>
