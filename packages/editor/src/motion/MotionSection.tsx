@@ -20,7 +20,7 @@ import { ui, useUi } from '../state/uiStore';
 import { ColorInput, IconButton, Row, Section, SelectInput, TextInput } from '../ui/controls';
 import { NumberInput } from '../ui/NumberInput';
 import { Body } from '../properties/shared';
-import { buildLabel, kindBadge, KIND_LABELS } from './kinds';
+import { buildChoices, buildLabel, clickOfBuild, kindBadge, KIND_LABELS } from './kinds';
 import {
   addAnimationOp,
   changePresetPatch,
@@ -229,7 +229,7 @@ function AnimationRow({
   const [open, setOpen] = useState(selected);
   const ref = useRef<HTMLDivElement>(null);
   const frame = useDoc((s) => (s.doc ? getFrameOf(s.doc, node.id) : undefined));
-  const clicks = useMemo(() => (frame ? frameMotionTimeline(frame).clicks : 0), [frame]);
+  const timeline = useMemo(() => (frame ? frameMotionTimeline(frame) : null), [frame]);
   const d = animationDefaults(anim);
   const preset = getMotionPreset(anim.preset);
   const badge = kindBadge(anim.kind, d.iterations);
@@ -241,15 +241,12 @@ function AnimationRow({
     ref.current?.scrollIntoView?.({ block: 'nearest' });
   }, [selected]);
 
-  const maxBuild = Math.min(99, Math.max(clicks + 1, d.build));
-  const buildOptions = Array.from({ length: maxBuild + 1 }, (_, b) => b);
+  const buildOptions = buildChoices(timeline, d.build);
   const isText = node.type === 'text';
 
   const preview = () => {
     if (!frame) return;
-    const item = frameMotionTimeline(frame).items.find(
-      (i) => i.nodeId === node.id && i.index === index,
-    );
+    const item = timeline?.items.find((i) => i.nodeId === node.id && i.index === index);
     motionPreview.play(frame.id, item?.start ?? 0);
   };
 
@@ -276,7 +273,7 @@ function AnimationRow({
           <span className={`mo-badge ${badge.cls}`}>{badge.label}</span>
           <span className="mo-row-title">{preset?.label ?? anim.preset}</span>
           <span className="mo-row-meta">
-            {buildLabel(d.build)} · {formatMs(d.duration)}
+            {buildLabel(clickOfBuild(timeline, d.build))} · {formatMs(d.duration)}
           </span>
         </button>
         <IconButton
@@ -364,9 +361,9 @@ function AnimationRow({
                 patch({ build: b > 0 ? b : undefined });
               }}
             >
-              {buildOptions.map((b) => (
-                <option key={b} value={b}>
-                  {b === 0 ? 'On slide start' : `Click ${b}`}
+              {buildOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
