@@ -98,11 +98,23 @@ function cssEscape(id: string): string {
   return id.replace(/["\\]/g, '\\$&');
 }
 
-/** Element a compiled animation moves inside the node's element. */
-function targetOf(root: HTMLElement, target: MotionTarget): Element | null {
+/**
+ * Text segments of the node itself: segments of a descendant node (its own split) are skipped,
+ * otherwise the indexes would shift onto them.
+ */
+function ownSegments(root: HTMLElement): Element[] {
+  return Array.from(root.querySelectorAll('[data-motion-seg]')).filter((seg) => {
+    for (let p = seg.parentElement; p && p !== root; p = p.parentElement)
+      if (p.hasAttribute('data-node-id')) return false;
+    return true;
+  });
+}
+
+/** Element a compiled animation moves inside the node's element (`segs`: lazy `ownSegments`). */
+function targetOf(root: HTMLElement, target: MotionTarget, segs: () => Element[]): Element | null {
   if (target.type === 'self') return root;
   if (target.type === 'child') return root.children[target.index] ?? null;
-  return root.querySelectorAll('[data-motion-seg]')[target.index] ?? null;
+  return segs()[target.index] ?? null;
 }
 
 let warned = false;
@@ -311,6 +323,10 @@ export class MotionScope {
     return out;
   }
 
+  /**
+   * Element of a node. Media views (`el` null) mark their root with the node's FULL id, clone suffix
+   * included (`vd_x~2`), so each repeater clone resolves to its own element, never the template's.
+   */
   private element(f: FrameEntry, n: NodeEntry): HTMLElement | null {
     if (n.el) return n.el;
     const root = f.el;
@@ -331,10 +347,12 @@ export class MotionScope {
     const want = f.mode.type === 'rest' ? 'rest' : 'active';
     const el = this.element(f, n);
     if (!canAnimate(el)) return;
+    let segs: Element[] | null = null;
+    const segments = (): Element[] => (segs ??= ownSegments(el));
     for (const c of n.compiled) {
       const loop = c.timing.iterations === Infinity;
       if (want === 'rest' && (!loop || !this.loopsInRest)) continue;
-      const target = targetOf(el, c.target);
+      const target = targetOf(el, c.target, segments);
       if (!canAnimate(target)) continue;
       try {
         const anim = target.animate(toWaapiKeyframes(c.keyframes) as Keyframe[], {

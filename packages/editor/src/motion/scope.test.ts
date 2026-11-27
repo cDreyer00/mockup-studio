@@ -203,6 +203,52 @@ describe('MotionScope', () => {
     scope.dispose();
   });
 
+  it('text segments: only its own, not those of a descendant with its own split', () => {
+    const inner = { ...node('tx_inner', [{ kind: 'in', preset: 'fade', split: 'chars' }]) };
+    const text: Node = {
+      ...node('tx_outer', [{ kind: 'in', preset: 'fade', split: 'words' }], [inner]),
+      type: 'text',
+      text: 'one two',
+    };
+    const f: Node = { ...node('fr_seg', []), type: 'frame', children: [text] };
+    const els = mount(f, [], new MotionScope());
+    // DOM as the renderer leaves it: the descendant's segments come first
+    const outerEl = els.get('tx_outer')!;
+    const innerEl = els.get('tx_inner')!;
+    for (const ch of 'ab') {
+      const seg = document.createElement('span');
+      seg.dataset.motionSeg = 'c';
+      seg.textContent = ch;
+      innerEl.appendChild(seg);
+    }
+    for (const w of ['one', 'two']) {
+      const seg = document.createElement('span');
+      seg.dataset.motionSeg = 'w';
+      seg.textContent = w;
+      outerEl.appendChild(seg);
+    }
+    const scope = new MotionScope();
+    scope.attach(f.id, text, outerEl);
+    scope.setFrame(f.id, f, els.get(f.id)!);
+    scope.setMode(f.id, { type: 'seek', at: { time: 0 } });
+    expect(live().map((a) => a.target.textContent)).toEqual(['one', 'two']);
+    scope.dispose();
+  });
+
+  it('media nodes of repeater clones resolve to their own element', () => {
+    const anim: NodeAnimation[] = [{ kind: 'in', preset: 'fade' }];
+    // a template media node and two clones, found by data-node-id (media views give no element)
+    const ids = ['vd_x', 'vd_x~1', 'vd_x~2'];
+    const vids = ids.map((id) => ({ ...node(id, anim), type: 'video' as const }));
+    const f: Node = { ...node('fr_rep', []), type: 'frame', children: vids };
+    const scope = new MotionScope();
+    const els = mount(f, [], scope);
+    for (const v of vids) scope.attach(f.id, v, null);
+    scope.setMode(f.id, { type: 'seek', at: { time: 0 } });
+    expect(live().map((a) => a.target)).toEqual(ids.map((id) => els.get(id)));
+    scope.dispose();
+  });
+
   it('back to rest cancels the preview animations and recreates the loops', () => {
     const scope = new MotionScope({ loopsInRest: true });
     mount(frame, [title, badge], scope);
