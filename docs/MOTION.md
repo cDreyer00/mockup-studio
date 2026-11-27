@@ -147,9 +147,9 @@ Documents to open (`mockup open <file>`) and play: F5 presents, `get_screenshot`
 
 ## Performance
 
-Stress scenario: `packages/editor/e2e/motion-perf.spec.ts` (12 slides × ~18 animated layers: character-split titles, staggered cards with springs and blur, loops, three click builds per slide, a different transition on each slide: push, cube, zoom, magic, cover, blur). It runs with the e2e suite (`npm run test:e2e`) and writes `motion-perf.json` to the e2e folder.
+Stress scenario: `packages/editor/e2e/motion-perf.spec.ts` (12 slides × ~18 animated layers: character-split titles, staggered cards with springs and blur, loops, three click builds per slide, a different transition on each slide: push, cube, zoom, magic, cover, blur). It runs with the e2e suite (`npm run test:e2e`) in two variants, as described and with the filter presets (every card enters with `blur` and its loop is `glow` instead of `float`), and writes `motion-perf-base.json` and `motion-perf-filters.json` to the e2e folder.
 
-Measured on 2026-11-26 (Windows 11, Playwright 1.65 headless Chromium, 1440×900 viewport). Frame times are the intervals between `requestAnimationFrame` callbacks, so they show any work that blocks the main thread; "long" = frames over 25 ms.
+Measured on 2026-11-26 (Windows 11, Playwright 1.65 headless Chromium, 1440×900 viewport). Frame times are the intervals between `requestAnimationFrame` callbacks, so they show any work that blocks the main thread; "long" = frames over 25 ms. They do **not** measure compositor or raster cost (a headless browser keeps its rAF rhythm however expensive the filters are to draw), so `blur`, `glow` and the wipes still need a check on the target machine.
 
 | Document                 | Value                                                                        |
 | ------------------------ | ---------------------------------------------------------------------------- |
@@ -173,6 +173,18 @@ Measured on 2026-11-26 (Windows 11, Playwright 1.65 headless Chromium, 1440×900
 | `animate` on 12 nodes with `cascade` (one undo step) | 9 ms |
 
 Three runs of the same scenario gave the same frame numbers, except one 33 ms frame (one dropped frame) out of 540 during the presentation clicks in one of them; the MCP times varied by a few ms (`write_html` 5–9 ms, `set_slide_transition` 2–3 ms). Running loops cost nothing measurable on the main thread (0.7% busy with 60 loops vs 0.8% paused: Chromium runs them on the compositor). The existing editor measurement (`perf.spec.ts`, 300 nodes) is unchanged by this work: MCP → DOM latency 48 ms on this branch vs 47 ms on the base commit, dragging p95 16.8 ms on both.
+
+Filter variant (one run on the same machine, same document shape):
+
+| Scenario                                   | fps  | p50 / p95 / max frame | Long frames | Main thread busy |
+| ------------------------------------------ | ---- | --------------------- | ----------- | ---------------- |
+| Canvas, 60 loops running (48 of them glow) | 60   | 16.7 / 16.8 / 16.8 ms | 0           | 14.2%            |
+| Same, loops paused                         | 60.5 | 16.7 / 16.8 / 16.8 ms | 0           | 0.8%             |
+| Panning across the deck                    | 60.4 | 16.7 / 16.7 / 16.8 ms | 0           | —                |
+| Timeline preview of slide 1                | 60   | 16.7 / 16.7 / 16.8 ms | 0           | —                |
+| Presentation: 12 clicks                    | 59.3 | 16.7 / 16.8 / 33.4 ms | 7           | —                |
+
+`glow` animates `filter: drop-shadow()`, which does use main-thread time every frame: keep those loops few.
 
 ## Limitations
 
